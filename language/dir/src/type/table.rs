@@ -181,6 +181,9 @@ pub struct TypeTable {
     /// Symbols that still violate associated requirement implementation contracts.
     #[serde(default)]
     pub(crate) symbols_with_unimplemented_associated_requirements: HashSet<GlobalSymbolId>,
+    /// Associated comptime member symbols whose declared value depends on projection syntax.
+    #[serde(default)]
+    pub(crate) symbols_with_associated_comptime_projection_dependencies: HashSet<GlobalSymbolId>,
 
     // instances (statically parameterised types)
     /// The next instance id to allocate.
@@ -339,6 +342,7 @@ impl TypeTable {
             enum_backing_type_by_symbol_id: IndexMap::new(),
             enum_field_value_by_symbol_id: IndexMap::new(),
             symbols_with_unimplemented_associated_requirements: HashSet::new(),
+            symbols_with_associated_comptime_projection_dependencies: HashSet::new(),
             // instances
             next_instance_id: 0,
             instances: Arena::new(),
@@ -1370,6 +1374,25 @@ impl TypeTable {
         symbol_id: GlobalSymbolId,
     ) -> bool {
         self.symbols_with_unimplemented_associated_requirements
+            .contains(&symbol_id)
+    }
+
+    /// Mark one associated comptime member symbol as projection-dependent in declared static evaluation.
+    pub fn mark_symbol_with_associated_comptime_projection_dependencies(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+    ) {
+        self.symbols_with_associated_comptime_projection_dependencies
+            .insert(symbol_id);
+        self.bump_symbol_version(symbol_id);
+    }
+
+    /// Return true when one associated comptime member symbol depends on projection syntax.
+    pub fn symbol_has_associated_comptime_projection_dependencies(
+        &self,
+        symbol_id: GlobalSymbolId,
+    ) -> bool {
+        self.symbols_with_associated_comptime_projection_dependencies
             .contains(&symbol_id)
     }
 

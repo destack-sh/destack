@@ -362,9 +362,9 @@ impl Compiler {
             symbols,
             types,
         )?;
-        let should_probe_static_integer = index_is_array_size_candidate
+        let should_evaluate_static_integer = index_is_array_size_candidate
             || self.type_index_is_integer_literal(index_expression_id, tree);
-        let index_static_integer = if should_probe_static_integer {
+        let index_static_integer = if should_evaluate_static_integer {
             self.evaluate_integer_static_literal(
                 module,
                 profile,

@@ -1429,192 +1429,48 @@ impl Compiler {
         owner_symbols: &SymbolTable,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
         types: &mut TypeTable,
-    ) -> LocalTypeId {
-        // map unevaluated direct references when projection substitutions become available
-        if matches!(types.get_type(local_type_id), Type::Unevaluated(_))
-            && let Some(target_symbol) = self.projection_substitution_symbol_from_expression(
-                module,
-                profile,
-                expression_id,
-                owner_tree,
-                owner_symbols,
-            )
-        {
-            if let Some(substitution) =
-                self.projection_substitution_type_for_symbol(target_symbol, substitutions)
-            {
-                return self.normalized_projection_substitution_type(substitution, types);
-            }
+    ) -> AnalyzeResult<LocalTypeId> {
+        // projection alias roots
+        if let Some(mapped_alias_target) = self.projection_substituted_alias_target_for_expression(
+            module,
+            profile,
+            expression_id,
+            owner_tree,
+            owner_symbols,
+            substitutions,
+            types,
+        )? {
+            return Ok(mapped_alias_target);
+        }
 
-            let mut visited_symbols = HashSet::new();
-            if let Ok(Some(value)) = self.static_expression_from_constant_reference_specialized(
-                module,
-                profile,
-                target_symbol,
-                owner_tree,
-                owner_symbols,
-                types,
-                substitutions,
-                &mut visited_symbols,
-            ) && let Some(value_type_id) = self.static_expression_type_id_for_substitution(
-                expression_id.into_any(),
-                &value,
-                types,
-            ) {
-                let mut mapped_value_type_id = value_type_id;
-                if !substitutions.is_empty() {
-                    let mut substitution_cache = HashMap::new();
-                    mapped_value_type_id = self.substitute_static_parameters(
-                        mapped_value_type_id,
-                        substitutions,
-                        types,
-                        &mut substitution_cache,
-                    );
-                }
-
-                let mut materialize_cache = TypeRewriteCache::new();
-                mapped_value_type_id = self.materialize_static_arguments_in_type(
-                    module,
-                    profile,
-                    mapped_value_type_id,
-                    owner_tree,
-                    owner_symbols,
-                    types,
-                    &mut materialize_cache,
-                );
-                mapped_value_type_id = self.normalize_type_with_relation(
-                    module,
-                    profile,
-                    mapped_value_type_id,
-                    owner_symbols,
-                    types,
-                    NormalizationMode::Assign,
-                    RelationMode::STATIC_EVAL,
-                );
-
-                return mapped_value_type_id;
-            }
+        // unevaluated projection references
+        if let Some(mapped_type) = self.projection_substituted_unevaluated_type_for_expression(
+            module,
+            profile,
+            expression_id,
+            local_type_id,
+            owner_tree,
+            owner_symbols,
+            substitutions,
+            types,
+        )? {
+            return Ok(mapped_type);
         }
 
         // recurse through nested index expressions and set count inferred types from substitutions
         match owner_tree.get(expression_id).clone() {
             Expression::TypeIndex { left, index } => {
-                let array_parts = match types.get_type(local_type_id) {
-                    Type::ArraySized {
-                        element,
-                        count,
-                        is_readonly,
-                    } => Some((*element, *count, *is_readonly)),
-                    _ => None,
-                };
-                let Some((element, count, is_readonly)) = array_parts else {
-                    return local_type_id;
-                };
-                let mut substitution_cache = HashMap::new();
-                let mut mapped_count = self.substitute_static_parameters(
-                    count,
-                    substitutions,
-                    types,
-                    &mut substitution_cache,
-                );
-
-                if let Some(target_symbol) = self.projection_substitution_symbol_from_expression(
+                return self.apply_projection_substitutions_for_type_index_expression(
                     module,
                     profile,
-                    index,
-                    owner_tree,
-                    owner_symbols,
-                ) && let Some(substitution) =
-                    self.projection_substitution_type_for_symbol(target_symbol, substitutions)
-                {
-                    mapped_count =
-                        self.normalized_projection_substitution_type(substitution, types);
-                }
-
-                // map direct count references through projection substitutions
-                if let Type::Reference { symbol, .. } = types.get_type(mapped_count).clone()
-                    && let Some(substitution) =
-                        self.projection_substitution_type_for_symbol(symbol, substitutions)
-                {
-                    mapped_count =
-                        self.normalized_projection_substitution_type(substitution, types);
-                }
-
-                // materialize remaining comptime references using projection substitutions
-                if let Type::Reference { symbol, .. } = types.get_type(mapped_count).clone() {
-                    let mut visited_symbols = HashSet::new();
-                    if let Ok(Some(value)) = self
-                        .static_expression_from_constant_reference_specialized(
-                            module,
-                            profile,
-                            symbol,
-                            owner_tree,
-                            owner_symbols,
-                            types,
-                            substitutions,
-                            &mut visited_symbols,
-                        )
-                        && let Some(value_type_id) = self
-                            .static_expression_type_id_for_substitution(
-                                expression_id.into_any(),
-                                &value,
-                                types,
-                            )
-                    {
-                        mapped_count = value_type_id;
-                        if !substitutions.is_empty() {
-                            let mut substitution_cache = HashMap::new();
-                            mapped_count = self.substitute_static_parameters(
-                                mapped_count,
-                                substitutions,
-                                types,
-                                &mut substitution_cache,
-                            );
-                        }
-
-                        let mut materialize_cache = TypeRewriteCache::new();
-                        mapped_count = self.materialize_static_arguments_in_type(
-                            module,
-                            profile,
-                            mapped_count,
-                            owner_tree,
-                            owner_symbols,
-                            types,
-                            &mut materialize_cache,
-                        );
-                        mapped_count = self.normalize_type_with_relation(
-                            module,
-                            profile,
-                            mapped_count,
-                            owner_symbols,
-                            types,
-                            NormalizationMode::Assign,
-                            RelationMode::STATIC_EVAL,
-                        );
-                    }
-                }
-
-                let mapped_element = self.apply_projection_substitutions_from_expression(
-                    module,
-                    profile,
+                    expression_id,
                     left,
-                    element,
+                    index,
+                    local_type_id,
                     owner_tree,
                     owner_symbols,
                     substitutions,
                     types,
-                );
-                if mapped_element == element && mapped_count == count {
-                    return local_type_id;
-                }
-
-                return types.insert_type_from_type(
-                    Type::ArraySized {
-                        element: mapped_element,
-                        count: mapped_count,
-                        is_readonly,
-                    },
-                    local_type_id,
                 );
             }
             Expression::Parenthesized { expression } => {
@@ -1653,30 +1509,235 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => (symbol, static_arguments),
-            _ => return local_type_id,
+            _ => return Ok(local_type_id),
         };
         if static_arguments.is_none() {
-            if let Some(mapped_symbol) = self.projection_substitution_symbol_from_expression(
+            return self.projection_substituted_reference_without_static_arguments(
                 module,
                 profile,
                 expression_id,
+                symbol,
+                local_type_id,
                 owner_tree,
                 owner_symbols,
-            ) && (mapped_symbol == symbol
-                || (mapped_symbol.module_id == symbol.module_id
-                    && mapped_symbol.local_id.id == symbol.local_id.id))
-                && let Some(substitution) =
-                    self.projection_substitution_type_for_symbol(mapped_symbol, substitutions)
-            {
-                return self.normalized_projection_substitution_type(substitution, types);
-            }
+                substitutions,
+                types,
+            );
+        }
 
-            if let Some(substitution) =
+        // map reference static arguments that originate from owner projections
+        self.projection_substituted_reference_with_static_arguments(
+            module,
+            profile,
+            expression_id,
+            symbol,
+            static_arguments,
+            local_type_id,
+            owner_tree,
+            owner_symbols,
+            substitutions,
+            types,
+        )
+    }
+
+    /// Return one projection-substituted alias target for a projection-root expression.
+    #[allow(clippy::too_many_arguments)]
+    fn projection_substituted_alias_target_for_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        owner_tree: &NodeTree,
+        owner_symbols: &SymbolTable,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        if !matches!(
+            owner_tree.get(expression_id),
+            Expression::Member { .. } | Expression::Instantiation { .. }
+        ) {
+            return Ok(None);
+        }
+
+        let Some(target_symbol) = self.projection_substitution_symbol_from_expression(
+            module,
+            profile,
+            expression_id,
+            owner_tree,
+            owner_symbols,
+        ) else {
+            return Ok(None);
+        };
+        let Some(alias_target_id) = self.relaxed_alias_target_type_id_for_symbol(
+            module,
+            profile,
+            target_symbol,
+            expression_id.into_any(),
+            owner_tree,
+            owner_symbols,
+            types,
+        ) else {
+            return Ok(None);
+        };
+
+        let mapped_alias_target = self.apply_associated_projection_substitutions(
+            module,
+            profile,
+            target_symbol,
+            alias_target_id,
+            substitutions,
+            owner_tree,
+            owner_symbols,
+            types,
+        )?;
+        if mapped_alias_target == alias_target_id {
+            return Ok(None);
+        }
+
+        Ok(Some(mapped_alias_target))
+    }
+
+    /// Return one projection-substituted type for an unevaluated reference expression.
+    #[allow(clippy::too_many_arguments)]
+    fn projection_substituted_unevaluated_type_for_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        local_type_id: LocalTypeId,
+        owner_tree: &NodeTree,
+        owner_symbols: &SymbolTable,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        if !matches!(types.get_type(local_type_id), Type::Unevaluated(_)) {
+            return Ok(None);
+        }
+
+        let Some(target_symbol) = self.projection_substitution_symbol_from_expression(
+            module,
+            profile,
+            expression_id,
+            owner_tree,
+            owner_symbols,
+        ) else {
+            return Ok(None);
+        };
+
+        if let Some(substitution) =
+            self.projection_substitution_type_for_symbol(target_symbol, substitutions)
+        {
+            let mapped_type = self.normalized_projection_substitution_type(substitution, types);
+            return Ok(Some(mapped_type));
+        }
+
+        let mut visited_symbols = HashSet::new();
+        let Ok(Some(value)) = self.static_expression_from_constant_reference_specialized(
+            module,
+            profile,
+            target_symbol,
+            owner_tree,
+            owner_symbols,
+            types,
+            substitutions,
+            &mut visited_symbols,
+        ) else {
+            return Ok(None);
+        };
+        let Some(value_type_id) = self.static_expression_type_id_for_substitution(
+            expression_id.into_any(),
+            &value,
+            types,
+        ) else {
+            return Ok(None);
+        };
+
+        let mut mapped_value_type_id = value_type_id;
+        if !substitutions.is_empty() {
+            let mut substitution_cache = HashMap::new();
+            mapped_value_type_id = self.substitute_static_parameters(
+                mapped_value_type_id,
+                substitutions,
+                types,
+                &mut substitution_cache,
+            );
+        }
+
+        let mut materialize_cache = TypeRewriteCache::new();
+        mapped_value_type_id = self.materialize_static_arguments_in_type(
+            module,
+            profile,
+            mapped_value_type_id,
+            owner_tree,
+            owner_symbols,
+            types,
+            &mut materialize_cache,
+        );
+        mapped_value_type_id = self.normalize_type_with_relation(
+            module,
+            profile,
+            mapped_value_type_id,
+            owner_symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::STATIC_EVAL,
+        );
+
+        Ok(Some(mapped_value_type_id))
+    }
+
+    /// Return one projection-substituted type for a type-index expression.
+    #[allow(clippy::too_many_arguments)]
+    fn apply_projection_substitutions_for_type_index_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        index: LocalNodeId<Expression>,
+        local_type_id: LocalTypeId,
+        owner_tree: &NodeTree,
+        owner_symbols: &SymbolTable,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        let array_parts = match types.get_type(local_type_id) {
+            Type::ArraySized {
+                element,
+                count,
+                is_readonly,
+            } => Some((*element, *count, *is_readonly)),
+            _ => None,
+        };
+        let Some((element, count, is_readonly)) = array_parts else {
+            return Ok(local_type_id);
+        };
+        let mut substitution_cache = HashMap::new();
+        let mut mapped_count =
+            self.substitute_static_parameters(count, substitutions, types, &mut substitution_cache);
+
+        if let Some(target_symbol) = self.projection_substitution_symbol_from_expression(
+            module,
+            profile,
+            index,
+            owner_tree,
+            owner_symbols,
+        ) && let Some(substitution) =
+            self.projection_substitution_type_for_symbol(target_symbol, substitutions)
+        {
+            mapped_count = self.normalized_projection_substitution_type(substitution, types);
+        }
+
+        // map direct count references through projection substitutions
+        if let Type::Reference { symbol, .. } = types.get_type(mapped_count).clone()
+            && let Some(substitution) =
                 self.projection_substitution_type_for_symbol(symbol, substitutions)
-            {
-                return self.normalized_projection_substitution_type(substitution, types);
-            }
+        {
+            mapped_count = self.normalized_projection_substitution_type(substitution, types);
+        }
 
+        // materialize remaining comptime references using projection substitutions
+        if let Type::Reference { symbol, .. } = types.get_type(mapped_count).clone() {
             let mut visited_symbols = HashSet::new();
             if let Ok(Some(value)) = self.static_expression_from_constant_reference_specialized(
                 module,
@@ -1692,18 +1753,137 @@ impl Compiler {
                 &value,
                 types,
             ) {
-                return value_type_id;
-            }
+                mapped_count = value_type_id;
+                if !substitutions.is_empty() {
+                    let mut substitution_cache = HashMap::new();
+                    mapped_count = self.substitute_static_parameters(
+                        mapped_count,
+                        substitutions,
+                        types,
+                        &mut substitution_cache,
+                    );
+                }
 
-            return local_type_id;
+                let mut materialize_cache = TypeRewriteCache::new();
+                mapped_count = self.materialize_static_arguments_in_type(
+                    module,
+                    profile,
+                    mapped_count,
+                    owner_tree,
+                    owner_symbols,
+                    types,
+                    &mut materialize_cache,
+                );
+                mapped_count = self.normalize_type_with_relation(
+                    module,
+                    profile,
+                    mapped_count,
+                    owner_symbols,
+                    types,
+                    NormalizationMode::Assign,
+                    RelationMode::STATIC_EVAL,
+                );
+            }
         }
 
-        // map reference static arguments that originate from owner projections
+        let mapped_element = self.apply_projection_substitutions_from_expression(
+            module,
+            profile,
+            left,
+            element,
+            owner_tree,
+            owner_symbols,
+            substitutions,
+            types,
+        )?;
+        if mapped_element == element && mapped_count == count {
+            return Ok(local_type_id);
+        }
+
+        Ok(types.insert_type_from_type(
+            Type::ArraySized {
+                element: mapped_element,
+                count: mapped_count,
+                is_readonly,
+            },
+            local_type_id,
+        ))
+    }
+
+    /// Return one projection-substituted reference type with no static arguments.
+    #[allow(clippy::too_many_arguments)]
+    fn projection_substituted_reference_without_static_arguments(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        symbol: GlobalSymbolId,
+        local_type_id: LocalTypeId,
+        owner_tree: &NodeTree,
+        owner_symbols: &SymbolTable,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        if let Some(mapped_symbol) = self.projection_substitution_symbol_from_expression(
+            module,
+            profile,
+            expression_id,
+            owner_tree,
+            owner_symbols,
+        ) && (mapped_symbol == symbol
+            || (mapped_symbol.module_id == symbol.module_id
+                && mapped_symbol.local_id.id == symbol.local_id.id))
+            && let Some(substitution) =
+                self.projection_substitution_type_for_symbol(mapped_symbol, substitutions)
+        {
+            return Ok(self.normalized_projection_substitution_type(substitution, types));
+        }
+
+        if let Some(substitution) =
+            self.projection_substitution_type_for_symbol(symbol, substitutions)
+        {
+            return Ok(self.normalized_projection_substitution_type(substitution, types));
+        }
+
+        let mut visited_symbols = HashSet::new();
+        if let Ok(Some(value)) = self.static_expression_from_constant_reference_specialized(
+            module,
+            profile,
+            symbol,
+            owner_tree,
+            owner_symbols,
+            types,
+            substitutions,
+            &mut visited_symbols,
+        ) && let Some(value_type_id) =
+            self.static_expression_type_id_for_substitution(expression_id.into_any(), &value, types)
+        {
+            return Ok(value_type_id);
+        }
+
+        Ok(local_type_id)
+    }
+
+    /// Return one projection-substituted reference type with static arguments.
+    #[allow(clippy::too_many_arguments)]
+    fn projection_substituted_reference_with_static_arguments(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<Vec<StaticArgument>>,
+        local_type_id: LocalTypeId,
+        owner_tree: &NodeTree,
+        owner_symbols: &SymbolTable,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
         let Some(static_arguments) = static_arguments else {
-            return local_type_id;
+            return Ok(local_type_id);
         };
         let Some(argument_nodes) = owner_tree.get(expression_id).static_arguments() else {
-            return local_type_id;
+            return Ok(local_type_id);
         };
 
         // walk static arguments in lock-step with the alias expression arguments
@@ -1760,7 +1940,7 @@ impl Compiler {
                 owner_symbols,
                 substitutions,
                 types,
-            );
+            )?;
             if mapped_type == ty {
                 continue;
             }
@@ -1773,16 +1953,16 @@ impl Compiler {
         }
 
         if !changed {
-            return local_type_id;
+            return Ok(local_type_id);
         }
 
-        types.insert_type_from_type(
+        Ok(types.insert_type_from_type(
             Type::Reference {
                 symbol,
                 static_arguments: Some(mapped_arguments),
             },
             local_type_id,
-        )
+        ))
     }
 
     /// Apply associated projection substitutions to imported alias targets when needed.
@@ -1809,13 +1989,13 @@ impl Compiler {
                 tree,
                 symbols,
                 AnalyzeDependencyStage::Declare,
-                |owner_module, owner_tree, owner_symbols| {
+                |owner_module, owner_tree, owner_symbols| -> AnalyzeResult<LocalTypeId> {
                     let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
                     let Some(primary_declaration) = symbol_entry.primary_declaration else {
-                        return alias_target_id;
+                        return Ok(alias_target_id);
                     };
                     if primary_declaration.local_id.ty != NodeType::Member {
-                        return alias_target_id;
+                        return Ok(alias_target_id);
                     }
 
                     let member_id = primary_declaration.local_id.into_typed::<Member>();
@@ -1824,7 +2004,7 @@ impl Compiler {
                         ..
                     } = owner_tree.get(member_id)
                     else {
-                        return alias_target_id;
+                        return Ok(alias_target_id);
                     };
 
                     self.apply_projection_substitutions_from_expression(
@@ -1840,6 +2020,7 @@ impl Compiler {
                 },
             )
             .map_err(AnalyzeError::from)?;
+        let mapped_alias_target = mapped_alias_target?;
 
         Ok(mapped_alias_target)
     }

@@ -1,3 +1,4 @@
+mod dependency;
 mod materialize;
 mod requirement;
 mod resolve;

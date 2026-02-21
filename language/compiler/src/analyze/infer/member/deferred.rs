@@ -138,7 +138,26 @@ impl Compiler {
             symbols,
             types,
         ) {
-            return Ok(None);
+            if !self.unresolved_projection_obligation_requires_primary_static_error_check(
+                module,
+                profile,
+                member_symbol,
+                symbols,
+                types,
+            )? {
+                return Ok(None);
+            }
+
+            return self.projection_obligation_error_type_for_unresolved_substitutions_after_infer(
+                module,
+                profile,
+                expression_id,
+                member_symbol,
+                substitutions,
+                tree,
+                symbols,
+                types,
+            );
         }
 
         self.resolved_projection_obligation_static_value_type_after_infer(
@@ -148,6 +167,25 @@ impl Compiler {
             member_symbol,
             substitutions,
             tree,
+            symbols,
+            types,
+        )
+    }
+
+    /// Return true when unresolved substitutions may still produce a primary static-cycle error.
+    #[allow(clippy::too_many_arguments)]
+    fn unresolved_projection_obligation_requires_primary_static_error_check(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        member_symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> AnalyzeResult<bool> {
+        self.query_symbol_has_associated_comptime_projection_dependencies(
+            module,
+            profile,
+            member_symbol,
             symbols,
             types,
         )
@@ -237,7 +275,84 @@ impl Compiler {
     /// Resolve one projection obligation static value type after infer convergence.
     /// Return None when the static value is unresolved.
     #[allow(clippy::too_many_arguments)]
+    fn projection_obligation_error_type_for_unresolved_substitutions_after_infer(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeIdAny,
+        member_symbol: GlobalSymbolId,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        let Some(value_type_id) = self.projection_obligation_static_value_type_for_substitutions(
+            module,
+            profile,
+            expression_id,
+            member_symbol,
+            substitutions,
+            tree,
+            symbols,
+            types,
+        )?
+        else {
+            return Ok(None);
+        };
+
+        let value_type_id = types.unwrap_value_type_id(value_type_id);
+        if matches!(types.get_type(value_type_id), Type::Error) {
+            return Ok(Some(value_type_id));
+        }
+
+        Ok(None)
+    }
+
+    /// Resolve one projection obligation static value type after infer convergence.
+    /// Return None when the static value is unresolved.
+    #[allow(clippy::too_many_arguments)]
     fn resolved_projection_obligation_static_value_type_after_infer(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeIdAny,
+        member_symbol: GlobalSymbolId,
+        substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        let Some(value_type_id) = self.projection_obligation_static_value_type_for_substitutions(
+            module,
+            profile,
+            expression_id,
+            member_symbol,
+            substitutions,
+            tree,
+            symbols,
+            types,
+        )?
+        else {
+            return Ok(None);
+        };
+
+        // keep error sentinels resolved here: primary diagnostics are emitted by static evaluation
+        let committed_type_id = self.projection_obligation_committed_value_type_for_symbol(
+            module,
+            profile,
+            expression_id,
+            member_symbol,
+            value_type_id,
+            types,
+        )?;
+
+        Ok(Some(committed_type_id))
+    }
+
+    /// Resolve one projected static value type for one substitution environment.
+    /// Return None when no static value can be produced yet.
+    #[allow(clippy::too_many_arguments)]
+    fn projection_obligation_static_value_type_for_substitutions(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -262,24 +377,7 @@ impl Compiler {
         let Some(static_value) = static_value else {
             return Ok(None);
         };
-
-        // keep error sentinels resolved here: primary diagnostics are emitted by static evaluation
-        let Some(value_type_id) =
-            self.static_expression_type_id_for_substitution(expression_id, &static_value, types)
-        else {
-            return Ok(None);
-        };
-
-        let committed_type_id = self.projection_obligation_committed_value_type_for_symbol(
-            module,
-            profile,
-            expression_id,
-            member_symbol,
-            value_type_id,
-            types,
-        )?;
-
-        Ok(Some(committed_type_id))
+        Ok(self.static_expression_type_id_for_substitution(expression_id, &static_value, types))
     }
 
     /// Resolve the committed value-space type for one projection obligation.

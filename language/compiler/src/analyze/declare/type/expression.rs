@@ -1009,7 +1009,145 @@ impl Compiler {
         Ok(elements)
     }
 
-    /// Evaluate an expression into a static value expression.
+    /// Resolve one declared type-index expression.
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_declared_type_index_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        left: LocalNodeId<Expression>,
+        index: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<Type> {
+        // resolve the left side first
+        let left_id = self.resolve_declared_type_expression(
+            module,
+            profile,
+            left,
+            tree,
+            symbols,
+            types,
+            validate_static_argument_bounds,
+            enforce_implicit_managed,
+        )?;
+
+        // disambiguate indexed access vs fixed-size array construction
+        let interpretation =
+            self.type_index_interpretation(module, profile, left_id, index, tree, symbols, types)?;
+        if interpretation == TypeIndexResolutionKind::ArraySized {
+            return self.resolve_declared_array_sized_type_for_index_expression(
+                module,
+                profile,
+                left_id,
+                index,
+                tree,
+                symbols,
+                types,
+                validate_static_argument_bounds,
+                enforce_implicit_managed,
+            );
+        }
+
+        // otherwise this stays a regular indexed-access type
+        let index_id = self.resolve_declared_type_expression(
+            module,
+            profile,
+            index,
+            tree,
+            symbols,
+            types,
+            validate_static_argument_bounds,
+            enforce_implicit_managed,
+        )?;
+
+        Ok(Type::Index {
+            left: left_id,
+            index: index_id,
+        })
+    }
+
+    /// Resolve one fixed-size array type from a type-index expression.
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_declared_array_sized_type_for_index_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        element_type_id: LocalTypeId,
+        index: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<Type> {
+        // resolve direct integer literal sizes first
+        let integer_array_size =
+            self.evaluate_integer_static_literal(module, profile, index, tree, symbols, types)?;
+        if let Some(value) = integer_array_size {
+            if value < 0 {
+                return Err(AnalyzeError::InvalidArraySize {
+                    node: index
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                });
+            }
+
+            self.set_integer_literal_type(module.id, index, value, types);
+            let count_type_id =
+                self.array_sized_count_type_id_for_expression(module.id, index, types);
+
+            return Ok(Type::ArraySized {
+                element: element_type_id,
+                count: count_type_id,
+                is_readonly: false,
+            });
+        }
+
+        // resolve symbolic static-parameter counts when present
+        if self.expression_is_array_size_candidate(module, profile, index, tree, symbols, types)? {
+            let count_type_id = self
+                .resolve_array_size_parameter_type(
+                    module,
+                    profile,
+                    index,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?
+                .unwrap_or_else(|| {
+                    self.array_sized_count_type_id_for_expression(module.id, index, types)
+                });
+
+            return Ok(Type::ArraySized {
+                element: element_type_id,
+                count: count_type_id,
+                is_readonly: false,
+            });
+        }
+
+        // keep indexed access when the index is not a valid array-size value
+        let index_id = self.resolve_declared_type_expression(
+            module,
+            profile,
+            index,
+            tree,
+            symbols,
+            types,
+            validate_static_argument_bounds,
+            enforce_implicit_managed,
+        )?;
+
+        Ok(Type::Index {
+            left: element_type_id,
+            index: index_id,
+        })
+    }
 
     fn resolve_declared_expression_type(
         &self,
@@ -1668,103 +1806,17 @@ impl Compiler {
             }
             Expression::TypeIndex { left, index } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_INDEX);
-
-                // resolve the left type
-                let left_id = self.resolve_declared_type_expression(
+                self.resolve_declared_type_index_expression(
                     module,
                     profile,
                     left,
+                    index,
                     tree,
                     symbols,
                     types,
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
-                )?;
-
-                // disambiguate between type indexing and fixed-size arrays
-                let interpretation = self.type_index_interpretation(
-                    module, profile, left_id, index, tree, symbols, types,
-                )?;
-
-                // compute the type index result
-                if interpretation == TypeIndexResolutionKind::ArraySized {
-                    let integer_array_size = self.evaluate_integer_static_literal(
-                        module, profile, index, tree, symbols, types,
-                    )?;
-
-                    // treat static integer literals as array sizes
-                    if let Some(value) = integer_array_size {
-                        if value < 0 {
-                            return Err(AnalyzeError::InvalidArraySize {
-                                node: index
-                                    .into_global_any(module.id)
-                                    .into_anchored(Some(profile)),
-                            });
-                        }
-                        self.set_integer_literal_type(module.id, index, value, types);
-                        let count_type_id =
-                            self.array_sized_count_type_id_for_expression(module.id, index, types);
-                        Type::ArraySized {
-                            element: left_id,
-                            count: count_type_id,
-                            is_readonly: false,
-                        }
-                    } else if self.expression_is_array_size_candidate(
-                        module, profile, index, tree, symbols, types,
-                    )? {
-                        let count_type_id = self
-                            .resolve_array_size_parameter_type(
-                                module,
-                                profile,
-                                index,
-                                tree,
-                                symbols,
-                                types,
-                                validate_static_argument_bounds,
-                                enforce_implicit_managed,
-                            )?
-                            .unwrap_or_else(|| {
-                                self.array_sized_count_type_id_for_expression(
-                                    module.id, index, types,
-                                )
-                            });
-                        Type::ArraySized {
-                            element: left_id,
-                            count: count_type_id,
-                            is_readonly: false,
-                        }
-                    } else {
-                        let index_id = self.resolve_declared_type_expression(
-                            module,
-                            profile,
-                            index,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            enforce_implicit_managed,
-                        )?;
-                        Type::Index {
-                            left: left_id,
-                            index: index_id,
-                        }
-                    }
-                } else {
-                    let index_id = self.resolve_declared_type_expression(
-                        module,
-                        profile,
-                        index,
-                        tree,
-                        symbols,
-                        types,
-                        validate_static_argument_bounds,
-                        enforce_implicit_managed,
-                    )?;
-                    Type::Index {
-                        left: left_id,
-                        index: index_id,
-                    }
-                }
+                )?
             }
             Expression::TypeTemplateLiteral { strings, spans } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
