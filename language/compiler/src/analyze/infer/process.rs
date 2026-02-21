@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::analyze::common::{NormalizationMode, TypeRewriteCache};
 use crate::analyze::StaticMemberSymbolKind;
+use crate::analyze::common::{NormalizationMode, TypeRewriteCache};
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, Compiler, FlowContext, InferSession, TaskDependencyError,

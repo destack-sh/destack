@@ -1,6 +1,4 @@
-use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode,
-};
+use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode};
 use crate::analyze::{AssociatedProjectionSelection, StaticMemberSymbolKind};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};

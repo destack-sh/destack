@@ -1,4 +1,4 @@
-use crate::analyze::common::declared::TypeMemberResolution;
+use crate::analyze::declare::TypeMemberResolution;
 use destack_dir::{
     Expression, LocalScopeMark, LocalTypeId, PrimitiveType, ScalarLiteral, StaticArgument,
     StaticExpression, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable, TypeUnaryOperator,

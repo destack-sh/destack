@@ -2,13 +2,13 @@ use std::process::ExitCode;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
+use rayon::prelude::*;
 
 use super::print::color;
 use super::{
-    filter_tests, print_failures, print_result, print_summary, print_test_list, RunContext, Suite,
-    TestCase, TestOptions, TestResult, TestSummary,
+    RunContext, Suite, TestCase, TestOptions, TestResult, TestSummary, filter_tests,
+    print_failures, print_result, print_summary, print_test_list,
 };
 use std::collections::HashSet;
 

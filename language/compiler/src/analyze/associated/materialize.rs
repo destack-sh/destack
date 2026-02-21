@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::resolve::AssociatedAliasProjectionRewriter;
-use crate::analyze::common::{AnalyzeDependencyStage, TypeRewriteCache};
 use crate::analyze::StaticMemberSymbolKind;
+use crate::analyze::common::{AnalyzeDependencyStage, TypeRewriteCache};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeIdAny, Member, NodeTree, NodeType, StaticArgument,

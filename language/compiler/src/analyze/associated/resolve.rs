@@ -9,8 +9,7 @@ use destack_base::StringId;
 use destack_dir::{
     Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, Member, NodeTree, NodeType, StaticArgument, StaticKey, SymbolTable, SymbolType,
-    Type, TypeRewriter,
-    TypeRewriterOptions, TypeTable,
+    Type, TypeRewriter, TypeRewriterOptions, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
