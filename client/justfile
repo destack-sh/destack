@@ -26,7 +26,7 @@ ci-lint:
 
 # run client test gate
 ci-tests:
-    just test
+    just test-ci
 
 # run all blocking client ci gates locally
 ci:
@@ -99,12 +99,28 @@ clean:
 
 # --- test ---
 
-# run all tests
-test:
+# run quick tests for local development
+test-quick:
     cargo test --release --all-targets {{ test-packages }}
     bun run --cwd napi test
     bun run --cwd wasm test
     bun run --cwd typescript test
+
+# run blocking ci test gates
+test-ci:
+    just test-quick
+
+# run nightly test gates
+test-nightly:
+    just test-ci
+
+# run release test gates
+test-release:
+    just test-ci
+
+# run quick tests (alias for test-quick)
+test:
+    just test-quick
 
 # --- release ---
 

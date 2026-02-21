@@ -21,7 +21,7 @@ ci-lint:
 
 # run library test gate
 ci-tests:
-    just test
+    just test-ci
 
 # run all blocking library ci gates locally
 ci:
@@ -38,9 +38,25 @@ check:
 lint:
     just check
 
-# test
-test:
+# run quick tests for local development
+test-quick:
     @echo "No library tests defined"
+
+# run blocking ci test gates
+test-ci:
+    just test-quick
+
+# run nightly test gates
+test-nightly:
+    just test-ci
+
+# run release test gates
+test-release:
+    just test-ci
+
+# run quick tests (alias for test-quick)
+test:
+    just test-quick
 
 # format code
 format:

@@ -175,7 +175,7 @@ Grouped list payloads use:
 { "groups": [], "total_groups": 0, "total_items": 0 }
 ```
 
-Generate the CLI report schema with:
+Generate the CLI report schema with one of these commands.
 Run these commands from the repository root.
 
 ```sh

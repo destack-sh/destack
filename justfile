@@ -97,12 +97,37 @@ clean:
 
 # --- test ---
 
-# run all tests
+# run quick tests for local development
+test-quick:
+    just language/test-quick
+    just library/test-quick
+    just client/test-quick
+    just platform/test-quick
+
+# run blocking ci test gates
+test-ci:
+    just language/test-ci
+    just library/test-ci
+    just client/test-ci
+    just platform/test-ci
+
+# run nightly test gates
+test-nightly:
+    just language/test-nightly
+    just library/test-nightly
+    just client/test-nightly
+    just platform/test-nightly
+
+# run release test gates
+test-release:
+    just language/test-release
+    just library/test-release
+    just client/test-release
+    just platform/test-release
+
+# run quick tests (alias for test-quick)
 test:
-    just language/test
-    just library/test
-    just client/test
-    just platform/test
+    just test-quick
 
 # run ide integration tests
 test-ide:
@@ -126,11 +151,19 @@ test-runtime-privileged:
 bench:
     just language/bench
 
+# run nightly benchmark lane
+bench-nightly:
+    just language/bench-nightly
+
 # --- fuzz ---
 
 # run fuzzers
 fuzz duration="60":
     just language/fuzz {{duration}}
+
+# run nightly fuzz smoke lane
+fuzz-nightly duration="120":
+    just language/fuzz-nightly {{duration}}
 
 # --- release ---
 
