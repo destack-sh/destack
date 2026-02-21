@@ -36,8 +36,6 @@ pub mod memory;
 pub mod net;
 /// OS bindings.
 pub mod os;
-/// Platform event polling abstraction.
-pub mod poller;
 /// Completion-based I/O abstraction.
 pub mod proactor;
 /// Process bindings.
@@ -64,16 +62,6 @@ pub use abi::{
 pub use context::PlatformContext;
 pub use diagnostic::{PlatformError, PlatformErrorCode, PlatformResult};
 pub use generated::{PLATFORM_NATIVE_BINDINGS, PLATFORM_VM_BINDINGS};
-#[cfg(target_os = "linux")]
-pub use poller::IoUringPoller;
-#[cfg(unix)]
-pub use poller::UnixPoller;
-#[cfg(windows)]
-pub use poller::WindowsPoller;
-pub use poller::{
-    PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventSource, PlatformHandle,
-    PlatformInterest, PlatformPoller, PlatformPollerFlags, PollerToken,
-};
 #[cfg(target_os = "linux")]
 pub use proactor::IoUringProactor;
 #[cfg(windows)]

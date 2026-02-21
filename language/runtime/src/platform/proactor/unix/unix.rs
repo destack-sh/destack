@@ -5,15 +5,12 @@ use std::time::Duration;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::io_error_code_from_errno;
-use crate::platform::poller::PlatformEventMask;
 use crate::platform::proactor::{
     Proactor, ProactorBufferVec, ProactorCompletion, ProactorCompletionData, ProactorOp,
     ProactorOpKind, ProactorRequest, ProactorShutdown,
 };
-use crate::platform::{
-    PlatformError, PlatformErrorCode, PlatformHandle, PlatformInterest, ResourceId,
-    core as core_platform,
-};
+use crate::platform::{PlatformError, PlatformErrorCode, ResourceId, core as core_platform};
+use crate::runtime::poller::{PlatformHandle, PlatformInterest, PollerEventMask};
 
 /// Sentinel token emitted by wake notifications.
 const WAKE_TOKEN: u64 = u64::MAX;
@@ -575,21 +572,21 @@ fn execute_request(request: ProactorRequest) -> ProactorCompletion {
                 return syscall_completion(request, -1);
             }
 
-            let mut mask = PlatformEventMask::NONE;
+            let mut mask = PollerEventMask::NONE;
             if (pollfd.revents & libc::POLLIN) != 0 {
-                mask |= PlatformEventMask::READABLE;
+                mask |= PollerEventMask::READABLE;
             }
             if (pollfd.revents & libc::POLLOUT) != 0 {
-                mask |= PlatformEventMask::WRITABLE;
+                mask |= PollerEventMask::WRITABLE;
             }
             if (pollfd.revents & libc::POLLERR) != 0 {
-                mask |= PlatformEventMask::ERROR;
+                mask |= PollerEventMask::ERROR;
             }
             if (pollfd.revents & libc::POLLHUP) != 0 {
-                mask |= PlatformEventMask::HANGUP;
+                mask |= PollerEventMask::HANGUP;
             }
             if (pollfd.revents & libc::POLLPRI) != 0 {
-                mask |= PlatformEventMask::PRIORITY;
+                mask |= PollerEventMask::PRIORITY;
             }
 
             let mut completion = syscall_completion(request, result);
@@ -766,11 +763,12 @@ mod tests {
     use std::os::unix::io::RawFd;
 
     use super::UnixProactor;
+    use crate::platform::ResourceId;
     use crate::platform::proactor::{
         Proactor, ProactorBuffer, ProactorCompletionData, ProactorOp, ProactorOpKind,
         ProactorRequest,
     };
-    use crate::platform::{PlatformHandle, ResourceId};
+    use crate::runtime::poller::PlatformHandle;
 
     /// Ensure timeout requests complete through the worker loop.
     #[test]

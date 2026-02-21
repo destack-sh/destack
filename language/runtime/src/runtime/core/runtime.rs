@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::{PlatformContext, PlatformPoller, PollerToken, ResourceId};
+use crate::platform::{PlatformContext, ResourceId};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::engine::{EngineContinuation, RuntimeValue};
 use crate::runtime::memory::Heap;
+use crate::runtime::poller::{HostPoller, PollerToken};
 use crate::runtime::scheduler::{EventLoop, EventLoopWatch};
 use crate::runtime::snapshot::SnapshotStore;
 use destack_workspace::RuntimeOptions;
@@ -23,7 +24,7 @@ pub struct Runtime {
     /// Event loop for tasks, microtasks, and timers.
     pub event_loop: Box<EventLoop>,
     /// Optional platform poller for external events.
-    pub poller: Option<Box<dyn PlatformPoller>>,
+    pub poller: Option<Box<dyn HostPoller>>,
 }
 
 impl std::fmt::Debug for Runtime {
@@ -74,7 +75,7 @@ impl Runtime {
     }
 
     /// Attach a platform poller for external events.
-    pub fn set_poller(&mut self, poller: Box<dyn PlatformPoller>) {
+    pub fn set_poller(&mut self, poller: Box<dyn HostPoller>) {
         self.poller = Some(poller);
     }
 

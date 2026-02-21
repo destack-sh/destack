@@ -8,16 +8,16 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::{
     PlatformErrorContext, PlatformErrorContextKind, io_error_code_from_errno,
 };
-use crate::platform::poller::{
-    PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventPayload,
-    PlatformEventSource, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
-    PlatformPollerWakeHandle, PollerToken,
-};
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
+use crate::runtime::poller::{
+    HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformHandle, PlatformInterest,
+    PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
+    PollerToken,
+};
 
 /// Kqueue backed poller for BSD targets.
 #[derive(Debug)]
-pub struct KqueuePoller {
+pub(crate) struct KqueuePoller {
     /// Registered resource entries.
     registrations: HashMap<ResourceId, PollRegistration>,
     /// Token to resource mapping for event lookup.
@@ -43,7 +43,7 @@ struct PollRegistration {
     /// Interest mask for readiness.
     interests: PlatformInterest,
     /// Poller configuration flags.
-    flags: PlatformPollerFlags,
+    flags: HostPollerFlags,
 }
 
 /// Shared wake handle for one kqueue poller.
@@ -53,7 +53,7 @@ struct KqueueWakeHandle {
     kqueue_fd: RawFd,
 }
 
-impl PlatformPollerWakeHandle for KqueueWakeHandle {
+impl HostPollerWakeHandle for KqueueWakeHandle {
     fn wake(&self) -> RuntimeResult<()> {
         wake_kqueue(self.kqueue_fd)
     }
@@ -61,7 +61,7 @@ impl PlatformPollerWakeHandle for KqueueWakeHandle {
 
 impl KqueuePoller {
     /// Create a new kqueue poller instance.
-    pub fn new() -> RuntimeResult<Self> {
+    pub(crate) fn new() -> RuntimeResult<Self> {
         // open the kqueue descriptor
         let kqueue_fd = unsafe { libc::kqueue() };
         if kqueue_fd < 0 {
@@ -106,14 +106,14 @@ impl Drop for KqueuePoller {
     }
 }
 
-impl PlatformPoller for KqueuePoller {
+impl HostPoller for KqueuePoller {
     fn register(
         &mut self,
         resource_id: ResourceId,
         handle: PlatformHandle,
         token: PollerToken,
         interests: PlatformInterest,
-        flags: PlatformPollerFlags,
+        flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
         if token.is_reserved() {
@@ -174,7 +174,7 @@ impl PlatformPoller for KqueuePoller {
         resource_id: ResourceId,
         token: PollerToken,
         interests: PlatformInterest,
-        flags: PlatformPollerFlags,
+        flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
         if token.is_reserved() {
@@ -258,7 +258,7 @@ impl PlatformPoller for KqueuePoller {
         Ok(())
     }
 
-    fn wake_handle(&self) -> Option<Arc<dyn PlatformPollerWakeHandle>> {
+    fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
         Some(self.wake_handle.clone())
     }
 
@@ -266,7 +266,7 @@ impl PlatformPoller for KqueuePoller {
         self.wake_handle.wake()
     }
 
-    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PlatformEvent>> {
+    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PollerEvent>> {
         // ensure the event buffer can hold all registrations
         let max_events = self.registrations.len() + 1;
         if self.events.len() < max_events {
@@ -328,16 +328,16 @@ impl PlatformPoller for KqueuePoller {
 
             let flags = event_flags_from_registration(registration.flags);
             let data = if event.data < 0 { 0 } else { event.data as u64 };
-            output.push(PlatformEvent {
+            output.push(PollerEvent {
                 resource_id,
-                source: PlatformEventSource::Io,
+                source: PollerEventSource::Io,
                 mask,
                 flags,
                 token: registration.token,
-                payload: PlatformEventPayload::Io { data },
+                payload: PollerEventPayload::Io { data },
             });
 
-            if registration.flags.contains(PlatformPollerFlags::ONESHOT) {
+            if registration.flags.contains(HostPollerFlags::ONESHOT) {
                 oneshot.push(resource_id);
             }
         }
@@ -380,13 +380,13 @@ fn wake_kqueue(kqueue_fd: RawFd) -> RuntimeResult<()> {
 }
 
 /// Convert registration flags into kqueue flags.
-fn kevent_flags(flags: PlatformPollerFlags) -> u16 {
+fn kevent_flags(flags: HostPollerFlags) -> u16 {
     // map registration flags to kqueue flags
     let mut out = libc::EV_ADD | libc::EV_ENABLE;
-    if flags.contains(PlatformPollerFlags::EDGE) {
+    if flags.contains(HostPollerFlags::EDGE) {
         out |= libc::EV_CLEAR;
     }
-    if flags.contains(PlatformPollerFlags::ONESHOT) {
+    if flags.contains(HostPollerFlags::ONESHOT) {
         out |= libc::EV_ONESHOT;
     }
 
@@ -397,7 +397,7 @@ fn kevent_flags(flags: PlatformPollerFlags) -> u16 {
 fn build_filter_changes(
     fd: RawFd,
     interests: PlatformInterest,
-    flags: PlatformPollerFlags,
+    flags: HostPollerFlags,
     token: PollerToken,
     deleting: bool,
 ) -> RuntimeResult<Vec<libc::kevent>> {
@@ -432,7 +432,7 @@ fn build_filter_changes(
 fn build_update_changes(
     entry: &PollRegistration,
     interests: PlatformInterest,
-    flags: PlatformPollerFlags,
+    flags: HostPollerFlags,
     token: PollerToken,
 ) -> RuntimeResult<Vec<libc::kevent>> {
     // detect token updates that require reprogramming retained filters
@@ -512,36 +512,36 @@ fn build_update_changes(
 }
 
 /// Build event flags from registration flags.
-fn event_flags_from_registration(flags: PlatformPollerFlags) -> PlatformEventFlags {
+fn event_flags_from_registration(flags: HostPollerFlags) -> PollerEventFlags {
     // expose edge and oneshot flags to consumers
-    let mut out = PlatformEventFlags::NONE;
-    if flags.contains(PlatformPollerFlags::EDGE) {
-        out |= PlatformEventFlags::EDGE;
+    let mut out = PollerEventFlags::NONE;
+    if flags.contains(HostPollerFlags::EDGE) {
+        out |= PollerEventFlags::EDGE;
     }
-    if flags.contains(PlatformPollerFlags::ONESHOT) {
-        out |= PlatformEventFlags::ONESHOT;
+    if flags.contains(HostPollerFlags::ONESHOT) {
+        out |= PollerEventFlags::ONESHOT;
     }
 
     out
 }
 
 /// Build event mask from kevent data.
-fn event_mask_from_kevent(event: &libc::kevent) -> PlatformEventMask {
+fn event_mask_from_kevent(event: &libc::kevent) -> PollerEventMask {
     // translate kevent data into the runtime mask
-    let mut mask = PlatformEventMask::NONE;
+    let mut mask = PollerEventMask::NONE;
 
     if (event.flags & libc::EV_ERROR) != 0 {
-        mask |= PlatformEventMask::ERROR;
+        mask |= PollerEventMask::ERROR;
     }
     if (event.flags & libc::EV_EOF) != 0 {
-        mask |= PlatformEventMask::HANGUP;
+        mask |= PollerEventMask::HANGUP;
     }
 
     if event.filter == libc::EVFILT_READ {
-        mask |= PlatformEventMask::READABLE;
+        mask |= PollerEventMask::READABLE;
     }
     if event.filter == libc::EVFILT_WRITE {
-        mask |= PlatformEventMask::WRITABLE;
+        mask |= PollerEventMask::WRITABLE;
     }
 
     mask
@@ -630,8 +630,8 @@ fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        KqueuePoller, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
-        PollerToken, ResourceId,
+        HostPoller, HostPollerFlags, KqueuePoller, PlatformHandle, PlatformInterest, PollerToken,
+        ResourceId,
     };
 
     /// Ensures kqueue emits a readable event when data is available.
@@ -653,7 +653,7 @@ mod tests {
                 handle,
                 PollerToken(1),
                 PlatformInterest::READABLE,
-                PlatformPollerFlags::NONE,
+                HostPollerFlags::NONE,
             )
             .expect("register should succeed");
 

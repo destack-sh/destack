@@ -6,11 +6,12 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::{Microtask, MicrotaskId, Runnable, Task, TaskId, Timer, TimerQueue};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::poller::{PlatformEventPayload, PollerToken, ProcessStatus};
-use crate::platform::{
-    PlatformError, PlatformEvent, PlatformEventSource, PlatformPoller, ResourceId,
-};
+use crate::platform::{PlatformError, ResourceId};
 use crate::runtime::engine::{EngineContinuation, RuntimeValue};
+use crate::runtime::poller::{
+    HostPoller, PollerEvent, PollerEventPayload, PollerEventSource, PollerProcessStatus,
+    PollerToken,
+};
 
 /// Watch payload that can be dispatched as one event loop task.
 #[derive(Debug)]
@@ -31,7 +32,7 @@ pub struct EventLoop {
     /// Pending microtasks that drain before macrotasks.
     microtasks: VecDeque<Microtask>,
     /// Pending platform events.
-    events: VecDeque<PlatformEvent>,
+    events: VecDeque<PollerEvent>,
     /// Ready timers waiting for dispatch.
     ready_timers: VecDeque<Timer>,
     /// Timer queue for scheduled timer fires.
@@ -92,7 +93,7 @@ impl EventLoop {
     }
 
     /// Enqueue external events.
-    pub fn enqueue_events(&mut self, events: Vec<PlatformEvent>) {
+    pub fn enqueue_events(&mut self, events: Vec<PollerEvent>) {
         let mut events = events;
         sort_platform_events(&mut events);
         self.events.extend(events);
@@ -255,7 +256,7 @@ impl EventLoop {
     }
 
     /// Build one task for one external event watch.
-    pub fn task_for_event(&mut self, event: PlatformEvent) -> Option<Task> {
+    pub fn task_for_event(&mut self, event: PollerEvent) -> Option<Task> {
         let watch = self.event_watches.get(&event.token)?;
         let EngineContinuation::Native(native) = watch.runnable else {
             return None;
@@ -294,7 +295,7 @@ impl EventLoop {
     /// Poll the platform poller and enqueue events.
     pub fn poll_poller(
         &mut self,
-        poller: &mut dyn PlatformPoller,
+        poller: &mut dyn HostPoller,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<usize> {
         let events = poller.poll(timeout_nanos)?;
@@ -451,7 +452,7 @@ fn validate_watch(watch: &EventLoopWatch) -> RuntimeResult<()> {
 }
 
 /// Sort platform events into a deterministic order.
-fn sort_platform_events(events: &mut [PlatformEvent]) {
+fn sort_platform_events(events: &mut [PollerEvent]) {
     // ensure deterministic ordering for platform events
     events.sort_by_key(|event| {
         (
@@ -466,32 +467,32 @@ fn sort_platform_events(events: &mut [PlatformEvent]) {
 }
 
 /// Map event sources into a deterministic ordering key.
-fn source_order(source: PlatformEventSource) -> u8 {
+fn source_order(source: PollerEventSource) -> u8 {
     match source {
-        PlatformEventSource::Io => 0,
-        PlatformEventSource::Signal => 1,
-        PlatformEventSource::Process => 2,
-        PlatformEventSource::Timer => 3,
+        PollerEventSource::Io => 0,
+        PollerEventSource::Signal => 1,
+        PollerEventSource::Process => 2,
+        PollerEventSource::Timer => 3,
     }
 }
 
 /// Build an ordering key for event payload data.
-fn payload_sort_key(payload: PlatformEventPayload) -> u64 {
+fn payload_sort_key(payload: PollerEventPayload) -> u64 {
     // pack event payload data into a deterministic ordering key
     match payload {
-        PlatformEventPayload::Io { data } => data,
-        PlatformEventPayload::Signal { signal } => signal as u64,
-        PlatformEventPayload::Process { pid, status } => {
+        PollerEventPayload::Io { data } => data,
+        PollerEventPayload::Signal { signal } => signal as u64,
+        PollerEventPayload::Process { pid, status } => {
             let status_key = match status {
-                ProcessStatus::Exited { code } => (0u64, code as u64),
-                ProcessStatus::Signaled { signal, core_dump } => {
+                PollerProcessStatus::Exited { code } => (0u64, code as u64),
+                PollerProcessStatus::Signaled { signal, core_dump } => {
                     (1u64, (signal as u64) << 1 | core_dump as u64)
                 }
-                ProcessStatus::Stopped { signal } => (2u64, signal as u64),
-                ProcessStatus::Continued => (3u64, 0),
+                PollerProcessStatus::Stopped { signal } => (2u64, signal as u64),
+                PollerProcessStatus::Continued => (3u64, 0),
             };
             ((pid as u64) << 32) | (status_key.0 << 16) | status_key.1
         }
-        PlatformEventPayload::Timer { deadline_nanos } => deadline_nanos,
+        PollerEventPayload::Timer { deadline_nanos } => deadline_nanos,
     }
 }

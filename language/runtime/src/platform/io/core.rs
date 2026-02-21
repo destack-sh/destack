@@ -12,17 +12,17 @@ use crate::platform::io::{
     CompletionEvent, CompletionOperation, CompletionOperationKind, EventToken, PollBackend,
     PollEvent, PollInterest, UringFeatures, UringParameters, host as io_host,
 };
-use crate::platform::poller::{
-    PlatformEventPayload, PlatformInterest, PlatformPoller, PlatformPollerFlags,
-    PlatformPollerWakeHandle, PollerToken, create_platform_poller_for_io,
-};
 use crate::platform::proactor::{
     Proactor, ProactorAddress, ProactorBuffer, ProactorCompletion, ProactorCompletionData,
     ProactorOp, ProactorRequest,
 };
 use crate::platform::resource::{self, ResourceEntry, ResourceKind};
-use crate::platform::{NativeSlice, PlatformError, PlatformErrorCode, PlatformEvent, ResourceId};
+use crate::platform::{NativeSlice, PlatformError, PlatformErrorCode, ResourceId};
 use crate::runtime::BindingCallContext;
+use crate::runtime::poller::{
+    HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformInterest, PollerEvent,
+    PollerEventPayload, PollerToken, create_host_poller_for_io,
+};
 
 #[cfg(target_os = "linux")]
 use io_uring::IoUring;
@@ -142,16 +142,16 @@ const POLL_INTEREST_SUPPORTED: u32 =
 /// Runtime payload for one poll resource.
 struct PollResource {
     /// Poll backend state protected for concurrent runtime access.
-    poller: Mutex<Box<dyn PlatformPoller>>,
+    poller: Mutex<Box<dyn HostPoller>>,
     /// Shared poller wake path used by event routing.
-    wake_handle: Option<Arc<dyn PlatformPollerWakeHandle>>,
+    wake_handle: Option<Arc<dyn HostPollerWakeHandle>>,
     /// Queued synthetic events emitted by attached event tokens.
     queued_events: Mutex<VecDeque<PollEvent>>,
 }
 
 impl PollResource {
     /// Create one poll resource from one concrete backend.
-    fn new(poller: Box<dyn PlatformPoller>) -> Self {
+    fn new(poller: Box<dyn HostPoller>) -> Self {
         let wake_handle = poller.wake_handle();
 
         Self {
@@ -216,9 +216,7 @@ fn resolve_poll_resource(
 }
 
 /// Decode binding-level poll interest into backend interest and flags.
-fn decode_interest(
-    interest: PollInterest,
-) -> RuntimeResult<(PlatformInterest, PlatformPollerFlags)> {
+fn decode_interest(interest: PollInterest) -> RuntimeResult<(PlatformInterest, HostPollerFlags)> {
     // validate unknown interest bits
     let raw = interest.0;
     let unknown = raw & !POLL_INTEREST_SUPPORTED;
@@ -240,9 +238,9 @@ fn decode_interest(
     }
 
     // decode poller flags from interest compatibility bits
-    let mut flags = PlatformPollerFlags::NONE;
+    let mut flags = HostPollerFlags::NONE;
     if (raw & POLL_INTEREST_PRIORITY) != 0 {
-        flags |= PlatformPollerFlags::PRIORITY;
+        flags |= HostPollerFlags::PRIORITY;
     }
 
     // reject empty interest requests
@@ -258,9 +256,9 @@ fn decode_interest(
 }
 
 /// Convert one platform poll event into one io.poll event.
-fn map_poll_event(event: PlatformEvent) -> Option<PollEvent> {
+fn map_poll_event(event: PollerEvent) -> Option<PollEvent> {
     // drop non-io events from mixed poll backends
-    let PlatformEventPayload::Io { data } = event.payload else {
+    let PollerEventPayload::Io { data } = event.payload else {
         return None;
     };
 
@@ -326,7 +324,7 @@ pub(super) fn poll_open(
 ) -> RuntimeResult<resource::PollHandle> {
     // create the selected backend using shared platform policy
     let backend = io_host::host_map_poll_backend(backend);
-    let poller = create_platform_poller_for_io(backend)?;
+    let poller = create_host_poller_for_io(backend)?;
     let resource = Arc::new(PollResource::new(poller));
 
     // store the poll instance as one runtime resource

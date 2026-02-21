@@ -7,16 +7,13 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::diagnostic::{
     PlatformErrorContext, PlatformErrorContextKind, io_error_code_from_errno,
 };
-use crate::platform::poller::PlatformEventMask;
 use crate::platform::proactor::{
     Proactor, ProactorAddress, ProactorAddressStorage, ProactorBuffer, ProactorBufferVec,
     ProactorCompletion, ProactorCompletionData, ProactorOp, ProactorOpKind, ProactorRequest,
     ProactorShutdown,
 };
-use crate::platform::{
-    PlatformError, PlatformErrorCode, PlatformHandle, PlatformInterest, ResourceId,
-    core as core_platform,
-};
+use crate::platform::{PlatformError, PlatformErrorCode, ResourceId, core as core_platform};
+use crate::runtime::poller::{PlatformHandle, PlatformInterest, PollerEventMask};
 
 /// Default io_uring queue depth.
 const DEFAULT_QUEUE_DEPTH: u32 = 256;
@@ -820,7 +817,7 @@ impl Proactor for IoUringProactor {
                     let mask = if result >= 0 {
                         event_mask_from_revents(result as u32)
                     } else {
-                        PlatformEventMask::NONE
+                        PollerEventMask::NONE
                     };
                     ProactorCompletionData::Poll { mask }
                 }
@@ -896,33 +893,33 @@ fn poll_mask_for_interest(interests: PlatformInterest) -> u32 {
     mask
 }
 
-fn event_mask_from_revents(revents: u32) -> PlatformEventMask {
+fn event_mask_from_revents(revents: u32) -> PollerEventMask {
     // start with an empty event mask
-    let mut mask = PlatformEventMask::NONE;
+    let mut mask = PollerEventMask::NONE;
 
     // map readable readiness
     if (revents & libc::POLLIN as u32) != 0 {
-        mask |= PlatformEventMask::READABLE;
+        mask |= PollerEventMask::READABLE;
     }
 
     // map writable readiness
     if (revents & libc::POLLOUT as u32) != 0 {
-        mask |= PlatformEventMask::WRITABLE;
+        mask |= PollerEventMask::WRITABLE;
     }
 
     // map error readiness
     if (revents & libc::POLLERR as u32) != 0 {
-        mask |= PlatformEventMask::ERROR;
+        mask |= PollerEventMask::ERROR;
     }
 
     // map hangup readiness
     if (revents & libc::POLLHUP as u32) != 0 {
-        mask |= PlatformEventMask::HANGUP;
+        mask |= PollerEventMask::HANGUP;
     }
 
     // map priority readiness
     if (revents & libc::POLLPRI as u32) != 0 {
-        mask |= PlatformEventMask::PRIORITY;
+        mask |= PollerEventMask::PRIORITY;
     }
 
     mask
@@ -1002,11 +999,12 @@ mod tests {
     use std::os::unix::io::AsRawFd;
 
     use super::IoUringProactor;
+    use crate::platform::ResourceId;
     use crate::platform::proactor::{
         Proactor, ProactorAddress, ProactorAddressStorage, ProactorBuffer, ProactorCompletion,
         ProactorCompletionData, ProactorOp, ProactorOpKind, ProactorRequest,
     };
-    use crate::platform::{PlatformHandle, PlatformInterest, ResourceId};
+    use crate::runtime::poller::{PlatformHandle, PlatformInterest};
 
     /// Build a sockaddr_in for a loopback socket.
     fn socket_addr_v4(addr: SocketAddrV4) -> libc::sockaddr_in {

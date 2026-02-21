@@ -8,12 +8,12 @@ use windows_sys::Win32::Networking::WinSock::{
 };
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::poller::{
-    PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventPayload,
-    PlatformEventSource, PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags,
-    PlatformPollerWakeHandle, PollerToken,
-};
 use crate::platform::{PlatformError, ResourceId, core as core_platform};
+use crate::runtime::poller::{
+    HostPoller, HostPollerFlags, HostPollerWakeHandle, PlatformHandle, PlatformInterest,
+    PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
+    PollerToken,
+};
 
 /// Build a runtime error from the last socket error.
 fn last_net_error(syscall: &str) -> Box<RuntimeError> {
@@ -40,7 +40,7 @@ struct PollRegistration {
     /// Interest mask for readiness.
     interests: PlatformInterest,
     /// Poller configuration flags.
-    flags: PlatformPollerFlags,
+    flags: HostPollerFlags,
 }
 
 /// Wake socket pair for interrupting polls.
@@ -159,7 +159,7 @@ struct WindowsWakeHandle {
     sender: SOCKET,
 }
 
-impl PlatformPollerWakeHandle for WindowsWakeHandle {
+impl HostPollerWakeHandle for WindowsWakeHandle {
     fn wake(&self) -> RuntimeResult<()> {
         wake_socket(self.sender)
     }
@@ -206,14 +206,14 @@ impl WindowsPoller {
     }
 }
 
-impl PlatformPoller for WindowsPoller {
+impl HostPoller for WindowsPoller {
     fn register(
         &mut self,
         resource_id: ResourceId,
         handle: PlatformHandle,
         token: PollerToken,
         interests: PlatformInterest,
-        flags: PlatformPollerFlags,
+        flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
         if token.is_reserved() {
@@ -225,7 +225,7 @@ impl PlatformPoller for WindowsPoller {
         }
 
         // reject unsupported edge-triggered registrations
-        if flags.contains(PlatformPollerFlags::EDGE) {
+        if flags.contains(HostPollerFlags::EDGE) {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "WSAPoll does not support edge-triggered registrations",
             ))
@@ -256,7 +256,7 @@ impl PlatformPoller for WindowsPoller {
         resource_id: ResourceId,
         token: PollerToken,
         interests: PlatformInterest,
-        flags: PlatformPollerFlags,
+        flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
         if token.is_reserved() {
@@ -268,7 +268,7 @@ impl PlatformPoller for WindowsPoller {
         }
 
         // reject unsupported edge-triggered registrations
-        if flags.contains(PlatformPollerFlags::EDGE) {
+        if flags.contains(HostPollerFlags::EDGE) {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "WSAPoll does not support edge-triggered registrations",
             ))
@@ -295,7 +295,7 @@ impl PlatformPoller for WindowsPoller {
         Ok(())
     }
 
-    fn wake_handle(&self) -> Option<Arc<dyn PlatformPollerWakeHandle>> {
+    fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
         Some(self.wake_handle.clone())
     }
 
@@ -303,7 +303,7 @@ impl PlatformPoller for WindowsPoller {
         self.wake.wake()
     }
 
-    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PlatformEvent>> {
+    fn poll(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PollerEvent>> {
         let timeout = timeout_nanos.map(nanos_to_timeout_ms).unwrap_or(-1);
 
         self.pollfds.clear();
@@ -327,7 +327,7 @@ impl PlatformPoller for WindowsPoller {
             if entry.interests.contains(PlatformInterest::WRITABLE) {
                 events |= POLLOUT;
             }
-            if entry.flags.contains(PlatformPollerFlags::PRIORITY) {
+            if entry.flags.contains(HostPollerFlags::PRIORITY) {
                 events |= POLLPRI;
             }
             self.pollfds.push(WSAPOLLFD {
@@ -364,18 +364,18 @@ impl PlatformPoller for WindowsPoller {
             let (resource_id, registration) = entry.unwrap();
             let mask = event_mask_from_revents(pollfd.revents);
             let flags = event_flags_from_registration(registration.flags);
-            output.push(PlatformEvent {
+            output.push(PollerEvent {
                 resource_id,
-                source: PlatformEventSource::Io,
+                source: PollerEventSource::Io,
                 mask,
                 flags,
                 token: registration.token,
-                payload: PlatformEventPayload::Io {
+                payload: PollerEventPayload::Io {
                     data: pollfd.revents as u64,
                 },
             });
 
-            if registration.flags.contains(PlatformPollerFlags::ONESHOT) {
+            if registration.flags.contains(HostPollerFlags::ONESHOT) {
                 oneshot.push(resource_id);
             }
         }
@@ -392,22 +392,22 @@ impl PlatformPoller for WindowsPoller {
 }
 
 /// Convert WSAPoll revents to a platform mask.
-fn event_mask_from_revents(revents: i16) -> PlatformEventMask {
-    let mut out = PlatformEventMask::NONE;
+fn event_mask_from_revents(revents: i16) -> PollerEventMask {
+    let mut out = PollerEventMask::NONE;
     if revents & POLLIN != 0 {
-        out |= PlatformEventMask::READABLE;
+        out |= PollerEventMask::READABLE;
     }
     if revents & POLLOUT != 0 {
-        out |= PlatformEventMask::WRITABLE;
+        out |= PollerEventMask::WRITABLE;
     }
     if revents & POLLERR != 0 || revents & POLLNVAL != 0 {
-        out |= PlatformEventMask::ERROR;
+        out |= PollerEventMask::ERROR;
     }
     if revents & POLLHUP != 0 {
-        out |= PlatformEventMask::HANGUP;
+        out |= PollerEventMask::HANGUP;
     }
     if revents & POLLPRI != 0 {
-        out |= PlatformEventMask::PRIORITY;
+        out |= PollerEventMask::PRIORITY;
     }
     out
 }
@@ -427,13 +427,13 @@ fn nanos_to_timeout_ms(nanos: u64) -> i32 {
 }
 
 /// Build event flags from registration flags.
-fn event_flags_from_registration(flags: PlatformPollerFlags) -> PlatformEventFlags {
-    let mut out = PlatformEventFlags::NONE;
-    if flags.contains(PlatformPollerFlags::EDGE) {
-        out |= PlatformEventFlags::EDGE;
+fn event_flags_from_registration(flags: HostPollerFlags) -> PollerEventFlags {
+    let mut out = PollerEventFlags::NONE;
+    if flags.contains(HostPollerFlags::EDGE) {
+        out |= PollerEventFlags::EDGE;
     }
-    if flags.contains(PlatformPollerFlags::ONESHOT) {
-        out |= PlatformEventFlags::ONESHOT;
+    if flags.contains(HostPollerFlags::ONESHOT) {
+        out |= PollerEventFlags::ONESHOT;
     }
     out
 }

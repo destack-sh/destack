@@ -18,11 +18,11 @@ use crate::platform::io::{
     DescriptorControlCommand, DescriptorControlFlags, DescriptorRequest, DescriptorResult,
     EventToken, PollBackend, core as io_core,
 };
-use crate::platform::poller::PlatformPollerBackend;
 use crate::platform::proactor::Proactor;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
-use crate::platform::{PlatformError, PlatformErrorCode, PlatformHandle, ResourceId};
+use crate::platform::{PlatformError, PlatformErrorCode, ResourceId};
 use crate::runtime::BindingCallContext;
+use crate::runtime::poller::{HostPollerBackend, PlatformHandle};
 
 /// Return one standardized null-pointer error for output arguments.
 pub(super) fn require_out<T>(out: *mut T) -> RuntimeResult<()> {
@@ -343,12 +343,12 @@ pub(crate) fn host_control_ioctl(
 }
 
 /// Map one io poll backend selector for Unix hosts.
-pub(crate) const fn host_map_poll_backend(backend: PollBackend) -> PlatformPollerBackend {
+pub(crate) const fn host_map_poll_backend(backend: PollBackend) -> HostPollerBackend {
     match backend {
-        PollBackend::Auto => PlatformPollerBackend::Auto,
-        PollBackend::Epoll => PlatformPollerBackend::Epoll,
-        PollBackend::Kqueue => PlatformPollerBackend::Kqueue,
-        PollBackend::Poll => PlatformPollerBackend::Poll,
+        PollBackend::Auto => HostPollerBackend::Auto,
+        PollBackend::Epoll => HostPollerBackend::Epoll,
+        PollBackend::Kqueue => HostPollerBackend::Kqueue,
+        PollBackend::Poll => HostPollerBackend::Poll,
     }
 }
 

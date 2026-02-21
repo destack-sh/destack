@@ -2,6 +2,7 @@ pub mod bindings;
 mod core;
 pub mod engine;
 pub mod memory;
+pub(crate) mod poller;
 pub mod random;
 pub mod replay;
 pub(crate) mod rules;
