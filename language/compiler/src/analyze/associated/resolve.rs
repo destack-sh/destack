@@ -99,11 +99,24 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
             return None;
         };
 
+        // normalize the reference symbol before member-kind checks
+        let mut symbol = self.compiler.canonical_symbol_id(
+            self.module,
+            self.symbols,
+            self.profile,
+            *symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        symbol = self
+            .compiler
+            .declaration_symbol_id(self.module, self.symbols, self.profile, symbol)
+            .unwrap_or(symbol);
+
         // keep references outside the owner declaration unchanged
         let owner_symbol = self.compiler.owner_symbol_for_member_symbol(
             self.module,
             self.profile,
-            *symbol,
+            symbol,
             self.symbols,
         )?;
         if owner_symbol != self.owner_symbol {
@@ -119,7 +132,7 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
         let alias_target_id = self.compiler.alias_target_type_id_for_symbol(
             self.module,
             self.profile,
-            *symbol,
+            symbol,
             self.source_id,
             self.symbols,
             types,
@@ -133,7 +146,7 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
             let member_substitutions = self.compiler.build_type_parameter_substitutions_for_symbol(
                 self.module,
                 self.profile,
-                *symbol,
+                symbol,
                 self.source_id,
                 member_arguments,
                 self.tree,

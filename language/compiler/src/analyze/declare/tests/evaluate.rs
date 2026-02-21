@@ -446,6 +446,71 @@ declare const segment: AuditStore.Segment;
     );
 }
 
+/// Publish declared projection dependency facts for associated comptime members.
+#[test]
+fn test_collect_associated_comptime_projection_dependency_facts() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.analyze_declare_module_with_source(
+        "test.ds",
+        r#"
+class ProjectionPlan<Row> {
+comptime const Scalar: number = 1;
+comptime const Dependent: number = ProjectionPlan<Row>.Scalar;
+}
+"#,
+    );
+
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let profile = test.default_profile_id(module_id);
+    let dir = module.dir(profile);
+    let tree = dir.tree.read();
+    let symbols = dir.symbols.read();
+    let types = dir.types.read();
+
+    let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
+    let owner_key = StaticKey::Name(test.program.strings.intern("ProjectionPlan"));
+    let owner_symbol = symbols
+        .find_active_symbol_up_to(namespace_scope, owner_key, LocalScopeMark::end())
+        .map(|symbol| symbol.into_global(module.id))
+        .expect("expected ProjectionPlan symbol");
+
+    let scalar_key = StaticKey::Name(test.program.strings.intern("Scalar"));
+    let scalar_symbol = test
+        .compiler
+        .resolve_static_member_symbol_in_tables(
+            &module,
+            profile,
+            owner_symbol,
+            scalar_key,
+            &tree,
+            &symbols,
+        )
+        .expect("expected Scalar member symbol");
+
+    let dependent_key = StaticKey::Name(test.program.strings.intern("Dependent"));
+    let dependent_symbol = test
+        .compiler
+        .resolve_static_member_symbol_in_tables(
+            &module,
+            profile,
+            owner_symbol,
+            dependent_key,
+            &tree,
+            &symbols,
+        )
+        .expect("expected Dependent member symbol");
+
+    assert!(
+        !types.symbol_has_associated_comptime_projection_dependencies(scalar_symbol),
+        "expected Scalar to stay non projection dependent"
+    );
+    assert!(
+        types.symbol_has_associated_comptime_projection_dependencies(dependent_symbol),
+        "expected Dependent to be marked projection dependent"
+    );
+}
+
 /// Materialize nested associated comptime alias counts for interface defaults.
 #[test]
 fn test_interface_associated_alias_projection_materializes_nested_comptime_counts() {

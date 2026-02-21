@@ -1503,6 +1503,97 @@ impl Compiler {
         }
     }
 
+    /// Query a committed alias target type for a symbol without triggering remote evaluation.
+    pub(crate) fn committed_alias_target_type_id_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        let mut visited = HashSet::new();
+        let mut current = symbol;
+
+        loop {
+            // guard alias forwarding cycles
+            if !visited.insert(current) {
+                return None;
+            }
+
+            // resolve committed alias targets from the local table first
+            if let Some(target) = types.get_alias_target_type_id(current) {
+                return Some(target);
+            }
+
+            if current.module_id == module.id {
+                let symbol_entry = symbols.get_symbol(current.local_id);
+                let typed_symbol = GlobalSymbolId::new(
+                    current.module_id,
+                    current.local_id.with_type(symbol_entry.ty),
+                );
+
+                if matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
+                    if let Some(target) = types.get_alias_target_type_id(typed_symbol) {
+                        return Some(target);
+                    }
+                }
+
+                let target_symbol = symbol_entry
+                    .target_symbol
+                    .or(symbol_entry.canonical_symbol)?;
+                current = target_symbol;
+                continue;
+            }
+
+            // read one remote symbol edge under declare-stage gating
+            let (typed_symbol, next) = match self.with_module_symbols_or_local_at_stage(
+                module,
+                profile,
+                current.module_id,
+                symbols,
+                AnalyzeDependencyStage::Declare,
+                |_owner_module, owner_symbols| {
+                    let symbol_entry = owner_symbols.get_symbol(current.local_id);
+                    let typed_symbol = GlobalSymbolId::new(
+                        current.module_id,
+                        current.local_id.with_type(symbol_entry.ty),
+                    );
+                    let next = symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
+                    (typed_symbol, next)
+                },
+            ) {
+                Ok(value) => value,
+                Err(_) => return None,
+            };
+
+            // read one committed alias target from the owner type table
+            if matches!(
+                typed_symbol.ty(),
+                SymbolType::TypeAlias | SymbolType::Newtype
+            ) {
+                let resolved = self
+                    .with_module_types_or_local_at_stage(
+                        module,
+                        profile,
+                        current.module_id,
+                        types,
+                        AnalyzeDependencyStage::Declare,
+                        |_owner_module, owner_types| {
+                            owner_types.get_alias_target_type_id(typed_symbol)
+                        },
+                    )
+                    .ok()
+                    .flatten();
+                if let Some(resolved) = resolved {
+                    return Some(resolved);
+                }
+            }
+
+            current = next?;
+        }
+    }
+
     /// Require an instance type for a symbol into the local type table.
     pub(crate) fn require_instance_type(
         &self,

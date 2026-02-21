@@ -608,6 +608,117 @@ let width = PacketOwner<string>.Width;
     );
 }
 
+/// Analyze multi-hop re-exported associated contract aliases through imported implementors.
+#[test]
+fn test_analyze_cross_module_associated_contract_alias_projection_through_multi_hop_reexports() {
+    // arrange contract, implementor, and barrel modules
+    let test = TestProgram::memory_sequential();
+    test.add_file(
+        "contract.ds",
+        r#"
+export interface PacketOwner<Row> {
+    comptime const Width: number = Row extends string ? 8 : 2;
+    type Lane = uint8[this.Width];
+    type Packet = this.Lane;
+}
+"#,
+    );
+    test.add_file(
+        "owner.ds",
+        r#"
+import type { PacketOwner } from "./contract";
+
+export class Packet<Row> implements PacketOwner<Row> {}
+"#,
+    );
+    test.add_file(
+        "barrel1.ds",
+        r#"
+export { Packet } from "./owner";
+"#,
+    );
+    test.add_file(
+        "barrel2.ds",
+        r#"
+export { Packet } from "./barrel1";
+"#,
+    );
+    test.add_file(
+        "barrel3.ds",
+        r#"
+export * from "./barrel2";
+"#,
+    );
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+import { Packet } from "./barrel3";
+
+declare const lane: Packet<string>.Lane;
+lane satisfies uint8[8];
+
+declare const packet: Packet<string>.Packet;
+packet satisfies uint8[8];
+"#,
+    );
+
+    // analyze should preserve contract-owned associated alias projections through barrels
+    test.analyze_module_and_check_clean(module_id);
+}
+
+/// Analyze multi-hop re-exported associated comptime defaults used by contract aliases.
+#[test]
+fn test_analyze_cross_module_associated_comptime_contract_alias_projection_through_multi_hop_reexports()
+ {
+    // arrange contract, implementor, and barrel modules
+    let test = TestProgram::memory_sequential();
+    test.add_file(
+        "contract.ds",
+        r#"
+export interface TileShape<Row> {
+    comptime const Width: number = Row extends string ? 8 : 4;
+    comptime const DoubleWidth: number = this.Width * 2;
+    type Tile = uint8[this.DoubleWidth];
+}
+"#,
+    );
+    test.add_file(
+        "owner.ds",
+        r#"
+import type { TileShape } from "./contract";
+
+export class Packet<Row> implements TileShape<Row> {}
+"#,
+    );
+    test.add_file(
+        "barrel1.ds",
+        r#"
+export { Packet } from "./owner";
+"#,
+    );
+    test.add_file(
+        "barrel2.ds",
+        r#"
+export { Packet } from "./barrel1";
+"#,
+    );
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+import { Packet } from "./barrel2";
+
+const width = Packet<string>.DoubleWidth;
+width satisfies number;
+
+declare const tile: Packet<string>.Tile;
+tile satisfies uint8[16];
+"#,
+    );
+
+    // analyze should preserve associated comptime default substitution through barrels
+    test.analyze_module_and_check_clean(module_id);
+}
+
 /// Reject unresolved imported generic associated comptime projections in value position.
 #[test]
 fn test_analyze_cross_module_associated_comptime_projection_rejects_unresolved_imported_generic_value_usage()
@@ -626,6 +737,43 @@ export class SegmentPlan<Row> {
         "main.ds",
         r#"
 import { SegmentPlan } from "./plan";
+
+function unresolved<Row>() {
+    SegmentPlan<Row>.SegmentBytes;
+}
+"#,
+    );
+
+    // run analyze and require unresolved projection diagnostics
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostic("EA125");
+}
+
+/// Reject unresolved imported generic associated comptime projections through re-exports.
+#[test]
+fn test_analyze_cross_module_associated_comptime_projection_rejects_unresolved_imported_generic_value_usage_through_reexports()
+ {
+    // arrange owner module and re-export barrel for a generic associated comptime member
+    let test = TestProgram::memory_sequential();
+    test.add_file(
+        "plan.ds",
+        r#"
+export class SegmentPlan<Row> {
+    comptime const SegmentBytes: number = Row extends string ? 4096 : 1024;
+}
+"#,
+    );
+    test.add_file(
+        "barrel.ds",
+        r#"
+export { SegmentPlan } from "./plan";
+"#,
+    );
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+import { SegmentPlan } from "./barrel";
 
 function unresolved<Row>() {
     SegmentPlan<Row>.SegmentBytes;
@@ -734,6 +882,50 @@ function unresolved() {
     test.analyze_module(module_id);
     test.compile();
     test.check_has_diagnostic("EA112");
+}
+
+/// Prefer static-cycle diagnostics over unresolved-projection diagnostics for generic cycles.
+#[test]
+fn test_analyze_cross_module_generic_associated_comptime_cycle_reports_static_argument_cycle_without_unresolved_projection()
+ {
+    // arrange mutually recursive generic projections
+    let test = TestProgram::memory_sequential();
+    test.add_file(
+        "a.ds",
+        r#"
+import type { Right } from "./b";
+
+export class Left<Row> {
+    comptime const Width: number = Right<Row>.Height;
+}
+"#,
+    );
+    test.add_file(
+        "b.ds",
+        r#"
+import type { Left } from "./a";
+
+export class Right<Row> {
+    comptime const Height: number = Left<Row>.Width;
+}
+"#,
+    );
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+import { Left } from "./a";
+
+function unresolved<Row>() {
+    Left<Row>.Width;
+}
+"#,
+    );
+
+    // analyze should report one static cycle and avoid unresolved projection fallback diagnostics
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostic("EA112");
+    test.check_no_diagnostic_code("EA125");
 }
 
 /// Enforce imported generic bounds from declare-published static-parameter constraints.

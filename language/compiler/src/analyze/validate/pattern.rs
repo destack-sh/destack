@@ -2,10 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
-    DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, MatchCase,
-    MatchSelector, NodeTree, NormalizationMode, Pattern, PatternField, PrimitiveType,
-    ScalarLiteral, StaticKey, StringId, SymbolTable, SymbolType, Type, TypeField, TypeLiteral,
-    TypeTable,
+    DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, MatchCase, MatchSelector,
+    NodeTree, NormalizationMode, Pattern, PatternField, PrimitiveType, ScalarLiteral, StaticKey,
+    StringId, SymbolTable, SymbolType, Type, TypeField, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -472,7 +471,6 @@ impl Compiler {
                 profile,
                 fields,
                 value_type_id,
-                pattern_id.into_any(),
                 SequenceRestPatternKind::Tuple,
                 tree,
                 symbols,
@@ -484,7 +482,6 @@ impl Compiler {
                 profile,
                 fields,
                 value_type_id,
-                pattern_id.into_any(),
                 SequenceRestPatternKind::Array,
                 tree,
                 symbols,
@@ -507,7 +504,6 @@ impl Compiler {
                 profile,
                 fields,
                 value_type_id,
-                pattern_id.into_any(),
                 tree,
                 symbols,
                 types,
@@ -540,7 +536,6 @@ impl Compiler {
         profile: ProfileId,
         fields: &[LocalNodeId<PatternField>],
         value_type_id: LocalTypeId,
-        source_id: LocalNodeIdAny,
         rest_pattern_kind: SequenceRestPatternKind,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -548,15 +543,9 @@ impl Compiler {
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         // resolve fixed element types for the matched value
-        let Some(element_types) = self.fixed_sequence_element_types(
-            module,
-            profile,
-            value_type_id,
-            source_id,
-            tree,
-            symbols,
-            types,
-        ) else {
+        let Some(element_types) =
+            self.fixed_sequence_element_types(module, profile, value_type_id, tree, symbols, types)
+        else {
             return false;
         };
 
@@ -800,7 +789,6 @@ impl Compiler {
             profile,
             value_type_id,
             tag_symbol,
-            ty.into_any(),
             tree,
             symbols,
             types,
@@ -812,14 +800,9 @@ impl Compiler {
             return false;
         }
 
-        let Some(target_type_id) = self.alias_target_type_id_for_symbol(
-            module,
-            profile,
-            tag_symbol,
-            ty.into_any(),
-            symbols,
-            types,
-        ) else {
+        let Some(target_type_id) = self
+            .committed_alias_target_type_id_for_symbol(module, profile, tag_symbol, symbols, types)
+        else {
             return false;
         };
 
@@ -856,7 +839,6 @@ impl Compiler {
             profile,
             fields,
             target_type_id,
-            ty.into_any(),
             SequenceRestPatternKind::Tuple,
             tree,
             symbols,
@@ -872,20 +854,14 @@ impl Compiler {
         profile: ProfileId,
         fields: &[LocalNodeId<PatternField>],
         value_type_id: LocalTypeId,
-        source_id: LocalNodeIdAny,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
-        let Some(field_map) = self.object_field_map_for_type(
-            module,
-            profile,
-            value_type_id,
-            source_id,
-            symbols,
-            types,
-        ) else {
+        let Some(field_map) =
+            self.object_field_map_for_type(module, profile, value_type_id, symbols, types)
+        else {
             return false;
         };
 
@@ -918,7 +894,6 @@ impl Compiler {
             profile,
             value_type_id,
             tag_symbol,
-            ty.into_any(),
             tree,
             symbols,
             types,
@@ -926,15 +901,9 @@ impl Compiler {
             return false;
         }
 
-        let Some(object_type_id) = self.object_type_id_for_tag_symbol(
-            module,
-            profile,
-            tag_symbol,
-            ty.into_any(),
-            tree,
-            symbols,
-            types,
-        ) else {
+        let Some(object_type_id) =
+            self.object_type_id_for_tag_symbol(module, profile, tag_symbol, tree, symbols, types)
+        else {
             return false;
         };
 
@@ -1041,7 +1010,6 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         value_type_id: LocalTypeId,
-        source_id: LocalNodeIdAny,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1068,17 +1036,15 @@ impl Compiler {
                 Some(elements)
             }
             Type::Reference { symbol, .. } if symbol.ty() == SymbolType::TypeAlias => {
-                let target_id = self.alias_target_type_id_for_symbol(
-                    module, profile, symbol, source_id, symbols, types,
+                let target_id = self.committed_alias_target_type_id_for_symbol(
+                    module, profile, symbol, symbols, types,
                 )?;
                 let target_id = types.unwrap_value_type_id(target_id);
-                self.fixed_sequence_element_types(
-                    module, profile, target_id, source_id, tree, symbols, types,
-                )
+                self.fixed_sequence_element_types(module, profile, target_id, tree, symbols, types)
             }
-            Type::Value { value } => self.fixed_sequence_element_types(
-                module, profile, value, source_id, tree, symbols, types,
-            ),
+            Type::Value { value } => {
+                self.fixed_sequence_element_types(module, profile, value, tree, symbols, types)
+            }
             _ => None,
         }
     }
@@ -1096,7 +1062,6 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         value_type_id: LocalTypeId,
-        source_id: LocalNodeIdAny,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<HashMap<StaticKey, TypeField>> {
@@ -1109,16 +1074,14 @@ impl Compiler {
                 Some(map)
             }
             Type::Reference { symbol, .. } if symbol.ty() == SymbolType::TypeAlias => {
-                let target_id = self.alias_target_type_id_for_symbol(
-                    module, profile, *symbol, source_id, symbols, types,
+                let target_id = self.committed_alias_target_type_id_for_symbol(
+                    module, profile, *symbol, symbols, types,
                 )?;
                 let target_id = types.unwrap_value_type_id(target_id);
-                self.object_field_map_for_type(
-                    module, profile, target_id, source_id, symbols, types,
-                )
+                self.object_field_map_for_type(module, profile, target_id, symbols, types)
             }
             Type::Value { value } => {
-                self.object_field_map_for_type(module, profile, *value, source_id, symbols, types)
+                self.object_field_map_for_type(module, profile, *value, symbols, types)
             }
             _ => None,
         }
@@ -1130,7 +1093,6 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tag_symbol: GlobalSymbolId,
-        source_id: LocalNodeIdAny,
         _tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1140,8 +1102,8 @@ impl Compiler {
                 types.get_instance_type_id(tag_symbol)
             }
             SymbolType::Newtype | SymbolType::TypeAlias => {
-                let target_id = self.alias_target_type_id_for_symbol(
-                    module, profile, tag_symbol, source_id, symbols, types,
+                let target_id = self.committed_alias_target_type_id_for_symbol(
+                    module, profile, tag_symbol, symbols, types,
                 )?;
                 let target_id = types.unwrap_value_type_id(target_id);
                 self.object_type_id_for_type(types, target_id)
@@ -1188,7 +1150,6 @@ impl Compiler {
         profile: ProfileId,
         value_type_id: LocalTypeId,
         tag_symbol: GlobalSymbolId,
-        source_id: LocalNodeIdAny,
         _tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1209,8 +1170,8 @@ impl Compiler {
                     }
 
                     if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype) {
-                        let Some(target_id) = self.alias_target_type_id_for_symbol(
-                            module, profile, *symbol, source_id, symbols, types,
+                        let Some(target_id) = self.committed_alias_target_type_id_for_symbol(
+                            module, profile, *symbol, symbols, types,
                         ) else {
                             return false;
                         };

@@ -1529,6 +1529,9 @@ impl Compiler {
             types,
             defer_type_evaluation,
         )?;
+        self.collect_associated_comptime_member_projection_dependencies(
+            module, members, tree, symbols, types,
+        );
 
         // collect member contributions
         for member_id in members {
@@ -1858,6 +1861,9 @@ impl Compiler {
             types,
             defer_type_evaluation,
         )?;
+        self.collect_associated_comptime_member_projection_dependencies(
+            module, members, tree, symbols, types,
+        );
 
         // collect member contributions
         for member_id in members {
