@@ -41,3 +41,20 @@ The formatter uses FIR (Formatting IR) for layout decisions, automatically break
 | `indent_width` | 2 | Spaces per indent level |
 | `line_width` | 80 | Target line width |
 | `trailing_comma` | false | Add trailing commas (JSONC) |
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_json
+```
+
+### Downstream coverage
+
+```sh
+cargo test -p destack_workspace
+cargo test -p destack_service
+```

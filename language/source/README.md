@@ -53,3 +53,20 @@ The file system abstraction supports both real files and virtual/in-memory sourc
 | `diagnostic/` | Diagnostic types, severity levels, suggestions |
 | `tree/` | `NodeSourceMap` for tracking spans per-node in IR trees |
 | `edit/` | Source edits and text modifications |
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_source
+```
+
+### Diagnostic and query coverage
+
+```sh
+just language/test-specification
+just language/test-query
+```

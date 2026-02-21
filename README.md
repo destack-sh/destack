@@ -4,7 +4,7 @@
 
 **Destack is a universal software engine for building correct, optimal, integrated software systems.**
 
-_Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, client SDKs, and platform - built on open standards._
+_Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and platform - all based on open standards._
 
 <p>
     <a href="version.txt"><img src="https://img.shields.io/badge/version-0.55.2-2ea44f" alt="Version"></a>
@@ -13,7 +13,6 @@ _Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, client
     <a href="https://github.com/destack-sh/destack/actions/workflows/release.yml"><img src="https://github.com/destack-sh/destack/actions/workflows/release.yml/badge.svg" alt="Release"></a>
     <a href="LICENSE.txt"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
 </p>
-
 <p>
     <a title="Commits" target="_blank" href="https://github.com/destack-sh/destack/commits/main"><img src="https://img.shields.io/github/commit-activity/m/destack-sh/destack.svg?style=flat-square"></a>
     <a title="Last Commit" target="_blank" href="https://github.com/destack-sh/destack/commits/main"><img src="https://img.shields.io/github/last-commit/destack-sh/destack.svg?style=flat-square&color=FF9900"></a>
@@ -29,7 +28,7 @@ _Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, client
 Destack is a fully integrated software engine with a language, runtime, libraries, and platform on top of TypeScript and the open web ecosystem.
 While Destack is designed for integration, we also value incremental adoption and developer freedom, and so you are of course free to pick only the components you like.
 
-- [**Destack Language**](language/README.md): TypeScript++ toolchain, VM, AOT compiler, runtime.
+- [**Destack Language**](language/README.md): TypeScript(++) toolchain, VM, AOT compiler, runtime.
 - [**Destack Library**](library/README.md): Standard library packages for most things most software needs, written in TS++.
 - [**Destack Client**](client/README.md): User-facing SDKs and bindings for JS/TS, WASM, Rust, and Python.
 - [**Destack Platform**](platform/README.md): CLI, daemon, LSP, editor integrations, everything to run, deploy, and integrate software.

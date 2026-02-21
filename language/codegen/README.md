@@ -43,3 +43,22 @@ The Cranelift backend needs MIR (the machine IR) because it's generating actual 
           │  .wasm   │            │   .o     │
           └──────────┘            └──────────┘
 ```
+
+## Testing
+
+Run these from the repository root.
+
+### Backend crate tests
+
+```sh
+cargo test -p destack_codegen_js
+cargo test -p destack_codegen_lib
+cargo test -p destack_codegen_native
+```
+
+### End to end coverage
+
+```sh
+just language/test-codegen
+cargo test -p destack_test --test optimize
+```

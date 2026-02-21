@@ -24,3 +24,20 @@ All identifiers, string literals, and other repeated strings are interned to `St
 const id: StringId = pool.intern("foo")
 const s: string = pool.get(id)
 ```
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_base
+```
+
+### Downstream coverage
+
+```sh
+cargo test -p destack_test --test optimize
+just language/test-query
+```

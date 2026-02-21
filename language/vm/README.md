@@ -22,3 +22,20 @@ The runtime is responsible for driving the VM execution beyond single execution 
 
 Yielding suspends execution and returns an opaque continuation to be managed by the runtime.
 Continuations are "single shot" (i.e., they cannot be resumed multiple times) unless explicitly forked.
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_vm
+```
+
+### Execution and optimization coverage
+
+```sh
+cargo test -p destack_test --test optimize
+just language/test-codegen
+```

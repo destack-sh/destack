@@ -239,3 +239,20 @@ Stream allocation itself is recorded as a replay event, so replays stay aligned 
 Snapshots capture heap state, task queues, clock state, random state, and resource mappings.
 Snapshots are taken at safepoints where VM and native frames are in a resumable state.
 Snapshots allow fast replay and time travel without re-executing from genesis.
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_runtime
+```
+
+### Platform coverage
+
+```sh
+just language/test-runtime-privileged
+just language/test-windows-runtime
+```

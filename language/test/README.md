@@ -18,7 +18,9 @@ Integration and fixture-based tests for the Destack language toolchain.
 | **Ecosystem** | `fixtures/ecosystem/` | Real-world package tests |
 | **Stress** | `fixtures/stress/` | Scale limits: large files, many modules, deep nesting |
 
-## Running Tests
+## Testing
+
+Run these from `language/` unless noted otherwise.
 
 ```bash
 # run all tests via cargo
@@ -47,23 +49,6 @@ cargo test --test smoke -- --list
 
 # verbose output
 cargo test --test smoke -- --verbose
-```
-
-## Via Justfile
-
-```bash
-cd language
-just ecosystem-fetch    # fetch ecosystem packages
-just test                # run all language tests
-just test-smoke          # run smoke tests
-just test-codegen        # run codegen tests
-just test-specification  # run type checking specification tests
-just test-query          # run IDE query tests
-just test-conformance    # run conformance tests
-just test-formatter      # run formatter tests
-just test-resolver       # run resolver tests
-just test-ecosystem      # run ecosystem tests (requires fetched packages)
-just test-stress         # run stress tests
 ```
 
 ## MDTest Framework

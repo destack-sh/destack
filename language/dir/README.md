@@ -117,3 +117,20 @@ The different Resolution kinds come naturally from the specification and basical
 For example, `a + b` where `a: int32` and `b: int32` resolves to `Builtin`.
 But `a.foo()` where `a: Cat | Dog` might resolve to `Dynamic` if `Cat::foo` and `Dog::foo` are different symbols.
 Note that a polymorphic `T` might still resolve to `Static`: Resolution answers "what is the *symbol*?", not "how do we call it?".
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_dir
+```
+
+### Downstream coverage
+
+```sh
+just language/test-specification
+just language/test-codegen
+```

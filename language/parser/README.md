@@ -46,7 +46,7 @@ The parser treats semantic annotations and layout trivia as different classes wi
  1. Decorators and documentation are semantic attachments.
  2. Comments and blanks are layout trivia records.
 
-**However**, we still parse documentation as regular trivia, and then post-hoc assert it into the main AST IR because the turned out to be much easier.
+**However**, we still parse documentation as regular trivia, and then post-hoc assert it into the main AST IR because that turned out to be much easier.
 This happens via `Parser::parse()`'s call out to `attach_trivia()`.
 (If a test or direct parser entrypoint bypasses `parse()`, it must call `attach_trivia()` before checking docs or trivia output. Decorators are fine without.)
 
@@ -56,3 +56,36 @@ Comment and blank trivia are emitted in source order into split buffers:
  - Comment trivia is stored in `NodeTree::comment_trivia()`.
  - Blank trivia is stored in `NodeTree::blank_trivia()`.
  - Mixed source iteration uses `NodeTree::trivia_refs()`.
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_parser
+cargo test -p destack_test --test smoke -- --parser
+```
+
+### Quality gates
+
+```sh
+just language/format-check
+just language/check
+```
+
+### Compatibility and conformance
+
+```sh
+cargo test --release -p destack_test --test conformance
+```
+
+### Performance and fuzzing
+
+```sh
+just language/bench-parser
+just language/bench-lexer
+just language/fuzz-parser 300
+just language/fuzz-lexer 300
+```

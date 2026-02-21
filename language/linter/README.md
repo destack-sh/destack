@@ -406,3 +406,20 @@ Opt-in rules that ban certain patterns by project choice. These rules may confli
 | `LR032` | `strict-boolean-expressions` | TS-ESLint | DIR | ✓ | No | None | Disallow truthy/falsy coercion in conditions |
 | `LR010` | `no-delete` | Destack | AST | ✓ | Sometimes | Unsafe | Disallow the `delete` operator |
 | `LR012` | `no-exceptions` | Destack | DIR | ✓ | No | None | Disallow `throw` and `try/catch` (use Result types) |
+
+## Testing
+
+Run these from the repository root.
+
+### Quick local loop
+
+```sh
+cargo test -p destack_linter
+just language/test-linter
+```
+
+### Performance coverage
+
+```sh
+just language/bench-linter-stats "--help"
+```
