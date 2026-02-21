@@ -1,12 +1,13 @@
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_compiler_macros::DefineTask;
 use destack_source::{ModuleStamp, ProfileStamp};
+use destack_workspace::ModuleGraphStamp;
 
 /// Task to analyze something.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
 #[phase(Analyze)]
 pub enum AnalyzeTask {
-    /// Analyze a module completely (declare, export, infer, capture, validate).
+    /// Analyze a module completely (declare, interface, infer, capture, validate).
     #[task(code = 1, trace = "module={module} profile={profile}")]
     AnalyzeModule {
         module: ModuleStamp,
@@ -20,11 +21,19 @@ pub enum AnalyzeTask {
         profile: ProfileStamp,
     },
 
-    /// Infer exported surface types.
+    /// Infer one module interface surface.
     #[task(code = 3, trace = "module={module} profile={profile}")]
-    AnalyzeModuleExport {
+    AnalyzeModuleInterface {
         module: ModuleStamp,
         profile: ProfileStamp,
+    },
+
+    /// Infer one strongly connected interface component.
+    #[task(code = 7, trace = "module={module} profile={profile} graph={graph}")]
+    AnalyzeInterfaceComponent {
+        module: ModuleStamp,
+        profile: ProfileStamp,
+        graph: ModuleGraphStamp,
     },
 
     /// Infer expression types.
@@ -76,14 +85,42 @@ impl Compiler {
                     profile.version,
                 )?;
             }
-            AnalyzeTask::AnalyzeModuleExport { module, profile } => {
+            AnalyzeTask::AnalyzeModuleInterface { module, profile } => {
                 self.ensure_module_profile_matches::<AnalyzeError>(
                     module.id,
                     module.version,
                     profile.id,
                     profile.version,
                 )?;
-                self.analyze_module_export(module.id, profile.id, module.version, profile.version)?;
+                self.analyze_module_interface(
+                    module.id,
+                    profile.id,
+                    module.version,
+                    profile.version,
+                )?;
+            }
+            AnalyzeTask::AnalyzeInterfaceComponent {
+                module,
+                profile,
+                graph,
+            } => {
+                self.ensure_module_profile_matches::<AnalyzeError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
+                self.ensure_module_graph_version_matches::<AnalyzeError>(
+                    graph.profile_id,
+                    graph.version,
+                )?;
+                self.analyze_interface_component(
+                    module.id,
+                    profile.id,
+                    module.version,
+                    profile.version,
+                    graph.version,
+                )?;
             }
             AnalyzeTask::AnalyzeModuleInfer { module, profile } => {
                 self.ensure_module_profile_matches::<AnalyzeError>(

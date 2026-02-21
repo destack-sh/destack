@@ -238,7 +238,7 @@ impl Compiler {
             symbols,
             types,
         ) {
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -268,7 +268,7 @@ impl Compiler {
             infer,
         )?
         else {
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -294,7 +294,7 @@ impl Compiler {
                 infer,
                 types,
             )?;
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -310,7 +310,7 @@ impl Compiler {
         // binary operators expect one dynamic parameter
         let parameter_ty_id = resolved.signature.dynamic_parameters.first().copied();
         if resolved.signature.dynamic_parameters.len() != 1 {
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -327,26 +327,18 @@ impl Compiler {
                 variance: None,
             });
 
-            if !self.is_type_assignable_or_deferred(
+            self.enforce_assignability_or_defer_unassignable_diagnostic(
                 module,
                 ctx.profile,
-                symbols,
+                expression_id.into_any(),
                 parameter_ty_id,
                 right_ty_id,
+                symbols,
                 types,
+                infer,
                 &options,
-            ) {
-                if let Some(error) = self.unassignable_type_error_for_types(
-                    module,
-                    ctx.profile,
-                    expression_id.into_any(),
-                    parameter_ty_id,
-                    right_ty_id,
-                    types,
-                ) {
-                    return Err(error);
-                }
-            }
+                UnassignableRelationFailureMode::PropagateError,
+            )?;
         }
 
         // finalize resolution and instance registration

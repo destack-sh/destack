@@ -134,18 +134,20 @@ pub struct TypeTable {
 
     // static parameter constraints
     /// Cached constraint types by static parameter symbol.
-    pub(crate) static_parameter_constraint_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
+    pub(crate) static_parameter_constraint_by_symbol_id:
+        IndexMap<StaticParameterSymbolKey, LocalTypeId>,
     /// Static parameter constraint resolution in progress.
-    pub(crate) static_parameter_constraint_in_progress: HashSet<GlobalSymbolId>,
+    pub(crate) static_parameter_constraint_in_progress: HashSet<StaticParameterSymbolKey>,
     /// Cached static parameter kinds by symbol.
-    pub(crate) static_parameter_kind_by_symbol_id: IndexMap<GlobalSymbolId, StaticParameterKind>,
+    pub(crate) static_parameter_kind_by_symbol_id:
+        IndexMap<StaticParameterSymbolKey, StaticParameterKind>,
     /// Cached static parameter variances by symbol.
     pub(crate) static_parameter_variance_by_symbol_id:
-        IndexMap<GlobalSymbolId, Option<VarianceModifier>>,
+        IndexMap<StaticParameterSymbolKey, Option<VarianceModifier>>,
     /// Cached static parameter symbols by declaration symbol.
     pub(crate) static_parameter_symbols_by_symbol_id: IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
     /// Static parameter kind inference in progress.
-    pub(crate) static_parameter_kind_in_progress: HashSet<GlobalSymbolId>,
+    pub(crate) static_parameter_kind_in_progress: HashSet<StaticParameterSymbolKey>,
     /// Expression type evaluation in progress.
     pub(crate) expression_type_in_progress: HashSet<GlobalNodeIdAny>,
     /// Static argument resolution in progress.
@@ -267,6 +269,23 @@ fn instance_interner_key(
     InstanceInternerKey {
         symbol_id,
         static_argument_count,
+    }
+}
+
+/// Canonical key for one static-parameter declaration slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub(crate) struct StaticParameterSymbolKey {
+    /// The defining module id for this static-parameter slot.
+    module_id: ModuleId,
+    /// The local symbol id for this static-parameter slot.
+    local_symbol_id: u32,
+}
+
+/// Build one canonical key for static-parameter metadata.
+fn static_parameter_symbol_key(symbol_id: GlobalSymbolId) -> StaticParameterSymbolKey {
+    StaticParameterSymbolKey {
+        module_id: symbol_id.module_id,
+        local_symbol_id: symbol_id.local_id.id,
     }
 }
 
@@ -1150,9 +1169,11 @@ impl TypeTable {
         symbol_id: GlobalSymbolId,
         ty: LocalTypeId,
     ) {
+        let key = static_parameter_symbol_key(symbol_id);
+
         // cache the constraint type id
         self.static_parameter_constraint_by_symbol_id
-            .insert(symbol_id, ty);
+            .insert(key, ty);
     }
 
     /// Get the cached constraint type for a static parameter symbol.
@@ -1160,31 +1181,28 @@ impl TypeTable {
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<LocalTypeId> {
-        // fetch the cached constraint type id
+        let key = static_parameter_symbol_key(symbol_id);
         self.static_parameter_constraint_by_symbol_id
-            .get(&symbol_id)
+            .get(&key)
             .copied()
     }
 
     /// Mark a static parameter constraint as in progress.
     pub fn mark_static_parameter_constraint_in_progress(&mut self, symbol_id: GlobalSymbolId) {
-        // record constraint resolution as in progress
-        self.static_parameter_constraint_in_progress
-            .insert(symbol_id);
+        let key = static_parameter_symbol_key(symbol_id);
+        self.static_parameter_constraint_in_progress.insert(key);
     }
 
     /// Clear the in progress marker for a static parameter constraint.
     pub fn clear_static_parameter_constraint_in_progress(&mut self, symbol_id: GlobalSymbolId) {
-        // clear the in progress marker
-        self.static_parameter_constraint_in_progress
-            .remove(&symbol_id);
+        let key = static_parameter_symbol_key(symbol_id);
+        self.static_parameter_constraint_in_progress.remove(&key);
     }
 
     /// Check whether a static parameter constraint is in progress.
     pub fn is_static_parameter_constraint_in_progress(&self, symbol_id: GlobalSymbolId) -> bool {
-        // check whether resolution is in progress
-        self.static_parameter_constraint_in_progress
-            .contains(&symbol_id)
+        let key = static_parameter_symbol_key(symbol_id);
+        self.static_parameter_constraint_in_progress.contains(&key)
     }
 
     /// Cache the inferred kind for a static parameter symbol.
@@ -1193,9 +1211,8 @@ impl TypeTable {
         symbol_id: GlobalSymbolId,
         kind: StaticParameterKind,
     ) {
-        // cache the inferred kind
-        self.static_parameter_kind_by_symbol_id
-            .insert(symbol_id, kind);
+        let key = static_parameter_symbol_key(symbol_id);
+        self.static_parameter_kind_by_symbol_id.insert(key, kind);
     }
 
     /// Get the cached static parameter kind for a symbol.
@@ -1203,10 +1220,8 @@ impl TypeTable {
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<StaticParameterKind> {
-        // fetch the cached kind
-        self.static_parameter_kind_by_symbol_id
-            .get(&symbol_id)
-            .copied()
+        let key = static_parameter_symbol_key(symbol_id);
+        self.static_parameter_kind_by_symbol_id.get(&key).copied()
     }
 
     /// Cache the variance for a static parameter symbol.
@@ -1215,9 +1230,9 @@ impl TypeTable {
         symbol_id: GlobalSymbolId,
         variance: Option<VarianceModifier>,
     ) {
-        // cache the variance
+        let key = static_parameter_symbol_key(symbol_id);
         self.static_parameter_variance_by_symbol_id
-            .insert(symbol_id, variance);
+            .insert(key, variance);
     }
 
     /// Get the cached variance for a static parameter symbol.
@@ -1225,9 +1240,9 @@ impl TypeTable {
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<Option<VarianceModifier>> {
-        // fetch the cached variance
+        let key = static_parameter_symbol_key(symbol_id);
         self.static_parameter_variance_by_symbol_id
-            .get(&symbol_id)
+            .get(&key)
             .copied()
     }
 
@@ -1237,7 +1252,6 @@ impl TypeTable {
         symbol_id: GlobalSymbolId,
         symbols: Vec<GlobalSymbolId>,
     ) {
-        // cache static parameter symbols
         self.static_parameter_symbols_by_symbol_id
             .insert(symbol_id, symbols);
     }
@@ -1247,7 +1261,6 @@ impl TypeTable {
         &self,
         symbol_id: GlobalSymbolId,
     ) -> Option<Vec<GlobalSymbolId>> {
-        // fetch cached static parameter symbols
         self.static_parameter_symbols_by_symbol_id
             .get(&symbol_id)
             .cloned()
@@ -1255,20 +1268,20 @@ impl TypeTable {
 
     /// Mark a static parameter kind as in progress.
     pub fn mark_static_parameter_kind_in_progress(&mut self, symbol_id: GlobalSymbolId) {
-        // record kind inference as in progress
-        self.static_parameter_kind_in_progress.insert(symbol_id);
+        let key = static_parameter_symbol_key(symbol_id);
+        self.static_parameter_kind_in_progress.insert(key);
     }
 
     /// Clear the in progress marker for a static parameter kind.
     pub fn clear_static_parameter_kind_in_progress(&mut self, symbol_id: GlobalSymbolId) {
-        // clear the in progress marker
-        self.static_parameter_kind_in_progress.remove(&symbol_id);
+        let key = static_parameter_symbol_key(symbol_id);
+        self.static_parameter_kind_in_progress.remove(&key);
     }
 
     /// Check whether a static parameter kind is in progress.
     pub fn is_static_parameter_kind_in_progress(&self, symbol_id: GlobalSymbolId) -> bool {
-        // check whether inference is in progress
-        self.static_parameter_kind_in_progress.contains(&symbol_id)
+        let key = static_parameter_symbol_key(symbol_id);
+        self.static_parameter_kind_in_progress.contains(&key)
     }
 
     /// Mark static argument resolution as in progress.
@@ -1277,7 +1290,6 @@ impl TypeTable {
         symbol_id: GlobalSymbolId,
         arguments: Vec<StaticArgument>,
     ) {
-        // record static argument resolution as in progress
         self.static_argument_resolution_in_progress
             .push((symbol_id, arguments));
     }
@@ -1288,7 +1300,6 @@ impl TypeTable {
         symbol_id: GlobalSymbolId,
         arguments: &[StaticArgument],
     ) {
-        // clear the in progress marker
         if let Some(index) = self
             .static_argument_resolution_in_progress
             .iter()
@@ -1305,7 +1316,6 @@ impl TypeTable {
         symbol_id: GlobalSymbolId,
         arguments: &[StaticArgument],
     ) -> bool {
-        // check whether resolution is in progress
         self.static_argument_resolution_in_progress
             .iter()
             .any(|(symbol, stored)| *symbol == symbol_id && stored == arguments)
@@ -1313,19 +1323,16 @@ impl TypeTable {
 
     /// Mark expression type evaluation as in progress.
     pub fn mark_expression_type_in_progress(&mut self, node_id: GlobalNodeIdAny) {
-        // record evaluation as in progress
         self.expression_type_in_progress.insert(node_id);
     }
 
     /// Clear the in progress marker for expression type evaluation.
     pub fn clear_expression_type_in_progress(&mut self, node_id: GlobalNodeIdAny) {
-        // clear the in progress marker
         self.expression_type_in_progress.remove(&node_id);
     }
 
     /// Check whether expression type evaluation is in progress.
     pub fn is_expression_type_in_progress(&self, node_id: GlobalNodeIdAny) -> bool {
-        // check whether evaluation is in progress
         self.expression_type_in_progress.contains(&node_id)
     }
 

@@ -135,12 +135,12 @@ pub enum AnalyzeError {
     )]
     StaticParameterRequiresComptime { node: AnchoredGlobalNodeId },
 
-    /// Export inference cycle requires an explicit annotation.
+    /// Interface inference cycle requires an explicit annotation.
     #[error(
         code = "EA116",
         message = "export requires annotation to break inference cycle"
     )]
-    ExportInferenceRequiresAnnotation { node: AnchoredGlobalNodeId },
+    InterfaceInferenceRequiresAnnotation { node: AnchoredGlobalNodeId },
 
     /// Type only symbols cannot be used as values.
     #[error(code = "EA117", message = "type-only symbol cannot be used as a value")]
@@ -878,8 +878,8 @@ pub enum AnalyzeError {
 }
 
 impl AnalyzeError {
-    /// Return true when this diagnostic is a follow-on semantic consequence.
-    pub fn is_follow_on_semantic_diagnostic(&self) -> bool {
+    /// Return true when this diagnostic is a cascading semantic consequence.
+    pub fn is_cascading_semantic_diagnostic(&self) -> bool {
         matches!(
             self,
             Self::UnassignableType { .. }

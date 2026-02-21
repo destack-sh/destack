@@ -10,8 +10,8 @@ use crate::{Compiler, TaskDependencyError};
 pub(crate) enum AnalyzeDependencyStage {
     /// Read data owned by declare.
     Declare,
-    /// Read data owned by export.
-    Export,
+    /// Read data owned by interface.
+    Interface,
     /// Read data owned by infer.
     Infer,
     /// Read data owned by validate.
@@ -32,8 +32,8 @@ impl Compiler {
             AnalyzeDependencyStage::Declare => {
                 self.require_analyze_module_declare(module_id, profile)
             }
-            AnalyzeDependencyStage::Export => {
-                self.require_analyze_module_export(module_id, profile)
+            AnalyzeDependencyStage::Interface => {
+                self.require_analyze_module_interface(module_id, profile)
             }
             AnalyzeDependencyStage::Infer => self.require_analyze_module_infer(module_id, profile),
             AnalyzeDependencyStage::Validate => {
@@ -317,17 +317,6 @@ impl Compiler {
         let remote_tree = remote_dir.tree.read();
         let remote_symbols = remote_dir.symbols.read();
         handle(&remote_module, &remote_tree, &remote_symbols)
-    }
-
-    /// Provide tree and symbol tables by module id after resolve dependencies are ready.
-    pub(crate) fn with_module_tree_symbols_by_id_for_resolve<R>(
-        &self,
-        profile: ProfileId,
-        module_id: ModuleId,
-        handle: impl FnOnce(&Module, &NodeTree, &SymbolTable) -> R,
-    ) -> Result<R, TaskDependencyError> {
-        self.require_resolve_module_direct(module_id, profile)?;
-        Ok(self.with_module_tree_symbols_by_id_unchecked(profile, module_id, handle))
     }
 
     /// Provide tree and symbol tables by module id with a stage gate.

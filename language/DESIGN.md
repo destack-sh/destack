@@ -694,6 +694,14 @@ import dataBytes from "./file.txt" with { type: "binary" };  // import as uint8[
 Supported `type` loaders are `json`, `toml`, `yaml`, `text`, `binary`, and `base64`.
 (The same file with different loaders produces different modules, of course.)
 
+### Export Inference in Cycles
+
+Export inference is the cycle breaker surface for cross-module type flow.
+When modules form an export dependency cycle, Analyze solves exports at the SCC boundary using declared and inferred constraints from the cycle itself.
+Annotations are seeds for that solve, but there is no fixed anchor count rule.
+A cycle is accepted when every exported binding in the SCC is solved to a concrete type.
+A cycle is rejected when any exported binding remains unsolved after surface convergence, and those exports must be annotated explicitly.
+
 ## Compatibility
 
 **Destack aims for 100% compatibility with modern TypeScript.**

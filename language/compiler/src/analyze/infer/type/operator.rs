@@ -574,7 +574,7 @@ impl Compiler {
         right_ty_id: LocalTypeId,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        infer: &InferTable,
+        _infer: &InferTable,
         options: &AnalyzeOptions,
     ) -> Type {
         match operator {
@@ -674,8 +674,6 @@ impl Compiler {
                 types.get_type(right_ty_id).clone()
             }
             TypeBinaryOperator::Satisfies => {
-                // satisfies diagnostics run after inference convergence
-                let _ = (module, profile, symbols, infer, options, expression_id);
                 // satisfies returns the original (left) type, not the asserted type
                 types.get_type(left_ty_id).clone()
             }

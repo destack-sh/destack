@@ -22,7 +22,8 @@ use destack_dir::{
     MatchKind, MatchSelector, MatchSource, Member, Mutability, NodeTree, NodeType,
     NormalizationMode, Pattern, PrimitiveType, Property, Resolution, ScalarLiteral, StaticKey,
     StringId, SymbolDecorators, SymbolSpace, SymbolTable, Type, TypeBinaryOperator, TypeElement,
-    TypeField, TypeLiteral, TypeTable, TypeUnaryOperator, WellKnownSymbol, YieldCardinality,
+    TypeField, TypeLiteral, TypeRelationObligationDiagnostic, TypeTable, TypeUnaryOperator,
+    WellKnownSymbol, YieldCardinality,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ImportEdgeKind, Module, ModuleSource, ProfileId};
@@ -1335,6 +1336,16 @@ impl Compiler {
                                 infer,
                                 types,
                             );
+
+                        // enforce satisfies after convergence for full inferred substitutions
+                        self.push_type_relation_obligation_for_expression_operands(
+                            module,
+                            expression_id.into_any(),
+                            *right,
+                            *left,
+                            TypeRelationObligationDiagnostic::UnsatisfiedType,
+                            infer,
+                        );
                         (left_ty_id, right_ty_id)
                     }
                     _ => {
@@ -2141,7 +2152,7 @@ impl Compiler {
                             &ctx.options,
                         ) == Assignability::NotAssignable
                         {
-                            let _reported = self.report_unassignable_type_for_types(
+                            self.emit_unassignable_type_for_types(
                                 module,
                                 ctx.profile,
                                 expression_id.into_any(),
@@ -3814,7 +3825,7 @@ impl Compiler {
                     && let Some(promise_ty_id) =
                         self.promise_type(ctx.profile, None, expression_id.into_any(), types)
                 {
-                    let _reported = self.report_unassignable_type_for_types(
+                    self.emit_unassignable_type_for_types(
                         module,
                         ctx.profile,
                         expression_id.into_any(),
@@ -3880,7 +3891,7 @@ impl Compiler {
                                     &ctx.options,
                                 ) == Assignability::NotAssignable
                                 {
-                                    let _reported = self.report_unassignable_type_for_types(
+                                    self.emit_unassignable_type_for_types(
                                         module,
                                         ctx.profile,
                                         value_id.into_any(),
@@ -3900,7 +3911,7 @@ impl Compiler {
                             &ctx.options,
                         ) == Assignability::NotAssignable
                         {
-                            let _reported = self.report_unassignable_type_for_types(
+                            self.emit_unassignable_type_for_types(
                                 module,
                                 ctx.profile,
                                 value_id.into_any(),
@@ -4451,8 +4462,10 @@ impl Compiler {
                     tree,
                     types,
                 ) {
-                    let declared_signature_ty_id = declared_signature_ty_id
-                        .expect("declared signature type required for skipped signature inference");
+                    let declared_signature_ty_id = self
+                        .require_declared_signature_type_for_skipped_inference(
+                            declared_signature_ty_id,
+                        )?;
                     self.bind_declared_signature(
                         module,
                         property_id.into_any(),
@@ -4531,7 +4544,7 @@ impl Compiler {
                                 &options,
                             ) == Assignability::NotAssignable
                         {
-                            let _reported = self.report_unassignable_type_for_types(
+                            self.emit_unassignable_type_for_types(
                                 module,
                                 ctx.profile,
                                 body.into_any(),
@@ -4848,32 +4861,6 @@ impl Compiler {
                     return Ok(ty_id);
                 }
 
-                // reject export inference cycles without explicit annotations
-                if ctx.is_surface_inference
-                    && dependency_kind == Some(DependencyKind::Value)
-                    && let Some(target_symbol) = dependency.target_symbol()
-                {
-                    let has_cycle = self.export_inference_has_cycle(
-                        module.id,
-                        ctx.profile,
-                        target_symbol.module_id,
-                    )?;
-                    if has_cycle
-                        && !self
-                            .remote_symbol_has_declared_value_type(ctx.profile, target_symbol)?
-                    {
-                        let error_node = expression_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(ctx.profile));
-                        self.error(AnalyzeError::ExportInferenceRequiresAnnotation {
-                            node: error_node,
-                        });
-                        let ty_id =
-                            types.insert_type_from_any(Type::Error, expression_id.into_any());
-                        return Ok(ty_id);
-                    }
-                }
-
                 // reject value imports that resolve to type-only exports
                 if dependency_kind == Some(DependencyKind::Value) {
                     let (export_name, target_module_id) =
@@ -4897,30 +4884,6 @@ impl Compiler {
                             return Ok(ty_id);
                         }
                     }
-                }
-            }
-
-            // reject export inference cycles when dependency items are unavailable
-            if dependency_id.is_none()
-                && ctx.is_surface_inference
-                && let Some(target_symbol) = symbol_entry.target_symbol
-            {
-                let has_cycle = self.export_inference_has_cycle(
-                    module.id,
-                    ctx.profile,
-                    target_symbol.module_id,
-                )?;
-                if has_cycle
-                    && !self.remote_symbol_has_declared_value_type(ctx.profile, target_symbol)?
-                {
-                    let error_node = expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile));
-                    self.error(AnalyzeError::ExportInferenceRequiresAnnotation {
-                        node: error_node,
-                    });
-                    let ty_id = types.insert_type_from_any(Type::Error, expression_id.into_any());
-                    return Ok(ty_id);
                 }
             }
 
@@ -5609,7 +5572,7 @@ impl Compiler {
                 options,
             ) == Assignability::NotAssignable
         {
-            let _reported = self.report_unassignable_type_for_types(
+            self.emit_unassignable_type_for_types(
                 module,
                 profile,
                 value_id.into_any(),

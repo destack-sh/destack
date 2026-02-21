@@ -885,7 +885,7 @@ impl Compiler {
                 options,
             ) == Assignability::NotAssignable
             {
-                let _reported = self.report_unassignable_type_for_types(
+                self.emit_unassignable_type_for_types(
                     module,
                     ctx.profile,
                     argument_value_id.into_any(),
@@ -1711,7 +1711,7 @@ impl Compiler {
         context: &UnionMemberCallResolutionContext<'_>,
         types: &TypeTable,
     ) {
-        let _reported = self.report_no_overload_for_receiver_type(
+        self.emit_no_overload_for_receiver_type(
             context.module,
             context.profile,
             context.expression_id.into_any(),
@@ -1726,7 +1726,7 @@ impl Compiler {
         context: &UnionMemberCallResolutionContext<'_>,
         types: &TypeTable,
     ) {
-        let _reported = self.report_non_callable_for_callee_type(
+        self.emit_non_callable_for_callee_type(
             context.module,
             context.profile,
             context.expression_id.into_any(),
@@ -2239,7 +2239,7 @@ impl Compiler {
             call.call_member_resolution,
             Some(MemberResolution::None | MemberResolution::Unresolved)
         );
-        let callee_has_primary_error = self.type_blocks_follow_on_diagnostic(callee_ty_id, types);
+        let callee_has_primary_error = self.type_blocks_cascading_diagnostic(callee_ty_id, types);
 
         // report non-callable callee types unless they are dynamic placeholders
         let is_dynamic_callee = has_missing_member
@@ -2252,7 +2252,7 @@ impl Compiler {
                     | Type::Infer { .. }
             );
         if !is_dynamic_callee {
-            let _reported = self.report_non_callable_for_callee_type(
+            self.emit_non_callable_for_callee_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -2272,7 +2272,7 @@ impl Compiler {
             ctx,
         )?;
 
-        Ok(self.default_to_unknown_call_type(expression_id, types))
+        Ok(self.synthesize_unknown_call_type(expression_id, types))
     }
 
     /// Infer call arguments without contextual parameter types.
@@ -2294,8 +2294,8 @@ impl Compiler {
         Ok(())
     }
 
-    /// Default one call expression result type to unknown.
-    fn default_to_unknown_call_type(
+    /// Synthesize an unknown result type for one call expression.
+    fn synthesize_unknown_call_type(
         &self,
         expression_id: LocalNodeId<Expression>,
         types: &mut TypeTable,
@@ -2915,7 +2915,7 @@ impl Compiler {
             types,
             options,
         ) {
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -2924,7 +2924,7 @@ impl Compiler {
             );
 
             return Ok(Some(
-                self.default_to_unknown_call_type(expression_id, types),
+                self.synthesize_unknown_call_type(expression_id, types),
             ));
         }
 
@@ -2992,7 +2992,7 @@ impl Compiler {
         );
 
         Ok(Some(
-            self.default_to_unknown_call_type(expression_id, types),
+            self.synthesize_unknown_call_type(expression_id, types),
         ))
     }
 
@@ -3599,7 +3599,7 @@ impl Compiler {
 
         // report overload errors on ambiguous calls
         if signature_ty_ids.len() > 1 {
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -3617,7 +3617,7 @@ impl Compiler {
             )?;
 
             return Ok(CallExpressionSignatureResolution::UnknownType(
-                self.default_to_unknown_call_type(expression_id, types),
+                self.synthesize_unknown_call_type(expression_id, types),
             ));
         }
 
@@ -3650,7 +3650,7 @@ impl Compiler {
             })
         } else {
             Ok(CallExpressionSignatureResolution::UnknownType(
-                self.default_to_unknown_call_type(expression_id, types),
+                self.synthesize_unknown_call_type(expression_id, types),
             ))
         }
     }
@@ -3677,7 +3677,7 @@ impl Compiler {
         if target.is_struct_constructor
             && dynamic_arguments.len() != resolved_dynamic_parameters.len()
         {
-            let _reported = self.report_no_overload_for_receiver_type(
+            self.emit_no_overload_for_receiver_type(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -3694,7 +3694,7 @@ impl Compiler {
                 ctx,
             )?;
 
-            return Ok(self.default_to_unknown_call_type(expression_id, types));
+            return Ok(self.synthesize_unknown_call_type(expression_id, types));
         }
 
         // infer argument types and constraints
@@ -3768,7 +3768,7 @@ impl Compiler {
         }
 
         Ok(resolved_return_type
-            .unwrap_or_else(|| self.default_to_unknown_call_type(expression_id, types)))
+            .unwrap_or_else(|| self.synthesize_unknown_call_type(expression_id, types)))
     }
 
     /// Infer behavior for non-constructable new-expression targets.
@@ -3814,7 +3814,7 @@ impl Compiler {
             ctx,
         )?;
 
-        Ok(self.default_to_unknown_call_type(expression_id, types))
+        Ok(self.synthesize_unknown_call_type(expression_id, types))
     }
 
     /// Resolve a function type for a call, substituting static parameters when provided.

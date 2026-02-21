@@ -17,7 +17,10 @@ impl Compiler {
         types: &TypeTable,
         target_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Vec<GlobalSymbolId>> {
-        // canonicalize the target symbol
+        // normalize reference-like symbols without taking tree locks
+        let target_symbol = self.normalize_reference_symbol_id(module, profile, target_symbol);
+
+        // canonicalize and declaration normalize the target symbol
         let canonical_target = self.canonical_symbol_id(
             module,
             symbols,
@@ -25,12 +28,15 @@ impl Compiler {
             target_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
+        let declaration_target = self
+            .declaration_symbol_id(module, symbols, profile, canonical_target)
+            .unwrap_or(canonical_target);
 
         let mut extensions = Vec::new();
         let mut seen = HashSet::new();
 
         // include extensions declared in the current module
-        if let Some(extension_ids) = types.get_extensions_for_target(canonical_target) {
+        if let Some(extension_ids) = types.get_extensions_for_target(declaration_target) {
             for extension_id in extension_ids {
                 let extension = types.get_extension(*extension_id);
                 if seen.insert(extension.symbol) {
@@ -68,19 +74,19 @@ impl Compiler {
             Ok(())
         };
 
-        include_inherent_extensions(canonical_target)?;
+        include_inherent_extensions(declaration_target)?;
 
         // include inherent extensions for global symbol groups
         let (should_scan_global_group, target_key, target_space) = self
             .with_module_symbols_or_local_at_stage(
                 module,
                 profile,
-                canonical_target.module_id,
+                declaration_target.module_id,
                 symbols,
                 AnalyzeDependencyStage::Declare,
                 |target_module, target_symbols| {
-                    let symbol_entry = target_symbols.get_symbol(canonical_target.local_id);
-                    let should_scan_global_group = if canonical_target.module_id == module.id {
+                    let symbol_entry = target_symbols.get_symbol(declaration_target.local_id);
+                    let should_scan_global_group = if declaration_target.module_id == module.id {
                         symbol_entry.origin.is_global_augmentation()
                     } else {
                         matches!(target_module.source, ModuleSource::Builtin(_))
@@ -101,7 +107,17 @@ impl Compiler {
                 self.get_global_symbol_group(module.id, profile, key, target_space)
         {
             for global_symbol in global_symbols {
-                if global_symbol == canonical_target {
+                let global_symbol = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    profile,
+                    global_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+                let global_symbol = self
+                    .declaration_symbol_id(module, symbols, profile, global_symbol)
+                    .unwrap_or(global_symbol);
+                if global_symbol == declaration_target {
                     continue;
                 }
                 include_inherent_extensions(global_symbol)?;
@@ -132,7 +148,17 @@ impl Compiler {
             let Some(extension) = self.extension_for_symbol(profile, canonical_extension)? else {
                 continue;
             };
-            if extension.target == canonical_target {
+            let extension_target = self.canonical_symbol_id(
+                module,
+                symbols,
+                profile,
+                extension.target,
+                CanonicalSymbolMode::FollowAliases,
+            );
+            let extension_target = self
+                .declaration_symbol_id(module, symbols, profile, extension_target)
+                .unwrap_or(extension_target);
+            if extension_target == declaration_target {
                 extensions.push(canonical_extension);
             }
         }

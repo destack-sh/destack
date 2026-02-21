@@ -140,12 +140,13 @@ impl Compiler {
             let value_ty_id = if let Some(value_ty_id) = types.get_value_type_id(target_symbol) {
                 value_ty_id
             } else if target_symbol.module_id != module.id {
+                // treat export namespace construction as interface surface inference
                 self.resolve_remote_symbol_value_type(
                     module,
                     profile,
                     source_id,
                     target_symbol,
-                    false,
+                    true,
                     types,
                 )?
             } else {
@@ -182,8 +183,8 @@ impl Compiler {
 
         match target {
             ModuleTarget::Module(module_id) => {
-                // ensure the target module has export inference
-                self.require_analyze_module_export(module_id, profile)?;
+                // ensure the target module has interface surface inference
+                self.require_analyze_module_interface(module_id, profile)?;
 
                 // load the target module exports
                 let target_module = self.program.modules.get(module_id);

@@ -13,19 +13,6 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         let remote_module_id = target_symbol.module_id;
         let error_node = node_id.into_global(module.id).into_anchored(Some(profile));
-        let has_declared_value_type = if is_surface_inference {
-            self.remote_symbol_has_declared_value_type(profile, target_symbol)?
-        } else {
-            false
-        };
-
-        // reject export inference cycles that lack explicit annotations
-        if is_surface_inference
-            && self.export_inference_has_cycle(module.id, profile, remote_module_id)?
-            && !has_declared_value_type
-        {
-            return Err(AnalyzeError::ExportInferenceRequiresAnnotation { node: error_node });
-        }
 
         // reject type-only symbols in value resolution
         if !self.symbol_is_value_capable(profile, target_symbol) {
@@ -41,11 +28,17 @@ impl Compiler {
             return Ok(types.insert_type_from_any(ty, node_id));
         }
 
+        // surface inference reads declared module state to allow interface-component fixed points
+        let read_stage = if is_surface_inference {
+            AnalyzeDependencyStage::Declare
+        } else {
+            AnalyzeDependencyStage::Interface
+        };
         self.with_module_tree_symbols_at_stage(
             module,
             profile,
             remote_module_id,
-            AnalyzeDependencyStage::Export,
+            read_stage,
             |remote_module, remote_tree, remote_symbols| {
                 let remote_dir = remote_module.dir(profile);
                 let mut remote_types = remote_dir.types.write();
@@ -101,152 +94,7 @@ impl Compiler {
                 }
             },
         )
-        .map_err(|error| {
-            // only reject when we have an explicit export inference cycle
-            if is_surface_inference
-                && !has_declared_value_type
-                && let Ok(has_cycle) =
-                    self.export_inference_has_cycle(module.id, profile, remote_module_id)
-                && has_cycle
-            {
-                return AnalyzeError::ExportInferenceRequiresAnnotation { node: error_node };
-            }
-            AnalyzeError::from(error)
-        })?
-    }
-
-    /// Check whether a remote symbol has an explicit value type annotation.
-    pub(crate) fn remote_symbol_has_declared_value_type(
-        &self,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-    ) -> AnalyzeResult<bool> {
-        self.with_module_tree_symbols_by_id_for_resolve(
-            profile,
-            symbol.module_id,
-            |remote_module, tree, symbols| {
-                // check for explicit declarator annotations
-                if let Some(declarator_id) =
-                    self.direct_binding_declarator_for_symbol(remote_module, symbol, tree, symbols)
-                {
-                    if tree.get(declarator_id).ty.is_some() {
-                        return true;
-                    }
-                }
-
-                // check for annotated function declarations
-                let symbol_entry = symbols.get_symbol(symbol.local_id);
-                let Some(primary_declaration) = symbol_entry.primary_declaration else {
-                    return false;
-                };
-                if primary_declaration.module_id != remote_module.id {
-                    return false;
-                }
-                let Some(declaration_id) =
-                    self.declaration_id_from_primary(tree, primary_declaration.local_id)
-                else {
-                    return false;
-                };
-                let Declaration::Function { signature, .. } = tree.get(declaration_id) else {
-                    return false;
-                };
-
-                signature.return_type.is_some()
-            },
-        )
-        .map_err(AnalyzeError::from)
-    }
-
-    /// Resolve a declaration id from a primary declaration node.
-    fn declaration_id_from_primary(
-        &self,
-        tree: &NodeTree,
-        primary_declaration: LocalNodeIdAny,
-    ) -> Option<LocalNodeId<Declaration>> {
-        // lift declaration nodes out of primary declaration wrappers
-        match primary_declaration.ty {
-            NodeType::Declaration => Some(primary_declaration.into_typed()),
-            NodeType::Expression => {
-                let expression_id = primary_declaration.into_typed::<Expression>();
-                match tree.get(expression_id) {
-                    Expression::Declaration { declaration } => Some(*declaration),
-                    _ => None,
-                }
-            }
-            _ => None,
-        }
-    }
-
-    /// Check if an export inference cycle is detected between two modules.
-    pub(crate) fn export_inference_has_cycle(
-        &self,
-        module_id: ModuleId,
-        profile: ProfileId,
-        remote_module_id: ModuleId,
-    ) -> AnalyzeResult<bool> {
-        // short circuit direct self references
-        if module_id == remote_module_id {
-            return Ok(true);
-        }
-
-        // walk resolved dependency edges for the remote module
-        let mut visited = HashSet::new();
-        let mut queue = vec![remote_module_id];
-        while let Some(current) = queue.pop() {
-            // skip modules we have already visited
-            if !visited.insert(current) {
-                continue;
-            }
-
-            // stop when we reach the source module
-            if current == module_id {
-                return Ok(true);
-            }
-
-            // ensure imports are resolved before inspecting module dependencies
-            self.require_resolve_module_direct(current, profile)?;
-
-            // collect direct module dependencies for cycle checks
-            let dependencies = self.module_dependency_ids_for_cycle_detection(current, profile)?;
-            for dependency in dependencies {
-                queue.push(dependency);
-            }
-        }
-
-        Ok(false)
-    }
-
-    /// Collect module dependency ids for export inference cycle detection.
-    fn module_dependency_ids_for_cycle_detection(
-        &self,
-        module_id: ModuleId,
-        profile: ProfileId,
-    ) -> AnalyzeResult<Vec<ModuleId>> {
-        // load the module dir for dependency discovery
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-
-        // stop when the module has no dir for this profile
-        let Some(dir) = module.dir_maybe(profile) else {
-            return Ok(Vec::new());
-        };
-
-        // collect remote dependency targets from resolved dependency items
-        let tree = dir.tree.read();
-        let mut dependencies = Vec::new();
-        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
-            let DependencyItem::Remote { target_module, .. } = tree.get(item_id) else {
-                continue;
-            };
-
-            for target in [target_module.value, target_module.ty] {
-                if let Some(ModuleTarget::Module(target_id)) = target {
-                    dependencies.push(target_id);
-                }
-            }
-        }
-
-        Ok(dependencies)
+        .map_err(AnalyzeError::from)?
     }
 
     /// Import a type from a remote module into the current module's TypeTable.
@@ -961,7 +809,7 @@ impl Compiler {
     }
 
     /// Import a static expression from a remote module into the local type table.
-    fn import_static_expression_from_remote_for_node(
+    pub(crate) fn import_static_expression_from_remote_for_node(
         &self,
         node_id: LocalNodeIdAny,
         expression: &StaticExpression,

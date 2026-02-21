@@ -327,17 +327,21 @@ impl Compiler {
         .map_err(AnalyzeError::from)
     }
 
-    /// Resolve enum backing types without yielding in non-AnalyzeResult paths.
-    pub(crate) fn enum_backing_type_for_symbol_best_effort(
+    /// Query one enum backing type in non-AnalyzeResult paths.
+    pub(crate) fn query_enum_backing_type_for_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
         enum_symbol: GlobalSymbolId,
         types: &mut TypeTable,
     ) -> Option<EnumBackingType> {
-        self.enum_backing_type_for_symbol(module, profile, enum_symbol, types)
-            .ok()
-            .flatten()
+        match self.enum_backing_type_for_symbol(module, profile, enum_symbol, types) {
+            Ok(backing) => backing,
+            Err(error) => {
+                self.error(error);
+                None
+            }
+        }
     }
 
     /// Resolve the enum backing type for a local symbol using available tables.
@@ -615,8 +619,8 @@ impl Compiler {
         ))
     }
 
-    /// Resolve enum field symbols without yielding in non-AnalyzeResult paths.
-    pub(crate) fn enum_field_symbol_for_name_best_effort(
+    /// Query one enum field symbol in non-AnalyzeResult paths.
+    pub(crate) fn query_enum_field_symbol_for_name(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -625,9 +629,20 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
-        self.enum_field_symbol_for_name(module, profile, enum_symbol, field_name, tree, symbols)
-            .ok()
-            .flatten()
+        match self.enum_field_symbol_for_name(
+            module,
+            profile,
+            enum_symbol,
+            field_name,
+            tree,
+            symbols,
+        ) {
+            Ok(field_symbol) => field_symbol,
+            Err(error) => {
+                self.error(error);
+                None
+            }
+        }
     }
 
     /// Scan enum declarations in a single tree for a field symbol.

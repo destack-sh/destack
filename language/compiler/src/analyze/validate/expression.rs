@@ -3191,7 +3191,7 @@ impl Compiler {
             return;
         };
 
-        // report missing key access unless a primary receiver error blocks follow-ons
+        // report missing key access unless a primary receiver error blocks cascades
         let reported = self.report_missing_member_diagnostic_for_receiver_type(
             module,
             profile,

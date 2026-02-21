@@ -1,10 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::expression::has_implicit_return;
-use crate::analyze::common::{
-    AnalyzeDependencyStage, AssociatedComptimeRequirement, AssociatedTypeRequirement,
-    TypeRewriteCache,
-};
+use crate::analyze::common::{AnalyzeDependencyStage, TypeRewriteCache};
+use crate::analyze::{AssociatedComptimeRequirement, AssociatedTypeRequirement};
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_base::StringId;
 use destack_dir::{
@@ -1003,7 +1001,7 @@ impl Compiler {
                 &options,
             );
             if is_assignable == Assignability::NotAssignable {
-                let _reported = self.report_unassignable_type_for_types(
+                self.emit_unassignable_type_for_types(
                     module,
                     profile,
                     declaration_member.member_id.into_any(),
@@ -1699,7 +1697,7 @@ impl Compiler {
             return Ok(());
         }
 
-        let _reported = self.report_unassignable_type_for_types(
+        self.emit_unassignable_type_for_types(
             module,
             profile,
             declaration_member.member_id.into_any(),
@@ -1753,8 +1751,8 @@ impl Compiler {
             types,
         );
         let fn_ty_id = if should_use_declared_signature {
-            let declared_signature_ty_id = declared_signature_ty_id
-                .expect("declared signature type required for skipped signature inference");
+            let declared_signature_ty_id = self
+                .require_declared_signature_type_for_skipped_inference(declared_signature_ty_id)?;
             self.bind_declared_signature(
                 module,
                 declaration_id.into_any(),
@@ -1901,7 +1899,7 @@ impl Compiler {
                         &function_options,
                     ) == Assignability::NotAssignable
                 {
-                    let _reported = self.report_unassignable_type_for_types(
+                    self.emit_unassignable_type_for_types(
                         module,
                         ctx.profile,
                         body.into_any(),
@@ -1961,6 +1959,16 @@ impl Compiler {
         }
 
         self.signature_is_fully_declared(module, signature, tree, types)
+    }
+
+    /// Require the declared signature type when signature inference is skipped.
+    pub(crate) fn require_declared_signature_type_for_skipped_inference(
+        &self,
+        declared_signature_ty_id: Option<LocalTypeId>,
+    ) -> AnalyzeResult<LocalTypeId> {
+        declared_signature_ty_id.ok_or_else(|| AnalyzeError::Internal {
+            message: "missing declared signature type for skipped signature inference".into(),
+        })
     }
 
     /// Infer a member declaration.
@@ -2069,7 +2077,7 @@ impl Compiler {
                         &options,
                     );
                     if is_assignable == Assignability::NotAssignable {
-                        let _reported = self.report_unassignable_type_for_types(
+                        self.emit_unassignable_type_for_types(
                             module,
                             ctx.profile,
                             member_id.into_any(),
@@ -2216,7 +2224,7 @@ impl Compiler {
                         &options,
                     );
                     if is_assignable == Assignability::NotAssignable {
-                        let _reported = self.report_unassignable_type_for_types(
+                        self.emit_unassignable_type_for_types(
                             module,
                             ctx.profile,
                             member_id.into_any(),
@@ -2454,8 +2462,10 @@ impl Compiler {
                     tree,
                     types,
                 ) {
-                    let declared_signature_ty_id = declared_signature_ty_id
-                        .expect("declared signature type required for skipped signature inference");
+                    let declared_signature_ty_id = self
+                        .require_declared_signature_type_for_skipped_inference(
+                            declared_signature_ty_id,
+                        )?;
                     self.bind_declared_signature(
                         module,
                         member_id.into_any(),
@@ -2604,7 +2614,7 @@ impl Compiler {
                                 &method_options,
                             ) == Assignability::NotAssignable
                         {
-                            let _reported = self.report_unassignable_type_for_types(
+                            self.emit_unassignable_type_for_types(
                                 module,
                                 ctx.profile,
                                 body.into_any(),

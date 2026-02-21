@@ -393,7 +393,7 @@ impl Compiler {
                     types,
                 )?;
                 let declaration_symbol = descriptor.symbol.into_global(module.id);
-                self.validate_associated_type_contract_requirements(
+                self.report_missing_declared_associated_type_requirements(
                     module,
                     profile,
                     declaration_symbol,
@@ -404,7 +404,7 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
-                self.validate_associated_comptime_contract_requirements(
+                self.report_missing_declared_associated_comptime_requirements(
                     module,
                     profile,
                     declaration_symbol,
@@ -534,7 +534,7 @@ impl Compiler {
                 let declaration_symbol = descriptor.symbol.into_global(module.id);
                 let allows_deferred_associated =
                     descriptor.abstraction == destack_dir::DeclarationAbstraction::Abstract;
-                self.validate_associated_type_contract_requirements(
+                self.report_missing_declared_associated_type_requirements(
                     module,
                     profile,
                     declaration_symbol,
@@ -545,7 +545,7 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
-                self.validate_associated_comptime_contract_requirements(
+                self.report_missing_declared_associated_comptime_requirements(
                     module,
                     profile,
                     declaration_symbol,
@@ -674,7 +674,7 @@ impl Compiler {
                     types,
                 )?;
                 let declaration_symbol = descriptor.symbol.into_global(module.id);
-                self.validate_associated_type_contract_requirements(
+                self.report_missing_declared_associated_type_requirements(
                     module,
                     profile,
                     declaration_symbol,
@@ -685,7 +685,7 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
-                self.validate_associated_comptime_contract_requirements(
+                self.report_missing_declared_associated_comptime_requirements(
                     module,
                     profile,
                     declaration_symbol,

@@ -2,8 +2,8 @@ use super::member::{MemberLookupMode, MemberReceiverContext};
 use crate::Compiler;
 use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode};
 use destack_dir::{
-    Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, SymbolSpace, SymbolTable,
-    SymbolType, Type, TypeTable,
+    Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, StaticKey, SymbolSpace,
+    SymbolTable, SymbolType, Type, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -184,6 +184,9 @@ impl Compiler {
             symbols,
         )?;
         let symbol = self.resolve_type_reference_symbol(module, profile, symbol, tree, symbols);
+        let symbol = self
+            .declaration_symbol_id(module, symbols, profile, symbol)
+            .unwrap_or(symbol);
 
         // keep only nominal symbols in value space
         if !matches!(
@@ -199,7 +202,7 @@ impl Compiler {
         }
 
         let space =
-            self.query_symbol_space_for_global_non_blocking(module, profile, symbol, symbols);
+            self.query_symbol_space_for_global_if_declared(module, profile, symbol, symbols);
         if space.is_some_and(|space| matches!(space, SymbolSpace::Value | SymbolSpace::TypeValue)) {
             Some(symbol)
         } else {
@@ -224,6 +227,27 @@ impl Compiler {
             return self.resolve_direct_receiver_symbol_for_expression(
                 module, *left, profile, tree, symbols,
             );
+        }
+
+        // resolve namespace member receivers before target-symbol fallback
+        if let Expression::Member { left, name, .. } = tree.get(receiver_id)
+            && let Some(symbol) = self.resolve_namespace_member_symbol(
+                module,
+                profile,
+                receiver_id,
+                *left,
+                StaticKey::Name(*name),
+                tree,
+                symbols,
+            )
+        {
+            return Some(self.canonical_symbol_id(
+                module,
+                symbols,
+                profile,
+                symbol,
+                CanonicalSymbolMode::FollowAliases,
+            ));
         }
 
         // resolve symbol references first and then fallback to the parse target symbol
@@ -263,8 +287,8 @@ impl Compiler {
         })
     }
 
-    /// Resolve symbol space for one global symbol without blocking on remote readiness.
-    fn query_symbol_space_for_global_non_blocking(
+    /// Resolve symbol space for one global symbol when declare facts are available.
+    fn query_symbol_space_for_global_if_declared(
         &self,
         module: &Module,
         profile: ProfileId,

@@ -253,8 +253,8 @@ impl Compiler {
                 self.convert_static_argument_type(target_argument, target_source_id, types);
             let source_ty_id =
                 self.convert_static_argument_type(source_argument, source_source_id, types);
-            if self.type_blocks_follow_on_diagnostic(target_ty_id, types)
-                || self.type_blocks_follow_on_diagnostic(source_ty_id, types)
+            if self.type_blocks_cascading_diagnostic(target_ty_id, types)
+                || self.type_blocks_cascading_diagnostic(source_ty_id, types)
             {
                 continue;
             }
@@ -429,13 +429,26 @@ impl Compiler {
 
         // ensure the alias target is evaluated before substitution
         if matches!(types.get_type(alias_target_id), Type::Unevaluated(_)) {
-            let _ = self.with_module_tree_symbols_at_stage(
+            // resolve local alias targets directly from this module state
+            if symbol.module_id == module.id && types.module_id == module.id {
+                let tree = module.dir(profile).tree.read();
+                self.resolve_declared_type_or_report(
+                    module,
+                    profile,
+                    alias_target_id,
+                    &tree,
+                    symbols,
+                    types,
+                );
+            }
+            // resolve remote alias targets through stage-gated reads
+            else if let Err(error) = self.with_module_tree_symbols_at_stage(
                 module,
                 profile,
                 symbol.module_id,
                 AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
-                    let _ = self.resolve_declared_type(
+                    self.resolve_declared_type_or_report(
                         owner_module,
                         profile,
                         alias_target_id,
@@ -444,7 +457,9 @@ impl Compiler {
                         types,
                     );
                 },
-            );
+            ) {
+                self.error(AnalyzeError::from(error));
+            }
         }
 
         // normalize directly for aliases without explicit static arguments
@@ -519,6 +534,23 @@ impl Compiler {
             types,
             NormalizationMode::Assign,
         )
+    }
+
+    /// Resolve one declared type id and emit diagnostics on failure.
+    fn resolve_declared_type_or_report(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        tree: &destack_dir::NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) {
+        if let Err(error) =
+            self.resolve_declared_type(module, profile, type_id, tree, symbols, types)
+        {
+            self.error(error);
+        }
     }
 
     /// Narrow the conditional then branch for assignability checks.

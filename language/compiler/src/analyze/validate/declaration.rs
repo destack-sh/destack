@@ -205,11 +205,7 @@ impl Compiler {
                 }
             }
 
-            Declaration::Struct {
-                heritage,
-                members: _,
-                ..
-            } => {
+            Declaration::Struct { heritage, .. } => {
                 // resolve the struct node for diagnostics
                 let node = id.into_global_any(module.id).into_anchored(Some(profile));
 
@@ -319,6 +315,8 @@ impl Compiler {
                 // class bodies can contain at most one constructor definition
                 self.validate_class_constructor_members(module, profile, tree, members);
             }
+
+            Declaration::Enum { .. } => {}
 
             Declaration::Extension {
                 heritage: _,

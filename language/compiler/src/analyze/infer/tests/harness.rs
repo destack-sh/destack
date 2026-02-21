@@ -18,7 +18,7 @@ pub(super) use destack_workspace::DsConfigCompilerOptions;
 pub(super) use std::collections::{HashMap, HashSet};
 
 /// Cached view of module tables for tests.
-pub(super) struct TestModuleView<'a> {
+pub(crate) struct TestModuleView<'a> {
     /// The owning test program.
     pub(super) test: &'a TestProgram,
     /// The module id under test.
@@ -35,7 +35,7 @@ pub(super) struct TestModuleView<'a> {
 
 impl TestProgram {
     /// Add, analyze, and check a module in one step.
-    pub(super) fn analyze_module_with_source(&self, name: &str, source: &str) -> ModuleId {
+    pub(crate) fn analyze_module_with_source(&self, name: &str, source: &str) -> ModuleId {
         // register the module
         let module_id = self.add_module(name, source);
 
@@ -46,7 +46,7 @@ impl TestProgram {
     }
 
     /// Resolve a canonical symbol id for a module path.
-    pub(super) fn canonical_symbol_for_path(&self, module_uri: &str, path: &str) -> GlobalSymbolId {
+    pub(crate) fn canonical_symbol_for_path(&self, module_uri: &str, path: &str) -> GlobalSymbolId {
         // resolve the module symbol
         let symbol = self
             .resolve_to_symbol(module_uri, path)
@@ -69,7 +69,7 @@ impl TestProgram {
     }
 
     /// Create a cached module view for tests.
-    pub(super) fn view(&self, module_id: ModuleId) -> TestModuleView<'_> {
+    pub(crate) fn view(&self, module_id: ModuleId) -> TestModuleView<'_> {
         // load module state
         let profile = self.default_profile_id(module_id);
         let module = self.program.modules.get(module_id);
@@ -95,37 +95,37 @@ impl TestProgram {
 
 impl<'a> TestModuleView<'a> {
     /// Read the roots for this view.
-    pub(super) fn roots(&self) -> &[LocalNodeId<Expression>] {
+    pub(crate) fn roots(&self) -> &[LocalNodeId<Expression>] {
         &self.roots
     }
 
     /// Read the node tree for this view.
-    pub(super) fn tree(&self) -> &NodeTree {
+    pub(crate) fn tree(&self) -> &NodeTree {
         &self.tree
     }
 
     /// Read the symbol table for this view.
-    pub(super) fn symbols(&self) -> &SymbolTable {
+    pub(crate) fn symbols(&self) -> &SymbolTable {
         &self.symbols
     }
 
     /// Read the type table for this view.
-    pub(super) fn types(&self) -> &TypeTable {
+    pub(crate) fn types(&self) -> &TypeTable {
         &self.types
     }
 
     /// Resolve the default profile id for this module.
-    pub(super) fn profile_id(&self) -> destack_workspace::ProfileId {
+    pub(crate) fn profile_id(&self) -> destack_workspace::ProfileId {
         self.test.default_profile_id(self.module_id)
     }
 
     /// Resolve the root expression for the view.
-    pub(super) fn root_expression_id(&self, index: usize) -> LocalNodeId<Expression> {
+    pub(crate) fn root_expression_id(&self, index: usize) -> LocalNodeId<Expression> {
         root_expression_id(&self.roots, &self.tree, index)
     }
 
     /// Resolve an inferred type for a local expression.
-    pub(super) fn expect_inferred_type(&self, expression_id: LocalNodeId<Expression>) -> &Type {
+    pub(crate) fn expect_inferred_type(&self, expression_id: LocalNodeId<Expression>) -> &Type {
         // resolve inferred type
         self.types
             .get_inferred_type(expression_id.into_global_any(self.module_id))
@@ -133,7 +133,7 @@ impl<'a> TestModuleView<'a> {
     }
 
     /// Resolve an inferred type id for a local expression.
-    pub(super) fn expect_inferred_type_id(
+    pub(crate) fn expect_inferred_type_id(
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> LocalTypeId {
@@ -144,12 +144,12 @@ impl<'a> TestModuleView<'a> {
     }
 
     /// Resolve the declarator for a binding name.
-    pub(super) fn expect_let_declarator(&self, name: StringId) -> LocalNodeId<Declarator> {
+    pub(crate) fn expect_let_declarator(&self, name: StringId) -> LocalNodeId<Declarator> {
         expect_let_declarator_by_name(&self.roots, &self.tree, name)
     }
 
     /// Resolve a binding symbol for a let declarator by name.
-    pub(super) fn expect_binding_symbol(&self, name: StringId) -> GlobalSymbolId {
+    pub(crate) fn expect_binding_symbol(&self, name: StringId) -> GlobalSymbolId {
         // resolve the declarator
         let declarator_id = self.expect_let_declarator(name);
         let declarator = self.tree.get(declarator_id);
@@ -167,7 +167,7 @@ impl<'a> TestModuleView<'a> {
     }
 
     /// Resolve the initializer value for a let declarator by name.
-    pub(super) fn expect_initializer(&self, name: StringId) -> LocalNodeId<Expression> {
+    pub(crate) fn expect_initializer(&self, name: StringId) -> LocalNodeId<Expression> {
         // resolve the declarator
         let declarator_id = self.expect_let_declarator(name);
         let declarator = self.tree.get(declarator_id);
@@ -179,7 +179,7 @@ impl<'a> TestModuleView<'a> {
     }
 
     /// Resolve the enum field symbol for a member name.
-    pub(super) fn expect_enum_field_symbol(&self, name: StringId) -> GlobalSymbolId {
+    pub(crate) fn expect_enum_field_symbol(&self, name: StringId) -> GlobalSymbolId {
         // scan enum declarations for the field
         for declaration_id in self.tree.iter_node_ids_of_type::<Declaration>() {
             let Declaration::Enum { fields, .. } = self.tree.get(declaration_id) else {
@@ -197,28 +197,28 @@ impl<'a> TestModuleView<'a> {
     }
 
     /// Read a declared type id for a node.
-    pub(super) fn expect_declared_type_id(&self, node_id: GlobalNodeIdAny) -> LocalTypeId {
+    pub(crate) fn expect_declared_type_id(&self, node_id: GlobalNodeIdAny) -> LocalTypeId {
         self.types
             .get_declared_type_id(node_id)
             .expect("expected declared type id")
     }
 
     /// Read a value type id for a symbol.
-    pub(super) fn expect_value_type_id(&self, symbol: GlobalSymbolId) -> LocalTypeId {
+    pub(crate) fn expect_value_type_id(&self, symbol: GlobalSymbolId) -> LocalTypeId {
         self.types
             .get_value_type_id(symbol)
             .expect("expected value type id")
     }
 
     /// Read an instance type id for a symbol.
-    pub(super) fn expect_instance_type_id(&self, symbol: GlobalSymbolId) -> LocalTypeId {
+    pub(crate) fn expect_instance_type_id(&self, symbol: GlobalSymbolId) -> LocalTypeId {
         self.types
             .get_instance_type_id(symbol)
             .expect("expected instance type id")
     }
 
     /// Resolve a member expression into its receiver and member key.
-    pub(super) fn expect_member_expression(
+    pub(crate) fn expect_member_expression(
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> (LocalNodeId<Expression>, StringId) {
@@ -229,7 +229,7 @@ impl<'a> TestModuleView<'a> {
     }
 
     /// Resolve a reference symbol from a reference expression.
-    pub(super) fn expect_reference_symbol(
+    pub(crate) fn expect_reference_symbol(
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> GlobalSymbolId {
@@ -242,7 +242,7 @@ impl<'a> TestModuleView<'a> {
     }
 
     /// Collect the first object field list available for a type.
-    pub(super) fn object_fields_for_type(&self, ty_id: LocalTypeId) -> Vec<TypeField> {
+    pub(crate) fn object_fields_for_type(&self, ty_id: LocalTypeId) -> Vec<TypeField> {
         // prefer direct object types
         if let Type::Object { fields, .. } = self.types.get_type(ty_id) {
             return fields.to_vec();
@@ -262,7 +262,7 @@ impl<'a> TestModuleView<'a> {
 }
 
 /// Collect extension kinds for a target symbol.
-pub(super) fn extension_kinds_for_target(
+pub(crate) fn extension_kinds_for_target(
     test: &TestProgram,
     module_id: ModuleId,
     symbols: &SymbolTable,

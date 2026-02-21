@@ -1661,6 +1661,7 @@ let result = add(1, 2);
 "#,
     );
     test.analyze_module(module_id);
+    test.compile_check_clean();
     test.compile();
     test.check_clean();
 }

@@ -4,7 +4,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
-use crate::{AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -61,7 +61,7 @@ impl Compiler {
         };
 
         // ensure exported types are available for the resolved symbol
-        self.require_analyze_module_export(symbol.module_id, profile)?;
+        self.require_analyze_module_interface(symbol.module_id, profile)?;
 
         Ok(Some(symbol))
     }
@@ -91,8 +91,8 @@ impl Compiler {
         Ok(Some(types.insert_type_from_any(reference, source_id)))
     }
 
-    /// Resolve a type import into a local reference type without yielding.
-    pub(crate) fn resolve_import_type_reference_best_effort(
+    /// Query a type import reference in non-AnalyzeResult paths.
+    pub(crate) fn query_import_type_reference(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -102,7 +102,7 @@ impl Compiler {
         static_arguments: Option<&[StaticArgument]>,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
-        self.resolve_import_type_reference(
+        match self.resolve_import_type_reference(
             module,
             profile,
             source_id,
@@ -110,9 +110,14 @@ impl Compiler {
             qualifier,
             static_arguments,
             types,
-        )
-        .ok()
-        .flatten()
+        ) {
+            Ok(reference_type_id) => reference_type_id,
+            Err(AnalyzeError::Yield { .. }) => None,
+            Err(error) => {
+                self.error(error);
+                None
+            }
+        }
     }
 
     /// Convert an import qualifier path into a static key.
