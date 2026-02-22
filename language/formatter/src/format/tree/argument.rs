@@ -1,19 +1,15 @@
-use crate::format::analysis::scan::{
-    first_non_trivia_token_in_span, last_non_trivia_token_in_span,
-};
+use crate::format::analysis::{first_non_trivia_token_in_span, last_non_trivia_token_in_span};
 use crate::format::collection::{
     collection_nodes_have_annotations, collection_value_should_force_break,
 };
 use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, Declaration, DestackFormatContext, DestackFormatter,
-    Expression, FormatResult, FunctionKind, HugOptions, IfCondition, IfKind, LocalNodeId, NodeTree,
-    TokenType, argument_value, block_indent, format_with, group, hard_line_break, if_group_breaks,
-    is_complex_expression, is_expression_breakable, is_trivial_expression,
-    lambda_expression_should_break, soft_block_indent, soft_line_break_or_space, space, token,
-    transparent_inner_expression,
-};
-use crate::format::tree::children::{
-    expression_has_chain_seam_comment, tree_child_should_inline_braced_expression,
+    Expression, FormatResult, FunctionKind, IfCondition, IfKind, LocalNodeId, NodeTree, Span,
+    TokenType, argument_value, block_indent, chain_nodes, format_with, group, hard_line_break,
+    has_comment_between_expressions, if_group_breaks, is_complex_expression,
+    is_expression_breakable, is_trivial_expression, lambda_expression_should_break,
+    member_has_intervening_comment, soft_block_indent, soft_line_break_or_space, space,
+    span_has_comment, token, transparent_inner_expression,
 };
 use destack_ast::{Property, ScalarLiteral};
 use destack_fir::format::{Buffer, Format, GroupId};
@@ -135,6 +131,56 @@ pub(crate) fn has_multiline_jsx_argument(
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct TreeExpressionArgument {
     pub(crate) argument_id: LocalNodeId<Argument>,
+}
+
+/// Hugging configuration for different delimiter contexts.
+pub(crate) struct HugOptions {
+    /// The opening delimiter.
+    pub(crate) open: &'static str,
+    /// The closing delimiter.
+    pub(crate) close: &'static str,
+    /// Whether to force a trailing comma.
+    pub(crate) force_trailing: bool,
+    /// Whether to include a trailing comma when the group breaks.
+    pub(crate) trailing_if_breaks: bool,
+    /// Whether to allow arrow functions.
+    pub(crate) allow_arrow_functions: bool,
+    /// Whether to handle annotations.
+    pub(crate) handle_annotations: bool,
+    /// Whether multiline object and array values can still use hugging.
+    pub(crate) allow_multiline_collection: bool,
+}
+
+impl HugOptions {
+    pub(crate) const CALL: Self = Self {
+        open: "(",
+        close: ")",
+        force_trailing: false,
+        trailing_if_breaks: false,
+        allow_arrow_functions: true,
+        handle_annotations: true,
+        allow_multiline_collection: true,
+    };
+
+    pub(crate) const ARRAY: Self = Self {
+        open: "[",
+        close: "]",
+        force_trailing: false,
+        trailing_if_breaks: false,
+        allow_arrow_functions: false,
+        handle_annotations: false,
+        allow_multiline_collection: false,
+    };
+
+    pub(crate) const TUPLE: Self = Self {
+        open: "(",
+        close: ")",
+        force_trailing: true,
+        trailing_if_breaks: false,
+        allow_arrow_functions: false,
+        handle_annotations: false,
+        allow_multiline_collection: false,
+    };
 }
 
 /// The token syntax style for one tree named attribute value.
@@ -695,11 +741,11 @@ where
     // context-based default selection
     if f.context().has_annotation(value_id) {
         f.context()
-            .increment_counter("profile.jsx.attribute.by_context.hug", 1);
+            .increment_counter("stats.jsx.attribute.by_context.hug", 1);
         hugged_format.format(f)?;
     } else {
         f.context()
-            .increment_counter("profile.jsx.attribute.by_context.inline", 1);
+            .increment_counter("stats.jsx.attribute.by_context.inline", 1);
         inline_format.format(f)?;
     }
 
@@ -852,115 +898,6 @@ pub(crate) fn is_huggable_expression(
     }
 }
 
-/// Store arrow-specific layout facts for hugged argument formatting.
-#[derive(Clone, Copy, Default)]
-struct HuggedArrowLayoutSignals {
-    is_arrow_function: bool,
-    arrow_force_expand: bool,
-    arrow_trailing_line_break_if_breaks: bool,
-    arrow_trailing_comma_if_breaks: bool,
-}
-
-/// Collect arrow-specific layout signals for one hugged argument value.
-fn collect_hugged_arrow_layout_signals(
-    context: &DestackFormatContext<'_>,
-    value_id: LocalNodeId<Expression>,
-    config: &HugOptions,
-) -> HuggedArrowLayoutSignals {
-    if !config.allow_arrow_functions {
-        return HuggedArrowLayoutSignals::default();
-    }
-
-    let tree = context.tree;
-    let arrow_declaration_id = match tree.get(value_id) {
-        Expression::Declaration(declaration_id) => match tree.get(*declaration_id) {
-            Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda => {
-                Some(*declaration_id)
-            }
-            _ => None,
-        },
-        _ => None,
-    };
-
-    let Some(declaration_id) = arrow_declaration_id else {
-        return HuggedArrowLayoutSignals::default();
-    };
-
-    let (arrow_body_is_block, arrow_body_is_tree, arrow_body_is_lambda) =
-        if let Declaration::Function {
-            body: Some(body_id),
-            ..
-        } = tree.get(declaration_id)
-        {
-            let body_id = transparent_inner_expression(context, *body_id);
-            let body_expr = tree.get(body_id);
-            let is_block = matches!(body_expr, Expression::Block(_));
-            let is_tree = matches!(body_expr, Expression::TreeExpression { .. });
-            let is_lambda = matches!(
-                body_expr,
-                Expression::Declaration(nested_declaration_id)
-                    if matches!(
-                        tree.get(*nested_declaration_id),
-                        Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
-                    )
-            );
-            (is_block, is_tree, is_lambda)
-        } else {
-            (false, false, false)
-        };
-
-    let arrow_force_expand = lambda_expression_should_break(context, declaration_id);
-    let arrow_trailing_line_break_if_breaks =
-        !arrow_body_is_block && !arrow_body_is_tree && !arrow_body_is_lambda;
-    let arrow_trailing_comma_if_breaks =
-        arrow_trailing_line_break_if_breaks && !arrow_body_is_lambda;
-
-    HuggedArrowLayoutSignals {
-        is_arrow_function: true,
-        arrow_force_expand,
-        arrow_trailing_line_break_if_breaks,
-        arrow_trailing_comma_if_breaks,
-    }
-}
-
-/// Choose between inline and hugged candidate docs for one single hugged argument.
-#[allow(clippy::too_many_arguments)]
-fn choose_hugged_argument_layout<'ast, InlineDoc, HuggedDoc>(
-    f: &mut DestackFormatter<'ast, '_>,
-    argument_id: LocalNodeId<Argument>,
-    value_id: LocalNodeId<Expression>,
-    force_expand: bool,
-    signals: HuggedArrowLayoutSignals,
-    inline_format: InlineDoc,
-    hugged_format: HuggedDoc,
-) -> FormatResult<()>
-where
-    InlineDoc: Format<DestackFormatContext<'ast>>,
-    HuggedDoc: Format<DestackFormatContext<'ast>>,
-{
-    // forced expansion always selects hugged output
-    if force_expand {
-        hugged_format.format(f)?;
-        return Ok(());
-    }
-
-    // context-based default selection
-    let is_annotated =
-        f.context().has_annotation(argument_id) || f.context().has_annotation(value_id);
-    let should_hug = is_annotated || signals.arrow_force_expand;
-    if should_hug {
-        f.context()
-            .increment_counter("profile.jsx.hug.by_context.hug", 1);
-        hugged_format.format(f)?;
-    } else {
-        f.context()
-            .increment_counter("profile.jsx.hug.by_context.inline", 1);
-        inline_format.format(f)?;
-    }
-
-    Ok(())
-}
-
 /// Format a single-element argument list with hugging for expandable elements.
 ///
 /// When a single object/array (or arrow function for calls) is the only argument,
@@ -1014,8 +951,40 @@ pub(crate) fn format_hugged<'ast>(
         return Ok(false);
     }
 
-    // collect arrow-specific layout facts once
-    let signals = collect_hugged_arrow_layout_signals(f.context(), value_id, &config);
+    // collect arrow-specific layout signals once
+    let mut is_arrow_function = false;
+    let mut arrow_force_expand = false;
+    let mut arrow_trailing_line_break_if_breaks = false;
+    let mut arrow_trailing_comma_if_breaks = false;
+    if config.allow_arrow_functions
+        && let Expression::Declaration(declaration_id) = f.context().tree.get(value_id)
+        && let Declaration::Function {
+            signature,
+            body: Some(body_id),
+            ..
+        } = f.context().tree.get(*declaration_id)
+        && signature.kind == FunctionKind::Lambda
+    {
+        let body_id = transparent_inner_expression(f.context(), *body_id);
+        let body_expr = f.context().tree.get(body_id);
+        let arrow_body_is_block = matches!(body_expr, Expression::Block(_));
+        let arrow_body_is_tree = matches!(body_expr, Expression::TreeExpression { .. });
+        let arrow_body_is_lambda = matches!(
+            body_expr,
+            Expression::Declaration(nested_declaration_id)
+                if matches!(
+                    f.context().tree.get(*nested_declaration_id),
+                    Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+                )
+        );
+
+        is_arrow_function = true;
+        arrow_force_expand = lambda_expression_should_break(f.context(), *declaration_id);
+        arrow_trailing_line_break_if_breaks =
+            !arrow_body_is_block && !arrow_body_is_tree && !arrow_body_is_lambda;
+        arrow_trailing_comma_if_breaks =
+            arrow_trailing_line_break_if_breaks && !arrow_body_is_lambda;
+    }
     let trailing_if_breaks = config.trailing_if_breaks;
 
     // build inline candidate doc
@@ -1039,15 +1008,15 @@ pub(crate) fn format_hugged<'ast>(
     let hugged_format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         // argument annotations
         if config.handle_annotations {
-            if signals.is_arrow_function {
+            if is_arrow_function {
                 write!(f, [f.context().block_prefix_annotations(argument_id)])?;
             } else {
                 write!(f, [f.context().any_prefix_annotations(argument_id)])?;
             }
         }
 
-        // force expansion when arrow policy requires it
-        if signals.arrow_force_expand {
+        // force expansion when arrow rules requires it
+        if arrow_force_expand {
             write!(f, [expand_parent()])?;
         }
 
@@ -1128,7 +1097,7 @@ pub(crate) fn format_hugged<'ast>(
         // trailing comma behavior
         if config.force_trailing {
             write!(f, [token(",")])?;
-        } else if signals.arrow_trailing_comma_if_breaks || trailing_if_breaks {
+        } else if arrow_trailing_comma_if_breaks || trailing_if_breaks {
             let comma = token(",");
             let trailing_comma = if let Some(group_id) = group_id {
                 if_group_breaks(&comma).with_group_id(Some(group_id))
@@ -1139,7 +1108,7 @@ pub(crate) fn format_hugged<'ast>(
         }
 
         // trailing line break behavior for arrow values
-        if signals.arrow_trailing_line_break_if_breaks {
+        if arrow_trailing_line_break_if_breaks {
             let line_break = hard_line_break();
             let break_doc = if let Some(group_id) = group_id {
                 if_group_breaks(&line_break).with_group_id(Some(group_id))
@@ -1168,7 +1137,7 @@ pub(crate) fn format_hugged<'ast>(
                 f,
                 [group(&hugged_format_inner)
                     .with_id(group_id)
-                    .should_expand(signals.arrow_force_expand)]
+                    .should_expand(arrow_force_expand)]
             )?;
         } else {
             write!(f, [hugged_format_inner])?;
@@ -1176,16 +1145,522 @@ pub(crate) fn format_hugged<'ast>(
         Ok(())
     });
 
-    // choose final candidate
-    choose_hugged_argument_layout(
-        f,
-        argument_id,
-        value_id,
-        force_expand,
-        signals,
-        inline_format,
-        hugged_format,
-    )?;
+    // forced expansion always selects hugged output
+    if force_expand {
+        hugged_format.format(f)?;
+        return Ok(true);
+    }
+
+    // context-based default selection
+    let is_annotated =
+        f.context().has_annotation(argument_id) || f.context().has_annotation(value_id);
+    let should_hug = is_annotated || arrow_force_expand;
+    if should_hug {
+        f.context()
+            .increment_counter("stats.jsx.hug.by_context.hug", 1);
+        hugged_format.format(f)?;
+    } else {
+        f.context()
+            .increment_counter("stats.jsx.hug.by_context.inline", 1);
+        inline_format.format(f)?;
+    }
 
     Ok(true)
+}
+
+/// Check whether a tree text child is whitespace-only.
+pub(crate) fn tree_text_is_whitespace_only(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<(bool, bool)> {
+    let tree = context.tree;
+    let strings = context.strings;
+    let Argument::Positional { value, .. } = tree.get(argument_id) else {
+        return None;
+    };
+
+    match tree.get(*value) {
+        Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+            let content = strings.get(*string_id);
+            let has_non_whitespace = content.chars().any(|c| !c.is_whitespace());
+            if has_non_whitespace {
+                return Some((false, false));
+            }
+
+            let has_newline = content.contains(['\n', '\r']);
+            Some((true, has_newline))
+        }
+        Expression::ScalarLiteral(ScalarLiteral::Character(value)) => {
+            if !value.is_whitespace() {
+                return Some((false, false));
+            }
+
+            let has_newline = matches!(value, '\n' | '\r');
+            Some((true, has_newline))
+        }
+        _ => None,
+    }
+}
+
+/// Check whether a tree text child needs separator spaces for newline boundaries.
+pub(crate) fn tree_text_boundary_separator_space(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<(bool, bool)> {
+    let tree = context.tree;
+    let strings = context.strings;
+
+    // locate the raw text content
+    let Argument::Positional { value, .. } = tree.get(argument_id) else {
+        return None;
+    };
+
+    let Expression::ScalarLiteral(ScalarLiteral::String(string_id)) = tree.get(*value) else {
+        return None;
+    };
+
+    let text = strings.get(*string_id);
+
+    // identify the boundary whitespace runs
+    let leading_end = text
+        .char_indices()
+        .find(|(_, c)| !c.is_whitespace())
+        .map_or(text.len(), |(index, _)| index);
+    let trailing_start = text
+        .char_indices()
+        .rev()
+        .find(|(_, c)| !c.is_whitespace())
+        .map_or(0, |(index, c)| index + c.len_utf8());
+
+    let leading_whitespace = &text[..leading_end];
+    let trailing_whitespace = &text[trailing_start..];
+
+    let has_leading_whitespace = !leading_whitespace.is_empty();
+    let has_trailing_whitespace = !trailing_whitespace.is_empty();
+
+    let leading_is_inline = has_leading_whitespace && !leading_whitespace.contains(['\n', '\r']);
+    let trailing_is_inline = has_trailing_whitespace && !trailing_whitespace.contains(['\n', '\r']);
+
+    let needs_leading_separator = has_leading_whitespace && !leading_is_inline;
+    let needs_trailing_separator = has_trailing_whitespace && !trailing_is_inline;
+
+    Some((needs_leading_separator, needs_trailing_separator))
+}
+
+/// Return whether source preserves an empty line between two tree child arguments.
+pub(crate) fn tree_children_have_blank_line_between(
+    context: &DestackFormatContext<'_>,
+    previous_argument_id: LocalNodeId<Argument>,
+    next_argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let previous_span = context.span(previous_argument_id);
+    let next_span = context.span(next_argument_id);
+    if previous_span.file != next_span.file {
+        return false;
+    }
+    if previous_span.end >= next_span.start {
+        return false;
+    }
+
+    let between_span = Span::new(previous_span.file, previous_span.end, next_span.start);
+    context.has_blank_line(between_span)
+}
+
+/// Check whether a tree child expression should stay inline inside `{ ... }`.
+pub(crate) fn tree_child_should_inline_braced_expression(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(value_id) = argument_transparent_value_id(context, argument_id) else {
+        return false;
+    };
+    let value_expr = context.tree.get(value_id);
+    let argument_span = context.span(argument_id);
+    let value_span = context.span(value_id);
+
+    if argument_span.file == value_span.file {
+        if argument_span.start < value_span.start
+            && span_has_comment(
+                context,
+                Span::new(argument_span.file, argument_span.start, value_span.start),
+            )
+        {
+            return false;
+        }
+
+        if value_span.end < argument_span.end
+            && span_has_comment(
+                context,
+                Span::new(argument_span.file, value_span.end, argument_span.end),
+            )
+        {
+            return false;
+        }
+    }
+
+    if argument_has_line_comment_annotation(context, argument_id) {
+        return false;
+    }
+
+    match value_expr {
+        Expression::ScalarLiteral(ScalarLiteral::String(_))
+        | Expression::ScalarLiteral(ScalarLiteral::Character(_)) => true,
+        Expression::ArrayExpression { .. }
+        | Expression::ObjectExpression { .. }
+        | Expression::Call { .. }
+        | Expression::TemplateExpression { .. }
+        | Expression::TaggedTemplateExpression { .. }
+        | Expression::Await { .. }
+        | Expression::AwaitMaybe { .. }
+        | Expression::Binary { .. }
+        | Expression::Member { .. }
+        | Expression::PrivateMember { .. }
+        | Expression::Index { .. }
+        | Expression::Maybe { .. }
+        | Expression::Must { .. } => {
+            !expression_has_line_comment_annotation(context, value_id)
+                && !expression_has_chain_seam_comment(context, value_id)
+        }
+        Expression::If {
+            kind: IfKind::Ternary,
+            condition,
+            then_expression,
+            else_expression,
+            ..
+        } => {
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => return false,
+            };
+            if expression_has_line_comment_annotation(context, value_id)
+                || expression_has_line_comment_annotation(context, condition_id)
+                || expression_has_line_comment_annotation(context, *then_expression)
+                || else_expression
+                    .is_some_and(|else_id| expression_has_line_comment_annotation(context, else_id))
+            {
+                return false;
+            }
+            true
+        }
+        Expression::Declaration(declaration_id) => matches!(
+            context.tree.get(*declaration_id),
+            Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+        ),
+        _ => false,
+    }
+}
+
+/// Return whether one expression chain has comments on member or operator seams.
+pub(crate) fn expression_has_chain_seam_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let chain = chain_nodes(context.tree, expression_id);
+    if chain.len() <= 1 {
+        return false;
+    }
+
+    if chain
+        .windows(2)
+        .any(|adjacent| has_comment_between_expressions(context, adjacent[0], adjacent[1]))
+    {
+        return true;
+    }
+
+    chain
+        .iter()
+        .copied()
+        .any(|chain_node_id| member_has_intervening_comment(context, chain_node_id))
+}
+
+/// Return whether one expression has a line-oriented slash comment annotation.
+fn expression_has_line_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotation_ids) = context.annotations(expression_id) else {
+        return false;
+    };
+
+    annotation_ids.into_iter().any(|annotation_id| {
+        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
+            return false;
+        };
+
+        let is_line_position = matches!(
+            position,
+            AnnotationPosition::LinePrefix
+                | AnnotationPosition::LinePostfix
+                | AnnotationPosition::LinePostfixBoundary
+        );
+        if !is_line_position {
+            return false;
+        }
+
+        let comment = context.tree.get::<destack_ast::Comment>(node);
+        comment.style == destack_ast::CommentStyle::Slash
+    })
+}
+
+/// Return whether one tree argument has a line-oriented slash comment annotation.
+fn argument_has_line_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(annotation_ids) = context.annotations(argument_id) else {
+        return false;
+    };
+
+    annotation_ids.into_iter().any(|annotation_id| {
+        let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
+            return false;
+        };
+
+        let is_line_position = matches!(
+            position,
+            AnnotationPosition::LinePrefix
+                | AnnotationPosition::LinePostfix
+                | AnnotationPosition::LinePostfixBoundary
+        );
+        if !is_line_position {
+            return false;
+        }
+
+        let comment = context.tree.get::<destack_ast::Comment>(node);
+        comment.style == destack_ast::CommentStyle::Slash
+    })
+}
+
+/// Return whether one ternary expression has any line-comment annotations on its branches.
+fn ternary_has_line_comment_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::If {
+        kind: IfKind::Ternary,
+        condition,
+        then_expression,
+        else_expression,
+        ..
+    } = context.tree.get(expression_id)
+    else {
+        return false;
+    };
+
+    let condition_id = match condition {
+        IfCondition::Expression { condition } => *condition,
+        IfCondition::Let { .. } => return true,
+    };
+
+    expression_has_line_comment_annotation(context, expression_id)
+        || expression_has_line_comment_annotation(context, condition_id)
+        || expression_has_line_comment_annotation(context, *then_expression)
+        || else_expression
+            .is_some_and(|else_id| expression_has_line_comment_annotation(context, else_id))
+}
+
+/// Check whether a tree child forces the element to break.
+pub(crate) fn tree_child_breaks_element(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(value_id) = argument_transparent_value_id(context, argument_id) else {
+        return false;
+    };
+    let value_expr = context.tree.get(value_id);
+    let is_text_node = matches!(
+        value_expr,
+        Expression::ScalarLiteral(ScalarLiteral::String(_))
+    );
+    let has_line_comment_annotation = argument_has_line_comment_annotation(context, argument_id)
+        || expression_has_line_comment_annotation(context, value_id);
+    if has_line_comment_annotation {
+        return true;
+    }
+
+    if (context.has_annotation(argument_id) || context.has_annotation(value_id))
+        && !is_text_node
+        && !matches!(value_expr, Expression::Stub)
+    {
+        if matches!(
+            value_expr,
+            Expression::If {
+                kind: IfKind::Ternary,
+                ..
+            }
+        ) {
+            return ternary_has_line_comment_annotation(context, value_id);
+        }
+
+        return true;
+    }
+
+    match value_expr {
+        Expression::Stub => context.options.language_type.is_destack(),
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        } => ternary_has_line_comment_annotation(context, value_id),
+        Expression::Block(_) | Expression::Match { .. } => true,
+        Expression::Declaration(declaration_id) => {
+            lambda_body_is_complex_for_tree(context, *declaration_id)
+        }
+        Expression::TreeExpression { .. } => false,
+        _ => expression_has_complex_callback(context, value_id),
+    }
+}
+
+/// Check whether a lambda body is complex enough to force tree breaking.
+pub(crate) fn lambda_body_is_complex_for_tree(
+    context: &DestackFormatContext<'_>,
+    declaration_id: LocalNodeId<Declaration>,
+) -> bool {
+    let Some(body_id) = lambda_body_expression_id(context, declaration_id) else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(body_id),
+        Expression::Block(_) | Expression::TreeExpression { .. }
+    )
+}
+
+/// Check whether an argument is a lambda with a complex body for tree literals.
+pub(crate) fn argument_is_complex_callback(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(declaration_id) = argument_lambda_declaration_id(context, argument_id) else {
+        return false;
+    };
+
+    lambda_body_is_complex_for_tree(context, declaration_id)
+}
+
+/// Check whether an argument is a lambda with a block body.
+pub(crate) fn argument_is_block_callback(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(declaration_id) = argument_lambda_declaration_id(context, argument_id) else {
+        return false;
+    };
+
+    lambda_body_expression_id(context, declaration_id)
+        .is_some_and(|body_id| matches!(context.tree.get(body_id), Expression::Block(_)))
+}
+
+/// Check whether an argument is an object literal expression.
+pub(crate) fn argument_is_object_literal(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    argument_transparent_value_id(context, argument_id).is_some_and(|value_id| {
+        matches!(
+            context.tree.get(value_id),
+            Expression::ObjectExpression { .. }
+        )
+    })
+}
+
+/// Check whether an argument is an array literal expression.
+pub(crate) fn argument_is_array_literal(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    argument_transparent_value_id(context, argument_id).is_some_and(|value_id| {
+        matches!(
+            context.tree.get(value_id),
+            Expression::ArrayExpression { .. }
+        )
+    })
+}
+
+/// Check whether an argument is a template literal expression.
+pub(crate) fn argument_is_template_literal(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    argument_transparent_value_id(context, argument_id).is_some_and(|value_id| {
+        matches!(
+            context.tree.get(value_id),
+            Expression::TemplateExpression { .. }
+        )
+    })
+}
+
+/// Check whether an argument is a lambda expression.
+pub(crate) fn argument_is_lambda_expression(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    argument_lambda_declaration_id(context, argument_id).is_some()
+}
+
+/// Check whether an argument is a function expression.
+pub(crate) fn argument_is_function_expression(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(value_id) = argument_transparent_value_id(context, argument_id) else {
+        return false;
+    };
+    let Some(declaration_id) = expression_function_declaration_id(context.tree, value_id) else {
+        return false;
+    };
+
+    !declaration_is_lambda(context.tree, declaration_id)
+}
+
+/// Check whether an expression contains a call with a complex callback.
+pub(crate) fn expression_has_complex_callback(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let tree = context.tree;
+
+    // unwrap transparent wrappers
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    // walk the expression shape looking for callback lambdas
+    match tree.get(expression_id) {
+        Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        }
+        | Expression::New {
+            left,
+            dynamic_arguments,
+            ..
+        } => {
+            // check the call arguments
+            let has_complex_argument = dynamic_arguments
+                .iter()
+                .any(|arg_id| argument_is_complex_callback(context, *arg_id));
+
+            if has_complex_argument {
+                return true;
+            }
+
+            // check chained receivers
+            expression_has_complex_callback(context, *left)
+        }
+        expression if let Some(left) = expression_postfix_receiver_id(expression) => {
+            expression_has_complex_callback(context, left)
+        }
+        Expression::Declaration(declaration_id) => {
+            lambda_body_is_complex_for_tree(context, *declaration_id)
+        }
+        Expression::Block(block_id) => {
+            let block = tree.get(*block_id);
+
+            // scan block expressions for complex callbacks
+            block
+                .expressions
+                .iter()
+                .any(|expr_id| expression_has_complex_callback(context, *expr_id))
+        }
+        _ => false,
+    }
 }

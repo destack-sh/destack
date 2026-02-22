@@ -1,5 +1,5 @@
 use crate::FormatNode;
-use crate::format::analysis::scan::previous_non_whitespace_token_before_annotation;
+use crate::format::analysis::previous_non_whitespace_token_before_annotation;
 use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, Declaration, Declarator, DestackFormatContext,
     DestackFormatter, Expression, FormatResult, LocalNodeId, NodeTree, Pattern, PatternField,
@@ -14,208 +14,6 @@ use crate::format::operator::{is_type_context, union_has_leading_pipe_token};
 use destack_ast::{Comment, CommentStyle};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::{format_args, write};
-
-/// Enumerate declarator layout outcomes.
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum DeclaratorLayout {
-    Inline,
-    BreakAfterOperator,
-    ValueExpanded,
-    HeaderExpanded,
-    Indented,
-}
-
-/// Store normalized declarator layout selection inputs.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct DeclaratorLayoutInputs {
-    pub(crate) pattern_breakable: bool,
-    pub(crate) value_breakable: bool,
-    pub(crate) value_is_leading_pipe_type_union: bool,
-    pub(crate) value_is_inline_closure_cast_type_binary: bool,
-    pub(crate) is_string_literal: bool,
-    pub(crate) value_is_long_binary: bool,
-    pub(crate) value_has_between_comment: bool,
-    pub(crate) value_handles_its_own_breaking: bool,
-    pub(crate) value_has_prefix_annotation_that_forces_break: bool,
-    pub(crate) has_significant_between_comment: bool,
-    pub(crate) value_has_generic_class_heritage: bool,
-    pub(crate) value_is_declaration: bool,
-    pub(crate) is_template_expression: bool,
-    pub(crate) value_is_await_expression: bool,
-    pub(crate) value_is_comptime_expression: bool,
-    pub(crate) value_is_sequence: bool,
-    pub(crate) value_has_line_comment_between_operands: bool,
-    pub(crate) value_is_call_like: bool,
-    pub(crate) value_is_poor_chain: bool,
-    pub(crate) value_has_static_arguments: bool,
-    pub(crate) value_has_nested_call_chain: bool,
-    pub(crate) value_has_instantiation_prefix: bool,
-    pub(crate) value_has_newline: bool,
-    pub(crate) pattern_has_newline: bool,
-    pub(crate) pattern_has_default_assignment: bool,
-    pub(crate) pattern_has_comments_or_annotations: bool,
-    pub(crate) value_is_parenthesized: bool,
-    pub(crate) value_has_block_static_arguments: bool,
-    pub(crate) value_has_class_heritage: bool,
-}
-
-/// Choose the declarator layout from normalized inputs.
-pub(crate) fn choose_declarator_layout(inputs: DeclaratorLayoutInputs) -> DeclaratorLayout {
-    // keep leading pipe unions inline at the declarator level
-    if inputs.value_is_leading_pipe_type_union {
-        return DeclaratorLayout::Inline;
-    }
-
-    // keep closure-cast type binaries inline in declarator rhs
-    if inputs.value_is_inline_closure_cast_type_binary {
-        return DeclaratorLayout::Inline;
-    }
-
-    // template rhs values stay inline in declarators
-    if inputs.is_template_expression {
-        return DeclaratorLayout::Inline;
-    }
-
-    // compact await and comptime rhs values stay inline when trivia-free
-    if (inputs.value_is_await_expression || inputs.value_is_comptime_expression)
-        && !inputs.pattern_breakable
-        && !inputs.value_has_between_comment
-        && !inputs.value_has_prefix_annotation_that_forces_break
-    {
-        return DeclaratorLayout::Inline;
-    }
-
-    // keep string rhs mostly inline
-    if inputs.is_string_literal {
-        if inputs.pattern_breakable {
-            return if inputs.pattern_has_newline {
-                DeclaratorLayout::HeaderExpanded
-            } else {
-                DeclaratorLayout::BreakAfterOperator
-            };
-        }
-
-        return DeclaratorLayout::BreakAfterOperator;
-    }
-
-    // declaration rhs values with prefix trivia should break directly after `=`
-    if inputs.value_is_declaration && inputs.value_has_prefix_annotation_that_forces_break {
-        return DeclaratorLayout::BreakAfterOperator;
-    }
-
-    // binary rhs operator break policy
-    if inputs.value_is_long_binary {
-        return DeclaratorLayout::BreakAfterOperator;
-    }
-
-    // chain and binary values that already own their line breaking
-    if inputs.value_handles_its_own_breaking {
-        let has_forced_operator_break = inputs.value_has_prefix_annotation_that_forces_break
-            || inputs.has_significant_between_comment;
-
-        if inputs.pattern_breakable {
-            if has_forced_operator_break {
-                return DeclaratorLayout::BreakAfterOperator;
-            }
-
-            let should_break_after_operator_for_rhs = !inputs.pattern_has_newline
-                && ((inputs.value_is_call_like && inputs.pattern_has_default_assignment)
-                    || inputs.value_is_sequence
-                    || inputs.value_has_line_comment_between_operands);
-            if should_break_after_operator_for_rhs {
-                return DeclaratorLayout::BreakAfterOperator;
-            }
-
-            return DeclaratorLayout::Inline;
-        }
-
-        if has_forced_operator_break {
-            return DeclaratorLayout::BreakAfterOperator;
-        }
-
-        // complex static generic argument blocks already break inside the rhs
-        if inputs.value_has_block_static_arguments {
-            return DeclaratorLayout::Inline;
-        }
-
-        // class heritage wrappers own their internal multiline breaking
-        if inputs.value_has_class_heritage && !inputs.value_has_generic_class_heritage {
-            return DeclaratorLayout::Inline;
-        }
-
-        // poor chains, generic argument calls, and sequence-like rhs shapes prefer operator seams
-        let value_is_simple_static_argument_call =
-            inputs.value_has_static_arguments && !inputs.value_has_nested_call_chain;
-        let value_is_simple_poor_chain = inputs.value_is_poor_chain
-            && !inputs.value_has_static_arguments
-            && !inputs.value_is_await_expression
-            && !inputs.value_is_parenthesized;
-        let prefers_operator_seam = inputs.value_has_line_comment_between_operands
-            || inputs.value_is_sequence
-            || inputs.value_has_generic_class_heritage
-            || inputs.value_has_instantiation_prefix
-            || value_is_simple_poor_chain
-            || value_is_simple_static_argument_call;
-        if prefers_operator_seam {
-            return DeclaratorLayout::BreakAfterOperator;
-        }
-
-        return DeclaratorLayout::Inline;
-    }
-
-    // layout matrix for non self breaking values
-    match (inputs.pattern_breakable, inputs.value_breakable) {
-        (true, true) => {
-            if inputs.value_has_newline || inputs.pattern_has_newline {
-                DeclaratorLayout::ValueExpanded
-            } else {
-                DeclaratorLayout::Inline
-            }
-        }
-        (true, false) => {
-            if inputs.pattern_has_newline {
-                DeclaratorLayout::HeaderExpanded
-            } else if inputs.pattern_has_comments_or_annotations {
-                DeclaratorLayout::BreakAfterOperator
-            } else {
-                DeclaratorLayout::Inline
-            }
-        }
-        (false, true) => {
-            let prefers_operator_break = inputs.value_has_between_comment;
-            let prefer_declaration_operator_break =
-                inputs.value_is_declaration && inputs.value_has_newline;
-
-            if prefers_operator_break || prefer_declaration_operator_break {
-                if !inputs.value_has_newline
-                    && !inputs.value_has_between_comment
-                    && !inputs.value_has_prefix_annotation_that_forces_break
-                {
-                    DeclaratorLayout::Inline
-                } else {
-                    DeclaratorLayout::Indented
-                }
-            } else if inputs.value_is_parenthesized && inputs.value_has_newline {
-                DeclaratorLayout::Inline
-            } else if inputs.value_has_newline
-                || inputs.value_has_prefix_annotation_that_forces_break
-            {
-                DeclaratorLayout::ValueExpanded
-            } else {
-                DeclaratorLayout::Inline
-            }
-        }
-        (false, false) => {
-            if inputs.value_has_generic_class_heritage && inputs.value_has_newline {
-                DeclaratorLayout::Indented
-            } else if inputs.value_is_parenthesized && inputs.value_has_newline {
-                DeclaratorLayout::Inline
-            } else {
-                DeclaratorLayout::BreakAfterOperator
-            }
-        }
-    }
-}
 
 /// Return whether one pattern subtree contains at least one default assignment.
 pub(crate) fn pattern_has_default_assignment(
@@ -467,9 +265,9 @@ pub(crate) fn value_is_inline_closure_cast_type_binary(
 
 const LONG_BINARY_OPERAND_COUNT_THRESHOLD: usize = 2;
 
-/// Store base expression-shape facts for one declarator value.
+/// Store base expression-shape signals for one declarator value.
 #[derive(Clone, Copy)]
-struct DeclaratorShapeFacts {
+struct DeclaratorShape {
     value_inner_id: LocalNodeId<Expression>,
     pattern_breakable: bool,
     value_breakable: bool,
@@ -480,12 +278,11 @@ struct DeclaratorShapeFacts {
     value_is_call_like: bool,
     value_is_declaration: bool,
     value_handles_its_own_breaking: bool,
-    should_force_expand_value: bool,
 }
 
-/// Store source and inline-layout facts for one declarator.
+/// Store source and inline-layout signals for one declarator.
 #[derive(Clone, Copy)]
-struct DeclaratorSourceProfile {
+struct DeclaratorSource {
     value_has_newline: bool,
     pattern_has_newline: bool,
     pattern_has_default_assignment: bool,
@@ -495,11 +292,10 @@ struct DeclaratorSourceProfile {
     value_has_between_comment: bool,
     value_has_line_comment_between_operands: bool,
     value_is_long_binary: bool,
-    is_string_literal: bool,
-    is_template_expression: bool,
+    value_is_string_literal: bool,
+    value_is_template_expression: bool,
     value_is_leading_pipe_type_union: bool,
     value_has_instantiation_prefix: bool,
-    has_significant_between_comment: bool,
     value_is_await_expression: bool,
     value_is_comptime_expression: bool,
     value_has_static_arguments: bool,
@@ -724,13 +520,13 @@ fn expression_has_class_heritage(
     }
 }
 
-/// Collect base shape facts for one declarator value.
-fn collect_declarator_shape_facts(
+/// Collect base shape signals for one declarator value.
+fn declarator_shape(
     context: &DestackFormatContext<'_>,
     tree: &NodeTree,
     pattern_id: LocalNodeId<Pattern>,
     value_id: LocalNodeId<Expression>,
-) -> DeclaratorShapeFacts {
+) -> DeclaratorShape {
     let value_expr = tree.get(value_id);
     let value_inner_id = transparent_inner_expression(context, value_id);
     let value_inner_expr = tree.get(value_inner_id);
@@ -750,7 +546,7 @@ fn collect_declarator_shape_facts(
         || value_is_call_like
         || value_is_declaration;
 
-    DeclaratorShapeFacts {
+    DeclaratorShape {
         value_inner_id,
         pattern_breakable: is_pattern_breakable(tree, pattern_id),
         value_breakable: is_expression_breakable(tree, value_expr),
@@ -761,25 +557,22 @@ fn collect_declarator_shape_facts(
         value_is_call_like,
         value_is_declaration,
         value_handles_its_own_breaking,
-        should_force_expand_value: is_expression_breakable(tree, value_expr)
-            && !value_is_poor_chain,
     }
 }
 
-/// Collect source and inline-layout profile facts for one declarator.
+/// Collect source and inline-layout layout signals for one declarator.
 #[allow(clippy::too_many_arguments)]
-fn collect_declarator_layout_profile(
+fn declarator_source(
     context: &DestackFormatContext<'_>,
     tree: &NodeTree,
     pattern_id: LocalNodeId<Pattern>,
     ty: Option<LocalNodeId<Expression>>,
     value_id: LocalNodeId<Expression>,
-    value_inner_id: LocalNodeId<Expression>,
-    value_expr: &Expression,
-    value_inner_expr: &Expression,
-    shape: DeclaratorShapeFacts,
+    shape: DeclaratorShape,
     value_is_inline_closure_cast_type_binary: bool,
-) -> DeclaratorSourceProfile {
+) -> DeclaratorSource {
+    let value_expr = tree.get(value_id);
+    let value_inner_expr = tree.get(shape.value_inner_id);
     let pattern_span = context.span(pattern_id);
 
     let value_has_prefix_annotation = context.has_prefix_annotation(value_id);
@@ -814,34 +607,35 @@ fn collect_declarator_layout_profile(
     };
     let value_binary_operand_count = match value_inner_expr {
         Expression::Binary { operator, .. } => {
-            flattened_binary_operand_count(tree, value_inner_id, *operator)
+            flattened_binary_operand_count(tree, shape.value_inner_id, *operator)
         }
         _ => 0,
     };
     let value_is_long_binary =
         shape.value_is_binary && value_binary_operand_count > LONG_BINARY_OPERAND_COUNT_THRESHOLD;
-    let is_string_literal = matches!(
+    let value_is_string_literal = matches!(
         value_inner_expr,
         Expression::ScalarLiteral(ScalarLiteral::String(_))
     );
-    let is_template_expression = matches!(value_inner_expr, Expression::TemplateExpression { .. });
-    let value_is_leading_pipe_type_union = is_type_context(context, value_inner_id)
-        && union_has_leading_pipe_token(context, value_inner_id);
+    let value_is_template_expression =
+        matches!(value_inner_expr, Expression::TemplateExpression { .. });
+    let value_is_leading_pipe_type_union = is_type_context(context, shape.value_inner_id)
+        && union_has_leading_pipe_token(context, shape.value_inner_id);
     let value_has_instantiation_prefix =
-        shape.value_is_chain && value_chain_has_instantiation_prefix(context, value_inner_id);
-    let has_significant_between_comment = value_has_between_comment;
+        shape.value_is_chain && value_chain_has_instantiation_prefix(context, shape.value_inner_id);
     let value_is_await_expression = matches!(
         value_expr,
         Expression::Await { .. } | Expression::AwaitMaybe { .. }
     );
     let value_is_comptime_expression = matches!(value_expr, Expression::Comptime { .. });
-    let value_has_static_arguments = expression_has_static_arguments(context, value_inner_id);
-    let value_has_nested_call_chain = expression_has_nested_call_chain(context, value_inner_id);
+    let value_has_static_arguments = expression_has_static_arguments(context, shape.value_inner_id);
+    let value_has_nested_call_chain =
+        expression_has_nested_call_chain(context, shape.value_inner_id);
     let value_has_block_static_arguments =
-        expression_has_block_static_arguments(context, value_inner_id);
-    let value_has_class_heritage = expression_has_class_heritage(context, value_inner_id);
+        expression_has_block_static_arguments(context, shape.value_inner_id);
+    let value_has_class_heritage = expression_has_class_heritage(context, shape.value_inner_id);
 
-    DeclaratorSourceProfile {
+    DeclaratorSource {
         value_has_newline,
         pattern_has_newline,
         pattern_has_default_assignment,
@@ -851,58 +645,16 @@ fn collect_declarator_layout_profile(
         value_has_between_comment,
         value_has_line_comment_between_operands,
         value_is_long_binary,
-        is_string_literal,
-        is_template_expression,
+        value_is_string_literal,
+        value_is_template_expression,
         value_is_leading_pipe_type_union,
         value_has_instantiation_prefix,
-        has_significant_between_comment,
         value_is_await_expression,
         value_is_comptime_expression,
         value_has_static_arguments,
         value_has_nested_call_chain,
         value_has_block_static_arguments,
         value_has_class_heritage,
-    }
-}
-
-/// Build normalized layout inputs from declarator profiles.
-fn build_declarator_layout_inputs(
-    shape: DeclaratorShapeFacts,
-    source: DeclaratorSourceProfile,
-    value_has_generic_class_heritage: bool,
-    value_is_inline_closure_cast_type_binary: bool,
-) -> DeclaratorLayoutInputs {
-    DeclaratorLayoutInputs {
-        pattern_breakable: shape.pattern_breakable,
-        value_breakable: shape.value_breakable,
-        value_is_leading_pipe_type_union: source.value_is_leading_pipe_type_union,
-        value_is_inline_closure_cast_type_binary,
-        is_string_literal: source.is_string_literal,
-        value_is_long_binary: source.value_is_long_binary,
-        value_has_between_comment: source.value_has_between_comment,
-        value_handles_its_own_breaking: shape.value_handles_its_own_breaking,
-        value_has_prefix_annotation_that_forces_break: source
-            .value_has_prefix_annotation_that_forces_break,
-        has_significant_between_comment: source.has_significant_between_comment,
-        value_has_generic_class_heritage,
-        value_is_declaration: shape.value_is_declaration,
-        is_template_expression: source.is_template_expression,
-        value_is_await_expression: source.value_is_await_expression,
-        value_is_comptime_expression: source.value_is_comptime_expression,
-        value_is_sequence: shape.value_is_sequence,
-        value_has_line_comment_between_operands: source.value_has_line_comment_between_operands,
-        value_is_call_like: shape.value_is_call_like,
-        value_is_poor_chain: shape.value_is_poor_chain,
-        value_has_static_arguments: source.value_has_static_arguments,
-        value_has_nested_call_chain: source.value_has_nested_call_chain,
-        value_has_instantiation_prefix: source.value_has_instantiation_prefix,
-        value_has_newline: source.value_has_newline,
-        pattern_has_newline: source.pattern_has_newline,
-        pattern_has_default_assignment: source.pattern_has_default_assignment,
-        pattern_has_comments_or_annotations: source.pattern_has_comments_or_annotations,
-        value_is_parenthesized: source.value_is_parenthesized,
-        value_has_block_static_arguments: source.value_has_block_static_arguments,
-        value_has_class_heritage: source.value_has_class_heritage,
     }
 }
 
@@ -913,7 +665,7 @@ pub(crate) fn format_declarator<'ast>(
     declarator_id: LocalNodeId<Declarator>,
 ) -> FormatResult<()> {
     f.context()
-        .increment_counter("profile.declarator.layout.builds", 1);
+        .increment_counter("stats.declarator.layout.builds", 1);
 
     let declarator = tree.get(declarator_id);
     let Declarator { pattern, ty, value } = declarator;
@@ -932,33 +684,21 @@ pub(crate) fn format_declarator<'ast>(
         return Ok(());
     };
 
-    let value_expr = tree.get(*value_id);
-    let shape = collect_declarator_shape_facts(f.context(), tree, *pattern, *value_id);
+    let shape = declarator_shape(f.context(), tree, *pattern, *value_id);
     let value_inner_id = shape.value_inner_id;
-    let value_inner_expr = tree.get(value_inner_id);
     let value_is_inline_closure_cast_type_binary =
         value_is_inline_closure_cast_type_binary(f.context(), *value_id);
     let value_has_generic_class_heritage =
         value_has_generic_class_heritage(f.context(), shape.value_inner_id);
-    let source = collect_declarator_layout_profile(
+    let source = declarator_source(
         f.context(),
         tree,
         *pattern,
         *ty,
         *value_id,
-        shape.value_inner_id,
-        value_expr,
-        value_inner_expr,
         shape,
         value_is_inline_closure_cast_type_binary,
     );
-    let layout_inputs = build_declarator_layout_inputs(
-        shape,
-        source,
-        value_has_generic_class_heritage,
-        value_is_inline_closure_cast_type_binary,
-    );
-
     // layout fragments
     let format_inline = format_with(|f| {
         write!(f, [header, space(), token("="), space(), *value_id])?;
@@ -966,6 +706,8 @@ pub(crate) fn format_declarator<'ast>(
     });
 
     // expand inline if value is breakable
+    let should_force_expand_value =
+        is_expression_breakable(tree, tree.get(*value_id)) && !shape.value_is_poor_chain;
     let format_value_expanded = format_with(|f| {
         write!(
             f,
@@ -974,7 +716,7 @@ pub(crate) fn format_declarator<'ast>(
                 space(),
                 token("="),
                 space(),
-                fits_expanded(&group(value_id).should_expand(shape.should_force_expand_value)),
+                fits_expanded(&group(value_id).should_expand(should_force_expand_value)),
             ]
         )
     });
@@ -1062,16 +804,181 @@ pub(crate) fn format_declarator<'ast>(
                 )
             }
         });
-    let layout = choose_declarator_layout(layout_inputs);
+    // keep leading pipe unions inline at the declarator level
+    let should_keep_inline_leading_pipe_union = source.value_is_leading_pipe_type_union;
+    if should_keep_inline_leading_pipe_union {
+        write!(f, [format_inline])?;
+        return Ok(());
+    }
 
-    match layout {
-        DeclaratorLayout::Inline => write!(f, [format_inline])?,
-        DeclaratorLayout::BreakAfterOperator => {
-            write!(f, [format_break_after_operator_for_binary])?
+    // keep closure cast type binaries inline in declarator rhs
+    if value_is_inline_closure_cast_type_binary {
+        write!(f, [format_inline])?;
+        return Ok(());
+    }
+
+    // keep template rhs values inline in declarators
+    if source.value_is_template_expression {
+        write!(f, [format_inline])?;
+        return Ok(());
+    }
+
+    // keep compact await and comptime rhs values inline when trivia free
+    let should_keep_inline_keyword_rhs = (source.value_is_await_expression
+        || source.value_is_comptime_expression)
+        && !shape.pattern_breakable
+        && !source.value_has_between_comment
+        && !source.value_has_prefix_annotation_that_forces_break;
+    if should_keep_inline_keyword_rhs {
+        write!(f, [format_inline])?;
+        return Ok(());
+    }
+
+    // keep string rhs mostly inline
+    if source.value_is_string_literal {
+        if shape.pattern_breakable && source.pattern_has_newline {
+            write!(f, [format_header_expanded])?;
+            return Ok(());
         }
-        DeclaratorLayout::ValueExpanded => write!(f, [format_value_expanded])?,
-        DeclaratorLayout::HeaderExpanded => write!(f, [format_header_expanded])?,
-        DeclaratorLayout::Indented => write!(f, [format_indented])?,
+
+        write!(f, [format_break_after_operator_for_binary])?;
+        return Ok(());
+    }
+
+    // declaration rhs values with prefix trivia should break directly after `=`
+    if shape.value_is_declaration && source.value_has_prefix_annotation_that_forces_break {
+        write!(f, [format_break_after_operator_for_binary])?;
+        return Ok(());
+    }
+
+    // binary rhs operator break rules
+    if source.value_is_long_binary {
+        write!(f, [format_break_after_operator_for_binary])?;
+        return Ok(());
+    }
+
+    // chain and binary values that already own their line breaking
+    if shape.value_handles_its_own_breaking {
+        let has_forced_operator_break = source.value_has_prefix_annotation_that_forces_break
+            || source.value_has_between_comment;
+
+        if shape.pattern_breakable {
+            if has_forced_operator_break {
+                write!(f, [format_break_after_operator_for_binary])?;
+                return Ok(());
+            }
+
+            let should_break_after_operator_for_rhs = !source.pattern_has_newline
+                && ((shape.value_is_call_like && source.pattern_has_default_assignment)
+                    || shape.value_is_sequence
+                    || source.value_has_line_comment_between_operands);
+            if should_break_after_operator_for_rhs {
+                write!(f, [format_break_after_operator_for_binary])?;
+                return Ok(());
+            }
+
+            write!(f, [format_inline])?;
+            return Ok(());
+        }
+
+        if has_forced_operator_break {
+            write!(f, [format_break_after_operator_for_binary])?;
+            return Ok(());
+        }
+
+        // complex static generic argument blocks already break inside the rhs
+        if source.value_has_block_static_arguments {
+            write!(f, [format_inline])?;
+            return Ok(());
+        }
+
+        // class heritage wrappers own their internal multiline breaking
+        if source.value_has_class_heritage && !value_has_generic_class_heritage {
+            write!(f, [format_inline])?;
+            return Ok(());
+        }
+
+        // poor chains, generic argument calls, and sequence like rhs shapes prefer operator seams
+        let value_is_simple_static_argument_call =
+            source.value_has_static_arguments && !source.value_has_nested_call_chain;
+        let value_is_simple_poor_chain = shape.value_is_poor_chain
+            && !source.value_has_static_arguments
+            && !source.value_is_await_expression
+            && !source.value_is_parenthesized;
+        let should_break_after_operator_for_rhs = source.value_has_line_comment_between_operands
+            || shape.value_is_sequence
+            || value_has_generic_class_heritage
+            || source.value_has_instantiation_prefix
+            || value_is_simple_poor_chain
+            || value_is_simple_static_argument_call;
+        if should_break_after_operator_for_rhs {
+            write!(f, [format_break_after_operator_for_binary])?;
+            return Ok(());
+        }
+
+        write!(f, [format_inline])?;
+        return Ok(());
+    }
+
+    // layout matrix for non self breaking values: both sides breakable
+    if shape.pattern_breakable && shape.value_breakable {
+        if source.value_has_newline || source.pattern_has_newline {
+            write!(f, [format_value_expanded])?;
+        } else {
+            write!(f, [format_inline])?;
+        }
+        return Ok(());
+    }
+
+    // layout matrix for non self breaking values: only pattern breakable
+    if shape.pattern_breakable {
+        if source.pattern_has_newline {
+            write!(f, [format_header_expanded])?;
+        } else if source.pattern_has_comments_or_annotations {
+            write!(f, [format_break_after_operator_for_binary])?;
+        } else {
+            write!(f, [format_inline])?;
+        }
+        return Ok(());
+    }
+
+    // layout matrix for non self breaking values: only value breakable
+    if shape.value_breakable {
+        let should_prefer_operator_break = source.value_has_between_comment
+            || (shape.value_is_declaration && source.value_has_newline);
+        if should_prefer_operator_break {
+            let should_keep_inline = !source.value_has_newline
+                && !source.value_has_between_comment
+                && !source.value_has_prefix_annotation_that_forces_break;
+            if should_keep_inline {
+                write!(f, [format_inline])?;
+            } else {
+                write!(f, [format_indented])?;
+            }
+            return Ok(());
+        }
+
+        if source.value_is_parenthesized && source.value_has_newline {
+            write!(f, [format_inline])?;
+            return Ok(());
+        }
+
+        if source.value_has_newline || source.value_has_prefix_annotation_that_forces_break {
+            write!(f, [format_value_expanded])?;
+            return Ok(());
+        }
+
+        write!(f, [format_inline])?;
+        return Ok(());
+    }
+
+    // layout matrix for non self breaking values: neither side breakable
+    if value_has_generic_class_heritage && source.value_has_newline {
+        write!(f, [format_indented])?;
+    } else if source.value_is_parenthesized && source.value_has_newline {
+        write!(f, [format_inline])?;
+    } else {
+        write!(f, [format_break_after_operator_for_binary])?;
     }
 
     Ok(())

@@ -5,7 +5,7 @@ use destack_ast as ast;
 use destack_source::{EnclosingSpan, Span};
 use smallvec::SmallVec;
 
-use crate::format::comments::index::FormatterTriviaOwnerIndex;
+use crate::format::comments::attachment::FormatterTriviaOwnerIndex;
 
 /// Return whether one node kind is excluded from trivia owner indexing.
 pub(crate) fn is_trivia_excluded_owner_node_id(tree: &NodeTree, node_id: u32) -> bool {
@@ -251,7 +251,7 @@ pub(crate) fn promote_rhs_expression_owner(
 }
 
 /// Return one block-interior placement target for boundary comments.
-pub(crate) fn resolve_block_leading_comment_target(
+pub(crate) fn block_leading_comment_target(
     tree: &NodeTree,
     block_id: LocalNodeId<Block>,
 ) -> (u32, AnnotationPosition) {

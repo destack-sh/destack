@@ -1,25 +1,41 @@
 mod annotation;
 mod cache;
-mod model;
-mod node;
-mod options;
-mod prelude;
+mod format_context;
 mod source;
 
 pub use cache::*;
-pub use model::*;
-pub(crate) use node::FormatNode;
-pub use options::*;
-use prelude::{
-    ANNOTATION_STATE_CACHED, ANNOTATION_STATE_NONE, ANNOTATION_STATE_PRESENT, AnnotationPosition,
-    Argument, Blank, Block, Cell, Comment, Cow, Declaration, Declarator, Decorator, DependencyItem,
-    Doc, EnumField, Expression, File, Format, FormatContext, FormatResult, Formatter,
-    FormatterTimingEntry, FormatterTimingScope, FormatterTimingTag, FormatterTimings, FxHashMap,
-    GroupId, ImmutableStringPool, Keyword, LocalNodeId, LocalNodeIdAny, MatchCase, Member,
-    MultiSpan, NODE_BOOL_STATE_FALSE, NODE_BOOL_STATE_TRUE, NODE_BOOL_STATE_UNKNOWN,
-    NODE_SPAN_CHAR_LEN_UNKNOWN, Node, NodeParentIndex, NodeSourceMap, NodeTree, NodeTreeImpl,
-    NodeType, OnceCell, Parameter, Pattern, PatternField, Property, Rc, Ref, RefCell, SmallVec,
-    Span, TYPE_CONTEXT_STATE_FALSE, TYPE_CONTEXT_STATE_TRUE, TYPE_CONTEXT_STATE_UNKNOWN, TokenSpan,
-    TokenType, WhereClause, ast, build_formatter_annotation_projection, normalize_comment_payload,
+pub use format_context::*;
+
+pub(crate) use std::borrow::Cow;
+pub(crate) use std::cell::{Cell, OnceCell, Ref, RefCell};
+pub(crate) use std::rc::Rc;
+
+pub(crate) use ast::{
+    AnnotationPosition, Argument, Blank, Block, Comment, Declaration, Declarator, Decorator,
+    DependencyItem, Doc, EnumField, Expression, Keyword, LocalNodeId, LocalNodeIdAny, MatchCase,
+    Member, Node, NodeParentIndex, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern,
+    PatternField, Property, TokenSpan, TokenType, WhereClause, normalize_comment_payload,
+};
+pub(crate) use destack_ast as ast;
+pub(crate) use destack_base::ImmutableStringPool;
+pub(crate) use destack_fir::format::{Format, FormatContext, FormatResult, Formatter, GroupId};
+pub(crate) use destack_source::{File, MultiSpan, NodeSourceMap, Span};
+pub(crate) use rustc_hash::FxHashMap;
+pub(crate) use smallvec::SmallVec;
+
+pub(crate) use crate::format::analysis::timing::{
+    FormatterTimingEntry, FormatterTimingScope, FormatterTimingTag, FormatterTimings,
     tag_for_node_type,
 };
+pub(crate) use crate::format::comments::formatter_annotation_projection;
+
+pub(crate) const ANNOTATION_STATE_NONE: u8 = 1;
+pub(crate) const ANNOTATION_STATE_PRESENT: u8 = 2;
+pub(crate) const ANNOTATION_STATE_CACHED: u8 = 3;
+pub(crate) const NODE_BOOL_STATE_UNKNOWN: u8 = 0;
+pub(crate) const NODE_BOOL_STATE_FALSE: u8 = 1;
+pub(crate) const NODE_BOOL_STATE_TRUE: u8 = 2;
+pub(crate) const NODE_SPAN_CHAR_LEN_UNKNOWN: u32 = u32::MAX;
+pub(crate) const TYPE_CONTEXT_STATE_UNKNOWN: u8 = 0;
+pub(crate) const TYPE_CONTEXT_STATE_FALSE: u8 = 1;
+pub(crate) const TYPE_CONTEXT_STATE_TRUE: u8 = 2;

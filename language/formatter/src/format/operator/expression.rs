@@ -1,18 +1,17 @@
-use crate::format::analysis::scan::first_non_trivia_token_in_span;
-use crate::format::analysis::timing::tags;
+use crate::format::analysis::{first_non_trivia_token_in_span, timing};
 use crate::format::call::format_call_arguments;
 use crate::format::chain::{
-    analyze_chain_parent_facts, extract_parenthesized_index_chain, format_call_expression,
-    format_expression_chain, format_index_expression, format_instantiation_expression,
-    format_maybe_expression, format_member_expression, has_chain_parent, is_expression_chain,
-    needs_parens_in_postfix_position,
+    call_has_parenthesized_await_member_receiver, extract_parenthesized_index_chain,
+    format_call_expression, format_expression_chain, format_index_expression,
+    format_instantiation_expression, format_maybe_expression, format_member_expression,
+    has_chain_parent, is_expression_chain, needs_parens_in_postfix_position,
 };
 use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, DestackFormatContext, DestackFormatter, Expression,
-    FormatResult, LocalNodeId, ParenthesizedUnwrapPolicy, TypeUnaryOperator, UnaryOperator,
+    FormatResult, LocalNodeId, ParenthesizedUnwrapMode, TypeUnaryOperator, UnaryOperator,
     expression_has_leading_prefix_comment, format_static_argument_list, format_with,
     hard_line_break, parenthesized_prefers_new_member_callee_parentheses,
-    parenthesized_should_unwrap, space, token,
+    should_unwrap_parenthesized, space, token,
 };
 use crate::format::operator::assign::format_assign_expression;
 use crate::format::operator::binary::{format_binary_expression, format_type_binary_expression};
@@ -72,11 +71,11 @@ pub(crate) fn format_new_expression<'ast>(
     // unwrap redundant parenthesized member callees
     let mut left = left;
     if let Expression::Parenthesized { expression } = tree.get(left)
-        && parenthesized_should_unwrap(
+        && should_unwrap_parenthesized(
             f.context(),
             left,
             *expression,
-            ParenthesizedUnwrapPolicy::NewMemberCallee,
+            ParenthesizedUnwrapMode::NewMemberCallee,
         )
     {
         left = *expression;
@@ -134,7 +133,7 @@ pub(crate) fn format_new_expression<'ast>(
 }
 
 /// Collect block infix comment nodes for one type unary expression node.
-fn collect_type_unary_infix_comment_facts(
+fn type_unary_infix_comments(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> Vec<(CommentStyle, bool, LocalNodeId<Comment>)> {
@@ -165,7 +164,7 @@ fn write_type_unary_as_keyword_with_infix_comments<'ast>(
     node_id: LocalNodeId<Expression>,
     keyword: &'static str,
 ) -> FormatResult<()> {
-    let infix_comments = collect_type_unary_infix_comment_facts(f.context(), node_id);
+    let infix_comments = type_unary_infix_comments(f.context(), node_id);
     if infix_comments.is_empty() {
         write!(f, [space(), token(keyword)])?;
         return Ok(());
@@ -380,7 +379,7 @@ pub(crate) fn format_operator_expression<'ast>(
         } => {
             let _timing = f
                 .context()
-                .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
+                .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_CALL);
             format_new_expression(f, node_id, *left, static_arguments, dynamic_arguments)?;
         }
 
@@ -452,12 +451,12 @@ fn format_member_or_chain_expression<'ast>(
     if is_expression_chain(f.context().tree, node_id) {
         let _timing = f
             .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);
+            .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_CHAIN);
         format_expression_chain(f, node_id)?;
     } else {
         let _timing = f
             .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
+            .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_CALL);
         format_member_expression(f, node_id)?;
     }
 
@@ -472,12 +471,12 @@ fn format_index_or_chain_expression<'ast>(
     if is_expression_chain(f.context().tree, node_id) {
         let _timing = f
             .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);
+            .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_CHAIN);
         format_expression_chain(f, node_id)?;
     } else {
         let _timing = f
             .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
+            .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_CALL);
         format_index_expression(f, node_id)?;
     }
 
@@ -489,21 +488,20 @@ fn format_call_or_chain_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let parent_facts = analyze_chain_parent_facts(f.context(), node_id);
     let call_has_await_wrapped_member_receiver =
-        parent_facts.call_has_parenthesized_await_member_receiver();
+        call_has_parenthesized_await_member_receiver(f.context(), node_id);
     let should_route_to_chain = (is_expression_chain(f.context().tree, node_id)
         || call_should_route_to_chain_for_boundary_comment(f.context(), node_id))
         && !call_has_await_wrapped_member_receiver;
     if should_route_to_chain {
         let _timing = f
             .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);
+            .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_CHAIN);
         format_expression_chain(f, node_id)?;
     } else {
         let _timing = f
             .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
+            .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_CALL);
         format_call_expression(f, node_id)?;
     }
 
@@ -518,12 +516,12 @@ fn format_instantiation_or_chain_expression<'ast>(
     if is_expression_chain(f.context().tree, node_id) && has_chain_parent(f.context(), node_id) {
         let _timing = f
             .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);
+            .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_CHAIN);
         format_expression_chain(f, node_id)?;
     } else {
         let _timing = f
             .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
+            .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_CALL);
         format_instantiation_expression(f, node_id)?;
     }
 
@@ -538,12 +536,12 @@ fn format_maybe_or_chain_expression<'ast>(
     if is_expression_chain(f.context().tree, node_id) {
         let _timing = f
             .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);
+            .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_CHAIN);
         format_expression_chain(f, node_id)?;
     } else {
         let _timing = f
             .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
+            .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_CALL);
         format_maybe_expression(f, node_id)?;
     }
 
@@ -560,12 +558,12 @@ fn format_must_or_chain_expression<'ast>(
     if is_expression_chain(f.context().tree, node_id) {
         let _timing = f
             .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CHAIN);
+            .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_CHAIN);
         format_expression_chain(f, node_id)?;
     } else {
         let _timing = f
             .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_OPERATOR_CALL);
+            .timing_scope(timing::FORMAT_EXPRESSION_OPERATOR_CALL);
         let needs_parentheses = needs_parens_in_postfix_position(f.context().tree, left);
         if needs_parentheses {
             write!(f, [token("("), left, token(")")])?;

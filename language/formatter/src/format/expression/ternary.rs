@@ -1,5 +1,5 @@
 use crate::Annotation;
-use crate::format::analysis::scan::next_non_whitespace_token_after_span;
+use crate::format::analysis::next_non_whitespace_token_after_span;
 use crate::format::chain::expression_is_in_template_literal_interpolation;
 use crate::format::expression::{
     AnnotationPosition, Argument, DestackFormatContext, DestackFormatter, Expression, FormatResult,

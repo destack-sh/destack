@@ -1,15 +1,15 @@
 use ast::{AnnotationPosition, NodeParentIndex, NodeTree, NodeType, TokenType};
 use destack_ast as ast;
 
-use crate::format::comments::index::FormatterTriviaOwnerIndex;
-use crate::format::comments::owner::{
+use crate::format::comments::attachment::FormatterTriviaOwnerIndex;
+use crate::format::comments::boundary::{
+    CommentAttachment, CommentAttachmentOwners, CommentSeamContext, CommentSeamData,
+    CommentSeamKeyword,
+};
+use crate::format::comments::ownership::{
     find_next_declaration_owner_from_token, find_next_member_owner_from_token,
     find_smallest_owner_enclosing_range, normalize_formatter_trivia_target_owner,
     promote_owner_to_declaration_ancestor, promote_owner_to_node_type_ancestor,
-};
-use crate::format::comments::seam::{
-    CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
-    CommentSeamKeyword,
 };
 
 /// Return whether a declaration owner supports inline head comments before `{`.
@@ -61,14 +61,14 @@ pub(crate) fn try_attach_comment_declaration_optional_member_seam(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
-    facts: &CommentSeamFacts,
+    seam: &CommentSeamData,
     owners: CommentAttachmentOwners,
-) -> Option<CommentAttachmentDecision> {
-    if facts.has_leading_newline || facts.has_trailing_newline || !facts.comment_is_star {
+) -> Option<CommentAttachment> {
+    if seam.has_leading_newline || seam.has_trailing_newline || !seam.comment_is_star {
         return None;
     }
 
-    if !facts.token_after_is(TokenType::Maybe) && !facts.token_before_is(TokenType::Maybe) {
+    if !seam.token_after_is(TokenType::Maybe) && !seam.token_before_is(TokenType::Maybe) {
         return None;
     }
 
@@ -101,13 +101,13 @@ pub(crate) fn try_attach_comment_declaration_new_signature_seam(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
-    facts: &CommentSeamFacts,
+    seam: &CommentSeamData,
     owners: CommentAttachmentOwners,
-) -> Option<CommentAttachmentDecision> {
-    if facts.has_leading_newline
-        || facts.has_trailing_newline
-        || !facts.comment_is_star
-        || !facts.token_after_is(TokenType::OpenParenthesis)
+) -> Option<CommentAttachment> {
+    if seam.has_leading_newline
+        || seam.has_trailing_newline
+        || !seam.comment_is_star
+        || !seam.token_after_is(TokenType::OpenParenthesis)
     {
         return None;
     }
@@ -140,14 +140,14 @@ pub(crate) fn try_attach_comment_declaration_new_signature_seam(
 /// Resolve declaration `implements` own-line seam comments.
 pub(crate) fn try_attach_comment_declaration_implements_seam(
     tree: &NodeTree,
-    facts: &CommentSeamFacts,
+    seam: &CommentSeamData,
     owners: CommentAttachmentOwners,
-) -> Option<CommentAttachmentDecision> {
-    if !facts.has_leading_newline {
+) -> Option<CommentAttachment> {
+    if !seam.has_leading_newline {
         return None;
     }
 
-    if !facts.token_before_is_keyword(CommentSeamKeyword::Implements) {
+    if !seam.token_before_is_keyword(CommentSeamKeyword::Implements) {
         return None;
     }
 
@@ -160,14 +160,14 @@ pub(crate) fn try_attach_comment_declaration_implements_seam(
 pub(crate) fn try_attach_comment_declaration_head_open_brace_seam(
     tree: &NodeTree,
     context: &CommentSeamContext<'_>,
-    facts: &CommentSeamFacts,
+    seam: &CommentSeamData,
     owners: CommentAttachmentOwners,
-) -> Option<CommentAttachmentDecision> {
-    if facts.has_leading_newline || !facts.comment_is_star {
+) -> Option<CommentAttachment> {
+    if seam.has_leading_newline || !seam.comment_is_star {
         return None;
     }
 
-    if !facts.token_after_is(TokenType::OpenBrace) {
+    if !seam.token_after_is(TokenType::OpenBrace) {
         return None;
     }
 
@@ -194,10 +194,10 @@ pub(crate) fn try_attach_comment_declaration_decorator_seam(
     owner_index: &FormatterTriviaOwnerIndex,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
-    facts: &CommentSeamFacts,
+    seam: &CommentSeamData,
     owners: CommentAttachmentOwners,
-) -> Option<CommentAttachmentDecision> {
-    if !facts.token_after_is(TokenType::At) {
+) -> Option<CommentAttachment> {
+    if !seam.token_after_is(TokenType::At) {
         return None;
     }
 
@@ -238,7 +238,7 @@ pub(crate) fn try_attach_comment_declaration_decorator_seam(
         .or(declaration_target)?;
     let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
 
-    if facts.has_leading_newline {
+    if seam.has_leading_newline {
         return Some((Some(target_node), AnnotationPosition::BlockPrefix));
     }
 
@@ -249,14 +249,14 @@ pub(crate) fn try_attach_comment_declaration_decorator_seam(
 pub(crate) fn try_attach_comment_declaration_arrow_seam(
     tree: &NodeTree,
     context: &CommentSeamContext<'_>,
-    facts: &CommentSeamFacts,
-) -> Option<CommentAttachmentDecision> {
-    if !facts.comment_is_star {
+    seam: &CommentSeamData,
+) -> Option<CommentAttachment> {
+    if !seam.comment_is_star {
         return None;
     }
 
     if !matches!(
-        facts.token_after_type,
+        seam.token_after_type,
         Some(TokenType::Arrow | TokenType::ArrowWide)
     ) {
         return None;
@@ -278,13 +278,13 @@ pub(crate) fn try_attach_comment_declaration_arrow_seam(
 pub(crate) fn try_attach_comment_declaration_export_seam(
     tree: &NodeTree,
     context: &CommentSeamContext<'_>,
-    facts: &CommentSeamFacts,
-) -> Option<CommentAttachmentDecision> {
-    if !facts.has_trailing_newline {
+    seam: &CommentSeamData,
+) -> Option<CommentAttachment> {
+    if !seam.has_trailing_newline {
         return None;
     }
 
-    if !facts.token_before_is_keyword(CommentSeamKeyword::Export) {
+    if !seam.token_before_is_keyword(CommentSeamKeyword::Export) {
         return None;
     }
 
@@ -302,14 +302,14 @@ pub(crate) fn try_attach_comment_declaration_export_seam(
 /// Resolve declaration return-type seam comments between `:` and the return type.
 pub(crate) fn try_attach_comment_declaration_return_type_seam(
     tree: &NodeTree,
-    facts: &CommentSeamFacts,
+    seam: &CommentSeamData,
     owners: CommentAttachmentOwners,
-) -> Option<CommentAttachmentDecision> {
-    if facts.has_leading_newline || !facts.has_trailing_newline || !facts.comment_is_line {
+) -> Option<CommentAttachment> {
+    if seam.has_leading_newline || !seam.has_trailing_newline || !seam.comment_is_line {
         return None;
     }
 
-    if !facts.token_before_is_return_type_colon {
+    if !seam.token_before_is_return_type_colon {
         return None;
     }
 
@@ -325,48 +325,48 @@ pub(crate) fn try_attach_comment_declaration(
     owner_index: &FormatterTriviaOwnerIndex,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
-    facts: &CommentSeamFacts,
+    seam: &CommentSeamData,
     owners: CommentAttachmentOwners,
-) -> Option<CommentAttachmentDecision> {
-    if let Some(decision) =
-        try_attach_comment_declaration_optional_member_seam(tree, parents, context, facts, owners)
+) -> Option<CommentAttachment> {
+    if let Some(attachment) =
+        try_attach_comment_declaration_optional_member_seam(tree, parents, context, seam, owners)
     {
-        return Some(decision);
+        return Some(attachment);
     }
 
-    if let Some(decision) =
-        try_attach_comment_declaration_new_signature_seam(tree, parents, context, facts, owners)
+    if let Some(attachment) =
+        try_attach_comment_declaration_new_signature_seam(tree, parents, context, seam, owners)
     {
-        return Some(decision);
+        return Some(attachment);
     }
 
-    if let Some(decision) = try_attach_comment_declaration_implements_seam(tree, facts, owners) {
-        return Some(decision);
+    if let Some(attachment) = try_attach_comment_declaration_implements_seam(tree, seam, owners) {
+        return Some(attachment);
     }
 
-    if let Some(decision) =
-        try_attach_comment_declaration_head_open_brace_seam(tree, context, facts, owners)
+    if let Some(attachment) =
+        try_attach_comment_declaration_head_open_brace_seam(tree, context, seam, owners)
     {
-        return Some(decision);
+        return Some(attachment);
     }
 
-    if let Some(decision) = try_attach_comment_declaration_decorator_seam(
+    if let Some(attachment) = try_attach_comment_declaration_decorator_seam(
         tree,
         owner_index,
         parents,
         context,
-        facts,
+        seam,
         owners,
     ) {
-        return Some(decision);
+        return Some(attachment);
     }
 
-    if let Some(decision) = try_attach_comment_declaration_arrow_seam(tree, context, facts) {
-        return Some(decision);
+    if let Some(attachment) = try_attach_comment_declaration_arrow_seam(tree, context, seam) {
+        return Some(attachment);
     }
 
-    if let Some(decision) = try_attach_comment_declaration_export_seam(tree, context, facts) {
-        return Some(decision);
+    if let Some(attachment) = try_attach_comment_declaration_export_seam(tree, context, seam) {
+        return Some(attachment);
     }
 
     None

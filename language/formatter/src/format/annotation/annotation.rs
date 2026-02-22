@@ -340,6 +340,7 @@ fn is_identifier_or_static_member_only(
 
 #[cfg(test)]
 mod tests {
+    use crate::format::annotation::render::annotation_precedes_separator;
     use crate::{
         Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
         TestFormatter, assert_format,
@@ -619,7 +620,7 @@ mod tests {
 
     /// Condition boundary comments should detect closing delimiter separators.
     #[test]
-    fn test_annotation_render_facts_condition_comment_precedes_separator() {
+    fn test_annotation_render_info_condition_comment_precedes_separator() {
         let source = "{
     if (true /* separator-marker */ ) {}
 }";
@@ -630,11 +631,8 @@ mod tests {
         let context = context_from_formatter(&formatter);
         let annotation_id = find_annotation_by_marker(&context, "separator-marker")
             .expect("expected marker-tagged separator annotation");
-        let annotation = context.annotation(annotation_id);
-        let facts =
-            super::super::render::annotation_render_facts(&context, &annotation, annotation_id);
-
-        assert!(facts.precedes_separator);
+        let precedes_separator = annotation_precedes_separator(&context, annotation_id);
+        assert!(precedes_separator);
     }
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).

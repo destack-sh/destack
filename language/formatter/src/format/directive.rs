@@ -185,7 +185,7 @@ where
 }
 
 /// Collect ignore ranges for a list of nodes keyed by node id.
-pub fn collect_ignore_ranges_for_nodes<T: Node + Clone>(
+pub fn ignore_ranges_for_nodes<T: Node + Clone>(
     context: &DestackFormatContext<'_>,
     node_ids: &[LocalNodeId<T>],
     comment_tokens: &[TokenSpan],
@@ -305,7 +305,7 @@ fn extend_span_with_trailing_statement_terminator(tokens: &[TokenSpan], span: Sp
 }
 
 /// Collect comment tokens sorted by source position.
-pub fn collect_comment_tokens(context: &DestackFormatContext<'_>) -> Vec<TokenSpan> {
+pub fn comment_tokens(context: &DestackFormatContext<'_>) -> Vec<TokenSpan> {
     context.comment_tokens().to_vec()
 }
 
@@ -638,9 +638,7 @@ mod tests {
     use destack_source::{File, FileId, FileType, LanguageType, Uri};
     use destack_workspace::FormatterOptions;
 
-    use crate::format::directive::{
-        collect_comment_tokens, ignore_range_for_node, ignored_span_source,
-    };
+    use crate::format::directive::{comment_tokens, ignore_range_for_node, ignored_span_source};
     use crate::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions};
 
     #[test]
@@ -679,7 +677,7 @@ mod tests {
             },
         );
 
-        let comment_tokens = collect_comment_tokens(&context);
+        let comment_tokens = comment_tokens(&context);
         assert!(!comment_tokens.is_empty());
         let range = ignore_range_for_node(&context, expressions[0], &comment_tokens);
         assert!(range.is_some());
@@ -740,7 +738,7 @@ mod tests {
             },
         );
 
-        let comment_tokens = collect_comment_tokens(&context);
+        let comment_tokens = comment_tokens(&context);
         let range = ignore_range_for_node(&context, second_argument, &comment_tokens)
             .expect("expected ignore range for second argument");
 

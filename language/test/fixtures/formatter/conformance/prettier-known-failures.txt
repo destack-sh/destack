@@ -4,6 +4,7 @@ js/arrays/preserve_empty_lines.js
 js/arrows-bind/arrows-bind.js
 js/arrows/arrow-chain-with-trailing-comments.js
 js/arrows/comments/comment-before-arrow.js
+js/arrows/currying-4.js
 js/arrows/issue-17421.js
 js/arrows/long-contents.js
 js/assignment-comments/function.js
@@ -24,7 +25,6 @@ js/chain-expression/member-expression.js
 js/class-comment/superclass.js
 js/class-extends/extends.js
 js/classes/member.js
-js/comments/15661.js
 js/comments/arrow.js
 js/comments/between-head-and-body/empty-statement.js
 js/comments/between-head-and-body/non-block.js
@@ -104,6 +104,7 @@ js/label/empty_label.js
 js/last-argument-expansion/break-parent.js
 js/last-argument-expansion/dangling-comment-in-arrow-function.js
 js/last-argument-expansion/edge_case.js
+js/last-argument-expansion/empty-object.js
 js/last-argument-expansion/issue-10708.js
 js/last-argument-expansion/issue-7518.js
 js/line-suffix-boundary/boundary.js

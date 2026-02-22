@@ -3,10 +3,100 @@ use destack_ast as ast;
 use destack_source::{File, Span};
 use rustc_hash::FxHashMap;
 
-use crate::format::comments::owner::find_smallest_owner_enclosing_range;
-use crate::format::comments::token::{
-    is_open_delimiter_token, previous_non_newline_token_index, token_after_prefers_left_ownership,
-};
+use crate::format::comments::ownership::find_smallest_owner_enclosing_range;
+
+/// Return whether one token kind is an opening delimiter.
+#[inline]
+pub(crate) fn is_open_delimiter_token(token_type: TokenType) -> bool {
+    matches!(
+        token_type,
+        TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
+    )
+}
+
+/// Return whether one token kind is a closing delimiter.
+#[inline]
+pub(crate) fn is_close_delimiter_token(token_type: TokenType) -> bool {
+    matches!(
+        token_type,
+        TokenType::CloseParenthesis | TokenType::CloseBrace | TokenType::CloseBracket
+    )
+}
+
+/// Return whether one open and close delimiter token pair matches.
+#[inline]
+pub(crate) fn delimiters_match(open: TokenType, close: TokenType) -> bool {
+    matches!(
+        (open, close),
+        (TokenType::OpenParenthesis, TokenType::CloseParenthesis)
+            | (TokenType::OpenBrace, TokenType::CloseBrace)
+            | (TokenType::OpenBracket, TokenType::CloseBracket)
+    )
+}
+
+/// Return whether one token after a comment seam prefers left ownership.
+#[inline]
+pub(crate) fn token_after_prefers_left_ownership(token_type: TokenType) -> bool {
+    matches!(
+        token_type,
+        TokenType::Semicolon
+            | TokenType::Comma
+            | TokenType::CloseParenthesis
+            | TokenType::CloseBrace
+            | TokenType::CloseBracket
+            | TokenType::ElementwiseAnd
+            | TokenType::ElementwiseOr
+            | TokenType::ElementwiseXor
+            | TokenType::LogicalAnd
+            | TokenType::LogicalOr
+            | TokenType::Coalesce
+            | TokenType::Equal
+            | TokenType::EqualWide
+            | TokenType::NotEqual
+            | TokenType::NotEqualWide
+            | TokenType::LessThan
+            | TokenType::LessThanOrEqual
+            | TokenType::GreaterThan
+            | TokenType::GreaterThanOrEqual
+            | TokenType::Add
+            | TokenType::WrappingAdd
+            | TokenType::SaturatingAdd
+            | TokenType::Subtract
+            | TokenType::WrappingSubtract
+            | TokenType::SaturatingSubtract
+            | TokenType::Multiply
+            | TokenType::WrappingMultiply
+            | TokenType::SaturatingMultiply
+            | TokenType::Exponent
+            | TokenType::WrappingExponent
+            | TokenType::SaturatingExponent
+            | TokenType::Divide
+            | TokenType::Remainder
+            | TokenType::ShiftLeft
+            | TokenType::SaturatingShiftLeft
+            | TokenType::Assign
+    )
+}
+
+/// Return the previous non-newline semantic token index before one index.
+pub(crate) fn previous_non_newline_token_index(
+    semantic_tokens: &[TokenSpan],
+    index: usize,
+) -> Option<usize> {
+    if index == 0 {
+        return None;
+    }
+
+    let mut cursor = index;
+    while cursor > 0 {
+        cursor -= 1;
+        if semantic_tokens[cursor].token.ty != TokenType::Newline {
+            return Some(cursor);
+        }
+    }
+
+    None
+}
 
 /// One normalized identifier keyword used in comment seam rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,7 +123,7 @@ pub(crate) enum CommentSeamKeyword {
 
 /// Classify one identifier token into one seam keyword family.
 #[inline]
-pub(crate) fn classify_comment_seam_keyword(
+pub(crate) fn comment_seam_keyword(
     token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
     token: Option<TokenSpan>,
 ) -> CommentSeamKeyword {
@@ -63,7 +153,7 @@ pub(crate) fn classify_comment_seam_keyword(
     }
 }
 
-/// Immutable context for one comment seam attachment decision.
+/// Immutable context for one comment seam attachment attachment.
 #[derive(Clone, Copy)]
 pub(crate) struct CommentSeamContext<'a> {
     /// The source file.
@@ -88,9 +178,9 @@ pub(crate) struct CommentSeamContext<'a> {
     pub(crate) token_after_span: Option<TokenSpan>,
 }
 
-/// Compact seam facts derived once per comment seam.
+/// Compact seam signals derived once per comment seam.
 #[derive(Clone, Copy)]
-pub(crate) struct CommentSeamFacts {
+pub(crate) struct CommentSeamData {
     /// Whether trivia has at least one newline before comment text.
     pub(crate) has_leading_newline: bool,
     /// Whether trivia has at least one newline after comment text.
@@ -117,15 +207,15 @@ pub(crate) struct CommentSeamFacts {
     pub(crate) seam_binds_right: bool,
 }
 
-impl CommentSeamFacts {
+impl CommentSeamData {
     /// Build one seam fact snapshot.
     pub(crate) fn build(context: &CommentSeamContext<'_>) -> Self {
         let token_before_type = context.token_before_span.map(|token| token.token.ty);
         let token_after_type = context.token_after_span.map(|token| token.token.ty);
         let token_before_keyword =
-            classify_comment_seam_keyword(context.token_keyword_by_span, context.token_before_span);
+            comment_seam_keyword(context.token_keyword_by_span, context.token_before_span);
         let token_after_keyword =
-            classify_comment_seam_keyword(context.token_keyword_by_span, context.token_after_span);
+            comment_seam_keyword(context.token_keyword_by_span, context.token_after_span);
         let has_leading_newline = context.trivia.boundary.newlines.has_leading_newline();
         let has_trailing_newline = context.trivia.boundary.newlines.has_trailing_newline();
         let comment_style = context.tree.get(context.trivia.comment).style;
@@ -216,8 +306,8 @@ pub(crate) struct CommentSeamOwnerCache {
     pub(crate) seam_owner_resolved: bool,
 }
 
-/// One resolved attachment decision for one comment seam.
-pub(crate) type CommentAttachmentDecision = (Option<u32>, AnnotationPosition);
+/// One resolved attachment attachment for one comment seam.
+pub(crate) type CommentAttachment = (Option<u32>, AnnotationPosition);
 
 /// Owner candidates adjacent to one comment seam.
 #[derive(Clone, Copy, Debug, Default)]
@@ -237,7 +327,7 @@ impl CommentAttachmentOwners {
 }
 
 /// Resolve one seam owner lazily from seam token range.
-pub(crate) fn resolve_comment_seam_owner(
+pub(crate) fn comment_seam_owner(
     context: &CommentSeamContext<'_>,
     cache: &mut CommentSeamOwnerCache,
 ) -> Option<u32> {

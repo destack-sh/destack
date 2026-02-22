@@ -136,7 +136,7 @@ pub(crate) fn chain_node_left_id(
 }
 
 /// Collect all chain nodes from root to leaf.
-pub(crate) fn collect_chain_nodes(
+pub(crate) fn chain_nodes(
     tree: &NodeTree,
     node_id: LocalNodeId<Expression>,
 ) -> Vec<LocalNodeId<Expression>> {

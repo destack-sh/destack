@@ -181,9 +181,9 @@ impl AnnotationData {
     }
 }
 
-/// Cached argument annotation facts used by hot call formatting paths.
+/// Cached argument annotation data used by hot call formatting paths.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct ArgumentAnnotationFacts {
+pub struct ArgumentAnnotationCache {
     /// Whether the argument has any comment annotation.
     pub has_comment: bool,
     /// Whether the argument has a trailing slash style comment annotation.
@@ -194,10 +194,10 @@ pub struct ArgumentAnnotationFacts {
     pub has_prefix_annotation: bool,
 }
 
-/// Cached regular call argument expansion profile keyed by call expression node id.
+/// Cached regular call argument expansion data keyed by call expression node id.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct CallArgumentExpansionProfileFacts {
-    /// The final force expand decision.
+pub struct CallArgumentExpansionCache {
+    /// The final force-expand state.
     pub force_expand: bool,
     /// Whether the call has a non blank infix annotation.
     pub has_call_infix_annotations: bool,
@@ -205,18 +205,18 @@ pub struct CallArgumentExpansionProfileFacts {
     pub trailing_collection_argument: bool,
 }
 
-/// Cached regular and chain call argument expansion profiles keyed by call expression node id.
+/// Cached regular and chain call argument expansion data keyed by call expression node id.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct CallArgumentExpansionProfilesFacts {
-    /// Cached regular call expansion profile.
-    pub regular: CallArgumentExpansionProfileFacts,
-    /// Cached chain call force-expand decision.
+pub struct CallArgumentExpansionsCache {
+    /// Cached regular call expansion data.
+    pub regular: CallArgumentExpansionCache,
+    /// Cached chain call force-expand state.
     pub chain_force_expand: bool,
 }
 
-/// Cached call argument layout-class facts keyed by call expression node id.
+/// Cached call argument layout data keyed by call expression node id.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct CallArgumentLayoutFacts {
+pub struct CallArgumentLayoutCache {
     /// Whether the call has a non-blank infix annotation.
     pub has_call_infix_annotations: bool,
     /// Whether any dynamic argument has annotations.
@@ -266,28 +266,27 @@ pub(crate) struct FormatterNodeCaches {
     pub(crate) node_span_char_len: Vec<Cell<u32>>,
     /// Cached node span newline predicates keyed by node id.
     pub(crate) node_has_newline: Vec<Cell<u8>>,
-    /// Cached call argument expansion profiles for regular and chain modes keyed by call node id.
-    pub(crate) call_argument_expansion_profiles:
-        Vec<Cell<Option<CallArgumentExpansionProfilesFacts>>>,
-    /// Cached call argument annotation profiles keyed by argument node id.
-    pub(crate) argument_annotation_facts: Vec<Cell<Option<ArgumentAnnotationFacts>>>,
+    /// Cached call argument expansion data for regular and chain modes keyed by call node id.
+    pub(crate) call_argument_expansions_cache: Vec<Cell<Option<CallArgumentExpansionsCache>>>,
+    /// Cached call argument annotation data keyed by argument node id.
+    pub(crate) argument_annotation_cache: Vec<Cell<Option<ArgumentAnnotationCache>>>,
     /// Cached compact simple unannotated argument predicate keyed by argument node id.
     pub(crate) argument_compact_simple_unannotated: Vec<Cell<Option<bool>>>,
     /// Cached plain-call-argument predicate keyed by argument node id.
     pub(crate) argument_plain_call_argument: Vec<Cell<Option<bool>>>,
-    /// Cached call argument layout-class facts keyed by call expression node id.
-    pub(crate) call_argument_layout_facts: Vec<Cell<Option<CallArgumentLayoutFacts>>>,
+    /// Cached call argument layout data keyed by call expression node id.
+    pub(crate) call_argument_layout_cache: Vec<Cell<Option<CallArgumentLayoutCache>>>,
     /// Cached boundary-comment presence keyed by call expression node id.
     pub(crate) call_argument_boundary_comments: Vec<Cell<Option<bool>>>,
-    /// Cached chain call force-expand decisions keyed by call expression node id.
+    /// Cached chain call force-expand states keyed by call expression node id.
     pub(crate) call_argument_chain_force_expand: Vec<Cell<Option<bool>>>,
     /// Cached transparent inner expression ids keyed by expression node id.
     pub(crate) transparent_inner_expression: Vec<Cell<Option<LocalNodeId<Expression>>>>,
-    /// Cached type-context decisions keyed by expression node id.
+    /// Cached type-context states keyed by expression node id.
     pub(crate) expression_type_context: Vec<Cell<u8>>,
-    /// Cached template interpolation ancestry decisions keyed by expression node id.
+    /// Cached template interpolation ancestry states keyed by expression node id.
     pub(crate) expression_template_interpolation: Vec<Cell<u8>>,
-    /// Cached type-conditional ancestry decisions keyed by expression node id.
+    /// Cached type-conditional ancestry states keyed by expression node id.
     pub(crate) expression_type_conditional_ancestor: Vec<Cell<u8>>,
 }
 
@@ -297,11 +296,11 @@ impl FormatterNodeCaches {
         Self {
             node_span_char_len: vec![Cell::new(NODE_SPAN_CHAR_LEN_UNKNOWN); node_count],
             node_has_newline: vec![Cell::new(NODE_BOOL_STATE_UNKNOWN); node_count],
-            call_argument_expansion_profiles: vec![Cell::new(None); node_count],
-            argument_annotation_facts: vec![Cell::new(None); node_count],
+            call_argument_expansions_cache: vec![Cell::new(None); node_count],
+            argument_annotation_cache: vec![Cell::new(None); node_count],
             argument_compact_simple_unannotated: vec![Cell::new(None); node_count],
             argument_plain_call_argument: vec![Cell::new(None); node_count],
-            call_argument_layout_facts: vec![Cell::new(None); node_count],
+            call_argument_layout_cache: vec![Cell::new(None); node_count],
             call_argument_boundary_comments: vec![Cell::new(None); node_count],
             call_argument_chain_force_expand: vec![Cell::new(None); node_count],
             transparent_inner_expression: vec![Cell::new(None); node_count],

@@ -1,12 +1,183 @@
+use crate::format::context::source::token_keyword_map;
 use crate::format::context::{
-    ANNOTATION_STATE_NONE, ANNOTATION_STATE_PRESENT, AnnotationData, AnnotationPosition, Blank,
-    Cell, Comment, Decorator, DestackFormatOptions, Doc, File, FormatContext, Formatter,
+    ANNOTATION_STATE_NONE, ANNOTATION_STATE_PRESENT, AnnotationData, AnnotationPosition, Argument,
+    Blank, Block, Cell, Comment, Declaration, Declarator, Decorator, DependencyItem, Doc,
+    EnumField, Expression, File, Format, FormatContext, FormatResult, Formatter,
     FormatterCacheStatsCollector, FormatterCacheStatsSnapshot, FormatterCounterEntry,
     FormatterCountersCollector, FormatterNodeCaches, FormatterTimingEntry, FormatterTimingScope,
     FormatterTimingTag, FormatterTimings, FxHashMap, GroupId, ImmutableStringPool, Keyword,
-    LocalNodeId, MultiSpan, Node, NodeParentIndex, NodeSourceMap, NodeTree, NodeType, OnceCell, Rc,
-    RefCell, SmallVec, Span, TokenSpan, TokenType, build_formatter_annotation_projection,
+    LocalNodeId, LocalNodeIdAny, MatchCase, Member, MultiSpan, Node, NodeParentIndex,
+    NodeSourceMap, NodeTree, NodeTreeImpl, NodeType, OnceCell, Parameter, Pattern, PatternField,
+    Property, Rc, RefCell, SmallVec, Span, TokenSpan, TokenType, WhereClause,
+    formatter_annotation_projection, tag_for_node_type,
 };
+use destack_fir::format::FormatOptions;
+use destack_fir::print::PrintOptions;
+use destack_source::{IndentStyle, LanguageType, LineEnding};
+use destack_workspace::{
+    ArrowParentheses, FormatterOptions, ImportSortOrder, OrganizeImports, QuoteProperty,
+    QuoteStyle, TrailingComma,
+};
+
+/// Destack format options.
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct DestackFormatOptions {
+    // source
+    /// The source language type.
+    pub language_type: LanguageType = LanguageType::Destack,
+
+    // layout
+    /// The type of line ending to apply to the printed input.
+    pub line_ending: LineEnding = LineEnding::LineFeed,
+    /// The indent style.
+    pub indent_style: IndentStyle = IndentStyle::Space,
+    /// Spaces per indent.
+    pub indent_width: u8 = 4,
+    /// Maximum line length (best effort).
+    pub line_width: u16 = 100,
+
+    // syntax
+    /// Quote style for string literals.
+    pub quote_style: QuoteStyle = QuoteStyle::Semantic,
+    /// Trailing comma rules for multi-line constructs.
+    pub trailing_comma: TrailingComma = TrailingComma::All,
+    /// Spaces inside object braces: `{ foo }` (true) vs `{foo}` (false).
+    pub bracket_spacing: bool = true,
+    /// Arrow function parentheses rules.
+    pub arrow_parentheses: ArrowParentheses = ArrowParentheses::Always,
+    /// Object property quoting rules.
+    pub quote_props: QuoteProperty = QuoteProperty::AsNeeded,
+
+    // tree/jsx
+    /// Put `>` of multi-line tree/JSX on same line as last attribute.
+    pub bracket_same_line: bool = false,
+    /// Force each tree/JSX attribute onto its own line.
+    pub single_attribute_per_line: bool = false,
+
+    // imports
+    /// Whether to organize/sort imports and exports.
+    pub organize_imports: OrganizeImports = OrganizeImports::Off,
+    /// Sort order for import/export specifiers within `{ }`.
+    pub import_sort_order: ImportSortOrder = ImportSortOrder::Natural,
+    /// Respect file-level formatter ignore directives.
+    pub respect_file_ignore: bool = true,
+}
+
+impl DestackFormatOptions {
+    /// Default options with a given line width.
+    pub fn default_with_line_width(line_width: u16) -> Self {
+        Self {
+            line_width,
+            ..Self::default()
+        }
+    }
+
+    /// Default options with tab indent style.
+    pub fn default_tab() -> Self {
+        Self {
+            indent_style: IndentStyle::Tab,
+            ..Self::default()
+        }
+    }
+
+    /// Default options with tab indent style and a given line width.
+    pub fn default_tab_with_line_width(line_width: u16) -> Self {
+        Self {
+            indent_style: IndentStyle::Tab,
+            line_width,
+            ..Self::default()
+        }
+    }
+
+    /// Set the line ending.
+    pub fn with_line_ending(mut self, line_ending: LineEnding) -> Self {
+        self.line_ending = line_ending;
+        self
+    }
+
+    /// Set the indent style.
+    pub fn with_indent_style(mut self, indent_style: IndentStyle) -> Self {
+        self.indent_style = indent_style;
+        self
+    }
+
+    /// Set the indent width.
+    pub fn with_indent_width(mut self, indent_width: u8) -> Self {
+        self.indent_width = indent_width;
+        self
+    }
+
+    /// Set the line width.
+    pub fn with_line_width(mut self, line_width: u16) -> Self {
+        self.line_width = line_width;
+        self
+    }
+
+    /// Set whether file-level formatter ignore directives are respected.
+    pub fn with_respect_file_ignore(mut self, respect_file_ignore: bool) -> Self {
+        self.respect_file_ignore = respect_file_ignore;
+        self
+    }
+
+    /// Convert to print options (clamps line_width to u8 max).
+    pub fn as_print_options(&self) -> PrintOptions {
+        PrintOptions {
+            line_ending: self.line_ending,
+            line_width: self.line_width.min(255) as u8,
+            indent_style: self.indent_style,
+            indent_width: self.indent_width,
+        }
+    }
+
+    /// Create from workspace FormatterOptions.
+    pub fn from_formatter_options(options: FormatterOptions, language_type: LanguageType) -> Self {
+        Self {
+            language_type,
+            line_ending: options.line_ending,
+            indent_style: options.indent_style,
+            indent_width: options.indent_width,
+            line_width: options.line_width,
+            quote_style: options.quote_style,
+            trailing_comma: options.trailing_comma,
+            bracket_spacing: options.bracket_spacing,
+            arrow_parentheses: options.arrow_parentheses,
+            quote_props: options.quote_property,
+            bracket_same_line: options.bracket_same_line,
+            single_attribute_per_line: options.single_attribute_per_line,
+            organize_imports: options.organize_imports,
+            import_sort_order: options.import_sort_order,
+            respect_file_ignore: true,
+        }
+    }
+}
+
+impl From<FormatterOptions> for DestackFormatOptions {
+    fn from(options: FormatterOptions) -> Self {
+        Self::from_formatter_options(options, LanguageType::Destack)
+    }
+}
+
+impl FormatOptions for DestackFormatOptions {
+    #[inline]
+    fn indent_style(&self) -> IndentStyle {
+        self.indent_style
+    }
+
+    #[inline]
+    fn indent_width(&self) -> u8 {
+        self.indent_width
+    }
+
+    #[inline]
+    fn line_width(&self) -> u8 {
+        self.line_width.min(255) as u8
+    }
+
+    #[inline]
+    fn as_print_options(&self) -> PrintOptions {
+        self.as_print_options()
+    }
+}
 
 /// Formatter-owned annotation payload for semantic annotations and placed trivia.
 #[derive(Debug, Clone, Copy)]
@@ -179,18 +350,9 @@ impl<'a> DestackFormatContext<'a> {
             strings,
             parents,
         } = artifacts;
-        let token_keyword_by_span =
-            super::source::build_token_keyword_map(file, tokens, side_tokens);
+        let token_keyword_by_span = token_keyword_map(file, tokens, side_tokens);
         let (formatter_annotation_entries, formatter_annotation_ids_by_node_id) =
-            build_formatter_annotation_projection(
-                file,
-                tree,
-                tokens,
-                side_tokens,
-                side_span,
-                &parents,
-                &token_keyword_by_span,
-            );
+            formatter_annotation_projection(file, tree, tokens, &parents, &token_keyword_by_span);
         let node_count = tree.next_id() as usize;
         let node_caches = FormatterNodeCaches::new(node_count);
         let source_is_ascii = file.text().is_ascii();
@@ -346,5 +508,140 @@ impl<'a> DestackFormatContext<'a> {
     #[inline]
     pub fn counter_snapshot(&self) -> Vec<FormatterCounterEntry> {
         self.counters.snapshot()
+    }
+}
+
+/// Format one typed AST node with full context.
+pub(crate) trait FormatNode<'a, T: Node>
+where
+    DestackFormatContext<'a>: FormatContext,
+{
+    /// Format one AST node id.
+    fn format_node(
+        &self,
+        node_id: LocalNodeId<T>,
+        f: &mut DestackFormatter<'a, '_>,
+    ) -> FormatResult<()>;
+}
+
+/// Implement formatter dispatch for typed local node ids.
+impl<'a, T: Node> Format<DestackFormatContext<'a>> for LocalNodeId<T>
+where
+    T: Node + Clone,
+    NodeTree: NodeTreeImpl<T>,
+    T: FormatNode<'a, T>,
+{
+    #[inline]
+    fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
+        let _timing = f.context().timing_scope(tag_for_node_type(T::TYPE));
+        let context = f.context();
+        let node = context.tree.get(*self);
+        node.format_node(*self, f)
+    }
+}
+
+/// Implement formatter dispatch for dynamically typed local node ids.
+impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
+    #[inline]
+    fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
+        let _timing = f.context().timing_scope(tag_for_node_type(self.ty));
+        let context = f.context();
+        match self.ty {
+            NodeType::Expression => {
+                let node_id = LocalNodeId::<Expression>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Block => {
+                let node_id = LocalNodeId::<Block>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Declaration => {
+                let node_id = LocalNodeId::<Declaration>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Property => {
+                let node_id = LocalNodeId::<Property>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Member => {
+                let node_id = LocalNodeId::<Member>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::EnumField => {
+                let node_id = LocalNodeId::<EnumField>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::WhereClause => {
+                let node_id = LocalNodeId::<WhereClause>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::DependencyItem => {
+                let node_id = LocalNodeId::<DependencyItem>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Parameter => {
+                let node_id = LocalNodeId::<Parameter>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Argument => {
+                let node_id = LocalNodeId::<Argument>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::MatchCase => {
+                let node_id = LocalNodeId::<MatchCase>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Pattern => {
+                let node_id = LocalNodeId::<Pattern>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::PatternField => {
+                let node_id = LocalNodeId::<PatternField>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Declarator => {
+                let node_id = LocalNodeId::<Declarator>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Annotation => {
+                let node_id = LocalNodeId::<Annotation>::new(self.id);
+                let node = context.annotation(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Blank => {
+                let node_id = LocalNodeId::<Blank>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Doc => {
+                let node_id = LocalNodeId::<Doc>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Comment => {
+                let node_id = LocalNodeId::<Comment>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+            NodeType::Decorator => {
+                let node_id = LocalNodeId::<Decorator>::new(self.id);
+                let node = context.tree.get(node_id);
+                node.format_node(node_id, f)
+            }
+        }
     }
 }

@@ -4,10 +4,8 @@ use std::marker::PhantomData;
 use destack_fir::format::{FormatResult, GroupId};
 use destack_workspace::TrailingComma;
 
-use crate::format::analysis::scan::{
-    first_non_trivia_token_in_span, last_non_trivia_token_in_span,
-};
-use crate::format::directive::{collect_ignore_ranges_for_nodes, write_ignored_span};
+use crate::format::analysis::{first_non_trivia_token_in_span, last_non_trivia_token_in_span};
+use crate::format::directive::{ignore_ranges_for_nodes, write_ignored_span};
 use crate::{DestackFormatContext, FormatNode};
 use destack_ast::{
     Declaration, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType, TokenType,
@@ -115,7 +113,7 @@ where
         // empty lists do not need any layout planning
         if !has_elements {
             f.context()
-                .increment_counter("profile.list_like.empty.short_circuit", 1);
+                .increment_counter("stats.list_like.empty.short_circuit", 1);
             write!(f, [token(self.start_token), token(self.end_token)])?;
             return Ok(());
         }
@@ -128,7 +126,7 @@ where
         let ignore_ranges_by_id = if f.context().has_ignore_directive_markers() {
             let comment_tokens = f.context().comment_tokens();
             let ignore_ranges_by_id =
-                collect_ignore_ranges_for_nodes(f.context(), self.elements, comment_tokens);
+                ignore_ranges_for_nodes(f.context(), self.elements, comment_tokens);
             if ignore_ranges_by_id.is_empty() {
                 None
             } else {
@@ -215,11 +213,11 @@ where
             format_indented.format(f)?;
         } else if self.group_id.is_none() {
             let no_group_counter = match (self.start_token, self.end_token) {
-                ("(", ")") => "profile.list_like.no_group.paren",
-                ("[", "]") => "profile.list_like.no_group.bracket",
-                ("{", "}") => "profile.list_like.no_group.brace",
-                ("<", ">") => "profile.list_like.no_group.angle",
-                _ => "profile.list_like.no_group.other",
+                ("(", ")") => "stats.list_like.no_group.paren",
+                ("[", "]") => "stats.list_like.no_group.bracket",
+                ("{", "}") => "stats.list_like.no_group.brace",
+                ("<", ">") => "stats.list_like.no_group.angle",
+                _ => "stats.list_like.no_group.other",
             };
             f.context().increment_counter(no_group_counter, 1);
             if self.start_token == "<" && self.end_token == ">" {

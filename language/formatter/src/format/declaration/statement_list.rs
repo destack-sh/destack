@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
 use crate::Annotation;
-use crate::format::analysis::timing::tags;
+use crate::format::analysis::timing;
 use crate::format::directive::{
-    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition,
-    collect_ignore_ranges_for_nodes, directive_for_node, write_ignored_span,
+    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
+    ignore_ranges_for_nodes, write_ignored_span,
 };
 use crate::format::expression::format_expression;
 use destack_ast::{
@@ -276,14 +276,14 @@ pub(crate) fn format_block_of_statements<'ast>(
     expressions: &[LocalNodeId<Expression>],
     allow_value_tail: bool,
 ) -> FormatResult<()> {
-    let _timing = f.context().timing_scope(tags::FORMAT_BLOCK_STATEMENTS);
+    let _timing = f.context().timing_scope(timing::FORMAT_BLOCK_STATEMENTS);
     let organize = f.context().options.organize_imports.is_enabled();
     let tree = f.context().tree;
     let strings = f.context().strings;
     // ignore ranges: only compute when the file may contain ignore directives
     let ignore_ranges = if f.context().has_ignore_directive_markers() {
         let comment_tokens = f.context().comment_tokens();
-        collect_ignore_ranges_for_nodes(f.context(), expressions, comment_tokens)
+        ignore_ranges_for_nodes(f.context(), expressions, comment_tokens)
     } else {
         std::collections::HashMap::new()
     };

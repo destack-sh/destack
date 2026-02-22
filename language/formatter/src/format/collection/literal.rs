@@ -37,21 +37,21 @@ impl<'ast> Format<DestackFormatContext<'ast>> for Path {
     }
 }
 
-/// One token-level source facts snapshot for scalar literal formatting.
+/// One token-level source snapshot for scalar literal formatting.
 #[derive(Clone, Debug, Default)]
-struct ScalarLiteralSourceFacts {
+struct ScalarLiteralSource {
     source_lexeme: Option<String>,
     literal_type: Option<LiteralType>,
 }
 
-/// Collect source facts for one scalar literal span.
-fn scalar_literal_source_facts(
+/// Collect source data for one scalar literal span.
+fn scalar_literal_source_info(
     context: &DestackFormatContext<'_>,
     span: Span,
-) -> ScalarLiteralSourceFacts {
+) -> ScalarLiteralSource {
     let token = context.first_non_trivia_token_in_span(span);
 
-    ScalarLiteralSourceFacts {
+    ScalarLiteralSource {
         source_lexeme: context.literal_lexeme_in_span(span).map(ToOwned::to_owned),
         literal_type: token.and_then(|token| token.token.literal),
     }
@@ -99,9 +99,9 @@ pub(crate) fn format_scalar_literal<'ast>(
     span: Span,
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
-    let source_facts = scalar_literal_source_facts(f.context(), span);
-    let source_lexeme = source_facts.source_lexeme.unwrap_or_default();
-    let literal_type = source_facts.literal_type;
+    let source_info = scalar_literal_source_info(f.context(), span);
+    let source_lexeme = source_info.source_lexeme.unwrap_or_default();
+    let literal_type = source_info.literal_type;
     let is_tree_text = literal_type == Some(LiteralType::TreeString);
 
     match scalar {

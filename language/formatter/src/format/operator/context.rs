@@ -1,4 +1,4 @@
-use crate::format::analysis::scan::{
+use crate::format::analysis::{
     first_non_trivia_token_in_span, nth_non_trivia_token_in_span,
     previous_non_whitespace_token_before_span,
 };
@@ -6,16 +6,179 @@ use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
 use crate::format::expression::{
-    Annotation, AnnotationPosition, Argument, BinaryOperand, BinaryOperator, Declaration,
+    Annotation, AnnotationPosition, Argument, AssignOperator, BinaryOperator, Declaration,
     Declarator, DependencyKind, DestackFormatContext, DestackFormatter, Expression, FormatResult,
-    ImportAliasTarget, LocalNodeId, Member, NodeTree, NodeType, Parameter, Property, TokenType,
-    TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, WhereClause, expression_precedence,
-    format_expression, has_comment_between_expressions, is_trivial_expression,
+    IfKind, ImportAliasTarget, LocalNodeId, Member, NodeTree, NodeType, OperatorPrecedence,
+    Parameter, Property, ScalarLiteral, TokenType, TypeBinaryOperator, TypeLiteral,
+    TypeUnaryOperator, UnaryOperator, WhereClause, block_indent, format_expression,
+    hard_line_break, has_comment_between_expressions, is_trivial_expression,
     parenthesized_has_leading_inner_trivia, parenthesized_leading_type_grouping_operator, token,
     transparent_inner_expression,
 };
-use destack_fir::format::Buffer;
+use destack_fir::format::{Buffer, Format};
 use destack_fir::write;
+use smallvec::SmallVec;
+
+/// Format unary operators as source tokens.
+impl<'ast> Format<DestackFormatContext<'ast>> for UnaryOperator {
+    /// Write the token form of the unary operator.
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        let token = match self {
+            UnaryOperator::PostIncrement => token("++"),
+            UnaryOperator::PostDecrement => token("--"),
+            UnaryOperator::PreIncrement => token("++"),
+            UnaryOperator::PreDecrement => token("--"),
+            UnaryOperator::Not => token("!"),
+            UnaryOperator::Negate => token("-"),
+            UnaryOperator::Plus => token("+"),
+            UnaryOperator::WrappingNegate => token("-%"),
+            UnaryOperator::ElementwiseNot => token("~"),
+            UnaryOperator::Typeof => token("typeof"),
+            UnaryOperator::Void => token("void"),
+            UnaryOperator::Dereference => token("*"),
+            UnaryOperator::Spread => token("..."),
+        };
+        write!(f, [token])
+    }
+}
+
+/// Format type unary operators as source tokens.
+impl<'ast> Format<DestackFormatContext<'ast>> for TypeUnaryOperator {
+    /// Write the token form of the type unary operator.
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        let token = match self {
+            TypeUnaryOperator::Not => token("!"),
+            TypeUnaryOperator::Must => token("!"),
+            TypeUnaryOperator::Newtype => token("newtype"),
+            TypeUnaryOperator::Type => token("type"),
+            TypeUnaryOperator::Readonly => token("readonly"),
+            TypeUnaryOperator::Typeof => token("typeof"),
+            TypeUnaryOperator::Keyof => token("keyof"),
+            TypeUnaryOperator::AsComptime => token("as comptime"),
+            TypeUnaryOperator::AsConst => token("as const"),
+        };
+        write!(f, [token])
+    }
+}
+
+/// Format binary operators as source tokens.
+impl<'ast> Format<DestackFormatContext<'ast>> for BinaryOperator {
+    /// Write the token form of the binary operator.
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        let token = match self {
+            // multiplication
+            BinaryOperator::Multiply => token("*"),
+            BinaryOperator::WrappingMultiply => token("*%"),
+            BinaryOperator::SaturatingMultiply => token("*|"),
+            BinaryOperator::Exponent => token("**"),
+            BinaryOperator::WrappingExponent => token("**%"),
+            BinaryOperator::SaturatingExponent => token("**|"),
+            BinaryOperator::Divide => token("/"),
+            BinaryOperator::Remainder => token("%"),
+
+            // addition
+            BinaryOperator::Add => token("+"),
+            BinaryOperator::WrappingAdd => token("+%"),
+            BinaryOperator::SaturatingAdd => token("+|"),
+            BinaryOperator::Subtract => token("-"),
+            BinaryOperator::WrappingSubtract => token("-%"),
+            BinaryOperator::SaturatingSubtract => token("-|"),
+
+            // shift
+            BinaryOperator::ShiftLeft => token("<<"),
+            BinaryOperator::SaturatingShiftLeft => token("<<|"),
+            BinaryOperator::ShiftRight => token(">>"),
+            BinaryOperator::UnsignedShiftRight => token(">>>"),
+
+            // elementwise
+            BinaryOperator::ElementwiseAnd => token("&"),
+            BinaryOperator::ElementwiseXor => token("^"),
+            BinaryOperator::ElementwiseOr => token("|"),
+
+            // comparison
+            BinaryOperator::Equal => token("=="),
+            BinaryOperator::NotEqual => token("!="),
+            BinaryOperator::EqualStrict => token("==="),
+            BinaryOperator::NotEqualStrict => token("!=="),
+            BinaryOperator::LessThan => token("<"),
+            BinaryOperator::LessThanOrEqual => token("<="),
+            BinaryOperator::GreaterThan => token(">"),
+            BinaryOperator::GreaterThanOrEqual => token(">="),
+
+            // boolean
+            BinaryOperator::And => token("&&"),
+            BinaryOperator::Or => token("||"),
+            BinaryOperator::Coalesce => token("??"),
+
+            // container
+            BinaryOperator::In => token("in"),
+            BinaryOperator::InstanceOf => token("instanceof"),
+        };
+        write!(f, [token])
+    }
+}
+
+/// Format type binary operators as source tokens.
+impl<'ast> Format<DestackFormatContext<'ast>> for TypeBinaryOperator {
+    /// Write the token form of the type binary operator.
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        let token = match self {
+            TypeBinaryOperator::Cast => token("as"),
+            TypeBinaryOperator::In => token("in"),
+            TypeBinaryOperator::Is => token("is"),
+            TypeBinaryOperator::InstanceOf => token("instanceof"),
+            TypeBinaryOperator::Satisfies => token("satisfies"),
+            TypeBinaryOperator::Extends => token("extends"),
+            TypeBinaryOperator::Implements => token("implements"),
+        };
+        write!(f, [token])
+    }
+}
+
+/// Format assignment operators as source tokens.
+impl<'ast> Format<DestackFormatContext<'ast>> for AssignOperator {
+    /// Write the token form of the assignment operator.
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        let token = token(match self {
+            AssignOperator::Assign => "=",
+
+            // addition
+            AssignOperator::AddAssign => "+=",
+            AssignOperator::WrappingAddAssign => "+%=",
+            AssignOperator::SaturatingAddAssign => "+|=",
+            AssignOperator::SubtractAssign => "-=",
+            AssignOperator::WrappingSubtractAssign => "-%=",
+            AssignOperator::SaturatingSubtractAssign => "-|=",
+
+            // multiplication
+            AssignOperator::MultiplyAssign => "*=",
+            AssignOperator::WrappingMultiplyAssign => "*%=",
+            AssignOperator::SaturatingMultiplyAssign => "*|=",
+            AssignOperator::ExponentAssign => "**=",
+            AssignOperator::WrappingExponentAssign => "**%=",
+            AssignOperator::SaturatingExponentAssign => "**|=",
+            AssignOperator::DivideAssign => "/=",
+            AssignOperator::RemainderAssign => "%=",
+
+            // shift
+            AssignOperator::ShiftLeftAssign => "<<=",
+            AssignOperator::SaturatingShiftLeftAssign => "<<|=",
+            AssignOperator::ShiftRightAssign => ">>=",
+            AssignOperator::UnsignedShiftRightAssign => ">>>=",
+
+            // elementwise
+            AssignOperator::ElementwiseAndAssign => "&=",
+            AssignOperator::ElementwiseOrAssign => "|=",
+            AssignOperator::ElementwiseXorAssign => "^=",
+
+            // boolean
+            AssignOperator::AndAssign => "&&=",
+            AssignOperator::OrAssign => "||=",
+            AssignOperator::CoalesceAssign => "??=",
+        });
+        write!(f, [token])
+    }
+}
 
 /// Return whether an expression is trivial and inline-safe without annotations.
 pub(crate) fn expression_is_trivial_inline_without_annotations(
@@ -857,4 +1020,390 @@ fn redundant_parenthesized_binary_operand_can_drop(
 
     let inner_precedence = expression_precedence(context.tree.get(inner_expression_id));
     inner_precedence > parent_operator.precedence()
+}
+
+/// Returns the precedence group for a binary operator.
+/// Return precedence group for binary operators.
+#[inline]
+fn binary_operator_precedence_group(operator: BinaryOperator) -> u8 {
+    // first two digits of discriminant encode precedence
+    (operator as u16 / 100) as u8
+}
+
+/// Checks if two binary operators should be flattened together.
+/// Return whether nested binaries should flatten into one group.
+#[inline]
+fn should_flatten_binary(left_operator: BinaryOperator, right_operator: BinaryOperator) -> bool {
+    let both_logical_operators = matches!(
+        left_operator,
+        BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce
+    ) && matches!(
+        right_operator,
+        BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce
+    );
+    if both_logical_operators && left_operator != right_operator {
+        return false;
+    }
+
+    binary_operator_precedence_group(left_operator)
+        == binary_operator_precedence_group(right_operator)
+}
+
+/// Represents a flattened binary expression operand with its preceding operator.
+pub(crate) struct BinaryOperand {
+    /// The operator before this operand (None for first).
+    pub(crate) operator: Option<BinaryOperator>,
+    /// The expression node.
+    pub(crate) expression: LocalNodeId<Expression>,
+}
+
+/// Store flattened binary operands with an inline-first buffer.
+pub(crate) type BinaryOperands = SmallVec<[BinaryOperand; 8]>;
+
+/// Flattens a binary expression chain into a list of operands.
+///
+/// For `a + b + c`, returns [(None, a), (Some(+), b), (Some(+), c)].
+pub(crate) fn flatten_binary_expression(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+    target_operator: BinaryOperator,
+) -> BinaryOperands {
+    let mut operands = BinaryOperands::new();
+    flatten_binary_recursive(tree, expression_id, target_operator, &mut operands, None);
+    operands
+}
+
+/// Flattens associative type binary chains while unwrapping redundant parentheses.
+pub(crate) fn flatten_type_binary_expression(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    target_operator: BinaryOperator,
+) -> BinaryOperands {
+    let mut operands = BinaryOperands::new();
+    flatten_type_binary_recursive(context, expression_id, target_operator, &mut operands, None);
+    operands
+}
+
+/// Return the operand count for a flattened binary expression chain.
+pub(crate) fn flattened_binary_operand_count(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+    target_operator: BinaryOperator,
+) -> usize {
+    count_flattened_binary_recursive(tree, expression_id, target_operator)
+}
+
+/// Recursively flatten type binary chains and preserve operand operators.
+fn flatten_type_binary_recursive(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    target_operator: BinaryOperator,
+    operands: &mut BinaryOperands,
+    preceding_operator: Option<BinaryOperator>,
+) {
+    let expression_id =
+        normalize_type_binary_operand_expression(context, expression_id, target_operator);
+
+    if let Expression::Binary {
+        left,
+        operator,
+        right,
+    } = context.tree.get(expression_id)
+        && *operator == target_operator
+    {
+        flatten_type_binary_recursive(
+            context,
+            *left,
+            target_operator,
+            operands,
+            preceding_operator,
+        );
+        flatten_type_binary_recursive(context, *right, target_operator, operands, Some(*operator));
+        return;
+    }
+
+    operands.push(BinaryOperand {
+        operator: preceding_operator,
+        expression: expression_id,
+    });
+}
+
+/// Remove redundant parenthesized wrappers around associative type operands.
+pub(crate) fn normalize_type_binary_operand_expression(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    target_operator: BinaryOperator,
+) -> LocalNodeId<Expression> {
+    let mut current_id = expression_id;
+
+    loop {
+        let Expression::Parenthesized { expression } = context.tree.get(current_id) else {
+            break;
+        };
+        if context.has_annotation(current_id) {
+            break;
+        }
+
+        let inner_id = *expression;
+        let inner_is_flattenable = matches!(
+            context.tree.get(inner_id),
+            Expression::Binary { operator, .. } if *operator == target_operator
+        );
+        let inner_is_parenthesized =
+            matches!(context.tree.get(inner_id), Expression::Parenthesized { .. });
+        if !inner_is_flattenable && !inner_is_parenthesized {
+            break;
+        }
+
+        current_id = inner_id;
+    }
+
+    current_id
+}
+
+/// Recursively collect binary expression operands.
+fn flatten_binary_recursive(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+    target_operator: BinaryOperator,
+    operands: &mut BinaryOperands,
+    preceding_operator: Option<BinaryOperator>,
+) {
+    if let Expression::Binary {
+        left,
+        operator,
+        right,
+    } = tree.get(expression_id)
+        && should_flatten_binary(*operator, target_operator)
+    {
+        // recursively flatten the left side
+        flatten_binary_recursive(tree, *left, target_operator, operands, None);
+
+        // add the right operand with its operator
+        operands.push(BinaryOperand {
+            operator: Some(*operator),
+            expression: *right,
+        });
+        return;
+    }
+
+    // not a binary expression or different precedence - add as-is
+    operands.push(BinaryOperand {
+        operator: preceding_operator,
+        expression: expression_id,
+    });
+}
+
+/// Recursively count flattened binary operands without allocating.
+fn count_flattened_binary_recursive(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+    target_operator: BinaryOperator,
+) -> usize {
+    if let Expression::Binary {
+        left,
+        operator,
+        right,
+    } = tree.get(expression_id)
+        && should_flatten_binary(*operator, target_operator)
+    {
+        let left_count = count_flattened_binary_recursive(tree, *left, target_operator);
+        let right_count = count_flattened_binary_recursive(tree, *right, target_operator);
+        return left_count.saturating_add(right_count);
+    }
+
+    1
+}
+
+/// Whether an expression variant is type specific.
+/// Return precedence value for an expression.
+#[inline]
+pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
+    match expr {
+        // postfix operators (2000)
+        Expression::Call { .. }
+        | Expression::Member { .. }
+        | Expression::PrivateMember { .. }
+        | Expression::Index { .. }
+        | Expression::Instantiation { .. }
+        | Expression::Maybe { .. }
+        | Expression::Must { .. } => OperatorPrecedence::Postfix as u16,
+
+        // postfix unary (2000)
+        Expression::Unary { operator, .. } if operator.is_postfix() => {
+            OperatorPrecedence::Postfix as u16
+        }
+
+        // prefix unary (1900)
+        Expression::Unary { .. } => OperatorPrecedence::Prefix as u16,
+
+        // prefix expressions (1900)
+        Expression::Await { .. }
+        | Expression::AwaitMaybe { .. }
+        | Expression::Yield { .. }
+        | Expression::Delete { .. }
+        | Expression::Throw { .. }
+        | Expression::Return { .. } => OperatorPrecedence::Prefix as u16,
+
+        // type unary: use operator's precedence
+        Expression::TypeUnary { operator, .. } => operator.precedence(),
+
+        // binary: use operator's precedence
+        Expression::Binary { operator, .. } => operator.precedence(),
+        Expression::TypeBinary { operator, .. } => match operator {
+            TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies => 0,
+            _ => operator.precedence(),
+        },
+
+        // assignment: use operator's precedence
+        Expression::Assign { operator, .. } => operator.precedence(),
+
+        // ternary: lower than all binary/assignment operators
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        } => OperatorPrecedence::AssignmentBoolean as u16 - 1,
+
+        // atomic/primary expressions: highest precedence (never need parens)
+        _ => u16::MAX,
+    }
+}
+
+/// Returns true if the expression needs parentheses when used as the operand
+/// of a postfix operator like `?` or `!`.
+///
+/// Postfix operators (precedence 2000) bind tighter than all other operators.
+/// For example, `await x?` parses as `await (x?)`, not `(await x)?`.
+/// So when formatting `Maybe { left: Await { expr } }`, we need to output `(await expr)?`.
+/// Return whether postfix formatting requires parentheses.
+#[inline]
+pub(crate) fn needs_parens_in_postfix_position(
+    tree: &NodeTree,
+    expr_id: LocalNodeId<Expression>,
+) -> bool {
+    expression_precedence(tree.get(expr_id)) < OperatorPrecedence::Postfix as u16
+}
+
+/// Format an expression used as the receiver/base of a postfix operation.
+pub(crate) fn write_postfix_base_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let parent_expression_id = postfix_parent_expression_id(f.context(), expression_id);
+    let needs_integer_member_parentheses = parent_expression_id.is_some_and(|parent_id| {
+        matches!(
+            f.context().tree.get(expression_id),
+            Expression::ScalarLiteral(ScalarLiteral::Integer(_))
+        ) && matches!(
+            f.context().tree.get(parent_id),
+            Expression::Member { .. } | Expression::PrivateMember { .. }
+        )
+    });
+    let needs_parentheses = needs_parens_in_postfix_position(f.context().tree, expression_id)
+        || needs_integer_member_parentheses;
+    if needs_parentheses {
+        let parenthesized_chain_overflows =
+            parent_expression_id.is_some_and(|parent_id| f.context().node_has_newline(parent_id));
+
+        if parenthesized_chain_overflows {
+            write!(
+                f,
+                [
+                    token("("),
+                    block_indent(&expression_id),
+                    hard_line_break(),
+                    token(")")
+                ]
+            )?;
+        } else {
+            write!(f, [token("("), expression_id, token(")")])?;
+        }
+    } else {
+        write!(f, [expression_id])?;
+    }
+    Ok(())
+}
+
+/// Return one postfix parent expression id when this expression is used as a chain receiver.
+fn postfix_parent_expression_id(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<LocalNodeId<Expression>> {
+    // direct parent chain receiver
+    if let Some((parent_id, parent_type)) = context.parent(expression_id)
+        && parent_type == NodeType::Expression
+    {
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+        let parent_expression = context.tree.get(parent_expression_id);
+        let uses_expression_as_left = matches!(
+            parent_expression,
+            Expression::Member { left, .. }
+                | Expression::PrivateMember { left, .. }
+                | Expression::Call { left, .. }
+                | Expression::Index { left, .. }
+                | Expression::Instantiation { left, .. }
+                | Expression::Maybe { left, .. }
+                | Expression::Must { left, .. }
+                if *left == expression_id
+        );
+        if uses_expression_as_left {
+            return Some(parent_expression_id);
+        }
+    }
+
+    // parenthesized wrapper chain receiver
+    let Some((parent_id, parent_type)) = context.parent(expression_id) else {
+        return None;
+    };
+    if parent_type != NodeType::Expression {
+        return None;
+    }
+
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+    let Expression::Parenthesized { expression } = context.tree.get(parent_expression_id) else {
+        return None;
+    };
+    if *expression != expression_id {
+        return None;
+    }
+
+    let Some((grandparent_id, grandparent_type)) = context.parent(parent_expression_id) else {
+        return None;
+    };
+    if grandparent_type != NodeType::Expression {
+        return None;
+    }
+
+    let grandparent_expression_id = LocalNodeId::<Expression>::new(grandparent_id);
+    let grandparent_expression = context.tree.get(grandparent_expression_id);
+    let uses_parenthesized_as_left = matches!(
+        grandparent_expression,
+        Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Call { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Instantiation { left, .. }
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. }
+            if *left == parent_expression_id
+    );
+    if !uses_parenthesized_as_left {
+        return None;
+    }
+
+    Some(grandparent_expression_id)
+}
+
+/// Check whether a parenthesized cast or satisfies left side is simple enough to unwrap.
+pub(crate) fn is_chain_expression(expression: &Expression) -> bool {
+    matches!(
+        expression,
+        Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::Call { .. }
+            | Expression::Index { .. }
+            | Expression::Instantiation { .. }
+            | Expression::Maybe { .. }
+            | Expression::Must { .. }
+    )
 }

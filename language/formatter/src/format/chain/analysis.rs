@@ -779,17 +779,14 @@ pub(crate) fn chain_has_parent_intervening_break_or_comment(
     context.has_newline(between_span) || span_has_comment(context, between_span)
 }
 
-/// Record stable facts for one poorly-breakable chain candidate.
-struct PoorChainFacts {
+/// Record stable signals for one poorly-breakable chain candidate.
+struct PoorChain {
     has_chain_shape: bool,
     has_simple_head: bool,
 }
 
-/// Build static facts for one poorly-breakable chain candidate.
-fn collect_poor_chain_facts(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> PoorChainFacts {
+/// Build static signals for one poorly-breakable chain candidate.
+fn poor_chain(context: &DestackFormatContext<'_>, node_id: LocalNodeId<Expression>) -> PoorChain {
     let tree = context.tree;
     let has_chain_shape = is_chain_root(tree, node_id) || is_expression_chain(tree, node_id);
 
@@ -800,7 +797,7 @@ fn collect_poor_chain_facts(
         false
     };
 
-    PoorChainFacts {
+    PoorChain {
         has_chain_shape,
         has_simple_head,
     }
@@ -954,8 +951,8 @@ pub(crate) fn is_poorly_breakable_chain(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let facts = collect_poor_chain_facts(context, node_id);
-    if !facts.has_chain_shape || !facts.has_simple_head {
+    let chain = poor_chain(context, node_id);
+    if !chain.has_chain_shape || !chain.has_simple_head {
         return false;
     }
 

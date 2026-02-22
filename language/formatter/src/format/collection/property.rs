@@ -6,8 +6,8 @@ use crate::format::declaration::signature::{
     write_function_header_prefix, write_signature_dynamic_parameter_list,
 };
 use crate::format::directive::{
-    FormatterDirectiveKind, FormatterDirectivePosition, collect_ignore_ranges_for_nodes,
-    directive_for_node, write_ignored_node, write_ignored_span,
+    FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
+    ignore_ranges_for_nodes, write_ignored_node, write_ignored_span,
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
@@ -34,14 +34,14 @@ impl<'ast> Format<DestackFormatContext<'ast>> for StringId {
 impl<'ast> Format<DestackFormatContext<'ast>> for Name {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        format_name_with_quote_policy(f, *self, false)
+        format_name_with_quotes(f, *self, false)
     }
 }
 
 impl<'ast> Format<DestackFormatContext<'ast>> for Key {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        format_key_with_quote_policy(f, *self, false)
+        format_key_with_quotes(f, *self, false)
     }
 }
 
@@ -52,15 +52,15 @@ impl<'ast> Format<DestackFormatContext<'ast>> for Keyword {
     }
 }
 
-/// Format a key with quote policy controls.
-pub(crate) fn format_key_with_quote_policy<'ast>(
+/// Format a key with quote rules controls.
+pub(crate) fn format_key_with_quotes<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     key: Key,
     force_quote_keys: bool,
 ) -> FormatResult<()> {
     match key {
         Key::Name(name) => {
-            format_name_with_quote_policy(f, name, force_quote_keys)?;
+            format_name_with_quotes(f, name, force_quote_keys)?;
         }
         Key::Private(name) => {
             write!(f, [token("#")])?;
@@ -98,8 +98,8 @@ fn contains_katakana_middle_dot(content: &str) -> bool {
         .any(|c| matches!(c, '\u{30FB}' | '\u{FF65}'))
 }
 
-/// Format a name key while applying quote policy.
-fn format_name_with_quote_policy<'ast>(
+/// Format a name key while applying quote rules.
+fn format_name_with_quotes<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     name: Name,
     force_quote_keys: bool,
@@ -332,7 +332,7 @@ where
     F: FnMut(&mut DestackFormatter<'ast, '_>, LocalNodeId<T>) -> FormatResult<()>,
 {
     let comment_tokens = f.context().comment_tokens();
-    let ignore_ranges = collect_ignore_ranges_for_nodes(f.context(), node_ids, comment_tokens);
+    let ignore_ranges = ignore_ranges_for_nodes(f.context(), node_ids, comment_tokens);
 
     let mut skip_until: Option<u32> = None;
     for (index, node_id) in node_ids.iter().copied().enumerate() {
@@ -459,7 +459,7 @@ fn format_field_like<'ast>(
     format_binding_modifiers_prefix_maybe(f, modifiers)?;
     // key
     if let Some(key) = key {
-        format_key_with_quote_policy(f, key, force_quote_keys)?;
+        format_key_with_quotes(f, key, force_quote_keys)?;
     }
 
     // modifiers
@@ -515,7 +515,7 @@ where
 
     // key
     if let Some(key) = key {
-        format_key_with_quote_policy(f, key, force_quote_keys)?;
+        format_key_with_quotes(f, key, force_quote_keys)?;
     }
 
     // name seam comments
