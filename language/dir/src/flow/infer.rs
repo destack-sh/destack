@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Expression, GlobalNodeIdAny, GlobalSymbolId, InferVarId, LocalNodeId, LocalResolutionId,
-    LocalTypeId, StaticArgument, VarianceBound,
+    LocalTypeId, StaticArgument, StaticKey, VarianceBound,
 };
 
 /// Represent a single inference variable with bounds and defaults.
@@ -169,6 +169,9 @@ pub struct InferTable {
     /// Type relation obligations collected during infer.
     #[serde(skip)]
     pub type_relation_obligations: Vec<TypeRelationObligation>,
+    /// Missing-member obligations collected during infer.
+    #[serde(skip)]
+    pub missing_member_obligations: Vec<MissingMemberObligation>,
     /// Instance-commit obligations collected during infer.
     #[serde(skip)]
     pub instance_commit_obligations: Vec<InstanceCommitObligation>,
@@ -234,6 +237,19 @@ pub struct TypeRelationObligation {
     pub operands: TypeRelationObligationOperands,
     /// The diagnostic to emit when the relation fails.
     pub diagnostic: TypeRelationObligationDiagnostic,
+}
+
+/// Missing-member obligation collected during infer and checked after solve convergence.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct MissingMemberObligation {
+    /// The member expression that created this obligation.
+    pub expression_id: GlobalNodeIdAny,
+    /// The receiver expression used to re-resolve the lookup.
+    pub receiver_expression_id: GlobalNodeIdAny,
+    /// The receiver type observed when infer deferred lookup.
+    pub receiver_type_id: LocalTypeId,
+    /// The member key to validate after convergence.
+    pub member_key: StaticKey,
 }
 
 /// Infer-local identifier for one instance-commit obligation.
@@ -303,6 +319,7 @@ impl Default for InferTable {
             cache_generation: 0,
             associated_comptime_projection_obligations: Vec::new(),
             type_relation_obligations: Vec::new(),
+            missing_member_obligations: Vec::new(),
             instance_commit_obligations: Vec::new(),
             instance_commit_obligation_by_node_id: IndexMap::new(),
             instance_commit_obligation_by_resolution_candidate: Vec::new(),
@@ -384,6 +401,24 @@ impl InferTable {
     /// Take type relation obligations.
     pub fn take_type_relation_obligations(&mut self) -> Vec<TypeRelationObligation> {
         std::mem::take(&mut self.type_relation_obligations)
+    }
+
+    /// Record one missing-member obligation.
+    pub fn push_missing_member_obligation(&mut self, obligation: MissingMemberObligation) {
+        if self
+            .missing_member_obligations
+            .iter()
+            .any(|existing| existing == &obligation)
+        {
+            return;
+        }
+
+        self.missing_member_obligations.push(obligation);
+    }
+
+    /// Take missing-member obligations.
+    pub fn take_missing_member_obligations(&mut self) -> Vec<MissingMemberObligation> {
+        std::mem::take(&mut self.missing_member_obligations)
     }
 
     /// Upsert one instance-commit obligation and return its infer-local id.

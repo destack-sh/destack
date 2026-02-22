@@ -64,6 +64,28 @@ let a = obj.inner.value;
     test.check_clean();
 }
 
+/// Defer missing-member checks in callback bodies without emitting callback-order diagnostics.
+#[test]
+fn test_analyze_deferred_member_lookup_preserves_callback_inference() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Box {
+    count: int32
+}
+
+declare function project<T, U>(callback: (value: T) => U, value: T): U;
+
+let out = project(value => value.count, Box { count: 1 });
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+}
+
 /// Substitute `this` types for member calls.
 #[test]
 fn test_analyze_this_type_member_call() {

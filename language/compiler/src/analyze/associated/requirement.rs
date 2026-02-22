@@ -2,7 +2,7 @@ use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, Generics, GlobalSymbolId, Heritage, LocalNodeId, Member, NodeTree, Parameter,
-    StringId, SymbolTable, Type, TypeTable,
+    StringId, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 use std::collections::HashSet;
@@ -119,7 +119,7 @@ impl Compiler {
         // report or mark missing requirements once per associated name
         let mut reported_missing_names = HashSet::new();
         for expression_id in contract_expressions {
-            let Some(target_symbol) = self.contract_target_symbol_for_expression(
+            let Some(target_symbol) = self.inherited_contract_symbol_for_expression(
                 module,
                 profile,
                 expression_id,
@@ -242,8 +242,8 @@ impl Compiler {
         Ok(requirements)
     }
 
-    /// Resolve one heritage contract target symbol from expression metadata or type evaluation.
-    fn contract_target_symbol_for_expression(
+    /// Resolve one inherited contract symbol from one heritage expression.
+    fn inherited_contract_symbol_for_expression(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -270,8 +270,8 @@ impl Compiler {
             }
         }
 
-        // otherwise evaluate the heritage expression to recover the target symbol
-        let contract_ty_id = self.resolve_declared_type_expression(
+        // otherwise evaluate the heritage expression to resolve the target symbol
+        let inherited_contract_type_id = self.resolve_declared_type_expression(
             module,
             profile,
             expression_id,
@@ -281,29 +281,26 @@ impl Compiler {
             true,
             true,
         )?;
-        let contract_ty = types.get_type(contract_ty_id);
-
-        let target_symbol = match contract_ty {
-            Type::Reference { symbol, .. } => Some(*symbol),
-            Type::Value { value } => match types.get_type(*value) {
-                Type::Reference { symbol, .. } => Some(*symbol),
-                _ => None,
-            },
-            _ => None,
-        }
-        .map(|target_symbol| {
-            let mut target_symbol = self.canonical_symbol_id(
-                module,
-                symbols,
-                profile,
-                target_symbol,
-                CanonicalSymbolMode::FollowAliases,
-            );
-            target_symbol =
-                self.resolve_type_reference_symbol(module, profile, target_symbol, tree, symbols);
-            self.declaration_symbol_id(module, symbols, profile, target_symbol)
-                .unwrap_or(target_symbol)
-        });
+        let target_symbol = self
+            .unwrap_type_value_symbol(types, inherited_contract_type_id)
+            .map(|target_symbol| {
+                let mut target_symbol = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    profile,
+                    target_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+                target_symbol = self.resolve_type_reference_symbol(
+                    module,
+                    profile,
+                    target_symbol,
+                    tree,
+                    symbols,
+                );
+                self.declaration_symbol_id(module, symbols, profile, target_symbol)
+                    .unwrap_or(target_symbol)
+            });
 
         Ok(target_symbol)
     }

@@ -6,6 +6,7 @@ use destack_dir::{
     SymbolTable, SymbolType, Type, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
+use std::collections::HashSet;
 
 impl Compiler {
     /// Return true when a member receiver should be evaluated as a type projection receiver.
@@ -143,10 +144,12 @@ impl Compiler {
         &self,
         module: &Module,
         receiver_id: LocalNodeId<Expression>,
+        receiver_ty_id: Option<LocalTypeId>,
         receiver_ty: &Type,
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        types: &TypeTable,
     ) -> MemberReceiverContext {
         let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
         let nominal_symbol = self.query_nominal_value_symbol_for_expression(
@@ -157,11 +160,17 @@ impl Compiler {
             symbols,
         );
         let has_static_arguments = self.query_receiver_has_static_arguments(receiver_id, tree);
+        let has_this_receiver =
+            matches!(tree.get(receiver_id), Expression::This | Expression::Super)
+                || receiver_ty_id.is_some_and(|receiver_ty_id| {
+                    self.type_contains_this(receiver_ty_id, types, &mut HashSet::new())
+                });
         let lookup_mode = self.query_member_lookup_mode_for_receiver(nominal_symbol, receiver_ty);
 
         MemberReceiverContext {
             nominal_symbol,
             has_static_arguments,
+            has_this_receiver,
             lookup_mode,
         }
     }
@@ -229,7 +238,7 @@ impl Compiler {
             );
         }
 
-        // resolve namespace member receivers before target-symbol fallback
+        // resolve namespace member receivers before parse target-symbol lookup
         if let Expression::Member { left, name, .. } = tree.get(receiver_id)
             && let Some(symbol) = self.resolve_namespace_member_symbol(
                 module,
@@ -250,7 +259,7 @@ impl Compiler {
             ));
         }
 
-        // resolve symbol references first and then fallback to the parse target symbol
+        // resolve symbol references first and then consult the parse target symbol
         self.reference_symbol_for_expression(module, receiver_id, profile, tree, symbols)
             .or_else(|| {
                 tree.get(receiver_id).target_symbol().map(|symbol| {

@@ -661,7 +661,7 @@ impl Compiler {
     }
 
     /// Infer argument types for a resolved signature and emit subtype constraints.
-    fn infer_invocation_arguments(
+    pub(crate) fn infer_invocation_arguments(
         &self,
         module: &Module,
         dynamic_arguments: &[LocalNodeId<Argument>],
@@ -675,33 +675,61 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<Vec<LocalTypeId>> {
-        // infer argument types with contextual parameter expectations
-        let argument_ty_ids = self.infer_invocation_argument_types(
-            module,
-            dynamic_arguments,
-            parameter_types,
-            profile,
-            tree,
-            symbols,
-            types,
-            infer,
-            ctx,
-        )?;
+        // infer arguments left to right, adding constraints eagerly so later contextual typing
+        let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
+        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+            let parameter_ty_id = parameter_types.get(index).copied();
 
-        // add constraints between arguments and parameters
-        self.add_invocation_argument_constraints(
-            module,
-            dynamic_arguments,
-            &argument_ty_ids,
-            parameter_types,
-            bound_substitutions,
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
-            ctx,
-        );
+            // materialize contextual expectation from the current inferred state
+            let expected_arg_ty_id = parameter_ty_id.and_then(|parameter_ty_id| {
+                self.expected_parameter_type_for_inference(
+                    module,
+                    profile,
+                    parameter_ty_id,
+                    symbols,
+                    types,
+                )
+            });
+            self.infer_argument(
+                module,
+                *argument_id,
+                expected_arg_ty_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?;
+
+            // resolve inferred argument type
+            let argument_value_id = tree.get(*argument_id).value();
+            let argument_ty_id = if let Some(argument_ty_id) =
+                types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
+            {
+                argument_ty_id
+            } else {
+                self.infer_expression(module, argument_value_id, tree, symbols, types, infer, ctx)?
+            };
+            argument_ty_ids.push(argument_ty_id);
+
+            // add one argument parameter constraint immediately
+            let Some(parameter_ty_id) = parameter_ty_id else {
+                continue;
+            };
+            self.add_invocation_argument_constraint(
+                module,
+                *argument_id,
+                argument_ty_id,
+                parameter_ty_id,
+                bound_substitutions,
+                options,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            );
+        }
 
         // capture template literal inference constraints
         self.add_template_literal_inference_constraints(
@@ -716,55 +744,6 @@ impl Compiler {
             infer,
             options,
         );
-
-        Ok(argument_ty_ids)
-    }
-
-    /// Infer argument types with contextual parameter expectations.
-    pub(crate) fn infer_invocation_argument_types(
-        &self,
-        module: &Module,
-        dynamic_arguments: &[LocalNodeId<Argument>],
-        parameter_types: &[LocalTypeId],
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        ctx: &mut InferContext,
-    ) -> AnalyzeResult<Vec<LocalTypeId>> {
-        // infer arguments with contextual parameter types
-        let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
-        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
-            // apply contextual expectation from the parameter type
-            let expected_arg_ty_id = parameter_types.get(index).copied().and_then(|parameter| {
-                self.expected_parameter_type_for_inference(
-                    module, profile, parameter, symbols, types,
-                )
-            });
-            self.infer_argument(
-                module,
-                *argument_id,
-                expected_arg_ty_id,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?;
-
-            // resolve the inferred or synthesized argument type
-            let argument = tree.get(*argument_id);
-            let argument_value_id = argument.value();
-            let argument_ty_id = if let Some(ty_id) =
-                types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
-            {
-                ty_id
-            } else {
-                self.infer_expression(module, argument_value_id, tree, symbols, types, infer, ctx)?
-            };
-            argument_ty_ids.push(argument_ty_id);
-        }
 
         Ok(argument_ty_ids)
     }
@@ -791,13 +770,14 @@ impl Compiler {
         Some(expected_ty_id)
     }
 
-    /// Add argument constraints and static parameter bounds for an invocation.
-    pub(crate) fn add_invocation_argument_constraints(
+    /// Add one argument constraint and static parameter bound for an invocation.
+    #[allow(clippy::too_many_arguments)]
+    fn add_invocation_argument_constraint(
         &self,
         module: &Module,
-        dynamic_arguments: &[LocalNodeId<Argument>],
-        argument_ty_ids: &[LocalTypeId],
-        parameter_types: &[LocalTypeId],
+        argument_id: LocalNodeId<Argument>,
+        argument_ty_id: LocalTypeId,
+        parameter_ty_id: LocalTypeId,
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         options: &AnalyzeOptions,
         tree: &NodeTree,
@@ -806,93 +786,76 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &InferContext,
     ) {
-        // scan argument pairs for template literal inference
-        for ((argument_id, argument_ty_id), param_ty_id) in dynamic_arguments
-            .iter()
-            .zip(argument_ty_ids.iter())
-            .zip(parameter_types.iter())
+        // connect argument type to parameter type
+        infer.push_constraint(Constraint::Subtype {
+            sub_type: argument_ty_id,
+            super_type: parameter_ty_id,
+            variance: None,
+        });
+
+        // enforce static parameter bounds for inferred type parameters
+        let Some(parameter_symbol) =
+            self.parameter_symbol_for_argument_constraint(types, infer, parameter_ty_id)
+        else {
+            return;
+        };
+
+        // skip non-static parameters
+        if !self.symbol_is_static_parameter(module, ctx.profile, parameter_symbol, symbols, types) {
+            return;
+        }
+
+        // resolve the static parameter constraint
+        let argument_value_id = tree.get(argument_id).value();
+        let constraint_id = self.static_parameter_constraint_type(
+            module,
+            ctx.profile,
+            parameter_symbol,
+            argument_value_id.into_any(),
+            symbols,
+            types,
+        );
+        let Some(constraint_id) = constraint_id else {
+            return;
+        };
+
+        // apply inherited substitutions to static constraints when needed
+        let constraint_id = if let Some(bound_substitutions) = bound_substitutions
+            && !bound_substitutions.is_empty()
         {
-            // connect argument types to parameter types
-            infer.push_constraint(Constraint::Subtype {
-                sub_type: *argument_ty_id,
-                super_type: *param_ty_id,
-                variance: None,
-            });
-
-            // enforce static parameter bounds for inferred type parameters
-            let Some(parameter_symbol) =
-                self.parameter_symbol_for_argument_constraint(types, infer, *param_ty_id)
-            else {
-                continue;
-            };
-
-            // skip non-static parameters
-            if !self.symbol_is_static_parameter(
-                module,
-                ctx.profile,
-                parameter_symbol,
-                symbols,
-                types,
-            ) {
-                continue;
+            let mut cache = HashMap::new();
+            self.substitute_static_parameters(constraint_id, bound_substitutions, types, &mut cache)
+        } else {
+            constraint_id
+        };
+        if matches!(
+            types.get_type(constraint_id),
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown | TypeLiteral::Any
             }
+        ) {
+            return;
+        }
 
-            // resolve the static parameter constraint
-            let argument_value_id = tree.get(*argument_id).value();
-            let constraint_id = self.static_parameter_constraint_type(
+        // emit a constraint violation error when needed
+        if self.is_type_assignable(
+            module,
+            ctx.profile,
+            symbols,
+            constraint_id,
+            argument_ty_id,
+            types,
+            options,
+        ) == Assignability::NotAssignable
+        {
+            self.emit_unassignable_type_for_types(
                 module,
                 ctx.profile,
-                parameter_symbol,
                 argument_value_id.into_any(),
-                symbols,
+                constraint_id,
+                argument_ty_id,
                 types,
             );
-            let Some(constraint_id) = constraint_id else {
-                continue;
-            };
-            // TODO #Cleanup: move bound substitutions into a shared instantiation context
-            let constraint_id = if let Some(bound_substitutions) = bound_substitutions
-                && !bound_substitutions.is_empty()
-            {
-                let mut cache = HashMap::new();
-                self.substitute_static_parameters(
-                    constraint_id,
-                    bound_substitutions,
-                    types,
-                    &mut cache,
-                )
-            } else {
-                constraint_id
-            };
-            if matches!(
-                types.get_type(constraint_id),
-                Type::TypeLiteral {
-                    value: TypeLiteral::Unknown | TypeLiteral::Any
-                }
-            ) {
-                continue;
-            }
-
-            // emit a constraint violation error when needed
-            if self.is_type_assignable(
-                module,
-                ctx.profile,
-                symbols,
-                constraint_id,
-                *argument_ty_id,
-                types,
-                options,
-            ) == Assignability::NotAssignable
-            {
-                self.emit_unassignable_type_for_types(
-                    module,
-                    ctx.profile,
-                    argument_value_id.into_any(),
-                    constraint_id,
-                    *argument_ty_id,
-                    types,
-                );
-            }
         }
     }
 
@@ -904,20 +867,18 @@ impl Compiler {
         param_ty_id: LocalTypeId,
     ) -> Option<GlobalSymbolId> {
         // resolve inferred type parameter symbols first
-        match types.get_type(param_ty_id) {
-            Type::InferVar { id } => {
-                infer
-                    .vars
-                    .get(id.0 as usize)
-                    .and_then(|var| match var.origin {
-                        InferOrigin::TypeParameter(symbol) => Some(symbol),
-                        _ => None,
-                    })
-            }
-            // fall back to direct references when available
-            Type::Reference { symbol, .. } => Some(*symbol),
-            _ => None,
+        if let Type::InferVar { id } = types.get_type(param_ty_id) {
+            return infer
+                .vars
+                .get(id.0 as usize)
+                .and_then(|var| match var.origin {
+                    InferOrigin::TypeParameter(symbol) => Some(symbol),
+                    _ => None,
+                });
         }
+
+        // then unwrap reference-like parameter types
+        self.unwrap_type_value_symbol(types, param_ty_id)
     }
 
     /// Validate argument assignability for a resolved signature.
@@ -1189,7 +1150,7 @@ impl Compiler {
         let ty = Type::TypeLiteral { value: literal_ty };
         let literal_ty_id = types.insert_type_from_any(ty, argument_value_id.into_any());
 
-        self.is_type_assignable_or_deferred(
+        self.is_signature_candidate_argument_assignable(
             module,
             profile,
             symbols,
@@ -1225,7 +1186,7 @@ impl Compiler {
             return Ok(true);
         };
 
-        Ok(self.is_type_assignable_or_deferred(
+        Ok(self.is_signature_candidate_argument_assignable(
             module,
             profile,
             symbols,
@@ -1261,7 +1222,7 @@ impl Compiler {
             return true;
         };
 
-        self.is_type_assignable_or_deferred(
+        self.is_signature_candidate_argument_assignable(
             module,
             profile,
             symbols,
@@ -1433,10 +1394,12 @@ impl Compiler {
         let receiver_context = self.query_member_receiver_context_for_expression(
             module,
             receiver_expression_id,
+            Some(receiver_union_ty_id),
             &receiver_union_ty,
             profile,
             tree,
             symbols,
+            types,
         );
         let context = UnionMemberCallResolutionContext {
             module,
@@ -2247,9 +2210,9 @@ impl Compiler {
                 types.get_type(callee_ty_id),
                 Type::TypeLiteral {
                     value: TypeLiteral::Any
-                } | Type::InferVar { .. }
-                    | Type::Infer { .. }
-            );
+                }
+            )
+            || types.get_type(callee_ty_id).is_infer();
         if !is_dynamic_callee {
             self.emit_non_callable_for_callee_type(
                 module,
@@ -2270,6 +2233,10 @@ impl Compiler {
             infer,
             ctx,
         )?;
+
+        if callee_has_primary_error {
+            return Ok(types.insert_type_from(Type::Error, expression_id));
+        }
 
         Ok(self.synthesize_unknown_call_type(expression_id, types))
     }
@@ -2555,10 +2522,12 @@ impl Compiler {
         let receiver_context = self.query_member_receiver_context_for_expression(
             module,
             receiver_id,
+            Some(receiver_ty_id),
             &receiver_ty,
             profile,
             tree,
             symbols,
+            types,
         );
 
         Ok((receiver_ty_id, receiver_ty, receiver_context))
@@ -3109,7 +3078,7 @@ impl Compiler {
                 .iter()
                 .zip(candidate.signature.dynamic_parameters.iter())
             {
-                if !self.is_type_assignable_or_deferred(
+                if !self.is_signature_candidate_argument_assignable(
                     module,
                     profile,
                     symbols,
@@ -3124,6 +3093,42 @@ impl Compiler {
         }
 
         true
+    }
+
+    /// Check candidate argument assignability, deferring unresolved inference state during overload filtering.
+    #[allow(clippy::too_many_arguments)]
+    fn is_signature_candidate_argument_assignable(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        target_type_id: LocalTypeId,
+        source_type_id: LocalTypeId,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> bool {
+        // fast path: direct infer vars defer to solve
+        if self.is_type_assignable_or_deferred(
+            module,
+            profile,
+            symbols,
+            target_type_id,
+            source_type_id,
+            types,
+            options,
+        ) {
+            return true;
+        }
+
+        // defer relation checks that depend on unresolved convergence state
+        if self.type_requires_infer_convergence(module, profile, target_type_id, symbols, types) {
+            return true;
+        }
+        if self.type_requires_infer_convergence(module, profile, source_type_id, symbols, types) {
+            return true;
+        }
+
+        false
     }
 
     /// Infer one return type for union member-call dispatch candidates.
@@ -3996,13 +4001,8 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Vec<StaticParameter> {
-        let static_parameter_symbols = static_parameter_type_ids
-            .iter()
-            .filter_map(|parameter_id| match types.get_type(*parameter_id) {
-                Type::Reference { symbol, .. } => Some(*symbol),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
+        let static_parameter_symbols =
+            self.static_parameter_symbols_for_type_ids(static_parameter_type_ids, types);
 
         static_parameter_symbols
             .iter()
@@ -4654,10 +4654,12 @@ impl Compiler {
         let receiver_context = self.query_member_receiver_context_for_expression(
             module,
             receiver_expression_id,
+            receiver_ty_id,
             receiver_ty,
             profile,
             tree,
             symbols,
+            types,
         );
         let lookup_mode = receiver_context.lookup_mode;
 
@@ -4706,13 +4708,8 @@ impl Compiler {
         else {
             return Ok(None);
         };
-        let signature_static_parameter_symbols = static_parameters
-            .iter()
-            .filter_map(|parameter| match types.get_type(*parameter) {
-                Type::Reference { symbol, .. } => Some(*symbol),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
+        let signature_static_parameter_symbols =
+            self.static_parameter_symbols_for_type_ids(&static_parameters, types);
         let signature = self.resolve_function_signature(
             module,
             expression_id.into_any(),

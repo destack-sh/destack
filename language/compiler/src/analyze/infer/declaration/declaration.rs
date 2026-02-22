@@ -102,16 +102,42 @@ impl Compiler {
         ctx: &InferContext,
         return_type: Option<LocalTypeId>,
         body_ty_id: LocalTypeId,
+        infer: &InferTable,
         types: &mut TypeTable,
     ) -> LocalTypeId {
         let should_commit =
             return_type.is_some_and(|return_ty_id| self.is_infer_var_type(return_ty_id, types));
         if should_commit {
+            // preserve return literal precision for contextual generic inference variables
+            if self.return_type_is_contextual_type_parameter_infer_var(return_type, infer, types) {
+                return body_ty_id;
+            }
+
             let commit_ctx = ctx.for_widening_commit();
             self.commit_binding_type(module, &commit_ctx, body_ty_id, types, false)
         } else {
             body_ty_id
         }
+    }
+
+    /// Return true when a return type infer var originates from a contextual type parameter.
+    fn return_type_is_contextual_type_parameter_infer_var(
+        &self,
+        return_type: Option<LocalTypeId>,
+        infer: &InferTable,
+        types: &TypeTable,
+    ) -> bool {
+        let Some(return_ty_id) = return_type else {
+            return false;
+        };
+        let Type::InferVar { id } = types.get_type(return_ty_id) else {
+            return false;
+        };
+
+        let Some(var) = infer.vars.get(id.0 as usize) else {
+            return false;
+        };
+        matches!(var.origin, InferOrigin::TypeParameter(_))
     }
 
     /// Infer the type of a declaration.
@@ -1035,7 +1061,7 @@ impl Compiler {
 
         // resolve and substitute the inherited default value
         let mut visited_symbols = HashSet::new();
-        let Some(default_value) = self.static_expression_from_constant_reference_specialized(
+        let Some(default_value) = self.static_expression_from_constant_reference_instantiated(
             module,
             profile,
             requirement.symbol,
@@ -1866,6 +1892,7 @@ impl Compiler {
                 &ctx,
                 context_return_type,
                 body_ty_id,
+                infer,
                 types,
             );
 
@@ -1887,7 +1914,8 @@ impl Compiler {
                     types,
                 );
 
-                if !self.is_infer_var_type(return_ty_id, types)
+                if !self.return_type_allows_fallthrough_infer(return_ty_id, types)
+                    && !self.is_infer_var_type(return_ty_id, types)
                     && !self.is_infer_var_type(committed_body_ty_id, types)
                     && self.is_type_assignable(
                         module,
@@ -2577,6 +2605,7 @@ impl Compiler {
                         &ctx,
                         context_return_type,
                         body_ty_id,
+                        infer,
                         types,
                     );
 
@@ -2602,7 +2631,8 @@ impl Compiler {
                             types,
                         );
 
-                        if !self.is_infer_var_type(return_ty_id, types)
+                        if !self.return_type_allows_fallthrough_infer(return_ty_id, types)
+                            && !self.is_infer_var_type(return_ty_id, types)
                             && !self.is_infer_var_type(committed_body_ty_id, types)
                             && self.is_type_assignable(
                                 module,

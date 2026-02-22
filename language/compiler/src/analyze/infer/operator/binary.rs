@@ -393,8 +393,8 @@ impl Compiler {
             return true;
         }
 
-        if self.is_unresolved_operator_type(left_ty, types)
-            || self.is_unresolved_operator_type(right_ty, types)
+        if self.operator_operand_is_indeterminate(left_ty, types)
+            || self.operator_operand_is_indeterminate(right_ty, types)
         {
             return true;
         }

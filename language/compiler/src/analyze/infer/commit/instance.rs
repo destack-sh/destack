@@ -94,13 +94,7 @@ impl Compiler {
             return Vec::new();
         };
 
-        static_parameters
-            .iter()
-            .filter_map(|parameter| match types.get_type(*parameter) {
-                Type::Reference { symbol, .. } => Some(*symbol),
-                _ => None,
-            })
-            .collect()
+        self.static_parameter_symbols_for_type_ids(static_parameters, types)
     }
 
     /// Query owner static parameter symbols for one member symbol.

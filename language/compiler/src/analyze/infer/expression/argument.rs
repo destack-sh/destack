@@ -300,7 +300,7 @@ impl Compiler {
                 })
             };
 
-        // recover declared reference arguments for direct receiver symbols when inference widened away static args
+        // re-read declared reference arguments when inference widened away static arguments
         if !has_usable_reference_arguments(&reference)
             && let Some(declared_reference) = self.receiver_reference_for_declaration_symbol(
                 module,
@@ -2400,10 +2400,7 @@ impl Compiler {
                         StaticArgument::Evaluated {
                             value: StaticExpression::Type { ty },
                             ..
-                        } => match types.get_type(*ty) {
-                            Type::Reference { symbol, .. } => Some(*symbol),
-                            _ => None,
-                        },
+                        } => self.unwrap_type_value_symbol(types, *ty),
                         _ => None,
                     };
 
@@ -3027,7 +3024,7 @@ impl Compiler {
         }
     }
 
-    /// Infer a value static argument from matching dynamic arguments.
+    /// Infer a static argument from matching dynamic arguments.
     pub(crate) fn infer_static_argument_from_dynamic_arguments(
         &self,
         module: &Module,
@@ -3039,7 +3036,51 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<StaticArgument>> {
-        // require a value parameter and matching argument list
+        // infer direct type-parameter arguments from positional dynamic arguments
+        if static_parameter.kind == StaticParameterKind::Type {
+            for (param_ty_id, argument_id) in
+                dynamic_parameters.iter().zip(dynamic_arguments.iter())
+            {
+                let param_ty_id = self.unwrap_type_value(*param_ty_id, types);
+                let Type::Reference {
+                    symbol,
+                    static_arguments: None,
+                } = types.get_type(param_ty_id)
+                else {
+                    continue;
+                };
+                if *symbol != static_parameter.symbol {
+                    continue;
+                }
+
+                let Some(argument_ty_id) = self.argument_type_for_static_inference(
+                    module,
+                    profile,
+                    *argument_id,
+                    tree,
+                    symbols,
+                    types,
+                ) else {
+                    continue;
+                };
+                if !self.inferred_type_argument_is_committable(
+                    module,
+                    profile,
+                    symbols,
+                    argument_ty_id,
+                    types,
+                ) {
+                    continue;
+                }
+
+                return Ok(Some(StaticArgument::Evaluated {
+                    name: static_parameter.name,
+                    value: StaticExpression::Type { ty: argument_ty_id },
+                }));
+            }
+        }
+
+        // value inference from dynamic arguments is value-only
         if static_parameter.kind != StaticParameterKind::Value {
             return Ok(None);
         }
@@ -3141,9 +3182,14 @@ impl Compiler {
 
         // infer from argument reference types that carry explicit static arguments
         for (param_ty_id, argument_id) in dynamic_parameters.iter().zip(dynamic_arguments.iter()) {
-            let Some(argument_ty_id) =
-                self.argument_type_for_static_inference(module, *argument_id, tree, symbols, types)
-            else {
+            let Some(argument_ty_id) = self.argument_type_for_static_inference(
+                module,
+                profile,
+                *argument_id,
+                tree,
+                symbols,
+                types,
+            ) else {
                 continue;
             };
 
@@ -3162,6 +3208,24 @@ impl Compiler {
         }
 
         Ok(None)
+    }
+
+    /// Return true when one inferred type argument is stable enough for static argument commitment.
+    fn inferred_type_argument_is_committable(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        argument_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        // reject unresolved convergence state
+        if self.type_requires_infer_convergence(module, profile, argument_ty_id, symbols, types) {
+            return false;
+        }
+
+        // reject explicit error placeholders
+        !matches!(types.get_type(argument_ty_id), Type::Error)
     }
 
     /// Resolve a value static argument from argument type metadata.
@@ -3265,14 +3329,29 @@ impl Compiler {
     fn argument_type_for_static_inference(
         &self,
         module: &Module,
+        profile: ProfileId,
         argument_id: LocalNodeId<Argument>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
     ) -> Option<LocalTypeId> {
-        // prefer declared types for direct references
+        // prefer stable inferred types from this call site
         let argument = tree.get(argument_id);
         let value_id = argument.value();
+        if let Some(type_id) = types.get_inferred_type_id(value_id.into_global_any(module.id))
+            && self.inferred_type_argument_is_committable(module, profile, symbols, type_id, types)
+        {
+            return Some(type_id);
+        }
+
+        // then use symbol value types for direct references
+        if let Some(symbol) = tree.get(value_id).target_symbol() {
+            if let Some(type_id) = types.get_type_id_for_symbol(symbols, symbol) {
+                return Some(type_id);
+            }
+        }
+
+        // fall back to declaration owned types for direct references
         if let Some(symbol) = tree.get(value_id).target_symbol()
             && symbol.module_id == module.id
         {
@@ -3284,14 +3363,7 @@ impl Compiler {
             }
         }
 
-        // fall back to inferred types for the argument expression
-        if let Some(type_id) = types.get_inferred_type_id(value_id.into_global_any(module.id)) {
-            return Some(type_id);
-        }
-
-        // fall back to symbol types for direct references
-        let symbol = tree.get(value_id).target_symbol()?;
-        types.get_type_id_for_symbol(symbols, symbol)
+        None
     }
 
     /// Check whether a static argument expression references a target symbol.

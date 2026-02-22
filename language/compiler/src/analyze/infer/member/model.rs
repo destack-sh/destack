@@ -71,6 +71,8 @@ pub(crate) struct MemberReceiverContext {
     pub(crate) nominal_symbol: Option<GlobalSymbolId>,
     /// Whether the receiver expression carries explicit static arguments.
     pub(crate) has_static_arguments: bool,
+    /// Whether the receiver is context-sensitive because it carries `this`.
+    pub(crate) has_this_receiver: bool,
     /// The lookup mode to use for type-driven member inference.
     pub(crate) lookup_mode: MemberLookupMode,
 }
@@ -106,6 +108,12 @@ pub(crate) struct MemberAccessReceiver {
     pub(crate) receiver_ty_id: LocalTypeId,
     /// The resolved receiver type.
     pub(crate) receiver_ty: Type,
+    /// Receiver classification used for downstream member lookup and diagnostics.
+    pub(crate) receiver_context: MemberReceiverContext,
+    /// Whether the receiver type still depends on infer convergence.
+    pub(crate) receiver_requires_infer_convergence: bool,
+    /// Whether missing-member diagnostics may defer while inference converges.
+    pub(crate) allow_missing_member_deferral: bool,
     /// Whether optional chaining introduced nullish receivers.
     pub(crate) has_optional_nullish: bool,
 }

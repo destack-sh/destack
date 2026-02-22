@@ -1178,16 +1178,17 @@ impl Compiler {
             }
 
             let mut visited_symbols = static_eval_visited_symbols.cloned().unwrap_or_default();
-            let Some(value) = self.static_expression_from_constant_reference_specialized_declared(
-                module,
-                profile,
-                resolved_member_symbol,
-                tree,
-                symbols,
-                types,
-                receiver_substitutions,
-                &mut visited_symbols,
-            )?
+            let Some(value) = self
+                .static_expression_from_constant_reference_instantiated_declared(
+                    module,
+                    profile,
+                    resolved_member_symbol,
+                    tree,
+                    symbols,
+                    types,
+                    receiver_substitutions,
+                    &mut visited_symbols,
+                )?
             else {
                 let should_report_missing =
                     requires_implementation && canonical_receiver_symbol != owner_symbol;
@@ -1632,7 +1633,7 @@ impl Compiler {
         }
 
         let mut visited_symbols = HashSet::new();
-        let Ok(Some(value)) = self.static_expression_from_constant_reference_specialized(
+        let Ok(Some(value)) = self.static_expression_from_constant_reference_instantiated(
             module,
             profile,
             target_symbol,
@@ -1739,7 +1740,7 @@ impl Compiler {
         // materialize remaining comptime references using projection substitutions
         if let Type::Reference { symbol, .. } = types.get_type(mapped_count).clone() {
             let mut visited_symbols = HashSet::new();
-            if let Ok(Some(value)) = self.static_expression_from_constant_reference_specialized(
+            if let Ok(Some(value)) = self.static_expression_from_constant_reference_instantiated(
                 module,
                 profile,
                 symbol,
@@ -1846,7 +1847,7 @@ impl Compiler {
         }
 
         let mut visited_symbols = HashSet::new();
-        if let Ok(Some(value)) = self.static_expression_from_constant_reference_specialized(
+        if let Ok(Some(value)) = self.static_expression_from_constant_reference_instantiated(
             module,
             profile,
             symbol,

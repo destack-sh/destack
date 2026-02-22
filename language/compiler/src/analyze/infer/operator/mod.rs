@@ -1,6 +1,6 @@
 use super::call::ResolvedMemberFunction;
-use super::constraint::UnassignableRelationFailureMode;
 use super::member::{MemberLookupMode, MemberResolution};
+use super::obligation::relation::UnassignableRelationFailureMode;
 use super::{
     index_key_kind_for_index, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };

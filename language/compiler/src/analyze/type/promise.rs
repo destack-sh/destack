@@ -342,7 +342,7 @@ impl Compiler {
         }
 
         // keep any/unknown as-is
-        if self.type_is_any_or_unknown(type_id, types) {
+        if self.type_is_semantic_top_like(type_id, types) {
             return type_id;
         }
 

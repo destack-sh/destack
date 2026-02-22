@@ -239,12 +239,12 @@ impl Compiler {
             });
         }
 
-        // nominal type values do not support instance member fallback
+        // nominal type values do not support instance member lookup in value mode
         if nominal_receiver {
             return Ok(MemberResolution::None);
         }
 
-        // fall back to regular member lookup
+        // continue with regular member lookup
         self.resolve_member_symbol(
             module,
             receiver_ty,
@@ -297,6 +297,8 @@ impl Compiler {
         receiver_id: LocalNodeId<Expression>,
         receiver_ty_id: LocalTypeId,
         receiver_ty: &Type,
+        receiver_requires_infer_convergence: bool,
+        allow_missing_member_deferral: bool,
         member_key: &StaticKey,
         member_resolution: &MemberResolution,
         profile: ProfileId,
@@ -305,6 +307,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
     ) -> AnalyzeResult<LocalTypeId> {
         // infer index signature access for missing concrete members
         let mut index_visited = Vec::new();
@@ -364,6 +367,67 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
+        // defer missing-member diagnostics while receiver typing still depends on infer convergence
+        let receiver_is_unannotated_parameter_reference = self
+            .receiver_expression_is_unannotated_parameter_reference(
+                module,
+                receiver_id,
+                tree,
+                symbols,
+                types,
+            );
+        let receiver_is_indeterminate_for_callback_member_check = self
+            .type_is_solver_placeholder(receiver_ty_id, types)
+            || (matches!(
+                types.get_type(receiver_ty_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                }
+            ) && receiver_is_unannotated_parameter_reference);
+        if allow_missing_member_deferral && receiver_requires_infer_convergence {
+            infer.push_missing_member_obligation(MissingMemberObligation {
+                expression_id: expression_id.into_global_any(module.id),
+                receiver_expression_id: receiver_id.into_global_any(module.id),
+                receiver_type_id: receiver_ty_id,
+                member_key: member_key.clone(),
+            });
+
+            self.commit_member_resolution(
+                expression_id.into_global_any(module.id),
+                Some(receiver_ty_id),
+                member_resolution,
+                None,
+                None,
+                false,
+                types,
+            );
+
+            let deferred_type_id = types.insert_type_from(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                },
+                expression_id,
+            );
+            return Ok(deferred_type_id);
+        }
+
+        // keep callback-indeterminate receivers unresolved until callback replay lands
+        if allow_missing_member_deferral && receiver_is_indeterminate_for_callback_member_check {
+            self.commit_member_resolution(
+                expression_id.into_global_any(module.id),
+                Some(receiver_ty_id),
+                member_resolution,
+                None,
+                None,
+                false,
+                types,
+            );
+
+            let deferred_type_id = types.insert_type_from(Type::Error, expression_id);
+
+            return Ok(deferred_type_id);
+        }
+
         // suppress missing-member cascades only when a primary semantic fault blocks lookup
         let allow_associated_contract_blocker = self
             .query_expression_is_projection_receiver_for_infer(
@@ -416,6 +480,40 @@ impl Compiler {
             value: TypeLiteral::Unknown,
         };
         Ok(types.insert_type_from(ty, expression_id))
+    }
+
+    /// Return true when one receiver expression is an unannotated local parameter reference.
+    fn receiver_expression_is_unannotated_parameter_reference(
+        &self,
+        module: &Module,
+        receiver_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        let Some(receiver_symbol) = tree.get(receiver_id).target_symbol() else {
+            return false;
+        };
+        if receiver_symbol.module_id != module.id {
+            return false;
+        }
+
+        let symbol_entry = symbols.get_symbol(receiver_symbol.local_id);
+        if symbol_entry.binding_category != BindingCategory::Parameter {
+            return false;
+        }
+
+        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+            return false;
+        };
+        if primary_declaration.module_id != module.id {
+            return false;
+        }
+        if primary_declaration.local_id.ty != NodeType::Parameter {
+            return false;
+        }
+
+        types.get_declared_type_id(primary_declaration).is_none()
     }
 
     /// Resolve the member symbol for a type and member key.

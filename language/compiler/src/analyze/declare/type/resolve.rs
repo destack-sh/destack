@@ -125,37 +125,23 @@ impl Compiler {
                 validate_static_argument_bounds,
                 enforce_implicit_managed,
             )?;
-            let symbol = match types.get_type(index_ty_id) {
-                Type::Reference { symbol, .. } => Some(*symbol),
-                Type::Value { value } => match types.get_type(*value) {
-                    Type::Reference { symbol, .. } => Some(*symbol),
-                    _ => None,
-                },
-                _ => None,
-            };
-            let symbol = if symbol.is_none() {
-                if let Expression::Member { left, name, .. } = tree.get(candidate_expression_id)
-                    && matches!(tree.get(*left), Expression::This)
-                    && let Some(selection) = self.select_associated_projection_member_symbol(
-                        module,
-                        profile,
-                        candidate_expression_id,
-                        *left,
-                        StaticKey::Name(*name),
-                        Some(StaticMemberSymbolKind::AssociatedComptimeConst),
-                        tree,
-                        symbols,
-                        types,
-                        true,
-                        true,
-                    )?
-                {
-                    Some(selection.target_symbol)
-                } else {
-                    None
-                }
+            let symbol = self.unwrap_type_value_symbol(types, index_ty_id);
+            let selection = if symbol.is_none() {
+                self.associated_comptime_selection_from_expression(
+                    module,
+                    profile,
+                    candidate_expression_id,
+                    tree,
+                    symbols,
+                    types,
+                )?
             } else {
-                symbol
+                None
+            };
+            let symbol = if let Some(symbol) = symbol {
+                Some(symbol)
+            } else {
+                selection.as_ref().map(|selection| selection.target_symbol)
             };
             let Some(symbol) = symbol else {
                 if is_explicit_comptime {
@@ -186,6 +172,47 @@ impl Compiler {
                 return Ok(None);
             }
             if is_associated_comptime {
+                // non-this projections must already fold to a concrete integer count
+                if !self.associated_projection_receiver_is_this(candidate_expression_id, tree) {
+                    let has_unresolved_receiver_arguments =
+                        selection.as_ref().is_some_and(|selection| {
+                            self.associated_projection_receiver_arguments_require_deferral(
+                                module,
+                                profile,
+                                &selection.receiver_arguments,
+                                symbols,
+                                types,
+                            )
+                        });
+                    if has_unresolved_receiver_arguments {
+                        self.error(AnalyzeError::InvalidComptimeExpression {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                        return Ok(None);
+                    }
+
+                    let has_concrete_count = self
+                        .evaluate_integer_static_literal(
+                            module,
+                            profile,
+                            candidate_expression_id,
+                            tree,
+                            symbols,
+                            types,
+                        )?
+                        .is_some();
+                    if !has_concrete_count {
+                        self.error(AnalyzeError::InvalidComptimeExpression {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                        return Ok(None);
+                    }
+                }
+
                 // keep associated comptime references as symbols so substitution can resolve counts
                 let reference_type = Type::Reference {
                     symbol,
@@ -247,34 +274,20 @@ impl Compiler {
             return Ok(true);
         }
 
-        if let Expression::Member { left, name, .. } = tree.get(expression_id)
-            && matches!(tree.get(*left), Expression::This)
-        {
-            let selection = self.select_associated_projection_member_symbol(
-                module,
-                profile,
-                expression_id,
-                *left,
-                StaticKey::Name(*name),
-                Some(StaticMemberSymbolKind::AssociatedComptimeConst),
-                tree,
-                symbols,
-                types,
-                true,
-                true,
-            )?;
-            if let Some(selection) = selection
-                && matches!(
-                    self.query_static_member_symbol_kind_for_symbol(
-                        module,
-                        profile,
-                        selection.target_symbol,
-                        tree,
-                        symbols,
-                    )?,
-                    Some(StaticMemberSymbolKind::AssociatedComptimeConst)
-                )
-            {
+        if let Some(symbol) = self.associated_comptime_symbol_from_expression(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+        )? {
+            if matches!(
+                self.query_static_member_symbol_kind_for_symbol(
+                    module, profile, symbol, tree, symbols,
+                )?,
+                Some(StaticMemberSymbolKind::AssociatedComptimeConst)
+            ) {
                 return Ok(true);
             }
         }
@@ -292,14 +305,7 @@ impl Compiler {
                 true,
                 true,
             )?;
-            match types.get_type(index_type_id) {
-                Type::Reference { symbol, .. } => Some(*symbol),
-                Type::Value { value } => match types.get_type(*value) {
-                    Type::Reference { symbol, .. } => Some(*symbol),
-                    _ => None,
-                },
-                _ => None,
-            }
+            self.unwrap_type_value_symbol(types, index_type_id)
         };
 
         let Some(target_symbol) = target_symbol else {
@@ -332,6 +338,70 @@ impl Compiler {
         Ok(is_associated_comptime)
     }
 
+    /// Resolve an associated comptime member symbol from one projection expression.
+    pub(crate) fn associated_comptime_selection_from_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<AssociatedProjectionSelection>> {
+        let Expression::Member { left, name, .. } = tree.get(expression_id) else {
+            return Ok(None);
+        };
+
+        self.select_associated_projection_member_symbol(
+            module,
+            profile,
+            expression_id,
+            *left,
+            StaticKey::Name(*name),
+            Some(StaticMemberSymbolKind::AssociatedComptimeConst),
+            tree,
+            symbols,
+            types,
+            true,
+            true,
+        )
+    }
+
+    /// Resolve an associated comptime member symbol from one projection expression.
+    pub(crate) fn associated_comptime_symbol_from_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        let selection = self.associated_comptime_selection_from_expression(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+        )?;
+        Ok(selection.map(|selection| selection.target_symbol))
+    }
+
+    /// Return true when one associated projection receiver is `this`.
+    fn associated_projection_receiver_is_this(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+    ) -> bool {
+        let Expression::Member { left, .. } = tree.get(expression_id) else {
+            return false;
+        };
+
+        let left = self.unwrap_parenthesized_expression(*left, tree);
+        matches!(tree.get(left), Expression::This)
+    }
+
     /// Classify one `TypeIndex` expression as index-access or fixed-array construction.
 
     pub(crate) fn type_index_interpretation(
@@ -353,7 +423,6 @@ impl Compiler {
                 TypeIndexResolutionKind::IndexAccess
             });
         }
-
         let index_is_array_size_candidate = self.expression_is_array_size_candidate(
             module,
             profile,
@@ -625,6 +694,17 @@ impl Compiler {
         let Some(target_symbol) = tree.get(candidate_expression_id).target_symbol() else {
             return Ok(false);
         };
+
+        // mapped key parameters are always type-space index operands
+        if self.type_index_symbol_is_mapped_parameter(
+            module,
+            target_symbol,
+            candidate_expression_id,
+            tree,
+        ) {
+            return Ok(false);
+        }
+
         if !self.symbol_is_static_parameter(module, profile, target_symbol, symbols, types) {
             return Ok(false);
         }
@@ -654,6 +734,36 @@ impl Compiler {
         }
 
         Ok(true)
+    }
+
+    /// Return whether one type-index symbol comes from an enclosing mapped parameter.
+    fn type_index_symbol_is_mapped_parameter(
+        &self,
+        module: &Module,
+        symbol: GlobalSymbolId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+    ) -> bool {
+        // mapped-parameter membership is local syntax context
+        if symbol.module_id != module.id {
+            return false;
+        }
+
+        let mut cursor = Some(expression_id.into_any());
+        while let Some(node_id) = cursor {
+            if node_id.ty == NodeType::Expression {
+                let parent_expression_id = node_id.into_typed::<Expression>();
+                if let Expression::TypeMapped { parameter, .. } = tree.get(parent_expression_id)
+                    && parameter.symbol == symbol.local_id
+                {
+                    return true;
+                }
+            }
+
+            cursor = tree.get_parent(node_id.id);
+        }
+
+        false
     }
 
     /// Check whether one type index parameter is constrained by `keyof` over the receiver type.
@@ -1315,7 +1425,7 @@ impl Compiler {
         );
         if symbol_space == Some(SymbolSpace::Value) {
             let mut visited = HashSet::new();
-            if let Some(static_value) = self.static_expression_from_constant_reference_generic(
+            if let Some(static_value) = self.static_expression_from_constant_reference_parametric(
                 module,
                 profile,
                 target_symbol,

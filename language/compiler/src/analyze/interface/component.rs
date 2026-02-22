@@ -9,8 +9,8 @@ use rustc_hash::FxHashSet;
 /// One classified interface value state for convergence checks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum InterfaceValueState {
-    /// The export remains unresolved in this iteration.
-    Unknown,
+    /// The export remains indeterminate in this iteration.
+    Indeterminate,
     /// The export resolved to an explicit error type.
     Error,
     /// The export resolved to one concrete local type id.
@@ -94,7 +94,10 @@ impl Compiler {
         )?;
 
         // report unknown interface exports after convergence
-        self.report_unknown_interface_component_exports(profile, &component.component_modules)?;
+        self.report_semantic_unknown_interface_component_exports(
+            profile,
+            &component.component_modules,
+        )?;
 
         Ok(())
     }
@@ -230,17 +233,26 @@ impl Compiler {
         symbol_id: GlobalSymbolId,
     ) -> InterfaceValueState {
         let Some(type_id) = types.get_value_type_id(symbol_id) else {
-            return InterfaceValueState::Unknown;
+            return InterfaceValueState::Indeterminate;
         };
 
-        match types.get_type(type_id) {
+        let ty = types.get_type(type_id);
+
+        if matches!(
+            ty,
             Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             }
-            | Type::InferVar { .. } => InterfaceValueState::Unknown,
-            Type::Error => InterfaceValueState::Error,
-            _ => InterfaceValueState::Concrete(type_id.0),
+        ) || ty.is_infer()
+        {
+            return InterfaceValueState::Indeterminate;
         }
+
+        if matches!(ty, Type::Error) {
+            return InterfaceValueState::Error;
+        }
+
+        InterfaceValueState::Concrete(type_id.0)
     }
 
     /// Report unresolved interface cycles after component convergence.
@@ -294,7 +306,7 @@ impl Compiler {
             let Some(value_type_id) = types.get_value_type_id(export_symbol) else {
                 continue;
             };
-            if !self.interface_value_type_is_unresolved(types, value_type_id) {
+            if !self.interface_value_type_requires_cycle_anchor(types, value_type_id) {
                 continue;
             }
 
@@ -304,6 +316,12 @@ impl Compiler {
                 continue;
             };
             let declarator = tree.get(declarator_id);
+
+            // explicit export contracts break cycle-inference requirements
+            if declarator.ty.is_some() {
+                continue;
+            }
+
             let Some(value_id) = declarator.value else {
                 continue;
             };
@@ -328,8 +346,8 @@ impl Compiler {
         Ok(())
     }
 
-    /// Report unknown interface exports after component convergence.
-    fn report_unknown_interface_component_exports(
+    /// Report semantic-unknown interface exports after component convergence.
+    fn report_semantic_unknown_interface_component_exports(
         &self,
         profile: ProfileId,
         component_modules: &[ModuleId],
@@ -344,7 +362,7 @@ impl Compiler {
             let symbols = dir.symbols.read();
             let types = dir.types.read();
             self.try_for_each_interface_export_table(&module, profile, |exports| {
-                self.report_unknown_interface_exports_for_table(
+                self.report_semantic_unknown_interface_exports_for_table(
                     &module,
                     profile,
                     &tree,
@@ -359,8 +377,8 @@ impl Compiler {
         Ok(())
     }
 
-    /// Report unknown interface exports for one export table.
-    fn report_unknown_interface_exports_for_table(
+    /// Report semantic-unknown interface exports for one export table.
+    fn report_semantic_unknown_interface_exports_for_table(
         &self,
         module: &destack_workspace::Module,
         profile: ProfileId,
@@ -383,7 +401,7 @@ impl Compiler {
             let Some(value_type_id) = types.get_value_type_id(export_symbol) else {
                 continue;
             };
-            if !self.interface_value_type_is_unresolved(types, value_type_id) {
+            if !self.interface_value_type_is_semantic_unknown(types, value_type_id) {
                 continue;
             }
 

@@ -5,6 +5,7 @@ mod declaration;
 mod dependency;
 mod expression;
 pub(crate) mod member;
+mod obligation;
 mod operator;
 mod process;
 mod r#type;

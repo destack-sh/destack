@@ -1,9 +1,12 @@
 use crate::analyze::StaticSubstitutionEnvironment;
+use crate::analyze::common::TypeRewriteCache;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     DynamicResolutionCandidateSlotId, GlobalNodeIdAny, InferTable, InstanceCommitObligationId,
-    LocalInstanceId, LocalResolutionId, Resolution, TypeTable,
+    LocalInstanceId, LocalResolutionId, NodeTree, Resolution, StaticArgument, StaticExpression,
+    SymbolTable, TypeTable,
 };
+use destack_workspace::{Module, ProfileId};
 use std::collections::HashMap;
 
 impl Compiler {
@@ -13,6 +16,7 @@ impl Compiler {
         instance_by_obligation: &HashMap<InstanceCommitObligationId, LocalInstanceId>,
         obligation_id: InstanceCommitObligationId,
     ) -> AnalyzeResult<LocalInstanceId> {
+        // read one committed instance id from the obligation map
         instance_by_obligation
             .get(&obligation_id)
             .copied()
@@ -28,13 +32,17 @@ impl Compiler {
         instance_id: LocalInstanceId,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
+        // skip when no resolution is attached to this node
         let Some(resolution_id) = types.get_resolution_for_node(node_id) else {
             return Ok(());
         };
+
+        // only static resolutions can be attached through this path
         let Resolution::Static { candidate, .. } = types.get_resolution_mut(resolution_id) else {
             return Ok(());
         };
 
+        // reject conflicting pre existing instance ids
         if let Some(existing) = candidate.instance {
             if existing != instance_id {
                 return Err(AnalyzeError::Internal {
@@ -56,15 +64,18 @@ impl Compiler {
         instance_id: LocalInstanceId,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
+        // attach only to dynamic or unresolved candidate lists
         let resolution = types.get_resolution_mut(resolution_id);
         match resolution {
             Resolution::Dynamic { candidates, .. } | Resolution::Unresolved { candidates, .. } => {
+                // resolve the candidate slot from the attachment payload
                 let candidate_index = candidate_slot.0 as usize;
                 let Some(candidate) = candidates.get_mut(candidate_index) else {
                     return Err(AnalyzeError::Internal {
                         message: "missing dynamic resolution candidate slot".to_string(),
                     });
                 };
+                // reject conflicting pre existing instance ids
                 if let Some(existing) = candidate.instance {
                     if existing != instance_id {
                         return Err(AnalyzeError::Internal {
@@ -84,17 +95,19 @@ impl Compiler {
         }
     }
 
-    /// Discharge instance-commit obligations after infer convergence.
+    /// Discharge instance commit obligations after infer convergence.
     pub(crate) fn discharge_instance_commit_obligations(
         &self,
         infer: &mut InferTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
+        // collect obligations into a stable local vector
         let obligations = infer
             .iter_instance_commit_obligations()
             .map(|(obligation_id, obligation)| (obligation_id, obligation.clone()))
             .collect::<Vec<_>>();
 
+        // commit one instance id for each obligation
         let mut instance_by_obligation =
             HashMap::<InstanceCommitObligationId, LocalInstanceId>::new();
         for (obligation_id, obligation) in obligations {
@@ -114,6 +127,7 @@ impl Compiler {
             instance_by_obligation.insert(obligation_id, instance_id);
         }
 
+        // attach committed instance ids to node bindings
         let node_attachments = infer
             .iter_instance_commit_obligation_nodes()
             .collect::<Vec<_>>();
@@ -124,6 +138,7 @@ impl Compiler {
             self.attach_instance_to_static_resolution_for_node(node_id, instance_id, types)?;
         }
 
+        // attach committed instance ids to dynamic resolution candidates
         let resolution_attachments = infer
             .iter_instance_commit_obligation_resolution_candidates()
             .collect::<Vec<_>>();
@@ -138,6 +153,82 @@ impl Compiler {
                 instance_id,
                 types,
             )?;
+        }
+
+        Ok(())
+    }
+
+    /// Commit inferred types that depend on resolved instance substitutions.
+    pub(crate) fn commit_instance_instantiated_inferred_types(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        infer: &InferTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        // apply substitutions to inferred types using explicit infer obligations
+        let node_attachments = infer
+            .iter_instance_commit_obligation_nodes()
+            .collect::<Vec<_>>();
+        for (node_id, obligation_id) in node_attachments {
+            // skip attachments that do not belong to this module
+            if node_id.module_id != module.id {
+                continue;
+            }
+
+            // skip nodes without inferred type commits
+            let Some(inferred_type_id) = types.get_inferred_type_id(node_id) else {
+                continue;
+            };
+            let Some(obligation) = infer.instance_commit_obligation(obligation_id) else {
+                return Err(AnalyzeError::Internal {
+                    message: "missing instance commit obligation for inferred node".to_string(),
+                });
+            };
+
+            // build type substitutions from the committed obligation environment
+            let mut substitutions = HashMap::new();
+            for (parameter_symbol, argument) in obligation
+                .static_parameter_symbols
+                .iter()
+                .zip(obligation.static_arguments.iter())
+            {
+                let StaticArgument::Evaluated {
+                    value: StaticExpression::Type { ty },
+                    ..
+                } = argument
+                else {
+                    continue;
+                };
+                substitutions.insert(*parameter_symbol, types.unwrap_value_type_id(*ty));
+            }
+            if substitutions.is_empty() {
+                continue;
+            }
+
+            // instantiate inferred type with committed substitutions
+            let mut materialize_cache = TypeRewriteCache::new();
+            let mut substitution_cache = HashMap::new();
+            let mapped_type_id = self.instantiate_type_with_substitutions(
+                module,
+                profile,
+                node_id.local_id,
+                None,
+                inferred_type_id,
+                &substitutions,
+                tree,
+                symbols,
+                types,
+                &mut materialize_cache,
+                &mut substitution_cache,
+            );
+
+            // commit mapped type ids when instantiation changed the result
+            if mapped_type_id != inferred_type_id {
+                types.set_inferred_type(node_id, mapped_type_id);
+            }
         }
 
         Ok(())

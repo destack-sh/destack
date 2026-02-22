@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    pub(crate) fn static_expression_from_constant_reference_generic(
+    pub(crate) fn static_expression_from_constant_reference_parametric(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -28,16 +28,16 @@ impl Compiler {
             tree,
             symbols,
             types,
-            StaticEvaluationMode::Generic,
+            StaticEvaluationMode::Parametric,
             None,
             AnalyzeDependencyStage::Infer,
             visited,
         )
     }
 
-    /// Resolve one constant reference in specialized evaluation mode.
+    /// Resolve one constant reference in instantiated evaluation mode.
 
-    pub(crate) fn static_expression_from_constant_reference_specialized(
+    pub(crate) fn static_expression_from_constant_reference_instantiated(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -55,15 +55,15 @@ impl Compiler {
             tree,
             symbols,
             types,
-            StaticEvaluationMode::Specialized,
+            StaticEvaluationMode::Instantiated,
             Some(substitutions),
             AnalyzeDependencyStage::Infer,
             visited,
         )
     }
 
-    /// Resolve one constant reference in specialized mode using declared dependency ownership.
-    pub(crate) fn static_expression_from_constant_reference_specialized_declared(
+    /// Resolve one constant reference in instantiated mode using declared dependency ownership.
+    pub(crate) fn static_expression_from_constant_reference_instantiated_declared(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -81,7 +81,7 @@ impl Compiler {
             tree,
             symbols,
             types,
-            StaticEvaluationMode::Specialized,
+            StaticEvaluationMode::Instantiated,
             Some(substitutions),
             AnalyzeDependencyStage::Declare,
             visited,
@@ -189,7 +189,7 @@ impl Compiler {
                         }
                     )
                 });
-            let is_constant_cycle_candidate = if mode == StaticEvaluationMode::Specialized {
+            let is_constant_cycle_candidate = if mode == StaticEvaluationMode::Instantiated {
                 true
             } else if is_immutable_binding_cycle_candidate {
                 true
@@ -318,7 +318,7 @@ impl Compiler {
         }
 
         // ensure dependency items are resolved before evaluating local constants
-        if symbol.module_id == module.id && mode == StaticEvaluationMode::Generic {
+        if symbol.module_id == module.id && mode == StaticEvaluationMode::Parametric {
             self.require_resolve_module_direct(module.id, profile)
                 .map_err(AnalyzeError::from)?;
         }
@@ -405,7 +405,7 @@ impl Compiler {
                         visited,
                     )?;
                     let Some(value) = value else {
-                        if mode == StaticEvaluationMode::Specialized {
+                        if mode == StaticEvaluationMode::Instantiated {
                             if owns_visit_marker {
                                 visited.remove(&symbol);
                             }
@@ -577,8 +577,8 @@ impl Compiler {
                     visited,
                 )?
             } else {
-                // generic mode may reuse inferred literal value snapshots
-                if mode == StaticEvaluationMode::Generic
+                // parametric mode may reuse inferred literal value snapshots
+                if mode == StaticEvaluationMode::Parametric
                     && let Some(value_type_id) = types.get_value_type_id(symbol)
                     && let Type::TypeLiteral {
                         value: TypeLiteral::ScalarLiteral(value),

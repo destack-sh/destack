@@ -261,7 +261,7 @@ impl Compiler {
                 return Some(StaticKey::Symbol(SymbolKey::Unique(symbol)));
             }
 
-            // resolve declared types for symbols, including declarator fallbacks
+            // resolve declared types for symbols, including declarator-hosted declarations
             let declared_type_id_for_symbol =
                 |symbols: &SymbolTable, types: &TypeTable, tree: &NodeTree| {
                     let symbol_entry = symbols.get_symbol(symbol.local_id);

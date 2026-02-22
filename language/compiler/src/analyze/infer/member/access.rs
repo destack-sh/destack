@@ -1,5 +1,5 @@
 use super::*;
-use destack_dir::StaticExpression;
+use destack_dir::{FunctionKind, Property};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -102,6 +102,41 @@ impl Compiler {
         Ok(finish_result(resolved_member_ty_id, types))
     }
 
+    /// Return true when the active function context uses lambda signature semantics.
+    fn context_function_uses_lambda_signature(&self, ctx: &InferContext, tree: &NodeTree) -> bool {
+        let Some(function_id) = ctx.in_function else {
+            return false;
+        };
+
+        match function_id.ty {
+            NodeType::Declaration => {
+                let declaration = tree.get(function_id.into_typed::<Declaration>());
+                let Declaration::Function { signature, .. } = declaration else {
+                    return false;
+                };
+
+                signature.kind == FunctionKind::Lambda
+            }
+            NodeType::Member => {
+                let member = tree.get(function_id.into_typed::<Member>());
+                let Member::Method { signature, .. } = member else {
+                    return false;
+                };
+
+                signature.kind == FunctionKind::Lambda
+            }
+            NodeType::Property => {
+                let property = tree.get(function_id.into_typed::<Property>());
+                let Property::Method { signature, .. } = property else {
+                    return false;
+                };
+
+                signature.kind == FunctionKind::Lambda
+            }
+            _ => false,
+        }
+    }
+
     /// Query and normalize the receiver state for member access.
     #[allow(clippy::too_many_arguments)]
     fn query_member_access_receiver(
@@ -178,10 +213,37 @@ impl Compiler {
         );
         let receiver_ty = types.get_type(receiver_ty_id).clone();
 
+        // classify receiver semantics once for member lookup and diagnostic deferral
+        let receiver_context = self.query_member_receiver_context_for_expression(
+            module,
+            receiver_id,
+            Some(receiver_ty_id),
+            &receiver_ty,
+            ctx.profile,
+            tree,
+            symbols,
+            types,
+        );
+
+        // track whether member validation should wait for infer convergence
+        let receiver_requires_infer_convergence = self.type_relation_requires_infer_convergence(
+            module,
+            ctx.profile,
+            receiver_ty_id,
+            receiver_ty_id,
+            symbols,
+            types,
+        ) || (receiver_context.has_this_receiver
+            && matches!(receiver_ty, Type::This));
+        let allow_missing_member_deferral = self.context_function_uses_lambda_signature(ctx, tree);
+
         Ok(MemberAccessReceiverQuery::Receiver(MemberAccessReceiver {
             receiver_id,
             receiver_ty_id,
             receiver_ty,
+            receiver_context,
+            receiver_requires_infer_convergence,
+            allow_missing_member_deferral,
             has_optional_nullish,
         }))
     }
@@ -224,14 +286,7 @@ impl Compiler {
         )?;
 
         // classify receiver semantics once for all member lookup paths
-        let receiver_context = self.query_member_receiver_context_for_expression(
-            module,
-            receiver.receiver_id,
-            &receiver.receiver_ty,
-            ctx.profile,
-            tree,
-            symbols,
-        );
+        let receiver_context = receiver.receiver_context.clone();
 
         // resolve member dispatch for the receiver type
         let resolution = self.resolve_member_symbol_for_receiver(
@@ -381,7 +436,7 @@ impl Compiler {
             types,
         )?;
 
-        // resolve member type through symbol lookup or fallback lookup paths
+        // resolve member type through symbol lookup and remaining lookup paths
         let mut resolved_member_ty_id =
             if let Some(enum_field_value_ty_id) = lookup.enum_field_value_ty_id {
                 enum_field_value_ty_id
@@ -441,6 +496,8 @@ impl Compiler {
                     receiver.receiver_id,
                     receiver.receiver_ty_id,
                     &receiver.receiver_ty,
+                    receiver.receiver_requires_infer_convergence,
+                    receiver.allow_missing_member_deferral,
                     &lookup.member_key,
                     &lookup.resolution,
                     ctx.profile,
@@ -449,6 +506,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                 )?
             };
 
@@ -601,7 +659,7 @@ impl Compiler {
 
         // defer projection materialization until receiver static arguments converge
         // unresolved obligations are reported after infer convergence
-        if self.receiver_arguments_are_unresolved_for_projection_materialization(
+        if self.associated_projection_receiver_arguments_require_deferral(
             module,
             profile,
             &lookup.inherited.arguments,
@@ -628,47 +686,6 @@ impl Compiler {
 
         Ok(types.insert_type_from_type(materialized_ty, member_ty_id))
     }
-
-    /// Return true when receiver arguments are not converged enough for projection materialization.
-    fn receiver_arguments_are_unresolved_for_projection_materialization(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        arguments: &[StaticArgument],
-        symbols: &SymbolTable,
-        types: &TypeTable,
-    ) -> bool {
-        for argument in arguments {
-            // unevaluated static arguments are unresolved
-            let StaticArgument::Evaluated { value, .. } = argument else {
-                return true;
-            };
-
-            // type arguments must be fully solved before projection materialization
-            let StaticExpression::Type { ty } = value else {
-                continue;
-            };
-            if self.type_contains_static_parameters(
-                module,
-                profile,
-                *ty,
-                symbols,
-                types,
-                &mut HashSet::new(),
-            ) {
-                return true;
-            }
-            if self.type_contains_infer_vars(*ty, types, &mut HashSet::new()) {
-                return true;
-            }
-            if self.type_contains_unevaluated_static_arguments(*ty, types, &mut HashSet::new()) {
-                return true;
-            }
-        }
-
-        false
-    }
-
     /// Return the member access type for `any` receivers.
     pub(crate) fn any_member_access_type(
         &self,

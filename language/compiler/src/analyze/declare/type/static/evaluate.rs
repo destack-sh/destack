@@ -37,7 +37,7 @@ impl Compiler {
             symbols,
             types,
             enum_symbol,
-            StaticEvaluationMode::Generic,
+            StaticEvaluationMode::Parametric,
             None,
             AnalyzeDependencyStage::Infer,
             &mut visited,
@@ -268,8 +268,8 @@ impl Compiler {
                             return Ok(Some(value));
                         }
 
-                        // specialized evaluation does not permit unresolved static parameters
-                        if mode == StaticEvaluationMode::Specialized {
+                        // instantiated evaluation does not permit unresolved static parameters
+                        if mode == StaticEvaluationMode::Instantiated {
                             return Ok(None);
                         }
 
@@ -419,12 +419,12 @@ impl Compiler {
                             .extend(substitutions.iter().map(|(key, value)| (*key, *value)));
                     }
                     merged_substitutions.extend(projection_substitutions);
-                    let projected_mode = if mode == StaticEvaluationMode::Specialized
+                    let projected_mode = if mode == StaticEvaluationMode::Instantiated
                         || !merged_substitutions.is_empty()
                     {
-                        StaticEvaluationMode::Specialized
+                        StaticEvaluationMode::Instantiated
                     } else {
-                        StaticEvaluationMode::Generic
+                        StaticEvaluationMode::Parametric
                     };
                     let merged_substitutions = if merged_substitutions.is_empty() {
                         None
@@ -525,39 +525,32 @@ impl Compiler {
                         right,
                     } => {
                         // resolve both sides for extends checks
-                        let mut evaluate_side =
-                            |side_id: LocalNodeId<Expression>| -> AnalyzeResult<Option<LocalTypeId>> {
-                                // resolve static parameters from specialization substitutions
-                                if let Some((parameter_symbol, _)) = self
-                                    .static_parameter_reference(
-                                        module, profile, side_id, tree, symbols, types,
-                                    )?
-                                {
-                                    if let Some(substitutions) = substitutions
-                                        && let Some(mapped) = self
-                                            .substitution_type_id_for_static_parameter_symbol(
-                                                parameter_symbol,
-                                                substitutions,
-                                            )
-                                    {
-                                        return Ok(Some(types.unwrap_value_type_id(mapped)));
-                                    }
-
-                                    // specialized evaluation must not fold with unresolved parameters
-                                    if mode == StaticEvaluationMode::Specialized {
-                                        return Ok(None);
-                                    }
-                                }
-
-                                let side_type_id = self.resolve_declared_type_expression(
-                                    module, profile, side_id, tree, symbols, types, true, true,
-                                )?;
-                                Ok(Some(side_type_id))
-                            };
-                        let Some(mut left_type_id) = evaluate_side(*left)? else {
+                        let Some(mut left_type_id) = self
+                            .resolve_static_conditional_operand_type_for_evaluation(
+                                module,
+                                profile,
+                                *left,
+                                tree,
+                                symbols,
+                                types,
+                                substitutions,
+                                mode,
+                            )?
+                        else {
                             return Ok(None);
                         };
-                        let Some(mut right_type_id) = evaluate_side(*right)? else {
+                        let Some(mut right_type_id) = self
+                            .resolve_static_conditional_operand_type_for_evaluation(
+                                module,
+                                profile,
+                                *right,
+                                tree,
+                                symbols,
+                                types,
+                                substitutions,
+                                mode,
+                            )?
+                        else {
                             return Ok(None);
                         };
 
@@ -617,6 +610,20 @@ impl Compiler {
                             RelationMode::STATIC_EVAL,
                         );
 
+                        // unresolved type operands keep conditional evaluation deferred
+                        if mode == StaticEvaluationMode::Instantiated
+                            && !self.static_conditional_operands_are_resolved_for_evaluation(
+                                module,
+                                profile,
+                                left_type_id,
+                                right_type_id,
+                                symbols,
+                                types,
+                            )
+                        {
+                            return Ok(None);
+                        }
+
                         let options = self.analyze_context_options_for_module(module.id);
                         self.is_type_assignable(
                             module,
@@ -660,37 +667,32 @@ impl Compiler {
                 else_type,
             } => {
                 // evaluate both sides as types before selecting one branch
-                let mut evaluate_side =
-                    |side_id: LocalNodeId<Expression>| -> AnalyzeResult<Option<LocalTypeId>> {
-                        // prefer caller substitutions for static parameters
-                        if let Some((parameter_symbol, _)) = self.static_parameter_reference(
-                            module, profile, side_id, tree, symbols, types,
-                        )? {
-                            if let Some(substitutions) = substitutions
-                                && let Some(mapped) = self
-                                    .substitution_type_id_for_static_parameter_symbol(
-                                        parameter_symbol,
-                                        substitutions,
-                                    )
-                            {
-                                return Ok(Some(types.unwrap_value_type_id(mapped)));
-                            }
-
-                            // specialized evaluation must not fold with unresolved parameters
-                            if mode == StaticEvaluationMode::Specialized {
-                                return Ok(None);
-                            }
-                        }
-
-                        let side_type_id = self.resolve_declared_type_expression(
-                            module, profile, side_id, tree, symbols, types, true, true,
-                        )?;
-                        Ok(Some(side_type_id))
-                    };
-                let Some(mut left_type_id) = evaluate_side(*left)? else {
+                let Some(mut left_type_id) = self
+                    .resolve_static_conditional_operand_type_for_evaluation(
+                        module,
+                        profile,
+                        *left,
+                        tree,
+                        symbols,
+                        types,
+                        substitutions,
+                        mode,
+                    )?
+                else {
                     return Ok(None);
                 };
-                let Some(mut right_type_id) = evaluate_side(*right)? else {
+                let Some(mut right_type_id) = self
+                    .resolve_static_conditional_operand_type_for_evaluation(
+                        module,
+                        profile,
+                        *right,
+                        tree,
+                        symbols,
+                        types,
+                        substitutions,
+                        mode,
+                    )?
+                else {
                     return Ok(None);
                 };
 
@@ -751,6 +753,18 @@ impl Compiler {
                     NormalizationMode::Assign,
                     RelationMode::STATIC_EVAL,
                 );
+
+                // unresolved type operands keep conditional evaluation deferred
+                if !self.static_conditional_operands_are_resolved_for_evaluation(
+                    module,
+                    profile,
+                    left_type_id,
+                    right_type_id,
+                    symbols,
+                    types,
+                ) {
+                    return Ok(None);
+                }
 
                 // choose the branch using extends assignability semantics
                 let options = self.analyze_context_options_for_module(module.id);
@@ -920,5 +934,92 @@ impl Compiler {
         };
 
         Ok(Some(value))
+    }
+
+    /// Resolve one conditional operand type for static branch selection.
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_static_conditional_operand_type_for_evaluation(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        side_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
+        mode: StaticEvaluationMode,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // prefer caller substitutions for static parameters
+        if let Some((parameter_symbol, _)) =
+            self.static_parameter_reference(module, profile, side_id, tree, symbols, types)?
+        {
+            if let Some(substitutions) = substitutions
+                && let Some(mapped) = self.substitution_type_id_for_static_parameter_symbol(
+                    parameter_symbol,
+                    substitutions,
+                )
+            {
+                let mapped = types.unwrap_value_type_id(mapped);
+                let is_resolved = self.static_conditional_operand_is_resolved_for_evaluation(
+                    module, profile, mapped, symbols, types,
+                );
+                if is_resolved {
+                    return Ok(Some(mapped));
+                }
+            }
+
+            // parametric mode can keep unresolved parameters symbolic
+            if mode == StaticEvaluationMode::Parametric {
+                let side_type_id = self.resolve_declared_type_expression(
+                    module, profile, side_id, tree, symbols, types, true, true,
+                )?;
+                return Ok(Some(side_type_id));
+            }
+
+            // instantiated mode keeps unresolved parameters deferred
+            return Ok(None);
+        }
+
+        let side_type_id = self.resolve_declared_type_expression(
+            module, profile, side_id, tree, symbols, types, true, true,
+        )?;
+        Ok(Some(side_type_id))
+    }
+
+    /// Return true when one conditional operand type is resolved for static branch selection.
+    fn static_conditional_operand_is_resolved_for_evaluation(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        self.type_is_converged_for_static_evaluation(module, profile, type_id, symbols, types)
+    }
+
+    /// Return true when both conditional operand types are resolved for static branch selection.
+    fn static_conditional_operands_are_resolved_for_evaluation(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        left_type_id: LocalTypeId,
+        right_type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        self.static_conditional_operand_is_resolved_for_evaluation(
+            module,
+            profile,
+            left_type_id,
+            symbols,
+            types,
+        ) && self.static_conditional_operand_is_resolved_for_evaluation(
+            module,
+            profile,
+            right_type_id,
+            symbols,
+            types,
+        )
     }
 }
