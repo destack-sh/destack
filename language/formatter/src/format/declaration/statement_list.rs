@@ -9,8 +9,7 @@ use crate::format::directive::{
 use crate::format::expression::format_expression;
 use destack_ast::{
     AnnotationPosition, Block, BlockContext, Declaration, Expression, FunctionKind, FunctionMode,
-    IfCondition, IfKind, LocalNodeId, Member, NodeTree, NodeType, Property, ScalarLiteral,
-    WhileKind,
+    IfCondition, IfKind, LocalNodeId, Member, NodeType, Property, WhileKind,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -19,16 +18,6 @@ use destack_source::{FileId, Span};
 
 use crate::format::declaration::dependency as imports;
 use crate::{DestackFormatContext, DestackFormatter};
-
-/// Check whether an expression is a directive prologue string literal.
-fn is_directive_expression(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
-    match tree.get(expression_id) {
-        Expression::Statement(inner_id) => is_directive_expression(tree, *inner_id),
-        Expression::Parenthesized { expression } => is_directive_expression(tree, *expression),
-        Expression::ScalarLiteral(ScalarLiteral::String(_)) => true,
-        _ => false,
-    }
-}
 
 /// Return whether trivia between two expressions contains one explicit blank line.
 fn expressions_have_blank_line_between(
@@ -88,24 +77,6 @@ fn expression_prefix_start(
     }
 
     start
-}
-
-/// Return whether an expression or its declaration wrapper has any prefix annotation.
-fn expression_has_effective_prefix_annotation(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    if context.has_prefix_annotation(expression_id) {
-        return true;
-    }
-
-    match context.tree.get(expression_id) {
-        Expression::Declaration(declaration_id) => context.has_prefix_annotation(*declaration_id),
-        Expression::Statement(inner_id) => {
-            expression_has_effective_prefix_annotation(context, *inner_id)
-        }
-        _ => false,
-    }
 }
 
 /// Return whether an expression or declaration wrapper has one non-comment prefix annotation.
@@ -340,18 +311,6 @@ pub(crate) fn format_block_of_statements<'ast>(
             Cow::Borrowed(expressions)
         };
 
-    let directive_count = effective_expressions
-        .iter()
-        .take_while(|&&expr_id| is_directive_expression(tree, expr_id))
-        .count();
-    let insert_blank_after_directive_prologue = if directive_count == 0 {
-        false
-    } else {
-        let last_directive_expression = effective_expressions[directive_count - 1];
-        !expression_has_effective_prefix_annotation(f.context(), last_directive_expression)
-            && !expression_has_effective_postfix_annotation(f.context(), last_directive_expression)
-    };
-
     let mut prev_was_import = false;
     let mut prev_import_id: Option<LocalNodeId<Expression>> = None;
     let mut previous_output_end: Option<(FileId, u32)> = None;
@@ -436,9 +395,7 @@ pub(crate) fn format_block_of_statements<'ast>(
                 }
 
                 // determine if we need an extra blank line
-                let needs_blank = if directive_count > 0 && i == directive_count {
-                    insert_blank_after_directive_prologue && !has_blank_prefix_annotation
-                } else if organize && prev_was_import && is_import_expr {
+                let needs_blank = if organize && prev_was_import && is_import_expr {
                     // check if different import groups
                     prev_import_id.is_some_and(|prev_id| {
                         imports::should_insert_blank_between(

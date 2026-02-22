@@ -37,6 +37,29 @@ struct CommentAttachmentSetup<'a> {
     owners: CommentAttachmentOwners,
 }
 
+/// Enumerate ordered comment-routing phases for one seam attachment decision.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CommentRoutingPhase {
+    /// Attach comments enclosed by matching delimiters.
+    DelimiterInterior,
+    /// Attach comments between parameter names and type boundaries.
+    ParameterTypeBoundary,
+    /// Apply expression seam rules.
+    Expression,
+    /// Apply statement prefix rules.
+    StatementPrefix,
+    /// Apply declaration rules.
+    Declaration,
+    /// Apply statement suffix rules.
+    StatementSuffix,
+    /// Apply assignment seam rules.
+    Assignment,
+    /// Apply block-body seam rules.
+    BlockBody,
+    /// Apply default fallback rules.
+    Default,
+}
+
 /// Build seam context and initial owner candidates.
 #[allow(clippy::too_many_arguments)]
 fn build_comment_attachment_setup<'a>(
@@ -196,8 +219,9 @@ fn try_attach_comment_parameter_type_boundary(
     Some((Some(target_node), AnnotationPosition::BlockInfix))
 }
 
-/// Try specialized seam attachment handlers in priority order.
-fn try_attach_comment_with_specialized_handlers(
+/// Try one ordered comment-routing phase.
+fn try_attach_comment_routing_phase(
+    phase: CommentRoutingPhase,
     tree: &NodeTree,
     owner_index: &FormatterTriviaOwnerIndex,
     parents: &NodeParentIndex,
@@ -206,45 +230,47 @@ fn try_attach_comment_with_specialized_handlers(
     seam_owner_cache: &mut CommentSeamOwnerCache,
     owners: CommentAttachmentOwners,
 ) -> Option<CommentAttachmentDecision> {
-    if let Some(decision) = try_attach_comment_expression(
-        tree,
-        owner_index,
-        parents,
-        context,
-        facts,
-        seam_owner_cache,
-        owners,
-    ) {
-        return Some(decision);
+    match phase {
+        CommentRoutingPhase::DelimiterInterior => {
+            try_attach_comment_delimiter_interior(tree, context)
+        }
+        CommentRoutingPhase::ParameterTypeBoundary => {
+            try_attach_comment_parameter_type_boundary(tree, parents, context, owners)
+        }
+        CommentRoutingPhase::Expression => try_attach_comment_expression(
+            tree,
+            owner_index,
+            parents,
+            context,
+            facts,
+            seam_owner_cache,
+            owners,
+        ),
+        CommentRoutingPhase::StatementPrefix => try_attach_comment_statement_prefix(
+            tree,
+            parents,
+            context,
+            facts,
+            seam_owner_cache,
+            owners,
+        ),
+        CommentRoutingPhase::Declaration => {
+            try_attach_comment_declaration(tree, owner_index, parents, context, facts, owners)
+        }
+        CommentRoutingPhase::StatementSuffix => {
+            try_attach_comment_statement_suffix(tree, parents, facts, owners)
+        }
+        CommentRoutingPhase::Assignment => {
+            try_attach_comment_assignment(tree, parents, context, facts, seam_owner_cache, owners)
+        }
+        CommentRoutingPhase::BlockBody => try_attach_comment_block_body(tree, facts, owners),
+        CommentRoutingPhase::Default => Some(attach_comment_default(
+            context,
+            facts,
+            seam_owner_cache,
+            owners,
+        )),
     }
-
-    if let Some(decision) =
-        try_attach_comment_statement_prefix(tree, parents, context, facts, seam_owner_cache, owners)
-    {
-        return Some(decision);
-    }
-
-    if let Some(decision) =
-        try_attach_comment_declaration(tree, owner_index, parents, context, facts, owners)
-    {
-        return Some(decision);
-    }
-
-    if let Some(decision) = try_attach_comment_statement_suffix(tree, parents, facts, owners) {
-        return Some(decision);
-    }
-
-    if let Some(decision) =
-        try_attach_comment_assignment(tree, parents, context, facts, seam_owner_cache, owners)
-    {
-        return Some(decision);
-    }
-
-    if let Some(decision) = try_attach_comment_block_body(tree, facts, owners) {
-        return Some(decision);
-    }
-
-    None
 }
 
 /// Normalize line comments after object member trailing commas inside call arguments.
@@ -306,38 +332,37 @@ pub(crate) fn resolve_comment_trivia_attachment(
     );
     let context = setup.context;
     let owners = setup.owners;
-
-    if let Some(decision) = try_attach_comment_delimiter_interior(tree, &context) {
-        return decision;
-    }
-
-    if let Some(decision) =
-        try_attach_comment_parameter_type_boundary(tree, parents, &context, owners)
-    {
-        return decision;
-    }
-
     let facts = CommentSeamFacts::build(&context);
     let mut seam_owner_cache = CommentSeamOwnerCache::default();
+    let routing_phases = [
+        CommentRoutingPhase::DelimiterInterior,
+        CommentRoutingPhase::ParameterTypeBoundary,
+        CommentRoutingPhase::Expression,
+        CommentRoutingPhase::StatementPrefix,
+        CommentRoutingPhase::Declaration,
+        CommentRoutingPhase::StatementSuffix,
+        CommentRoutingPhase::Assignment,
+        CommentRoutingPhase::BlockBody,
+        CommentRoutingPhase::Default,
+    ];
 
-    if let Some(decision) = try_attach_comment_with_specialized_handlers(
-        tree,
-        owner_index,
-        parents,
-        &context,
-        &facts,
-        &mut seam_owner_cache,
-        owners,
-    ) {
-        let decision = normalize_trailing_object_member_comment_attachment(
-            tree, parents, &context, &facts, decision,
-        );
-        return decision;
+    for phase in routing_phases {
+        if let Some(decision) = try_attach_comment_routing_phase(
+            phase,
+            tree,
+            owner_index,
+            parents,
+            &context,
+            &facts,
+            &mut seam_owner_cache,
+            owners,
+        ) {
+            let decision = normalize_trailing_object_member_comment_attachment(
+                tree, parents, &context, &facts, decision,
+            );
+            return decision;
+        }
     }
 
-    let decision = attach_comment_default(&context, &facts, &mut seam_owner_cache, owners);
-    let decision = normalize_trailing_object_member_comment_attachment(
-        tree, parents, &context, &facts, decision,
-    );
-    decision
+    unreachable!("comment routing pipeline must resolve through default phase")
 }

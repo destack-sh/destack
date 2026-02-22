@@ -1316,6 +1316,144 @@ pub(crate) fn resolve_pattern_inline_layout(
     None
 }
 
+/// Store early call-layout inputs before profiled expansion work.
+#[derive(Clone, Copy)]
+pub(crate) struct EarlyCallLayoutInputs {
+    /// Shared call argument layout state.
+    pub(crate) layout_state: CallArgumentLayoutState,
+    /// Whether boundary comments were detected around call arguments.
+    pub(crate) has_boundary_comments: bool,
+}
+
+/// Store early call-layout facts used by strategy selection.
+pub(crate) struct EarlyCallLayoutFacts {
+    /// The resolved inline/pattern decision when one early rule wins.
+    pub(crate) early_decision: Option<CallArgumentLayoutDecision>,
+    /// Whether any dynamic argument has annotations.
+    pub(crate) has_any_argument_annotation: bool,
+    /// Comment routing outputs for early layout.
+    pub(crate) comment_layout_result: EarlyCommentLayoutResult,
+}
+
+/// Store one selected early call-layout strategy.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum EarlyCallLayoutStrategy {
+    /// Return one early inline/pattern decision.
+    EarlyDecision,
+    /// Return one comment-expanded decision.
+    CommentExpanded,
+    /// Continue through profiled call-layout rules.
+    ContinueProfiled,
+}
+
+/// Collect early call-layout facts in precedence order.
+pub(crate) fn collect_early_call_layout_facts(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    inputs: EarlyCallLayoutInputs,
+) -> EarlyCallLayoutFacts {
+    // boundary comments should block aggressive inline and hug-last behavior
+    let has_any_argument_annotation = inputs
+        .layout_state
+        .argument_shape
+        .has_any_argument_annotation;
+
+    // single-argument inline rules
+    if let Some(decision) = resolve_single_argument_inline_layout(
+        context,
+        dynamic_arguments,
+        inputs.layout_state,
+        inputs.has_boundary_comments,
+    ) {
+        return EarlyCallLayoutFacts {
+            early_decision: Some(decision),
+            has_any_argument_annotation,
+            comment_layout_result: EarlyCommentLayoutResult {
+                decision: None,
+                has_line_comment_annotations: false,
+            },
+        };
+    }
+
+    // recognized call-pattern inline rules
+    if let Some(decision) = resolve_pattern_inline_layout(
+        context,
+        call_node_id,
+        dynamic_arguments,
+        inputs.has_boundary_comments,
+    ) {
+        return EarlyCallLayoutFacts {
+            early_decision: Some(decision),
+            has_any_argument_annotation,
+            comment_layout_result: EarlyCommentLayoutResult {
+                decision: None,
+                has_line_comment_annotations: false,
+            },
+        };
+    }
+
+    // comment signals can force expanded layout
+    let comment_layout_result = resolve_comment_layout_result(
+        context,
+        call_node_id,
+        dynamic_arguments,
+        has_any_argument_annotation,
+        inputs.layout_state.has_call_infix_annotations,
+    );
+
+    EarlyCallLayoutFacts {
+        early_decision: None,
+        has_any_argument_annotation,
+        comment_layout_result,
+    }
+}
+
+/// Select one early call-layout strategy from collected facts.
+pub(crate) fn select_early_call_layout_strategy(
+    layout_facts: &EarlyCallLayoutFacts,
+) -> EarlyCallLayoutStrategy {
+    if layout_facts.early_decision.is_some() {
+        return EarlyCallLayoutStrategy::EarlyDecision;
+    }
+
+    if layout_facts.comment_layout_result.decision.is_some() {
+        return EarlyCallLayoutStrategy::CommentExpanded;
+    }
+
+    EarlyCallLayoutStrategy::ContinueProfiled
+}
+
+/// Render one selected early call-layout strategy.
+pub(crate) fn render_early_call_layout_strategy(
+    layout_facts: EarlyCallLayoutFacts,
+    layout_strategy: EarlyCallLayoutStrategy,
+) -> EarlyCallArgumentLayoutOutcome {
+    match layout_strategy {
+        EarlyCallLayoutStrategy::EarlyDecision => {
+            let decision = layout_facts
+                .early_decision
+                .expect("early layout strategy requires an early decision");
+            EarlyCallArgumentLayoutOutcome::Final(decision)
+        }
+        EarlyCallLayoutStrategy::CommentExpanded => {
+            let decision = layout_facts
+                .comment_layout_result
+                .decision
+                .expect("early layout strategy requires a comment-expanded decision");
+            EarlyCallArgumentLayoutOutcome::Final(decision)
+        }
+        EarlyCallLayoutStrategy::ContinueProfiled => {
+            EarlyCallArgumentLayoutOutcome::Continue(EarlyCallArgumentLayoutSignals {
+                has_any_argument_annotation: layout_facts.has_any_argument_annotation,
+                has_line_comment_annotations: layout_facts
+                    .comment_layout_result
+                    .has_line_comment_annotations,
+            })
+        }
+    }
+}
+
 /// Resolve early call argument layout rules before expansion profile work.
 pub(crate) fn resolve_early_call_argument_layout(
     context: &DestackFormatContext<'_>,
@@ -1324,48 +1462,18 @@ pub(crate) fn resolve_early_call_argument_layout(
     layout_state: CallArgumentLayoutState,
     has_boundary_comments: bool,
 ) -> EarlyCallArgumentLayoutOutcome {
-    // single-argument inline rules
-    if let Some(decision) = resolve_single_argument_inline_layout(
-        context,
-        dynamic_arguments,
+    let layout_inputs = EarlyCallLayoutInputs {
         layout_state,
         has_boundary_comments,
-    ) {
-        return EarlyCallArgumentLayoutOutcome::Final(decision);
-    }
-
-    // recognized call-pattern inline rules
-    if let Some(decision) = resolve_pattern_inline_layout(
-        context,
-        call_node_id,
-        dynamic_arguments,
-        has_boundary_comments,
-    ) {
-        return EarlyCallArgumentLayoutOutcome::Final(decision);
-    }
-
-    // boundary comments should block aggressive inline and hug-last behavior
-    let has_any_argument_annotation = layout_state.argument_shape.has_any_argument_annotation;
-
-    // comment signals can force expanded layout
-    let comment_layout_result = resolve_comment_layout_result(
-        context,
-        call_node_id,
-        dynamic_arguments,
-        has_any_argument_annotation,
-        layout_state.has_call_infix_annotations,
-    );
-    if let Some(decision) = comment_layout_result.decision {
-        return EarlyCallArgumentLayoutOutcome::Final(decision);
-    }
-
-    EarlyCallArgumentLayoutOutcome::Continue(EarlyCallArgumentLayoutSignals {
-        has_any_argument_annotation,
-        has_line_comment_annotations: comment_layout_result.has_line_comment_annotations,
-    })
+    };
+    let layout_facts =
+        collect_early_call_layout_facts(context, call_node_id, dynamic_arguments, layout_inputs);
+    let layout_strategy = select_early_call_layout_strategy(&layout_facts);
+    render_early_call_layout_strategy(layout_facts, layout_strategy)
 }
 
 /// Store force-expand signals resolved for profiled layout.
+#[derive(Clone, Copy)]
 pub(crate) struct ProfileForceExpandState {
     /// Whether list-default rendering must expand.
     pub(crate) force_expand: bool,
@@ -1373,6 +1481,39 @@ pub(crate) struct ProfileForceExpandState {
     pub(crate) has_block_callback_argument: bool,
     /// Whether the last argument is a collection literal.
     pub(crate) trailing_collection_argument: bool,
+}
+
+/// Store profiled call-layout inputs carried from early layout rules.
+#[derive(Clone, Copy)]
+pub(crate) struct ProfiledCallLayoutInputs {
+    /// Whether any argument has annotations.
+    pub(crate) has_any_argument_annotation: bool,
+    /// Whether line comment annotations exist in arguments.
+    pub(crate) has_line_comment_annotations: bool,
+    /// Whether boundary comments were detected around call arguments.
+    pub(crate) has_boundary_comments: bool,
+}
+
+/// Store profiled call-layout facts used by strategy selection.
+#[derive(Clone, Copy)]
+pub(crate) struct ProfiledCallLayoutFacts {
+    /// The call argument profile inputs.
+    pub(crate) inputs: ProfiledCallLayoutInputs,
+    /// Whether the call node has infix annotations.
+    pub(crate) has_call_infix_annotations: bool,
+    /// The computed force-expand state.
+    pub(crate) force_expand_state: ProfileForceExpandState,
+}
+
+/// Store the selected profiled call-layout strategy.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ProfiledCallLayoutStrategy {
+    /// Keep arguments inline with hug-last style.
+    HugLastInline,
+    /// Use trailing-collection expanded layout.
+    TrailingCollectionExpanded,
+    /// Use default list layout.
+    ListDefault,
 }
 
 /// Resolve force-expand state from expansion profile and structural signals.
@@ -1413,6 +1554,35 @@ pub(crate) fn resolve_profile_force_expand_state(
     }
 }
 
+/// Collect profiled call-layout facts from expansion profile and early-layout inputs.
+pub(crate) fn collect_profiled_call_layout_facts(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    inputs: ProfiledCallLayoutInputs,
+) -> ProfiledCallLayoutFacts {
+    let expansion_profile = {
+        let _timing =
+            context.timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_EXPANSION_PROFILE);
+        resolve_regular_call_argument_expansion_profile(context, call_node_id, dynamic_arguments)
+    };
+    let force_expand_state = resolve_profile_force_expand_state(
+        context,
+        dynamic_arguments,
+        expansion_profile.force_expand,
+        expansion_profile.trailing_collection_argument,
+        inputs.has_any_argument_annotation,
+        inputs.has_line_comment_annotations,
+        inputs.has_boundary_comments,
+    );
+
+    ProfiledCallLayoutFacts {
+        inputs,
+        has_call_infix_annotations: expansion_profile.has_call_infix_annotations,
+        force_expand_state,
+    }
+}
+
 /// Resolve hug-last layout when candidates are eligible.
 pub(crate) fn resolve_hug_last_layout(
     context: &DestackFormatContext<'_>,
@@ -1448,6 +1618,72 @@ pub(crate) fn resolve_hug_last_layout(
     }
 }
 
+/// Select one profiled call-layout strategy from collected facts.
+pub(crate) fn select_profiled_call_layout_strategy(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    layout_facts: ProfiledCallLayoutFacts,
+) -> ProfiledCallLayoutStrategy {
+    if let Some(_decision) = resolve_hug_last_layout(
+        context,
+        call_node_id,
+        dynamic_arguments,
+        &layout_facts.force_expand_state,
+        layout_facts.inputs.has_line_comment_annotations,
+        layout_facts.inputs.has_boundary_comments,
+        layout_facts.has_call_infix_annotations,
+    ) {
+        return ProfiledCallLayoutStrategy::HugLastInline;
+    }
+
+    if call_arguments_use_trailing_collection_expanded_layout(
+        context,
+        dynamic_arguments,
+        layout_facts.force_expand_state.force_expand,
+        layout_facts.force_expand_state.has_block_callback_argument,
+        layout_facts.inputs.has_any_argument_annotation,
+        layout_facts.inputs.has_line_comment_annotations,
+        layout_facts.inputs.has_boundary_comments,
+    ) {
+        return ProfiledCallLayoutStrategy::TrailingCollectionExpanded;
+    }
+
+    ProfiledCallLayoutStrategy::ListDefault
+}
+
+/// Render one selected profiled call-layout strategy.
+pub(crate) fn render_profiled_call_layout_strategy(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    layout_facts: ProfiledCallLayoutFacts,
+    layout_strategy: ProfiledCallLayoutStrategy,
+) -> CallArgumentLayoutDecision {
+    match layout_strategy {
+        ProfiledCallLayoutStrategy::HugLastInline => {
+            context.increment_counter("call.arguments.path.hug_last_inline", 1);
+            CallArgumentLayoutDecision::InlineAll
+        }
+        ProfiledCallLayoutStrategy::TrailingCollectionExpanded => {
+            context.increment_counter("call.arguments.path.trailing_collection_expanded", 1);
+            CallArgumentLayoutDecision::TrailingCollectionExpanded
+        }
+        ProfiledCallLayoutStrategy::ListDefault => {
+            context.increment_counter("call.arguments.path.list_default", 1);
+            let default_list_layout = resolve_default_call_argument_layout(
+                context,
+                call_node_id,
+                dynamic_arguments,
+                layout_facts.force_expand_state.force_expand,
+                layout_facts.inputs.has_line_comment_annotations,
+                layout_facts.inputs.has_any_argument_annotation,
+            );
+            CallArgumentLayoutDecision::ListDefault(default_list_layout)
+        }
+    }
+}
+
 /// Resolve profiled call argument layout rules from expansion facts.
 pub(crate) fn resolve_profiled_call_argument_layout(
     context: &DestackFormatContext<'_>,
@@ -1457,59 +1693,26 @@ pub(crate) fn resolve_profiled_call_argument_layout(
     has_line_comment_annotations: bool,
     has_boundary_comments: bool,
 ) -> CallArgumentLayoutDecision {
-    // expansion profile drives default and hug-last policy paths
-    let expansion_profile = {
-        let _timing =
-            context.timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_EXPANSION_PROFILE);
-        resolve_regular_call_argument_expansion_profile(context, call_node_id, dynamic_arguments)
+    let layout_inputs = ProfiledCallLayoutInputs {
+        has_any_argument_annotation,
+        has_line_comment_annotations,
+        has_boundary_comments,
     };
-    let has_call_infix_annotations = expansion_profile.has_call_infix_annotations;
-    let force_expand_state = resolve_profile_force_expand_state(
-        context,
-        dynamic_arguments,
-        expansion_profile.force_expand,
-        expansion_profile.trailing_collection_argument,
-        has_any_argument_annotation,
-        has_line_comment_annotations,
-        has_boundary_comments,
-    );
-
-    // hug-last candidates can still end in default list rendering
-    if let Some(decision) = resolve_hug_last_layout(
+    let layout_facts =
+        collect_profiled_call_layout_facts(context, call_node_id, dynamic_arguments, layout_inputs);
+    let layout_strategy = select_profiled_call_layout_strategy(
         context,
         call_node_id,
         dynamic_arguments,
-        &force_expand_state,
-        has_line_comment_annotations,
-        has_boundary_comments,
-        has_call_infix_annotations,
-    ) {
-        return decision;
-    }
-
-    if call_arguments_use_trailing_collection_expanded_layout(
-        context,
-        dynamic_arguments,
-        force_expand_state.force_expand,
-        force_expand_state.has_block_callback_argument,
-        has_any_argument_annotation,
-        has_line_comment_annotations,
-        has_boundary_comments,
-    ) {
-        context.increment_counter("call.arguments.path.trailing_collection_expanded", 1);
-        return CallArgumentLayoutDecision::TrailingCollectionExpanded;
-    }
-
-    context.increment_counter("call.arguments.path.list_default", 1);
-    let default_list_layout = resolve_default_call_argument_layout(
+        layout_facts,
+    );
+    render_profiled_call_layout_strategy(
         context,
         call_node_id,
         dynamic_arguments,
-        force_expand_state.force_expand,
-        has_line_comment_annotations,
-        has_any_argument_annotation,
-    );
-    CallArgumentLayoutDecision::ListDefault(default_list_layout)
+        layout_facts,
+        layout_strategy,
+    )
 }
 
 /// Decide post-hugged call argument layout.

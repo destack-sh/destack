@@ -9,8 +9,8 @@ use crate::format::declaration::signature::{
 use crate::{Annotation, DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, Comment, CommentStyle, Declaration, DeclarationDescriptor, Expression,
-    FunctionCardinality, FunctionKind, FunctionSignature, Keyword, LocalNodeId, NodeType,
-    Parameter, Pattern,
+    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, Keyword, LocalNodeId,
+    NodeType, Parameter, Pattern,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -201,8 +201,11 @@ fn write_lambda_arrow_with_infix_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
 ) -> FormatResult<()> {
-    write!(f, [f.context().block_infix_annotations(node_id)])?;
-    if !f.context().has_infix_annotation(node_id) {
+    write!(
+        f,
+        [f.context().declaration_arrow_infix_annotations(node_id)]
+    )?;
+    if !f.context().has_declaration_arrow_infix_annotation(node_id) {
         write!(f, [space()])?;
     }
     write!(f, [token("=>")])
@@ -234,6 +237,11 @@ pub(crate) fn format_function_declaration<'ast>(
         FunctionHeaderStyle::Declaration,
         descriptor.name.is_some(),
     )?;
+
+    // constructor type signatures can own inline seam comments between `new` and `(`
+    if signature.mode == Some(FunctionMode::New) {
+        write!(f, [f.context().declaration_new_head_annotations(node_id)])?;
+    }
 
     // name / key
     if signature.kind == FunctionKind::Function

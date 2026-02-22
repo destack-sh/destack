@@ -9,7 +9,6 @@ js/arrows/long-contents.js
 js/assignment-comments/function.js
 js/assignment-comments/number.js
 js/assignment-comments/string.js
-js/assignment/binaryish.js
 js/assignment/issue-1966.js
 js/binary-expressions/chain-expression.js
 js/binary-expressions/comment.js
@@ -63,8 +62,6 @@ js/decorators/mixed.js
 js/decorators/mobx.js
 js/decorators/multiline.js
 js/decorators/redux.js
-js/directives/newline.js
-js/directives/test.js
 js/empty-paren-comment/class-property.js
 js/empty-paren-comment/empty_paren_comment.js
 js/export-default/export-default-from/export.js
@@ -112,7 +109,6 @@ js/last-argument-expansion/issue-7518.js
 js/line-suffix-boundary/boundary.js
 js/literal/number.js
 js/logical-expressions/in-unary-expression.js
-js/logical-expressions/issue-7024.js
 js/member/expand.js
 js/method-chain/break-last-member.js
 js/method-chain/issue-4125.js
@@ -204,11 +200,9 @@ typescript/comments/16065.ts
 typescript/comments/16207.ts
 typescript/comments/16889.ts
 typescript/comments/after_jsx_generic.tsx
-typescript/comments/issues.ts
 typescript/comments/mapped-types.ts
 typescript/comments/method_types.ts
 typescript/comments/methods.ts
-typescript/comments/union.ts
 typescript/compiler/indexSignatureWithInitializer.ts
 typescript/conditional-types/comments.ts
 typescript/conditional-types/conditional-types.ts
@@ -257,7 +251,6 @@ typescript/tsx/not-react.ts
 typescript/tsx/optional-chaining.tsx
 typescript/tuple/dangling-comments.ts
 typescript/type-parameters-arguments/class-method.ts
-typescript/type-parameters-arguments/constraints-and-default.ts
 typescript/union/10599.ts
 typescript/union/5849.ts
 typescript/union/7725.ts
@@ -266,7 +259,6 @@ typescript/union/comments/18389.ts
 typescript/union/comments/18787.ts
 typescript/union/consistent-with-flow/18647.ts
 typescript/union/consistent-with-flow/18819.ts
-typescript/union/consistent-with-flow/comment.ts
 typescript/union/consistent-with-flow/conditional.ts
 typescript/union/consistent-with-flow/prettier-ignore.ts
 typescript/union/consistent-with-flow/single-type.ts

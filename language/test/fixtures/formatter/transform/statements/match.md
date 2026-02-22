@@ -34,11 +34,11 @@ match (x) { 1 => { process(); "one" }; 2 => { transform(); "two" }; _ => "other"
 match (x) {
     1 => {
         process();
-        "one";
+        "one"
     }
     2 => {
         transform();
-        "two";
+        "two"
     }
     _ => "other"
 }

@@ -1,13 +1,12 @@
-use crate::format::operator::{is_type_context, union_has_leading_pipe_token};
 use crate::{
     DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
     assert_format,
 };
 use destack_ast::{
-    Argument, BinaryOperator, Declaration, DeclarationDescriptor, Expression, LocalNodeId,
-    NodeParentIndex, NodeTree, NodeType,
+    Argument, Declaration, DeclarationDescriptor, Expression, LocalNodeId, NodeParentIndex,
+    NodeTree, NodeType,
 };
-use destack_source::{FileType, LanguageType};
+use destack_source::FileType;
 
 /// Build a formatter context for expression classifier assertions.
 fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_> {
@@ -23,32 +22,6 @@ fn context_from_formatter(formatter: &TestFormatter) -> DestackFormatContext<'_>
             parents: NodeParentIndex::from_tree(&formatter.tree),
         },
     )
-}
-
-/// Find the first call expression with the requested dynamic argument count.
-fn find_call_with_dynamic_argument_count(
-    tree: &NodeTree,
-    dynamic_argument_count: usize,
-) -> LocalNodeId<Expression> {
-    for raw_node_id in 0..tree.next_id() {
-        if tree.get_node_type(raw_node_id) != NodeType::Expression {
-            continue;
-        }
-
-        let expression_id = LocalNodeId::<Expression>::new(raw_node_id);
-        let Expression::Call {
-            dynamic_arguments, ..
-        } = tree.get(expression_id)
-        else {
-            continue;
-        };
-
-        if dynamic_arguments.len() == dynamic_argument_count {
-            return expression_id;
-        }
-    }
-
-    panic!("expected call expression with requested dynamic argument count");
 }
 
 /// Find the first parenthesized expression whose inner expression satisfies a predicate.

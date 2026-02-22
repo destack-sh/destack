@@ -579,6 +579,29 @@ mod tests {
         assert_eq!(formatted, expected);
     }
 
+    #[test]
+    fn test_type_mapped_remap_line_comment_attachment() {
+        let source = "{\n    type Paths<T> = {\n      [K in keyof T as // remap-note\n        `get${Capitalize<K & string>}`]: () => T[K]\n    }\n}";
+        let expected = "{\n    type Paths<T> = {\n        [K in keyof T as `get${Capitalize<K & string> // remap-note\n        }`]: () => T[K],\n    };\n}";
+        let (formatter, block_id) =
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
+                p.eat_block(destack_ast::BlockContext::Expression)
+            })
+            .expect("parse mapped remap comment source");
+        let context = context_from_formatter(&formatter);
+        let annotation_id = find_annotation_by_marker(&context, "remap-note")
+            .expect("expected remap-note annotation");
+        let owner_node = find_annotation_target_owner_node(&context, annotation_id)
+            .expect("expected remap owner node");
+        let owner_node_type = context.tree.get_node_type(owner_node as u32);
+        let position = context.annotation(annotation_id).position();
+        assert_eq!(owner_node_type, NodeType::Expression);
+        assert_eq!(position, AnnotationPosition::LinePostfix);
+
+        let formatted = formatter.format(&block_id, DestackFormatOptions::default());
+        assert_eq!(formatted, expected);
+    }
+
     /// Prefix cast comments before parenthesized values should keep one separating space.
     #[test]
     fn test_prefix_cast_comment_keeps_space_before_parenthesized_value() {

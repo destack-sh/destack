@@ -4,8 +4,8 @@ use crate::format::expression::{
     LocalNodeId, NodeTree, NodeType, OperatorPrecedence, ParenthesizedUnwrapPolicy,
     PostfixPosition, ScalarLiteral, Span, StringId, TypeBinaryOperator, block_indent,
     format_static_argument_list, format_with, group, hard_line_break, indent,
-    parenthesized_should_unwrap, should_parenthesize_index_expression, soft_line_break,
-    span_has_comment, token,
+    line_postfix_boundary, parenthesized_should_unwrap, should_parenthesize_index_expression,
+    soft_line_break, span_has_comment, token,
 };
 use destack_fir::format::Buffer;
 use destack_fir::{format_args, write};
@@ -217,11 +217,10 @@ pub(crate) fn format_type_template_literal<'ast>(
         write!(
             f,
             [
-                group(&format_args![
-                    token("${"),
-                    group(span).should_expand(should_expand_span),
-                    token("}")
-                ]),
+                token("${"),
+                group(span).should_expand(should_expand_span),
+                line_postfix_boundary(),
+                token("}"),
                 *segment,
             ]
         )?;
@@ -354,6 +353,17 @@ fn binary_operator_precedence_group(operator: BinaryOperator) -> u8 {
 /// Return whether nested binaries should flatten into one group.
 #[inline]
 fn should_flatten_binary(left_operator: BinaryOperator, right_operator: BinaryOperator) -> bool {
+    let both_logical_operators = matches!(
+        left_operator,
+        BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce
+    ) && matches!(
+        right_operator,
+        BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce
+    );
+    if both_logical_operators && left_operator != right_operator {
+        return false;
+    }
+
     binary_operator_precedence_group(left_operator)
         == binary_operator_precedence_group(right_operator)
 }

@@ -88,8 +88,9 @@ When the line width is exceeded, arrays break to multiple lines.
 
 ```ds expected
 [
-    1, 2, 3,
-    4, 5,
+    1, 2,
+    3, 4,
+    5,
 ];
 ```
 
@@ -526,8 +527,8 @@ Nested arrays also expand when the single nested array element expands.
 ```ds expected
 [
     [
-        1, 2, 3, 4, 5,
-        6,
+        1, 2, 3, 4,
+        5, 6,
     ],
 ];
 ```

@@ -100,8 +100,8 @@ Multiline block comments are preserved with formatting.
 ```ds expected
 {
     /*
-   * Comment 1
-   */
+     * Comment 1
+     */
     const x = 1;
 }
 ```
@@ -122,8 +122,8 @@ Doc comments precede declarations.
 ```ds expected
 {
     /** some multiline
-   * doc comment
-   * over multiple lines */
+     * doc comment
+     * over multiple lines */
     const X = 1;
 }
 ```
@@ -180,7 +180,8 @@ const valid = isActive() && /* must have permission */ hasPermission()
 
 ```ds expected
 const valid =
-    isActive() && /* must have permission */ hasPermission();
+    isActive() &&
+    /* must have permission */ hasPermission();
 ```
 
 ### comments in multiline logical chain
@@ -341,9 +342,9 @@ Block ignore comments keep the next expression unchanged.
 ```ts expected
 /* prettier-ignore */
 (() =>
-    c +
-        b +
-    d
+  c +
+    b +
+  d
 );
 ```
 
