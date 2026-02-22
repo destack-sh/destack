@@ -129,14 +129,12 @@ impl Compiler {
     }
 
     /// Select a member lookup mode from receiver type metadata only.
-    pub(crate) fn query_member_lookup_mode_for_type(&self, receiver_ty: &Type) -> MemberLookupMode {
-        // instance receivers should never surface static members
-        if matches!(receiver_ty, Type::Reference { .. }) {
-            return MemberLookupMode::Instance;
-        }
-
-        // fall back to unfiltered lookup for non-instance receivers
-        MemberLookupMode::Any
+    pub(crate) fn query_member_lookup_mode_for_type(
+        &self,
+        _receiver_ty: &Type,
+    ) -> MemberLookupMode {
+        // runtime receivers expose instance members only
+        MemberLookupMode::Instance
     }
 
     /// Classify member receiver behavior for symbol and type lookup paths.

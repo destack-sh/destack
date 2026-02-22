@@ -15,10 +15,7 @@ impl Compiler {
         stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &TypeTable) -> R,
     ) -> Result<R, TaskDependencyError> {
-        // remote reads must satisfy the stage gate
-        if module_id != module.id {
-            self.require_module_stage_for_read(module_id, profile, stage)?;
-        }
+        self.require_stage_for_remote_module_read(module.id, module_id, profile, stage)?;
 
         Ok(self.with_module_types_unchecked(module, profile, module_id, handle))
     }
@@ -33,10 +30,7 @@ impl Compiler {
         stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &TypeTable) -> R,
     ) -> Result<R, TaskDependencyError> {
-        // remote reads must satisfy the stage gate
-        if module_id != module.id {
-            self.require_module_stage_for_read(module_id, profile, stage)?;
-        }
+        self.require_stage_for_remote_module_read(module.id, module_id, profile, stage)?;
 
         Ok(self.with_module_types_or_local_unchecked(module, profile, module_id, types, handle))
     }
@@ -67,10 +61,7 @@ impl Compiler {
         stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &mut TypeTable) -> R,
     ) -> Result<R, TaskDependencyError> {
-        // remote reads must satisfy the stage gate
-        if module_id != module.id {
-            self.require_module_stage_for_read(module_id, profile, stage)?;
-        }
+        self.require_stage_for_remote_module_read(module.id, module_id, profile, stage)?;
 
         Ok(self.with_module_types_mut_unchecked(module, profile, module_id, handle))
     }

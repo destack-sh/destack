@@ -2284,7 +2284,7 @@ impl Compiler {
             return;
         }
 
-        let runtime_check = types.runtime_check_kind(expression_id.into_global_any(module.id));
+        let runtime_check = types.get_runtime_check_kind(expression_id.into_global_any(module.id));
         if matches!(
             runtime_check,
             Some(RuntimeCheckKind::UnionTag) | Some(RuntimeCheckKind::Constant(_))
@@ -2318,7 +2318,7 @@ impl Compiler {
             return;
         }
 
-        let runtime_check = types.runtime_check_kind(expression_id.into_global_any(module.id));
+        let runtime_check = types.get_runtime_check_kind(expression_id.into_global_any(module.id));
         if matches!(
             runtime_check,
             Some(RuntimeCheckKind::UnionTag) | Some(RuntimeCheckKind::Constant(_))

@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::module::GlobalMergeCategory;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -10,7 +11,6 @@ impl Compiler {
         member_symbol: Option<GlobalSymbolId>,
         inferred_member_ty_id: Option<LocalTypeId>,
         profile: ProfileId,
-        is_surface_inference: bool,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         let Some(member_symbol) = member_symbol else {
@@ -40,7 +40,7 @@ impl Compiler {
                 profile,
                 expression_id.into_any(),
                 member_symbol,
-                is_surface_inference,
+                false,
                 types,
             )?;
             member_ty_id = Some(remote_ty_id);
@@ -633,6 +633,9 @@ impl Compiler {
         let Some(symbol) = self.get_well_known_type_symbol(profile, well_known_symbol) else {
             return Ok(None);
         };
+        let symbol = self
+            .remap_typevalue_symbol_to_canonical_type_space(module, profile, symbol)
+            .map_err(AnalyzeError::from)?;
         self.resolve_member_symbol_for_symbol(
             module,
             symbol,
@@ -668,7 +671,10 @@ impl Compiler {
 
         // resolve members from the local module data
         if symbol.module_id == module.id {
-            let allow_merge = module.language_type.supports_declaration_merging();
+            let symbol_entry = symbols.get_symbol(symbol.local_id);
+            let allow_merge = module.language_type.supports_declaration_merging()
+                || symbol_entry.origin.is_global_augmentation()
+                || self.module_is_ambient_lib(module);
             let resolved = self.resolve_member_symbol_in_module(
                 module,
                 symbol,
@@ -679,6 +685,7 @@ impl Compiler {
                 symbols,
                 types,
                 allow_merge,
+                self.module_is_ambient_lib(module),
                 visited,
             )?;
             if resolved.is_some() {
@@ -710,7 +717,10 @@ impl Compiler {
                 AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     let owner_types = owner_module.dir(profile).types.read();
-                    let allow_merge = owner_module.language_type.supports_declaration_merging();
+                    let owner_symbol_entry = owner_symbols.get_symbol(symbol.local_id);
+                    let allow_merge = owner_module.language_type.supports_declaration_merging()
+                        || owner_symbol_entry.origin.is_global_augmentation()
+                        || self.module_is_ambient_lib(owner_module);
                     self.resolve_member_symbol_in_module(
                         module,
                         symbol,
@@ -721,6 +731,7 @@ impl Compiler {
                         owner_symbols,
                         &owner_types,
                         allow_merge,
+                        self.module_is_ambient_lib(owner_module),
                         visited,
                     )
                 },
@@ -757,6 +768,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &TypeTable,
         allow_merge: bool,
+        owner_is_ambient_lib: bool,
         visited: &mut Vec<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         let symbol_entry = symbols.get_symbol(symbol.local_id);
@@ -802,23 +814,20 @@ impl Compiler {
 
             // scan global augmentations for additional members
             if let Some(key) = symbol_entry.key
-                && !self.module_is_ambient_lib(module)
+                && (symbol_entry.origin.is_global_augmentation() || owner_is_ambient_lib)
             {
-                let mut merge_symbols = Vec::new();
-                if let Some(global_symbols) =
-                    self.get_global_symbol_group(module.id, profile, key, symbol_entry.space)
-                {
-                    merge_symbols.extend(global_symbols);
-                }
-                if !self.module_is_ambient_lib(module)
-                    && let Some(ambient_symbols) = self.get_ambient_lib_symbol_sources_for_merge(
-                        profile,
-                        key,
-                        symbol_entry.space,
-                    )
-                {
-                    merge_symbols.extend(ambient_symbols);
-                }
+                let merge_category = match lookup_mode {
+                    MemberLookupMode::Instance => GlobalMergeCategory::Instance,
+                    MemberLookupMode::Value => GlobalMergeCategory::Value,
+                    MemberLookupMode::Any => GlobalMergeCategory::Any,
+                };
+                let merge_symbols = self.collect_global_merge_sources_for_key(
+                    module,
+                    profile,
+                    key,
+                    symbol_entry.space,
+                    merge_category,
+                );
 
                 if !merge_symbols.is_empty() {
                     let mut seen = HashSet::new();

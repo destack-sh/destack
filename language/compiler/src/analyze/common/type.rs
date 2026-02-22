@@ -4,7 +4,7 @@ use destack_dir::{
     Block, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
     NodeType, PrimitiveType, RuntimeCheckKind, ScalarLiteral, StaticArgument, StaticExpression,
     StaticKey, StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
-    TypeUnaryOperator, TypeVisitor, TypeVisitorOptions, walk_static_argument,
+    TypeUnaryOperator, TypeVisitor, TypeVisitorOptions, are_types_equal, walk_static_argument,
     walk_static_expression, walk_type,
 };
 use destack_source::ModuleId;
@@ -1186,46 +1186,6 @@ impl Compiler {
         visitor.found
     }
 
-    /// Check whether a type needs instantiation before evaluation.
-    pub(crate) fn type_needs_instantiation(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-    ) -> bool {
-        // TODO #Cleanup: centralize this gate in the evaluation boundary once we split structural and evaluative normalization
-        // check for free static parameter references
-        let mut static_visited = HashSet::new();
-        let bound = HashSet::new();
-        if self.type_contains_free_static_parameters(
-            module,
-            profile,
-            type_id,
-            &bound,
-            symbols,
-            types,
-            &mut static_visited,
-        ) {
-            return true;
-        }
-
-        // check for inference variables
-        let mut infer_visited = HashSet::new();
-        if self.type_contains_infer_vars(type_id, types, &mut infer_visited) {
-            return true;
-        }
-
-        // check for conditional infer bindings
-        let mut binding_visited = HashSet::new();
-        if self.type_contains_infer(type_id, types, &mut binding_visited) {
-            return true;
-        }
-
-        false
-    }
-
     /// Check whether a type requires infer convergence before stable checking.
     pub(crate) fn type_requires_infer_convergence(
         &self,
@@ -1252,45 +1212,6 @@ impl Compiler {
         }
 
         false
-    }
-
-    /// Check whether a type requires convergence before static evaluation.
-    pub(crate) fn type_requires_static_evaluation_convergence(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-    ) -> bool {
-        // instantiation dependent types are not stable yet
-        if self.type_needs_instantiation(module, profile, type_id, symbols, types) {
-            return true;
-        }
-
-        // unevaluated static arguments are not stable yet
-        let mut static_argument_visited = HashSet::new();
-        if self.type_contains_unevaluated_static_arguments(
-            type_id,
-            types,
-            &mut static_argument_visited,
-        ) {
-            return true;
-        }
-
-        false
-    }
-
-    /// Check whether a type is converged for instantiated static evaluation.
-    pub(crate) fn type_is_converged_for_static_evaluation(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-    ) -> bool {
-        !self.type_requires_static_evaluation_convergence(module, profile, type_id, symbols, types)
     }
 
     /// Ensure a type id is evaluated when it is unevaluated.
@@ -1754,7 +1675,6 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
-        // NOTE #Suspicious: apparent type resolution prefers alias targets over instance types without checking instantiation
         // resolve through canonical import targets while preserving aliases
         let symbol = if symbol.ty() == SymbolType::Extension {
             symbol
@@ -1768,9 +1688,10 @@ impl Compiler {
             )
         };
 
-        // prefer alias targets as the apparent type when available
-        if let Some(alias_target_id) =
-            self.alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
+        // only aliases and newtypes expose apparent type through alias targets
+        if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
+            && let Some(alias_target_id) = self
+                .alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
         {
             return Some(alias_target_id);
         }
@@ -1825,19 +1746,25 @@ impl Compiler {
         source_type_id: LocalTypeId,
         types: &mut TypeTable,
     ) -> LocalTypeId {
-        // flatten nested unions and keep elements unique
+        // flatten nested unions and keep structurally unique elements
         let mut flattened = Vec::new();
         for element_id in elements {
             match types.get_type(element_id) {
                 Type::Union { elements: union } => {
                     for element_id in union {
-                        if !flattened.contains(element_id) {
+                        if !flattened
+                            .iter()
+                            .any(|existing| are_types_equal(*existing, *element_id, types))
+                        {
                             flattened.push(*element_id);
                         }
                     }
                 }
                 _ => {
-                    if !flattened.contains(&element_id) {
+                    if !flattened
+                        .iter()
+                        .any(|existing| are_types_equal(*existing, element_id, types))
+                    {
                         flattened.push(element_id);
                     }
                 }

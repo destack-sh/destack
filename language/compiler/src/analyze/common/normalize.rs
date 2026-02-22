@@ -1,16 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
-    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticParameterKind, SymbolSpace, SymbolTable, SymbolType, Type,
-    TypeBinaryOperator, TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
-    TypeUnaryOperator, WellKnownSymbol,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, StaticArgument,
+    StaticParameterKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement, TypeField,
+    TypeIndexSignature, TypeLiteral, TypeTable, TypeUnaryOperator, WellKnownSymbol,
 };
 use destack_workspace::{Module, ProfileId};
 
 use super::{AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode};
 use crate::timing::tags;
-use crate::{AnalyzeError, Assignability, Compiler};
+use crate::{AnalyzeError, Compiler};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -124,16 +123,26 @@ impl Compiler {
             candidates.extend(ambient);
         }
 
-        // select the first global match
-        if let Some(candidate) = candidates.into_iter().next() {
-            let candidate_module = self.program.modules.get(candidate.module_id);
-            let candidate_module = candidate_module.read();
-            let candidate_symbols = candidate_module.dir_base().symbols.read();
-            let candidate_entry = candidate_symbols.get_symbol(candidate.local_id);
-            return GlobalSymbolId::new(
-                candidate.module_id,
-                candidate.local_id.with_type(candidate_entry.ty),
-            );
+        // canonicalize candidates: normalize symbol typing, dedupe, then prefer local-module symbols
+        let mut normalized_candidates = candidates
+            .into_iter()
+            .map(|candidate| {
+                let candidate_module = self.program.modules.get(candidate.module_id);
+                let candidate_module = candidate_module.read();
+                let candidate_symbols = candidate_module.dir_base().symbols.read();
+                let candidate_entry = candidate_symbols.get_symbol(candidate.local_id);
+                GlobalSymbolId::new(
+                    candidate.module_id,
+                    candidate.local_id.with_type(candidate_entry.ty),
+                )
+            })
+            .collect::<Vec<_>>();
+        normalized_candidates.sort_unstable();
+        normalized_candidates.dedup();
+        normalized_candidates
+            .sort_unstable_by_key(|candidate| (candidate.module_id != module.id, *candidate));
+        if let Some(candidate) = normalized_candidates.into_iter().next() {
+            return candidate;
         }
 
         normalized
@@ -299,7 +308,7 @@ impl Compiler {
         // reuse cached normalization when available
         let relation_key = relation_mode.cache_key();
         if relation_mode.is_cacheable()
-            && let Some(entry) = types.normalized_type(mode, relation_key, type_id)
+            && let Some(entry) = types.get_normalized_type(mode, relation_key, type_id)
         {
             for (dependency_id, _) in &entry.dependency_versions.type_versions {
                 types.record_normalization_dependency(*dependency_id);
@@ -1180,84 +1189,6 @@ impl Compiler {
         normalized_id
     }
 
-    /// Normalize decidable type operators into boolean literal types.
-    fn normalize_decidable_type_operator(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        source_id: LocalNodeIdAny,
-        operator: TypeBinaryOperator,
-        left: LocalTypeId,
-        right: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        mode: NormalizationMode,
-        _relation_mode: RelationMode,
-    ) -> Option<LocalTypeId> {
-        // type operators always use type operations semantics
-        let relation_mode = RelationMode::TYPE_OPERATOR;
-
-        if !matches!(
-            operator,
-            TypeBinaryOperator::In
-                | TypeBinaryOperator::Is
-                | TypeBinaryOperator::InstanceOf
-                | TypeBinaryOperator::Extends
-                | TypeBinaryOperator::Implements
-        ) {
-            return None;
-        }
-
-        // unwrap type values before assignability checks
-        let unwrap_value = |ty_id: LocalTypeId, types: &TypeTable| match types.get_type(ty_id) {
-            Type::Value { value } => *value,
-            _ => ty_id,
-        };
-        let left = unwrap_value(left, types);
-        let right = unwrap_value(right, types);
-
-        // TODO #Cleanup: move this instantiation gate into the evaluation boundary once normalization is split
-        // treat instantiation dependent checks as undecidable
-        let left_needs_instantiation =
-            self.type_needs_instantiation(module, profile, left, symbols, types);
-        let right_needs_instantiation =
-            self.type_needs_instantiation(module, profile, right, symbols, types);
-        let is_decidable = !(left_needs_instantiation || right_needs_instantiation);
-        let options = self.analyze_context_options_for_module(module.id);
-
-        // compute assignability for operator semantics
-        let assignability = if operator == TypeBinaryOperator::In {
-            let mut key_visited = Vec::new();
-            let key_type_id = self.normalize_keyof_type(
-                module,
-                profile,
-                source_id,
-                None,
-                right,
-                symbols,
-                types,
-                mode,
-                relation_mode,
-                &mut key_visited,
-            );
-            self.is_type_assignable(module, profile, symbols, key_type_id, left, types, &options)
-        } else {
-            self.is_type_assignable(module, profile, symbols, right, left, types, &options)
-        };
-
-        let ty = if !is_decidable {
-            Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-            }
-        } else {
-            let value = matches!(assignability, Assignability::Assignable);
-            Type::TypeLiteral {
-                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(value)),
-            }
-        };
-        Some(types.insert_type_from_any(ty, source_id))
-    }
-
     /// Normalize type alias references with static arguments.
     pub(crate) fn normalize_type_alias_reference_with_arguments(
         &self,
@@ -1279,7 +1210,7 @@ impl Compiler {
         let relation_key = relation_mode.cache_key();
         if relation_mode.is_cacheable()
             && let Some(entry) =
-                types.normalized_alias_reference(symbol, mode, relation_key, arguments)
+                types.get_normalized_alias_reference(symbol, mode, relation_key, arguments)
         {
             for (dependency_id, _) in &entry.dependency_versions.type_versions {
                 types.record_normalization_dependency(*dependency_id);

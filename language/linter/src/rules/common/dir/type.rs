@@ -13,7 +13,7 @@ pub fn normalized_flow_type_id(
     types: &dir::TypeTable,
     type_id: dir::LocalTypeId,
 ) -> dir::LocalTypeId {
-    types.normalized_type_id_or(
+    types.get_normalized_type_id_or(
         dir::NormalizationMode::Flow,
         DEFAULT_RELATION_CACHE_KEY,
         type_id,

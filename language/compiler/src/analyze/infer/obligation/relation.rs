@@ -159,8 +159,8 @@ impl Compiler {
         Ok(())
     }
 
-    /// Report post solve type relation obligations after infer convergence.
-    pub(crate) fn report_type_relation_obligation_errors_after_infer_convergence(
+    /// Discharge post solve type relation obligations after infer convergence.
+    pub(crate) fn discharge_type_relation_obligations(
         &self,
         module: &Module,
         profile: ProfileId,

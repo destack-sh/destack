@@ -125,8 +125,8 @@ enum CallExpressionSignatureResolution {
         /// The resolved signature.
         signature: ResolvedSignature,
     },
-    /// Signature resolution synthesized an unknown call type.
-    UnknownType(LocalTypeId),
+    /// Signature resolution produced an indeterminate call result type.
+    IndeterminateType(LocalTypeId),
 }
 
 /// Resolved member-call typing context shared by call-resolution paths.
@@ -1853,7 +1853,7 @@ impl Compiler {
                     infer,
                     ctx,
                 )?,
-                CallExpressionSignatureResolution::UnknownType(type_id) => type_id,
+                CallExpressionSignatureResolution::IndeterminateType(type_id) => type_id,
             }
         };
 
@@ -2238,7 +2238,7 @@ impl Compiler {
             return Ok(types.insert_type_from(Type::Error, expression_id));
         }
 
-        Ok(self.synthesize_unknown_call_type(expression_id, types))
+        Ok(self.synthesize_indeterminate_call_result_type(expression_id, types))
     }
 
     /// Infer call arguments without contextual parameter types.
@@ -2260,8 +2260,8 @@ impl Compiler {
         Ok(())
     }
 
-    /// Synthesize an unknown result type for one call expression.
-    fn synthesize_unknown_call_type(
+    /// Synthesize an indeterminate semantic result type for one call expression.
+    fn synthesize_indeterminate_call_result_type(
         &self,
         expression_id: LocalNodeId<Expression>,
         types: &mut TypeTable,
@@ -2892,7 +2892,7 @@ impl Compiler {
             );
 
             return Ok(Some(
-                self.synthesize_unknown_call_type(expression_id, types),
+                self.synthesize_indeterminate_call_result_type(expression_id, types),
             ));
         }
 
@@ -2927,7 +2927,7 @@ impl Compiler {
         Some(elements.clone())
     }
 
-    /// Infer unresolved union member-call candidate resolution as unknown.
+    /// Infer unresolved union member-call candidate resolution as indeterminate.
     #[allow(clippy::too_many_arguments)]
     fn infer_unresolved_union_member_call_expression(
         &self,
@@ -2959,9 +2959,10 @@ impl Compiler {
             types,
         );
 
-        Ok(Some(
-            self.synthesize_unknown_call_type(expression_id, types),
-        ))
+        Ok(Some(self.synthesize_indeterminate_call_result_type(
+            expression_id,
+            types,
+        )))
     }
 
     /// Query uniform expected argument types across union-call candidates.
@@ -3447,7 +3448,7 @@ impl Compiler {
                     infer,
                     ctx,
                 )?,
-                CallExpressionSignatureResolution::UnknownType(type_id) => type_id,
+                CallExpressionSignatureResolution::IndeterminateType(type_id) => type_id,
             }
         };
 
@@ -3620,8 +3621,8 @@ impl Compiler {
                 ctx,
             )?;
 
-            return Ok(CallExpressionSignatureResolution::UnknownType(
-                self.synthesize_unknown_call_type(expression_id, types),
+            return Ok(CallExpressionSignatureResolution::IndeterminateType(
+                self.synthesize_indeterminate_call_result_type(expression_id, types),
             ));
         }
 
@@ -3653,8 +3654,8 @@ impl Compiler {
                 signature: resolved,
             })
         } else {
-            Ok(CallExpressionSignatureResolution::UnknownType(
-                self.synthesize_unknown_call_type(expression_id, types),
+            Ok(CallExpressionSignatureResolution::IndeterminateType(
+                self.synthesize_indeterminate_call_result_type(expression_id, types),
             ))
         }
     }
@@ -3698,7 +3699,7 @@ impl Compiler {
                 ctx,
             )?;
 
-            return Ok(self.synthesize_unknown_call_type(expression_id, types));
+            return Ok(self.synthesize_indeterminate_call_result_type(expression_id, types));
         }
 
         // infer argument types and constraints
@@ -3771,8 +3772,9 @@ impl Compiler {
             );
         }
 
-        Ok(resolved_return_type
-            .unwrap_or_else(|| self.synthesize_unknown_call_type(expression_id, types)))
+        Ok(resolved_return_type.unwrap_or_else(|| {
+            self.synthesize_indeterminate_call_result_type(expression_id, types)
+        }))
     }
 
     /// Infer behavior for non-constructable new-expression targets.
@@ -3818,7 +3820,7 @@ impl Compiler {
             ctx,
         )?;
 
-        Ok(self.synthesize_unknown_call_type(expression_id, types))
+        Ok(self.synthesize_indeterminate_call_result_type(expression_id, types))
     }
 
     /// Resolve a function type for a call, substituting static parameters when provided.

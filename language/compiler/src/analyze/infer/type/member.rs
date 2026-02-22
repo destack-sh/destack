@@ -2,6 +2,32 @@ use super::*;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Normalize one well known reference symbol before member inference recursion.
+    fn normalize_well_known_reference_for_member_inference(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        reference_ty: Type,
+    ) -> AnalyzeResult<Type> {
+        let Type::Reference {
+            symbol,
+            static_arguments,
+        } = reference_ty
+        else {
+            return Ok(reference_ty);
+        };
+
+        // normalize to declared symbol typing first
+        let symbol = self
+            .remap_typevalue_symbol_to_canonical_type_space(module, profile, symbol)
+            .map_err(AnalyzeError::from)?;
+
+        Ok(Type::Reference {
+            symbol,
+            static_arguments,
+        })
+    }
+
     pub(crate) fn infer_member_of_type(
         &self,
         module: &Module,
@@ -46,6 +72,11 @@ impl Compiler {
                 let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
                     return Ok(None);
                 };
+                let reference_ty = self.normalize_well_known_reference_for_member_inference(
+                    module,
+                    profile,
+                    reference_ty,
+                )?;
                 self.infer_member_of_type(
                     module,
                     profile,
@@ -64,6 +95,11 @@ impl Compiler {
                 let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
                     return Ok(None);
                 };
+                let reference_ty = self.normalize_well_known_reference_for_member_inference(
+                    module,
+                    profile,
+                    reference_ty,
+                )?;
                 self.infer_member_of_type(
                     module,
                     profile,
@@ -149,6 +185,11 @@ impl Compiler {
                 let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
                     return Ok(None);
                 };
+                let reference_ty = self.normalize_well_known_reference_for_member_inference(
+                    module,
+                    profile,
+                    reference_ty,
+                )?;
                 self.infer_member_of_type(
                     module,
                     profile,
@@ -264,6 +305,11 @@ impl Compiler {
                 let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
                     return Ok(None);
                 };
+                let reference_ty = self.normalize_well_known_reference_for_member_inference(
+                    module,
+                    profile,
+                    reference_ty,
+                )?;
                 self.infer_member_of_type(
                     module,
                     profile,
@@ -281,6 +327,11 @@ impl Compiler {
                 let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
                     return Ok(None);
                 };
+                let reference_ty = self.normalize_well_known_reference_for_member_inference(
+                    module,
+                    profile,
+                    reference_ty,
+                )?;
                 self.infer_member_of_type(
                     module,
                     profile,

@@ -66,6 +66,83 @@ const thing: GlobalThing = { value: 1, label: "ok" };
 thing.label satisfies string;
 ```
 
+### global class static members merge across imports
+
+> Global class declarations merge static value members from every imported augmentation.
+
+```ds:a.ds
+declare global {
+    class GlobalBox {
+        static left(): number;
+    }
+}
+```
+
+```ds:b.ds
+declare global {
+    class GlobalBox {
+        static right(): string;
+    }
+}
+```
+
+```ds:main.ds
+import "./a.ds";
+import "./b.ds";
+
+const left = GlobalBox.left();
+left satisfies number;
+
+const right = GlobalBox.right();
+right satisfies string;
+```
+
+### global class merges tolerate namespace value augmentations
+
+> Class and namespace global declarations can merge on one name without breaking instance typing.
+
+```ds:a.ds
+declare global {
+    class GlobalWidget {
+        ping(): number;
+    }
+}
+```
+
+```ds:b.ds
+declare global {
+    namespace GlobalWidget {
+        export const tag: string;
+    }
+}
+```
+
+```ds:main.ds
+import "./a.ds";
+import "./b.ds";
+
+declare const widget: GlobalWidget;
+widget.ping() satisfies number;
+
+GlobalWidget.tag satisfies string;
+```
+
+### global array augmentations preserve ambient array members
+
+> Global `Array<T>` augmentations add members without removing ambient library behavior.
+
+```ds:main.ds libs=es5
+declare global {
+    interface Array<T> {
+        first(): T | undefined;
+    }
+}
+
+const values = [1, 2, 3];
+values.length satisfies number;
+values.first() satisfies number | undefined;
+```
+
 ### global declarations do not conflict with module declarations
 
 > Global declarations live in a separate scope from module declarations.

@@ -432,7 +432,6 @@ impl Compiler {
             lookup.member_symbol,
             member_ty_id,
             ctx.profile,
-            ctx.is_surface_inference,
             types,
         )?;
 

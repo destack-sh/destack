@@ -6,8 +6,8 @@ use destack_workspace::{Module, ProfileId};
 use std::collections::HashSet;
 
 impl Compiler {
-    /// Report deferred missing member obligations after infer convergence.
-    pub(crate) fn report_missing_member_obligation_errors_after_infer_convergence(
+    /// Discharge deferred missing member obligations after infer convergence.
+    pub(crate) fn discharge_missing_member_obligations(
         &self,
         module: &Module,
         profile: ProfileId,

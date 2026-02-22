@@ -8,8 +8,8 @@ use destack_workspace::{Module, ProfileId};
 use std::collections::{HashMap, HashSet};
 
 impl Compiler {
-    /// Report unresolved associated comptime projection obligations after infer convergence.
-    pub(crate) fn report_associated_comptime_projection_obligation_errors(
+    /// Discharge associated comptime projection obligations after infer convergence.
+    pub(crate) fn discharge_associated_comptime_projection_obligations(
         &self,
         module: &Module,
         profile: ProfileId,

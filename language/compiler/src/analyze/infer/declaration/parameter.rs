@@ -36,7 +36,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         if symbol.module_id == module.id && types.module_id == module.id {
-            return types.get_static_parameter_constraint_type(symbol);
+            return types.query_published_static_parameter_constraint_type(symbol);
         }
 
         self.with_module_types_at_stage(
@@ -46,7 +46,7 @@ impl Compiler {
             AnalyzeDependencyStage::Declare,
             |_owner_module, owner_types| {
                 let owner_constraint_type_id =
-                    owner_types.get_static_parameter_constraint_type(symbol)?;
+                    owner_types.query_published_static_parameter_constraint_type(symbol)?;
                 let owner_constraint_type = owner_types.get_type(owner_constraint_type_id);
                 Some(self.import_type_from_remote_for_node(
                     source_id,
@@ -75,7 +75,7 @@ impl Compiler {
             symbol.module_id,
             types,
             AnalyzeDependencyStage::Declare,
-            |_owner_module, owner_types| owner_types.get_static_parameter_kind(symbol),
+            |_owner_module, owner_types| owner_types.query_published_static_parameter_kind(symbol),
         )
         .ok()
         .flatten()
@@ -96,7 +96,9 @@ impl Compiler {
             types,
             AnalyzeDependencyStage::Declare,
             |_owner_module, owner_types| {
-                owner_types.get_static_parameter_variance(symbol).flatten()
+                owner_types
+                    .query_published_static_parameter_variance(symbol)
+                    .flatten()
             },
         )
         .ok()
@@ -272,8 +274,10 @@ impl Compiler {
             AnalyzeDependencyStage::Declare,
             |_, owner_types| {
                 (
-                    owner_types.get_static_parameter_kind(symbol),
-                    owner_types.get_static_parameter_variance(symbol).flatten(),
+                    owner_types.query_published_static_parameter_kind(symbol),
+                    owner_types
+                        .query_published_static_parameter_variance(symbol)
+                        .flatten(),
                 )
             },
         ) {
@@ -303,7 +307,7 @@ impl Compiler {
                 continue;
             };
 
-            types.set_static_parameter_symbols(symbol, parameters.clone());
+            types.publish_static_parameter_symbols(symbol, parameters.clone());
             for parameter_symbol in parameters {
                 let kind = self
                     .static_parameter_kind_for_symbol_in_module(parameter_symbol, tree, symbols)
@@ -321,8 +325,8 @@ impl Compiler {
                     symbols,
                 );
 
-                types.set_static_parameter_kind(parameter_symbol, kind);
-                types.set_static_parameter_variance(parameter_symbol, variance);
+                types.publish_static_parameter_kind(parameter_symbol, kind);
+                types.publish_static_parameter_variance(parameter_symbol, variance);
             }
         }
     }
@@ -370,7 +374,7 @@ impl Compiler {
             } else {
                 self.synthesize_semantic_unknown_type_for_source(source_id, types)
             };
-            types.set_static_parameter_constraint_type(symbol, published_constraint_type_id);
+            types.publish_static_parameter_constraint_type(symbol, published_constraint_type_id);
         }
 
         Ok(())
@@ -436,7 +440,7 @@ impl Compiler {
                 symbol.module_id,
                 types,
                 AnalyzeDependencyStage::Declare,
-                |_, owner_types| owner_types.get_static_parameter_symbols(symbol),
+                |_, owner_types| owner_types.query_published_static_parameter_symbols(symbol),
             )
             .ok()
             .flatten()
@@ -453,7 +457,7 @@ impl Compiler {
             }
 
             if current.module_id == module.id {
-                if let Some(cached) = types.get_static_parameter_symbols(current) {
+                if let Some(cached) = types.query_published_static_parameter_symbols(current) {
                     break Some(cached);
                 }
 
@@ -481,7 +485,9 @@ impl Compiler {
                     AnalyzeDependencyStage::Declare,
                     |owner_module, owner_tree, owner_symbols| {
                         let owner_types = owner_module.dir(profile).types.read();
-                        if let Some(cached) = owner_types.get_static_parameter_symbols(current) {
+                        if let Some(cached) =
+                            owner_types.query_published_static_parameter_symbols(current)
+                        {
                             return (Some(cached), None);
                         }
 
