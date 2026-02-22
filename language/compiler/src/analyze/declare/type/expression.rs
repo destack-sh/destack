@@ -867,7 +867,7 @@ impl Compiler {
         let key = StaticKey::Name(path.segments[0]);
         let (scope_id, scope, _mark) = symbols.get_scope(span_id, tree);
         let mut scope_cursor = Some((scope_id, scope));
-        let mut fallback = None;
+        let mut nearest_non_preferred_symbol = None;
         let preferred_spaces = space_order.spaces();
 
         // walk scopes from inner to outer
@@ -905,9 +905,9 @@ impl Compiler {
                     continue;
                 }
 
-                // keep the nearest fallback only when no preferred symbol exists anywhere
-                if fallback.is_none() {
-                    fallback = Some(candidate_symbol);
+                // keep the nearest non-preferred symbol only when no preferred symbol exists anywhere
+                if nearest_non_preferred_symbol.is_none() {
+                    nearest_non_preferred_symbol = Some(candidate_symbol);
                 }
             }
 
@@ -921,7 +921,7 @@ impl Compiler {
                 .map(|(parent_id, _parent_mark)| (parent_id, symbols.get_scope_by_id(parent_id)));
         }
 
-        fallback
+        nearest_non_preferred_symbol
     }
 
     /// Collect element types for a binary union or intersection expression.

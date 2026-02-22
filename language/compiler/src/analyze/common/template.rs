@@ -56,7 +56,7 @@ enum TemplateSpanMatch {
 pub(super) enum TemplateLiteralKeyShape {
     /// Literal property keys produced by the template.
     Literal(Vec<StaticKey>),
-    /// A string index signature fallback for broad templates.
+    /// A string index signature key shape for broad templates.
     StringIndex,
 }
 
@@ -593,7 +593,7 @@ impl Compiler {
                     visited,
                 )
             }),
-            Type::InferVar { .. } | Type::Infer { .. } => true,
+            _ if span_ty.is_infer() => true,
             _ => false,
         };
 
@@ -670,7 +670,7 @@ impl Compiler {
                     visited,
                 )
             }),
-            Type::InferVar { .. } | Type::Infer { .. } => true,
+            _ if span_ty.is_infer() => true,
             _ => false,
         };
 

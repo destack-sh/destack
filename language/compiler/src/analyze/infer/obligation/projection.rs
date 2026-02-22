@@ -1,4 +1,11 @@
-use super::*;
+use crate::analyze::StaticMemberSymbolKind;
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use destack_dir::{
+    Expression, GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
+    StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
+};
+use destack_workspace::{Module, ProfileId};
+use std::collections::{HashMap, HashSet};
 
 impl Compiler {
     /// Report unresolved associated comptime projection obligations after infer convergence.
@@ -9,13 +16,18 @@ impl Compiler {
         types: &mut TypeTable,
         infer: &mut InferTable,
     ) -> AnalyzeResult<()> {
+        // collect deferred projection obligations from infer state
         let obligations = infer.take_associated_comptime_projection_obligations();
+
+        // read module owned semantic tables once
         let tree = module.dir(profile).tree.read();
         let symbols = module.dir(profile).symbols.read();
         let mut reported = HashSet::new();
 
+        // replay each deferred projection obligation
         let mut obligation_index = 0;
         while obligation_index < obligations.len() {
+            // resolve or recover the projected member symbol
             let obligation = &obligations[obligation_index];
             let obligation_member_symbol = self.resolve_projection_obligation_member_symbol(
                 module,
@@ -26,6 +38,8 @@ impl Compiler {
                 &symbols,
                 types,
             );
+
+            // resolve projected value type for the converged substitution environment
             let resolved_value_type_id = match self
                 .resolved_projection_obligation_value_type_after_infer(
                     module,
@@ -39,6 +53,7 @@ impl Compiler {
                 ) {
                 Ok(value) => value,
                 Err(AnalyzeError::Yield { dependency }) => {
+                    // restore obligations when replay yields on dependencies
                     for obligation in obligations {
                         infer.push_associated_comptime_projection_obligation(obligation);
                     }
@@ -48,6 +63,7 @@ impl Compiler {
                 Err(error) => return Err(error),
             };
 
+            // commit resolved projected value types
             if let Some(value_type_id) = resolved_value_type_id {
                 types.set_inferred_type(
                     obligation.expression_id.into_global_any(module.id),
@@ -56,11 +72,14 @@ impl Compiler {
                 obligation_index += 1;
                 continue;
             }
+
+            // report one diagnostic per expression id
             if !reported.insert(obligation.expression_id.id) {
                 obligation_index += 1;
                 continue;
             }
 
+            // emit unresolved projection diagnostics
             self.error(AnalyzeError::InvalidStaticArgument {
                 node: obligation
                     .expression_id
@@ -69,6 +88,7 @@ impl Compiler {
                 message: "associated comptime projection must be resolvable".to_string(),
             });
 
+            // commit error type after reporting
             let error_type_id = types.insert_type_from(Type::Error, obligation.expression_id);
             types.set_inferred_type(
                 obligation.expression_id.into_global_any(module.id),
@@ -91,6 +111,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> AnalyzeResult<bool> {
+        // check member kind facts when available
         let kind = self
             .query_static_member_symbol_kind_for_symbol(
                 module,
@@ -100,14 +121,11 @@ impl Compiler {
                 symbols,
             )
             .map_err(AnalyzeError::from)?;
-        if matches!(
-            kind,
-            Some(crate::analyze::StaticMemberSymbolKind::AssociatedComptimeConst)
-        ) {
+        if matches!(kind, Some(StaticMemberSymbolKind::AssociatedComptimeConst)) {
             return Ok(true);
         }
 
-        // keep projection obligations for static-argument member accesses when kind facts are not available yet
+        // keep obligations when kind facts are not available yet
         if kind.is_none() && receiver_has_static_arguments {
             return Ok(true);
         }
@@ -128,9 +146,12 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // unresolved member symbols stay deferred
         let Some(member_symbol) = member_symbol else {
             return Ok(None);
         };
+
+        // unresolved substitutions may still lead to primary static cycle errors
         if self.projection_obligation_substitutions_are_unresolved(
             module,
             profile,
@@ -172,7 +193,7 @@ impl Compiler {
         )
     }
 
-    /// Return true when unresolved substitutions may still produce a primary static-cycle error.
+    /// Return true when unresolved substitutions may still produce a primary static cycle error.
     #[allow(clippy::too_many_arguments)]
     fn unresolved_projection_obligation_requires_primary_static_error_check(
         &self,
@@ -191,7 +212,7 @@ impl Compiler {
         )
     }
 
-    /// Resolve one associated-comptime member symbol for one deferred projection obligation.
+    /// Resolve one associated comptime member symbol for one deferred projection obligation.
     #[allow(clippy::too_many_arguments)]
     fn resolve_projection_obligation_member_symbol(
         &self,
@@ -203,20 +224,25 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<GlobalSymbolId> {
+        // keep eager member symbols from infer
         if member_symbol.is_some() {
             return member_symbol;
         }
 
+        // only member expressions can recover projection symbols
         let Expression::Member { left, name, .. } = tree.get(expression_id) else {
             return None;
         };
         let left = self.unwrap_parenthesized_expression(*left, tree);
+
+        // recover only for projection receivers
         if !self.query_expression_is_projection_receiver_for_infer(
             module, profile, left, tree, symbols, types,
         ) {
             return None;
         }
 
+        // select associated comptime members from projection syntax
         let selection = self
             .select_associated_projection_member_symbol(
                 module,
@@ -245,25 +271,15 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &TypeTable,
     ) -> bool {
+        // unresolved substitutions block projection replay
         for substitution in substitutions.values().copied() {
             let substitution = types.unwrap_value_type_id(substitution);
-            if self.type_contains_static_parameters(
+            if !self.type_is_converged_for_static_evaluation(
                 module,
                 profile,
                 substitution,
                 symbols,
                 types,
-                &mut HashSet::new(),
-            ) {
-                return true;
-            }
-            if self.type_contains_infer_vars(substitution, types, &mut HashSet::new()) {
-                return true;
-            }
-            if self.type_contains_unevaluated_static_arguments(
-                substitution,
-                types,
-                &mut HashSet::new(),
             ) {
                 return true;
             }
@@ -286,6 +302,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // resolve a projected static value type for unresolved substitutions
         let Some(value_type_id) = self.projection_obligation_static_value_type_for_substitutions(
             module,
             profile,
@@ -301,6 +318,8 @@ impl Compiler {
         };
 
         let value_type_id = types.unwrap_value_type_id(value_type_id);
+
+        // keep primary static errors as resolved replay output
         if matches!(types.get_type(value_type_id), Type::Error) {
             return Ok(Some(value_type_id));
         }
@@ -322,6 +341,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // resolve projected static value type for converged substitutions
         let Some(value_type_id) = self.projection_obligation_static_value_type_for_substitutions(
             module,
             profile,
@@ -336,7 +356,7 @@ impl Compiler {
             return Ok(None);
         };
 
-        // keep error sentinels resolved here: primary diagnostics are emitted by static evaluation
+        // keep error sentinels resolved here: static evaluation reports the primary diagnostic
         let committed_type_id = self.projection_obligation_committed_value_type_for_symbol(
             module,
             profile,
@@ -363,8 +383,9 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // evaluate static expressions under captured substitutions
         let mut visited_symbols = HashSet::new();
-        let static_value = self.static_expression_from_constant_reference_specialized_declared(
+        let static_value = self.static_expression_from_constant_reference_instantiated_declared(
             module,
             profile,
             member_symbol,
@@ -377,22 +398,27 @@ impl Compiler {
         let Some(static_value) = static_value else {
             return Ok(None);
         };
+
+        // convert static expression replay result into a type id
         Ok(self.static_expression_type_id_for_substitution(expression_id, &static_value, types))
     }
 
-    /// Resolve the committed value-space type for one projection obligation.
+    /// Resolve the committed value space type for one projection obligation.
     fn projection_obligation_committed_value_type_for_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
         expression_id: LocalNodeIdAny,
         member_symbol: GlobalSymbolId,
-        fallback_type_id: LocalTypeId,
+        provisional_type_id: LocalTypeId,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
+        // prefer committed value type ids when already available
         if let Some(value_type_id) = types.get_value_type_id(member_symbol) {
             return Ok(value_type_id);
         }
+
+        // import value type ids for remote symbols
         if member_symbol.module_id != module.id {
             let imported_type_id = self.resolve_remote_symbol_value_type(
                 module,
@@ -412,10 +438,10 @@ impl Compiler {
             }
         }
 
-        // widen scalar literal projections in value position to preserve binding commit behavior
+        // widen scalar literal projections in value position for binding commits
         if let Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(literal),
-        } = types.get_type(fallback_type_id)
+        } = types.get_type(provisional_type_id)
         {
             let widened = Type::TypeLiteral {
                 value: self.widen_scalar_literal_for_module(module, literal),
@@ -424,6 +450,6 @@ impl Compiler {
             return Ok(widened_type_id);
         }
 
-        Ok(fallback_type_id)
+        Ok(provisional_type_id)
     }
 }

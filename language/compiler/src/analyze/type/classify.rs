@@ -64,15 +64,15 @@ impl Compiler {
         }
     }
 
-    /// Check whether a type is unresolved for operator resolution.
-    pub(crate) fn is_unresolved_operator_type(&self, ty: &Type, types: &TypeTable) -> bool {
+    /// Check whether one operator operand type is still indeterminate.
+    pub(crate) fn operator_operand_is_indeterminate(&self, ty: &Type, types: &TypeTable) -> bool {
         match ty {
-            Type::InferVar { .. } => true,
+            _ if ty.is_infer() => true,
             Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             } => true,
             Type::Union { elements } => elements.iter().any(|element_id| {
-                self.is_unresolved_operator_type(types.get_type(*element_id), types)
+                self.operator_operand_is_indeterminate(types.get_type(*element_id), types)
             }),
             _ => false,
         }
@@ -169,7 +169,12 @@ impl Compiler {
         }
     }
 
-    pub(crate) fn type_is_any_or_unknown(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
+    /// Check whether one type is semantic top-like (`any` or `unknown`).
+    pub(crate) fn type_is_semantic_top_like(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
         let ty = types.get_type(type_id);
         matches!(
             ty,

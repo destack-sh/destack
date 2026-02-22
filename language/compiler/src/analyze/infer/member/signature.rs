@@ -238,13 +238,8 @@ impl Compiler {
             }
         }
 
-        let static_parameter_symbols = static_parameters
-            .iter()
-            .filter_map(|parameter| match types.get_type(*parameter) {
-                Type::Reference { symbol, .. } => Some(*symbol),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
+        let static_parameter_symbols =
+            self.static_parameter_symbols_for_type_ids(&static_parameters, types);
 
         let resolved = self.resolve_function_signature(
             module,

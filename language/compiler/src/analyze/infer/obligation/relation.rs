@@ -20,52 +20,27 @@ impl Compiler {
     /// Return true when one relation depends on unsolved inference state.
     pub(crate) fn type_relation_requires_infer_convergence(
         &self,
-        _module: &Module,
-        _profile: ProfileId,
+        module: &Module,
+        profile: ProfileId,
         target_type_id: LocalTypeId,
         source_type_id: LocalTypeId,
-        _symbols: &SymbolTable,
+        symbols: &SymbolTable,
         types: &TypeTable,
     ) -> bool {
-        // relation target depends on solver state
-        if self.type_relation_operand_requires_infer_convergence(target_type_id, types) {
+        // check whether the target depends on solver state
+        if self.type_requires_infer_convergence(module, profile, target_type_id, symbols, types) {
             return true;
         }
 
-        // relation source depends on solver state
-        if self.type_relation_operand_requires_infer_convergence(source_type_id, types) {
+        // check whether the source depends on solver state
+        if self.type_requires_infer_convergence(module, profile, source_type_id, symbols, types) {
             return true;
         }
 
         false
     }
 
-    /// Return true when one relation operand requires solve-time convergence.
-    fn type_relation_operand_requires_infer_convergence(
-        &self,
-        type_id: LocalTypeId,
-        types: &TypeTable,
-    ) -> bool {
-        // infer variables must converge before relation diagnostics are stable
-        let mut infer_var_visited = std::collections::HashSet::new();
-        if self.type_contains_infer_vars(type_id, types, &mut infer_var_visited) {
-            return true;
-        }
-
-        // unevaluated static arguments must converge before relation diagnostics are stable
-        let mut static_argument_visited = std::collections::HashSet::new();
-        if self.type_contains_unevaluated_static_arguments(
-            type_id,
-            types,
-            &mut static_argument_visited,
-        ) {
-            return true;
-        }
-
-        false
-    }
-
-    /// Record one post-solve relation obligation using captured type ids.
+    /// Record one post solve relation obligation using captured type ids.
     pub(crate) fn push_type_relation_obligation_for_captured_types(
         &self,
         module: &Module,
@@ -85,7 +60,7 @@ impl Compiler {
         });
     }
 
-    /// Record one post-solve relation obligation using expression operands.
+    /// Record one post solve relation obligation using expression operands.
     pub(crate) fn push_type_relation_obligation_for_expression_operands(
         &self,
         module: &Module,
@@ -105,7 +80,7 @@ impl Compiler {
         });
     }
 
-    /// Enforce one assignability relation or defer its diagnostic to post-solve reporting.
+    /// Enforce one assignability relation or defer its diagnostic to post solve reporting.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn enforce_assignability_or_defer_unassignable_diagnostic(
         &self,
@@ -140,7 +115,7 @@ impl Compiler {
             return Ok(());
         }
 
-        // report immediately when relation is fully concrete
+        // report immediately when the relation is fully concrete
         let assignability = self.is_type_assignable(
             module,
             profile,
@@ -184,7 +159,7 @@ impl Compiler {
         Ok(())
     }
 
-    /// Report post-solve type-relation obligations after infer convergence.
+    /// Report post solve type relation obligations after infer convergence.
     pub(crate) fn report_type_relation_obligation_errors_after_infer_convergence(
         &self,
         module: &Module,
@@ -194,13 +169,17 @@ impl Compiler {
         infer: &mut InferTable,
         options: &AnalyzeOptions,
     ) -> AnalyzeResult<()> {
+        // collect deferred relation obligations from infer state
         let obligations = infer.take_type_relation_obligations();
 
+        // replay each relation obligation with converged operand types
         for obligation in obligations {
+            // skip obligations that belong to other modules
             if obligation.source_node_id.module_id != module.id {
                 continue;
             }
 
+            // resolve effective operands from captured facts or expression ids
             let (target_type_id, source_type_id) =
                 self.resolve_type_relation_obligation_operands(module, types, &obligation)?;
 
@@ -212,7 +191,7 @@ impl Compiler {
                 symbols,
                 types,
             ) {
-                // drop unresolved relations only when they are blocked by an upstream primary error
+                // drop unresolved relations only when blocked by a primary error
                 if self.type_relation_operands_have_primary_error(
                     target_type_id,
                     source_type_id,
@@ -233,6 +212,7 @@ impl Compiler {
                 continue;
             }
 
+            // evaluate assignability with converged operands
             let assignability = self.is_type_assignable(
                 module,
                 profile,
@@ -246,6 +226,7 @@ impl Compiler {
                 continue;
             }
 
+            // emit the diagnostic selected by the obligation
             match obligation.diagnostic {
                 TypeRelationObligationDiagnostic::UnassignableType => {
                     self.emit_unassignable_type_for_types(
@@ -280,11 +261,13 @@ impl Compiler {
         source_type_id: LocalTypeId,
         types: &TypeTable,
     ) -> bool {
+        // inspect the target side first
         let mut target_visited = std::collections::HashSet::new();
         if self.type_contains_error(target_type_id, types, &mut target_visited) {
             return true;
         }
 
+        // then inspect the source side
         let mut source_visited = std::collections::HashSet::new();
         self.type_contains_error(source_type_id, types, &mut source_visited)
     }
@@ -296,6 +279,7 @@ impl Compiler {
         types: &TypeTable,
         obligation: &TypeRelationObligation,
     ) -> AnalyzeResult<(LocalTypeId, LocalTypeId)> {
+        // resolve captured type operands directly
         match &obligation.operands {
             TypeRelationObligationOperands::CapturedTypes {
                 target_type_id,
@@ -305,6 +289,7 @@ impl Compiler {
                 target_expression_id,
                 source_expression_id,
             } => {
+                // reject cross module expression operands
                 if target_expression_id.module_id != module.id
                     || source_expression_id.module_id != module.id
                 {
@@ -327,6 +312,7 @@ impl Compiler {
                     });
                 };
 
+                // normalize value wrappers for replayed relation checks
                 let target_type_id = types.unwrap_value_type_id(target_type_id);
                 let source_type_id = types.unwrap_value_type_id(source_type_id);
                 Ok((target_type_id, source_type_id))

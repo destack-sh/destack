@@ -85,6 +85,8 @@ enum TypeContainmentKind<'a> {
     InferBinding,
     /// Detect inference variables.
     InferVar,
+    /// Detect `this` type references.
+    ThisType,
     /// Detect forbidden literal usage.
     ForbiddenLiteral {
         /// The compiler instance.
@@ -224,6 +226,11 @@ impl<'a> TypeContainmentVisitor<'a> {
         Self::new(TypeContainmentKind::InferVar, visited, None)
     }
 
+    /// Create a visitor for `this` type containment.
+    fn new_this_type(visited: &'a mut HashSet<LocalTypeId>) -> Self {
+        Self::new(TypeContainmentKind::ThisType, visited, None)
+    }
+
     /// Create a visitor for forbidden literal detection.
     pub(super) fn new_forbidden_literal(
         compiler: &'a Compiler,
@@ -307,6 +314,7 @@ impl<'a> TypeContainmentVisitor<'a> {
             TypeContainmentKind::FreeStaticParameter { .. } => VisitedMode::Set,
             TypeContainmentKind::InferBinding => VisitedMode::Set,
             TypeContainmentKind::InferVar => VisitedMode::Set,
+            TypeContainmentKind::ThisType => VisitedMode::Set,
             TypeContainmentKind::ForbiddenLiteral { .. } => VisitedMode::Set,
             TypeContainmentKind::ManagedType { .. } => VisitedMode::Set,
         }
@@ -530,6 +538,12 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                     return;
                 }
             }
+            TypeContainmentKind::ThisType => {
+                if matches!(ty, Type::This) {
+                    self.found = true;
+                    return;
+                }
+            }
             TypeContainmentKind::ForbiddenLiteral {
                 compiler,
                 module,
@@ -674,6 +688,11 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return true when a type is still solver-owned placeholder state.
+    pub(crate) fn type_is_solver_placeholder(&self, ty_id: LocalTypeId, types: &TypeTable) -> bool {
+        types.get_type(ty_id).is_infer()
+    }
+
     /// Return true when a type already represents a primary semantic failure.
     pub(crate) fn type_blocks_cascading_diagnostic(
         &self,
@@ -1155,6 +1174,18 @@ impl Compiler {
         visitor.found
     }
 
+    /// Check whether a type contains `this`.
+    pub(crate) fn type_contains_this(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        let mut visitor = TypeContainmentVisitor::new_this_type(visited);
+        visitor.visit_type_id(types, type_id);
+        visitor.found
+    }
+
     /// Check whether a type needs instantiation before evaluation.
     pub(crate) fn type_needs_instantiation(
         &self,
@@ -1165,7 +1196,6 @@ impl Compiler {
         types: &TypeTable,
     ) -> bool {
         // TODO #Cleanup: centralize this gate in the evaluation boundary once we split structural and evaluative normalization
-        // NOTE #Suspicious: type_needs_instantiation does not treat `this` as instantiation dependent yet
         // check for free static parameter references
         let mut static_visited = HashSet::new();
         let bound = HashSet::new();
@@ -1194,6 +1224,73 @@ impl Compiler {
         }
 
         false
+    }
+
+    /// Check whether a type requires infer convergence before stable checking.
+    pub(crate) fn type_requires_infer_convergence(
+        &self,
+        _module: &Module,
+        _profile: ProfileId,
+        type_id: LocalTypeId,
+        _symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        // inference variables are not stable yet
+        let mut infer_var_visited = HashSet::new();
+        if self.type_contains_infer_vars(type_id, types, &mut infer_var_visited) {
+            return true;
+        }
+
+        // unevaluated static arguments are not stable yet
+        let mut static_argument_visited = HashSet::new();
+        if self.type_contains_unevaluated_static_arguments(
+            type_id,
+            types,
+            &mut static_argument_visited,
+        ) {
+            return true;
+        }
+
+        false
+    }
+
+    /// Check whether a type requires convergence before static evaluation.
+    pub(crate) fn type_requires_static_evaluation_convergence(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        // instantiation dependent types are not stable yet
+        if self.type_needs_instantiation(module, profile, type_id, symbols, types) {
+            return true;
+        }
+
+        // unevaluated static arguments are not stable yet
+        let mut static_argument_visited = HashSet::new();
+        if self.type_contains_unevaluated_static_arguments(
+            type_id,
+            types,
+            &mut static_argument_visited,
+        ) {
+            return true;
+        }
+
+        false
+    }
+
+    /// Check whether a type is converged for instantiated static evaluation.
+    pub(crate) fn type_is_converged_for_static_evaluation(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        !self.type_requires_static_evaluation_convergence(module, profile, type_id, symbols, types)
     }
 
     /// Ensure a type id is evaluated when it is unevaluated.
@@ -1275,6 +1372,20 @@ impl Compiler {
         }
 
         None
+    }
+
+    /// Collect static parameter symbols from one static-parameter type-id sequence.
+    pub(crate) fn static_parameter_symbols_for_type_ids(
+        &self,
+        static_parameter_type_ids: &[LocalTypeId],
+        types: &TypeTable,
+    ) -> Vec<GlobalSymbolId> {
+        static_parameter_type_ids
+            .iter()
+            .filter_map(|parameter_type_id| {
+                self.unwrap_type_value_symbol(types, *parameter_type_id)
+            })
+            .collect()
     }
 
     /// Resolve an integer literal value from one type id when possible.

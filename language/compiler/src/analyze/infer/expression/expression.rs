@@ -3822,7 +3822,7 @@ impl Compiler {
                 let awaited_ty_id =
                     self.unwrap_awaited_type(module, symbols, ctx.profile, inner_ty_id, types);
                 if awaited_ty_id == inner_ty_id
-                    && !self.type_is_any_or_unknown(inner_ty_id, types)
+                    && !self.type_is_semantic_top_like(inner_ty_id, types)
                     && let Some(promise_ty_id) =
                         self.promise_type(ctx.profile, None, expression_id.into_any(), types)
                 {

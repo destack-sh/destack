@@ -1187,7 +1187,7 @@ impl Compiler {
                     value_types.push(field_type);
                 }
 
-                // add index signature fallbacks when compatible
+                // add index signature candidates when compatible
                 if let Some(kind) = self.mapped_index_kind_for_static_key(&key) {
                     let index_values = self.index_signature_value_types_for_kind(
                         module, profile, type_id, kind, symbols, types,

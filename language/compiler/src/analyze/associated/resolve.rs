@@ -8,8 +8,8 @@ use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_base::StringId;
 use destack_dir::{
     Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, Member, NodeTree, NodeType, StaticArgument, StaticKey, SymbolTable, SymbolType,
-    Type, TypeRewriter, TypeRewriterOptions, TypeTable,
+    LocalTypeId, Member, NodeTree, NodeType, StaticArgument, StaticExpression, StaticKey,
+    SymbolTable, SymbolType, Type, TypeRewriter, TypeRewriterOptions, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -1003,6 +1003,48 @@ impl Compiler {
             receiver_symbol: projection_receiver_symbol,
             receiver_arguments: projection_receiver_arguments,
         }))
+    }
+
+    /// Return true when associated projection receiver arguments require deferral.
+    pub(crate) fn associated_projection_receiver_arguments_require_deferral(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        arguments: &[StaticArgument],
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        for argument in arguments {
+            if self.associated_projection_static_argument_requires_deferral(
+                module, profile, argument, symbols, types,
+            ) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Return true when one associated projection static argument requires deferral.
+    fn associated_projection_static_argument_requires_deferral(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        argument: &StaticArgument,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        // unevaluated static arguments are unresolved
+        let StaticArgument::Evaluated { value, .. } = argument else {
+            return true;
+        };
+
+        // type arguments must converge before projection materialization
+        let StaticExpression::Type { ty } = value else {
+            return false;
+        };
+
+        !self.type_is_converged_for_static_evaluation(module, profile, *ty, symbols, types)
     }
 
     /// Build a projection receiver from one expression when type evaluation is unavailable.

@@ -368,7 +368,7 @@ impl Compiler {
                     declared_type_id
                 }
             } else {
-                self.synthesize_unknown_type_for_source(source_id, types)
+                self.synthesize_semantic_unknown_type_for_source(source_id, types)
             };
             types.set_static_parameter_constraint_type(symbol, published_constraint_type_id);
         }
@@ -386,7 +386,7 @@ impl Compiler {
         }
     }
 
-    /// Build static parameter placeholders fo r a function signature.
+    /// Build static parameter placeholders for a function signature.
     pub(crate) fn static_parameter_placeholders_for_signature(
         &self,
         module: &Module,
@@ -635,7 +635,7 @@ impl Compiler {
         source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> StaticParameter {
-        let unknown_ty_id = self.synthesize_unknown_type_for_source(source_id, types);
+        let unknown_ty_id = self.synthesize_semantic_unknown_type_for_source(source_id, types);
 
         StaticParameter {
             symbol,
@@ -646,8 +646,8 @@ impl Compiler {
         }
     }
 
-    /// Synthesize an unknown type id for one source node.
-    fn synthesize_unknown_type_for_source(
+    /// Synthesize the semantic `unknown` type id for one source node.
+    fn synthesize_semantic_unknown_type_for_source(
         &self,
         source_id: LocalNodeIdAny,
         types: &mut TypeTable,
@@ -753,12 +753,14 @@ impl Compiler {
                 if !symbol_entry.is_static_parameter() {
                     types
                         .get_static_parameter_constraint_type(symbol)
-                        .or_else(|| Some(self.synthesize_unknown_type_for_source(source_id, types)))
+                        .or_else(|| {
+                            Some(self.synthesize_semantic_unknown_type_for_source(source_id, types))
+                        })
                 } else if let Some(primary_declaration) = symbol_entry.primary_declaration {
                     let declared_type_id = types
                         .get_declared_type_id(primary_declaration)
                         .unwrap_or_else(|| {
-                            self.synthesize_unknown_type_for_source(source_id, types)
+                            self.synthesize_semantic_unknown_type_for_source(source_id, types)
                         });
                     if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
                         let tree = module.dir(profile).tree.read();
@@ -773,7 +775,7 @@ impl Compiler {
                             )
                             .is_err()
                         {
-                            Some(self.synthesize_unknown_type_for_source(source_id, types))
+                            Some(self.synthesize_semantic_unknown_type_for_source(source_id, types))
                         } else {
                             Some(declared_type_id)
                         }
@@ -781,7 +783,7 @@ impl Compiler {
                         Some(declared_type_id)
                     }
                 } else {
-                    Some(self.synthesize_unknown_type_for_source(source_id, types))
+                    Some(self.synthesize_semantic_unknown_type_for_source(source_id, types))
                 }
             };
             types.clear_static_parameter_constraint_in_progress(symbol);
@@ -804,7 +806,7 @@ impl Compiler {
             return Some(resolved_constraint_type_id);
         }
 
-        let unknown_type_id = self.synthesize_unknown_type_for_source(source_id, types);
+        let unknown_type_id = self.synthesize_semantic_unknown_type_for_source(source_id, types);
         types.set_static_parameter_constraint_type(symbol, unknown_type_id);
         Some(unknown_type_id)
     }
@@ -868,7 +870,7 @@ impl Compiler {
                     types,
                 )
             } else {
-                self.synthesize_unknown_type_for_source(source_id, types)
+                self.synthesize_semantic_unknown_type_for_source(source_id, types)
             }
         };
 

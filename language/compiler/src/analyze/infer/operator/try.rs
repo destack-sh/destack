@@ -256,17 +256,16 @@ impl Compiler {
             }
 
             // build union types for the merged branch payloads
-            let fallback_type = Type::TypeLiteral {
+            let unknown_placeholder_type = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            let value_source = value_types
-                .first()
-                .copied()
-                .unwrap_or_else(|| types.insert_type_from(fallback_type.clone(), expression_id));
+            let value_source = value_types.first().copied().unwrap_or_else(|| {
+                types.insert_type_from(unknown_placeholder_type.clone(), expression_id)
+            });
             let error_source = error_types
                 .first()
                 .copied()
-                .unwrap_or_else(|| types.insert_type_from(fallback_type, expression_id));
+                .unwrap_or_else(|| types.insert_type_from(unknown_placeholder_type, expression_id));
             let value_ty_id = self.union_type_from_list(value_types, value_source, types);
             let error_ty_id = self.union_type_from_list(error_types, error_source, types);
 

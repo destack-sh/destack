@@ -1,17 +1,15 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::analyze::StaticMemberSymbolKind;
-use crate::analyze::common::{NormalizationMode, TypeRewriteCache};
+use crate::analyze::common::NormalizationMode;
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, Compiler, FlowContext, InferSession, TaskDependencyError,
     TaskResultCollector,
 };
 use destack_dir::{
-    Declaration, Declarator, Expression, FlowGraphBuilder, InferTable, IntType, LocalNodeId,
-    NodeTree, Pattern, PrimitiveType, StaticArgument, StaticExpression, SymbolTable, Type,
-    TypeLiteral, TypeTable,
+    Declaration, Declarator, Expression, FlowGraphBuilder, IntType, LocalNodeId, NodeTree, Pattern,
+    PrimitiveType, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{Module, ModuleContent, ModuleSource, ModuleType, ProfileId};
@@ -231,111 +229,21 @@ impl Compiler {
             );
         }
 
-        // report associated comptime projection obligations after inference convergence
-        self.report_associated_comptime_projection_obligation_errors(
-            &module,
-            profile,
-            &mut types,
-            session.table_mut(),
-        )?;
-
-        // discharge instance-commit obligations after inference convergence
-        self.discharge_instance_commit_obligations(session.table_mut(), &mut types)?;
-
-        // commit instance-instantiated inferred types after inference convergence
-        self.commit_instance_instantiated_inferred_types(
+        // replay all post-solve infer obligations in deterministic order
+        self.replay_post_solve_obligations(
             &module,
             profile,
             &tree,
-            &symbols,
-            session.table(),
-            &mut types,
-        )?;
-        self.refresh_direct_binding_value_types_from_inferred_initializers(
-            &module, profile, &tree, &symbols, &mut types,
-        );
-
-        // report deferred type relation diagnostics after final inference commitments
-        let options = session.context().options;
-        self.report_type_relation_obligation_errors_after_infer_convergence(
-            &module,
-            profile,
             &symbols,
             &mut types,
             session.table_mut(),
             &options,
         )?;
 
-        Ok(())
-    }
-
-    /// Commit inferred types that depend on resolved instance substitutions.
-    fn commit_instance_instantiated_inferred_types(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        infer: &InferTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<()> {
-        // apply substitutions to inferred types using explicit infer obligations
-        let node_attachments = infer
-            .iter_instance_commit_obligation_nodes()
-            .collect::<Vec<_>>();
-        for (node_id, obligation_id) in node_attachments {
-            if node_id.module_id != module.id {
-                continue;
-            }
-            let Some(inferred_type_id) = types.get_inferred_type_id(node_id) else {
-                continue;
-            };
-            let Some(obligation) = infer.instance_commit_obligation(obligation_id) else {
-                return Err(AnalyzeError::Internal {
-                    message: "missing instance commit obligation for inferred node".to_string(),
-                });
-            };
-
-            // build type substitutions from the committed obligation environment
-            let mut substitutions = HashMap::new();
-            for (parameter_symbol, argument) in obligation
-                .static_parameter_symbols
-                .iter()
-                .zip(obligation.static_arguments.iter())
-            {
-                let StaticArgument::Evaluated {
-                    value: StaticExpression::Type { ty },
-                    ..
-                } = argument
-                else {
-                    continue;
-                };
-                substitutions.insert(*parameter_symbol, types.unwrap_value_type_id(*ty));
-            }
-            if substitutions.is_empty() {
-                continue;
-            }
-
-            let mut materialize_cache = TypeRewriteCache::new();
-            let mut substitution_cache = HashMap::new();
-            let mapped_type_id = self.instantiate_type_with_substitutions(
-                module,
-                profile,
-                node_id.local_id,
-                None,
-                inferred_type_id,
-                &substitutions,
-                tree,
-                symbols,
-                types,
-                &mut materialize_cache,
-                &mut substitution_cache,
-            );
-
-            if mapped_type_id != inferred_type_id {
-                types.set_inferred_type(node_id, mapped_type_id);
-            }
-        }
+        // refresh declaration commits after final infer obligations settled
+        self.refresh_direct_binding_value_types_from_inferred_initializers(
+            &module, profile, &tree, &symbols, &mut types,
+        );
 
         Ok(())
     }

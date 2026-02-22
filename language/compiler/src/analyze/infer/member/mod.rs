@@ -1,5 +1,4 @@
 mod access;
-mod deferred;
 mod r#enum;
 mod extension;
 mod model;

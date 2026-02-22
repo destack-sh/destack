@@ -273,6 +273,11 @@ impl Type {
         )
     }
 
+    /// Whether the type is one infer-owned placeholder variant.
+    pub fn is_infer(&self) -> bool {
+        matches!(self, Type::InferVar { .. } | Type::Infer { .. })
+    }
+
     /// Whether the type is an error or unknown literal.
     pub fn is_error_or_unknown(&self) -> bool {
         self.is_error() || self.is_unknown()

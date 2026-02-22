@@ -161,6 +161,7 @@ Lints and warnings:
 - Fix all the lints from `cargo check -p <crate>` and `cargo clippy -p <crate>`
 - Most clippy allow stuff should go on top of the impl, not individual functions (like too many arguments is almost always fine at a broad scope)
 - In general, ignore too many arguments and type complexity warnings
+- Put lint suppression at the top of the impl block, not individual functions
 
 ## Markdown
 

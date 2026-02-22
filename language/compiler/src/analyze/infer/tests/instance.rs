@@ -689,6 +689,90 @@ let value = identity(text);
     view.expect_no_instance_for_node(left.into_global_any(module_id));
 }
 
+/// Verify generic callback instantiation preserves const tuple literal return precision.
+#[test]
+fn test_instance_records_generic_callback_const_tuple_literal_return_precision() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
+
+const tuple = [1, 2] as const;
+let head = mapOne(tuple, input => input[0]);
+"#,
+    );
+
+    // analyze
+    test.analyze_module_and_check_clean(module_id);
+    let view = test.view(module_id);
+
+    // read
+    let head_name = test.program.strings.intern("head");
+    let declarator_id = view.expect_let_declarator(head_name);
+    let declarator = view.tree().get(declarator_id);
+    let value_id = declarator.value.expect("expected initializer");
+
+    // mapOne(tuple, input => input[0])
+    let map_one_symbol = test
+        .resolve_to_symbol("test.ds", "mapOne")
+        .expect("expected mapOne symbol");
+    let (instance_symbol, static_arguments) = view.expect_instance_for_expression(value_id);
+    assert_eq!(instance_symbol, map_one_symbol);
+    assert_eq!(static_arguments.len(), 2);
+
+    // mapOne<T, U>
+    let StaticArgument::Evaluated {
+        value: StaticExpression::Type { ty: t_ty_id },
+        ..
+    } = static_arguments[0]
+    else {
+        panic!("expected evaluated type argument for T");
+    };
+    let StaticArgument::Evaluated {
+        value: StaticExpression::Type { ty: u_ty_id },
+        ..
+    } = static_arguments[1]
+    else {
+        panic!("expected evaluated type argument for U");
+    };
+
+    // T
+    assert_type!(
+        view.types(),
+        t_ty_id,
+        Type::Tuple {
+            elements,
+            is_readonly: true
+        } => {
+            assert_eq!(elements.len(), 2, "expected tuple arity for T");
+            assert_type!(
+                view.types(),
+                elements[0].ty,
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1))
+                }
+            );
+            assert_type!(
+                view.types(),
+                elements[1].ty,
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(2))
+                }
+            );
+        }
+    );
+
+    // U
+    assert_type!(
+        view.types(),
+        u_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1))
+        }
+    );
+}
+
 /// Verify flow narrowing feeds inferred function static arguments at call sites.
 #[test]
 fn test_instance_records_function_call_instantiation_with_flow_narrowed_argument() {

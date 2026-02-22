@@ -948,8 +948,8 @@ impl Compiler {
             })
             .unwrap_or_else(|| (Vec::new(), None));
 
-        // allow a direct fallback only for a single field on non-sequence types
-        let allow_direct_binding_fallback = binding_ty_id.is_some()
+        // allow direct single-field binding on non-sequence types
+        let allow_direct_single_field_binding = binding_ty_id.is_some()
             && binding_ty_fields.is_empty()
             && binding_array_element.is_none()
             && fields.len() == 1
@@ -957,7 +957,7 @@ impl Compiler {
                 tree.get(fields[0]),
                 PatternField::Spread { .. } | PatternField::Elision
             );
-        let direct_binding_fallback = allow_direct_binding_fallback
+        let direct_single_field_binding = allow_direct_single_field_binding
             .then_some(binding_ty_id)
             .flatten();
 
@@ -966,11 +966,11 @@ impl Compiler {
             return Ok(());
         }
 
-        // reject non-sequence bindings that cannot use the guarded fallback
+        // reject non-sequence bindings that cannot use direct single-field binding
         if let Some(binding_ty_id) = binding_ty_id
             && binding_ty_fields.is_empty()
             && binding_array_element.is_none()
-            && !allow_direct_binding_fallback
+            && !allow_direct_single_field_binding
         {
             let first_field_id = fields[0];
             let unknown_ty = Type::TypeLiteral {
@@ -1012,7 +1012,7 @@ impl Compiler {
                     } else if let Some(element_ty_id) = binding_array_element {
                         Some(element_ty_id)
                     } else {
-                        direct_binding_fallback
+                        direct_single_field_binding
                     }
                 }
                 PatternField::Spread { .. } => {

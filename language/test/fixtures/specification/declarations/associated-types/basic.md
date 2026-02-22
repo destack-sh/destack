@@ -121,4 +121,4 @@ class Matrix<T> {
 declare const row: Matrix<boolean>.Row;
 ```
 
-- contains: static arguments
+- contains: static argument

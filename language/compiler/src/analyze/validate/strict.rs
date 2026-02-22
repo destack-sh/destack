@@ -410,7 +410,7 @@ impl Compiler {
                     _ => self.expression_has_value_return(module, *last_expression_id, types),
                 }
             }
-            _ => self.expression_has_value_return(module, body_id, types),
+            _ => true,
         }
     }
 

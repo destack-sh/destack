@@ -453,18 +453,36 @@ impl Compiler {
         }
     }
 
-    /// Return true when one interface value type is unresolved.
-    pub(crate) fn interface_value_type_is_unresolved(
+    /// Return true when one interface value type still requires solver convergence.
+    pub(crate) fn interface_value_type_requires_solver_convergence(
+        &self,
+        types: &TypeTable,
+        ty_id: LocalTypeId,
+    ) -> bool {
+        types.get_type(ty_id).is_infer()
+    }
+
+    /// Return true when one interface value type is the semantic `unknown` top type.
+    pub(crate) fn interface_value_type_is_semantic_unknown(
         &self,
         types: &TypeTable,
         ty_id: LocalTypeId,
     ) -> bool {
         matches!(
             types.get_type(ty_id),
-            Type::InferVar { .. }
-                | Type::TypeLiteral {
-                    value: TypeLiteral::Unknown
-                }
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown
+            }
         )
+    }
+
+    /// Return true when one interface export still needs a cycle anchor.
+    pub(crate) fn interface_value_type_requires_cycle_anchor(
+        &self,
+        types: &TypeTable,
+        ty_id: LocalTypeId,
+    ) -> bool {
+        self.interface_value_type_requires_solver_convergence(types, ty_id)
+            || self.interface_value_type_is_semantic_unknown(types, ty_id)
     }
 }

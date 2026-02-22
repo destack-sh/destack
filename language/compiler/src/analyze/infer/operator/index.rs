@@ -88,26 +88,35 @@ impl Compiler {
         )?;
 
         // resolve index expression and literal string when possible
-        let (index_ty_id, literal_string, static_key) = if let Some(index_id) = index_id {
-            let index_ty_id =
-                self.infer_expression(module, index_id, tree, symbols, types, infer, ctx)?;
-            let literal_string = match tree.get(index_id) {
-                Expression::ScalarLiteral {
-                    value: ScalarLiteral::String(name_id),
-                } => Some(self.program.strings.get(*name_id)),
-                _ => None,
+        let (index_ty_id, literal_string, literal_integer, static_key) =
+            if let Some(index_id) = index_id {
+                let index_ty_id =
+                    self.infer_expression(module, index_id, tree, symbols, types, infer, ctx)?;
+                let (literal_string, literal_integer) = match tree.get(index_id) {
+                    Expression::ScalarLiteral {
+                        value: ScalarLiteral::String(name_id),
+                    } => (Some(self.program.strings.get(*name_id)), None),
+                    Expression::ScalarLiteral {
+                        value: ScalarLiteral::Integer(value),
+                    } => (None, Some(*value)),
+                    _ => (None, None),
+                };
+                let static_key = self.static_key_from_dynamic_key(
+                    ctx.profile,
+                    DynamicKey::Expression(index_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                (
+                    Some(index_ty_id),
+                    literal_string,
+                    literal_integer,
+                    static_key,
+                )
+            } else {
+                (None, None, None, None)
             };
-            let static_key = self.static_key_from_dynamic_key(
-                ctx.profile,
-                DynamicKey::Expression(index_id),
-                tree,
-                symbols,
-                types,
-            );
-            (Some(index_ty_id), literal_string, static_key)
-        } else {
-            (None, None, None)
-        };
 
         // reject computed property access when configured
         if options.no_computed_property_access
@@ -141,6 +150,7 @@ impl Compiler {
             receiver_ty_id,
             index_ty_id,
             literal_string.as_deref(),
+            literal_integer,
             static_key.as_ref(),
             types,
             options.no_unchecked_indexed_access,
@@ -358,26 +368,35 @@ impl Compiler {
         }
 
         // resolve index expression and literal string when possible
-        let (index_ty_id, literal_string, static_key) = if let Some(index_id) = index_id {
-            let index_ty_id =
-                self.infer_expression(module, *index_id, tree, symbols, types, infer, ctx)?;
-            let literal_string = match tree.get(*index_id) {
-                Expression::ScalarLiteral {
-                    value: ScalarLiteral::String(name_id),
-                } => Some(self.program.strings.get(*name_id)),
-                _ => None,
+        let (index_ty_id, literal_string, literal_integer, static_key) =
+            if let Some(index_id) = index_id {
+                let index_ty_id =
+                    self.infer_expression(module, *index_id, tree, symbols, types, infer, ctx)?;
+                let (literal_string, literal_integer) = match tree.get(*index_id) {
+                    Expression::ScalarLiteral {
+                        value: ScalarLiteral::String(name_id),
+                    } => (Some(self.program.strings.get(*name_id)), None),
+                    Expression::ScalarLiteral {
+                        value: ScalarLiteral::Integer(value),
+                    } => (None, Some(*value)),
+                    _ => (None, None),
+                };
+                let static_key = self.static_key_from_dynamic_key(
+                    ctx.profile,
+                    DynamicKey::Expression(*index_id),
+                    tree,
+                    symbols,
+                    types,
+                );
+                (
+                    Some(index_ty_id),
+                    literal_string,
+                    literal_integer,
+                    static_key,
+                )
+            } else {
+                (None, None, None, None)
             };
-            let static_key = self.static_key_from_dynamic_key(
-                ctx.profile,
-                DynamicKey::Expression(*index_id),
-                tree,
-                symbols,
-                types,
-            );
-            (Some(index_ty_id), literal_string, static_key)
-        } else {
-            (None, None, None)
-        };
 
         // reject writes to readonly index targets
         if self.index_access_is_readonly(
@@ -428,6 +447,7 @@ impl Compiler {
             receiver_ty_id,
             index_ty_id,
             literal_string.as_deref(),
+            literal_integer,
             static_key.as_ref(),
             types,
             false,
@@ -661,6 +681,7 @@ impl Compiler {
         receiver_ty_id: LocalTypeId,
         index_ty_id: Option<LocalTypeId>,
         literal_string: Option<&str>,
+        literal_integer: Option<i64>,
         static_key: Option<&StaticKey>,
         types: &mut TypeTable,
         include_undefined: bool,
@@ -687,6 +708,7 @@ impl Compiler {
                     *right,
                     index_ty_id,
                     literal_string,
+                    literal_integer,
                     static_key,
                     types,
                     include_undefined,
@@ -710,6 +732,14 @@ impl Compiler {
                 }
 
                 // index into tuple by integer
+                if let Some(index) = literal_integer
+                    && index >= 0
+                {
+                    let index = index as usize;
+                    if index < elements.len() {
+                        return Some(elements[index].ty);
+                    }
+                }
                 if let Some(index_ty_id) = index_ty_id
                     && let Type::TypeLiteral {
                         value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(index)),
@@ -765,6 +795,7 @@ impl Compiler {
                     instance_ty_id,
                     index_ty_id,
                     literal_string,
+                    literal_integer,
                     static_key,
                     types,
                     include_undefined,

@@ -777,7 +777,7 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     let mut visited = std::collections::HashSet::new();
     let direct_projection = test
         .compiler
-        .static_expression_from_constant_reference_specialized(
+        .static_expression_from_constant_reference_instantiated(
             &module,
             profile,
             segment_bytes_symbol,

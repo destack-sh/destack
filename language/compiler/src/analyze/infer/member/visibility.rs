@@ -409,10 +409,6 @@ impl Compiler {
         types: &TypeTable,
     ) -> Option<GlobalSymbolId> {
         // resolve nominal symbols for reference-like receiver types
-        match types.get_type(receiver_ty_id) {
-            Type::Reference { symbol, .. } => Some(*symbol),
-            Type::Value { value } => types.get_type(*value).symbol(),
-            _ => None,
-        }
+        self.unwrap_type_value_symbol(types, receiver_ty_id)
     }
 }

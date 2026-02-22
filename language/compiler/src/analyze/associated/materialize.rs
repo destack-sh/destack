@@ -98,7 +98,7 @@ impl Compiler {
         ) {
             let mut visited_symbols = HashSet::new();
             let static_value = match self
-                .static_expression_from_constant_reference_specialized_declared(
+                .static_expression_from_constant_reference_instantiated_declared(
                     module,
                     profile,
                     target_symbol,

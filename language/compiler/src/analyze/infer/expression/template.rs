@@ -243,45 +243,22 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         };
 
-        // infer argument types and add constraints
+        // infer argument types and emit invocation constraints
         let parameter_types = resolved.dynamic_parameters.clone();
-        let argument_ty_ids = self.infer_invocation_argument_types(
+        let options = ctx.options;
+        let argument_ty_ids = self.infer_invocation_arguments(
             module,
             template_arguments,
             &parameter_types,
             ctx.profile,
+            None,
+            &options,
             tree,
             symbols,
             types,
             infer,
             ctx,
         )?;
-
-        self.add_invocation_argument_constraints(
-            module,
-            template_arguments,
-            &argument_ty_ids,
-            &parameter_types,
-            None,
-            &ctx.options,
-            tree,
-            symbols,
-            types,
-            infer,
-            ctx,
-        );
-        self.add_template_literal_inference_constraints(
-            module,
-            ctx.profile,
-            template_arguments,
-            &argument_ty_ids,
-            &parameter_types,
-            tree,
-            symbols,
-            types,
-            infer,
-            &ctx.options,
-        );
 
         // emit assignability errors for the tag parameters
         for ((argument_id, argument_ty_id), param_ty_id) in template_arguments

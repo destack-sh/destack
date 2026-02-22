@@ -410,6 +410,17 @@ impl Compiler {
 
         // return type: covariant (target return must be assignable from source return)
         match (target_return, source_return) {
+            // callback targets returning void accept any source return type
+            (Some(target_ret), Some(_))
+                if matches!(
+                    types.get_type(types.unwrap_value_type_id(*target_ret)),
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Void,
+                    }
+                ) =>
+            {
+                Assignability::Assignable
+            }
             (Some(target_ret), Some(source_ret)) => self.is_type_assignable(
                 module,
                 profile,

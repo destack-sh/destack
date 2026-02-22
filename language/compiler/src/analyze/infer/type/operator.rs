@@ -319,7 +319,7 @@ impl Compiler {
             (Some(p), None) | (None, Some(p)) => Type::TypeLiteral {
                 value: TypeLiteral::Primitive(p),
             },
-            // fallback to number
+            // default to number when neither side has numeric primitive evidence
             (None, None) => Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::Number),
             },

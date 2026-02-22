@@ -2354,7 +2354,7 @@ impl Compiler {
         options: &AnalyzeOptions,
     ) -> AnalyzeResult<(Option<LocalTypeId>, Option<LocalTypeId>)> {
         // avoid narrowing any or unknown types
-        if self.type_is_any_or_unknown(base_type_id, types) {
+        if self.type_is_semantic_top_like(base_type_id, types) {
             return Ok((Some(base_type_id), Some(base_type_id)));
         }
 
@@ -2374,7 +2374,7 @@ impl Compiler {
                 // avoid narrowing unions with any or unknown members
                 if elements
                     .iter()
-                    .any(|element_id| self.type_is_any_or_unknown(*element_id, types))
+                    .any(|element_id| self.type_is_semantic_top_like(*element_id, types))
                 {
                     return Ok((Some(base_type_id), Some(base_type_id)));
                 }
@@ -2496,7 +2496,7 @@ impl Compiler {
         F: Fn(LocalTypeId, &mut TypeTable) -> bool,
     {
         // avoid narrowing any or unknown types
-        if self.type_is_any_or_unknown(base_type_id, types) {
+        if self.type_is_semantic_top_like(base_type_id, types) {
             return (Some(base_type_id), Some(base_type_id));
         }
 
@@ -2507,7 +2507,7 @@ impl Compiler {
                 // avoid narrowing unions with any or unknown members
                 if elements
                     .iter()
-                    .any(|element_id| self.type_is_any_or_unknown(*element_id, types))
+                    .any(|element_id| self.type_is_semantic_top_like(*element_id, types))
                 {
                     return (Some(base_type_id), Some(base_type_id));
                 }

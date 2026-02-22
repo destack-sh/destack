@@ -1592,16 +1592,15 @@ impl Compiler {
         instance_type_id: LocalTypeId,
         types: &TypeTable,
     ) -> bool {
-        // check for unevaluated targets or static arguments
+        // check for unresolved static-evaluation convergence state
         let tree = module.dir(profile).tree.read();
         let symbols = module.dir(profile).symbols.read();
-        if matches!(types.get_type(instance_type_id), Type::Unevaluated(_)) {
-            return true;
-        }
-        if self.type_contains_unevaluated_static_arguments(
+        if self.type_requires_static_evaluation_convergence(
+            module,
+            profile,
             instance_type_id,
+            &symbols,
             types,
-            &mut HashSet::new(),
         ) {
             return true;
         }
