@@ -110,3 +110,55 @@ selected satisfies "narrow";
 ```
 
 - contains: not assignable
+
+### apply selects the first overload
+
+> `.apply` should preserve declaration-order overload selection.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictBindCallApply": true } }
+```
+
+```ds
+function pick(this: void, value: number): "broad" {
+    return "broad";
+}
+
+function pick(this: void, value: 1 | 2): "narrow" {
+    return "narrow";
+}
+
+const selected = pick.apply(undefined, [1]);
+selected satisfies "broad";
+```
+
+### apply does not select later overloads
+
+> Later overloads should not win for `.apply`.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictBindCallApply": true } }
+```
+
+```ds
+function pick(this: void, value: number): "broad" {
+    return "broad";
+}
+
+function pick(this: void, value: 1 | 2): "narrow" {
+    return "narrow";
+}
+
+const selected = pick.apply(undefined, [1]);
+selected satisfies "narrow";
+```
+
+- contains: not assignable

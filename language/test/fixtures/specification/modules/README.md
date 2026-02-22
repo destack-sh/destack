@@ -1,6 +1,6 @@
 # Modules
 
-> NOTE #Incomplete: mdtest ES modules
+> NOTE: mdtest module fixtures model ES module semantics unless a fixture explicitly targets CommonJS interop
 
 ES module imports and exports.
 

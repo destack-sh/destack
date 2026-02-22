@@ -114,3 +114,150 @@ selected satisfies "many";
 ```
 
 - contains: not assignable
+
+## Context-sensitive callbacks
+
+### callback object contextual typing still follows overload declaration order
+
+> Context-sensitive callback objects should be typed per candidate in declaration order.
+
+```ts:main.ts
+declare function choose<T>(spec: {
+    produce: () => T,
+    consume: (value: T) => void,
+}): "generic-first";
+
+declare function choose(spec: {
+    produce: () => string,
+    consume: (value: string) => void,
+}): "string-second";
+
+const selected = choose({
+    consume: value => value.toUpperCase(),
+    produce: () => "ok",
+});
+
+selected satisfies "generic-first";
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+### callback object contextual typing does not select later candidates
+
+> Later callback candidates should not win when an earlier candidate applies.
+
+```ts:main.ts
+declare function choose<T>(spec: {
+    produce: () => T,
+    consume: (value: T) => void,
+}): "generic-first";
+
+declare function choose(spec: {
+    produce: () => string,
+    consume: (value: string) => void,
+}): "string-second";
+
+const selected = choose({
+    consume: value => value.toUpperCase(),
+    produce: () => "ok",
+});
+
+selected satisfies "string-second";
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+- contains: not assignable
+
+### rest callback candidates can shadow single-argument candidates when first
+
+> Rest callback candidates declared first should shadow later single-argument callbacks.
+
+```ds
+function choose(callback: (...values: number[]) => number): "rest" {
+    return "rest";
+}
+
+function choose(callback: (value: number) => number): "single" {
+    return "single";
+}
+
+const selected = choose(_value => 1);
+selected satisfies "rest";
+```
+
+### callback object overload order remains stable through renamed re-exports
+
+> Renamed re-export paths should not perturb overload declaration-order contextual typing.
+
+```ts:api.ts
+export declare function choose<T>(spec: {
+    produce: () => T,
+    consume: (value: T) => void,
+}): "generic-first";
+
+export declare function choose(spec: {
+    produce: () => string,
+    consume: (value: string) => void,
+}): "string-second";
+```
+
+```ts:index.ts
+export { choose as pick } from "./api";
+```
+
+```ts:main.ts
+import { pick } from "./index";
+
+const selected = pick({
+    consume: value => value.toUpperCase(),
+    produce: () => "ok",
+});
+
+selected satisfies "generic-first";
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+### callback object overload order through re-exports still rejects later candidates
+
+> Later contextual callback candidates should not win through renamed re-export paths.
+
+```ts:api.ts
+export declare function choose<T>(spec: {
+    produce: () => T,
+    consume: (value: T) => void,
+}): "generic-first";
+
+export declare function choose(spec: {
+    produce: () => string,
+    consume: (value: string) => void,
+}): "string-second";
+```
+
+```ts:index.ts
+export { choose as pick } from "./api";
+```
+
+```ts:main.ts
+import { pick } from "./index";
+
+const selected = pick({
+    consume: value => value.toUpperCase(),
+    produce: () => "ok",
+});
+
+selected satisfies "string-second";
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+- contains: not assignable

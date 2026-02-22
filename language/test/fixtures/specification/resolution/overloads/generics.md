@@ -76,3 +76,55 @@ selected satisfies "generic";
 ```
 
 - contains: not assignable
+
+### generic overload ordering applies to imported re-exported symbols
+
+> Re-export chains should preserve declaration-order overload selection.
+
+```ds:api.ds
+export function classify<T>(value: T): "generic" {
+    return "generic";
+}
+
+export function classify(value: "x"): "specific" {
+    return "specific";
+}
+```
+
+```ds:index.ds
+export { classify } from "./api";
+```
+
+```ds:main.ds
+import { classify } from "./index";
+
+const selected = classify("x");
+selected satisfies "generic";
+```
+
+### generic overload ordering through re-exports does not select later overloads
+
+> Re-export chains should not promote later overload results.
+
+```ds:api.ds
+export function classify<T>(value: T): "generic" {
+    return "generic";
+}
+
+export function classify(value: "x"): "specific" {
+    return "specific";
+}
+```
+
+```ds:index.ds
+export { classify } from "./api";
+```
+
+```ds:main.ds
+import { classify } from "./index";
+
+const selected = classify("x");
+selected satisfies "specific";
+```
+
+- contains: not assignable

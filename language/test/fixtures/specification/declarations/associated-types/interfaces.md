@@ -1186,6 +1186,39 @@ declare const shape: UserProject.Shape;
 shape satisfies { id: int32, name: string };
 ```
 
+### interface associated defaults can compose mapped and conditional operators
+
+> Interface associated defaults can combine mapped operators with conditional value rewriting.
+> Substitution should happen before mapped traversal and conditional branch selection.
+
+```ds
+interface Normalize<Config> {
+    type Shape = { [K in keyof Config]: Config[K] extends boolean ? 1 : Config[K] };
+}
+
+class RuntimeConfig implements Normalize<{ enabled: boolean, retries: int32 }> {}
+
+declare const shape: RuntimeConfig.Shape;
+shape satisfies { enabled: 1, retries: int32 };
+```
+
+### interface associated defaults can project union values after mapped normalization
+
+> Associated defaults can project value unions from mapped intermediate aliases.
+> The union projection should observe the already specialized mapped result.
+
+```ds
+interface ValueProjection<Row> {
+    type Shape = { [K in keyof Row]: Row[K] extends string ? string : Row[K] };
+    type Value = Shape[keyof Shape];
+}
+
+class UserProjection implements ValueProjection<{ name: string, age: int32 }> {}
+
+declare const value: UserProjection.Value;
+value satisfies string | int32;
+```
+
 ### interface associated defaults are not static expressions for comptime value arguments
 
 > Projected interface associated defaults are not yet valid static value expressions.

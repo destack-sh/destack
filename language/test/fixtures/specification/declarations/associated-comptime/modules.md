@@ -107,6 +107,31 @@ function unresolved<Row>() {
 
 - contains: resolvable
 
+### unresolved generic projections stay rejected through re-export chains
+
+> Re-export chains do not make unresolved generic value projections admissible.
+> Value-space projection still requires concrete substitutions at the use site.
+
+```ds:plan.ds
+export class SegmentPlan<Row> {
+    comptime const SegmentBytes: number = Row extends string ? 4096 : 1024;
+}
+```
+
+```ds:barrel.ds
+export { SegmentPlan } from "./plan";
+```
+
+```ds:main.ds
+import { SegmentPlan } from "./barrel";
+
+function unresolved<Row>() {
+    SegmentPlan<Row>.SegmentBytes;
+}
+```
+
+- contains: resolvable
+
 ### type-only cycles keep associated comptime projections available
 
 > Type-only import cycles should not erase associated comptime projection semantics.
@@ -136,6 +161,76 @@ import { Right } from "./b";
 declare const lane: Right<string>.Lane;
 lane satisfies uint8[4];
 ```
+
+### cyclic re-export projections report one static argument cycle
+
+> Cyclic associated comptime projections across re-exports are rejected deterministically.
+> The cycle should report as one static argument cycle at the use site.
+
+```ds:a.ds
+import type { Right } from "./bridge-a";
+
+export class Left<T> {
+    comptime const Width: number = Right<T>.Height;
+}
+```
+
+```ds:bridge-a.ds
+export { Right } from "./bridge-b";
+```
+
+```ds:bridge-b.ds
+export { Right } from "./b";
+```
+
+```ds:b.ds
+import type { Left } from "./a";
+
+export class Right<T> {
+    comptime const Height: number = Left<T>.Width;
+}
+```
+
+```ds:main.ds
+import { Left } from "./a";
+
+function unresolved() {
+    Left<string>.Width;
+}
+```
+
+- contains: static argument cycle
+
+### generic recursive projections report static cycles before unresolved projection errors
+
+> Recursive generic associated comptime projections should report a static argument cycle.
+> The cycle diagnostic should be primary instead of unresolved projection fallback diagnostics.
+
+```ds:a.ds
+import type { Right } from "./b";
+
+export class Left<Row> {
+    comptime const Width: number = Right<Row>.Height;
+}
+```
+
+```ds:b.ds
+import type { Left } from "./a";
+
+export class Right<Row> {
+    comptime const Height: number = Left<Row>.Width;
+}
+```
+
+```ds:main.ds
+import { Left } from "./a";
+
+function unresolved<Row>() {
+    Left<Row>.Width;
+}
+```
+
+- contains: static argument cycle
 
 ### imported owners can specialize tensor-style layout aliases
 
@@ -382,6 +477,100 @@ declare const flags: CriticalProfile.Flags;
 flags satisfies { critical: 1, enabled: 1 };
 ```
 
+### namespace imports preserve conditional associated comptime projections
+
+> Namespace imports should preserve conditional associated comptime projections.
+> Value and alias projections should agree through namespace-qualified owners.
+
+```ds:plan.ds
+export class SegmentPlan<Row> {
+    comptime const SegmentBytes: number = Row extends string ? 4096 : 1024;
+    type Segment = uint8[SegmentBytes];
+}
+```
+
+```ds:main.ds
+import * as api from "./plan";
+
+const bytes = api.SegmentPlan<string>.SegmentBytes;
+bytes satisfies number;
+
+declare const segment: api.SegmentPlan<string>.Segment;
+segment satisfies uint8[4096];
+```
+
+### renamed re-exports preserve mapped aliases that use associated comptime defaults
+
+> Renamed re-exports should preserve mapped aliases that depend on associated comptime defaults.
+> Alias forwarding should not drop conditional width selection or mapped payload shapes.
+
+```ds:profile.ds
+export interface ServiceProfile<Config> {
+    comptime const RetryBudget: number = Config extends { critical: true } ? 10 : 3;
+    type BudgetWindow = uint8[this.RetryBudget];
+    type Envelope = { [K in keyof Config]: [Config[K], this.BudgetWindow] };
+}
+```
+
+```ds:owner.ds
+import type { ServiceProfile } from "./profile";
+
+export class CriticalProfile implements ServiceProfile<{ critical: true, enabled: boolean }> {}
+```
+
+```ds:index.ds
+export { CriticalProfile as PublicCriticalProfile } from "./owner";
+```
+
+```ds:main.ds
+import { PublicCriticalProfile } from "./index";
+
+declare const envelope: PublicCriticalProfile.Envelope;
+
+declare const critical: PublicCriticalProfile.Envelope["critical"];
+critical satisfies [true, uint8[10]];
+
+declare const enabled: PublicCriticalProfile.Envelope["enabled"];
+enabled satisfies [boolean, uint8[10]];
+```
+
+### multi-hop re-exports preserve contract comptime alias chains
+
+> Contract-owned associated comptime defaults should remain specialized through multi-hop barrels.
+> Value and alias projections should stay coherent for imported implementors.
+
+```ds:contract.ds
+export interface TileShape<Row> {
+    comptime const Width: number = Row extends string ? 8 : 4;
+    comptime const DoubleWidth: number = this.Width * 2;
+    type Tile = uint8[this.DoubleWidth];
+}
+```
+
+```ds:owner.ds
+import type { TileShape } from "./contract";
+
+export class Packet<Row> implements TileShape<Row> {}
+```
+
+```ds:barrel1.ds
+export { Packet } from "./owner";
+```
+
+```ds:barrel2.ds
+export { Packet } from "./barrel1";
+```
+
+```ds:main.ds
+import { Packet } from "./barrel2";
+
+const width = Packet<string>.DoubleWidth;
+width satisfies number;
+
+declare const tile: Packet<string>.Tile;
+tile satisfies uint8[16];
+```
+
 ### unresolved generic namespace value projections are rejected
 
 > Namespace value projections from imported generic owners must be resolvable.
@@ -402,3 +591,5 @@ function unresolved<Row>() {
 ```
 
 - contains: resolvable
+
+Cross-module fixed-array disambiguation matrices are owned by `types/operators/indexed-access.md`.

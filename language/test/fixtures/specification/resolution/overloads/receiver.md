@@ -92,3 +92,65 @@ selected satisfies "number";
 ```
 
 - contains: not assignable
+
+### receiver overload order is preserved through exported extension modules
+
+> Overload declaration order should remain stable when extensions are imported from other modules.
+
+```ds:counter.ds
+export struct Counter {}
+```
+
+```ds:extensions.ds
+import { Counter } from "./counter";
+
+extension for Counter implements Add<number> {
+    add(other: number): "number" { return "number" }
+}
+
+extension for Counter implements Add<int32> {
+    add(other: int32): "int32" { return "int32" }
+}
+```
+
+```ds:main.ds
+import { Counter } from "./counter";
+import "./extensions";
+
+declare let counter: Counter;
+
+const selected = counter + 1;
+selected satisfies "number";
+```
+
+### receiver overload order through modules does not select later overloads
+
+> Imported extension overload sets should not promote later declarations.
+
+```ds:counter.ds
+export struct Counter {}
+```
+
+```ds:extensions.ds
+import { Counter } from "./counter";
+
+extension for Counter implements Add<number> {
+    add(other: number): "number" { return "number" }
+}
+
+extension for Counter implements Add<int32> {
+    add(other: int32): "int32" { return "int32" }
+}
+```
+
+```ds:main.ds
+import { Counter } from "./counter";
+import "./extensions";
+
+declare let counter: Counter;
+
+const selected = counter + 1;
+selected satisfies "int32";
+```
+
+- contains: not assignable

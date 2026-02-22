@@ -41,3 +41,23 @@ const [readonly, setReadonly] = [1, 2];
 readonly satisfies number;
 setReadonly satisfies number;
 ```
+
+### array patterns support rest bindings
+
+> Array patterns support rest bindings for trailing elements.
+
+```ds
+let [head, ...tail] = [1, 2, 3];
+head satisfies int32;
+tail satisfies int32[];
+```
+
+### array patterns reject non iterable initializers
+
+> Array destructuring patterns require iterable initializers.
+
+```ds
+let [value] = 1;
+```
+
+- contains: not iterable

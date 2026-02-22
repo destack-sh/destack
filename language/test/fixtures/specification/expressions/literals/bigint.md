@@ -25,3 +25,33 @@ const value = 42n;
 const text = value.toString();
 text satisfies string;
 ```
+
+### bigint literal is not assignable to number
+
+> Bigint values are not assignable to number.
+
+```ds libs=es2020
+const value: number = 42n;
+```
+
+- contains: not assignable
+
+### bigint literals participate in bigint arithmetic
+
+> Bigint arithmetic preserves bigint results.
+
+```ds libs=es2020
+const value = 40n + 2n;
+value satisfies bigint;
+```
+
+### bigint arithmetic rejects number operands
+
+> Bigint arithmetic rejects mixed bigint and number operands.
+
+```ds libs=es2020
+const value = 40n + 2;
+value satisfies bigint;
+```
+
+- contains: not assignable

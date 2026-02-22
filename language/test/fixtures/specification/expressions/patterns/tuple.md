@@ -30,3 +30,24 @@ let (x: y) = (1, 2);
 ```
 
 - contains: named fields are not allowed in array or tuple patterns
+
+### tuple patterns reject arity mismatch
+
+> Tuple patterns require enough source elements for each binding.
+
+```ds
+let (left, right, extra) = (1, 2);
+```
+
+- contains: not assignable
+
+### tuple patterns support nested destructuring
+
+> Tuple patterns destructure nested tuple elements positionally.
+
+```ds
+let (left, (middle, right)) = (1, (2, 3));
+left satisfies int32;
+middle satisfies int32;
+right satisfies int32;
+```

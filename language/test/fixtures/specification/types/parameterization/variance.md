@@ -279,5 +279,3 @@ const widened: Sink<string | number> = sink_string;
 ```
 
 - type Sink<string> is not assignable to type Sink<string | number>
-
-<!-- TODO #Incomplete: wire up variance modifiers in analyze phase -->

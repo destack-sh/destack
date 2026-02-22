@@ -13,3 +13,6 @@ Tests for template literal matching, assignability, inference, and cross-feature
 - Cross-module resolution through re-exports and namespace imports.
 - Flow behavior across null checks, equality checks, and match join commit rules.
 - Inference scenarios are split into basic, argument, and numeric cases.
+- Inference scenarios also lock `let` or `const` literal-precision boundaries before template matching.
+- Argument inference coverage includes direct imports, renamed re-exports, export-star forwarding, and namespace imports.
+- Known parity gaps are tracked as known failures when implementation diverges: generic `${T}` applicability from widened `string` and non-contextual const ternary span-union preservation.

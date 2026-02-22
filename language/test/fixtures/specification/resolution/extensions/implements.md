@@ -2,8 +2,6 @@
 
 Tests for extensions that implement interfaces.
 
-> #Incomplete: Operator overloading via interface implementation is not yet supported.
-
 ## Basic Interface Implementation
 
 ### extension implements interface
@@ -56,3 +54,81 @@ document.print();
 document.serialize() satisfies string;
 ```
 
+### extension rejects missing interface members
+
+> Extensions that implement interfaces must provide all required members.
+
+```ds
+interface Printable {
+    print(): void
+}
+
+interface Serializable {
+    serialize(): string
+}
+
+struct Document { content: string }
+
+extension for Document implements Printable, Serializable {
+    print(): void {}
+}
+```
+
+- contains: missing implementation
+
+### extension can implement imported interfaces across modules
+
+> Extensions can satisfy imported interface contracts across module boundaries.
+
+```ds:contracts.ds
+export interface Printable {
+    print(): string
+}
+```
+
+```ds:model.ds
+export struct Document { content: string }
+```
+
+```ds:main.ds
+import { Printable } from "./contracts";
+import { Document } from "./model";
+
+extension for Document implements Printable {
+    print(): string { return this.content }
+}
+
+declare function getDocument(): Document;
+
+const document = getDocument();
+document.print() satisfies string;
+```
+
+### extension implementing imported contracts rejects missing members
+
+> Imported interface contracts still require all members in extension implementations.
+
+```ds:contracts.ds
+export interface Printable {
+    print(): string
+}
+
+export interface Serializable {
+    serialize(): string
+}
+```
+
+```ds:model.ds
+export struct Document { content: string }
+```
+
+```ds:main.ds
+import { Printable, Serializable } from "./contracts";
+import { Document } from "./model";
+
+extension for Document implements Printable, Serializable {
+    print(): string { return this.content }
+}
+```
+
+- contains: missing implementation

@@ -222,3 +222,174 @@ import { NamePolicy } from "./owner";
 declare const item: NamePolicy.Item;
 item satisfies int32;
 ```
+
+### namespace imports preserve mapped and conditional associated defaults
+
+> Namespace imports should preserve mapped and conditional associated defaults.
+> Projection through a namespace path should match direct import behavior.
+
+```ds:contract.ds
+export interface Normalize<Row> {
+    type Shape = { [K in keyof Row]: Row[K] extends boolean ? 1 : Row[K] };
+    type Value = Shape[keyof Shape];
+}
+```
+
+```ds:owner.ds
+import type { Normalize } from "./contract";
+
+export class RuntimeView implements Normalize<{ enabled: boolean, retries: int32 }> {}
+```
+
+```ds:main.ds
+import * as api from "./owner";
+
+declare const shape: api.RuntimeView.Shape;
+shape satisfies { enabled: 1, retries: int32 };
+
+declare const value: api.RuntimeView.Value;
+value satisfies 1 | int32;
+```
+
+### renamed re-exports preserve mapped and conditional associated defaults
+
+> Renamed re-exports should preserve mapped and conditional associated defaults.
+> Alias forwarding should not lose owner substitutions for projections.
+
+```ds:contract.ds
+export interface Normalize<Row> {
+    type Shape = { [K in keyof Row]: Row[K] extends string ? string : Row[K] };
+}
+```
+
+```ds:owner.ds
+import type { Normalize } from "./contract";
+
+export class UserShape implements Normalize<{ name: string, age: int32 }> {}
+```
+
+```ds:index.ds
+export { UserShape as PublicUserShape } from "./owner";
+```
+
+```ds:main.ds
+import { PublicUserShape } from "./index";
+
+declare const shape: PublicUserShape.Shape;
+shape satisfies { name: string, age: int32 };
+```
+
+### multi-hop re-exports preserve contract alias projection chains
+
+> Contract-owned associated aliases that reference sibling aliases should stay specialized through multi-hop barrels.
+> Imported implementors should preserve the full alias chain without dropping substitutions.
+
+```ds:contract.ds
+export interface PacketOwner<Row> {
+    comptime const Width: number = Row extends string ? 8 : 2;
+    type Lane = uint8[this.Width];
+    type Packet = this.Lane;
+}
+```
+
+```ds:owner.ds
+import type { PacketOwner } from "./contract";
+
+export class Packet<Row> implements PacketOwner<Row> {}
+```
+
+```ds:barrel1.ds
+export { Packet } from "./owner";
+```
+
+```ds:barrel2.ds
+export * from "./barrel1";
+```
+
+```ds:main.ds
+import { Packet } from "./barrel2";
+
+declare const lane: Packet<string>.Lane;
+lane satisfies uint8[8];
+
+declare const packet: Packet<string>.Packet;
+packet satisfies uint8[8];
+```
+
+### associated projections stay precise inside imported conditional aliases
+
+> Imported associated projections should preserve substituted precision inside conditional aliases.
+> Conditional branches should evaluate against the specialized owner projection.
+
+```ds:contract.ds
+export interface Response<Row> {
+    type Item = Row;
+}
+```
+
+```ds:owner.ds
+import type { Response } from "./contract";
+
+export class UserResponse implements Response<{ id: string, enabled: boolean }> {}
+```
+
+```ds:main.ds
+import { UserResponse } from "./owner";
+
+type EnabledFlag = UserResponse.Item extends { enabled: true } ? 1 : 0;
+
+declare const flag: EnabledFlag;
+flag satisfies 0;
+```
+
+### associated projections stay precise inside imported mapped aliases
+
+> Imported associated projections should preserve key and value precision inside mapped aliases.
+> Mapped transforms should run on the specialized associated owner type.
+
+```ds:contract.ds
+export interface Response<Row> {
+    type Item = Row;
+}
+```
+
+```ds:owner.ds
+import type { Response } from "./contract";
+
+export class UserResponse implements Response<{ id: string, enabled: boolean }> {}
+```
+
+```ds:main.ds
+import { UserResponse } from "./owner";
+
+type Flags = { [K in keyof UserResponse.Item]: UserResponse.Item[K] extends boolean ? 1 : UserResponse.Item[K] };
+
+declare const value: Flags;
+value satisfies { id: string, enabled: 1 };
+```
+
+### associated type projections are valid in reference annotations across modules
+
+> Cross-module associated projections should remain valid in reference-typed positions.
+> Borrowed references should not erase projection specialization.
+
+```ds:contract.ds
+export interface Payload<Row> {
+    type Item = Row;
+}
+```
+
+```ds:owner.ds
+import type { Payload } from "./contract";
+
+export class TextPayload implements Payload<string> {}
+```
+
+```ds:main.ds
+import { TextPayload } from "./owner";
+
+function read(value: &TextPayload.Item): void {
+}
+```
+
+Template literal mapped conditional projection matrices are owned by `types/template-literals/modules.md`.

@@ -89,3 +89,48 @@ function add(this: { base: number }, value: number): number {
 
 add.call({ base: "no" }, 1);
 ```
+
+### strict bind checks parameter assignments at call sites
+
+> Bound call signatures preserve parameter type checking under strict checking.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictBindCallApply": true } }
+```
+
+```ds
+function add(this: { base: number }, value: number): number {
+    return this.base + value;
+}
+
+const bound = add.bind({ base: 1 });
+bound("no");
+```
+
+- contains: not assignable
+
+### strict call checks argument arity
+
+> Strict `call` checking enforces function argument arity.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictBindCallApply": true } }
+```
+
+```ds
+function add(this: { base: number }, value: number): number {
+    return this.base + value;
+}
+
+add.call({ base: 1 });
+```
+
+- contains: expected

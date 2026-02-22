@@ -111,18 +111,15 @@ grid[0][0] satisfies 1;
 grid[0][1] satisfies 2;
 ```
 
-### const assertions preserve conditional literal unions
+### const assertions reject non literal conditional expressions
 
-Const assertions should preserve literal unions for conditional expressions.
+Const assertions are only valid on direct literal forms, not whole conditional expressions.
 
 ```ts
 const value = (true ? 1 : 2) as const;
-
-value satisfies 1 | 2;
-value satisfies 1;
 ```
 
-- contains: expected 1
+- contains: const assertions
 
 ### const arrays widen without const assertions
 
@@ -231,6 +228,208 @@ export const config = { version: 1 };
 import { config } from "./values";
 
 config.version satisfies 1;
+```
+
+- contains: not assignable
+
+### renamed re-export const literals keep literal types across modules
+
+Renamed re-exports should preserve exported const literal precision.
+
+```ts:values.ts
+export const version = 1;
+```
+
+```ts:index.ts
+export { version as publicVersion } from "./values";
+```
+
+```ts:main.ts
+import { publicVersion } from "./index";
+
+publicVersion satisfies 1;
+```
+
+### export-star forwarded let literals still widen across modules
+
+Export-star forwarding should preserve widened `let` literal behavior.
+
+```ts:values.ts
+export let counter = 1;
+```
+
+```ts:index.ts
+export * from "./values";
+```
+
+```ts:main.ts
+import { counter } from "./index";
+
+counter satisfies number;
+```
+
+### namespace imports preserve const assertion literal members
+
+Namespace imports should preserve const assertion literal member precision.
+
+```ts:values.ts
+export const config = { version: 1 } as const;
+```
+
+```ts:main.ts
+import * as values from "./values";
+
+values.config.version satisfies 1;
+```
+
+## Assignment behavior
+
+### assigning const scalar literals into let bindings widens
+
+Fresh const scalar literals widen when assigned into mutable bindings.
+
+```ds
+const seed = 1;
+let value = seed;
+
+value satisfies number;
+```
+
+### assigning const scalar literals into let bindings does not keep literal
+
+Mutable bindings do not preserve the original scalar literal.
+
+```ds
+const seed = 1;
+let value = seed;
+
+value satisfies 1;
+```
+
+- contains: not assignable
+
+### assigning widened let scalars into const bindings keeps widened type
+
+Const bindings do not re-narrow already widened sources.
+
+```ds
+let seed = "ready";
+const value = seed;
+
+value satisfies string;
+```
+
+## inference interactions
+
+### const literal arguments keep literal precision through generic inference
+
+Const literal arguments preserve literal precision through unconstrained generic calls.
+
+```ds
+declare function identity<T>(value: T): T;
+
+const value = identity("users");
+value satisfies "users";
+```
+
+### let literal arguments widen before unconstrained generic inference
+
+Mutable literal arguments widen before unconstrained generic calls.
+
+```ds
+declare function identity<T>(value: T): T;
+
+let value = "users";
+const result = identity(value);
+result satisfies string;
+```
+
+### let literal arguments do not keep literal precision in generic inference
+
+Widened mutable literal arguments do not keep literal precision through unconstrained generic calls.
+
+```ds
+declare function identity<T>(value: T): T;
+
+let value = "users";
+const result = identity(value);
+result satisfies "users";
+```
+
+- contains: not assignable
+
+### const asserted tuples are readonly at element positions
+
+Const asserted tuple elements are readonly and reject writes.
+
+```ds
+const pair = [1, 2] as const;
+pair[0] = 3;
+```
+
+- contains: readonly
+
+### assigning widened let scalars into const bindings does not restore literal
+
+Const bindings preserve source precision, not original initializer freshness.
+
+```ds
+let seed = "ready";
+const value = seed;
+
+value satisfies "ready";
+```
+
+- contains: not assignable
+
+## Defaults and returns
+
+### parameter defaults widen literal initializers
+
+Parameter default literals widen to primitive parameter types in function bodies.
+
+```ts
+function readMode(mode = "dev") {
+    mode satisfies string;
+}
+```
+
+### parameter defaults do not keep literal initializers
+
+Parameter default literals are not preserved as literal types by default.
+
+```ts
+function readMode(mode = "dev") {
+    mode satisfies "dev";
+}
+```
+
+- contains: not assignable
+
+### function return inference widens literal returns
+
+Function return inference widens unconstrained literal return expressions.
+
+```ts
+function makeMode() {
+    return "dev";
+}
+
+const mode = makeMode();
+mode satisfies string;
+```
+
+### function return inference does not keep literal returns
+
+Unconstrained return inference does not preserve literal return values for plain function declarations.
+
+```ts
+function makeMode() {
+    return "dev";
+}
+
+const mode = makeMode();
+mode satisfies "dev";
 ```
 
 - contains: not assignable

@@ -132,6 +132,52 @@ export const value: number;
 }
 ```
 
+## package imports maps
+
+### resolves package imports hash-root aliases
+
+> Package `imports` maps should resolve `#/` aliases for local module resolution.
+
+```ts:main.ts
+import { value } from "#/feature";
+
+value satisfies number;
+```
+
+```ts:src/feature.ts
+export const value = 1;
+```
+
+```json:package.json
+{
+  "name": "@spec/runner",
+  "imports": {
+    "#/*": "./src/*"
+  }
+}
+```
+
+### rejects unresolved package imports hash-root aliases
+
+> Package `imports` lookups should fail when no mapping exists for the alias.
+
+```ts:main.ts
+import { value } from "#/feature";
+
+value;
+```
+
+```json:package.json
+{
+  "name": "@spec/runner",
+  "imports": {
+    "#/other/*": "./src/*"
+  }
+}
+```
+
+- contains: unresolved module '#/feature'
+
 ## triple slash directives
 
 ### resolves reference path directives

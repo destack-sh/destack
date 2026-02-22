@@ -1,8 +1,8 @@
-# Associated Comptime Constants: Layout Composition
+# Associated Comptime Constants: Array Shapes
 
-Layout composition tests for associated comptime constants live here.
+Array shape tests for associated comptime constants live here.
 
-## layouts
+## array-shapes
 
 ### kernel profile composes lane width with tensor tile aliases
 
@@ -102,4 +102,44 @@ tile satisfies float32[8][8];
 // arithmetic over owner value parameters should remain compile-time resolvable
 declare const bytes: BlockLayout<float32, 8, 8>.TileBytes;
 bytes satisfies 256;
+```
+
+### layout aliases infer fixed-size arrays without as comptime when indexing is inadmissible
+
+> `as comptime` is optional when indexed access is not admissible for `T[N]`.
+> Here `T = uint8`, so `uint8[this.Lanes]` cannot be indexed-access and resolves as fixed-size array construction.
+> The projection should still fold the associated constant into the sized lane.
+
+```ds
+interface SensorLaneLayout<T> {
+    comptime const LaneCount: int = 8;
+    type Lane = T[this.LaneCount];
+}
+
+class ByteLaneLayout implements SensorLaneLayout<uint8> {}
+
+declare const lane: ByteLaneLayout.Lane;
+lane satisfies uint8[8];
+```
+
+### layout aliases require as comptime to force fixed-size when indexed access is admissible
+
+> `as comptime` is required when indexed access is admissible and we want fixed-size semantics instead.
+> Here the payload type is `uint8[]`, so `Payload[this.WindowCount]` resolves as indexed access and yields one payload element.
+> `Payload[this.WindowCount as comptime]` forces fixed-size array construction and yields a fixed window of payloads.
+
+```ds
+interface SensorWindows<Payload> {
+    comptime const WindowCount: int = 4;
+    type Sample = Payload[this.WindowCount];
+    type Window = Payload[this.WindowCount as comptime];
+}
+
+class ByteSensorWindows implements SensorWindows<uint8[]> {}
+
+declare const sample: ByteSensorWindows.Sample;
+sample satisfies uint8;
+
+declare const window: ByteSensorWindows.Window;
+window satisfies uint8[][4];
 ```

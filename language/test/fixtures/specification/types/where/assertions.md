@@ -77,3 +77,33 @@ merge<Copy, Copy>(value, other);
 ```
 
 - contains: not assignable
+
+### inferred type arguments must satisfy where constraints
+
+> Constraint checks also apply when type arguments are inferred.
+
+```ds
+interface Copy { copy(): void; }
+
+function process<T>(value: T): T where T: Copy {
+    return value;
+}
+
+process({ copy() {} });
+```
+
+### inferred type arguments reject unsatisfied where constraints
+
+> Inferred type arguments are rejected when where constraints are not satisfied.
+
+```ds
+interface Copy { copy(): void; }
+
+function process<T>(value: T): T where T: Copy {
+    return value;
+}
+
+process({ merge() {} });
+```
+
+- contains: not assignable

@@ -31,3 +31,51 @@ comptime {
 const next = base + 1;
 next satisfies int32;
 ```
+
+### module-level comptime blocks can initialize exported constants
+
+> Module-level comptime values can be forwarded through exported constants.
+
+```ds
+const computed = comptime {
+    let base = 8;
+    base + 4
+};
+
+export const size: int32 = computed;
+size satisfies int32;
+```
+
+### module-level comptime blocks can read imported constants
+
+> Module-level comptime blocks can use imported compile-time constants.
+
+```ds:config.ds
+export const base: int32 = 8;
+```
+
+```ds:main.ds
+import { base } from "./config";
+
+const computed = comptime {
+    base + 4
+};
+
+computed satisfies int32;
+```
+
+### module-level comptime blocks reject runtime-only calls
+
+> Module-level comptime blocks reject runtime-only computations.
+
+```ds
+function runtime_only(): int32 {
+    4
+}
+
+const computed = comptime {
+    runtime_only()
+};
+```
+
+- contains: static expression

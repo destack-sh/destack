@@ -87,3 +87,48 @@ declare function makeBuffer(): Buffer<string>;
 const buffer = makeBuffer();
 buffer.get() satisfies string;
 ```
+
+### extension static parameter mismatch rejects incompatible calls
+
+> Extension methods still enforce substituted static parameter contracts.
+
+```ds
+struct Buffer<T, comptime N: number> {
+    value: T
+}
+
+extension<T, comptime N: number> for Buffer<T, N> {
+    requireSize(value: T[N as comptime]): T[N as comptime] {
+        return value;
+    }
+}
+
+declare function makeBuffer(): Buffer<uint8, 4>;
+
+const buffer = makeBuffer();
+buffer.requireSize([1, 2, 3, 4]);
+buffer.requireSize([1, 2]);
+```
+
+- contains: not assignable
+
+### extension static defaults preserve mapped owner substitutions
+
+> Defaulted static arguments remain specialized through extension member projections.
+
+```ds
+struct Registry<T, comptime N: number = 2> {
+    value: T
+}
+
+extension<T, comptime N: number> for Registry<T, N> {
+    pair(): [T, T] {
+        [this.value, this.value]
+    }
+}
+
+declare function makeRegistry(): Registry<string>;
+
+const registry = makeRegistry();
+registry.pair() satisfies [string, string];
+```

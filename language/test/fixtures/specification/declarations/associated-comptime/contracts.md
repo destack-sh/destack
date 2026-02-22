@@ -129,3 +129,31 @@ declare const row: LeafPlan.Row;
 ```
 
 - contains: missing associated
+
+### compatible multi-contract associated comptime requirements share one implementation
+
+> One associated comptime implementation can satisfy multiple compatible owner contracts.
+> Two interfaces require the same associated constant shape and one class implementation satisfies both.
+> Projected aliases from both contracts should agree on the same substituted value.
+
+```ds
+interface RowsContract<T> {
+    comptime const Width: number;
+    type Row = T[this.Width];
+}
+
+interface TileContract<T> {
+    comptime const Width: number;
+    type Tile = T[this.Width][2];
+}
+
+class DensePlan implements RowsContract<float32>, TileContract<float32> {
+    comptime const Width: number = 8;
+}
+
+declare const row: DensePlan.Row;
+row satisfies float32[8];
+
+declare const tile: DensePlan.Tile;
+tile satisfies float32[8][2];
+```

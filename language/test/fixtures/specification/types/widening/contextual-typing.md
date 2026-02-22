@@ -248,6 +248,31 @@ make().mode satisfies "dev";
 
 - contains: expected "dev"
 
+## Assignment freshness boundaries
+
+### fresh object literals enforce excess checks at commitment
+
+> Fresh object literals should enforce excess property checks at annotated commitment points.
+
+```ts
+type Named = { name: string };
+
+const value: Named = { name: "Ada", extra: true };
+```
+
+- contains: excess property
+
+### non-fresh objects skip excess checks at later commitments
+
+> Non-fresh object values should not re-run excess checks at later assignment points.
+
+```ts
+type Named = { name: string };
+
+const source = { name: "Ada", extra: true };
+const value: Named = source;
+```
+
 ## Contextual generics
 
 ### explicit generic unions constrain object literal members

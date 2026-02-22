@@ -131,3 +131,203 @@ total([1, "hi"])
 ```
 
 - contains: type (number | "hi")[] is not assignable to type number[]
+
+## this-less object literal context sensitivity
+
+### arrow properties remain order-insensitive for contextual callback inference
+
+> TypeScript 6.0 keeps arrow-property inference order-insensitive in object literal callback arguments.
+
+```ts:main.ts
+declare function callIt<T>(obj: {
+    produce: (x: number) => T,
+    consume: (y: T) => void,
+}): void;
+
+callIt({
+    consume: y => y.toFixed(),
+    produce: (x: number) => x * 2,
+});
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+### this-less methods do not infer from sibling members when flipped
+
+> TypeScript 6.0 does not contextually infer method parameter types from sibling members for this-less method syntax.
+
+```ts:main.ts
+declare function callIt<T>(obj: {
+    produce: (x: number) => T,
+    consume: (y: T) => void,
+}): void;
+
+callIt({
+    consume(y) { return y.toFixed(); },
+    produce(x: number) { return x * 2; },
+});
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+- contains: unknown
+
+## this-less contextual inference torture
+
+### this-less arrows infer across sibling ordering with nested object literals
+
+> Arrow properties should contextually infer generic payloads regardless of sibling ordering.
+
+```ts:main.ts
+declare function build<T>(spec: {
+    payload: () => T,
+    consume: (value: T) => string,
+}): string;
+
+const output = build({
+    consume: value => value.toUpperCase(),
+    payload: () => "ready",
+});
+
+output satisfies string;
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+### this-less methods do not contextually infer sibling generic payloads
+
+> Method syntax should not gain arrow-style sibling contextual inference in this-less object literals.
+
+```ts:main.ts
+declare function build<T>(spec: {
+    payload: () => T,
+    consume: (value: T) => string,
+}): string;
+
+build({
+    consume(value) { return value.toUpperCase(); },
+    payload() { return "ready"; },
+});
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+- contains: unknown
+
+### this-less arrow callbacks preserve inference through renamed re-exports
+
+> Renamed re-exports should not perturb this-less arrow contextual inference.
+
+```ts:api.ts
+export declare function build<T>(spec: {
+    payload: () => T,
+    consume: (value: T) => string,
+}): string;
+```
+
+```ts:index.ts
+export { build as make } from "./api";
+```
+
+```ts:main.ts
+import { make } from "./index";
+
+const output = make({
+    consume: value => value.toUpperCase(),
+    payload: () => "ready",
+});
+
+output satisfies string;
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+## generic callback precision
+
+### generic callback inference preserves const tuple literal element types
+
+> Generic callback inference preserves tuple literal precision from const tuple arguments.
+
+```ts:main.ts
+declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
+
+const tuple = [1, 2] as const;
+const head = mapOne(tuple, input => input[0]);
+
+head satisfies 1;
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+### generic callback inference widens mutable array element types
+
+> Generic callback inference widens mutable array element reads to their primitive element type.
+
+```ts:main.ts
+declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
+
+let values = [1, 2];
+const head = mapOne(values, input => input[0]);
+
+head satisfies number;
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+### generic callback inference does not keep mutable array literal elements
+
+> Generic callback inference does not preserve mutable array element literal types.
+
+```ts:main.ts
+declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
+
+let values = [1, 2];
+const head = mapOne(values, input => input[0]);
+
+head satisfies 1;
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+- contains: not assignable
+
+### generic callback inference stays precise through renamed re-exports
+
+> Generic callback inference preserves const tuple precision across renamed re-export paths.
+
+```ts:api.ts
+export declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
+```
+
+```ts:index.ts
+export { mapOne as runOne } from "./api";
+```
+
+```ts:main.ts
+import { runOne } from "./index";
+
+const tuple = [1, 2] as const;
+const head = runOne(tuple, input => input[0]);
+
+head satisfies 1;
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
