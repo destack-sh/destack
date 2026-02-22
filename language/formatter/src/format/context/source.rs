@@ -6,7 +6,7 @@ use crate::format::context::{
 };
 
 /// Build one keyword map for identifier tokens across main and side streams.
-pub(crate) fn build_token_keyword_map(
+pub(crate) fn token_keyword_map(
     file: &File,
     tokens: &[TokenSpan],
     side_tokens: &[TokenSpan],

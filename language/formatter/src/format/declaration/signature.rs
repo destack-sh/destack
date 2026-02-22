@@ -1,4 +1,4 @@
-use crate::format::analysis::scan::previous_non_whitespace_token_before_annotation;
+use crate::format::analysis::previous_non_whitespace_token_before_annotation;
 use crate::format::collection::list_like;
 use crate::format::collection::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,

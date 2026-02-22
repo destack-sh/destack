@@ -4,62 +4,16 @@ use ast::{
 };
 use destack_ast as ast;
 
+use crate::format::comments::boundary::{
+    CommentAttachment, CommentAttachmentOwners, CommentSeamContext, CommentSeamData,
+    CommentSeamKeyword, CommentSeamOwnerCache, comment_seam_owner,
+};
 use crate::format::comments::declaration::try_attach_comment_declaration_return_type_seam;
-use crate::format::comments::owner::{
-    find_smallest_owner_enclosing_token, lowest_common_owner_ancestor,
-    normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
-    promote_owner_to_node_type_ancestor, resolve_block_leading_comment_target,
+use crate::format::comments::ownership::{
+    block_leading_comment_target, find_smallest_owner_enclosing_token,
+    lowest_common_owner_ancestor, normalize_formatter_trivia_target_owner,
+    normalize_owner_with_shared_end, promote_owner_to_node_type_ancestor,
 };
-use crate::format::comments::seam::{
-    CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
-    CommentSeamKeyword, CommentSeamOwnerCache, resolve_comment_seam_owner,
-};
-
-/// Store statement routing flags shared by statement seam rules.
-#[derive(Clone, Copy)]
-struct StatementCommentRoutingFacts {
-    /// Whether there is a newline before the comment.
-    has_leading_newline: bool,
-    /// Whether there is a newline after the comment.
-    has_trailing_newline: bool,
-    /// Whether the comment is one line.
-    comment_is_line: bool,
-    /// Whether the comment is a block comment.
-    comment_is_star: bool,
-    /// Whether the token before the comment is a comma.
-    token_before_is_comma: bool,
-    /// Whether the token before the comment is `)`.
-    token_before_is_close_parenthesis: bool,
-    /// Whether the token before the comment is `else`.
-    token_before_is_else: bool,
-    /// Whether the token after the comment is `{`.
-    token_after_is_open_brace: bool,
-    /// Whether the token after the comment is `)`.
-    token_after_is_close_parenthesis: bool,
-    /// Whether the token after the comment is `;`.
-    token_after_is_semicolon: bool,
-    /// Whether the token after the comment is `case` or `default`.
-    token_after_is_case_or_default: bool,
-}
-
-/// Build statement routing facts from seam facts.
-fn collect_statement_comment_routing_facts(
-    facts: &CommentSeamFacts,
-) -> StatementCommentRoutingFacts {
-    StatementCommentRoutingFacts {
-        has_leading_newline: facts.has_leading_newline,
-        has_trailing_newline: facts.has_trailing_newline,
-        comment_is_line: facts.comment_is_line,
-        comment_is_star: facts.comment_is_star,
-        token_before_is_comma: facts.token_before_is(TokenType::Comma),
-        token_before_is_close_parenthesis: facts.token_before_is(TokenType::CloseParenthesis),
-        token_before_is_else: facts.token_before_is_keyword(CommentSeamKeyword::Else),
-        token_after_is_open_brace: facts.token_after_is(TokenType::OpenBrace),
-        token_after_is_close_parenthesis: facts.token_after_is(TokenType::CloseParenthesis),
-        token_after_is_semicolon: facts.token_after_is(TokenType::Semicolon),
-        token_after_is_case_or_default: facts.token_after_is_case_or_default(),
-    }
-}
 
 /// Normalize one owner to its parameter or argument container owner.
 fn normalize_parameter_or_argument_owner(
@@ -84,12 +38,12 @@ fn normalize_argument_owner(tree: &NodeTree, parents: &NodeParentIndex, owner_id
 fn try_attach_parameter_or_argument_separator_comment(
     tree: &NodeTree,
     parents: &NodeParentIndex,
-    routing_facts: StatementCommentRoutingFacts,
+    seam: &CommentSeamData,
     target_owner: Option<u32>,
-) -> Option<CommentAttachmentDecision> {
-    if !routing_facts.comment_is_line
-        || !routing_facts.token_before_is_comma
-        || !routing_facts.token_after_is_close_parenthesis
+) -> Option<CommentAttachment> {
+    if !seam.comment_is_line
+        || !seam.token_before_is(TokenType::Comma)
+        || !seam.token_after_is(TokenType::CloseParenthesis)
     {
         return None;
     }
@@ -101,13 +55,13 @@ fn try_attach_parameter_or_argument_separator_comment(
 }
 
 /// Resolve one own-line case/default prefix comment target.
-fn resolve_case_or_default_prefix_target(
+fn case_or_default_prefix_target(
     tree: &NodeTree,
     context: &CommentSeamContext<'_>,
     seam_owner_cache: &mut CommentSeamOwnerCache,
     right_owner: Option<u32>,
-) -> Option<CommentAttachmentDecision> {
-    let target_owner = resolve_comment_seam_owner(context, seam_owner_cache).or(right_owner)?;
+) -> Option<CommentAttachment> {
+    let target_owner = comment_seam_owner(context, seam_owner_cache).or(right_owner)?;
 
     if tree.get_node_type(target_owner) == NodeType::Expression {
         let expression_id = LocalNodeId::<Expression>::new(target_owner);
@@ -120,7 +74,7 @@ fn resolve_case_or_default_prefix_target(
 
     if tree.get_node_type(target_owner) == NodeType::Block {
         let block_id = LocalNodeId::<Block>::new(target_owner);
-        let (target_owner, position) = resolve_block_leading_comment_target(tree, block_id);
+        let (target_owner, position) = block_leading_comment_target(tree, block_id);
         return Some((Some(target_owner), position));
     }
 
@@ -129,12 +83,12 @@ fn resolve_case_or_default_prefix_target(
 }
 
 /// Resolve one trailing line comment after a control-head `)` target.
-fn resolve_control_head_line_comment_target(
+fn control_head_line_comment_target(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     left_owner: Option<u32>,
     right_owner: Option<u32>,
-) -> Option<CommentAttachmentDecision> {
+) -> Option<CommentAttachment> {
     let (Some(left_owner), Some(right_owner)) = (left_owner, right_owner) else {
         return None;
     };
@@ -153,8 +107,7 @@ fn resolve_control_head_line_comment_target(
                 let Expression::Block(block_id) = tree.get(*then_expression) else {
                     unreachable!();
                 };
-                let (target_owner, position) =
-                    resolve_block_leading_comment_target(tree, *block_id);
+                let (target_owner, position) = block_leading_comment_target(tree, *block_id);
                 return Some((Some(target_owner), position));
             }
 
@@ -164,7 +117,7 @@ fn resolve_control_head_line_comment_target(
         | Expression::ForEach { body, .. }
         | Expression::For { body, .. }
         | Expression::Loop { body } => {
-            let (target_owner, position) = resolve_block_leading_comment_target(tree, *body);
+            let (target_owner, position) = block_leading_comment_target(tree, *body);
             Some((Some(target_owner), position))
         }
         _ => None,
@@ -176,30 +129,25 @@ pub(crate) fn try_attach_comment_statement_prefix(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
-    facts: &CommentSeamFacts,
+    seam: &CommentSeamData,
     seam_owner_cache: &mut CommentSeamOwnerCache,
     owners: CommentAttachmentOwners,
-) -> Option<CommentAttachmentDecision> {
-    let routing_facts = collect_statement_comment_routing_facts(facts);
+) -> Option<CommentAttachment> {
     let left_owner = owners.left;
     let right_owner = owners.right;
     let token_after_span = context.token_after_span;
     let token_before_span = context.token_before_span.map(|token| token.span);
 
     // own-line trailing separator comments before `)` should stay on the container item
-    if routing_facts.has_leading_newline
-        && let Some(decision) = try_attach_parameter_or_argument_separator_comment(
-            tree,
-            parents,
-            routing_facts,
-            left_owner,
-        )
+    if seam.has_leading_newline
+        && let Some(attachment) =
+            try_attach_parameter_or_argument_separator_comment(tree, parents, seam, left_owner)
     {
-        return Some(decision);
+        return Some(attachment);
     }
 
     // own-line comments before semicolon guards stay with the guarded rhs expression
-    if routing_facts.has_leading_newline && routing_facts.token_after_is_semicolon {
+    if seam.has_leading_newline && seam.token_after_is(TokenType::Semicolon) {
         let left_owner_is_statement_expression = left_owner.is_some_and(|owner| {
             tree.get_node_type(owner) == NodeType::Expression
                 && matches!(
@@ -235,12 +183,12 @@ pub(crate) fn try_attach_comment_statement_prefix(
     }
 
     // own-line comments before switch case labels should attach to the first case expression
-    if routing_facts.has_leading_newline
-        && routing_facts.token_after_is_case_or_default
-        && let Some(decision) =
-            resolve_case_or_default_prefix_target(tree, context, seam_owner_cache, right_owner)
+    if seam.has_leading_newline
+        && seam.token_after_is_case_or_default()
+        && let Some(attachment) =
+            case_or_default_prefix_target(tree, context, seam_owner_cache, right_owner)
     {
-        return Some(decision);
+        return Some(attachment);
     }
 
     None
@@ -250,19 +198,18 @@ pub(crate) fn try_attach_comment_statement_prefix(
 pub(crate) fn try_attach_comment_statement_suffix(
     tree: &NodeTree,
     parents: &NodeParentIndex,
-    facts: &CommentSeamFacts,
+    seam: &CommentSeamData,
     owners: CommentAttachmentOwners,
-) -> Option<CommentAttachmentDecision> {
-    let routing_facts = collect_statement_comment_routing_facts(facts);
+) -> Option<CommentAttachment> {
     let left_owner = owners.left;
     let right_owner = owners.right;
 
     // inline block comments between `else` and `{` stay with the else body block
-    if !routing_facts.has_leading_newline
-        && !routing_facts.has_trailing_newline
-        && routing_facts.comment_is_star
-        && routing_facts.token_before_is_else
-        && routing_facts.token_after_is_open_brace
+    if !seam.has_leading_newline
+        && !seam.has_trailing_newline
+        && seam.comment_is_star
+        && seam.token_before_is_keyword(CommentSeamKeyword::Else)
+        && seam.token_after_is(TokenType::OpenBrace)
         && let Some(target_owner) = right_owner
     {
         let target_owner =
@@ -277,41 +224,37 @@ pub(crate) fn try_attach_comment_statement_suffix(
     }
 
     // trailing line comments after control heads should stay before the body statement
-    if !routing_facts.has_leading_newline
-        && routing_facts.has_trailing_newline
-        && routing_facts.comment_is_line
-        && routing_facts.token_before_is_close_parenthesis
-        && !routing_facts.token_after_is_case_or_default
-        && let Some(decision) =
-            resolve_control_head_line_comment_target(tree, parents, left_owner, right_owner)
+    if !seam.has_leading_newline
+        && seam.has_trailing_newline
+        && seam.comment_is_line
+        && seam.token_before_is(TokenType::CloseParenthesis)
+        && !seam.token_after_is_case_or_default()
+        && let Some(attachment) =
+            control_head_line_comment_target(tree, parents, left_owner, right_owner)
     {
-        return Some(decision);
+        return Some(attachment);
     }
 
     // return type seam comments should stay between `:` and the return type
-    if let Some(decision) = try_attach_comment_declaration_return_type_seam(tree, facts, owners) {
-        return Some(decision);
+    if let Some(attachment) = try_attach_comment_declaration_return_type_seam(tree, seam, owners) {
+        return Some(attachment);
     }
 
     // parameter and argument trailing comments before `)` should stay on the container item
-    if !routing_facts.has_leading_newline
-        && routing_facts.has_trailing_newline
-        && let Some(decision) = try_attach_parameter_or_argument_separator_comment(
-            tree,
-            parents,
-            routing_facts,
-            left_owner,
-        )
+    if !seam.has_leading_newline
+        && seam.has_trailing_newline
+        && let Some(attachment) =
+            try_attach_parameter_or_argument_separator_comment(tree, parents, seam, left_owner)
     {
-        return Some(decision);
+        return Some(attachment);
     }
 
     // trailing comments after callback arguments should stay with the callback argument
-    if !routing_facts.has_leading_newline
-        && routing_facts.has_trailing_newline
-        && routing_facts.comment_is_line
-        && routing_facts.token_before_is_comma
-        && !routing_facts.token_after_is_close_parenthesis
+    if !seam.has_leading_newline
+        && seam.has_trailing_newline
+        && seam.comment_is_line
+        && seam.token_before_is(TokenType::Comma)
+        && !seam.token_after_is(TokenType::CloseParenthesis)
         && let Some(target_owner) = left_owner
     {
         let target_owner = normalize_argument_owner(tree, parents, target_owner);
@@ -325,21 +268,20 @@ pub(crate) fn try_attach_comment_statement_suffix(
 /// Resolve block body seam comment rules.
 pub(crate) fn try_attach_comment_block_body(
     tree: &NodeTree,
-    facts: &CommentSeamFacts,
+    seam: &CommentSeamData,
     owners: CommentAttachmentOwners,
-) -> Option<CommentAttachmentDecision> {
-    let routing_facts = collect_statement_comment_routing_facts(facts);
+) -> Option<CommentAttachment> {
     let right_owner = owners.right;
 
     // comments between method signatures and opening braces should stay inside the body
-    if !routing_facts.has_leading_newline
-        && routing_facts.has_trailing_newline
-        && routing_facts.token_after_is_open_brace
+    if !seam.has_leading_newline
+        && seam.has_trailing_newline
+        && seam.token_after_is(TokenType::OpenBrace)
         && let Some(target_owner) = right_owner
     {
         if tree.get_node_type(target_owner) == NodeType::Block {
             let block_id = LocalNodeId::<Block>::new(target_owner);
-            let (target_owner, position) = resolve_block_leading_comment_target(tree, block_id);
+            let (target_owner, position) = block_leading_comment_target(tree, block_id);
             return Some((Some(target_owner), position));
         }
 

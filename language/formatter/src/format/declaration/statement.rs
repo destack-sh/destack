@@ -6,7 +6,7 @@ use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::Span;
 
-use crate::format::analysis::timing::tags;
+use crate::format::analysis::timing;
 use crate::format::declaration::statement_list::{
     block_allows_value_tail, format_block_body_narrow, format_block_body_wide,
 };
@@ -30,16 +30,15 @@ impl<'ast, 'a> Format<DestackFormatContext<'ast>> for StatementList<'a> {
         {
             let file_line_count = f.context().file_line_count();
             f.context().mark_file_ignore_applied();
+            f.context().increment_counter("stats.file_ignore.files", 1);
             f.context()
-                .increment_counter("profile.file_ignore.files", 1);
-            f.context()
-                .increment_counter("profile.file_ignore.lines", file_line_count);
+                .increment_counter("stats.file_ignore.lines", file_line_count);
             let full_file_span = Span::new(f.context().file.id, 0, f.context().file.len);
             write_ignored_span(f, full_file_span)?;
             return Ok(());
         }
 
-        let _timing = f.context().timing_scope(tags::FORMAT_STATEMENT_LIST);
+        let _timing = f.context().timing_scope(timing::FORMAT_STATEMENT_LIST);
         format_block_of_statements(f, self.expressions, false)?;
         if !self.expressions.is_empty() {
             write!(f, [hard_line_break()])?;
@@ -252,7 +251,7 @@ mod tests {
 
     use crate::{
         Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
-        TestFormatter, assert_format,
+        TestFormatter, assert_format, statement_list,
     };
 
     /// Semicolons should be inserted for non-tail statement expressions.
@@ -771,7 +770,7 @@ function func() {
             TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
                 .unwrap();
         let formatted = test.format(
-            &super::statement_list(expressions.as_slice()),
+            &statement_list(expressions.as_slice()),
             DestackFormatOptions::default(),
         );
 
@@ -789,7 +788,7 @@ alert /* comment */?.("value");"#;
             TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| Ok(p.parse()))
                 .unwrap();
         let formatted = test.format(
-            &super::statement_list(expressions.as_slice()),
+            &statement_list(expressions.as_slice()),
             DestackFormatOptions::default(),
         );
         assert_eq!(formatted.trim_end_matches('\n'), expected);

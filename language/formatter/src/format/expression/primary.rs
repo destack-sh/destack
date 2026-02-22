@@ -1,26 +1,26 @@
 use crate::Annotation;
-use crate::format::analysis::timing::tags;
+use crate::format::analysis::timing;
 use crate::format::collection::{collection_nodes_have_annotations, collection_range_is_inline};
 use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
 use crate::format::expression::{
     Argument, BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult,
-    HugOptions, IfCondition, IfKind, Keyword, LocalNodeId, NodeType, ParenthesizedDropPolicy,
+    HugOptions, IfCondition, IfKind, Keyword, LocalNodeId, NodeType, ParenthesizedDropMode,
     TypeModifier, TypePredicateSubject, array_elements_are_fill_candidates,
-    array_has_only_boundary_comments, block_indent, collect_parenthesized_boundary_comments,
+    array_has_only_boundary_comments, block_indent,
     expression_is_in_template_literal_interpolation, format_boundary_comment_array,
     format_expression, format_hugged, format_scalar_literal, format_static_argument_list,
     format_struct_literal, format_template_literal, format_type_index_expression,
     format_type_template_literal, format_with, group, hard_line_break, indent,
     is_assignment_left_target, is_call_like_argument, is_complex_argument, is_expression_breakable,
     is_expression_chain, is_simple_static_argument, is_trivial_argument, line_postfix_boundary,
-    list_like, parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_newline,
-    parenthesized_has_leading_inner_trivia, parenthesized_should_drop,
-    sequence_expression_needs_parens, should_force_multiline_mapped_type,
-    should_hoist_parenthesized_inner_cast_prefix_comments, soft_block_indent, soft_line_break,
-    soft_line_break_or_space, space, token, transparent_inner_expression,
-    tree_literal_should_break,
+    list_like, parenthesized_boundary_comments, parenthesized_has_leading_inner_comments,
+    parenthesized_has_leading_inner_newline, parenthesized_has_leading_inner_trivia,
+    sequence_expression_needs_parens, should_drop_parenthesized,
+    should_force_multiline_mapped_type, should_hoist_parenthesized_inner_cast_prefix_comments,
+    soft_block_indent, soft_line_break, soft_line_break_or_space, space, token,
+    transparent_inner_expression, tree_literal_should_break,
 };
 use crate::format::tree::format_tree_literal_expression;
 use destack_ast::AnnotationPosition;
@@ -35,7 +35,7 @@ pub(crate) fn format_primary_array_expression<'ast>(
 ) -> FormatResult<()> {
     let _timing = f
         .context()
-        .timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_ARRAY);
+        .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_ARRAY);
 
     // try hugged format for single object or array elements
     if !format_hugged(f, elements_ids, HugOptions::ARRAY, None, false)? {
@@ -75,8 +75,8 @@ pub(crate) fn format_primary_array_expression<'ast>(
         // annotation sensitive expansion checks
         if has_annotations {
             let has_line_comment_annotations = elements_ids.iter().copied().any(|element_id| {
-                let annotation_profile = f.context().ensure_argument_annotation_facts(element_id);
-                annotation_profile.has_line_comment
+                let annotation_cache = f.context().argument_annotation_cache(element_id);
+                annotation_cache.has_line_comment
             });
 
             can_keep_inline_boundary_comment_array = elements_are_inline_in_source
@@ -127,7 +127,7 @@ pub(crate) fn format_primary_tuple_expression<'ast>(
 ) -> FormatResult<()> {
     let _timing = f
         .context()
-        .timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_TUPLE);
+        .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_TUPLE);
 
     if elements_ids.is_empty() {
         write!(f, [token("()")])?;
@@ -238,7 +238,7 @@ pub(crate) fn format_primary_expression<'ast>(
         } => {
             let _timing = f
                 .context()
-                .timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_PATH);
+                .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_PATH);
             write!(f, [path])?;
 
             // static arguments
@@ -349,7 +349,7 @@ pub(crate) fn format_primary_expression<'ast>(
         } => {
             let _timing = f
                 .context()
-                .timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_TYPE_CONDITIONAL);
+                .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_TYPE_CONDITIONAL);
             let conditional_tail = format_with(|f| {
                 write!(
                     f,
@@ -407,7 +407,7 @@ pub(crate) fn format_primary_expression<'ast>(
         } => {
             let _timing = f
                 .context()
-                .timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_TYPE_MAPPED);
+                .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_TYPE_MAPPED);
             let include_space = f.context().options.bracket_spacing;
             let break_parameter_clause = f.context().has_annotation(parameter.constraint)
                 || f.context().node_has_newline(parameter.constraint)
@@ -610,7 +610,7 @@ pub(crate) fn format_primary_expression<'ast>(
         Expression::ObjectExpression { ty, properties } => {
             let _timing = f
                 .context()
-                .timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_OBJECT);
+                .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_OBJECT);
             format_struct_literal(f, node_id, ty, properties)?;
         }
 
@@ -622,7 +622,7 @@ pub(crate) fn format_primary_expression<'ast>(
         } => {
             let _timing = f
                 .context()
-                .timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_TREE);
+                .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_TREE);
             format_tree_literal_expression(f, node_id, left, arguments, elements)?;
         }
 
@@ -690,16 +690,16 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
 ) -> FormatResult<()> {
     let _timing = f
         .context()
-        .timing_scope(tags::FORMAT_EXPRESSION_PRIMARY_PARENTHESES);
+        .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_PARENTHESES);
 
     let tree = f.context().tree;
     let expression = &expression_id;
     let inner_expression = tree.get(expression_id);
-    let should_drop_parentheses = parenthesized_should_drop(
+    let should_drop_parentheses = should_drop_parenthesized(
         f.context(),
         node_id,
         expression_id,
-        ParenthesizedDropPolicy::ExpressionWrapper,
+        ParenthesizedDropMode::ExpressionWrapper,
     );
 
     if should_drop_parentheses {
@@ -877,11 +877,8 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                         && expression_is_await_like(inner_expression));
                 if !should_keep_multiline {
                     write!(f, [token("("), expression, token(")")])?;
-                    let boundary_comments = collect_parenthesized_boundary_comments(
-                        f.context(),
-                        node_id,
-                        expression_id,
-                    );
+                    let boundary_comments =
+                        parenthesized_boundary_comments(f.context(), node_id, expression_id);
                     for comment_id in boundary_comments {
                         write!(f, [space(), comment_id])?;
                     }
@@ -936,7 +933,7 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
         }
 
         let boundary_comments =
-            collect_parenthesized_boundary_comments(f.context(), node_id, expression_id);
+            parenthesized_boundary_comments(f.context(), node_id, expression_id);
         for comment_id in boundary_comments {
             write!(f, [space(), comment_id])?;
         }

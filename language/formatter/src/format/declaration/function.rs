@@ -1,5 +1,5 @@
 use crate::format::collection::list_like;
-use crate::format::declaration::dispatch::format_declaration_export_modifier;
+use crate::format::declaration::declaration::format_declaration_export_modifier;
 use crate::format::declaration::signature::{
     FunctionHeaderStyle, format_where_clause_with_break, parameter_is_variadic,
     signature_parameters_should_expand, signature_return_type_has_line_postfix_boundary_annotation,
@@ -503,7 +503,7 @@ pub(crate) fn format_function_declaration<'ast>(
         }
     }
 
-    // trailing semicolon policy
+    // trailing semicolon rules
     let is_exported_lambda_declaration =
         signature.kind == FunctionKind::Lambda && descriptor.export.is_some();
     let is_statement_lambda_declaration = signature.kind == FunctionKind::Lambda

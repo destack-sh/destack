@@ -1,4 +1,4 @@
-use crate::format::chain::normalize::{ChainLayoutPlan, plan_chain_layout};
+use crate::format::chain::normalize::chain_layout;
 use crate::format::chain::{
     ChainExpression, ChainExpressionBase, ChainExpressionBaseHead,
     chain_line_starts_with_block_prefix_annotation, expression_is_in_conditional_branch,
@@ -187,14 +187,8 @@ pub(crate) fn format_expression_chain<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let plan = plan_chain_layout(f.context(), node_id)?;
-    let ChainLayoutPlan {
-        base,
-        lines,
-        should_break: chain_should_break,
-        instantiation_prefix_wrap_body_ops,
-        ..
-    } = plan;
+    let (base, lines, chain_should_break, instantiation_prefix_wrap_body_ops) =
+        chain_layout(f.context(), node_id)?;
 
     // indent chain lines consistently, even in assignment rhs positions
     let should_indent_chain = true;

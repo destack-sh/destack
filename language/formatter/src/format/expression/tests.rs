@@ -1,3 +1,7 @@
+use crate::format::expression::{
+    ParenthesizedUnwrapMode, expression_has_complex_callback, is_assignment_left_target,
+    should_unwrap_parenthesized,
+};
 use crate::{
     DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
     assert_format,
@@ -137,7 +141,7 @@ fn test_assignment_target_detection() {
             continue;
         }
 
-        if super::is_assignment_left_target(&context, object_expression_id) {
+        if is_assignment_left_target(&context, object_expression_id) {
             found_assignment_target = true;
             break;
         }
@@ -212,7 +216,7 @@ fn test_format_new_expression_wraps_call_member_callee() {
 
 /// Parenthesized member objects with boundary comments should not unwrap.
 #[test]
-fn test_parenthesis_policy_rejects_member_object_boundary_comment() {
+fn test_parenthesis_rules_reject_member_object_boundary_comment() {
     let source = "(value /* boundary */).member";
     let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
         .expect("parse member expression");
@@ -220,17 +224,17 @@ fn test_parenthesis_policy_rejects_member_object_boundary_comment() {
     let (parenthesized_id, inner_expression_id) =
         find_parenthesized_expression_by_inner(&formatter.tree, |_| true);
 
-    assert!(!super::parenthesized_should_unwrap(
+    assert!(!should_unwrap_parenthesized(
         &context,
         parenthesized_id,
         inner_expression_id,
-        super::ParenthesizedUnwrapPolicy::MemberObject,
+        ParenthesizedUnwrapMode::MemberObject,
     ));
 }
 
 /// Parenthesized closure-cast member objects should unwrap.
 #[test]
-fn test_parenthesis_policy_allows_closure_cast_member_object_unwrap() {
+fn test_parenthesis_rules_allow_closure_cast_member_object_unwrap() {
     let source = "(/** @type {array} */ numberOrString).map((x) => x)";
     let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
         .expect("parse member expression");
@@ -238,17 +242,17 @@ fn test_parenthesis_policy_allows_closure_cast_member_object_unwrap() {
     let (parenthesized_id, inner_expression_id) =
         find_parenthesized_expression_by_inner(&formatter.tree, |_| true);
 
-    assert!(super::parenthesized_should_unwrap(
+    assert!(should_unwrap_parenthesized(
         &context,
         parenthesized_id,
         inner_expression_id,
-        super::ParenthesizedUnwrapPolicy::MemberObject,
+        ParenthesizedUnwrapMode::MemberObject,
     ));
 }
 
 /// Parenthesized ordinary-comment member objects should unwrap.
 #[test]
-fn test_parenthesis_policy_allows_ordinary_comment_member_object_unwrap() {
+fn test_parenthesis_rules_allow_ordinary_comment_member_object_unwrap() {
     let source = "(/* ordinary */ source).next()";
     let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
         .expect("parse member expression");
@@ -256,11 +260,11 @@ fn test_parenthesis_policy_allows_ordinary_comment_member_object_unwrap() {
     let (parenthesized_id, inner_expression_id) =
         find_parenthesized_expression_by_inner(&formatter.tree, |_| true);
 
-    assert!(super::parenthesized_should_unwrap(
+    assert!(should_unwrap_parenthesized(
         &context,
         parenthesized_id,
         inner_expression_id,
-        super::ParenthesizedUnwrapPolicy::MemberObject,
+        ParenthesizedUnwrapMode::MemberObject,
     ));
 }
 
@@ -298,7 +302,7 @@ fn test_call_argument_profile_detects_decorated_class_argument() {
     };
     assert_eq!(dynamic_arguments.len(), 1);
 
-    let profile = context.ensure_argument_annotation_facts(dynamic_arguments[0]);
+    let profile = context.argument_annotation_cache(dynamic_arguments[0]);
     assert!(
         profile.has_prefix_annotation,
         "expected decorated class argument to report prefix annotation"
@@ -307,7 +311,7 @@ fn test_call_argument_profile_detects_decorated_class_argument() {
 
 /// Parenthesized new callees with optional chains should not unwrap.
 #[test]
-fn test_parenthesis_policy_rejects_optional_new_callee_unwrap() {
+fn test_parenthesis_rules_reject_optional_new_callee_unwrap() {
     let source = "new (value?.member)()";
     let (formatter, _) = TestFormatter::parse(source, |p| p.eat_expression(Default::default()))
         .expect("parse new expression");
@@ -320,11 +324,11 @@ fn test_parenthesis_policy_rejects_optional_new_callee_unwrap() {
             )
         });
 
-    assert!(!super::parenthesized_should_unwrap(
+    assert!(!should_unwrap_parenthesized(
         &context,
         parenthesized_id,
         inner_expression_id,
-        super::ParenthesizedUnwrapPolicy::NewMemberCallee,
+        ParenthesizedUnwrapMode::NewMemberCallee,
     ));
 }
 
@@ -410,7 +414,7 @@ fn test_tree_child_map_callback_breaks() {
     // build a context to run the helper on
     let context = context_from_formatter(&formatter);
 
-    assert!(super::expression_has_complex_callback(&context, *value));
+    assert!(expression_has_complex_callback(&context, *value));
 }
 
 /// Const on borrows normalizes to readonly in type formatting.
@@ -621,9 +625,9 @@ fn test_format_chain_call_breaks_before_template_literal_snapshot_member() {
     );
 }
 
-/// Chain planner keeps a short promoted head for call-like argument chains.
+/// Chain layout keeps a short promoted head for call-like argument chains.
 #[test]
-fn test_format_chain_planner_promotes_head_in_call_like_argument() {
+fn test_format_chain_layout_promotes_head_in_call_like_argument() {
     assert_format!(
         "render(foo.bar.getResource(id).map(transform).finalize())",
         "render(\n    foo.bar.getResource(id)\n        .map(transform)\n        .finalize(),\n)",
@@ -632,9 +636,9 @@ fn test_format_chain_planner_promotes_head_in_call_like_argument() {
     );
 }
 
-/// Chain planner keeps `=` inline and lets chain operations own their breaks.
+/// Chain layout keeps `=` inline and lets chain operations own their breaks.
 #[test]
-fn test_format_chain_planner_respects_assignment_rhs_width() {
+fn test_format_chain_layout_respects_assignment_rhs_width() {
     assert_format!(
         "veryLongBindingName = source.alpha.beta.gamma().delta().epsilon()",
         "veryLongBindingName = source.alpha.beta\n    .gamma()\n    .delta()\n    .epsilon()",

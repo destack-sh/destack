@@ -6,19 +6,19 @@ use destack_ast as ast;
 use destack_source::Span;
 use rustc_hash::FxHashMap;
 
-use crate::format::comments::index::{
+use crate::format::comments::attachment::{
     FormatterTriviaOwnerIndex, FormatterTriviaSeamIndex, decode_token_index, encode_trivia_seam,
 };
-use crate::format::comments::owner::{
+use crate::format::comments::boundary::{CommentSeamKeyword, comment_seam_keyword};
+use crate::format::comments::ownership::{
     find_next_declaration_owner_from_token, find_next_member_owner_from_token,
     find_smallest_owner_enclosing_range, find_smallest_owner_enclosing_token,
     lowest_common_owner_ancestor, normalize_formatter_trivia_target_owner,
     promote_owner_by_shared_start, promote_owner_to_declaration_ancestor,
     promote_owner_to_node_type_ancestor,
 };
-use crate::format::comments::seam::{CommentSeamKeyword, classify_comment_seam_keyword};
 
-pub(crate) fn resolve_formatter_blank_trivia_attachment(
+pub(crate) fn blank_trivia_attachment(
     tree: &NodeTree,
     semantic_tokens: &[TokenSpan],
     token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
@@ -101,11 +101,9 @@ pub(crate) fn resolve_formatter_blank_trivia_attachment(
     let token_after_is_chain_or_index_boundary = token_after_span
         .is_some_and(|token| matches!(token.token.ty, TokenType::Dot | TokenType::OpenBracket));
     let token_after_is_else =
-        classify_comment_seam_keyword(token_keyword_by_span, token_after_span)
-            == CommentSeamKeyword::Else;
+        comment_seam_keyword(token_keyword_by_span, token_after_span) == CommentSeamKeyword::Else;
     let token_before_is_else =
-        classify_comment_seam_keyword(token_keyword_by_span, token_before_span)
-            == CommentSeamKeyword::Else;
+        comment_seam_keyword(token_keyword_by_span, token_before_span) == CommentSeamKeyword::Else;
     let token_before_is_open_parenthesis =
         token_before_span.is_some_and(|token| token.token.ty == TokenType::OpenParenthesis);
     let token_before_is_comma =

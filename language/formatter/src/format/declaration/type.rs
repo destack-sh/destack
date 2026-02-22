@@ -1,6 +1,6 @@
 use crate::format::collection::list_like;
 use crate::format::collection::property::format_block_of_members;
-use crate::format::declaration::dispatch::{
+use crate::format::declaration::declaration::{
     format_declaration_export_modifier, format_super_type_clause,
     format_super_type_clause_with_expand,
 };

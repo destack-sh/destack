@@ -1,8 +1,8 @@
 use crate::format::context::{
     ANNOTATION_STATE_CACHED, ANNOTATION_STATE_NONE, ANNOTATION_STATE_PRESENT, Annotation,
-    AnnotationData, AnnotationPosition, Argument, ArgumentAnnotationFacts,
-    CallArgumentExpansionProfilesFacts, CallArgumentLayoutFacts, Cell, Comment,
-    DestackFormatContext, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, Ref, Span, ast,
+    AnnotationData, AnnotationPosition, Argument, ArgumentAnnotationCache,
+    CallArgumentExpansionsCache, CallArgumentLayoutCache, Cell, Comment, DestackFormatContext,
+    Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, Ref, Span, ast,
 };
 
 impl<'a> DestackFormatContext<'a> {
@@ -224,28 +224,28 @@ impl<'a> DestackFormatContext<'a> {
             .is_some_and(|annotation_data| annotation_data.has_blank_prefix_first)
     }
 
-    /// Return cached annotation facts for one argument node.
+    /// Return cached annotation data for one argument node.
     #[inline]
-    pub fn ensure_argument_annotation_facts(
+    pub fn argument_annotation_cache(
         &self,
         argument_id: LocalNodeId<Argument>,
-    ) -> ArgumentAnnotationFacts {
-        if let Some(profile) = self
-            .lookup_node_cache_value(&self.node_caches.argument_annotation_facts, argument_id.id)
+    ) -> ArgumentAnnotationCache {
+        if let Some(annotation_cache) = self
+            .lookup_node_cache_value(&self.node_caches.argument_annotation_cache, argument_id.id)
         {
-            self.increment_counter("cache.argument_annotation_facts.hits", 1);
-            return profile;
+            self.increment_counter("cache.argument_annotation_cache.hits", 1);
+            return annotation_cache;
         }
 
-        self.increment_counter("cache.argument_annotation_facts.misses", 1);
-        let profile = self.compute_argument_annotation_facts(argument_id);
+        self.increment_counter("cache.argument_annotation_cache.misses", 1);
+        let annotation_cache = self.compute_argument_annotation_cache(argument_id);
         self.store_node_cache_value(
-            &self.node_caches.argument_annotation_facts,
+            &self.node_caches.argument_annotation_cache,
             argument_id.id,
-            profile,
+            annotation_cache,
         );
 
-        profile
+        annotation_cache
     }
 
     /// Return cached compact simple unannotated argument predicate.
@@ -300,29 +300,29 @@ impl<'a> DestackFormatContext<'a> {
         );
     }
 
-    /// Return cached call argument layout-class facts for one call expression node.
+    /// Return cached call argument layout data for one call expression node.
     #[inline]
-    pub fn lookup_call_argument_layout_facts(
+    pub fn lookup_call_argument_layout_cache(
         &self,
         call_node_id: LocalNodeId<Expression>,
-    ) -> Option<CallArgumentLayoutFacts> {
+    ) -> Option<CallArgumentLayoutCache> {
         self.lookup_node_cache_value(
-            &self.node_caches.call_argument_layout_facts,
+            &self.node_caches.call_argument_layout_cache,
             call_node_id.id,
         )
     }
 
-    /// Store call argument layout-class facts for one call expression node.
+    /// Store call argument layout data for one call expression node.
     #[inline]
-    pub fn store_call_argument_layout_facts(
+    pub fn store_call_argument_layout_cache(
         &self,
         call_node_id: LocalNodeId<Expression>,
-        layout_facts: CallArgumentLayoutFacts,
+        layout_cache: CallArgumentLayoutCache,
     ) {
         self.store_node_cache_value(
-            &self.node_caches.call_argument_layout_facts,
+            &self.node_caches.call_argument_layout_cache,
             call_node_id.id,
-            layout_facts,
+            layout_cache,
         );
     }
 
@@ -352,7 +352,7 @@ impl<'a> DestackFormatContext<'a> {
         );
     }
 
-    /// Return cached chain call force-expand decision for one call expression node.
+    /// Return cached chain call force-expand state for one call expression node.
     #[inline]
     pub fn lookup_call_argument_chain_force_expand(
         &self,
@@ -364,7 +364,7 @@ impl<'a> DestackFormatContext<'a> {
         )
     }
 
-    /// Store one chain call force-expand decision for one call expression node.
+    /// Store one chain call force-expand state for one call expression node.
     #[inline]
     pub fn store_call_argument_chain_force_expand(
         &self,
@@ -378,38 +378,38 @@ impl<'a> DestackFormatContext<'a> {
         );
     }
 
-    /// Return cached regular and chain call argument expansion profiles for one call node.
+    /// Return cached regular and chain call argument expansion data for one call node.
     #[inline]
-    pub fn lookup_call_argument_expansion_facts(
+    pub fn lookup_call_argument_expansion_cache(
         &self,
         call_node_id: LocalNodeId<Expression>,
-    ) -> Option<CallArgumentExpansionProfilesFacts> {
+    ) -> Option<CallArgumentExpansionsCache> {
         self.lookup_node_cache_value(
-            &self.node_caches.call_argument_expansion_profiles,
+            &self.node_caches.call_argument_expansions_cache,
             call_node_id.id,
         )
     }
 
-    /// Store regular and chain call argument expansion profiles for one call node.
+    /// Store regular and chain call argument expansion data for one call node.
     #[inline]
-    pub fn store_call_argument_expansion_facts(
+    pub fn store_call_argument_expansion_cache(
         &self,
         call_node_id: LocalNodeId<Expression>,
-        profiles: CallArgumentExpansionProfilesFacts,
+        expansions: CallArgumentExpansionsCache,
     ) {
         self.store_node_cache_value(
-            &self.node_caches.call_argument_expansion_profiles,
+            &self.node_caches.call_argument_expansions_cache,
             call_node_id.id,
-            profiles,
+            expansions,
         );
     }
 
-    /// Compute annotation facts for one argument node.
-    fn compute_argument_annotation_facts(
+    /// Compute annotation data for one argument node.
+    fn compute_argument_annotation_cache(
         &self,
         argument_id: LocalNodeId<Argument>,
-    ) -> ArgumentAnnotationFacts {
-        let mut profile = ArgumentAnnotationFacts::default();
+    ) -> ArgumentAnnotationCache {
+        let mut annotation_cache = ArgumentAnnotationCache::default();
         let argument_span = self.span(argument_id);
         let argument_end = argument_span.end;
 
@@ -428,13 +428,13 @@ impl<'a> DestackFormatContext<'a> {
                                 position,
                                 AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
                             ) {
-                                profile.has_prefix_annotation = true;
+                                annotation_cache.has_prefix_annotation = true;
                             }
 
                             let Annotation::Comment { node, .. } = annotation else {
                                 continue;
                             };
-                            profile.has_comment = true;
+                            annotation_cache.has_comment = true;
 
                             let comment = self.tree.get::<Comment>(node);
                             if comment.style != ast::CommentStyle::Slash {
@@ -443,13 +443,13 @@ impl<'a> DestackFormatContext<'a> {
 
                             let annotation_span = self.annotation_span(*annotation_id);
                             if annotation_span.start >= argument_end {
-                                profile.has_line_comment = true;
+                                annotation_cache.has_line_comment = true;
                             }
                             if matches!(
                                 position,
                                 AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
                             ) {
-                                profile.has_prefix_line_comment = true;
+                                annotation_cache.has_prefix_line_comment = true;
                             }
                         }
                     }
@@ -473,9 +473,9 @@ impl<'a> DestackFormatContext<'a> {
 
             // direct value annotation state
             if self.has_annotation(value_id) {
-                profile.has_comment = true;
+                annotation_cache.has_comment = true;
                 if self.has_prefix_annotation(value_id) {
-                    profile.has_prefix_annotation = true;
+                    annotation_cache.has_prefix_annotation = true;
                 }
             }
 
@@ -483,14 +483,14 @@ impl<'a> DestackFormatContext<'a> {
             if let Some(declaration_id) = declaration_annotation_target
                 && self.has_annotation(declaration_id)
             {
-                profile.has_comment = true;
+                annotation_cache.has_comment = true;
                 if self.has_prefix_annotation(declaration_id) {
-                    profile.has_prefix_annotation = true;
+                    annotation_cache.has_prefix_annotation = true;
                 }
             }
         }
 
-        profile
+        annotation_cache
     }
 
     /// Read one copyable value from an index-addressed optional cache.

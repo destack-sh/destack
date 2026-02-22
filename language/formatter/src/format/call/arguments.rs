@@ -1,39 +1,34 @@
-use crate::format::analysis::scan::{
-    next_non_whitespace_token_after_annotation, previous_non_whitespace_token_before_span,
-};
-use crate::format::analysis::timing::tags;
-use crate::format::call::facts::{
-    argument_has_callback_blocking_comment_annotation, argument_has_multiline_prefix_annotation,
-    argument_has_separator_line_comment_annotation, argument_is_inline_closure_cast_object,
-    argument_is_interpolated_template_literal, argument_is_plain_call_argument,
+use crate::FormatNode;
+use crate::format::analysis::{
+    argument_has_leading_prefix_annotation_outside_span, argument_has_multiline_prefix_annotation,
+    argument_has_non_blank_annotation, argument_has_separator_line_comment_annotation,
+    argument_is_inline_closure_cast_object, argument_is_interpolated_template_literal,
     call_arguments_have_boundary_comments, call_arguments_preserve_blank_line_between,
-    call_force_expand_single_collection_for_type_binary_callee,
-    call_force_expand_single_multiline_with_static_arguments, call_has_non_blank_infix_annotation,
-    call_has_static_arguments, call_should_force_hugged_expand,
-    resolve_chain_call_argument_force_expand, single_argument_requires_expanded_list,
-    write_plain_call_argument, write_plain_call_argument_or_node,
+    call_has_static_arguments, next_non_whitespace_token_after_annotation,
+    previous_non_whitespace_token_before_annotation, previous_non_whitespace_token_before_span,
+    timing,
 };
 use crate::format::call::layout::{
-    CallArgumentLayoutBaseState, CallArgumentLayoutRenderState, CallArgumentShape,
-    SingleSimpleArgumentShortCircuitOptions, build_call_argument_layout_base_state,
-    build_call_argument_layout_state, call_argument_layout_facts_are_simple_multi_unannotated,
-    call_arguments_use_single_callback_argument_inline,
-    call_arguments_use_single_simple_argument_short_circuit,
-    decide_post_hugged_call_argument_layout, resolve_call_argument_layout_facts,
+    CallArgumentLayout, argument_has_callback_blocking_comment_annotation, call_argument_layout,
+    call_argument_layout_cache, call_force_expand_single_collection_for_type_binary_callee,
+    call_force_expand_single_multiline_with_static_arguments, chain_call_argument_force_expand,
+    single_argument_requires_expanded_list,
 };
-use crate::format::call::render::{
-    render_call_argument_plan, write_single_call_argument_inline_wrapped,
+use crate::format::collection::property::{
+    format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::format::directive::any_ignore_range_for_nodes;
 use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, Declaration, DestackFormatContext, DestackFormatter,
-    Expression, FormatResult, FunctionKind, GroupId, HugOptions, LocalNodeId, Span, TokenType,
-    argument_is_function_expression, argument_is_lambda_expression, argument_value_id,
-    block_indent, empty_line, format_hugged, format_with, group, hard_line_break, list_like, space,
-    token, transparent_inner_expression,
+    Expression, FormatResult, FunctionKind, GroupId, HugOptions, LocalNodeId, NodeType, Span,
+    TokenType, TrailingComma, TypeBinaryOperator, argument_is_function_expression,
+    argument_is_lambda_expression, argument_value_id, block_indent, empty_line,
+    format_block_of_properties, format_hugged, format_static_argument_list, format_with, group,
+    hard_line_break, if_group_breaks, is_trivial_expression, list_like, soft_block_indent,
+    soft_line_break_or_space, space, token, transparent_inner_expression,
 };
-use destack_ast::{Comment, CommentStyle, TokenSpan};
-use destack_fir::format::Buffer;
+use destack_ast::{Comment, CommentStyle, PostfixPosition, TokenSpan};
+use destack_fir::format::{Buffer, Format};
 use destack_fir::write;
 
 /// Write one single callback argument with a trailing separator wrap.
@@ -44,6 +39,117 @@ pub(crate) fn write_single_callback_argument_wrapped_with_trailing_separator<'as
     write!(f, [token("(")])?;
     write_plain_call_argument_or_node(f, argument_id)?;
     write!(f, [token(","), hard_line_break(), token(")")])
+}
+
+/// Write an inline comma-separated call argument list.
+pub(crate) fn write_inline_call_argument_list<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    all_plain_call_arguments: bool,
+) -> FormatResult<()> {
+    write!(f, [token("(")])?;
+
+    for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+
+        write_call_argument_for_list(f, *argument_id, all_plain_call_arguments)?;
+    }
+
+    write!(f, [token(")")])?;
+
+    Ok(())
+}
+
+/// Return whether an argument can be emitted directly without argument-node formatting.
+pub(crate) fn argument_is_plain_call_argument(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    if let Some(cached) = context.lookup_argument_plain_call_argument(argument_id) {
+        context.increment_counter("call.arguments.plain.cache.hits", 1);
+        return cached;
+    }
+    context.increment_counter("call.arguments.plain.cache.misses", 1);
+
+    let is_plain = !context.has_annotation(argument_id)
+        && matches!(
+            context.tree.get(argument_id),
+            Argument::Named {
+                modifiers: None,
+                ..
+            } | Argument::Labeled {
+                modifiers: None,
+                ..
+            } | Argument::Positional {
+                modifiers: None,
+                ..
+            } | Argument::Spread {
+                modifiers: None,
+                ..
+            }
+        );
+    context.store_argument_plain_call_argument(argument_id, is_plain);
+    is_plain
+}
+
+/// Write one call argument that is known to be plain.
+pub(crate) fn write_plain_call_argument<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+) -> FormatResult<()> {
+    match f.context().tree.get(argument_id) {
+        Argument::Named { name, value, .. } => {
+            write!(f, [*name, token(":"), space(), *value])?;
+        }
+        Argument::Labeled { label, value, .. } => {
+            write!(f, [*label, token(":"), space(), *value])?;
+        }
+        Argument::Positional { value, .. } => {
+            write!(f, [*value])?;
+        }
+        Argument::Spread {
+            label: Some(label),
+            value,
+            ..
+        } => {
+            write!(f, [token("..."), *label, token(":"), space(), *value])?;
+        }
+        Argument::Spread {
+            label: None, value, ..
+        } => {
+            write!(f, [token("..."), *value])?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Write one call argument with a plain short-circuit and a safe default branch.
+pub(crate) fn write_plain_call_argument_or_node<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+) -> FormatResult<()> {
+    if !argument_is_plain_call_argument(f.context(), argument_id) {
+        write!(f, [argument_id])?;
+        return Ok(());
+    }
+
+    write_plain_call_argument(f, argument_id)
+}
+
+/// Write one argument in list context from the chosen plain-call argument mode.
+fn write_call_argument_for_list<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+    all_plain_call_arguments: bool,
+) -> FormatResult<()> {
+    if all_plain_call_arguments {
+        return write_plain_call_argument(f, argument_id);
+    }
+
+    write_plain_call_argument_or_node(f, argument_id)
 }
 
 /// Return whether single callback rendering should keep hugging with a trailing separator wrap.
@@ -93,15 +199,6 @@ fn callback_argument_has_call_chain_body(
     saw_call_like && saw_chain_member
 }
 
-/// Return whether single callback rendering should keep hugging with a trailing separator wrap.
-pub(crate) fn single_callback_argument_prefers_trailing_separator_wrap(
-    context: &DestackFormatContext<'_>,
-    _call_node_id: LocalNodeId<Expression>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    callback_argument_has_call_chain_body(context, argument_id)
-}
-
 /// Return whether a call should expand its argument list when formatted in a chain.
 pub(crate) fn call_arguments_force_expand_for_chain(
     context: &DestackFormatContext<'_>,
@@ -129,12 +226,12 @@ pub(crate) fn call_arguments_force_expand_for_chain(
         return false;
     }
 
-    let layout_facts = resolve_call_argument_layout_facts(context, call_node_id, dynamic_arguments);
+    let layout_cache = call_argument_layout_cache(context, call_node_id, dynamic_arguments);
     let should_bypass_simple_false = dynamic_arguments.len() == 1
         && single_argument_requires_expanded_list(context, dynamic_arguments);
-    let can_use_simple_false =
-        call_argument_layout_facts_are_simple_multi_unannotated(layout_facts)
-            && !should_bypass_simple_false;
+    let can_use_simple_false = !layout_cache.has_call_infix_annotations
+        && layout_cache.all_compact_simple_unannotated
+        && !should_bypass_simple_false;
     if can_use_simple_false {
         context.store_call_argument_chain_force_expand(call_node_id, false);
         context.increment_counter("call.arguments.chain.simple_false.simple", 1);
@@ -142,61 +239,9 @@ pub(crate) fn call_arguments_force_expand_for_chain(
         return false;
     }
 
-    let force_expand =
-        resolve_chain_call_argument_force_expand(context, call_node_id, dynamic_arguments);
+    let force_expand = chain_call_argument_force_expand(context, call_node_id, dynamic_arguments);
     context.store_call_argument_chain_force_expand(call_node_id, force_expand);
     force_expand
-}
-
-/// Format a non-empty multi-argument call through profiled layout and render.
-pub(crate) fn format_profiled_multi_call_arguments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-    group_id: GroupId,
-) -> FormatResult<()> {
-    // multi argument path: scan facts, decide plan, then render
-    let layout_facts =
-        resolve_call_argument_layout_facts(f.context(), call_node_id, dynamic_arguments);
-    let layout_base_state =
-        build_call_argument_layout_base_state(f.context(), call_node_id, layout_facts);
-    let all_plain_call_arguments = layout_facts.all_plain_call_arguments;
-    let has_boundary_comments =
-        call_arguments_have_boundary_comments(f.context(), call_node_id, dynamic_arguments);
-
-    let layout_state = build_call_argument_layout_state(
-        f.context(),
-        call_node_id,
-        dynamic_arguments,
-        layout_base_state,
-        false,
-        false,
-    );
-    let _timing = f
-        .context()
-        .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_PROFILED);
-    let plan = {
-        let _timing = f
-            .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_PROFILED_DECIDE);
-        decide_post_hugged_call_argument_layout(
-            f.context(),
-            call_node_id,
-            dynamic_arguments,
-            layout_state,
-            has_boundary_comments,
-        )
-    };
-
-    let _timing = f
-        .context()
-        .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_PROFILED_RENDER);
-    let render_state = CallArgumentLayoutRenderState {
-        call_node_id,
-        group_id,
-        all_plain_call_arguments,
-    };
-    render_call_argument_plan(f, dynamic_arguments, plan, render_state)
 }
 
 /// Format one single call argument with an active list group id.
@@ -206,330 +251,159 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
     argument_id: LocalNodeId<Argument>,
     group_id: GroupId,
 ) -> FormatResult<()> {
-    let facts = build_single_argument_facts(f.context(), call_node_id, argument_id);
-    let path = resolve_single_argument_format_path(f.context(), call_node_id, argument_id, &facts);
-
-    if let Some(completed) =
-        try_format_single_argument_simple_path(f, argument_id, group_id, &facts, path)?
-    {
-        return Ok(completed);
-    }
-
-    format_single_argument_with_profiled_layout(f, call_node_id, argument_id, group_id, &facts)
-}
-
-/// Store single-argument facts used by simple-path and layout-policy selection.
-pub(crate) struct SingleArgumentFacts {
-    /// The single argument as a fixed-size slice payload.
-    pub(crate) single_argument: [LocalNodeId<Argument>; 1],
-    /// Whether boundary comments exist between call tokens and argument tokens.
-    pub(crate) has_boundary_comments: bool,
-    /// One separator line comment source for a plain argument when present.
-    pub(crate) separator_line_comment_source: Option<SeparatorLineCommentSource>,
-    /// Shared layout base state for the profiled fallback.
-    pub(crate) layout_base_state: CallArgumentLayoutBaseState,
-    /// Whether the argument has any attached annotation signal.
-    pub(crate) has_any_argument_annotation: bool,
-    /// Whether single-argument expanded layout is forced.
-    pub(crate) single_argument_force_expand: bool,
-    /// Whether static arguments force multiline for this single argument.
-    pub(crate) force_expand_single_multiline_with_static_arguments: bool,
-    /// Whether type-binary callee shape forces collection expansion.
-    pub(crate) force_expand_single_collection_for_type_binary_callee: bool,
-    /// Whether callback hugging is blocked by annotation comments.
-    pub(crate) has_hug_blocking_comment_annotation: bool,
-}
-
-impl SingleArgumentFacts {
-    /// Return short-circuit options for the simple single-argument branch.
-    fn short_circuit_options(&self) -> SingleSimpleArgumentShortCircuitOptions {
-        SingleSimpleArgumentShortCircuitOptions {
-            call_has_static_arguments: self.layout_base_state.call_has_static_arguments,
-            has_call_infix_annotations: self.layout_base_state.has_call_infix_annotations,
-            single_argument_force_expand: self.single_argument_force_expand,
-        }
-    }
-
-    /// Return whether the argument can use the simple short-circuit branch.
-    fn can_use_simple_short_circuit(&self, context: &DestackFormatContext<'_>) -> bool {
-        call_arguments_use_single_simple_argument_short_circuit(
-            context,
-            &self.single_argument,
-            self.short_circuit_options(),
-            self.layout_base_state.argument_shape,
-        ) && !self.has_boundary_comments
-    }
-
-    /// Return whether the argument can use the hugged branch.
-    fn can_use_hugged(
-        &self,
-        context: &DestackFormatContext<'_>,
-        argument_id: LocalNodeId<Argument>,
-    ) -> bool {
-        !self.has_boundary_comments
-            && !self.has_any_argument_annotation
-            && !argument_has_multiline_prefix_annotation(context, argument_id)
-            && !self.has_hug_blocking_comment_annotation
-            && !self.layout_base_state.has_call_infix_annotations
-            && !self.force_expand_single_multiline_with_static_arguments
-            && !argument_is_lambda_expression(context, argument_id)
-            && !argument_is_function_expression(context, argument_id)
-            && !argument_is_interpolated_template_literal(context, argument_id)
-    }
-}
-
-/// Store the selected single-argument formatting branch.
-enum SingleArgumentFormatPath {
-    /// Render one plain argument with separator line comments owned by the list seam.
-    SeparatorComment,
-    /// Keep one simple argument inline with wrapped parens.
-    SimpleShortCircuit,
-    /// Keep inline closure-cast object arguments inline for call-then-chain seams.
-    InlineClosureCastObject,
-    /// Keep callback argument inline and optionally use trailing separator wrapping.
-    CallbackInline {
-        /// Whether callback inline path should emit the trailing separator wrapper.
-        use_trailing_separator_wrap: bool,
-    },
-    /// Attempt hugging for one eligible single argument.
-    Hugged {
-        /// Whether hugging should force expand mode.
-        force_hugged_expand: bool,
-    },
-    /// Fall back to profiled layout and render.
-    Profiled,
-}
-
-/// Resolve one single-argument formatting path from precomputed facts.
-fn resolve_single_argument_format_path(
-    context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    argument_id: LocalNodeId<Argument>,
-    facts: &SingleArgumentFacts,
-) -> SingleArgumentFormatPath {
-    if facts.separator_line_comment_source.is_some() {
-        return SingleArgumentFormatPath::SeparatorComment;
-    }
-
-    if facts.can_use_simple_short_circuit(context) {
-        return SingleArgumentFormatPath::SimpleShortCircuit;
-    }
-
-    if !facts.has_boundary_comments && argument_is_inline_closure_cast_object(context, argument_id)
-    {
-        return SingleArgumentFormatPath::InlineClosureCastObject;
-    }
-
-    let use_single_callback_argument_inline = call_arguments_use_single_callback_argument_inline(
-        context,
-        &facts.single_argument,
-        facts.layout_base_state.has_call_infix_annotations,
-        facts.force_expand_single_multiline_with_static_arguments,
-        facts.force_expand_single_collection_for_type_binary_callee,
-    ) && !facts.has_boundary_comments;
-    if use_single_callback_argument_inline {
-        let use_trailing_separator_wrap = single_callback_argument_prefers_trailing_separator_wrap(
-            context,
-            call_node_id,
-            argument_id,
-        );
-        return SingleArgumentFormatPath::CallbackInline {
-            use_trailing_separator_wrap,
-        };
-    }
-
-    if facts.can_use_hugged(context, argument_id) {
-        return SingleArgumentFormatPath::Hugged {
-            force_hugged_expand: call_should_force_hugged_expand(
-                facts.force_expand_single_collection_for_type_binary_callee,
-            ),
-        };
-    }
-
-    SingleArgumentFormatPath::Profiled
-}
-
-/// Build single-argument facts once for simple-path and profiled branches.
-pub(crate) fn build_single_argument_facts(
-    context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    argument_id: LocalNodeId<Argument>,
-) -> SingleArgumentFacts {
     let single_argument = [argument_id];
     let has_boundary_comments =
-        call_arguments_have_boundary_comments(context, call_node_id, &single_argument);
-    let separator_line_comment_source = if argument_is_plain_call_argument(context, argument_id) {
-        single_argument_separator_line_comment_fact(context, call_node_id, argument_id)
-    } else {
-        None
-    };
-
-    let has_call_infix_annotations = call_has_non_blank_infix_annotation(context, call_node_id);
-    let argument_annotation_facts = context.ensure_argument_annotation_facts(argument_id);
-    let has_any_argument_annotation = argument_annotation_facts.has_prefix_annotation
-        || argument_annotation_facts.has_comment
-        || argument_annotation_facts.has_line_comment
-        || argument_annotation_facts.has_prefix_line_comment;
-    let is_multiline_in_source = context.node_has_newline(argument_id);
-    let argument_shape = CallArgumentShape {
-        has_any_argument_annotation,
-        is_multiline_in_source,
-        all_single_line_and_unannotated: !has_any_argument_annotation && !is_multiline_in_source,
-    };
-
-    let layout_base_state = CallArgumentLayoutBaseState {
-        call_has_static_arguments: call_has_static_arguments(context, call_node_id),
-        has_call_infix_annotations,
-        argument_shape,
-    };
-
+        call_arguments_have_boundary_comments(f.context(), call_node_id, &single_argument);
+    let separator_line_comment_source =
+        plain_single_argument_separator_line_comment_source(f.context(), call_node_id, argument_id);
+    let layout_cache = call_argument_layout_cache(f.context(), call_node_id, &single_argument);
+    let has_call_infix_annotations = layout_cache.has_call_infix_annotations;
+    let has_any_argument_annotation = layout_cache.has_any_argument_annotation;
+    let call_has_static_arguments = call_has_static_arguments(f.context(), call_node_id);
     let single_argument_force_expand =
-        single_argument_requires_expanded_list(context, &single_argument);
+        single_argument_requires_expanded_list(f.context(), &single_argument);
     let force_expand_single_multiline_with_static_arguments =
         call_force_expand_single_multiline_with_static_arguments(
-            context,
+            f.context(),
             call_node_id,
             &single_argument,
         );
     let force_expand_single_collection_for_type_binary_callee =
         call_force_expand_single_collection_for_type_binary_callee(
-            context,
+            f.context(),
             call_node_id,
             &single_argument,
         );
-
     let has_hug_blocking_comment_annotation =
-        argument_has_callback_blocking_comment_annotation(context, argument_id);
+        argument_has_callback_blocking_comment_annotation(f.context(), argument_id);
 
-    SingleArgumentFacts {
-        single_argument,
-        has_boundary_comments,
-        separator_line_comment_source,
-        layout_base_state,
-        has_any_argument_annotation,
-        single_argument_force_expand,
-        force_expand_single_multiline_with_static_arguments,
-        force_expand_single_collection_for_type_binary_callee,
-        has_hug_blocking_comment_annotation,
+    // separator comment path
+    if let Some(comment_source) = separator_line_comment_source.as_ref() {
+        format_single_plain_argument_with_separator_line_comment(f, argument_id, comment_source)?;
+        return Ok(());
     }
-}
 
-/// Try single-argument simple paths and return `Some(())` when one branch completes output.
-fn try_format_single_argument_simple_path<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    argument_id: LocalNodeId<Argument>,
-    group_id: GroupId,
-    facts: &SingleArgumentFacts,
-    path: SingleArgumentFormatPath,
-) -> FormatResult<Option<()>> {
-    match path {
-        SingleArgumentFormatPath::SeparatorComment => {
-            let comment_source = facts
-                .separator_line_comment_source
-                .as_ref()
-                .expect("separator comment source should exist for separator path");
-            format_single_plain_argument_with_separator_line_comment(
-                f,
-                argument_id,
-                comment_source,
-            )?;
-            Ok(Some(()))
-        }
-        SingleArgumentFormatPath::SimpleShortCircuit => {
-            f.context()
-                .increment_counter("call.arguments.single_simple.short_circuit", 1);
-            f.context()
-                .increment_counter("call.arguments.path.single_simple.short_circuit", 1);
+    // simple short-circuit path
+    let use_single_simple_short_circuit = if has_boundary_comments
+        || call_has_static_arguments
+        || has_call_infix_annotations
+        || single_argument_force_expand
+        || layout_cache.is_multiline_in_source
+        || !layout_cache.all_single_line_and_unannotated
+    {
+        false
+    } else {
+        let value_id = argument_value_id(f.context().tree, argument_id);
+        let value_id = transparent_inner_expression(f.context(), value_id);
+        let value = f.context().tree.get(value_id);
+        is_trivial_expression(f.context().tree, value)
+    };
+    if use_single_simple_short_circuit {
+        f.context()
+            .increment_counter("call.arguments.single_simple.short_circuit", 1);
+        f.context()
+            .increment_counter("call.arguments.path.single_simple.short_circuit", 1);
+        write_single_call_argument_inline_wrapped(f, argument_id)?;
+        return Ok(());
+    }
+
+    // inline closure cast object path
+    if !has_boundary_comments && argument_is_inline_closure_cast_object(f.context(), argument_id) {
+        f.context()
+            .increment_counter("call.arguments.path.inline_closure_cast_object", 1);
+        write_single_call_argument_inline_wrapped(f, argument_id)?;
+        return Ok(());
+    }
+
+    // callback inline path
+    let use_single_callback_argument_inline = if has_call_infix_annotations
+        || force_expand_single_multiline_with_static_arguments
+        || force_expand_single_collection_for_type_binary_callee
+        || has_boundary_comments
+    {
+        false
+    } else {
+        let value_id = argument_value_id(f.context().tree, argument_id);
+        !argument_has_non_blank_annotation(f.context(), argument_id)
+            && !f.context().has_non_blank_annotation(value_id)
+            && !argument_has_callback_blocking_comment_annotation(f.context(), argument_id)
+            && !argument_has_leading_prefix_annotation_outside_span(f.context(), argument_id)
+            && (argument_is_lambda_expression(f.context(), argument_id)
+                || argument_is_function_expression(f.context(), argument_id))
+    };
+    if use_single_callback_argument_inline {
+        f.context()
+            .increment_counter("call.arguments.path.single_callback_inline", 1);
+        let use_trailing_separator_wrap =
+            callback_argument_has_call_chain_body(f.context(), argument_id);
+        if use_trailing_separator_wrap {
+            f.context().increment_counter(
+                "call.arguments.path.single_callback_inline.trailing_wrap",
+                1,
+            );
+            write_single_callback_argument_wrapped_with_trailing_separator(f, argument_id)?;
+        } else {
             write_single_call_argument_inline_wrapped(f, argument_id)?;
-            Ok(Some(()))
         }
-        SingleArgumentFormatPath::InlineClosureCastObject => {
-            f.context()
-                .increment_counter("call.arguments.path.inline_closure_cast_object", 1);
-            write_single_call_argument_inline_wrapped(f, argument_id)?;
-            Ok(Some(()))
-        }
-        SingleArgumentFormatPath::CallbackInline {
-            use_trailing_separator_wrap,
-        } => {
-            f.context()
-                .increment_counter("call.arguments.path.single_callback_inline", 1);
-            if use_trailing_separator_wrap {
-                f.context().increment_counter(
-                    "call.arguments.path.single_callback_inline.trailing_wrap",
-                    1,
-                );
-                write_single_callback_argument_wrapped_with_trailing_separator(f, argument_id)?;
-            } else {
-                write_single_call_argument_inline_wrapped(f, argument_id)?;
-            }
-            Ok(Some(()))
-        }
-        SingleArgumentFormatPath::Hugged {
+        return Ok(());
+    }
+
+    // hugged path
+    if !has_boundary_comments
+        && !has_any_argument_annotation
+        && !argument_has_multiline_prefix_annotation(f.context(), argument_id)
+        && !has_hug_blocking_comment_annotation
+        && !has_call_infix_annotations
+        && !force_expand_single_multiline_with_static_arguments
+        && !argument_is_lambda_expression(f.context(), argument_id)
+        && !argument_is_function_expression(f.context(), argument_id)
+        && !argument_is_interpolated_template_literal(f.context(), argument_id)
+    {
+        let force_hugged_expand = force_expand_single_collection_for_type_binary_callee;
+        let used_hugged = format_hugged(
+            f,
+            &single_argument,
+            HugOptions::CALL,
+            Some(group_id),
             force_hugged_expand,
-        } => {
-            let used_hugged = format_hugged(
-                f,
-                &facts.single_argument,
-                HugOptions::CALL,
-                Some(group_id),
-                force_hugged_expand,
-            )?;
-            if used_hugged {
-                f.context()
-                    .increment_counter("call.arguments.path.hugged", 1);
-                return Ok(Some(()));
-            }
-
-            Ok(None)
+        )?;
+        if used_hugged {
+            f.context()
+                .increment_counter("call.arguments.path.hugged", 1);
+            return Ok(());
         }
-        SingleArgumentFormatPath::Profiled => Ok(None),
     }
-}
 
-/// Format one single argument through profiled layout and render fallback.
-fn format_single_argument_with_profiled_layout<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    call_node_id: LocalNodeId<Expression>,
-    argument_id: LocalNodeId<Argument>,
-    group_id: GroupId,
-    facts: &SingleArgumentFacts,
-) -> FormatResult<()> {
-    let layout_state = build_call_argument_layout_state(
-        f.context(),
-        call_node_id,
-        &facts.single_argument,
-        facts.layout_base_state,
-        facts.single_argument_force_expand,
-        facts.force_expand_single_multiline_with_static_arguments,
-    );
-
+    // fallback to full single-argument layout selection and rendering
     let _timing = f
         .context()
-        .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_PROFILED);
-    let plan = {
+        .timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_LAYOUT);
+    let layout = {
         let _timing = f
             .context()
-            .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_PROFILED_DECIDE);
-        decide_post_hugged_call_argument_layout(
+            .timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_LAYOUT_DECIDE);
+        call_argument_layout(
             f.context(),
             call_node_id,
-            &facts.single_argument,
-            layout_state,
-            facts.has_boundary_comments,
+            &single_argument,
+            single_argument_force_expand,
+            force_expand_single_multiline_with_static_arguments,
+            force_expand_single_collection_for_type_binary_callee,
+            has_boundary_comments,
         )
     };
 
     let _timing = f
         .context()
-        .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS_PROFILED_RENDER);
-    let render_state = CallArgumentLayoutRenderState {
+        .timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_LAYOUT_RENDER);
+    format_call_argument_layout(
+        f,
+        &single_argument,
+        layout,
         call_node_id,
         group_id,
-        all_plain_call_arguments: argument_is_plain_call_argument(f.context(), argument_id),
-    };
-
-    render_call_argument_plan(f, &facts.single_argument, plan, render_state)
+        argument_is_plain_call_argument(f.context(), argument_id),
+    )
 }
 
 /// Format call arguments with an active list group id.
@@ -559,7 +433,41 @@ pub(crate) fn format_call_arguments_with_group<'ast>(
         );
     }
 
-    format_profiled_multi_call_arguments(f, call_node_id, dynamic_arguments, group_id)
+    // multi argument path: scan once, choose layout, then render
+    let layout_cache = call_argument_layout_cache(f.context(), call_node_id, dynamic_arguments);
+    let all_plain_call_arguments = layout_cache.all_plain_call_arguments;
+    let has_boundary_comments =
+        call_arguments_have_boundary_comments(f.context(), call_node_id, dynamic_arguments);
+
+    let _timing = f
+        .context()
+        .timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_LAYOUT);
+    let layout = {
+        let _timing = f
+            .context()
+            .timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_LAYOUT_DECIDE);
+        call_argument_layout(
+            f.context(),
+            call_node_id,
+            dynamic_arguments,
+            false,
+            false,
+            false,
+            has_boundary_comments,
+        )
+    };
+
+    let _timing = f
+        .context()
+        .timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_LAYOUT_RENDER);
+    format_call_argument_layout(
+        f,
+        dynamic_arguments,
+        layout,
+        call_node_id,
+        group_id,
+        all_plain_call_arguments,
+    )
 }
 
 /// Format an empty call argument list, preserving infix annotations when present.
@@ -661,7 +569,7 @@ pub(crate) fn format_call_arguments<'ast>(
 ) -> FormatResult<()> {
     let _timing = f
         .context()
-        .timing_scope(tags::FORMAT_EXPRESSION_CALL_ARGUMENTS);
+        .timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS);
 
     // set up the list group id for conditional formatting
     let group_id = f.group_id("call_args");
@@ -708,7 +616,7 @@ fn separator_line_comment_preceding_comma(
 }
 
 /// Return one separator slash comment annotation source payload.
-fn separator_line_comment_annotation_fact(
+fn separator_line_comment_annotation_info(
     context: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> Option<(LocalNodeId<Comment>, bool)> {
@@ -799,11 +707,11 @@ fn annotation_is_separator_line_comment(
     context: &DestackFormatContext<'_>,
     annotation_id: LocalNodeId<Annotation>,
 ) -> bool {
-    separator_line_comment_annotation_fact(context, annotation_id).is_some()
+    separator_line_comment_annotation_info(context, annotation_id).is_some()
 }
 
 /// Return one separator comment source from one annotation list and filter.
-fn separator_line_comment_fact_from_annotations<F>(
+fn separator_line_comment_source_from_annotations<F>(
     context: &DestackFormatContext<'_>,
     annotations: &[LocalNodeId<Annotation>],
     mut annotation_allowed: F,
@@ -817,7 +725,7 @@ where
         }
 
         let Some((comment_id, is_own_line)) =
-            separator_line_comment_annotation_fact(context, annotation_id)
+            separator_line_comment_annotation_info(context, annotation_id)
         else {
             continue;
         };
@@ -836,7 +744,7 @@ where
             }
 
             let Some((next_comment_id, _)) =
-                separator_line_comment_annotation_fact(context, next_annotation_id)
+                separator_line_comment_annotation_info(context, next_annotation_id)
             else {
                 break;
             };
@@ -854,13 +762,13 @@ where
 }
 
 /// Return one separator line comment source attached to one argument.
-pub(crate) fn single_argument_separator_line_comment_fact(
+pub(crate) fn single_argument_separator_line_comment_source(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<SeparatorLineCommentSource> {
     let resolve_from_annotations = |annotations: &[LocalNodeId<Annotation>]| {
-        separator_line_comment_fact_from_annotations(context, annotations, |_| true)
+        separator_line_comment_source_from_annotations(context, annotations, |_| true)
     };
 
     if let Some(annotations) = context.annotations(argument_id)
@@ -886,7 +794,7 @@ pub(crate) fn single_argument_separator_line_comment_fact(
     }
 
     let call_annotation_source = context.annotations(call_node_id).and_then(|annotations| {
-        separator_line_comment_fact_from_annotations(context, &annotations, |annotation_id| {
+        separator_line_comment_source_from_annotations(context, &annotations, |annotation_id| {
             let annotation_span = context.annotation_span(annotation_id);
             annotation_span.file == argument_span.file
                 && annotation_span.start >= seam_start
@@ -898,6 +806,19 @@ pub(crate) fn single_argument_separator_line_comment_fact(
     }
 
     None
+}
+
+/// Return one separator line comment source only when the argument uses plain argument rendering.
+fn plain_single_argument_separator_line_comment_source(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<SeparatorLineCommentSource> {
+    if !argument_is_plain_call_argument(context, argument_id) {
+        return None;
+    }
+
+    single_argument_separator_line_comment_source(context, call_node_id, argument_id)
 }
 
 /// Return whether an argument has non-separator postfix or infix annotations.
@@ -956,7 +877,7 @@ pub(crate) fn can_format_multiline_call_argument_list_with_last_separator_line_c
         return false;
     };
     let Some(_comment_source) =
-        single_argument_separator_line_comment_fact(context, call_node_id, last_argument_id)
+        single_argument_separator_line_comment_source(context, call_node_id, last_argument_id)
     else {
         return false;
     };
@@ -983,7 +904,7 @@ pub(crate) fn format_multiline_call_argument_list_with_last_separator_line_comme
         .copied()
         .expect("last argument should exist when multiline separator layout is eligible");
     let comment_source =
-        single_argument_separator_line_comment_fact(f.context(), call_node_id, last_argument_id)
+        single_argument_separator_line_comment_source(f.context(), call_node_id, last_argument_id)
             .expect(
                 "separator comment source should exist when multiline separator layout is eligible",
             );
@@ -1098,4 +1019,882 @@ pub(crate) fn format_single_plain_argument_with_separator_line_comment<'ast>(
     write!(f, [hard_line_break(), token(")")])?;
 
     Ok(())
+}
+
+/// Format a call expression.
+#[inline]
+pub(crate) fn format_call_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let _timing = f.context().timing_scope(timing::FORMAT_EXPRESSION_CALL);
+
+    if let Expression::Call {
+        position,
+        left,
+        static_arguments,
+        dynamic_arguments,
+    } = f.context().tree.get(node_id)
+    {
+        write!(f, [*left])?;
+        if *position == PostfixPosition::Indirect {
+            write!(f, [token(".")])?;
+        }
+        if let Some(static_arguments) = static_arguments {
+            format_static_argument_list(f, static_arguments)?;
+        }
+
+        format_call_arguments(f, node_id, dynamic_arguments)?;
+    } else {
+        debug_assert!(false, "unexpected expression kind for call formatter");
+    }
+    Ok(())
+}
+
+/// Format an instantiation expression.
+#[inline]
+pub(crate) fn format_instantiation_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    if let Expression::Instantiation {
+        left,
+        static_arguments,
+    } = f.context().tree.get(node_id)
+    {
+        write!(f, [*left])?;
+        format_static_argument_list(f, static_arguments)?;
+    } else {
+        debug_assert!(
+            false,
+            "unexpected expression kind for instantiation formatter"
+        );
+    }
+    Ok(())
+}
+
+/// Write one single argument wrapped in call parentheses.
+pub(crate) fn write_single_call_argument_inline_wrapped<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+) -> FormatResult<()> {
+    write!(f, [token("(")])?;
+    write_plain_call_argument_or_node(f, argument_id)?;
+    write!(f, [token(")")])
+}
+
+/// Write one trailing collection argument while forcing its value expression to expand.
+fn write_collection_argument_with_expanded_value<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+) -> FormatResult<()> {
+    let write_expanded_value =
+        |f: &mut DestackFormatter<'ast, '_>, value: LocalNodeId<Expression>| -> FormatResult<()> {
+            match f.context().tree.get(value) {
+                Expression::ObjectExpression {
+                    ty: None,
+                    properties,
+                } => write!(
+                    f,
+                    [
+                        token("{"),
+                        hard_line_break(),
+                        block_indent(&format_with(|f| format_block_of_properties(
+                            f, properties, ","
+                        ))),
+                        hard_line_break(),
+                        token("}")
+                    ]
+                ),
+                Expression::ArrayExpression { elements } => {
+                    let mut list = list_like("[", "]", ",", elements);
+                    list.should_expand(true);
+                    write!(f, [list])
+                }
+                _ => write!(f, [group(&value).should_expand(true)]),
+            }
+        };
+
+    match f.context().tree.get(argument_id) {
+        Argument::Named {
+            modifiers: None,
+            name,
+            value,
+        } => {
+            write!(f, [*name, token(":"), space()])?;
+            write_expanded_value(f, *value)
+        }
+        Argument::Labeled {
+            modifiers: None,
+            label,
+            value,
+        } => {
+            write!(f, [*label, token(":"), space()])?;
+            write_expanded_value(f, *value)
+        }
+        Argument::Positional {
+            modifiers: None,
+            value,
+        } => write_expanded_value(f, *value),
+        Argument::Spread {
+            modifiers: None,
+            label: None,
+            value,
+        } => {
+            write!(f, [token("...")])?;
+            write_expanded_value(f, *value)
+        }
+        Argument::Spread {
+            modifiers: None,
+            label: Some(label),
+            value,
+        } => {
+            write!(f, [token("..."), *label, token(":"), space()])?;
+            write_expanded_value(f, *value)
+        }
+        _ => write!(f, [group(&argument_id).should_expand(true)]),
+    }
+}
+
+/// Format one expanded call argument list with compact leading arguments and a trailing collection.
+fn format_trailing_collection_hug_list<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    all_plain_call_arguments: bool,
+) -> FormatResult<()> {
+    let Some((&last_argument_id, leading_arguments)) = dynamic_arguments.split_last() else {
+        write!(f, [token("("), token(")")])?;
+        return Ok(());
+    };
+
+    write!(f, [token("(")])?;
+
+    for (index, argument_id) in leading_arguments.iter().copied().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+
+        write_call_argument_for_list(f, argument_id, all_plain_call_arguments)?;
+    }
+
+    if !leading_arguments.is_empty() {
+        write!(f, [token(","), space()])?;
+    }
+
+    write_collection_argument_with_expanded_value(f, last_argument_id)?;
+    write!(f, [token(")")])?;
+
+    Ok(())
+}
+
+/// Format plain default call arguments directly when all argument separators are stable.
+fn format_plain_default_call_argument_list<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    group_id: GroupId,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    force_expand: bool,
+    all_plain_call_arguments: bool,
+) -> FormatResult<()> {
+    let allow_trailing_comma = f.context().options.trailing_comma == TrailingComma::All;
+
+    let body = format_with(|f| {
+        for (index, argument_id) in dynamic_arguments.iter().copied().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), soft_line_break_or_space()])?;
+            }
+
+            write_call_argument_for_list(f, argument_id, all_plain_call_arguments)?;
+        }
+
+        if allow_trailing_comma {
+            write!(f, [if_group_breaks(&token(","))])?;
+        }
+
+        Ok(())
+    });
+
+    let content = format_with(|f| write!(f, [token("("), soft_block_indent(&body), token(")")]));
+
+    group(&content)
+        .with_id(Some(group_id))
+        .should_expand(force_expand)
+        .format(f)
+}
+
+/// Format call arguments with the default list formatter.
+fn format_default_call_argument_list<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    call_node_id: LocalNodeId<Expression>,
+    group_id: GroupId,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    force_expand: bool,
+    use_separator_comment_multiline: bool,
+    use_plain_default_short_circuit: bool,
+    disallow_trailing_separator: bool,
+    force_trailing_separator: bool,
+    all_plain_call_arguments: bool,
+) -> FormatResult<()> {
+    let _timing = f
+        .context()
+        .timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_LIST_DEFAULT);
+
+    if use_separator_comment_multiline {
+        format_separator_comment_multiline_layout(
+            f,
+            call_node_id,
+            dynamic_arguments,
+            "call.arguments.path.list_default.separator_comment_multiline",
+        )?;
+        return Ok(());
+    }
+
+    if use_plain_default_short_circuit {
+        f.context()
+            .increment_counter("call.arguments.path.list_default_plain_short_circuit", 1);
+
+        return format_plain_default_call_argument_list(
+            f,
+            group_id,
+            dynamic_arguments,
+            force_expand,
+            all_plain_call_arguments,
+        );
+    }
+
+    let mut list = list_like("(", ")", ",", dynamic_arguments);
+    list.with_group_id(Some(group_id))
+        .should_expand(force_expand);
+
+    if disallow_trailing_separator {
+        list.disallow_trailing_separator();
+    }
+
+    if force_trailing_separator {
+        list.force_trailing_separator();
+    }
+
+    write!(f, [list])
+}
+
+/// Format call arguments with explicit multiline comment expansion.
+fn format_comment_expanded_call_argument_list<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    use_separator_comment_multiline: bool,
+    use_single_plain_separator_comment_layout: bool,
+    use_trailing_comma: bool,
+    force_trailing_comma_for_separator_comment: bool,
+) -> FormatResult<()> {
+    if use_separator_comment_multiline {
+        format_separator_comment_multiline_layout(
+            f,
+            call_node_id,
+            dynamic_arguments,
+            "call.arguments.path.comment_expanded.separator_comment_multiline",
+        )?;
+        return Ok(());
+    }
+
+    if use_single_plain_separator_comment_layout {
+        debug_assert_eq!(
+            dynamic_arguments.len(),
+            1,
+            "single plain separator layout should have one argument",
+        );
+
+        let argument_id = dynamic_arguments[0];
+
+        let separator_line_comment_source = plain_single_argument_separator_line_comment_source(
+            f.context(),
+            call_node_id,
+            argument_id,
+        );
+
+        if let Some(comment_source) = separator_line_comment_source.as_ref() {
+            return format_single_plain_argument_with_separator_line_comment(
+                f,
+                argument_id,
+                comment_source,
+            );
+        }
+    }
+
+    let last_argument_separator_line_comment_source =
+        dynamic_arguments.last().copied().and_then(|argument_id| {
+            single_argument_separator_line_comment_source(f.context(), call_node_id, argument_id)
+        });
+
+    write!(f, [token("("), hard_line_break()])?;
+
+    let format_result = write!(
+        f,
+        [block_indent(&format_with(
+            |f: &mut DestackFormatter<'ast, '_>| {
+                for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+                    if index > 0 {
+                        let left_argument_id = dynamic_arguments[index - 1];
+
+                        if call_arguments_preserve_blank_line_between(
+                            f.context(),
+                            left_argument_id,
+                            *argument_id,
+                        ) {
+                            write!(f, [empty_line()])?;
+                        } else {
+                            write!(f, [hard_line_break()])?;
+                        }
+                    }
+
+                    let is_last_argument = index + 1 == dynamic_arguments.len();
+                    if is_last_argument
+                        && let Some(comment_source) =
+                            last_argument_separator_line_comment_source.as_ref()
+                        && write_argument_without_separator_line_comment(f, *argument_id)?
+                    {
+                        write_separator_line_comment_after_comma(f, comment_source)?;
+                        continue;
+                    }
+
+                    write!(f, [group(argument_id)])?;
+
+                    if index + 1 < dynamic_arguments.len()
+                        || use_trailing_comma
+                        || force_trailing_comma_for_separator_comment
+                    {
+                        write!(f, [token(",")])?;
+                    }
+                }
+
+                Ok(())
+            }
+        ))]
+    );
+
+    format_result?;
+    write!(f, [hard_line_break(), token(")")])?;
+
+    Ok(())
+}
+
+/// Format the shared separator-comment multiline list path and increment one counter key.
+fn format_separator_comment_multiline_layout<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    call_node_id: LocalNodeId<Expression>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    counter_key: &'static str,
+) -> FormatResult<()> {
+    let used_multiline_separator_layout =
+        format_multiline_call_argument_list_with_last_separator_line_comment(
+            f,
+            call_node_id,
+            dynamic_arguments,
+        )?;
+
+    debug_assert!(
+        used_multiline_separator_layout,
+        "separator-comment multiline layout should stay eligible from layout rules",
+    );
+
+    f.context().increment_counter(counter_key, 1);
+
+    Ok(())
+}
+
+/// Render one decided call argument layout.
+pub(crate) fn format_call_argument_layout<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+    layout: CallArgumentLayout,
+    call_node_id: LocalNodeId<Expression>,
+    group_id: GroupId,
+    all_plain_call_arguments: bool,
+) -> FormatResult<()> {
+    match layout {
+        CallArgumentLayout::InlineAll => {
+            write_inline_call_argument_list(f, dynamic_arguments, all_plain_call_arguments)
+        }
+        CallArgumentLayout::InlineSingle => {
+            debug_assert_eq!(dynamic_arguments.len(), 1);
+
+            let Some(argument_id) = dynamic_arguments.first().copied() else {
+                debug_assert!(false, "single inline layout requires one argument");
+                return Ok(());
+            };
+
+            write_single_call_argument_inline_wrapped(f, argument_id)
+        }
+        CallArgumentLayout::TrailingCollectionExpanded => {
+            format_trailing_collection_hug_list(f, dynamic_arguments, all_plain_call_arguments)
+        }
+        CallArgumentLayout::CommentExpanded {
+            use_separator_comment_multiline,
+            use_single_plain_separator_comment_layout,
+            use_trailing_comma,
+            force_trailing_comma_for_separator_comment,
+        } => format_comment_expanded_call_argument_list(
+            f,
+            call_node_id,
+            dynamic_arguments,
+            use_separator_comment_multiline,
+            use_single_plain_separator_comment_layout,
+            use_trailing_comma,
+            force_trailing_comma_for_separator_comment,
+        ),
+        CallArgumentLayout::ListDefault {
+            force_expand,
+            use_separator_comment_multiline,
+            use_plain_default_short_circuit,
+            disallow_trailing_separator,
+            force_trailing_separator,
+        } => format_default_call_argument_list(
+            f,
+            call_node_id,
+            group_id,
+            dynamic_arguments,
+            force_expand,
+            use_separator_comment_multiline,
+            use_plain_default_short_circuit,
+            disallow_trailing_separator,
+            force_trailing_separator,
+            all_plain_call_arguments,
+        ),
+    }
+}
+
+/// Return whether an argument should emit its prefix annotations.
+pub(crate) fn argument_should_emit_prefix_annotations(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    if argument_has_satisfies_static_seam_prefix_line_comment(context, argument_id) {
+        return false;
+    }
+
+    if !argument_is_call_or_new(context, argument_id) {
+        return true;
+    }
+
+    if argument_has_non_blank_prefix_annotation(context, argument_id) {
+        return true;
+    }
+
+    if argument_has_blank_prefix_annotation_before_separator(context, argument_id) {
+        return false;
+    }
+
+    if !argument_is_first_in_call_or_new(context, argument_id) {
+        return true;
+    }
+
+    !argument_has_blank_prefix_annotation(context, argument_id)
+}
+
+/// Return one satisfies static seam line comment annotation id for this argument when present.
+pub(crate) fn argument_satisfies_static_seam_comment_annotation_id(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<LocalNodeId<Annotation>> {
+    if !argument_is_first_static_argument_of_satisfies_right_path(context, argument_id) {
+        return None;
+    }
+
+    let Some(annotations) = context.annotations(argument_id) else {
+        return None;
+    };
+
+    let mut seam_comment_id = None;
+    for annotation_id in annotations {
+        let Annotation::Comment {
+            node,
+            position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+        } = context.annotation(annotation_id)
+        else {
+            continue;
+        };
+
+        let comment = context.tree.get::<Comment>(node);
+        if comment.style != CommentStyle::Slash {
+            continue;
+        }
+
+        seam_comment_id = Some(annotation_id);
+        break;
+    }
+
+    seam_comment_id
+}
+
+/// Return whether this argument has one satisfies static seam prefix line comment.
+fn argument_has_satisfies_static_seam_prefix_line_comment(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    argument_satisfies_static_seam_comment_annotation_id(context, argument_id).is_some()
+}
+
+/// Return whether one argument is the first static argument in a satisfies rhs path with multiple arguments.
+fn argument_is_first_static_argument_of_satisfies_right_path(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    if !argument_is_first_static_argument_of_multi_argument_path(context, argument_id) {
+        return false;
+    }
+
+    let Some((path_expression_id, path_parent_type)) = context.parent(argument_id) else {
+        return false;
+    };
+    if path_parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let path_expression_id = LocalNodeId::<Expression>::new(path_expression_id);
+    let Some((type_binary_id, type_binary_parent_type)) = context.parent(path_expression_id) else {
+        return false;
+    };
+    if type_binary_parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let type_binary_id = LocalNodeId::<Expression>::new(type_binary_id);
+    let Expression::TypeBinary {
+        operator: TypeBinaryOperator::Satisfies,
+        right,
+        ..
+    } = context.tree.get(type_binary_id)
+    else {
+        return false;
+    };
+
+    let right_expression_id = match context.tree.get(*right) {
+        Expression::Parenthesized { expression } | Expression::Statement(expression) => *expression,
+        _ => *right,
+    };
+
+    right_expression_id == path_expression_id
+}
+
+/// Return whether one argument is the first static argument of a multi-argument path static list.
+fn argument_is_first_static_argument_of_multi_argument_path(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(argument_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(parent_id);
+    let static_arguments = match context.tree.get(expression_id) {
+        // keep seam remapping constrained to the formatter path we re-render explicitly
+        Expression::Path {
+            path,
+            static_arguments,
+        } if path.segments.len() == 1 => static_arguments.as_ref(),
+        _ => None,
+    };
+
+    let Some(static_arguments) = static_arguments else {
+        return false;
+    };
+    if static_arguments.len() <= 1 {
+        return false;
+    }
+
+    static_arguments
+        .first()
+        .is_some_and(|first| *first == argument_id)
+}
+
+/// Return whether an argument belongs to a call or new expression.
+fn argument_is_call_or_new(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(argument_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
+    matches!(expression, Expression::Call { .. } | Expression::New { .. })
+}
+
+/// Return whether an argument is the first in its call or new argument list.
+fn argument_is_first_in_call_or_new(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(argument_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
+    match expression {
+        Expression::Call {
+            dynamic_arguments, ..
+        }
+        | Expression::New {
+            dynamic_arguments, ..
+        } => dynamic_arguments
+            .first()
+            .is_some_and(|first| *first == argument_id),
+        _ => false,
+    }
+}
+
+/// Return whether an argument has a non-blank prefix annotation.
+fn argument_has_non_blank_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(annotations) = context.annotations(argument_id) else {
+        return false;
+    };
+
+    annotations
+        .iter()
+        .any(|annotation_id| match context.annotation(*annotation_id) {
+            Annotation::Blank { .. } => false,
+            Annotation::Doc { position, .. }
+            | Annotation::Comment { position, .. }
+            | Annotation::Decorator { position, .. } => matches!(
+                position,
+                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
+            ),
+        })
+}
+
+/// Return whether an argument has a blank prefix annotation.
+fn argument_has_blank_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(annotations) = context.annotations(argument_id) else {
+        return false;
+    };
+
+    annotations.iter().any(|annotation_id| {
+        matches!(
+            context.annotation(*annotation_id),
+            Annotation::Blank {
+                position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                ..
+            }
+        )
+    })
+}
+
+/// Return whether an argument has a blank prefix annotation before a separator.
+fn argument_has_blank_prefix_annotation_before_separator(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(annotations) = context.annotations(argument_id) else {
+        return false;
+    };
+
+    annotations.iter().any(|annotation_id| {
+        let Annotation::Blank {
+            position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+            ..
+        } = context.annotation(*annotation_id)
+        else {
+            return false;
+        };
+
+        next_non_whitespace_token_after_annotation(context, *annotation_id)
+            .is_some_and(|token| token.token.ty == TokenType::Comma)
+    })
+}
+
+impl<'ast> FormatNode<'ast, Argument> for Argument {
+    fn format_node(
+        &self,
+        node_id: LocalNodeId<Argument>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        if argument_is_plain_call_argument(f.context(), node_id) {
+            write_plain_call_argument(f, node_id)?;
+            return Ok(());
+        }
+
+        let should_emit_prefix_annotations =
+            argument_should_emit_prefix_annotations(f.context(), node_id);
+        let has_lambda_value = argument_contains_lambda_value(f.context(), self);
+        let force_break_after_lambda_prefix_comment = has_lambda_value
+            && argument_prefix_lambda_comment_needs_forced_break(f.context(), node_id);
+
+        if has_lambda_value || should_emit_prefix_annotations {
+            write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        }
+
+        write_argument_with_modifiers_and_value(self, force_break_after_lambda_prefix_comment, f)?;
+
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+
+        Ok(())
+    }
+}
+
+/// Return whether a lambda argument has an inline prefix comment that must break.
+fn argument_prefix_lambda_comment_needs_forced_break(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(annotations) = context.annotations(argument_id) else {
+        return false;
+    };
+
+    annotations.iter().any(|annotation_id| {
+        let Annotation::Comment { node, position } = context.annotation(*annotation_id) else {
+            return false;
+        };
+        if position != AnnotationPosition::BlockPrefix {
+            return false;
+        }
+
+        let comment = context.tree.get::<Comment>(node);
+        if comment.style != CommentStyle::Star {
+            return false;
+        }
+
+        let previous_token =
+            previous_non_whitespace_token_before_annotation(context, *annotation_id);
+        let next_token = next_non_whitespace_token_after_annotation(context, *annotation_id);
+        previous_token.is_some_and(|token| {
+            matches!(
+                token.token.ty,
+                TokenType::OpenParenthesis
+                    | TokenType::OpenBracket
+                    | TokenType::OpenBrace
+                    | TokenType::LessThan
+            )
+        }) && next_token.is_some_and(|token| token.token.ty == TokenType::OpenParenthesis)
+    })
+}
+
+/// Return whether this argument wraps a lambda declaration expression.
+fn argument_contains_lambda_value(context: &DestackFormatContext<'_>, argument: &Argument) -> bool {
+    let value_id = match argument {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => *value,
+    };
+
+    let Expression::Declaration(declaration_id) = context.tree.get(value_id) else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(*declaration_id),
+        Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+    )
+}
+
+/// Write one argument with modifiers and value payload.
+fn write_argument_with_modifiers_and_value<'ast>(
+    argument: &Argument,
+    force_break_after_lambda_prefix_comment: bool,
+    f: &mut DestackFormatter<'ast, '_>,
+) -> FormatResult<()> {
+    match argument {
+        Argument::Named {
+            modifiers,
+            name,
+            value,
+        } => {
+            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+            write!(f, [name])?;
+            format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+            write!(f, [token(":"), space(), value])?;
+        }
+        Argument::Labeled {
+            modifiers,
+            label,
+            value,
+        } => {
+            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+            write!(f, [label])?;
+            format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+            write!(f, [token(":"), space(), value])?;
+        }
+        Argument::Positional { modifiers, value } => {
+            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+
+            if force_break_after_lambda_prefix_comment {
+                write!(f, [hard_line_break()])?;
+            }
+
+            write!(f, [value])?;
+            format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+        }
+        Argument::Spread {
+            modifiers,
+            label,
+            value,
+        } => {
+            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+            write!(f, [token("...")])?;
+
+            if let Some(label) = label {
+                write!(f, [label])?;
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                write!(f, [token(":"), space(), value])?;
+            } else {
+                if force_break_after_lambda_prefix_comment {
+                    write!(f, [hard_line_break()])?;
+                }
+
+                write!(f, [value])?;
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
+
+    #[test]
+    fn test_format_argument_named() {
+        assert_format!(
+            "x: 1",
+            "x: 1",
+            |p| p.eat_tree_argument(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_argument_named_shorthand() {
+        assert_format!(
+            "x",
+            "x",
+            |p| p.eat_tree_argument(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_argument_positional() {
+        assert_format!(
+            "1",
+            "1",
+            |p| p.eat_tree_argument(),
+            DestackFormatOptions::default()
+        );
+    }
 }
