@@ -1,4 +1,4 @@
-declare namespace "bun" {
+declare module "bun" {
     type ShellExpression = {
         toString: () => string,
     } | Array<ShellExpression> | string | { raw: string } | Subprocess<
@@ -88,13 +88,13 @@ declare namespace "bun" {
          * ```
          */
         class ShellPromise extends Promise<ShellOutput> {
-            get function stdin(): WritableStream
+            get stdin(): WritableStream
 
             /**
              * Change the current working directory of the shell.
              * @param newCwd - The new working directory
              */
-            function cwd(newCwd: string): this
+            cwd(newCwd: string): this
 
             /**
              * Set environment variables for the shell.
@@ -106,7 +106,7 @@ declare namespace "bun" {
              * expect(stdout.toString()).toBe("LOL!");
              * ```
              */
-            function env(
+            env(
                 newEnv: Record<string, string | undefined> | NodeJS.Dict<string> | undefined,
             ): this
 
@@ -116,14 +116,14 @@ declare namespace "bun" {
              * This configures the shell to only buffer the output.
              * @param isQuiet - Whether to suppress output. Defaults to true.
              */
-            function quiet(isQuiet?: boolean): this
+            quiet(isQuiet?: boolean): this
 
             /**
              * Read from stdout as a string, line by line
              *
              * Automatically calls {@link quiet} to disable echoing to stdout.
              */
-            function lines(): AsyncIterable<string>
+            lines(): AsyncIterable<string>
 
             /**
              * Read from stdout as a string.
@@ -146,7 +146,7 @@ declare namespace "bun" {
              * console.log(output); // "hello\n"
              * ```
              */
-            function text(encoding?: BufferEncoding): Promise<string>
+            text(encoding?: BufferEncoding): Promise<string>
 
             /**
              * Read from stdout as a JSON object
@@ -162,7 +162,7 @@ declare namespace "bun" {
              * ```
              *
              */
-            function json(): Promise<any>
+            json(): Promise<any>
 
             /**
              * Read from stdout as an ArrayBuffer
@@ -176,7 +176,7 @@ declare namespace "bun" {
              * console.log(output); // ArrayBuffer { byteLength: 6 }
              * ```
              */
-            function arrayBuffer(): Promise<ArrayBuffer>
+            arrayBuffer(): Promise<ArrayBuffer>
 
             /**
              * Read from stdout as a Blob
@@ -189,21 +189,21 @@ declare namespace "bun" {
              * console.log(output); // Blob { size: 6, type: "" }
              * ```
              */
-            function blob(): Promise<Blob>
+            blob(): Promise<Blob>
 
             /**
              * Configure the shell to not throw an exception on non-zero exit codes. Throwing can be re-enabled with `.throws(true)`.
              *
              * By default, the shell with throw an exception on commands which return non-zero exit codes.
              */
-            function nothrow(): this
+            nothrow(): this
 
             /**
              * Configure whether or not the shell should throw an exception on non-zero exit codes.
              *
              * By default, this is configured to `true`.
              */
-            function throws(shouldThrow: boolean): this
+            throws(shouldThrow: boolean): this
         }
 
         /**
@@ -244,7 +244,7 @@ declare namespace "bun" {
              * console.log(output.text("base64")); // "hello\n"
              * ```
              */
-            function text(encoding?: BufferEncoding): string
+            text(encoding?: BufferEncoding): string
 
             /**
              * Read from stdout as a JSON object
@@ -258,7 +258,7 @@ declare namespace "bun" {
              * ```
              *
              */
-            function json(): any
+            json(): any
 
             /**
              * Read from stdout as an ArrayBuffer
@@ -271,7 +271,7 @@ declare namespace "bun" {
              * console.log(output.arrayBuffer()); // ArrayBuffer { byteLength: 6 }
              * ```
              */
-            function arrayBuffer(): ArrayBuffer
+            arrayBuffer(): ArrayBuffer
 
             /**
              * Read from stdout as a Blob
@@ -283,7 +283,7 @@ declare namespace "bun" {
              * console.log(output.blob()); // Blob { size: 6, type: "" }
              * ```
              */
-            function blob(): Blob
+            blob(): Blob
 
             /**
              * Read from stdout as an Uint8Array
@@ -295,7 +295,7 @@ declare namespace "bun" {
              * console.log(output.bytes()); // Uint8Array { byteLength: 6 }
              * ```
              */
-            function bytes(): Uint8Array<ArrayBuffer>
+            bytes(): Uint8Array<ArrayBuffer>
         }
 
         interface ShellOutput {
@@ -322,7 +322,7 @@ declare namespace "bun" {
              * console.log(output.text("base64")); // "hello\n"
              * ```
              */
-            function text(encoding?: BufferEncoding): string
+            text(encoding?: BufferEncoding): string
 
             /**
              * Read from stdout as a JSON object
@@ -336,7 +336,7 @@ declare namespace "bun" {
              * ```
              *
              */
-            function json(): any
+            json(): any
 
             /**
              * Read from stdout as an ArrayBuffer
@@ -349,7 +349,7 @@ declare namespace "bun" {
              * console.log(output.arrayBuffer()); // ArrayBuffer { byteLength: 6 }
              * ```
              */
-            function arrayBuffer(): ArrayBuffer
+            arrayBuffer(): ArrayBuffer
 
             /**
              * Read from stdout as an Uint8Array
@@ -362,7 +362,7 @@ declare namespace "bun" {
              * console.log(output.bytes()); // Uint8Array { byteLength: 6 }
              * ```
              */
-            function bytes(): Uint8Array<ArrayBuffer>
+            bytes(): Uint8Array<ArrayBuffer>
 
             /**
              * Read from stdout as a Blob
@@ -374,7 +374,7 @@ declare namespace "bun" {
              * console.log(output.blob()); // Blob { size: 6, type: "" }
              * ```
              */
-            function blob(): Blob
+            blob(): Blob
         }
 
         const Shell: new () => $
