@@ -118,7 +118,7 @@ export class ConvexHttpClient {
      *
      * @returns The URL to the Convex backend, including the client's API version.
      */
-    function backendUrl(): string {
+    backendUrl(): string {
         return `${this.address}/api`
     }
 
@@ -128,7 +128,7 @@ export class ConvexHttpClient {
      * Not guaranteed to match the address with which this client was constructed:
      * it may be canonicalized.
      */
-    get function url() {
+    get url() {
         return this.address
     }
 
@@ -139,7 +139,7 @@ export class ConvexHttpClient {
      *
      * @param value - JWT-encoded OpenID Connect identity token.
      */
-    function setAuth(value: string) {
+    setAuth(value: string) {
         this.clearAuth()
         this.auth = value
     }
@@ -150,7 +150,7 @@ export class ConvexHttpClient {
      *
      * @internal
      */
-    function setAdminAuth(token: string, actingAsIdentity?: UserIdentityAttributes) {
+    setAdminAuth(token: string, actingAsIdentity?: UserIdentityAttributes) {
         this.clearAuth()
         if (actingAsIdentity !== undefined) {
             // Encode the identity to a base64 string
@@ -165,7 +165,7 @@ export class ConvexHttpClient {
     /**
      * Clear the current authentication token if set.
      */
-    function clearAuth() {
+    clearAuth() {
         this.auth = undefined
         this.adminAuth = undefined
     }
@@ -175,7 +175,7 @@ export class ConvexHttpClient {
      *
      * @internal
      */
-    function setDebug(debug: boolean) {
+    setDebug(debug: boolean) {
         this.debug = debug
     }
 
@@ -184,7 +184,7 @@ export class ConvexHttpClient {
      *
      * @internal
      */
-    function setFetchOptions(fetchOptions: FetchOptions) {
+    setFetchOptions(fetchOptions: FetchOptions) {
         this.fetchOptions = fetchOptions
     }
 
@@ -388,7 +388,7 @@ export class ConvexHttpClient {
         this.isProcessingQueue = false
     }
 
-    private function enqueueMutation<Mutation: FunctionReference<"mutation">>(
+    private enqueueMutation<Mutation: FunctionReference<"mutation">>(
         mutation: Mutation,
         args: FunctionArgs<Mutation>,
     ): Promise<FunctionReturnType<Mutation>> {

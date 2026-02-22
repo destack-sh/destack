@@ -7,8 +7,9 @@ use destack_base::ImmutableStringPool;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_workspace::{
-    ImportDeclarationKey, ImportSortOrder, categorize_import, sort_dependency_items as sort_items,
+use destack_workspace::ImportSortOrder;
+use destack_workspace::common::{
+    ImportDeclarationKey, categorize_import, sort_dependency_items as sort_items,
     sort_import_declaration_indices,
 };
 

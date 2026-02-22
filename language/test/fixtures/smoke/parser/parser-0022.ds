@@ -1,4 +1,4 @@
-declare namespace "bun" {
+declare module "bun" {
   namespace __internal {
     type NodeCryptoWebcryptoSubtleCrypto = import("crypto").webcrypto.SubtleCrypto;
     type NodeCryptoWebcryptoCryptoKey = import("crypto").webcrypto.CryptoKey;

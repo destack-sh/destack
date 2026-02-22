@@ -292,12 +292,16 @@ impl Parser {
                 let token_before_type = Self::decode_token_index(token_before_index)
                     .and_then(|index| semantic_tokens.get(index))
                     .map(|token| token.token.ty);
+                let token_before_text = Self::decode_token_index(token_before_index)
+                    .and_then(|index| semantic_tokens.get(index))
+                    .map(|token| self.get_span_str(token.span));
                 let is_semantic_doc_token = Self::is_documentation_token(token.token.ty)
                     && Self::documentation_token_should_stay_semantic(
                         token.token.ty,
                         raw_text,
                         has_leading_newline,
                         token_before_type,
+                        token_before_text,
                     );
 
                 // documentation tokens stay semantic and preserve doc marker style
@@ -512,12 +516,16 @@ impl Parser {
             let token_before_type = Self::decode_token_index(token_before_index)
                 .and_then(|index| semantic_tokens.get(index))
                 .map(|token| token.token.ty);
+            let token_before_text = Self::decode_token_index(token_before_index)
+                .and_then(|index| semantic_tokens.get(index))
+                .map(|token| self.get_span_str(token.span));
             let raw_text = self.file.span_str(token.span);
             if !Self::documentation_token_should_stay_semantic(
                 token.token.ty,
                 raw_text,
                 has_leading_newline,
                 token_before_type,
+                token_before_text,
             ) {
                 continue;
             }
@@ -1085,6 +1093,7 @@ impl Parser {
         raw: &str,
         has_leading_newline: bool,
         token_before_type: Option<TokenType>,
+        token_before_text: Option<&str>,
     ) -> bool {
         if token_type != TokenType::DocBlockComment {
             return true;
@@ -1100,6 +1109,8 @@ impl Parser {
 
         let inner = trimmed[3..trimmed.len() - 2].trim();
         if !has_leading_newline && token_before_type.is_some() {
+            let is_extends_seam = token_before_type == Some(TokenType::Identifier)
+                && token_before_text == Some("extends");
             let is_doc_context_after_opening_token = matches!(
                 token_before_type,
                 Some(
@@ -1114,7 +1125,7 @@ impl Parser {
                         | TokenType::LessThan
                 )
             );
-            if !is_doc_context_after_opening_token {
+            if !is_doc_context_after_opening_token && !is_extends_seam {
                 return false;
             }
         }

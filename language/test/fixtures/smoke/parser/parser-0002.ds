@@ -42,13 +42,6 @@ ws.on("posts:update", (changes) => {
     })
 })
 
-<Menu
-    items=[
-        { to: "/posts" },
-        { to: "/posts/$postId", params: { postId: "postId" } },
-    ]
-/>
-
 const MyApp = {
     utils: {
         clamp: (x, min, max) => {
