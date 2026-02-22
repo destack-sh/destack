@@ -141,12 +141,11 @@ impl Compiler {
                 value_ty_id
             } else if target_symbol.module_id != module.id {
                 // treat export namespace construction as interface surface inference
-                self.resolve_remote_symbol_value_type(
+                self.resolve_remote_symbol_value_type_for_surface(
                     module,
                     profile,
                     source_id,
                     target_symbol,
-                    true,
                     types,
                 )?
             } else {

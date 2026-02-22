@@ -420,22 +420,14 @@ impl Compiler {
 
         // import value type ids for remote symbols
         if member_symbol.module_id != module.id {
-            let imported_type_id = self.resolve_remote_symbol_value_type(
+            let imported_type_id = self.resolve_remote_symbol_value_type_for_interface(
                 module,
                 profile,
                 expression_id,
                 member_symbol,
-                true,
                 types,
             )?;
-            if !matches!(
-                types.get_type(imported_type_id),
-                Type::TypeLiteral {
-                    value: TypeLiteral::Unknown
-                }
-            ) {
-                return Ok(imported_type_id);
-            }
+            return Ok(imported_type_id);
         }
 
         // widen scalar literal projections in value position for binding commits

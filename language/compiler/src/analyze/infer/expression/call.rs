@@ -3298,12 +3298,11 @@ impl Compiler {
         }
 
         // import remote value types on demand
-        let value_ty_id = self.resolve_remote_symbol_value_type(
+        let value_ty_id = self.resolve_remote_symbol_value_type_for_interface(
             module,
             profile,
             node_id,
             super_symbol,
-            false,
             types,
         )?;
 

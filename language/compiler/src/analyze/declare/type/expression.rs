@@ -1064,6 +1064,37 @@ impl Compiler {
             enforce_implicit_managed,
         )?;
 
+        // resolve concrete object indexed-access results eagerly
+        if matches!(types.get_type(left_id), Type::Object { .. }) {
+            let mut visited = Vec::new();
+            let resolution = self.resolve_index_access_types(
+                module,
+                profile,
+                index.into_any(),
+                left_id,
+                index_id,
+                symbols,
+                types,
+                destack_dir::NormalizationMode::Flow,
+                crate::analyze::common::RelationMode::INDEX_ACCESS,
+                &mut visited,
+            );
+            if resolution.missing_keys.is_empty() && !resolution.value_types.is_empty() {
+                let value_type_id = if resolution.value_types.len() == 1 {
+                    resolution.value_types[0]
+                } else {
+                    types.insert_type_from_any(
+                        Type::Union {
+                            elements: resolution.value_types,
+                        },
+                        index.into_any(),
+                    )
+                };
+
+                return Ok(types.get_type(value_type_id).clone());
+            }
+        }
+
         Ok(Type::Index {
             left: left_id,
             index: index_id,

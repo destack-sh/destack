@@ -1775,15 +1775,7 @@ impl Compiler {
                     types,
                     &mut materialize_cache,
                 );
-                mapped_count = self.normalize_type_with_relation(
-                    module,
-                    profile,
-                    mapped_count,
-                    owner_symbols,
-                    types,
-                    NormalizationMode::Assign,
-                    RelationMode::STATIC_EVAL,
-                );
+                mapped_count = self.normalized_projection_substitution_type(mapped_count, types);
             }
         }
 
@@ -1797,6 +1789,30 @@ impl Compiler {
             substitutions,
             types,
         )?;
+
+        // keep indexed-access semantics when substitution makes the receiver indexable
+        let (_, is_explicit_comptime) = self.unwrap_as_comptime_expression(index, owner_tree);
+        let mapped_count_is_numeric_literal = matches!(
+            types.get_type(mapped_count),
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(
+                    destack_dir::ScalarLiteral::Integer(_)
+                        | destack_dir::ScalarLiteral::Float(_)
+                        | destack_dir::ScalarLiteral::Bigint(_)
+                ),
+            }
+        );
+        let mapped_element_is_array = matches!(types.get_type(mapped_element), Type::Array { .. });
+        if !is_explicit_comptime && mapped_element_is_array && mapped_count_is_numeric_literal {
+            return Ok(types.insert_type_from_type(
+                Type::Index {
+                    left: mapped_element,
+                    index: mapped_count,
+                },
+                local_type_id,
+            ));
+        }
+
         if mapped_element == element && mapped_count == count {
             return Ok(local_type_id);
         }

@@ -185,12 +185,21 @@ impl Compiler {
                             )
                         });
                     if has_unresolved_receiver_arguments {
-                        self.error(AnalyzeError::InvalidComptimeExpression {
-                            node: expression_id
-                                .into_global_any(module.id)
-                                .into_anchored(Some(profile)),
-                        });
-                        return Ok(None);
+                        if is_explicit_comptime {
+                            self.error(AnalyzeError::InvalidComptimeExpression {
+                                node: expression_id
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(profile)),
+                            });
+                            return Ok(None);
+                        }
+
+                        let inferred_id = types.unwrap_value_type_id(index_ty_id);
+                        types.set_inferred_type(
+                            expression_id.into_global_any(module.id),
+                            inferred_id,
+                        );
+                        return Ok(Some(inferred_id));
                     }
 
                     let has_concrete_count = self
@@ -1542,12 +1551,11 @@ impl Compiler {
         }
 
         if target_symbol.module_id != module.id {
-            let value_ty_id = self.resolve_remote_symbol_value_type(
+            let value_ty_id = self.resolve_remote_symbol_value_type_for_surface(
                 module,
                 profile,
                 expression_id.into_any(),
                 target_symbol,
-                false,
                 types,
             )?;
             return Ok(types.get_type(value_ty_id).clone());
