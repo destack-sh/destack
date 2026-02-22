@@ -4,13 +4,14 @@ use crate::diagnostic::RuntimeErrorStore;
 use crate::platform::{PlatformContext, ResourceTable};
 use crate::runtime::RuntimeHooks;
 use crate::runtime::bindings::BindingReplayPayload;
+use crate::runtime::host::HostRuntime;
 use crate::runtime::random::Random;
 use crate::runtime::replay::{ReplayController, ReplayHeader};
 use crate::runtime::time::{Clock, HostClockSource};
 use crate::simulation::{SharedSimulationState, SimulationState};
 use destack_workspace::{
-    ExecutionMode, GcOptions, PlatformWindowsOptions, RandomMode, ReplayLogOptions,
-    ReplayPayloadMode, RuntimeOptions, TimeMode,
+    ExecutionMode, GcOptions, PlatformOptions, RandomMode, ReplayLogOptions, ReplayPayloadMode,
+    RuntimeOptions, TimeMode,
 };
 
 /// Number of bytes in a megabyte for replay chunk sizing.
@@ -23,8 +24,8 @@ pub struct RuntimeState {
     pub platform: PlatformContext,
     /// Runtime GC options for heap policy.
     pub gc: GcOptions,
-    /// Windows runtime configuration options.
-    pub windows: PlatformWindowsOptions,
+    /// Platform-specific runtime configuration options.
+    pub platform_options: PlatformOptions,
     /// Virtual time and clock policy.
     pub time: Clock,
     /// Deterministic randomness streams.
@@ -35,6 +36,8 @@ pub struct RuntimeState {
     pub replay: ReplayController,
     /// Runtime hooks and effect state.
     pub hooks: RuntimeHooks,
+    /// Host adapter integration state.
+    pub host: HostRuntime,
     /// Simulation world state shared across simulation bindings.
     pub simulation: SharedSimulationState,
     /// Runtime error storage for native bindings.
@@ -139,12 +142,13 @@ impl RuntimeState {
         Self {
             platform,
             gc: options.gc.clone(),
-            windows: options.platform.windows.clone(),
+            platform_options: options.platform.clone(),
             time,
             random,
             resources: ResourceTable::default(),
             replay: ReplayController::new(execution_mode, replay_payload, header),
             hooks: RuntimeHooks::from_runtime_options(options),
+            host: HostRuntime::from_runtime_options(options),
             simulation: SharedSimulationState::new(SimulationState::default()),
             errors: RuntimeErrorStore::default(),
         }

@@ -4,6 +4,7 @@ use crate::runtime::RuntimeHookState;
 use crate::runtime::engine::{
     Engine, EngineContinuation, EngineOutcome, RuntimeOutput, RuntimeValue,
 };
+use crate::runtime::host::HostEvent;
 use crate::runtime::replay::{QueueEventKind, ReplayEvent, TaskQueue, TaskQueueEvent, TaskSubject};
 use crate::runtime::scheduler::{
     EventLoopScope, Microtask, Runnable, Task, TaskId, TaskStatus, current_event_loop_scope,
@@ -154,6 +155,16 @@ impl Runtime {
         // track whether this tick processed any event loop work
         let mut progressed = false;
         let tick_start_mono_nanos = self.state.time.mono_nanos();
+
+        // poll host adapter events before poller events
+        let host_event_count = self.poll_host_events(Some(0))?;
+        if host_event_count > 0 {
+            progressed = true;
+            self.state.hooks.on_scheduler_event_wake(RuntimeHookState {
+                external_event_count: Some(host_event_count),
+                ..RuntimeHookState::empty()
+            });
+        }
 
         // poll platform events if a poller is installed
         if let Some(poller) = self.poller.as_mut() {
@@ -496,6 +507,17 @@ impl Runtime {
             .event_loop
             .timeout_until_next_timer(wall_now_nanos, mono_now_nanos);
 
+        // poll host adapter events before blocking or sleeping
+        let host_event_count = self.poll_host_events(Some(0))?;
+        if host_event_count > 0 {
+            self.state.hooks.on_scheduler_event_wake(RuntimeHookState {
+                external_event_count: Some(host_event_count),
+                ..RuntimeHookState::empty()
+            });
+
+            return Ok(true);
+        }
+
         // block on the poller when available
         if let Some(poller) = self.poller.as_mut() {
             let event_count = self
@@ -521,6 +543,52 @@ impl Runtime {
         }
 
         Ok(false)
+    }
+
+    /// Poll host adapter events and enqueue runtime poller events.
+    fn poll_host_events(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<usize> {
+        // drain host adapter events for this tick
+        let events = self.host.poll_events(timeout_nanos)?;
+        if events.is_empty() {
+            return Ok(0);
+        }
+
+        // route host events into supported event-loop lanes
+        let mut poller_events = Vec::new();
+        for event in events {
+            // route poller-compatible host events into the scheduler queue
+            if let HostEvent::Poller(event) = event {
+                poller_events.push(event);
+            }
+            // keep non-poller host events internal until dedicated watch lanes are added
+        }
+
+        // cap poller host event intake when configured
+        let mut dropped_poller_events = 0usize;
+        if let Some(event_queue_capacity) = self.host.event_queue_capacity()
+            && poller_events.len() > event_queue_capacity
+        {
+            dropped_poller_events = poller_events.len().saturating_sub(event_queue_capacity);
+            poller_events.truncate(event_queue_capacity);
+        }
+
+        // account for dropped poller host events
+        if dropped_poller_events > 0 {
+            let dropped_poller_events_u64 = if dropped_poller_events > u64::MAX as usize {
+                u64::MAX
+            } else {
+                dropped_poller_events as u64
+            };
+            self.event_loop
+                .record_dropped_external_events(dropped_poller_events_u64);
+        }
+
+        let event_count = poller_events.len();
+        if event_count > 0 {
+            self.event_loop.enqueue_events(poller_events);
+        }
+
+        Ok(event_count)
     }
 
     /// Return whether the current tick exhausted the configured budget.

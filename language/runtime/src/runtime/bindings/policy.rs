@@ -2,6 +2,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::bindings::{
     BindingDescriptor, BindingEffectMask, BindingId, BindingReplayPayload, BindingScope,
 };
+use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::rules::matches_runtime_filter;
 use destack_workspace::{
     BindingEngine, ExecutionMode, ReplayPayloadMode, RuntimeAccess, RuntimeAction, RuntimeFilter,
@@ -49,6 +50,10 @@ pub struct BindingPolicy {
     default_world: RuntimeWorld,
     /// Default replay payload for unmatched bindings.
     default_replay_payload: BindingReplayPayload,
+    /// Active capability set used for binding requirement checks.
+    capabilities: PlatformCapabilitySet,
+    /// Whether capability requirements are enforced.
+    enforce_capability_requirements: bool,
     /// Ordered access rules with first match semantics.
     access_rules: Vec<AccessRule>,
     /// Ordered world rules with first match semantics.
@@ -74,6 +79,8 @@ pub struct BindingPolicy {
     replay_payload_compiled_vm: FxHashMap<BindingId, BindingReplayPayload>,
     /// Compiled replay payload decisions for native calls.
     replay_payload_compiled_native: FxHashMap<BindingId, BindingReplayPayload>,
+    /// Compiled capability requirement satisfaction by binding id.
+    capability_requirements_compiled: FxHashMap<BindingId, bool>,
 }
 
 impl BindingPolicy {
@@ -86,6 +93,8 @@ impl BindingPolicy {
             default_access: RuntimeAccess::Allow,
             default_world: RuntimeWorld::Host,
             default_replay_payload: BindingReplayPayload::Results,
+            capabilities: PlatformCapabilitySet::new(),
+            enforce_capability_requirements: false,
             access_rules: Vec::new(),
             world_rules: Vec::new(),
             replay_payload_rules: Vec::new(),
@@ -98,6 +107,7 @@ impl BindingPolicy {
             replay_payload_compiled_any: FxHashMap::default(),
             replay_payload_compiled_vm: FxHashMap::default(),
             replay_payload_compiled_native: FxHashMap::default(),
+            capability_requirements_compiled: FxHashMap::default(),
         }
     }
 
@@ -131,8 +141,44 @@ impl BindingPolicy {
         self.clear_compiled();
     }
 
+    /// Set the active capability set used for requirement checks.
+    pub fn set_capabilities(&mut self, capabilities: PlatformCapabilitySet) {
+        // replace active capabilities
+        self.capabilities = capabilities;
+
+        // enforce requirements only when explicit capabilities are configured
+        self.enforce_capability_requirements = !self.capabilities.is_empty();
+
+        // capability requirement decisions depend on this state
+        self.clear_compiled();
+    }
+
+    /// Return the active capability set.
+    pub fn capabilities(&self) -> &PlatformCapabilitySet {
+        &self.capabilities
+    }
+
+    /// Set whether capability requirements are enforced.
+    pub fn set_capability_requirements_enforced(&mut self, is_enforced: bool) {
+        // update capability requirement enforcement mode
+        self.enforce_capability_requirements = is_enforced;
+
+        // capability requirement decisions depend on this state
+        self.clear_compiled();
+    }
+
+    /// Return whether capability requirements are currently enforced.
+    pub fn is_capability_requirements_enforced(&self) -> bool {
+        self.enforce_capability_requirements
+    }
+
     /// Compile policy decisions for one binding descriptor.
     pub fn compile_descriptor(&mut self, spec: BindingDescriptor) {
+        // compile capability requirement satisfaction for this binding
+        let has_capabilities = self.resolve_capability_requirements_uncached(spec);
+        self.capability_requirements_compiled
+            .insert(spec.id, has_capabilities);
+
         // compile access decisions for all engine variants
         let access_any = self.resolve_access_uncached(spec, None);
         let access_vm = self.resolve_access_uncached(spec, Some(BindingEngine::Vm));
@@ -191,6 +237,14 @@ impl BindingPolicy {
         spec: BindingDescriptor,
         engine: Option<BindingEngine>,
     ) -> RuntimeResult<()> {
+        // reject capability requirement mismatches first
+        if !self.resolve_capability_requirements(spec) {
+            return Err(RuntimeError::PolicyViolation {
+                name: spec.name.to_string(),
+            }
+            .boxed());
+        }
+
         // reject disallowed effect classes first
         if !self.allowed.allows(spec.effect_mask) {
             return Err(RuntimeError::PolicyViolation {
@@ -255,6 +309,28 @@ impl BindingPolicy {
         self.replay_payload_compiled_any.clear();
         self.replay_payload_compiled_vm.clear();
         self.replay_payload_compiled_native.clear();
+        self.capability_requirements_compiled.clear();
+    }
+
+    /// Resolve capability requirements for one binding.
+    fn resolve_capability_requirements(&self, spec: BindingDescriptor) -> bool {
+        // return compiled decisions when available
+        if let Some(has_capabilities) = self.lookup_compiled_capability_requirements(spec.id) {
+            return has_capabilities;
+        }
+
+        // fall back to direct requirement checks when uncached
+        self.resolve_capability_requirements_uncached(spec)
+    }
+
+    /// Resolve capability requirements by checking the active capability set.
+    fn resolve_capability_requirements_uncached(&self, spec: BindingDescriptor) -> bool {
+        // disabled enforcement accepts all binding capability requirements
+        if !self.enforce_capability_requirements {
+            return true;
+        }
+
+        spec.requirements_satisfied_by(&self.capabilities)
     }
 
     /// Resolve the effective access policy for one binding and engine.
@@ -408,6 +484,11 @@ impl BindingPolicy {
         // return cached decision when available
         cache.get(&id).copied()
     }
+
+    /// Look up one compiled capability requirement decision.
+    fn lookup_compiled_capability_requirements(&self, id: BindingId) -> Option<bool> {
+        self.capability_requirements_compiled.get(&id).copied()
+    }
 }
 
 impl Default for BindingPolicy {
@@ -480,5 +561,86 @@ const fn replay_payload_from_mode(mode: ReplayPayloadMode) -> BindingReplayPaylo
     match mode {
         ReplayPayloadMode::ResultsOnly => BindingReplayPayload::Results,
         ReplayPayloadMode::ArgumentsAndResults => BindingReplayPayload::ArgumentsAndResults,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn descriptor_with_requirements() -> BindingDescriptor {
+        BindingDescriptor::deterministic_with_requires(
+            "destack.test.capability",
+            "export function capability(): void",
+            &["fs.read", "net.connect"],
+        )
+    }
+
+    #[test]
+    fn test_check_for_engine_allows_when_capability_enforcement_is_disabled() {
+        // build one policy and descriptor with explicit requirements
+        let policy = BindingPolicy::new(ExecutionMode::Fast);
+        let descriptor = descriptor_with_requirements();
+
+        // capability checks are skipped when enforcement is disabled
+        let result = policy.check_for_engine(descriptor, Some(BindingEngine::Native));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_for_engine_rejects_when_capability_requirements_are_missing() {
+        // build one policy with strict capability requirement enforcement
+        let mut policy = BindingPolicy::new(ExecutionMode::Fast);
+        policy.set_capability_requirements_enforced(true);
+
+        let descriptor = descriptor_with_requirements();
+        policy.compile_descriptor(descriptor);
+
+        // missing required capabilities should be rejected
+        let result = policy.check_for_engine(descriptor, Some(BindingEngine::Native));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_check_for_engine_accepts_when_capability_requirements_are_satisfied() {
+        // build one policy and set required capabilities before compiling decisions
+        let mut policy = BindingPolicy::new(ExecutionMode::Fast);
+        policy.set_capability_requirements_enforced(true);
+        policy.set_capabilities(PlatformCapabilitySet::from_names([
+            "fs.read",
+            "net.connect",
+        ]));
+
+        let descriptor = descriptor_with_requirements();
+        policy.compile_descriptor(descriptor);
+
+        // all required capabilities should allow the call
+        let result = policy.check_for_engine(descriptor, Some(BindingEngine::Native));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_for_engine_recomputes_when_capabilities_change() {
+        // compile one descriptor with all required capabilities present
+        let mut policy = BindingPolicy::new(ExecutionMode::Fast);
+        policy.set_capabilities(PlatformCapabilitySet::from_names([
+            "fs.read",
+            "net.connect",
+        ]));
+
+        let descriptor = descriptor_with_requirements();
+        policy.compile_descriptor(descriptor);
+
+        // first pass should be accepted
+        let first_result = policy.check_for_engine(descriptor, Some(BindingEngine::Native));
+        assert!(first_result.is_ok());
+
+        // drop one required capability and recompile descriptor decisions
+        policy.set_capabilities(PlatformCapabilitySet::from_names(["fs.read"]));
+        policy.compile_descriptor(descriptor);
+
+        // second pass should be rejected after capability update
+        let second_result = policy.check_for_engine(descriptor, Some(BindingEngine::Native));
+        assert!(second_result.is_err());
     }
 }

@@ -4,6 +4,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::{PlatformContext, ResourceId};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::engine::{EngineContinuation, RuntimeValue};
+use crate::runtime::host::HostRuntime;
 use crate::runtime::memory::Heap;
 use crate::runtime::poller::{HostPoller, PollerToken};
 use crate::runtime::scheduler::{EventLoop, EventLoopWatch};
@@ -23,6 +24,8 @@ pub struct Runtime {
     pub heap: Heap,
     /// Event loop for tasks, microtasks, and timers.
     pub event_loop: Box<EventLoop>,
+    /// Host adapter integration.
+    pub host: HostRuntime,
     /// Optional platform poller for external events.
     pub poller: Option<Box<dyn HostPoller>>,
 }
@@ -34,6 +37,7 @@ impl std::fmt::Debug for Runtime {
             .field("state", &self.state)
             .field("heap", &self.heap)
             .field("event_loop", &self.event_loop)
+            .field("host", &self.host)
             .field("poller", &"<platform poller>")
             .finish()
     }
@@ -44,17 +48,21 @@ impl Runtime {
     pub fn new(state: Arc<RuntimeState>) -> Self {
         let event_loop = Box::new(EventLoop::default());
         let mut bindings = BindingRegistry::new();
-        bindings.set_policy(BindingPolicy::new(state.replay.mode()));
+        let mut policy = BindingPolicy::new(state.replay.mode());
+        policy.set_capabilities(state.host.capabilities().clone());
+        bindings.set_policy(policy);
         bindings.set_runtime_handles(&state, event_loop.as_ref());
         bindings.install_native_defaults();
         let mut heap = Heap::default();
         heap.configure_gc(state.gc.clone());
+        let host = state.host.clone();
 
         Self {
             bindings,
             state,
             heap,
             event_loop,
+            host,
             poller: None,
         }
     }
@@ -77,6 +85,11 @@ impl Runtime {
     /// Attach a platform poller for external events.
     pub fn set_poller(&mut self, poller: Box<dyn HostPoller>) {
         self.poller = Some(poller);
+    }
+
+    /// Borrow host adapter integration.
+    pub fn host(&self) -> &HostRuntime {
+        &self.host
     }
 
     /// Register one timer watch.

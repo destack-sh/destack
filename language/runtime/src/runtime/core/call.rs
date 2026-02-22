@@ -103,6 +103,12 @@ impl BindingCallContext {
         &self.runtime().hooks
     }
 
+    /// Borrow the runtime host adapter state.
+    #[inline]
+    pub fn host(&self) -> &crate::runtime::host::HostRuntime {
+        &self.runtime().host
+    }
+
     /// Borrow the shared simulation state.
     #[inline]
     pub fn simulation(&self) -> &crate::simulation::SharedSimulationState {

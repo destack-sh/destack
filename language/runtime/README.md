@@ -7,7 +7,7 @@ In effect, the runtime is where we marry Node/Bun/Deno-level semantics _with_ V8
 ## Overview
 
 Destack has a single runtime that can drive both VM and native execution (even within the same process).
-The runtime owns everything outside of pure computation (and userland external bindings): time, randomness, scheduling, external bindings, resource tracking, and GC coordination.
+The "runtime" owns everything outside of pure computation (and userland external bindings): time, randomness, scheduling, external bindings, resource tracking, and GC coordination.
 VM and native are "engines" that run until they yield back to the runtime (microtask-style).
 Runtime behavior is modeled along three basic dimensions:
 
@@ -53,6 +53,37 @@ Blocking work yields through the scheduler and resumes through the same bindings
 
 Binding dispatch is driven by binding scope.
 Scope is declared per binding descriptor metadata, and generator validation enforces one effective scope per module.
+
+## Hosts
+
+Destack has one runtime core and many host adapters.
+We do not clone the runtime per OS.
+We split concerns into five layers.
+
+| Layer | Responsibility | Examples |
+|-----------|--------|--------|
+| `runtime/core` | Host agnostic execution semantics. | scheduler, memory, replay, engine orchestration |
+| `runtime/host/*` | Host callback, lifecycle, and thread affinity services. | android jni bridge, ios runloop bridge, windows com callback bridge |
+| `platform/core` | Small shared OS helper primitives with no domain policy. | errno mapping, dynamic loader helpers, win32 string helpers |
+| `platform/*` | Truthful low-level binding implementations per domain. | `platform.audio`, `platform.fs`, `platform.net`, `platform.input` |
+| `destack:*` libraries | High-level policy and ergonomic cross-platform APIs. | packed assets, engine style abstractions, app framework flows |
+
+`platform/core` stays minimal and should not grow domain behavior.
+Host framework integration that many domains need belongs in `runtime/host/*`.
+Domain specific syscall and ABI behavior belongs in the corresponding `platform/<domain>` module.
+High-level fallback policy and convenience routing belongs in `destack:*`.
+
+This matrix defines what we expect each host adapter to provide for shared runtime consumers.
+
+| Host family | Required host adapter capabilities | First consumer modules |
+|-----------|--------|--------|
+| Android | jni attach or detach, main looper dispatch, lifecycle events, permission result routing, system callback bus | audio, input, display, net |
+| Apple platforms | runloop dispatch, objc callback bridge, lifecycle and interruption events, permission result routing | audio, input, display, net |
+| Windows | com callback coordination and thread affinity helpers where required | audio, input, net |
+| Linux and desktop unix | eventfd or poll integration helpers for callback producers | audio, input, net |
+
+The matrix is about shared adapter services, not direct user-facing bindings.
+User-facing binding evolution still happens in `platform/*` and builtin `.ds` source of truth files.
 
 ## Modules
 

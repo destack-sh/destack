@@ -685,13 +685,141 @@ pub struct RuntimeOptions {
 /// Platform-specific runtime configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct PlatformOptions {
+    /// Android runtime configuration.
+    pub android: PlatformAndroidOptions,
+    /// DragonFly BSD runtime configuration.
+    pub dragonfly: PlatformDragonflyOptions,
+    /// FreeBSD runtime configuration.
+    pub freebsd: PlatformFreeBsdOptions,
+    /// Haiku runtime configuration.
+    pub haiku: PlatformHaikuOptions,
+    /// illumos runtime configuration.
+    pub illumos: PlatformIllumosOptions,
+    /// iOS runtime configuration.
+    pub ios: PlatformIosOptions,
+    /// Linux runtime configuration.
+    pub linux: PlatformLinuxOptions,
+    /// macOS runtime configuration.
+    pub macos: PlatformMacosOptions,
+    /// NetBSD runtime configuration.
+    pub netbsd: PlatformNetBsdOptions,
+    /// OpenBSD runtime configuration.
+    pub openbsd: PlatformOpenBsdOptions,
+    /// Solaris runtime configuration.
+    pub solaris: PlatformSolarisOptions,
     /// Windows runtime configuration.
     pub windows: PlatformWindowsOptions,
+}
+
+/// Host integration options shared across platform runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PlatformHostOptions {
+    /// Whether host lifecycle events are enabled.
+    pub enable_lifecycle_events: bool,
+    /// Whether host window events are enabled.
+    pub enable_window_events: bool,
+    /// Whether host permission events are enabled.
+    pub enable_permission_events: bool,
+    /// Whether host interruption events are enabled.
+    pub enable_interruption_events: bool,
+    /// Queue capacity for host events before drop behavior applies.
+    pub event_queue_capacity: Option<u64>,
+}
+
+impl Default for PlatformHostOptions {
+    fn default() -> Self {
+        Self {
+            enable_lifecycle_events: true,
+            enable_window_events: true,
+            enable_permission_events: true,
+            enable_interruption_events: true,
+            event_queue_capacity: None,
+        }
+    }
+}
+
+/// Android runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformAndroidOptions {
+    /// Host integration options.
+    pub host: PlatformHostOptions,
+}
+
+/// DragonFly BSD runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformDragonflyOptions {
+    /// Host integration options.
+    pub host: PlatformHostOptions,
+}
+
+/// FreeBSD runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformFreeBsdOptions {
+    /// Host integration options.
+    pub host: PlatformHostOptions,
+}
+
+/// Haiku runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformHaikuOptions {
+    /// Host integration options.
+    pub host: PlatformHostOptions,
+}
+
+/// illumos runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformIllumosOptions {
+    /// Host integration options.
+    pub host: PlatformHostOptions,
+}
+
+/// iOS runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformIosOptions {
+    /// Host integration options.
+    pub host: PlatformHostOptions,
+}
+
+/// Linux runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformLinuxOptions {
+    /// Host integration options.
+    pub host: PlatformHostOptions,
+}
+
+/// macOS runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformMacosOptions {
+    /// Host integration options.
+    pub host: PlatformHostOptions,
+}
+
+/// NetBSD runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformNetBsdOptions {
+    /// Host integration options.
+    pub host: PlatformHostOptions,
+}
+
+/// OpenBSD runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformOpenBsdOptions {
+    /// Host integration options.
+    pub host: PlatformHostOptions,
+}
+
+/// Solaris runtime configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct PlatformSolarisOptions {
+    /// Host integration options.
+    pub host: PlatformHostOptions,
 }
 
 /// Windows runtime configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct PlatformWindowsOptions {
+    /// Host integration options.
+    pub host: PlatformHostOptions,
     /// Optional POSIX domain SID for uid/gid mapping.
     pub posix_domain_sid: Option<String>,
 }
@@ -1555,11 +1683,33 @@ impl From<&RuntimeRuleJson> for RuntimeRule {
     }
 }
 
-/// Platform runtime options for JSON deserialization.
+/// Platform-specific runtime configuration.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct PlatformOptionsJson {
+    /// Android-specific runtime configuration.
+    pub android: Option<PlatformAndroidOptionsJson>,
+    /// DragonFly BSD-specific runtime configuration.
+    pub dragonfly: Option<PlatformDragonflyOptionsJson>,
+    /// FreeBSD-specific runtime configuration.
+    pub freebsd: Option<PlatformFreeBsdOptionsJson>,
+    /// Haiku-specific runtime configuration.
+    pub haiku: Option<PlatformHaikuOptionsJson>,
+    /// illumos-specific runtime configuration.
+    pub illumos: Option<PlatformIllumosOptionsJson>,
+    /// iOS-specific runtime configuration.
+    pub ios: Option<PlatformIosOptionsJson>,
+    /// Linux-specific runtime configuration.
+    pub linux: Option<PlatformLinuxOptionsJson>,
+    /// macOS-specific runtime configuration.
+    pub macos: Option<PlatformMacosOptionsJson>,
+    /// NetBSD-specific runtime configuration.
+    pub netbsd: Option<PlatformNetBsdOptionsJson>,
+    /// OpenBSD-specific runtime configuration.
+    pub openbsd: Option<PlatformOpenBsdOptionsJson>,
+    /// Solaris-specific runtime configuration.
+    pub solaris: Option<PlatformSolarisOptionsJson>,
     /// Windows-specific runtime configuration.
     pub windows: Option<PlatformWindowsOptionsJson>,
 }
@@ -1567,6 +1717,61 @@ pub struct PlatformOptionsJson {
 impl PlatformOptionsJson {
     /// Apply platform overrides to a base set of options.
     pub fn apply_to(&self, options: &mut PlatformOptions) {
+        // apply android overrides
+        if let Some(android) = &self.android {
+            android.apply_to(&mut options.android);
+        }
+
+        // apply dragonfly overrides
+        if let Some(dragonfly) = &self.dragonfly {
+            dragonfly.apply_to(&mut options.dragonfly);
+        }
+
+        // apply freebsd overrides
+        if let Some(freebsd) = &self.freebsd {
+            freebsd.apply_to(&mut options.freebsd);
+        }
+
+        // apply haiku overrides
+        if let Some(haiku) = &self.haiku {
+            haiku.apply_to(&mut options.haiku);
+        }
+
+        // apply illumos overrides
+        if let Some(illumos) = &self.illumos {
+            illumos.apply_to(&mut options.illumos);
+        }
+
+        // apply ios overrides
+        if let Some(ios) = &self.ios {
+            ios.apply_to(&mut options.ios);
+        }
+
+        // apply linux overrides
+        if let Some(linux) = &self.linux {
+            linux.apply_to(&mut options.linux);
+        }
+
+        // apply macos overrides
+        if let Some(macos) = &self.macos {
+            macos.apply_to(&mut options.macos);
+        }
+
+        // apply netbsd overrides
+        if let Some(netbsd) = &self.netbsd {
+            netbsd.apply_to(&mut options.netbsd);
+        }
+
+        // apply openbsd overrides
+        if let Some(openbsd) = &self.openbsd {
+            openbsd.apply_to(&mut options.openbsd);
+        }
+
+        // apply solaris overrides
+        if let Some(solaris) = &self.solaris {
+            solaris.apply_to(&mut options.solaris);
+        }
+
         // apply windows overrides
         if let Some(windows) = &self.windows {
             windows.apply_to(&mut options.windows);
@@ -1574,11 +1779,222 @@ impl PlatformOptionsJson {
     }
 }
 
-/// Windows runtime options for JSON deserialization.
+/// Android runtime configuration.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformAndroidOptionsJson {
+    /// Host integration options.
+    pub host: Option<PlatformHostOptionsJson>,
+}
+
+impl PlatformAndroidOptionsJson {
+    /// Apply Android overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformAndroidOptions) {
+        // apply host integration overrides
+        if let Some(host) = &self.host {
+            host.apply_to(&mut options.host);
+        }
+    }
+}
+
+/// DragonFly BSD runtime configuration.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformDragonflyOptionsJson {
+    /// Host integration options.
+    pub host: Option<PlatformHostOptionsJson>,
+}
+
+impl PlatformDragonflyOptionsJson {
+    /// Apply DragonFly BSD overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformDragonflyOptions) {
+        // apply host integration overrides
+        if let Some(host) = &self.host {
+            host.apply_to(&mut options.host);
+        }
+    }
+}
+
+/// FreeBSD runtime configuration.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformFreeBsdOptionsJson {
+    /// Host integration options.
+    pub host: Option<PlatformHostOptionsJson>,
+}
+
+impl PlatformFreeBsdOptionsJson {
+    /// Apply FreeBSD overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformFreeBsdOptions) {
+        // apply host integration overrides
+        if let Some(host) = &self.host {
+            host.apply_to(&mut options.host);
+        }
+    }
+}
+
+/// Haiku runtime configuration.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformHaikuOptionsJson {
+    /// Host integration options.
+    pub host: Option<PlatformHostOptionsJson>,
+}
+
+impl PlatformHaikuOptionsJson {
+    /// Apply Haiku overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformHaikuOptions) {
+        // apply host integration overrides
+        if let Some(host) = &self.host {
+            host.apply_to(&mut options.host);
+        }
+    }
+}
+
+/// illumos runtime configuration.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformIllumosOptionsJson {
+    /// Host integration options.
+    pub host: Option<PlatformHostOptionsJson>,
+}
+
+impl PlatformIllumosOptionsJson {
+    /// Apply illumos overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformIllumosOptions) {
+        // apply host integration overrides
+        if let Some(host) = &self.host {
+            host.apply_to(&mut options.host);
+        }
+    }
+}
+
+/// iOS runtime configuration.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformIosOptionsJson {
+    /// Host integration options.
+    pub host: Option<PlatformHostOptionsJson>,
+}
+
+impl PlatformIosOptionsJson {
+    /// Apply iOS overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformIosOptions) {
+        // apply host integration overrides
+        if let Some(host) = &self.host {
+            host.apply_to(&mut options.host);
+        }
+    }
+}
+
+/// Linux runtime configuration.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformLinuxOptionsJson {
+    /// Host integration options.
+    pub host: Option<PlatformHostOptionsJson>,
+}
+
+impl PlatformLinuxOptionsJson {
+    /// Apply Linux overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformLinuxOptions) {
+        // apply host integration overrides
+        if let Some(host) = &self.host {
+            host.apply_to(&mut options.host);
+        }
+    }
+}
+
+/// macOS runtime configuration.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformMacosOptionsJson {
+    /// Host integration options.
+    pub host: Option<PlatformHostOptionsJson>,
+}
+
+impl PlatformMacosOptionsJson {
+    /// Apply macOS overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformMacosOptions) {
+        // apply host integration overrides
+        if let Some(host) = &self.host {
+            host.apply_to(&mut options.host);
+        }
+    }
+}
+
+/// NetBSD runtime configuration.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformNetBsdOptionsJson {
+    /// Host integration options.
+    pub host: Option<PlatformHostOptionsJson>,
+}
+
+impl PlatformNetBsdOptionsJson {
+    /// Apply NetBSD overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformNetBsdOptions) {
+        // apply host integration overrides
+        if let Some(host) = &self.host {
+            host.apply_to(&mut options.host);
+        }
+    }
+}
+
+/// OpenBSD runtime configuration.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformOpenBsdOptionsJson {
+    /// Host integration options.
+    pub host: Option<PlatformHostOptionsJson>,
+}
+
+impl PlatformOpenBsdOptionsJson {
+    /// Apply OpenBSD overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformOpenBsdOptions) {
+        // apply host integration overrides
+        if let Some(host) = &self.host {
+            host.apply_to(&mut options.host);
+        }
+    }
+}
+
+/// Solaris runtime configuration.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformSolarisOptionsJson {
+    /// Host integration options.
+    pub host: Option<PlatformHostOptionsJson>,
+}
+
+impl PlatformSolarisOptionsJson {
+    /// Apply Solaris overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformSolarisOptions) {
+        // apply host integration overrides
+        if let Some(host) = &self.host {
+            host.apply_to(&mut options.host);
+        }
+    }
+}
+
+/// Windows runtime configuration.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct PlatformWindowsOptionsJson {
+    /// Host integration options.
+    pub host: Option<PlatformHostOptionsJson>,
     /// Optional POSIX domain SID for uid/gid mapping.
     pub posix_domain_sid: Option<String>,
 }
@@ -1586,9 +2002,61 @@ pub struct PlatformWindowsOptionsJson {
 impl PlatformWindowsOptionsJson {
     /// Apply windows overrides to a base set of options.
     pub fn apply_to(&self, options: &mut PlatformWindowsOptions) {
+        // apply host integration overrides
+        if let Some(host) = &self.host {
+            host.apply_to(&mut options.host);
+        }
+
         // apply domain SID overrides
         if let Some(domain_sid) = &self.posix_domain_sid {
             options.posix_domain_sid = Some(domain_sid.clone());
+        }
+    }
+}
+
+/// Host integration options.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformHostOptionsJson {
+    /// Whether host lifecycle events are enabled.
+    pub enable_lifecycle_events: Option<bool>,
+    /// Whether host window events are enabled.
+    pub enable_window_events: Option<bool>,
+    /// Whether host permission events are enabled.
+    pub enable_permission_events: Option<bool>,
+    /// Whether host interruption events are enabled.
+    pub enable_interruption_events: Option<bool>,
+    /// Queue capacity for host events before drop behavior applies.
+    pub event_queue_capacity: Option<u64>,
+}
+
+impl PlatformHostOptionsJson {
+    /// Apply host integration overrides to a base set of options.
+    pub fn apply_to(&self, options: &mut PlatformHostOptions) {
+        // apply lifecycle event overrides
+        if let Some(enable_lifecycle_events) = self.enable_lifecycle_events {
+            options.enable_lifecycle_events = enable_lifecycle_events;
+        }
+
+        // apply window event overrides
+        if let Some(enable_window_events) = self.enable_window_events {
+            options.enable_window_events = enable_window_events;
+        }
+
+        // apply permission event overrides
+        if let Some(enable_permission_events) = self.enable_permission_events {
+            options.enable_permission_events = enable_permission_events;
+        }
+
+        // apply interruption event overrides
+        if let Some(enable_interruption_events) = self.enable_interruption_events {
+            options.enable_interruption_events = enable_interruption_events;
+        }
+
+        // apply host event queue capacity overrides
+        if let Some(event_queue_capacity) = self.event_queue_capacity {
+            options.event_queue_capacity = Some(event_queue_capacity);
         }
     }
 }

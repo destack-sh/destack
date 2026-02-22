@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::runtime::capability::{PlatformCapabilityId, PlatformCapabilitySet};
 use crate::runtime::replay::{RandomEventKind, TimeEventKind};
 use destack_base::fnv1a_128;
 pub use destack_workspace::{BindingBlocking, BindingEffect, BindingScope};
@@ -586,6 +587,27 @@ impl BindingDescriptor {
     /// Return the required platform capabilities for this binding.
     pub const fn requires(self) -> &'static [&'static str] {
         self.requires
+    }
+
+    /// Iterate required platform capability identifiers for this binding.
+    pub fn required_capability_ids(self) -> impl Iterator<Item = PlatformCapabilityId> + 'static {
+        self.requires
+            .iter()
+            .copied()
+            .map(PlatformCapabilityId::from_name)
+    }
+
+    /// Return whether this binding requires one capability name.
+    pub fn requires_capability_name(self, capability_name: &str) -> bool {
+        let capability_id = PlatformCapabilityId::from_name(capability_name);
+        self.required_capability_ids()
+            .any(|required_id| required_id == capability_id)
+    }
+
+    /// Return whether this binding requirements are satisfied by one capability set.
+    pub fn requirements_satisfied_by(self, capabilities: &PlatformCapabilitySet) -> bool {
+        self.required_capability_ids()
+            .all(|required_id| capabilities.contains_id(required_id))
     }
 
     /// Return the host platform availability list for this binding.

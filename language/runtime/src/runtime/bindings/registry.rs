@@ -9,6 +9,7 @@ use crate::runtime::bindings::{
     BindingDescriptor, BindingEngine, BindingId, BindingPolicy, NativeBinding, NativeBindingSet,
     VmBindingSet,
 };
+use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::scheduler::EventLoop;
 use crate::runtime::{BindingCallContext, RuntimeState, enter_binding_call_context};
 use destack_workspace::RuntimeOptions;
@@ -82,9 +83,21 @@ impl BindingRegistry {
         self.policy.compile_descriptors(&self.descriptors);
     }
 
+    /// Apply a capability set to policy checks and recompile descriptor decisions.
+    pub fn set_capabilities(&mut self, capabilities: PlatformCapabilitySet) {
+        self.policy.set_capabilities(capabilities);
+        self.policy.compile_descriptors(&self.descriptors);
+    }
+
+    /// Set capability requirement enforcement mode and recompile descriptor decisions.
+    pub fn set_capability_requirements_enforced(&mut self, is_enforced: bool) {
+        self.policy
+            .set_capability_requirements_enforced(is_enforced);
+        self.policy.compile_descriptors(&self.descriptors);
+    }
+
     /// Set runtime handles for binding calls.
     pub fn set_runtime_handles(&mut self, runtime: &Arc<RuntimeState>, event_loop: &EventLoop) {
-        // record runtime state pointers for call contexts
         self.binding_runtime_handles = Some(BindingRuntimeHandle {
             runtime: Arc::as_ptr(runtime),
             event_loop: event_loop as *const EventLoop,
@@ -93,7 +106,6 @@ impl BindingRegistry {
 
     /// Install default VM bindings into a VM isolate.
     pub fn install_vm_defaults(&mut self, isolate: &mut Isolate) {
-        // install built in platform bindings
         for set in platform::PLATFORM_VM_BINDINGS {
             self.install_vm_binding_set(isolate, set);
         }
