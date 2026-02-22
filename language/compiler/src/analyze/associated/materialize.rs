@@ -2,11 +2,11 @@ use std::collections::{HashMap, HashSet};
 
 use super::resolve::AssociatedAliasProjectionRewriter;
 use crate::analyze::StaticMemberSymbolKind;
-use crate::analyze::common::{AnalyzeDependencyStage, TypeRewriteCache};
+use crate::analyze::common::{AnalyzeDependencyStage, RelationMode, TypeRewriteCache};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Expression, GlobalSymbolId, LocalNodeIdAny, Member, NodeTree, NodeType, StaticArgument,
-    SymbolTable, SymbolType, Type, TypeRewriter, TypeTable,
+    Expression, GlobalSymbolId, LocalNodeIdAny, Member, NodeTree, NodeType, NormalizationMode,
+    StaticArgument, SymbolTable, SymbolType, Type, TypeRewriter, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -233,7 +233,17 @@ impl Compiler {
             mapped_alias
         };
 
-        Ok(types.get_type(mapped_alias).clone())
+        let normalized_alias = self.normalize_type_with_relation(
+            module,
+            profile,
+            mapped_alias,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::OBJECT_SHAPE,
+        );
+
+        Ok(types.get_type(normalized_alias).clone())
     }
 
     /// Check whether an associated type alias requires explicit static arguments.

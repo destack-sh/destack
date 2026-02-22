@@ -35,12 +35,11 @@ impl Compiler {
 
         // import remote member types when local tables have no value type yet
         if member_ty_id.is_none() && member_symbol.module_id != module.id {
-            let remote_ty_id = self.resolve_remote_symbol_value_type(
+            let remote_ty_id = self.resolve_remote_symbol_value_type_for_interface(
                 module,
                 profile,
                 expression_id.into_any(),
                 member_symbol,
-                false,
                 types,
             )?;
             member_ty_id = Some(remote_ty_id);

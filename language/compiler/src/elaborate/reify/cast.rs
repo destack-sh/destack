@@ -3588,7 +3588,10 @@ function test(): int32 | null | undefined {
         test.assert_elaborated(
             module_id,
             r#"
-function accept(value): int32 | null | undefined {
+function accept(value): 
+    | int32
+    | null
+    | undefined {
     return value;
 }
 
@@ -3596,8 +3599,16 @@ function intValue(): int32 {
     return 1;
 }
 
-function test(): int32 | null | undefined {
-    return accept((intValue() as int32 | null | undefined));
+function test(): 
+    | int32
+    | null
+    | undefined {
+    return accept(
+        (intValue() as 
+                | int32
+                | null
+                | undefined),
+    );
 }
 "#,
         );

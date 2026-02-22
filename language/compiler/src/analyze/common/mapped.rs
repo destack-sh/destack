@@ -1438,6 +1438,20 @@ impl Compiler {
                         field_types.push(rest.ty);
                     }
                 }
+                Type::Array { element, .. } => {
+                    // arrays expose numeric indexed element access
+                    if matches!(key, StaticKey::Number(_))
+                        && let Some(element) = element
+                    {
+                        field_types.push(element);
+                    }
+                }
+                Type::ArraySized { element, .. } => {
+                    // fixed arrays expose numeric indexed element access
+                    if matches!(key, StaticKey::Number(_)) {
+                        field_types.push(element);
+                    }
+                }
                 Type::Reference {
                     symbol,
                     static_arguments,
@@ -1535,6 +1549,20 @@ impl Compiler {
                         }
                     }
                 }
+                Type::Array { element, .. } => {
+                    // arrays expose number index kind fields
+                    if kind == MappedIndexKind::Number
+                        && let Some(element) = element
+                    {
+                        field_types.push(element);
+                    }
+                }
+                Type::ArraySized { element, .. } => {
+                    // fixed arrays expose number index kind fields
+                    if kind == MappedIndexKind::Number {
+                        field_types.push(element);
+                    }
+                }
                 Type::Reference {
                     symbol,
                     static_arguments,
@@ -1619,6 +1647,20 @@ impl Compiler {
                         {
                             value_types.push(signature.value_type);
                         }
+                    }
+                }
+                Type::Array { element, .. } => {
+                    // arrays have an implicit numeric index signature
+                    if kind == MappedIndexKind::Number
+                        && let Some(element) = element
+                    {
+                        value_types.push(element);
+                    }
+                }
+                Type::ArraySized { element, .. } => {
+                    // fixed arrays have an implicit numeric index signature
+                    if kind == MappedIndexKind::Number {
+                        value_types.push(element);
                     }
                 }
                 Type::Reference { symbol, .. } => {

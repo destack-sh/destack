@@ -2984,12 +2984,11 @@ impl Compiler {
         // resolve remote symbol types through the compiler
         else if symbol.module_id != module.id {
             // resolve remote symbol types through the compiler
-            self.resolve_remote_symbol_value_type(
+            self.resolve_remote_symbol_value_type_for_interface(
                 module,
                 context.profile,
                 guard_id.into_any(),
                 symbol,
-                false,
                 types,
             )?
         } else if let Some(declarator_id) =

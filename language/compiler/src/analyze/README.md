@@ -171,6 +171,19 @@ Module `b` does not re-infer module `a` internals.
 | dependency reinference is forbidden | Consumers do not derive provider internals from usage |
 | boundary shape is stable | Cross-module reads depend on committed export surface |
 
+### Interface Publication Domains
+
+Cross-module value reads use one explicit publication-domain split.
+This split prevents stage leakage while still allowing associated member semantics.
+
+| Symbol kind | Read fact domain | Owner stage |
+| --- | --- | --- |
+| module interface value symbols (published exports) | committed interface value type facts | Interface |
+| non-export value symbols reachable through published references (for example associated or class members) | declaration-backed symbol facts | Declare |
+
+Infer must not guess between these domains.
+Infer selects the domain from symbol publication status and reads through stage-gated queries only.
+
 ### Interface Must Not
 
 - Infer dependency internals.

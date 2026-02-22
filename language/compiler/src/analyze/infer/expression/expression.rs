@@ -4267,14 +4267,23 @@ impl Compiler {
         )? {
             inferred_ty_id
         } else if canonical_symbol.module_id != module.id {
-            self.resolve_remote_symbol_value_type(
-                module,
-                ctx.profile,
-                property_id.into_any(),
-                canonical_symbol,
-                ctx.is_surface_inference,
-                types,
-            )?
+            if ctx.is_surface_inference {
+                self.resolve_remote_symbol_value_type_for_surface(
+                    module,
+                    ctx.profile,
+                    property_id.into_any(),
+                    canonical_symbol,
+                    types,
+                )?
+            } else {
+                self.resolve_remote_symbol_value_type_for_interface(
+                    module,
+                    ctx.profile,
+                    property_id.into_any(),
+                    canonical_symbol,
+                    types,
+                )?
+            }
         } else {
             let scope = InferScope {
                 owner: canonical_symbol,
@@ -4967,14 +4976,23 @@ impl Compiler {
         )? {
             inferred_ty_id
         } else if canonical_symbol.module_id != module.id {
-            self.resolve_remote_symbol_value_type(
-                module,
-                ctx.profile,
-                expression_id.into_any(),
-                canonical_symbol,
-                ctx.is_surface_inference,
-                types,
-            )?
+            if ctx.is_surface_inference {
+                self.resolve_remote_symbol_value_type_for_surface(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    canonical_symbol,
+                    types,
+                )?
+            } else {
+                self.resolve_remote_symbol_value_type_for_interface(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    canonical_symbol,
+                    types,
+                )?
+            }
         } else {
             // local symbol without type: use InferVar for forward references
             let scope = InferScope {

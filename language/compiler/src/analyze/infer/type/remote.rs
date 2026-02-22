@@ -1,9 +1,18 @@
 use super::*;
 
+/// Select the cross-module fact domain used for remote value type resolution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RemoteValueTypeResolutionMode {
+    /// Resolve against provisional declare-owned facts for interface fixed-point solving.
+    Surface,
+    /// Resolve against committed interface-published facts.
+    Interface,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve a declared value type id for a symbol from remote declaration facts.
-    fn resolve_remote_declared_value_type_id(
+    fn query_remote_declared_value_type_id(
         &self,
         remote_module: &Module,
         target_symbol: GlobalSymbolId,
@@ -31,13 +40,52 @@ impl Compiler {
         remote_types.get_declared_type_id(primary_declaration)
     }
 
-    pub(crate) fn resolve_remote_symbol_value_type(
+    /// Resolve a remote symbol value type from committed interface boundary facts.
+    pub(crate) fn resolve_remote_symbol_value_type_for_interface(
         &self,
         module: &Module,
         profile: ProfileId,
         node_id: LocalNodeIdAny,
         target_symbol: GlobalSymbolId,
-        is_surface_inference: bool,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        self.resolve_remote_symbol_value_type_at_mode(
+            module,
+            profile,
+            node_id,
+            target_symbol,
+            RemoteValueTypeResolutionMode::Interface,
+            types,
+        )
+    }
+
+    /// Resolve a remote symbol value type from declare facts for interface surface solving.
+    pub(crate) fn resolve_remote_symbol_value_type_for_surface(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        target_symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        self.resolve_remote_symbol_value_type_at_mode(
+            module,
+            profile,
+            node_id,
+            target_symbol,
+            RemoteValueTypeResolutionMode::Surface,
+            types,
+        )
+    }
+
+    /// Resolve a remote symbol value type with explicit fact-domain ownership.
+    fn resolve_remote_symbol_value_type_at_mode(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        target_symbol: GlobalSymbolId,
+        mode: RemoteValueTypeResolutionMode,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         let remote_module_id = target_symbol.module_id;
@@ -57,12 +105,12 @@ impl Compiler {
             return Ok(types.insert_type_from_any(ty, node_id));
         }
 
-        // surface inference reads declared module state to allow interface-component fixed points
-        let read_stage = if is_surface_inference {
-            AnalyzeDependencyStage::Declare
-        } else {
-            AnalyzeDependencyStage::Interface
+        // select the fact domain stage for remote reads
+        let read_stage = match mode {
+            RemoteValueTypeResolutionMode::Surface => AnalyzeDependencyStage::Declare,
+            RemoteValueTypeResolutionMode::Interface => AnalyzeDependencyStage::Interface,
         };
+
         self.with_module_tree_symbols_at_stage(
             module,
             profile,
@@ -70,85 +118,179 @@ impl Compiler {
             read_stage,
             |remote_module, remote_tree, remote_symbols| {
                 let remote_dir = remote_module.dir(profile);
-                let mut remote_types = remote_dir.types.write();
-                if let Some(remote_ty_id) = remote_types.get_value_type_id(target_symbol) {
-                    // materialize and import the remote type
-                    self.materialize_imported_type(
-                        remote_module,
-                        profile,
-                        remote_ty_id,
-                        remote_tree,
-                        remote_symbols,
-                        &mut remote_types,
-                    )?;
-                    let remote_ty = remote_types.get_type(remote_ty_id);
-                    let local_ty = self.import_type_from_remote_for_node(
-                        node_id,
-                        remote_ty,
-                        &remote_types,
-                        target_symbol,
-                        types,
-                    );
-                    Ok(local_ty)
-                } else if let Some(declared_type_id) = self.resolve_remote_declared_value_type_id(
+                let is_interface_published_value = self.remote_symbol_is_interface_published_value(
                     remote_module,
-                    target_symbol,
-                    remote_tree,
+                    profile,
                     remote_symbols,
-                    &remote_types,
-                ) {
-                    // materialize and import the declared value type
-                    self.materialize_imported_type(
-                        remote_module,
-                        profile,
-                        declared_type_id,
-                        remote_tree,
-                        remote_symbols,
-                        &mut remote_types,
-                    )?;
-                    let remote_ty = remote_types.get_type(declared_type_id);
-                    let local_ty = self.import_type_from_remote_for_node(
-                        node_id,
-                        remote_ty,
-                        &remote_types,
-                        target_symbol,
-                        types,
-                    );
-                    Ok(local_ty)
-                } else if let Some(primary_declaration) = remote_symbols
-                    .get_symbol(target_symbol.local_id)
-                    .primary_declaration
-                    && primary_declaration.module_id == remote_module.id
-                    && let Some(signature_ty_id) =
-                        remote_types.get_signature_type_for_node(primary_declaration)
-                {
-                    // materialize and import declared member signatures
-                    self.materialize_imported_type(
-                        remote_module,
-                        profile,
-                        signature_ty_id,
-                        remote_tree,
-                        remote_symbols,
-                        &mut remote_types,
-                    )?;
-                    let remote_ty = remote_types.get_type(signature_ty_id);
-                    let local_ty = self.import_type_from_remote_for_node(
-                        node_id,
-                        remote_ty,
-                        &remote_types,
-                        target_symbol,
-                        types,
-                    );
-                    Ok(local_ty)
-                } else {
+                    target_symbol,
+                );
+                let mut remote_types = remote_dir.types.write();
+                let remote_type_id = match mode {
+                    // surface mode can read provisional declared facts while interface equations converge
+                    RemoteValueTypeResolutionMode::Surface => self
+                        .query_remote_surface_value_type_id(
+                            remote_module,
+                            target_symbol,
+                            remote_tree,
+                            remote_symbols,
+                            &remote_types,
+                        ),
+                    // interface mode consumes published boundary facts for exported symbols
+                    // non-export symbols remain declaration-owned and use declared facts
+                    RemoteValueTypeResolutionMode::Interface => {
+                        if is_interface_published_value {
+                            Some(self.require_remote_interface_value_type_id(
+                                target_symbol,
+                                &remote_types,
+                            )?)
+                        } else {
+                            self.query_remote_surface_value_type_id(
+                                remote_module,
+                                target_symbol,
+                                remote_tree,
+                                remote_symbols,
+                                &remote_types,
+                            )
+                        }
+                    }
+                };
+                let Some(remote_type_id) = remote_type_id else {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
                     };
-                    Ok(types.insert_type_from_any(ty, node_id))
-                }
+                    return Ok(types.insert_type_from_any(ty, node_id));
+                };
+
+                // materialize and import the selected remote type
+                self.materialize_imported_type(
+                    remote_module,
+                    profile,
+                    remote_type_id,
+                    remote_tree,
+                    remote_symbols,
+                    &mut remote_types,
+                )?;
+                let remote_ty = remote_types.get_type(remote_type_id);
+                let local_ty = self.import_type_from_remote_for_node(
+                    node_id,
+                    remote_ty,
+                    &remote_types,
+                    target_symbol,
+                    types,
+                );
+                Ok(local_ty)
             },
         )
         .map_err(AnalyzeError::from)?
+    }
+
+    /// Query one remote value type id for interface surface convergence.
+    fn query_remote_surface_value_type_id(
+        &self,
+        remote_module: &Module,
+        target_symbol: GlobalSymbolId,
+        remote_tree: &NodeTree,
+        remote_symbols: &SymbolTable,
+        remote_types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        // prefer value types already assigned by interface or declare
+        if let Some(value_type_id) = remote_types.get_value_type_id(target_symbol) {
+            return Some(value_type_id);
+        }
+
+        // then use declared binding annotations
+        if let Some(declared_type_id) = self.query_remote_declared_value_type_id(
+            remote_module,
+            target_symbol,
+            remote_tree,
+            remote_symbols,
+            remote_types,
+        ) {
+            return Some(declared_type_id);
+        }
+
+        // finally use declared signature facts
+        let primary_declaration = remote_symbols
+            .get_symbol(target_symbol.local_id)
+            .primary_declaration?;
+        if primary_declaration.module_id != remote_module.id {
+            return None;
+        }
+
+        remote_types.get_signature_type_for_node(primary_declaration)
+    }
+
+    /// Return true when a symbol is one published interface value of the remote module.
+    fn remote_symbol_is_interface_published_value(
+        &self,
+        remote_module: &Module,
+        profile: ProfileId,
+        remote_symbols: &SymbolTable,
+        target_symbol: GlobalSymbolId,
+    ) -> bool {
+        let dir = remote_module.dir(profile);
+        let exported_symbols = dir.exported_symbols.read();
+        if self.export_table_contains_interface_value_symbol(
+            remote_symbols,
+            remote_module.id,
+            &exported_symbols,
+            target_symbol,
+        ) {
+            return true;
+        }
+
+        let binding_exports = dir.module_binding_exports.read();
+        for binding in binding_exports.values() {
+            if self.export_table_contains_interface_value_symbol(
+                remote_symbols,
+                remote_module.id,
+                &binding.exports,
+                target_symbol,
+            ) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Return true when one export table publishes one specific value symbol.
+    fn export_table_contains_interface_value_symbol(
+        &self,
+        symbols: &SymbolTable,
+        module_id: destack_source::ModuleId,
+        exports: &indexmap::IndexMap<(destack_dir::SymbolSpace, StaticKey), destack_dir::Export>,
+        target_symbol: GlobalSymbolId,
+    ) -> bool {
+        for export in exports.values() {
+            let Some((export_symbol, value_symbol)) =
+                self.interface_value_symbol_for_export(symbols, module_id, export)
+            else {
+                continue;
+            };
+            if export_symbol == target_symbol || value_symbol == target_symbol {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Require one published interface value type id for a remote symbol.
+    fn require_remote_interface_value_type_id(
+        &self,
+        target_symbol: GlobalSymbolId,
+        remote_types: &TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // interface reads are fail-closed: imported values must have one published boundary type
+        remote_types
+            .get_value_type_id(target_symbol)
+            .ok_or_else(|| AnalyzeError::Internal {
+                message: format!(
+                    "missing published interface value type: remote_module={:?}, symbol={target_symbol:?}",
+                    target_symbol.module_id,
+                ),
+            })
     }
 
     /// Import a type from a remote module into the current module's TypeTable.
