@@ -75,3 +75,17 @@ second();
 ```query resolve_code_lens $0 1
 <same>
 ```
+
+## Empty Results
+
+### Unused functions produce no lenses
+
+Functions without references, test decorators, or implementation relationships should not produce code lenses.
+
+```ds
+function idle(): void {}
+```
+
+```query code_lens $0
+<none>
+```

@@ -74,6 +74,23 @@ WidgetBox(struct) file=dup_b.ds range=2:1-2:27
 WidgetFactory(function) file=dup_a.ds range=2:1-2:41
 ```
 
+### Stable ordering for equal names and kinds
+
+Workspace symbol search should keep deterministic ordering when score, name, and kind are equal.
+
+```ds:tie_a.ds
+export function render(): void {}
+```
+
+```ds:tie_b.ds
+export function render(): void {}
+```
+
+```query workspace_symbols render
+render(function) file=tie_a.ds range=1:1-1:34
+render(function) file=tie_b.ds range=1:1-1:34
+```
+
 ## Members and Containers
 
 ### Include member symbols with containers
@@ -119,4 +136,33 @@ UserId
 
 ```query workspace_symbols Api
 Api
+```
+
+## Empty Search
+
+### No results for unmatched query
+
+Workspace symbol search should return no results when nothing matches.
+
+```ds:empty_match.ds
+export function alphaOnly(): void {}
+```
+
+```query workspace_symbols does_not_exist
+0
+```
+
+## Damaged Source
+
+### Return no symbols for heavily malformed files
+
+Workspace symbol search should fail gracefully when the file cannot be indexed.
+
+```ds:damaged.ds
+export function stable(): void {}
+export function broken( {}
+```
+
+```query workspace_symbols stable
+0
 ```

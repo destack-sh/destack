@@ -39,6 +39,20 @@ function $0helper(): void {}
 <none>
 ```
 
+### No implementations for structs
+
+Structs are not implementation hierarchy targets, so the result should be empty.
+
+```ds
+struct $0Point {
+    x: int32
+}
+```
+
+```query implementation $0
+<none>
+```
+
 ## Class inheritance
 
 ### Find subclasses of a class

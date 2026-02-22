@@ -172,3 +172,35 @@ function root(): void {
 ```query call_hierarchy def:root outgoing
 helper
 ```
+
+## Recursion
+
+### Recursive functions include self outgoing calls
+
+Outgoing call hierarchy should include recursive self-calls.
+
+```ds
+function recur(): void {
+//       ^^^^^ def:recur
+    recur();
+}
+```
+
+```query call_hierarchy def:recur outgoing
+recur
+```
+
+### Recursive functions include self incoming calls
+
+Incoming call hierarchy should include recursive self-calls.
+
+```ds
+function recur(): void {
+//       ^^^^^ def:recur
+    recur();
+}
+```
+
+```query call_hierarchy def:recur incoming
+recur
+```

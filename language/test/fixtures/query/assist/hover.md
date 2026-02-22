@@ -566,3 +566,20 @@ greetBlock("World");
 ```query hover use:greet_block
 range=main.ds:8:1-8:11 signature=function greetBlock(name: string): string documentation=Sends a greeting.
 ```
+
+## Damaged Syntax
+
+### Return no hover for malformed unresolved member access
+
+Hover should return no symbol information when the cursor is on malformed unresolved syntax.
+
+```ds
+function main(): void {
+    missingValue.
+//  ^^^^^^^^^^^ broken
+}
+```
+
+```query hover broken
+<none>
+```

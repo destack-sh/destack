@@ -460,3 +460,29 @@ const value = 1;
 ```query change_signature target value:int32,scale:int32 -
 <none>
 ```
+
+## No-Op Signature
+
+### Leaves files unchanged when signature is identical
+
+Change signature should not rewrite files when the requested signature already matches the current declaration.
+
+```ds:main.ds
+function identity(value: int32): int32 {
+//       ^^^^^^^^ target
+    return value;
+}
+
+const current = identity(1);
+```
+
+```query change_signature target value:int32 -
+```
+
+```expected:main.ds
+function identity(value: int32): int32 {
+    return value;
+}
+
+const current = identity(1);
+```

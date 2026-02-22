@@ -324,3 +324,17 @@ function baz(): void {}
 baz: function [declaration]
 void: type
 ```
+
+### Range queries can return no semantic tokens
+
+Semantic token ranges that include only comments should return no semantic tokens.
+
+```ds
+function foo(): void {}
+// comment only
+// ^^^^^^^^^^^^ range:comment_line
+```
+
+```query semantic_tokens_range range:comment_line
+<none>
+```

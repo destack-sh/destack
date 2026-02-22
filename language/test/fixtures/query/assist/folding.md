@@ -98,3 +98,16 @@ const value = 1;
 8-9
 15-16
 ```
+
+### Ignore single line declarations
+
+Single line declarations should not produce folding ranges.
+
+```ds
+function noop(): void {}
+class Tiny {}
+```
+
+```query folding $0
+0
+```

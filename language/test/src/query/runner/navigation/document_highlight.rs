@@ -26,7 +26,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
         // run the highlight query at the cursor position
         let highlights =
-            query::document_highlight(&session.session, session.file_id, cursor.offset);
+            query::document_highlights(&session.session, session.file_id, cursor.offset);
 
         // compare the expected highlight count first for clearer errors
         if highlights.len() != expected_highlights.len() {
@@ -83,7 +83,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     // require nonempty expectations so failures are explicit
     let content = exp.content.trim();
     if content.is_empty() {
-        let highlights = query::document_highlight(&session.session, file_id, offset);
+        let highlights = query::document_highlights(&session.session, file_id, offset);
         return TestResult::Failed {
             message: format!(
                 "document_highlight expectation is empty at '{}', got {} highlights",
@@ -94,7 +94,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     }
 
     // run the highlight query once for all expectation modes
-    let highlights = query::document_highlight(&session.session, file_id, offset);
+    let highlights = query::document_highlights(&session.session, file_id, offset);
 
     // validate invariants before any comparisons
     if let Err(message) = validate_highlight_invariants(session, file_id, &highlights) {

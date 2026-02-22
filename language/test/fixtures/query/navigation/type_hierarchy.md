@@ -131,3 +131,17 @@ const _value: Base = new Derived();
 ```query type_hierarchy def:Base subtypes
 impl.ds:3:1-3:37 name=Derived kind=class selection=impl.ds:3:14-3:21
 ```
+
+## Empty Hierarchy
+
+### Root classes have no supertypes
+
+Type hierarchy supertypes should be empty for root classes.
+
+```ds
+class $0Root {}
+```
+
+```query type_hierarchy $0 supertypes
+<none>
+```
