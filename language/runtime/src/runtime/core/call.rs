@@ -1,3 +1,5 @@
+#![allow(clippy::missing_const_for_thread_local)]
+
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::ptr;
@@ -23,7 +25,7 @@ thread_local! {
     /// TLS slot for the current binding call context.
     static BINDING_CALL_CONTEXT: Cell<*const BindingCallContext> = const { Cell::new(ptr::null()) };
     /// TLS storage for native ABI references returned by bindings.
-    static BINDING_CALL_ARENA: BindingCallArena = BindingCallArena::default();
+    static BINDING_CALL_ARENA: BindingCallArena = const { BindingCallArena::new() };
 }
 
 /// TLS payload for native runtime calls.
@@ -285,6 +287,14 @@ pub struct BindingCallArena {
 }
 
 impl BindingCallArena {
+    /// Create an empty call arena.
+    pub const fn new() -> Self {
+        Self {
+            strings: RefCell::new(Vec::new()),
+            values: RefCell::new(Vec::new()),
+        }
+    }
+
     /// Clear all stored references.
     pub fn clear(&self) {
         self.strings.borrow_mut().clear();

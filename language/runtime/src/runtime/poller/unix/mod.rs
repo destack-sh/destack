@@ -14,7 +14,7 @@ mod unix;
 mod uring;
 
 #[cfg(target_os = "linux")]
-pub use epoll::EpollPoller;
+pub(crate) use epoll::EpollPoller;
 #[cfg(any(
     target_os = "macos",
     target_os = "ios",
@@ -26,4 +26,4 @@ pub use epoll::EpollPoller;
 pub(crate) use kqueue::KqueuePoller;
 pub(crate) use unix::UnixPoller;
 #[cfg(target_os = "linux")]
-pub use uring::IoUringPoller;
+pub(crate) use uring::IoUringPoller;

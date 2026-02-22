@@ -24,6 +24,13 @@ use crate::platform::{PlatformError, PlatformErrorCode, ResourceId};
 use crate::runtime::BindingCallContext;
 use crate::runtime::poller::{HostPollerBackend, PlatformHandle};
 
+/// Host ioctl request code type.
+#[cfg(target_os = "android")]
+type HostIoctlRequest = libc::Ioctl;
+/// Host ioctl request code type.
+#[cfg(not(target_os = "android"))]
+type HostIoctlRequest = c_ulong;
+
 /// Return one standardized null-pointer error for output arguments.
 pub(super) fn require_out<T>(out: *mut T) -> RuntimeResult<()> {
     if out.is_null() {
@@ -102,28 +109,44 @@ fn event_signal_descriptor_key(
 }
 
 /// Create one nonblocking close-on-exec pipe pair for events.
-#[cfg(all(unix, not(target_os = "linux")))]
-fn create_event_pipe() -> RuntimeResult<(c_int, c_int)> {
-    #[cfg(not(any(
+#[cfg(all(
+    unix,
+    not(target_os = "linux"),
+    not(any(
         target_vendor = "apple",
         target_os = "aix",
         target_os = "espidf",
         target_os = "haiku",
         target_os = "horizon",
         target_os = "nto"
-    )))]
-    {
-        // allocate one pipe with atomic nonblocking and close-on-exec flags
-        let mut descriptors = [0; 2];
-        let result =
-            unsafe { libc::pipe2(descriptors.as_mut_ptr(), libc::O_NONBLOCK | libc::O_CLOEXEC) };
-        if result < 0 {
-            return Err(io_core::io_error_from_errno("pipe2"));
-        }
-
-        return Ok((descriptors[0], descriptors[1]));
+    ))
+))]
+fn create_event_pipe() -> RuntimeResult<(c_int, c_int)> {
+    // allocate one pipe with atomic nonblocking and close-on-exec flags
+    let mut descriptors = [0; 2];
+    let result =
+        unsafe { libc::pipe2(descriptors.as_mut_ptr(), libc::O_NONBLOCK | libc::O_CLOEXEC) };
+    if result < 0 {
+        return Err(io_core::io_error_from_errno("pipe2"));
     }
 
+    Ok((descriptors[0], descriptors[1]))
+}
+
+/// Create one nonblocking close-on-exec pipe pair for events.
+#[cfg(all(
+    unix,
+    not(target_os = "linux"),
+    any(
+        target_vendor = "apple",
+        target_os = "aix",
+        target_os = "espidf",
+        target_os = "haiku",
+        target_os = "horizon",
+        target_os = "nto"
+    )
+))]
+fn create_event_pipe() -> RuntimeResult<(c_int, c_int)> {
     // allocate one anonymous pipe
     let mut descriptors = [0; 2];
     let result = unsafe { libc::pipe(descriptors.as_mut_ptr()) };
@@ -139,6 +162,7 @@ fn create_event_pipe() -> RuntimeResult<(c_int, c_int)> {
         }
         return Err(error);
     }
+
     // configure write descriptor status flags
     if let Err(error) = configure_event_pipe_descriptor(descriptors[1]) {
         unsafe {
@@ -152,7 +176,18 @@ fn create_event_pipe() -> RuntimeResult<(c_int, c_int)> {
 }
 
 /// Configure one event-pipe descriptor as nonblocking and close-on-exec.
-#[cfg(all(unix, not(target_os = "linux")))]
+#[cfg(all(
+    unix,
+    not(target_os = "linux"),
+    any(
+        target_vendor = "apple",
+        target_os = "aix",
+        target_os = "espidf",
+        target_os = "haiku",
+        target_os = "horizon",
+        target_os = "nto"
+    )
+))]
 fn configure_event_pipe_descriptor(descriptor: c_int) -> RuntimeResult<()> {
     // set nonblocking mode on the descriptor
     let nonblocking_status = unsafe { libc::fcntl(descriptor, libc::F_SETFL, libc::O_NONBLOCK) };
@@ -290,10 +325,10 @@ pub(crate) fn host_control_ioctl(
     }
 
     // validate ioctl request code width for this host ABI
-    let request_code = c_ulong::try_from(request.code).map_err(|_| {
+    let request_code = HostIoctlRequest::try_from(request.code).map_err(|_| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "request.code",
-            "request.code must fit one c_ulong on unix hosts",
+            "request.code must fit one ioctl request type on unix hosts",
         ))
         .boxed()
     })?;

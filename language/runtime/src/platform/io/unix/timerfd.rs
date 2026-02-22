@@ -283,7 +283,7 @@ pub(crate) unsafe fn destack_io_timer_fd_get(
             *out = spec;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -352,7 +352,7 @@ pub(crate) unsafe fn destack_io_timer_fd_open(
             *out = handle;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -435,7 +435,7 @@ pub(crate) unsafe fn destack_io_timer_fd_read(
             *out = expirations;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -493,7 +493,7 @@ pub(crate) unsafe fn destack_io_timer_fd_set(
             return Err(core_platform::io_error("timerfd_settime", None));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]

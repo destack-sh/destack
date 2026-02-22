@@ -2,13 +2,14 @@ use destack_vm as vm;
 
 use super::super::{
     AudioBackend, AudioBackendCapabilityFlags, AudioBackendDescriptor, AudioBackendDescriptorVm,
-    AudioBackendOpenFlags, AudioBackendSelectionPolicy, AudioChannelLayout,
-    AudioDeviceCapabilityFlags, AudioDeviceDescriptor, AudioDeviceDescriptorVm,
-    AudioDeviceDirection, AudioDeviceListRequest, AudioDeviceListRequestVm, AudioDeviceOpenFlags,
-    AudioDeviceOpenOptions, AudioDeviceOpenOptionsVm, AudioEventSubscriptionOptions,
-    AudioEventSubscriptionOptionsVm, AudioSampleFormat, AudioShareMode, AudioStreamConfig,
-    AudioStreamConfigVm, AudioStreamFlags, AudioStreamSnapshot, AudioStreamSnapshotVm,
-    AudioStreamState, AudioStreamStateVm, AudioStreamTransferMode,
+    AudioBackendOpenFlags, AudioBackendSelectionPolicy, AudioChannelLayout, AudioClockSnapshot,
+    AudioClockSnapshotVm, AudioDeviceCapabilityFlags, AudioDeviceDescriptor,
+    AudioDeviceDescriptorVm, AudioDeviceDirection, AudioDeviceListRequest,
+    AudioDeviceListRequestVm, AudioDeviceOpenFlags, AudioDeviceOpenOptions,
+    AudioDeviceOpenOptionsVm, AudioEventSubscriptionOptions, AudioEventSubscriptionOptionsVm,
+    AudioSampleFormat, AudioShareMode, AudioStreamConfig, AudioStreamConfigVm, AudioStreamFlags,
+    AudioStreamSnapshot, AudioStreamSnapshotVm, AudioStreamState, AudioStreamStateVm,
+    AudioStreamTransferMode,
 };
 use super::{AudioHarnessContext, HarnessValue};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -342,20 +343,42 @@ pub(super) fn device_descriptor_direction_from_value(
 /// Decode one stream snapshot payload into support-flag booleans.
 pub(super) fn stream_snapshot_support_from_value(
     value: HarnessValue<AudioStreamSnapshot, AudioStreamSnapshotVm>,
-) -> (bool, bool, bool, bool) {
+) -> (bool, bool, bool, bool, bool) {
     match value {
         HarnessValue::Native(value) => (
             value.supports_write_at,
             value.supports_pause,
             value.supports_volume,
             value.supports_mute,
+            value.supports_hardware_timestamps,
         ),
         HarnessValue::Vm(value) => (
             value.supports_write_at,
             value.supports_pause,
             value.supports_volume,
             value.supports_mute,
+            value.supports_hardware_timestamps,
         ),
+    }
+}
+
+/// Decode one audio clock snapshot payload into one native snapshot.
+pub(super) fn clock_snapshot_from_value(
+    value: HarnessValue<AudioClockSnapshot, AudioClockSnapshotVm>,
+) -> AudioClockSnapshot {
+    match value {
+        HarnessValue::Native(value) => value,
+        HarnessValue::Vm(value) => AudioClockSnapshot {
+            stream_frames: value.stream_frames,
+            clock_ns: value.clock_ns,
+            has_callback_ns: value.has_callback_ns,
+            callback_ns: value.callback_ns,
+            has_input_adc_ns: value.has_input_adc_ns,
+            input_adc_ns: value.input_adc_ns,
+            has_output_dac_ns: value.has_output_dac_ns,
+            output_dac_ns: value.output_dac_ns,
+            monotonic_ns: value.monotonic_ns,
+        },
     }
 }
 
@@ -374,6 +397,42 @@ pub(super) fn open_null_duplex_stream(
     };
 
     let device_id = harness_string(context, "audio:null:duplex");
+    let device_options = harness_device_options(context, options);
+    let device = context.destack_audio_device_open(device_id, device_options)?;
+
+    let stream_config = AudioStreamConfig {
+        sample_rate: 48_000,
+        channels: 2,
+        channel_layout: AudioChannelLayout::Stereo,
+        channel_mask: 0b11,
+        format: AudioSampleFormat::F32,
+        period_frames: 128,
+        transfer_mode: AudioStreamTransferMode::Push,
+        flags: AudioStreamFlags(0),
+    };
+
+    let stream_open_config = harness_stream_config(context, stream_config);
+    let stream = context.destack_audio_stream_open(device, stream_open_config)?;
+    context.destack_audio_stream_start(stream)?;
+
+    Ok((device, stream))
+}
+
+/// Open one null playback stream and start it.
+pub(super) fn open_null_playback_stream(
+    context: &mut AudioHarnessContext<'_>,
+) -> RuntimeResult<(resource::AudioDeviceHandle, resource::AudioStreamHandle)> {
+    let options = AudioDeviceOpenOptions {
+        direction: AudioDeviceDirection::Playback,
+        backend: AudioBackend::Null,
+        backend_policy: AudioBackendSelectionPolicy::Strict,
+        share_mode: AudioShareMode::Shared,
+        flags: AudioDeviceOpenFlags(0),
+        backend_flags: AudioBackendOpenFlags(0),
+        backend_hint: context.call_context.store_string(""),
+    };
+
+    let device_id = harness_string(context, "audio:null:playback");
     let device_options = harness_device_options(context, options);
     let device = context.destack_audio_device_open(device_id, device_options)?;
 

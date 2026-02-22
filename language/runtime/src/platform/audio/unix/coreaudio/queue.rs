@@ -1,4 +1,33 @@
 #[cfg(target_os = "macos")]
+use std::ffi::c_void;
+#[cfg(target_os = "macos")]
+use std::mem::size_of;
+#[cfg(target_os = "macos")]
+use std::sync::Arc;
+
+#[cfg(target_os = "macos")]
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+#[cfg(target_os = "macos")]
+use crate::platform::PlatformError;
+#[cfg(target_os = "macos")]
+use crate::platform::audio::core as audio_core;
+#[cfg(target_os = "macos")]
+use crate::platform::diagnostic::PlatformErrorCode;
+
+#[cfg(target_os = "macos")]
+use super::abi::{
+    AudioDeviceID, AudioQueueDispose, AudioQueueRef, AudioQueueSetProperty, AudioQueueStop,
+    CFRelease, CFStringRef, CFTypeRef, CoreAudioQueueHandle,
+};
+#[cfg(target_os = "macos")]
+use super::constants::{
+    K_AUDIO_DEVICE_PROPERTY_DEVICE_UID, K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL,
+    K_AUDIO_QUEUE_PROPERTY_CURRENT_DEVICE, K_NO_ERR,
+};
+#[cfg(target_os = "macos")]
+use super::property::{error, get_scalar_optional};
+
+#[cfg(target_os = "macos")]
 pub(super) fn bind_queue_device(
     queue: AudioQueueRef,
     device_id: AudioDeviceID,

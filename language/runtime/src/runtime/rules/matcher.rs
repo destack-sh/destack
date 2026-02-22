@@ -190,6 +190,6 @@ fn runtime_platform_name() -> &'static str {
         target_os = "wasi"
     )))]
     {
-        return "unknown";
+        "unknown"
     }
 }

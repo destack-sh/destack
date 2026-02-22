@@ -86,6 +86,52 @@ pub(super) struct AudioValueRange {
     pub(super) maximum: f64,
 }
 
+/// CoreAudio struct `SMPTETime`.
+#[cfg(target_os = "macos")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub(super) struct SMPTETime {
+    /// The SMPTE subframes.
+    pub(super) subframes: i16,
+    /// The SMPTE subframe divisor.
+    pub(super) subframe_divisor: i16,
+    /// The SMPTE counter.
+    pub(super) counter: u32,
+    /// The SMPTE type.
+    pub(super) r#type: u32,
+    /// The SMPTE flags.
+    pub(super) flags: u32,
+    /// The SMPTE hours.
+    pub(super) hours: i16,
+    /// The SMPTE minutes.
+    pub(super) minutes: i16,
+    /// The SMPTE seconds.
+    pub(super) seconds: i16,
+    /// The SMPTE frames.
+    pub(super) frames: i16,
+}
+
+/// CoreAudio struct `AudioTimeStamp`.
+#[cfg(target_os = "macos")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub(super) struct AudioTimeStamp {
+    /// The sample-time value.
+    pub(super) sample_time: f64,
+    /// The host-time value.
+    pub(super) host_time: u64,
+    /// The rate scalar.
+    pub(super) rate_scalar: f64,
+    /// The word clock time.
+    pub(super) word_clock_time: u64,
+    /// The SMPTE time payload.
+    pub(super) smpte_time: SMPTETime,
+    /// The timestamp validity flags.
+    pub(super) flags: u32,
+    /// Reserved field.
+    pub(super) reserved: u32,
+}
+
 /// CoreAudio struct `AudioStreamBasicDescription`.
 #[cfg(target_os = "macos")]
 #[repr(C)]

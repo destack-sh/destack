@@ -1,3 +1,5 @@
+#![allow(clippy::missing_const_for_thread_local)]
+
 use std::cell::Cell;
 
 use crate::runtime::random::RandomStreamId;
@@ -6,8 +8,13 @@ use super::{MicrotaskId, TaskId};
 
 thread_local! {
     /// TLS slot for the current event loop scope.
-    static BINDING_EVENT_LOOP_SCOPE: Cell<EventLoopScope> =
-        const { Cell::new(EventLoopScope::empty()) };
+    static BINDING_EVENT_LOOP_SCOPE: Cell<EventLoopScope> = const {
+        Cell::new(EventLoopScope {
+            task_id: None,
+            microtask_id: None,
+            microtask_depth: 0,
+        })
+    };
 }
 
 /// Event loop scope for runtime execution.

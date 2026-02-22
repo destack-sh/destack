@@ -125,7 +125,7 @@ pub(crate) unsafe fn destack_process_install_syscall_filter(
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -303,7 +303,7 @@ pub(crate) unsafe fn destack_process_unshare(
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -391,6 +391,18 @@ fn namespace_flag(namespace: ProcessNamespaceKind) -> i32 {
         ProcessNamespaceKind::Ipc => libc::CLONE_NEWIPC,
         ProcessNamespaceKind::Uts => libc::CLONE_NEWUTS,
         ProcessNamespaceKind::Cgroup => libc::CLONE_NEWCGROUP,
-        ProcessNamespaceKind::Time => libc::CLONE_NEWTIME,
+        ProcessNamespaceKind::Time => time_namespace_flag(),
     }
+}
+
+/// Return the host time-namespace clone flag.
+#[cfg(target_os = "linux")]
+fn time_namespace_flag() -> i32 {
+    libc::CLONE_NEWTIME
+}
+
+/// Return the host time-namespace clone flag.
+#[cfg(target_os = "android")]
+fn time_namespace_flag() -> i32 {
+    0x0000_0080
 }

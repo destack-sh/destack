@@ -286,6 +286,11 @@ pub(crate) unsafe fn destack_audio_stream_open(
     let device_binding =
         audio_core::resolve_device_binding(context, device, "destack.audio.stream.open")?;
     let stream_device = audio_core::stream_device_from_binding(&device_binding);
+    audio_core::validate_stream_config_for_backend(
+        config,
+        stream_device.backend,
+        "destack.audio.stream.open",
+    )?;
 
     let stream = if stream_device.is_null {
         audio_core::open_null_stream(
@@ -299,6 +304,7 @@ pub(crate) unsafe fn destack_audio_stream_open(
             &stream_device,
             config,
             device_binding.options.share_mode,
+            device_binding.options.backend_flags,
         )?
     };
 
@@ -379,7 +385,7 @@ pub(crate) unsafe fn destack_audio_stream_read(
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
-    while state.capture_samples.is_empty() && !state.shutdown {
+    while state.capture_samples.is_empty() && !audio_core::stream_state_is_terminal(&state) {
         state = binding
             .sync
             .wake
@@ -387,10 +393,10 @@ pub(crate) unsafe fn destack_audio_stream_read(
             .unwrap_or_else(|error| error.into_inner());
     }
 
-    if state.shutdown {
-        return Err(audio_core::audio_not_found(
+    if audio_core::stream_state_is_terminal(&state) {
+        return Err(audio_core::stream_shutdown_error(
             "destack.audio.stream.read",
-            "stream has been closed",
+            &state,
         ));
     }
 
@@ -470,12 +476,12 @@ pub(crate) unsafe fn destack_audio_stream_readv(
 
 /// Set one stream mute state.
 ///
-/// Apply one mute state for one stream where backend controls are available.
-/// Mute behavior can be backend-local and independent of global endpoint mute.
+/// Apply one mute state for one stream processing lane.
+/// This controls stream-level mute and does not imply global endpoint mute ownership.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream mute controls when available.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO stream-level mute paths where available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -543,12 +549,12 @@ pub(crate) unsafe fn destack_audio_stream_set_name(
 
 /// Set one stream gain multiplier.
 ///
-/// Apply one linear gain multiplier for one stream where backend controls are available.
-/// Gain handling can be backend-local and independent of global mixer volume.
+/// Apply one linear gain multiplier for one stream processing lane.
+/// This controls stream-level gain and does not imply global endpoint mixer ownership.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream volume controls when available.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO stream-level gain paths where available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -612,6 +618,21 @@ pub(crate) unsafe fn destack_audio_stream_start(
     let binding =
         audio_core::resolve_stream_binding(context, handle, "destack.audio.stream.start")?;
 
+    // reject control transitions for terminal streams
+    {
+        let state = binding
+            .sync
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if audio_core::stream_state_is_terminal(&state) {
+            return Err(audio_core::stream_shutdown_error(
+                "destack.audio.stream.start",
+                &state,
+            ));
+        }
+    }
+
     {
         let mut state = binding
             .sync
@@ -646,6 +667,7 @@ pub(crate) unsafe fn destack_audio_stream_start(
     state.running = true;
     state.paused = false;
     state.state = AudioStreamStateKind::Running;
+    state.last_backend_message = None;
     drop(state);
     binding.sync.wake.notify_all();
 
@@ -676,6 +698,22 @@ pub(crate) unsafe fn destack_audio_stream_pause(
 ) -> RuntimeResult<()> {
     let binding =
         audio_core::resolve_stream_binding(context, handle, "destack.audio.stream.pause")?;
+
+    // reject control transitions for terminal streams
+    {
+        let state = binding
+            .sync
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if audio_core::stream_state_is_terminal(&state) {
+            return Err(audio_core::stream_shutdown_error(
+                "destack.audio.stream.pause",
+                &state,
+            ));
+        }
+    }
+
     audio_core::ensure_stream_capability(
         binding.runtime_capabilities.supports_pause,
         "destack.audio.stream.pause",
@@ -723,6 +761,22 @@ pub(crate) unsafe fn destack_audio_stream_abort(
 ) -> RuntimeResult<()> {
     let binding =
         audio_core::resolve_stream_binding(context, handle, "destack.audio.stream.abort")?;
+
+    // reject control transitions for terminal streams
+    {
+        let state = binding
+            .sync
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if audio_core::stream_state_is_terminal(&state) {
+            return Err(audio_core::stream_shutdown_error(
+                "destack.audio.stream.abort",
+                &state,
+            ));
+        }
+    }
+
     audio_core::host_stream_stop(&binding)?;
 
     let mut state = binding
@@ -798,6 +852,22 @@ pub(crate) unsafe fn destack_audio_stream_stop(
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     let binding = audio_core::resolve_stream_binding(context, handle, "destack.audio.stream.stop")?;
+
+    // reject control transitions for terminal streams
+    {
+        let state = binding
+            .sync
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if audio_core::stream_state_is_terminal(&state) {
+            return Err(audio_core::stream_shutdown_error(
+                "destack.audio.stream.stop",
+                &state,
+            ));
+        }
+    }
+
     audio_core::host_stream_stop(&binding)?;
 
     {
@@ -917,6 +987,13 @@ pub(crate) unsafe fn destack_audio_stream_try_read(
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
+
+    if audio_core::stream_state_is_terminal(&state) {
+        return Err(audio_core::stream_shutdown_error(
+            "destack.audio.stream.tryRead",
+            &state,
+        ));
+    }
 
     if state.capture_samples.is_empty() {
         state.input_underflow_count = state.input_underflow_count.saturating_add(1);
@@ -1043,6 +1120,13 @@ pub(crate) unsafe fn destack_audio_stream_try_write(
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
+    if audio_core::stream_state_is_terminal(&state) {
+        return Err(audio_core::stream_shutdown_error(
+            "destack.audio.stream.tryWrite",
+            &state,
+        ));
+    }
+
     let free = binding
         .playback_capacity_samples()
         .saturating_sub(state.playback_samples.len());
@@ -1143,7 +1227,8 @@ pub(crate) unsafe fn destack_audio_stream_write(
         .unwrap_or_else(|error| error.into_inner());
 
     while offset < decoded.len() {
-        while state.playback_samples.len() >= binding.playback_capacity_samples() && !state.shutdown
+        while state.playback_samples.len() >= binding.playback_capacity_samples()
+            && !audio_core::stream_state_is_terminal(&state)
         {
             state = binding
                 .sync
@@ -1152,10 +1237,10 @@ pub(crate) unsafe fn destack_audio_stream_write(
                 .unwrap_or_else(|error| error.into_inner());
         }
 
-        if state.shutdown {
-            return Err(audio_core::audio_not_found(
+        if audio_core::stream_state_is_terminal(&state) {
+            return Err(audio_core::stream_shutdown_error(
                 "destack.audio.stream.write",
-                "stream has been closed",
+                &state,
             ));
         }
 

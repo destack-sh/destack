@@ -15,6 +15,18 @@ use std::os::unix::ffi::OsStrExt;
 use std::os::unix::io::RawFd;
 use std::path::PathBuf;
 
+/// Linux `openat2` argument payload.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+#[repr(C)]
+struct OpenHow {
+    /// Open flags.
+    flags: u64,
+    /// Create mode.
+    mode: u64,
+    /// Resolve semantics.
+    resolve: u64,
+}
+
 /// Open a file and return a handle.
 ///
 /// Open one filesystem entry by path and return a host-backed file handle.
@@ -300,17 +312,17 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
     {
         let resource = directory_resource(context, dir)?;
         let path = resolve_path_bytes_cstring(path, "path")?;
-        let mut open_how: libc::open_how = unsafe { std::mem::zeroed() };
+        let mut open_how: OpenHow = unsafe { std::mem::zeroed() };
         open_how.flags = how.flags.0 as u64;
         open_how.mode = how.mode.0 as u64;
-        open_how.resolve = how.resolve.0 as u64;
+        open_how.resolve = how.resolve.0;
         let fd = unsafe {
             libc::syscall(
                 libc::SYS_openat2,
                 resource.fd,
                 path.as_ptr(),
-                &open_how as *const libc::open_how,
-                std::mem::size_of::<libc::open_how>(),
+                &open_how as *const OpenHow,
+                std::mem::size_of::<OpenHow>(),
             )
         } as libc::c_int;
         if fd < 0 {
@@ -323,7 +335,7 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
         unsafe {
             *out = FileHandle(handle);
         }
-        return Ok(());
+        Ok(())
     }
 
     // fall back to openat when resolve flags are empty on other unix platforms

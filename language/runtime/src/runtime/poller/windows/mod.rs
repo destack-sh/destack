@@ -1,3 +1,3 @@
 mod poller;
 
-pub use poller::WindowsPoller;
+pub(crate) use poller::WindowsPoller;

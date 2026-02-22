@@ -510,7 +510,7 @@ pub(crate) unsafe fn destack_fs_renameat2_bytes(
         if rc != 0 {
             return Err(core_platform::io_error("renameat2", None));
         }
-        return Ok(());
+        Ok(())
     }
 
     // fall back to renameat when no flags are requested on other unix platforms
@@ -1446,6 +1446,17 @@ pub(crate) unsafe fn destack_fs_mkfifoat(
             {
                 let directory_fd = directory_descriptor(context, dir)?;
                 let path = path_bytes_to_cstring(path, "path")?;
+                #[cfg(target_os = "android")]
+                let result = unsafe {
+                    libc::syscall(
+                        libc::SYS_mknodat,
+                        directory_fd,
+                        path.as_ptr(),
+                        (mode.0 | libc::S_IFIFO) as libc::mode_t,
+                        0 as libc::dev_t,
+                    ) as libc::c_int
+                };
+                #[cfg(not(target_os = "android"))]
                 let result =
                     unsafe { libc::mkfifoat(directory_fd, path.as_ptr(), mode.0 as libc::mode_t) };
                 if result != 0 {

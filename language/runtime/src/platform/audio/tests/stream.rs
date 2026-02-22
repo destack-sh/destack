@@ -1,14 +1,19 @@
+use super::super::core::{
+    BACKEND_CAPABILITY_DEVICE_CLOCK, BACKEND_CAPABILITY_EXCLUSIVE_MODE,
+    BACKEND_CAPABILITY_NON_INTERLEAVED, BACKEND_CAPABILITY_SHARED_MODE,
+    STREAM_FLAG_MINIMIZE_LATENCY, STREAM_FLAG_NON_INTERLEAVED,
+};
 use super::super::{
     AudioBackend, AudioBackendOpenFlags, AudioBackendSelectionPolicy, AudioChannelLayout,
-    AudioDeviceDirection, AudioDeviceOpenFlags, AudioDeviceOpenOptions, AudioSampleFormat,
-    AudioShareMode, AudioStreamConfig, AudioStreamFlags, AudioStreamStateKind,
+    AudioClockDomain, AudioDeviceDirection, AudioDeviceOpenFlags, AudioDeviceOpenOptions,
+    AudioSampleFormat, AudioShareMode, AudioStreamConfig, AudioStreamFlags, AudioStreamStateKind,
     AudioStreamTransferMode,
 };
 use super::core::{
-    backend_availability_rows, byte_len, harness_bytes, harness_bytes_slices,
-    harness_device_options, harness_mutable_bytes_slices, harness_stream_config, harness_string,
-    open_null_duplex_stream, stream_snapshot_support_from_value, stream_state_from_value,
-    string_from_harness_value,
+    backend_availability_rows, backend_availability_rows_with_capabilities, byte_len,
+    harness_bytes, harness_bytes_slices, harness_device_options, harness_mutable_bytes_slices,
+    harness_stream_config, harness_string, open_null_duplex_stream,
+    stream_snapshot_support_from_value, stream_state_from_value, string_from_harness_value,
 };
 use super::{assert_ok_or_expected_error, assert_platform_error_code, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -47,6 +52,180 @@ fn test_audio_stream_open_rejects_zero_channels() {
         )?;
 
         context.destack_audio_device_close(device)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_stream_open_rejects_unknown_stream_flags() {
+    with_harness_context(|mut context| {
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::Null,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+            backend_flags: AudioBackendOpenFlags(0),
+            backend_hint: context.call_context.store_string(""),
+        };
+        let device_id = harness_string(&mut context, "audio:null:playback");
+        let device_options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, device_options)?;
+
+        let invalid_config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+            flags: AudioStreamFlags(0x8000_0000),
+        };
+        let invalid_config = harness_stream_config(&mut context, invalid_config);
+        assert_platform_error_code(
+            context.destack_audio_stream_open(device, invalid_config),
+            PlatformErrorCode::InvalidArgumentValue,
+        )?;
+
+        context.destack_audio_device_close(device)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_stream_open_rejects_unimplemented_stream_flags() {
+    with_harness_context(|mut context| {
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::Null,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+            backend_flags: AudioBackendOpenFlags(0),
+            backend_hint: context.call_context.store_string(""),
+        };
+        let device_id = harness_string(&mut context, "audio:null:playback");
+        let device_options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, device_options)?;
+
+        let invalid_config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+            flags: AudioStreamFlags(STREAM_FLAG_MINIMIZE_LATENCY.0),
+        };
+        let invalid_config = harness_stream_config(&mut context, invalid_config);
+        assert_platform_error_code(
+            context.destack_audio_stream_open(device, invalid_config),
+            PlatformErrorCode::NotSupported,
+        )?;
+
+        context.destack_audio_device_close(device)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_stream_open_non_interleaved_matches_backend_capability() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_availability_rows_with_capabilities(&mut context, backend_list)?;
+
+        for (backend, available, capability_flags) in backend_list {
+            if !available || backend == AudioBackend::Auto || backend == AudioBackend::Null {
+                continue;
+            }
+
+            let default_id = match context.destack_audio_device_default(
+                AudioDeviceDirection::Playback,
+                backend,
+                AudioBackendSelectionPolicy::Strict,
+            ) {
+                Ok(value) => string_from_harness_value(&mut context, value)?,
+                Err(error) => {
+                    let code = error.platform_error().map(|platform| platform.code);
+                    if code == Some(PlatformErrorCode::IoNotFound) {
+                        continue;
+                    }
+
+                    return Err(error);
+                }
+            };
+
+            let share_mode = if backend == AudioBackend::Asio {
+                AudioShareMode::Exclusive
+            } else {
+                AudioShareMode::Shared
+            };
+            let options = AudioDeviceOpenOptions {
+                direction: AudioDeviceDirection::Playback,
+                backend,
+                backend_policy: AudioBackendSelectionPolicy::Strict,
+                share_mode,
+                flags: AudioDeviceOpenFlags(0),
+                backend_flags: AudioBackendOpenFlags(0),
+                backend_hint: context.call_context.store_string(""),
+            };
+
+            let device_id = harness_string(&mut context, &default_id);
+            let options = harness_device_options(&mut context, options);
+            let device = match context.destack_audio_device_open(device_id, options) {
+                Ok(device) => device,
+                Err(error) => {
+                    let code = error.platform_error().map(|platform| platform.code);
+                    if code == Some(PlatformErrorCode::IoNotFound) {
+                        continue;
+                    }
+
+                    return Err(error);
+                }
+            };
+
+            let stream_config = AudioStreamConfig {
+                sample_rate: 48_000,
+                channels: 2,
+                channel_layout: AudioChannelLayout::Stereo,
+                channel_mask: 0b11,
+                format: AudioSampleFormat::F32,
+                period_frames: 128,
+                transfer_mode: AudioStreamTransferMode::Push,
+                flags: AudioStreamFlags(STREAM_FLAG_NON_INTERLEAVED.0),
+            };
+            let stream_config = harness_stream_config(&mut context, stream_config);
+            let result = context.destack_audio_stream_open(device, stream_config);
+            let supports_non_interleaved =
+                (capability_flags.0 & BACKEND_CAPABILITY_NON_INTERLEAVED.0) != 0;
+            if !supports_non_interleaved {
+                assert_platform_error_code(result, PlatformErrorCode::NotSupported)?;
+                context.destack_audio_device_close(device)?;
+                continue;
+            }
+
+            match result {
+                Ok(stream) => {
+                    context.destack_audio_stream_close(stream)?;
+                }
+                Err(error) => {
+                    let code = error.platform_error().map(|platform| platform.code);
+                    assert_ne!(
+                        code,
+                        Some(PlatformErrorCode::NotSupported),
+                        "backend {backend:?} advertises non-interleaved but stream.open returned notSupported",
+                    );
+                }
+            }
+
+            context.destack_audio_device_close(device)?;
+        }
+
         Ok(())
     });
 }
@@ -230,8 +409,13 @@ fn test_audio_host_stream_write_at_reports_not_supported_when_backend_lacks_sche
         context.destack_audio_stream_start(stream)?;
 
         let snapshot = context.destack_audio_stream_snapshot(stream)?;
-        let (supports_write_at, _supports_pause, _supports_volume, _supports_mute) =
-            stream_snapshot_support_from_value(snapshot);
+        let (
+            supports_write_at,
+            _supports_pause,
+            _supports_volume,
+            _supports_mute,
+            _supports_hardware_timestamps,
+        ) = stream_snapshot_support_from_value(snapshot);
         let payload = harness_bytes(&mut context, &[0u8; 32])?;
         let write_at_result = context.destack_audio_stream_write_at(stream, payload, 0);
         if supports_write_at {
@@ -244,6 +428,173 @@ fn test_audio_host_stream_write_at_reports_not_supported_when_backend_lacks_sche
         context.destack_audio_stream_stop(stream)?;
         context.destack_audio_stream_close(stream)?;
         context.destack_audio_device_close(device)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_stream_snapshot_support_flags_match_control_behavior_for_available_backends() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_rows = backend_availability_rows_with_capabilities(&mut context, backend_list)?;
+
+        for (backend, available, capability_flags) in backend_rows {
+            if !available || backend == AudioBackend::Auto || backend == AudioBackend::Null {
+                continue;
+            }
+
+            let device_id = match context.destack_audio_device_default(
+                AudioDeviceDirection::Playback,
+                backend,
+                AudioBackendSelectionPolicy::Strict,
+            ) {
+                Ok(value) => string_from_harness_value(&mut context, value)?,
+                Err(error) => {
+                    let code = error.platform_error().map(|platform| platform.code);
+                    if code == Some(PlatformErrorCode::IoNotFound) {
+                        continue;
+                    }
+
+                    return Err(error);
+                }
+            };
+
+            let share_mode = if (capability_flags.0 & BACKEND_CAPABILITY_SHARED_MODE.0) != 0 {
+                AudioShareMode::Shared
+            } else {
+                AudioShareMode::Exclusive
+            };
+            let share_mode_supported = match share_mode {
+                AudioShareMode::Shared => {
+                    (capability_flags.0 & BACKEND_CAPABILITY_SHARED_MODE.0) != 0
+                }
+                AudioShareMode::Exclusive => {
+                    (capability_flags.0 & BACKEND_CAPABILITY_EXCLUSIVE_MODE.0) != 0
+                }
+            };
+            if !share_mode_supported {
+                continue;
+            }
+
+            let options = AudioDeviceOpenOptions {
+                direction: AudioDeviceDirection::Playback,
+                backend,
+                backend_policy: AudioBackendSelectionPolicy::Strict,
+                share_mode,
+                flags: AudioDeviceOpenFlags(0),
+                backend_flags: AudioBackendOpenFlags(0),
+                backend_hint: context.call_context.store_string(""),
+            };
+            let device_id = harness_string(&mut context, &device_id);
+            let options = harness_device_options(&mut context, options);
+            let device = match context.destack_audio_device_open(device_id, options) {
+                Ok(device) => device,
+                Err(error) => {
+                    let code = error.platform_error().map(|platform| platform.code);
+                    if code == Some(PlatformErrorCode::NotSupported) {
+                        panic!(
+                            "backend {backend:?} advertised share mode {share_mode:?} but device open returned notSupported",
+                        );
+                    }
+                    continue;
+                }
+            };
+
+            let config = AudioStreamConfig {
+                sample_rate: 48_000,
+                channels: 2,
+                channel_layout: AudioChannelLayout::Stereo,
+                channel_mask: 0b11,
+                format: AudioSampleFormat::F32,
+                period_frames: 128,
+                transfer_mode: AudioStreamTransferMode::Push,
+                flags: AudioStreamFlags(0),
+            };
+            let config = harness_stream_config(&mut context, config);
+            let stream = match context.destack_audio_stream_open(device, config) {
+                Ok(stream) => stream,
+                Err(error) => {
+                    context.destack_audio_device_close(device)?;
+                    return Err(error);
+                }
+            };
+
+            context.destack_audio_stream_start(stream)?;
+
+            let snapshot = context.destack_audio_stream_snapshot(stream)?;
+            let (
+                supports_write_at,
+                supports_pause,
+                supports_volume,
+                supports_mute,
+                supports_hardware_timestamps,
+            ) = stream_snapshot_support_from_value(snapshot);
+
+            let backend_supports_device_clock =
+                (capability_flags.0 & BACKEND_CAPABILITY_DEVICE_CLOCK.0) != 0;
+            assert_eq!(
+                supports_hardware_timestamps, backend_supports_device_clock,
+                "backend {backend:?} snapshot hardware-timestamp lane should match backend capability advertisement",
+            );
+
+            let pause_result = context.destack_audio_stream_pause(stream, true);
+            if supports_pause {
+                let _ =
+                    assert_ok_or_expected_error(pause_result, &[PlatformErrorCode::IoWouldBlock])?;
+                let _ = context.destack_audio_stream_pause(stream, false);
+            } else {
+                assert_platform_error_code(pause_result, PlatformErrorCode::NotSupported)?;
+            }
+
+            let volume_result = context.destack_audio_stream_set_volume(stream, 0.75);
+            if supports_volume {
+                if let Err(error) = volume_result {
+                    let code = error.platform_error().map(|platform| platform.code);
+                    assert_ne!(
+                        code,
+                        Some(PlatformErrorCode::NotSupported),
+                        "backend {backend:?} snapshot claimed supports_volume",
+                    );
+                }
+            } else {
+                assert_platform_error_code(volume_result, PlatformErrorCode::NotSupported)?;
+            }
+
+            let mute_result = context.destack_audio_stream_set_mute(stream, true);
+            if supports_mute {
+                if let Err(error) = mute_result {
+                    let code = error.platform_error().map(|platform| platform.code);
+                    assert_ne!(
+                        code,
+                        Some(PlatformErrorCode::NotSupported),
+                        "backend {backend:?} snapshot claimed supports_mute",
+                    );
+                }
+            } else {
+                assert_platform_error_code(mute_result, PlatformErrorCode::NotSupported)?;
+            }
+
+            let payload = harness_bytes(&mut context, &[0u8; 64])?;
+            let write_at_result = context.destack_audio_stream_write_at(stream, payload, 0);
+            if supports_write_at {
+                if let Err(error) = write_at_result {
+                    let code = error.platform_error().map(|platform| platform.code);
+                    assert_ne!(
+                        code,
+                        Some(PlatformErrorCode::NotSupported),
+                        "backend {backend:?} snapshot claimed supports_write_at",
+                    );
+                }
+            } else {
+                assert_platform_error_code(write_at_result, PlatformErrorCode::NotSupported)?;
+            }
+
+            context.destack_audio_stream_stop(stream)?;
+            context.destack_audio_stream_close(stream)?;
+            context.destack_audio_device_close(device)?;
+        }
 
         Ok(())
     });
@@ -319,6 +670,677 @@ fn test_audio_coreaudio_loopback_open_start_stop_when_available() {
 
 #[cfg(any(unix, windows))]
 #[test]
+fn test_audio_asio_playback_open_start_stop_when_available() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_availability_rows(&mut context, backend_list)?;
+        let asio_available = backend_list
+            .iter()
+            .any(|(backend, available)| *backend == AudioBackend::Asio && *available);
+        if !asio_available {
+            return Ok(());
+        }
+
+        let device_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Playback,
+            AudioBackend::Asio,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error.platform_error().map(|platform| platform.code);
+                if code == Some(PlatformErrorCode::IoNotFound) {
+                    return Ok(());
+                }
+                return Err(error);
+            }
+        };
+
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::Asio,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Exclusive,
+            flags: AudioDeviceOpenFlags(0),
+            backend_flags: AudioBackendOpenFlags(0),
+            backend_hint: context.call_context.store_string(""),
+        };
+        let device_id = harness_string(&mut context, &device_id);
+        let options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+            flags: AudioStreamFlags(0),
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream = context.destack_audio_stream_open(device, config)?;
+        context.destack_audio_stream_start(stream)?;
+
+        let payload = harness_bytes(&mut context, &[0u8; 256])?;
+        let _ = assert_ok_or_expected_error(
+            context.destack_audio_stream_try_write(stream, payload),
+            &[PlatformErrorCode::IoWouldBlock],
+        )?;
+
+        context.destack_audio_stream_stop(stream)?;
+        context.destack_audio_stream_close(stream)?;
+        context.destack_audio_device_close(device)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_asio_open_rejects_shared_mode_when_available() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_availability_rows(&mut context, backend_list)?;
+        let asio_available = backend_list
+            .iter()
+            .any(|(backend, available)| *backend == AudioBackend::Asio && *available);
+        if !asio_available {
+            return Ok(());
+        }
+
+        let device_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Playback,
+            AudioBackend::Asio,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error.platform_error().map(|platform| platform.code);
+                if code == Some(PlatformErrorCode::IoNotFound) {
+                    return Ok(());
+                }
+                return Err(error);
+            }
+        };
+
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::Asio,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+            backend_flags: AudioBackendOpenFlags(0),
+            backend_hint: context.call_context.store_string(""),
+        };
+        let device_id = harness_string(&mut context, &device_id);
+        let options = harness_device_options(&mut context, options);
+        assert_platform_error_code(
+            context.destack_audio_device_open(device_id, options),
+            PlatformErrorCode::NotSupported,
+        )?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_alsa_playback_open_start_stop_when_available() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_availability_rows(&mut context, backend_list)?;
+        let alsa_available = backend_list
+            .iter()
+            .any(|(backend, available)| *backend == AudioBackend::Alsa && *available);
+        if !alsa_available {
+            return Ok(());
+        }
+
+        let device_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Playback,
+            AudioBackend::Alsa,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error.platform_error().map(|platform| platform.code);
+                if code == Some(PlatformErrorCode::IoNotFound) {
+                    return Ok(());
+                }
+                return Err(error);
+            }
+        };
+
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::Alsa,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+            backend_flags: AudioBackendOpenFlags(0),
+            backend_hint: context.call_context.store_string(""),
+        };
+        let device_id = harness_string(&mut context, &device_id);
+        let options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+            flags: AudioStreamFlags(0),
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream = context.destack_audio_stream_open(device, config)?;
+        context.destack_audio_stream_start(stream)?;
+
+        let payload = harness_bytes(&mut context, &[0u8; 256])?;
+        let _ = assert_ok_or_expected_error(
+            context.destack_audio_stream_try_write(stream, payload),
+            &[PlatformErrorCode::IoWouldBlock],
+        )?;
+
+        context.destack_audio_stream_stop(stream)?;
+        context.destack_audio_stream_close(stream)?;
+        context.destack_audio_device_close(device)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_pipewire_playback_open_start_stop_when_available() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_availability_rows(&mut context, backend_list)?;
+        let pipewire_available = backend_list
+            .iter()
+            .any(|(backend, available)| *backend == AudioBackend::PipeWire && *available);
+        if !pipewire_available {
+            return Ok(());
+        }
+
+        let device_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Playback,
+            AudioBackend::PipeWire,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error.platform_error().map(|platform| platform.code);
+                if code == Some(PlatformErrorCode::IoNotFound) {
+                    return Ok(());
+                }
+                return Err(error);
+            }
+        };
+
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::PipeWire,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+            backend_flags: AudioBackendOpenFlags(0),
+            backend_hint: context.call_context.store_string(""),
+        };
+        let device_id = harness_string(&mut context, &device_id);
+        let options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+            flags: AudioStreamFlags(0),
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream = context.destack_audio_stream_open(device, config)?;
+        context.destack_audio_stream_start(stream)?;
+
+        let payload = harness_bytes(&mut context, &[0u8; 256])?;
+        let _ = assert_ok_or_expected_error(
+            context.destack_audio_stream_try_write(stream, payload),
+            &[PlatformErrorCode::IoWouldBlock],
+        )?;
+
+        context.destack_audio_stream_stop(stream)?;
+        context.destack_audio_stream_close(stream)?;
+        context.destack_audio_device_close(device)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_pipewire_loopback_open_start_stop_when_available() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_availability_rows(&mut context, backend_list)?;
+        let pipewire_available = backend_list
+            .iter()
+            .any(|(backend, available)| *backend == AudioBackend::PipeWire && *available);
+        if !pipewire_available {
+            return Ok(());
+        }
+
+        let device_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Loopback,
+            AudioBackend::PipeWire,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error.platform_error().map(|platform| platform.code);
+                if code == Some(PlatformErrorCode::IoNotFound) {
+                    return Ok(());
+                }
+                return Err(error);
+            }
+        };
+
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Loopback,
+            backend: AudioBackend::PipeWire,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+            backend_flags: AudioBackendOpenFlags(0),
+            backend_hint: context.call_context.store_string(""),
+        };
+        let device_id = harness_string(&mut context, &device_id);
+        let options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+            flags: AudioStreamFlags(0),
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream = context.destack_audio_stream_open(device, config)?;
+        context.destack_audio_stream_start(stream)?;
+
+        let _ = assert_ok_or_expected_error(
+            context.destack_audio_stream_try_read(stream, 256),
+            &[PlatformErrorCode::IoWouldBlock],
+        )?;
+
+        context.destack_audio_stream_stop(stream)?;
+        context.destack_audio_stream_close(stream)?;
+        context.destack_audio_device_close(device)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_pulseaudio_playback_open_start_stop_when_available() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_availability_rows(&mut context, backend_list)?;
+        let pulseaudio_available = backend_list
+            .iter()
+            .any(|(backend, available)| *backend == AudioBackend::PulseAudio && *available);
+        if !pulseaudio_available {
+            return Ok(());
+        }
+
+        let device_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Playback,
+            AudioBackend::PulseAudio,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error.platform_error().map(|platform| platform.code);
+                if code == Some(PlatformErrorCode::IoNotFound) {
+                    return Ok(());
+                }
+                return Err(error);
+            }
+        };
+
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::PulseAudio,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+            backend_flags: AudioBackendOpenFlags(0),
+            backend_hint: context.call_context.store_string(""),
+        };
+        let device_id = harness_string(&mut context, &device_id);
+        let options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+            flags: AudioStreamFlags(0),
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream = context.destack_audio_stream_open(device, config)?;
+        context.destack_audio_stream_start(stream)?;
+
+        let payload = harness_bytes(&mut context, &[0u8; 256])?;
+        let _ = assert_ok_or_expected_error(
+            context.destack_audio_stream_try_write(stream, payload),
+            &[PlatformErrorCode::IoWouldBlock],
+        )?;
+
+        context.destack_audio_stream_stop(stream)?;
+        context.destack_audio_stream_close(stream)?;
+        context.destack_audio_device_close(device)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_pulseaudio_loopback_open_start_stop_when_available() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_availability_rows(&mut context, backend_list)?;
+        let pulseaudio_available = backend_list
+            .iter()
+            .any(|(backend, available)| *backend == AudioBackend::PulseAudio && *available);
+        if !pulseaudio_available {
+            return Ok(());
+        }
+
+        let device_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Loopback,
+            AudioBackend::PulseAudio,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error.platform_error().map(|platform| platform.code);
+                if code == Some(PlatformErrorCode::IoNotFound) {
+                    return Ok(());
+                }
+                return Err(error);
+            }
+        };
+
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Loopback,
+            backend: AudioBackend::PulseAudio,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+            backend_flags: AudioBackendOpenFlags(0),
+            backend_hint: context.call_context.store_string(""),
+        };
+        let device_id = harness_string(&mut context, &device_id);
+        let options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+            flags: AudioStreamFlags(0),
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream = context.destack_audio_stream_open(device, config)?;
+        context.destack_audio_stream_start(stream)?;
+
+        let _ = assert_ok_or_expected_error(
+            context.destack_audio_stream_try_read(stream, 256),
+            &[PlatformErrorCode::IoWouldBlock],
+        )?;
+
+        context.destack_audio_stream_stop(stream)?;
+        context.destack_audio_stream_close(stream)?;
+        context.destack_audio_device_close(device)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_jack_playback_open_start_stop_when_available() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_availability_rows(&mut context, backend_list)?;
+        let jack_available = backend_list
+            .iter()
+            .any(|(backend, available)| *backend == AudioBackend::Jack && *available);
+        if !jack_available {
+            return Ok(());
+        }
+
+        let device_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Playback,
+            AudioBackend::Jack,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error.platform_error().map(|platform| platform.code);
+                if code == Some(PlatformErrorCode::IoNotFound) {
+                    return Ok(());
+                }
+                return Err(error);
+            }
+        };
+
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Playback,
+            backend: AudioBackend::Jack,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+            backend_flags: AudioBackendOpenFlags(0),
+            backend_hint: context.call_context.store_string(""),
+        };
+        let device_id = harness_string(&mut context, &device_id);
+        let options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+            flags: AudioStreamFlags(0),
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream = context.destack_audio_stream_open(device, config)?;
+        context.destack_audio_stream_start(stream)?;
+
+        let payload = harness_bytes(&mut context, &[0u8; 256])?;
+        let _ = assert_ok_or_expected_error(
+            context.destack_audio_stream_try_write(stream, payload),
+            &[PlatformErrorCode::IoWouldBlock],
+        )?;
+
+        context.destack_audio_stream_stop(stream)?;
+        context.destack_audio_stream_close(stream)?;
+        context.destack_audio_device_close(device)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_wasapi_loopback_open_start_stop_when_available() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_availability_rows(&mut context, backend_list)?;
+        let wasapi_available = backend_list
+            .iter()
+            .any(|(backend, available)| *backend == AudioBackend::Wasapi && *available);
+        if !wasapi_available {
+            return Ok(());
+        }
+
+        let device_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Loopback,
+            AudioBackend::Wasapi,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error.platform_error().map(|platform| platform.code);
+                if code == Some(PlatformErrorCode::IoNotFound) {
+                    return Ok(());
+                }
+                return Err(error);
+            }
+        };
+
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Loopback,
+            backend: AudioBackend::Wasapi,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+            backend_flags: AudioBackendOpenFlags(0),
+            backend_hint: context.call_context.store_string(""),
+        };
+        let device_id = harness_string(&mut context, &device_id);
+        let options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+            flags: AudioStreamFlags(0),
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream = context.destack_audio_stream_open(device, config)?;
+        context.destack_audio_stream_start(stream)?;
+
+        let _ = assert_ok_or_expected_error(
+            context.destack_audio_stream_try_read(stream, 256),
+            &[PlatformErrorCode::IoWouldBlock],
+        )?;
+
+        context.destack_audio_stream_stop(stream)?;
+        context.destack_audio_stream_close(stream)?;
+        context.destack_audio_device_close(device)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_wasapi_duplex_open_start_stop_when_available() {
+    with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_availability_rows(&mut context, backend_list)?;
+        let wasapi_available = backend_list
+            .iter()
+            .any(|(backend, available)| *backend == AudioBackend::Wasapi && *available);
+        if !wasapi_available {
+            return Ok(());
+        }
+
+        let device_id = match context.destack_audio_device_default(
+            AudioDeviceDirection::Duplex,
+            AudioBackend::Wasapi,
+            AudioBackendSelectionPolicy::Strict,
+        ) {
+            Ok(value) => string_from_harness_value(&mut context, value)?,
+            Err(error) => {
+                let code = error.platform_error().map(|platform| platform.code);
+                if code == Some(PlatformErrorCode::IoNotFound) {
+                    return Ok(());
+                }
+                return Err(error);
+            }
+        };
+
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Duplex,
+            backend: AudioBackend::Wasapi,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+            backend_flags: AudioBackendOpenFlags(0),
+            backend_hint: context.call_context.store_string(""),
+        };
+        let device_id = harness_string(&mut context, &device_id);
+        let options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, options)?;
+
+        let config = AudioStreamConfig {
+            sample_rate: 48_000,
+            channels: 2,
+            channel_layout: AudioChannelLayout::Stereo,
+            channel_mask: 0b11,
+            format: AudioSampleFormat::F32,
+            period_frames: 128,
+            transfer_mode: AudioStreamTransferMode::Push,
+            flags: AudioStreamFlags(0),
+        };
+        let config = harness_stream_config(&mut context, config);
+        let stream = context.destack_audio_stream_open(device, config)?;
+        context.destack_audio_stream_start(stream)?;
+
+        let write_payload = harness_bytes(&mut context, &[0u8; 256])?;
+        let _ = assert_ok_or_expected_error(
+            context.destack_audio_stream_try_write(stream, write_payload),
+            &[PlatformErrorCode::IoWouldBlock],
+        )?;
+
+        let _ = assert_ok_or_expected_error(
+            context.destack_audio_stream_try_read(stream, 256),
+            &[PlatformErrorCode::IoWouldBlock],
+        )?;
+
+        context.destack_audio_stream_stop(stream)?;
+        context.destack_audio_stream_close(stream)?;
+        context.destack_audio_device_close(device)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
 fn test_audio_null_stream_lifecycle_and_io() {
     with_harness_context(|mut context| {
         let (device, stream) = open_null_duplex_stream(&mut context)?;
@@ -365,11 +1387,16 @@ fn test_audio_null_stream_snapshot_reports_expected_support_flags() {
         let (device, stream) = open_null_duplex_stream(&mut context)?;
 
         let snapshot = context.destack_audio_stream_snapshot(stream)?;
-        let (supports_write_at, supports_pause, supports_volume, supports_mute) =
-            stream_snapshot_support_from_value(snapshot);
+        let (
+            supports_write_at,
+            supports_pause,
+            supports_volume,
+            supports_mute,
+            supports_hardware_timestamps,
+        ) = stream_snapshot_support_from_value(snapshot);
         assert!(
-            !supports_write_at,
-            "null stream should not advertise scheduled writes without host timeline scheduling",
+            supports_write_at,
+            "null stream should advertise scheduled writes to match backend and device capabilities",
         );
         assert!(
             supports_pause,
@@ -383,6 +1410,30 @@ fn test_audio_null_stream_snapshot_reports_expected_support_flags() {
             supports_mute,
             "null stream should support stream mute control"
         );
+        assert!(
+            supports_hardware_timestamps,
+            "null stream should expose synthetic timestamp support to match backend capabilities",
+        );
+
+        context.destack_audio_stream_stop(stream)?;
+        context.destack_audio_stream_close(stream)?;
+        context.destack_audio_device_close(device)?;
+
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_null_stream_write_at_accepts_scheduled_payload() {
+    with_harness_context(|mut context| {
+        let (device, stream) = open_null_duplex_stream(&mut context)?;
+
+        let payload = harness_bytes(&mut context, &[0u8; 256])?;
+        let now = context.destack_audio_clock_now(AudioClockDomain::Monotonic)?;
+        let deadline = now.saturating_add(1_000_000);
+        let written = context.destack_audio_stream_write_at(stream, payload, deadline)?;
+        assert_eq!(written, 256, "stream.writeAt should report full byte count");
 
         context.destack_audio_stream_stop(stream)?;
         context.destack_audio_stream_close(stream)?;

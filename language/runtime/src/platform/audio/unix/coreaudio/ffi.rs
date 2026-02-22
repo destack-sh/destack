@@ -71,7 +71,7 @@ pub(super) type AudioQueueInputCallback = unsafe extern "C" fn(
     *mut c_void,
     AudioQueueRef,
     AudioQueueBufferRef,
-    *const c_void,
+    *const AudioTimeStamp,
     u32,
     *const c_void,
 );
@@ -138,4 +138,10 @@ unsafe extern "C" {
         in_data: *const c_void,
         in_data_size: u32,
     ) -> OSStatus;
+
+    /// Return the current host time from CoreAudio's host-time clock.
+    pub(super) fn AudioGetCurrentHostTime() -> u64;
+
+    /// Convert one CoreAudio host-time value into nanoseconds.
+    pub(super) fn AudioConvertHostTimeToNanos(in_host_time: u64) -> u64;
 }

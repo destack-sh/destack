@@ -29,6 +29,43 @@ pub(super) const IPV6_JOIN_GROUP_OPT: libc::c_int = libc::IPV6_JOIN_GROUP;
 #[cfg(not(any(target_os = "linux", target_os = "android")))]
 pub(super) const IPV6_LEAVE_GROUP_OPT: libc::c_int = libc::IPV6_LEAVE_GROUP;
 
+/// Normalize one host sockaddr family value into the ABI family type.
+#[cfg(any(
+    target_vendor = "apple",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "dragonfly",
+))]
+fn socket_family_from_storage(value: libc::sa_family_t) -> u16 {
+    u16::from(value)
+}
+
+/// Normalize one host sockaddr family value into the ABI family type.
+#[cfg(not(any(
+    target_vendor = "apple",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd",
+    target_os = "dragonfly",
+)))]
+fn socket_family_from_storage(value: libc::sa_family_t) -> u16 {
+    value
+}
+
+/// Return one mutable unix-domain path buffer pointer as bytes.
+fn unix_socket_path_pointer(address: &mut libc::sockaddr_un) -> *mut u8 {
+    #[cfg(target_os = "android")]
+    {
+        address.sun_path.as_mut_ptr()
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        address.sun_path.as_mut_ptr().cast::<u8>()
+    }
+}
+
 pub(super) struct SocketFinalizer {
     /// Socket descriptor to close.
     pub(super) fd: RawFd,
@@ -105,7 +142,7 @@ pub(super) fn socket_address_raw_from_storage(
 
     // write the raw sockaddr payload
     Ok(SocketAddress {
-        family: storage.ss_family as u16,
+        family: socket_family_from_storage(storage.ss_family),
         length,
         bytes,
     })
@@ -134,7 +171,7 @@ pub(super) fn socket_address_from_storage(
     let bytes = context.store_array(bytes.to_vec());
 
     Ok(SocketAddress {
-        family: storage.ss_family as u16,
+        family: socket_family_from_storage(storage.ss_family),
         length,
         bytes,
     })
@@ -177,7 +214,7 @@ pub(super) fn sockaddr_un_from_path(
     unsafe {
         std::ptr::copy_nonoverlapping(
             path.as_ptr(),
-            addr.sun_path.as_mut_ptr() as *mut u8,
+            unix_socket_path_pointer(&mut addr),
             path.len(),
         );
     }

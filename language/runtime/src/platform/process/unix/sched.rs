@@ -64,8 +64,9 @@ pub(crate) unsafe fn destack_process_get_affinity(
             ));
         }
 
+        let cpu_set_size = libc::CPU_SETSIZE as usize;
         let mut cpus = Vec::new();
-        for cpu in 0..(libc::CPU_SETSIZE as usize) {
+        for cpu in 0..cpu_set_size {
             let is_member = unsafe { libc::CPU_ISSET(cpu, &cpu_set) };
             if is_member {
                 cpus.push(cpu as u32);
@@ -79,7 +80,7 @@ pub(crate) unsafe fn destack_process_get_affinity(
             *out = value;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -197,7 +198,7 @@ pub(crate) unsafe fn destack_process_get_scheduler(
             *out = value;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -242,9 +243,10 @@ pub(crate) unsafe fn destack_process_set_affinity(
             libc::CPU_ZERO(&mut cpu_set);
         }
 
+        let cpu_set_size = libc::CPU_SETSIZE as usize;
         for cpu in cpus {
             let index = *cpu as usize;
-            if index >= libc::CPU_SETSIZE as usize {
+            if index >= cpu_set_size {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "cpus",
                     format!("cpu index {cpu} is out of range"),
@@ -267,7 +269,7 @@ pub(crate) unsafe fn destack_process_set_affinity(
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -325,7 +327,7 @@ pub(crate) unsafe fn destack_process_set_scheduler(
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -405,7 +407,7 @@ pub(crate) unsafe fn destack_process_yield_now(_context: &BindingCallContext) ->
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn scheduler_policy_to_raw(policy: ProcessSchedulerPolicy) -> RuntimeResult<libc::c_int> {
     match policy {
-        ProcessSchedulerPolicy::Other => Ok(libc::SCHED_OTHER),
+        ProcessSchedulerPolicy::Other => Ok(scheduler_other_policy()),
         ProcessSchedulerPolicy::Fifo => Ok(libc::SCHED_FIFO),
         ProcessSchedulerPolicy::RoundRobin => Ok(libc::SCHED_RR),
         ProcessSchedulerPolicy::Batch => Ok(libc::SCHED_BATCH),
@@ -417,7 +419,7 @@ fn scheduler_policy_to_raw(policy: ProcessSchedulerPolicy) -> RuntimeResult<libc
 /// Convert a host scheduler constant into a scheduler policy enum.
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn scheduler_policy_from_raw(policy: libc::c_int) -> RuntimeResult<ProcessSchedulerPolicy> {
-    if policy == libc::SCHED_OTHER {
+    if policy == scheduler_other_policy() {
         return Ok(ProcessSchedulerPolicy::Other);
     }
     if policy == libc::SCHED_FIFO {
@@ -443,10 +445,28 @@ fn scheduler_policy_from_raw(policy: libc::c_int) -> RuntimeResult<ProcessSchedu
     .boxed())
 }
 
+/// Return the host constant for the standard scheduler policy.
+#[cfg(target_os = "android")]
+fn scheduler_other_policy() -> libc::c_int {
+    libc::SCHED_NORMAL
+}
+
+/// Return the host constant for the standard scheduler policy.
+#[cfg(target_os = "linux")]
+fn scheduler_other_policy() -> libc::c_int {
+    libc::SCHED_OTHER
+}
+
 /// Return a mutable pointer to the host errno slot.
-#[cfg(all(unix, any(target_os = "linux", target_os = "android")))]
+#[cfg(all(unix, target_os = "linux"))]
 unsafe fn errno_location() -> *mut libc::c_int {
     unsafe { libc::__errno_location() }
+}
+
+/// Return a mutable pointer to the host errno slot.
+#[cfg(all(unix, target_os = "android"))]
+unsafe fn errno_location() -> *mut libc::c_int {
+    unsafe { libc::__errno() }
 }
 
 /// Return a mutable pointer to the host errno slot.

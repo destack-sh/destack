@@ -11,13 +11,14 @@ pub(crate) use crate::platform::{NativeStringRef, PlatformError, resource};
 pub(crate) use crate::runtime::BindingCallContext;
 
 pub(crate) use super::{
-    AudioBackend, AudioBackendCapabilityFlags, AudioBackendSelectionPolicy, AudioChannelLayout,
-    AudioClockDomain, AudioClockSnapshot, AudioDeviceCapabilityFlags, AudioDeviceDescriptor,
-    AudioDeviceDirection, AudioDeviceListFlags, AudioDeviceListRequest, AudioDeviceOpenOptions,
-    AudioEvent, AudioEventKind, AudioEventSubscriptionFlags, AudioEventSubscriptionOptions,
-    AudioSampleFormat, AudioShareMode, AudioStreamAvailability, AudioStreamClockDomain,
-    AudioStreamConfig, AudioStreamSnapshot, AudioStreamState, AudioStreamStateKind,
-    AudioStreamStatusFlags, AudioStreamTiming, AudioStreamTransferMode,
+    AudioBackend, AudioBackendCapabilityFlags, AudioBackendOpenFlags, AudioBackendSelectionPolicy,
+    AudioChannelLayout, AudioClockDomain, AudioClockSnapshot, AudioDeviceCapabilityFlags,
+    AudioDeviceDescriptor, AudioDeviceDirection, AudioDeviceListFlags, AudioDeviceListRequest,
+    AudioDeviceOpenFlags, AudioDeviceOpenOptions, AudioEvent, AudioEventKind,
+    AudioEventSubscriptionFlags, AudioEventSubscriptionOptions, AudioSampleFormat, AudioShareMode,
+    AudioStreamAvailability, AudioStreamClockDomain, AudioStreamConfig, AudioStreamFlags,
+    AudioStreamSnapshot, AudioStreamState, AudioStreamStateKind, AudioStreamStatusFlags,
+    AudioStreamTiming, AudioStreamTransferMode,
 };
 
 mod clock;

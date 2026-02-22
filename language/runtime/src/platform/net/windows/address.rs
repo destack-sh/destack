@@ -9,7 +9,7 @@ use windows_sys::Win32::Networking::WinSock::{
 use super::util::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::net::{ResolveFlags, SocketAddress, SocketFamily, SocketHandle};
-use crate::platform::{NativeArray, NativeStringRef, PlatformError};
+use crate::platform::{NativeArray, NativeStringRef, PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 
 /// Free one address-info chain on drop.
@@ -27,13 +27,6 @@ impl Drop for AddrInfoGuard {
             }
         }
     }
-}
-
-/// Encode one utf8 string into a nul-terminated wide string.
-fn wide_with_nul(value: &str) -> Vec<u16> {
-    let mut wide = value.encode_utf16().collect::<Vec<_>>();
-    wide.push(0);
-    wide
 }
 
 /// Return the local address bytes for a socket.
@@ -168,8 +161,8 @@ pub(crate) unsafe fn destack_net_resolve_raw(
     }
 
     // resolve addresses
-    let host = wide_with_nul(host);
-    let service = wide_with_nul(&port.to_string());
+    let host = core_platform::wide_with_nul(host);
+    let service = core_platform::wide_with_nul(&port.to_string());
     let mut result: *mut ADDRINFOW = std::ptr::null_mut();
     let rc = unsafe { GetAddrInfoW(host.as_ptr(), service.as_ptr(), &hints, &mut result) };
     if rc != 0 {

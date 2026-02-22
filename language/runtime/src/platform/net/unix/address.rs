@@ -255,7 +255,23 @@ pub(crate) unsafe fn destack_net_reverse_lookup(
     }
     let length = bytes.len() as libc::socklen_t;
 
+    #[cfg(target_os = "android")]
+    let mut host = [0 as libc::c_char; libc::NI_MAXHOST];
+    #[cfg(not(target_os = "android"))]
     let mut host = [0 as libc::c_char; libc::NI_MAXHOST as usize];
+    #[cfg(target_os = "android")]
+    let rc = unsafe {
+        libc::getnameinfo(
+            &storage as *const _ as *const libc::sockaddr,
+            length,
+            host.as_mut_ptr(),
+            host.len(),
+            std::ptr::null_mut(),
+            0,
+            libc::NI_NAMEREQD,
+        )
+    };
+    #[cfg(not(target_os = "android"))]
     let rc = unsafe {
         libc::getnameinfo(
             &storage as *const _ as *const libc::sockaddr,

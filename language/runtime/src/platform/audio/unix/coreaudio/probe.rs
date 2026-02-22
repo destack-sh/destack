@@ -1,4 +1,33 @@
 #[cfg(target_os = "macos")]
+use std::ptr;
+
+#[cfg(target_os = "macos")]
+use crate::platform::audio::AudioStreamFlags;
+#[cfg(target_os = "macos")]
+use crate::platform::audio::core as audio_core;
+
+#[cfg(target_os = "macos")]
+use super::abi::{
+    AudioDeviceID, AudioQueueAllocateBuffer, AudioQueueDispose, AudioQueueEnqueueBuffer,
+    AudioQueueNewInput, AudioQueueStart, AudioQueueStop,
+};
+#[cfg(target_os = "macos")]
+use super::callback::loopback_probe_input_callback;
+#[cfg(target_os = "macos")]
+use super::constants::{
+    COREAUDIO_LOOPBACK_PROBE_FRAMES, K_AUDIO_DEVICE_PROPERTY_NOMINAL_SAMPLE_RATE,
+    K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT, K_FALLBACK_SAMPLE_RATE, K_NO_ERR,
+};
+#[cfg(target_os = "macos")]
+use super::format::{channel_layout, channel_mask};
+#[cfg(target_os = "macos")]
+use super::property::{
+    get_scalar_optional, get_stream_channel_count, rate_to_u32, stream_description,
+};
+#[cfg(target_os = "macos")]
+use super::queue::bind_queue_device;
+
+#[cfg(target_os = "macos")]
 pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
     // skip probing for devices with no output channels
     let output_channels =

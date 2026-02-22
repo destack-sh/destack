@@ -1,10 +1,33 @@
 use std::sync::Arc;
 
 use super::super::backend_name as host_backend_name;
-use super::{asio, wasapi};
+#[cfg(feature = "audio-asio")]
+use super::asio;
+#[cfg(feature = "audio-wasapi")]
+use super::wasapi;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
+
+/// Return whether one windows backend is enabled by compile-time feature selection.
+fn backend_feature_enabled(backend: audio_core::AudioBackend) -> bool {
+    // backend families that are never host implemented
+    if backend == audio_core::AudioBackend::Auto || backend == audio_core::AudioBackend::Null {
+        return false;
+    }
+
+    #[cfg(feature = "audio-wasapi")]
+    if backend == audio_core::AudioBackend::Wasapi {
+        return true;
+    }
+
+    #[cfg(feature = "audio-asio")]
+    if backend == audio_core::AudioBackend::Asio {
+        return true;
+    }
+
+    false
+}
 
 /// Build one not-supported error for one windows audio backend operation.
 pub(super) fn backend_not_supported(
@@ -19,8 +42,14 @@ pub(super) fn backend_not_supported(
 
 /// Return whether one windows backend is implemented for this build.
 pub(crate) fn backend_supported(backend: audio_core::AudioBackend) -> bool {
+    if !backend_feature_enabled(backend) {
+        return false;
+    }
+
     match backend {
+        #[cfg(feature = "audio-wasapi")]
         audio_core::AudioBackend::Wasapi => wasapi::is_backend_supported(),
+        #[cfg(feature = "audio-asio")]
         audio_core::AudioBackend::Asio => asio::is_backend_supported(),
         _ => false,
     }
@@ -28,7 +57,17 @@ pub(crate) fn backend_supported(backend: audio_core::AudioBackend) -> bool {
 
 /// Return whether one windows backend supports stream creation.
 pub(crate) fn backend_stream_supported(backend: audio_core::AudioBackend) -> bool {
-    backend_supported(backend)
+    if !backend_feature_enabled(backend) {
+        return false;
+    }
+
+    match backend {
+        #[cfg(feature = "audio-wasapi")]
+        audio_core::AudioBackend::Wasapi => wasapi::is_stream_supported(),
+        #[cfg(feature = "audio-asio")]
+        audio_core::AudioBackend::Asio => asio::is_stream_supported(),
+        _ => false,
+    }
 }
 
 /// Enumerate host devices for one requested windows backend.
@@ -43,7 +82,9 @@ pub(crate) fn enumerate_host_devices(
     }
 
     match backend {
+        #[cfg(feature = "audio-wasapi")]
         audio_core::AudioBackend::Wasapi => wasapi::enumerate_host_devices(),
+        #[cfg(feature = "audio-asio")]
         audio_core::AudioBackend::Asio => asio::enumerate_host_devices(),
         _ => Err(backend_not_supported(
             "destack.audio.device.list",
@@ -57,6 +98,7 @@ pub(crate) fn open_host_stream(
     device_info: &audio_core::HostDeviceDescriptor,
     config: audio_core::AudioStreamConfig,
     share_mode: audio_core::AudioShareMode,
+    backend_flags: audio_core::AudioBackendOpenFlags,
 ) -> RuntimeResult<Arc<audio_core::AudioStreamBinding>> {
     if !backend_stream_supported(device_info.backend) {
         return Err(backend_not_supported(
@@ -66,10 +108,14 @@ pub(crate) fn open_host_stream(
     }
 
     match device_info.backend {
+        #[cfg(feature = "audio-wasapi")]
         audio_core::AudioBackend::Wasapi => {
-            wasapi::open_host_stream(device_info, config, share_mode)
+            wasapi::open_host_stream(device_info, config, share_mode, backend_flags)
         }
-        audio_core::AudioBackend::Asio => asio::open_host_stream(device_info, config, share_mode),
+        #[cfg(feature = "audio-asio")]
+        audio_core::AudioBackend::Asio => {
+            asio::open_host_stream(device_info, config, share_mode, backend_flags)
+        }
         _ => Err(backend_not_supported(
             "destack.audio.stream.open",
             "windows",

@@ -1,6 +1,28 @@
 #[cfg(not(target_os = "macos"))]
 use super::super::backend::backend_not_supported;
-use super::core::*;
+#[cfg(target_os = "macos")]
+use super::constants::{
+    K_AUDIO_DEVICE_PROPERTY_BUFFER_FRAME_SIZE, K_AUDIO_DEVICE_PROPERTY_DEVICE_IS_ALIVE,
+    K_AUDIO_DEVICE_PROPERTY_DEVICE_UID, K_AUDIO_DEVICE_PROPERTY_MODEL_UID,
+    K_AUDIO_DEVICE_PROPERTY_NOMINAL_SAMPLE_RATE, K_AUDIO_DEVICE_PROPERTY_TRANSPORT_TYPE,
+    K_AUDIO_HARDWARE_PROPERTY_DEFAULT_INPUT_DEVICE,
+    K_AUDIO_HARDWARE_PROPERTY_DEFAULT_OUTPUT_DEVICE,
+    K_AUDIO_HARDWARE_PROPERTY_DEFAULT_SYSTEM_OUTPUT_DEVICE, K_AUDIO_OBJECT_PROPERTY_NAME,
+    K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL, K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT,
+    K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT, K_FALLBACK_PERIOD_FRAMES, K_FALLBACK_SAMPLE_RATE,
+};
+#[cfg(target_os = "macos")]
+use super::format::{
+    channel_layout, channel_mask, direction_from_channels, scope_for_direction, transport_name,
+};
+#[cfg(target_os = "macos")]
+use super::probe::probe_loopback_support;
+#[cfg(target_os = "macos")]
+use super::property::{
+    default_device_id, device_ids, get_buffer_frame_size_range, get_cfstring_optional,
+    get_sample_rate_range, get_scalar_optional, get_stream_channel_count, hog_mode_allowed,
+    rate_to_u32,
+};
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
 
@@ -108,8 +130,8 @@ fn enumerate_host_devices_macos() -> RuntimeResult<Vec<audio_core::HostDeviceDes
         let mut capability_flags = audio_core::DEVICE_CAPABILITY_SHARED_MODE.0
             | audio_core::DEVICE_CAPABILITY_STREAM_VOLUME.0
             | audio_core::DEVICE_CAPABILITY_STREAM_MUTE.0
-            | audio_core::DEVICE_CAPABILITY_REROUTE_EVENTS.0
-            | audio_core::DEVICE_CAPABILITY_BACKEND_DISCONNECT_EVENTS.0;
+            | audio_core::DEVICE_CAPABILITY_DEVICE_CLOCK.0
+            | audio_core::DEVICE_CAPABILITY_REROUTE_EVENTS.0;
         if supports_hog_mode {
             capability_flags |= audio_core::DEVICE_CAPABILITY_EXCLUSIVE_MODE.0;
         }
@@ -118,6 +140,7 @@ fn enumerate_host_devices_macos() -> RuntimeResult<Vec<audio_core::HostDeviceDes
         let mut supported_directions = 0u32;
         if playback_channels > 0 {
             supported_directions |= audio_core::DIRECTION_MASK_PLAYBACK;
+            capability_flags |= audio_core::DEVICE_CAPABILITY_SCHEDULED_WRITE.0;
             if supports_loopback {
                 supported_directions |= audio_core::DIRECTION_MASK_LOOPBACK;
                 capability_flags |= audio_core::DEVICE_CAPABILITY_LOOPBACK.0;

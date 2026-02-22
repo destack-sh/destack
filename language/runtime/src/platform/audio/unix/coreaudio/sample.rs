@@ -1,3 +1,15 @@
+#[cfg(target_os = "macos")]
+use crate::diagnostic::RuntimeResult;
+#[cfg(target_os = "macos")]
+use crate::platform::audio::core as audio_core;
+
+#[cfg(target_os = "macos")]
+use super::abi::AudioDeviceID;
+#[cfg(target_os = "macos")]
+use super::constants::{K_AUDIO_DEVICE_PROPERTY_DEVICE_UID, K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL};
+#[cfg(target_os = "macos")]
+use super::property::{device_ids, get_cfstring_optional};
+
 /// Resolve one CoreAudio device identifier from one stable runtime device id.
 #[cfg(target_os = "macos")]
 pub(super) fn device_id_from_stable_id(stable_id: &str) -> RuntimeResult<AudioDeviceID> {

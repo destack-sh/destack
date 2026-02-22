@@ -14,6 +14,32 @@ use std::ffi::{CStr, CString};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::os::unix::io::RawFd;
 
+/// Host IPv6 multicast interface selector type.
+#[cfg(target_os = "android")]
+type Ipv6MulticastInterface = libc::c_int;
+/// Host IPv6 multicast interface selector type.
+#[cfg(not(target_os = "android"))]
+type Ipv6MulticastInterface = libc::c_uint;
+
+/// Convert one logical interface index into one host socket-option interface selector.
+fn ipv6_multicast_interface(interface_index: u32) -> RuntimeResult<Ipv6MulticastInterface> {
+    #[cfg(target_os = "android")]
+    {
+        libc::c_int::try_from(interface_index).map_err(|_| {
+            RuntimeError::from(PlatformError::invalid_argument_value(
+                "interfaceIndex",
+                "interface index must fit one platform integer",
+            ))
+            .boxed()
+        })
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        Ok(interface_index)
+    }
+}
+
 /// Enable or disable nonblocking mode on a socket.
 ///
 /// Enable or disable nonblocking mode on a socket descriptor.
@@ -459,6 +485,7 @@ pub(crate) unsafe fn destack_net_join_multicast_v6(
         ))
         .boxed()
     })?;
+    let interface_index = ipv6_multicast_interface(interface_index)?;
     let request = libc::ipv6_mreq {
         ipv6mr_multiaddr: libc::in6_addr {
             s6_addr: group_addr.octets(),
@@ -516,6 +543,7 @@ pub(crate) unsafe fn destack_net_leave_multicast_v6(
         ))
         .boxed()
     })?;
+    let interface_index = ipv6_multicast_interface(interface_index)?;
     let request = libc::ipv6_mreq {
         ipv6mr_multiaddr: libc::in6_addr {
             s6_addr: group_addr.octets(),

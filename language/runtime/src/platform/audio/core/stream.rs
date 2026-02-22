@@ -1,6 +1,85 @@
 use super::*;
 use crate::platform::audio::host;
 
+/// Convert one frame count into nanoseconds for one sample rate.
+fn frames_to_nanos(frame_count: u64, sample_rate: u32) -> u64 {
+    frame_count
+        .saturating_mul(1_000_000_000u64)
+        .checked_div(sample_rate.max(1) as u64)
+        .unwrap_or(0)
+}
+
+/// Estimate drift in ppm from callback history.
+fn estimate_drift_ppm(state: &AudioStreamStateInner, sample_rate: u32) -> f64 {
+    // require one initialized callback baseline
+    if state.first_callback_mono_ns == 0 {
+        return 0.0;
+    }
+
+    // require one callback interval window
+    if state.last_callback_mono_ns <= state.first_callback_mono_ns {
+        return 0.0;
+    }
+
+    let elapsed_frames = state
+        .stream_frames
+        .saturating_sub(state.first_callback_stream_frames);
+    if elapsed_frames == 0 {
+        return 0.0;
+    }
+
+    let expected_ns = frames_to_nanos(elapsed_frames, sample_rate);
+    if expected_ns == 0 {
+        return 0.0;
+    }
+
+    let observed_ns = state
+        .last_callback_mono_ns
+        .saturating_sub(state.first_callback_mono_ns);
+
+    let drift_ratio = (observed_ns as f64 - expected_ns as f64) / expected_ns as f64;
+    let drift_ppm = drift_ratio * 1_000_000.0;
+    if drift_ppm.is_finite() {
+        drift_ppm
+    } else {
+        0.0
+    }
+}
+
+/// Record one callback timing sample and update drift and jitter estimates.
+pub(crate) fn record_stream_callback_timing(
+    state: &mut AudioStreamStateInner,
+    sample_rate: u32,
+    frame_count: u32,
+    callback_mono_ns: u64,
+    input_adc_ns: Option<u64>,
+    output_dac_ns: Option<u64>,
+) {
+    let previous_callback_ns = state.last_callback_mono_ns;
+
+    // compute one per-period jitter estimate from callback deltas
+    if previous_callback_ns > 0 {
+        let observed_period_ns = callback_mono_ns.saturating_sub(previous_callback_ns);
+        let expected_period_ns = frames_to_nanos(frame_count as u64, sample_rate);
+        state.last_period_jitter_ns = observed_period_ns.abs_diff(expected_period_ns);
+    }
+
+    // advance one stream frame counter
+    state.stream_frames = state.stream_frames.saturating_add(frame_count as u64);
+
+    // seed one drift-estimation baseline on the first callback sample
+    if state.first_callback_mono_ns == 0 {
+        state.first_callback_mono_ns = callback_mono_ns;
+        state.first_callback_stream_frames = state.stream_frames;
+    }
+
+    // publish callback and endpoint timestamps
+    state.last_callback_mono_ns = callback_mono_ns;
+    state.last_input_adc_ns = input_adc_ns.unwrap_or(callback_mono_ns);
+    state.last_output_dac_ns = output_dac_ns.unwrap_or(callback_mono_ns);
+    state.last_callback_cpu_load = 0.0;
+}
+
 /// Build one stream state snapshot.
 pub(crate) fn stream_state_snapshot(binding: &AudioStreamBinding) -> AudioStreamState {
     let state = binding
@@ -50,6 +129,15 @@ pub(crate) fn stream_timing_snapshot(
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
+    // prefer output then input timestamp lanes for device-clock correlation
+    let device_clock_ns = if state.last_output_dac_ns > 0 {
+        state.last_output_dac_ns
+    } else if state.last_input_adc_ns > 0 {
+        state.last_input_adc_ns
+    } else {
+        state.last_callback_mono_ns
+    };
+
     AudioStreamTiming {
         stream_frames: state.stream_frames,
         stream_time_ns: state.last_callback_mono_ns,
@@ -58,9 +146,9 @@ pub(crate) fn stream_timing_snapshot(
         has_output_dac_time: state.last_output_dac_ns > 0,
         output_dac_time_ns: state.last_output_dac_ns,
         callback_time_ns: state.last_callback_mono_ns,
-        device_clock_ns: state.last_callback_mono_ns,
+        device_clock_ns,
         monotonic_clock_ns: context.runtime().time.mono_nanos(),
-        drift_ppm: 0.0,
+        drift_ppm: estimate_drift_ppm(&state, binding.sample_rate),
         callback_cpu_load: state.last_callback_cpu_load,
     }
 }
@@ -97,6 +185,12 @@ pub(crate) fn stream_snapshot(
     context: &BindingCallContext,
     binding: &AudioStreamBinding,
 ) -> AudioStreamSnapshot {
+    let state = binding
+        .sync
+        .state
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+
     AudioStreamSnapshot {
         backend: binding.device.backend,
         backend_id: context.store_string(host::backend_name(binding.device.backend)),
@@ -109,8 +203,9 @@ pub(crate) fn stream_snapshot(
         period_frames: binding.period_frames,
         transfer_mode: binding.requested.transfer_mode,
         share_mode: binding.share_mode,
-        period_jitter_ns: 0,
-        non_interleaved: (binding.requested.flags.0 & 0x1) != 0,
+        period_jitter_ns: state.last_period_jitter_ns,
+        non_interleaved: (binding.requested.flags.0 & STREAM_FLAG_NON_INTERLEAVED.0) != 0
+            && binding.runtime_capabilities.supports_non_interleaved,
         supports_write_at: binding.runtime_capabilities.supports_write_at,
         supports_pause: binding.runtime_capabilities.supports_pause,
         supports_non_interleaved: binding.runtime_capabilities.supports_non_interleaved,
@@ -184,10 +279,15 @@ pub(crate) fn build_null_worker(binding: Arc<AudioStreamBinding>) -> JoinHandle<
                     }
                 }
 
-                state.stream_frames = state.stream_frames.saturating_add(period_frames as u64);
-                state.last_callback_mono_ns = host_monotonic_nanos();
-                state.last_input_adc_ns = state.last_callback_mono_ns;
-                state.last_output_dac_ns = state.last_callback_mono_ns;
+                let callback_mono_ns = host_monotonic_nanos();
+                record_stream_callback_timing(
+                    &mut state,
+                    binding.sample_rate,
+                    period_frames as u32,
+                    callback_mono_ns,
+                    Some(callback_mono_ns),
+                    Some(callback_mono_ns),
+                );
             }
 
             drop(state);
@@ -195,6 +295,33 @@ pub(crate) fn build_null_worker(binding: Arc<AudioStreamBinding>) -> JoinHandle<
             thread::sleep(period_duration);
         }
     })
+}
+
+/// Mark one stream as backend-disconnected and wake blocked callers.
+#[cfg(any(
+    all(target_os = "android", feature = "audio-aaudio"),
+    all(target_os = "android", feature = "audio-opensles"),
+    all(target_os = "linux", feature = "audio-pipewire"),
+    all(target_os = "linux", feature = "audio-pulseaudio"),
+))]
+pub(crate) fn mark_stream_backend_disconnected(
+    binding: &AudioStreamBinding,
+    message: impl Into<String>,
+) {
+    let mut state = binding
+        .sync
+        .state
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    state.running = false;
+    state.paused = false;
+    state.shutdown = true;
+    state.state = AudioStreamStateKind::BackendDisconnected;
+    state.status_flags =
+        AudioStreamStatusFlags(state.status_flags.0 | STREAM_STATUS_OUTPUT_UNDERFLOW.0);
+    state.last_backend_message = Some(message.into());
+    drop(state);
+    binding.sync.wake.notify_all();
 }
 
 /// Run one backend stream start hook when available.
@@ -274,12 +401,13 @@ pub(crate) fn open_null_stream(
         period_frames: config.period_frames.max(MIN_STREAM_PERIOD_FRAMES),
         share_mode,
         runtime_capabilities: AudioStreamRuntimeCapabilities {
-            supports_write_at: false,
+            supports_write_at: opened_direction != AudioDeviceDirection::Capture
+                && opened_direction != AudioDeviceDirection::Loopback,
             supports_pause: true,
             supports_non_interleaved: false,
             supports_volume: true,
             supports_mute: true,
-            supports_hardware_timestamps: false,
+            supports_hardware_timestamps: true,
         },
         host_ops: Mutex::new(None),
         name: Mutex::new(String::new()),

@@ -6,6 +6,7 @@ use crate::platform::process::{bindings_generated as bindings, core as core_proc
 use crate::platform::resource::{ResourceFinalizer, ResourceId};
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, PlatformError,
+    core as core_platform,
 };
 
 use crate::runtime::BindingCallContext;
@@ -237,13 +238,6 @@ fn build_command_line(command: &str, arguments: &[String]) -> String {
     values.join(" ")
 }
 
-/// Convert one UTF-8 string into a nul-terminated UTF-16 path.
-fn wide_with_nul(value: &str) -> Vec<u16> {
-    let mut wide = value.encode_utf16().collect::<Vec<_>>();
-    wide.push(0);
-    wide
-}
-
 /// Open one inheritable null-device handle for stdio routing.
 fn open_null_stdio_handle(is_input: bool) -> RuntimeResult<HANDLE> {
     let mut security_attributes = SECURITY_ATTRIBUTES {
@@ -252,7 +246,7 @@ fn open_null_stdio_handle(is_input: bool) -> RuntimeResult<HANDLE> {
         bInheritHandle: 1,
     };
 
-    let path = wide_with_nul("NUL");
+    let path = core_platform::wide_with_nul("NUL");
     let access = if is_input {
         FILE_GENERIC_READ
     } else {
@@ -402,7 +396,7 @@ fn spawn_current_directory(options: ProcessSpawnOptions) -> RuntimeResult<Option
         return Ok(None);
     }
 
-    Ok(Some(wide_with_nul(&cwd)))
+    Ok(Some(core_platform::wide_with_nul(&cwd)))
 }
 
 /// Spawn a child process and register its handle payload.
@@ -421,7 +415,7 @@ fn spawn_process(
     let current_directory = spawn_current_directory(options)?;
     let stdio_handles = resolve_spawn_stdio_handles(context, stdio)?;
 
-    let mut command_line_wide = wide_with_nul(&command_line);
+    let mut command_line_wide = core_platform::wide_with_nul(&command_line);
     let current_directory_pointer = current_directory
         .as_ref()
         .map_or(std::ptr::null(), |cwd| cwd.as_ptr());

@@ -161,6 +161,32 @@ pub(super) fn path_bytes_to_cstring(path: PathBytes, name: &str) -> RuntimeResul
     resolve_path_bytes_cstring(path, name)
 }
 
+/// Convert one host mode value into the ABI mode width.
+pub(super) fn file_mode_u32(mode: libc::mode_t) -> u32 {
+    #[cfg(target_os = "android")]
+    {
+        mode
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        mode as u32
+    }
+}
+
+/// Convert one host link-count value into the ABI width.
+pub(super) fn file_nlink_u32(link_count: libc::nlink_t) -> u32 {
+    #[cfg(target_os = "android")]
+    {
+        link_count
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        link_count as u32
+    }
+}
+
 /// Map a libc dirent type to our dirent kind.
 pub(super) fn dirent_kind_from_type(kind: u8) -> DirentKind {
     // map the dirent type
@@ -188,8 +214,8 @@ pub(super) fn stat_from_libc(stat: libc::stat) -> Stat {
     Stat {
         dev: stat_u64(stat.st_dev),
         ino: stat_u64(stat.st_ino),
-        mode: FileMode(stat.st_mode as u32),
-        nlink: stat.st_nlink as u32,
+        mode: FileMode(file_mode_u32(stat.st_mode)),
+        nlink: file_nlink_u32(stat.st_nlink),
         uid: stat.st_uid,
         gid: stat.st_gid,
         rdev: stat_u64(stat.st_rdev),

@@ -6,6 +6,7 @@ use std::mem::MaybeUninit;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::time::{ClockId, ClockMetadata, ClockSource};
 use crate::platform::{PlatformError, core as core_platform};
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
 use crate::runtime::time::core as time_core;
 
 /// Number of nanoseconds in one second.
@@ -92,7 +93,7 @@ fn process_cpu_nanos() -> RuntimeResult<u64> {
         target_os = "solaris"
     ))]
     {
-        return clock_gettime_nanos(libc::CLOCK_PROCESS_CPUTIME_ID, "clock_gettime");
+        clock_gettime_nanos(libc::CLOCK_PROCESS_CPUTIME_ID, "clock_gettime")
     }
 
     #[cfg(not(any(
@@ -125,7 +126,7 @@ fn thread_cpu_nanos() -> RuntimeResult<u64> {
         target_os = "solaris"
     ))]
     {
-        return clock_gettime_nanos(libc::CLOCK_THREAD_CPUTIME_ID, "clock_gettime");
+        clock_gettime_nanos(libc::CLOCK_THREAD_CPUTIME_ID, "clock_gettime")
     }
 
     #[cfg(not(any(
@@ -149,7 +150,7 @@ fn thread_cpu_nanos() -> RuntimeResult<u64> {
 fn boot_nanos() -> RuntimeResult<u64> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
-        return clock_gettime_nanos(libc::CLOCK_BOOTTIME, "clock_gettime");
+        clock_gettime_nanos(libc::CLOCK_BOOTTIME, "clock_gettime")
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -164,7 +165,7 @@ fn boot_nanos() -> RuntimeResult<u64> {
 fn monotonic_raw_nanos() -> RuntimeResult<u64> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
-        return clock_gettime_nanos(libc::CLOCK_MONOTONIC_RAW, "clock_gettime");
+        clock_gettime_nanos(libc::CLOCK_MONOTONIC_RAW, "clock_gettime")
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -188,7 +189,7 @@ fn process_cpu_resolution() -> RuntimeResult<u64> {
         target_os = "solaris"
     ))]
     {
-        return clock_getres_nanos(libc::CLOCK_PROCESS_CPUTIME_ID, "clock_getres");
+        clock_getres_nanos(libc::CLOCK_PROCESS_CPUTIME_ID, "clock_getres")
     }
 
     #[cfg(not(any(
@@ -221,7 +222,7 @@ fn thread_cpu_resolution() -> RuntimeResult<u64> {
         target_os = "solaris"
     ))]
     {
-        return clock_getres_nanos(libc::CLOCK_THREAD_CPUTIME_ID, "clock_getres");
+        clock_getres_nanos(libc::CLOCK_THREAD_CPUTIME_ID, "clock_getres")
     }
 
     #[cfg(not(any(
@@ -245,7 +246,7 @@ fn thread_cpu_resolution() -> RuntimeResult<u64> {
 fn boot_resolution() -> RuntimeResult<u64> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
-        return clock_getres_nanos(libc::CLOCK_BOOTTIME, "clock_getres");
+        clock_getres_nanos(libc::CLOCK_BOOTTIME, "clock_getres")
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -260,7 +261,7 @@ fn boot_resolution() -> RuntimeResult<u64> {
 fn monotonic_raw_resolution() -> RuntimeResult<u64> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
-        return clock_getres_nanos(libc::CLOCK_MONOTONIC_RAW, "clock_getres");
+        clock_getres_nanos(libc::CLOCK_MONOTONIC_RAW, "clock_getres")
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]

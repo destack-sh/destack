@@ -1,7 +1,13 @@
-/// Return the errno pointer for linux and android.
-#[cfg(any(target_os = "linux", target_os = "android", target_os = "dragonfly"))]
+/// Return the errno pointer for linux and dragonfly.
+#[cfg(any(target_os = "linux", target_os = "dragonfly"))]
 pub(crate) fn errno_location() -> *mut libc::c_int {
     unsafe { libc::__errno_location() }
+}
+
+/// Return the errno pointer for android.
+#[cfg(target_os = "android")]
+pub(crate) fn errno_location() -> *mut libc::c_int {
+    unsafe { libc::__errno() }
 }
 
 /// Return the errno pointer for apple and freebsd targets.

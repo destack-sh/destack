@@ -1,5 +1,33 @@
 use super::*;
 
+/// Return whether one stream exposes one requested clock domain.
+fn stream_supports_clock_domain(
+    binding: &AudioStreamBinding,
+    domain: AudioStreamClockDomain,
+) -> bool {
+    match domain {
+        AudioStreamClockDomain::Monotonic | AudioStreamClockDomain::Wall => true,
+        AudioStreamClockDomain::Device => binding.runtime_capabilities.supports_hardware_timestamps,
+        AudioStreamClockDomain::Callback => true,
+        AudioStreamClockDomain::InputAdc => {
+            matches!(
+                binding.direction,
+                AudioDeviceDirection::Capture
+                    | AudioDeviceDirection::Duplex
+                    | AudioDeviceDirection::Loopback
+            )
+        }
+        AudioStreamClockDomain::OutputDac => {
+            matches!(
+                binding.direction,
+                AudioDeviceDirection::Playback
+                    | AudioDeviceDirection::Duplex
+                    | AudioDeviceDirection::Loopback
+            )
+        }
+    }
+}
+
 /// Return one operation timestamp for one requested domain.
 pub(crate) fn clock_now_for_domain(
     context: &BindingCallContext,
@@ -8,6 +36,7 @@ pub(crate) fn clock_now_for_domain(
     match domain {
         AudioClockDomain::Monotonic => Ok(context.runtime().time.mono_nanos()),
         AudioClockDomain::Wall => Ok(context.runtime().time.wall_nanos()),
+        // global device clock requires one concrete opened stream clock source
         AudioClockDomain::Device => Err(RuntimeError::from(PlatformError::not_supported(
             "destack.audio.clock.now device domain",
         ))
@@ -21,6 +50,12 @@ pub(crate) fn stream_clock_snapshot(
     binding: &AudioStreamBinding,
     domain: AudioStreamClockDomain,
 ) -> RuntimeResult<AudioClockSnapshot> {
+    if !stream_supports_clock_domain(binding, domain) {
+        return Err(
+            RuntimeError::from(PlatformError::not_supported("destack.audio.clock.stream")).boxed(),
+        );
+    }
+
     let state = binding
         .sync
         .state
@@ -34,10 +69,38 @@ pub(crate) fn stream_clock_snapshot(
     let clock_ns = match domain {
         AudioStreamClockDomain::Monotonic => monotonic_ns,
         AudioStreamClockDomain::Wall => context.runtime().time.wall_nanos(),
-        AudioStreamClockDomain::Device => callback_ns.max(monotonic_ns),
-        AudioStreamClockDomain::Callback => callback_ns.max(monotonic_ns),
-        AudioStreamClockDomain::InputAdc => input_adc_ns.max(monotonic_ns),
-        AudioStreamClockDomain::OutputDac => output_dac_ns.max(monotonic_ns),
+        AudioStreamClockDomain::Device => {
+            if output_dac_ns > 0 {
+                output_dac_ns
+            } else if input_adc_ns > 0 {
+                input_adc_ns
+            } else if callback_ns > 0 {
+                callback_ns
+            } else {
+                monotonic_ns
+            }
+        }
+        AudioStreamClockDomain::Callback => {
+            if callback_ns > 0 {
+                callback_ns
+            } else {
+                monotonic_ns
+            }
+        }
+        AudioStreamClockDomain::InputAdc => {
+            if input_adc_ns > 0 {
+                input_adc_ns
+            } else {
+                monotonic_ns
+            }
+        }
+        AudioStreamClockDomain::OutputDac => {
+            if output_dac_ns > 0 {
+                output_dac_ns
+            } else {
+                monotonic_ns
+            }
+        }
     };
 
     Ok(AudioClockSnapshot {

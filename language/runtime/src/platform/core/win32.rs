@@ -175,6 +175,13 @@ pub(crate) fn wide_from_str(label: &str, value: &str) -> RuntimeResult<Vec<u16>>
     Ok(wide)
 }
 
+/// Convert a string into a nul-terminated wide string without validation.
+pub(crate) fn wide_with_nul(value: &str) -> Vec<u16> {
+    let mut wide: Vec<u16> = value.encode_utf16().collect();
+    wide.push(0);
+    wide
+}
+
 /// Convert a wide string buffer into a String.
 pub(crate) fn string_from_wide(label: &str, buffer: &[u16]) -> RuntimeResult<String> {
     String::from_utf16(buffer).map_err(|_| {
