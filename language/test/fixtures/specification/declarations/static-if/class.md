@@ -56,3 +56,54 @@ const box = new Box();
 const total = box.increment();
 total satisfies number;
 ```
+
+### static if gated class members are not visible
+
+> Members removed by static if are not available during member access.
+
+```ds
+class Box {
+    @if(false)
+    missing: number = 1;
+
+    value: number = 0;
+}
+
+const box = new Box();
+box.missing satisfies number;
+```
+
+- contains: does not exist
+
+### static if also gates static class members
+
+> Static class members removed by static if are not available on the constructor.
+
+```ds
+class Box {
+    @if(false)
+    static missing(): number {
+        1
+    }
+}
+
+Box.missing() satisfies number;
+```
+
+- contains: does not exist
+
+### static if true class fields remain required in constructors
+
+> Class fields gated with true still participate in class construction requirements.
+
+```ds
+class Box {
+    @if(true)
+    value: number;
+}
+
+const box = Box {};
+box.value satisfies number;
+```
+
+- contains: not assignable

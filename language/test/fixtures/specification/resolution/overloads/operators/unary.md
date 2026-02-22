@@ -48,3 +48,65 @@ const pointer = getPointer();
 const derefValue = *pointer;
 derefValue satisfies int;
 ```
+
+### unary operators reject unavailable unary contracts
+
+> Unary operators require the corresponding unary contract implementation.
+
+```ds
+struct Signed { value: int }
+
+extension for Signed implements Negate {
+    negate(): Signed { return this }
+}
+
+declare function getSigned(): Signed;
+
+const value = getSigned();
+const positive = +value;
+positive satisfies Signed;
+```
+
+- contains: no matching overload
+
+### dereference rejects unavailable deref contracts
+
+> Dereference requires a matching Deref contract implementation.
+
+```ds
+struct Pointer { value: int }
+
+declare function getPointer(): Pointer;
+
+const pointer = getPointer();
+const derefValue = *pointer;
+derefValue satisfies int;
+```
+
+- contains: no matching overload
+
+### unary dispatch preserves receiver-specific implementations
+
+> Unary operator dispatch uses the receiver implementation and preserves result type.
+
+```ds
+struct Signed { value: int }
+struct Unsigned { value: int }
+
+extension for Signed implements Negate {
+    negate(): Signed { return this }
+}
+
+extension for Unsigned implements Plus {
+    plus(): Unsigned { return this }
+}
+
+declare function getSigned(): Signed;
+declare function getUnsigned(): Unsigned;
+
+const signedValue = -getSigned();
+signedValue satisfies Signed;
+
+const unsignedValue = +getUnsigned();
+unsignedValue satisfies Unsigned;
+```

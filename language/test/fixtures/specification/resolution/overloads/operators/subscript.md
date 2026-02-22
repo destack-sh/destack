@@ -59,3 +59,34 @@ bag[1] = "nope";
 ```
 
 - contains: not assignable
+
+### index access rejects missing Index contracts
+
+> Index access requires an Index contract implementation.
+
+```ds
+struct Bag { value: int }
+
+declare function getBag(): Bag;
+
+const bag = getBag();
+const value = bag[1];
+value satisfies int;
+```
+
+- contains: no matching overload
+
+### index assignment rejects missing IndexSet contracts
+
+> Index assignment requires an IndexSet contract implementation.
+
+```ds
+struct Bag { value: int }
+
+declare function getBag(): Bag;
+
+const bag = getBag();
+bag[1] = 2;
+```
+
+- contains: no matching overload

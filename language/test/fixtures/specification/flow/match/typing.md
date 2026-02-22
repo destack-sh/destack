@@ -73,3 +73,33 @@ function sum(value: Point): int32 {
 ```
 
 - contains: not assignable
+
+### match arm result types must satisfy contextual annotations
+
+> Contextually typed match expressions require each arm to satisfy the annotation.
+
+```ds
+function choose(value: int32): string {
+    const result: string = match (value) {
+        0 => "zero"
+        _ => 1
+    };
+    result
+}
+```
+
+- contains: not assignable
+
+### match literal patterns can narrow union primitives
+
+> Literal patterns narrow union primitives within each arm.
+
+```ds
+function describe(value: int32 | string): string {
+    match (value) {
+        0 => "zero"
+        "ok" => "ok"
+        _ => "other"
+    }
+}
+```

@@ -1,7 +1,5 @@
 # Precise Primitives
 
-> NOTE #Incomplete: precise primitive coverage is still partial
-
 Precise numeric types beyond TypeScript's `number`.
 
 ## Coverage
@@ -31,3 +29,5 @@ const id: uint64 = 12345;
 const balance: float32 = 100.50;
 const small: int8 = 127;
 ```
+
+Primitive behavior coverage lives in the sibling fixtures in this directory.

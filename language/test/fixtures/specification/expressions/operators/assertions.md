@@ -43,3 +43,23 @@ const value: string = "ok";
 const out = value!;
 out satisfies string;
 ```
+
+### non-null assertions do not erase unrelated union members
+
+> Non-null assertions only remove nullish members from a union.
+
+```ts
+declare const value: string | number | null;
+
+const out = value!;
+out satisfies string | number;
+```
+
+### assertion chains preserve the final asserted type
+
+> Chained assertions use the final assertion target type.
+
+```ts
+const value = ("ok" as unknown) as { length: number };
+value.length satisfies number;
+```

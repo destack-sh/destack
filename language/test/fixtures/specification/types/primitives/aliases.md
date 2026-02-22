@@ -47,3 +47,25 @@ let narrow: float64 = value;
 ```
 
 - contains: not assignable
+
+### int alias rejects unsigned values
+
+> `int` aliases signed default width and rejects unsigned assignments.
+
+```ds
+declare const value: uint32;
+let alias: int = value;
+```
+
+- contains: not assignable
+
+### float alias rejects integer-narrow expectations
+
+> `float` aliases default float width and does not narrow to integer aliases.
+
+```ds
+declare const value: float;
+let alias: int = value;
+```
+
+- contains: not assignable

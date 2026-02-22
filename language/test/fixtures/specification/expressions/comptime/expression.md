@@ -44,3 +44,16 @@ function add(a: int, b: int): int {
 const value = comptime add(1, 2);
 value satisfies int;
 ```
+
+### comptime expressions reject runtime-only symbols
+
+> Comptime expressions reject runtime-only symbols from function parameters.
+
+```ds
+function compute(value: int): int {
+    const result = comptime value + 1;
+    result
+}
+```
+
+- contains: static expression

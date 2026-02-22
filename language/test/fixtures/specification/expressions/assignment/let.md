@@ -33,3 +33,37 @@ let { count }: { count: number } = { count: 0 };
 count = 1;
 count satisfies number;
 ```
+
+### let bindings reject incompatible assignment
+
+> Let bindings still enforce assignment compatibility.
+
+```ds
+let value: number = 1;
+value = "no";
+```
+
+- contains: not assignable
+
+### let bindings allow update expressions
+
+> Let bindings can be updated through increment and decrement operators.
+
+```ds
+let value: number = 1;
+value++;
+value--;
+value satisfies number;
+```
+
+### let tuple destructuring bindings remain mutable
+
+> Let tuple destructuring bindings can be reassigned after declaration.
+
+```ds
+let (left, right): (number, number) = (1, 2);
+left = 3;
+right = 4;
+left satisfies number;
+right satisfies number;
+```

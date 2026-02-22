@@ -132,3 +132,67 @@ selected satisfies "specific";
 ```json:dsconfig.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
+
+### namespace imports preserve overload order through renamed re-exports
+
+> Namespace access through renamed re-export chains should preserve overload order.
+
+```ts:api.ts
+export function pick(value: string): "general";
+export function pick(value: "x"): "specific";
+export function pick(value: string): "general" | "specific" {
+    return "general";
+}
+```
+
+```ts:index.ts
+export { pick as choose } from "./api";
+```
+
+```ts:main.ts
+import * as ns from "./index";
+
+const selected = ns.choose("x");
+selected satisfies "general";
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+### namespace imports through renamed re-exports do not select later overloads
+
+> Renamed namespace access should not promote later overload results.
+
+```ts:api.ts
+export function pick(value: string): "general";
+export function pick(value: "x"): "specific";
+export function pick(value: string): "general" | "specific" {
+    return "general";
+}
+```
+
+```ts:index.ts
+export { pick as choose } from "./api";
+```
+
+```ts:main.ts
+import * as ns from "./index";
+
+const selected = ns.choose("x");
+selected satisfies "specific";
+```
+
+- contains: not assignable
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```

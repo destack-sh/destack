@@ -21,3 +21,48 @@ const x: number = fail()
 function fail(): never { throw "error" }
 const x: string = fail()
 ```
+
+## Values Are Not Assignable to Never
+
+### number to never is rejected
+
+> Concrete values are not assignable to never.
+
+```ds
+const x: never = 1;
+```
+
+- contains: not assignable
+
+### string to never is rejected
+
+> String values are not assignable to never.
+
+```ds
+const x: never = "no";
+```
+
+- contains: not assignable
+
+### union with never simplifies to the other member
+
+> Unions with never should simplify to the non-never member.
+
+```ds
+type Value = never | string;
+
+const x: Value = "ok";
+x satisfies string;
+```
+
+### intersection with never rejects all concrete values
+
+> Intersections with never collapse to never and reject concrete values.
+
+```ds
+type Value = never & string;
+
+const x: Value = "ok";
+```
+
+- contains: not assignable

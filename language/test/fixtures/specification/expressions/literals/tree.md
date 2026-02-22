@@ -47,3 +47,28 @@ declare const A: unknown;
 const node = <A value={1} />;
 node;
 ```
+
+### tree literals reject duplicate attributes
+
+> Tree literals reject duplicate attributes on the same tag.
+
+```ds
+declare const A: unknown;
+
+const node = <A value={1} value={2} />;
+node;
+```
+
+- contains: duplicate
+
+### tree literals support nested children
+
+> Tree literals support nested child tree expressions.
+
+```ds
+declare const A: unknown;
+declare const B: unknown;
+
+const node = <A><B value={1} /></A>;
+node;
+```

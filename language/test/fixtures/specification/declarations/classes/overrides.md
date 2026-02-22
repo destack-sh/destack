@@ -73,3 +73,49 @@ class Derived extends Base {
 ```
 
 - contains: override does not match a base member
+
+### noImplicitOverride false allows missing override
+
+> Missing `override` is allowed when `noImplicitOverride` is disabled.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noImplicitOverride": false } }
+```
+
+```ds
+class Base {
+    greet(): void {}
+}
+
+class Derived extends Base {
+    greet(): void {}
+}
+```
+
+### override requires compatible method signature
+
+> Override members must remain compatible with the base member signature.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noImplicitOverride": true } }
+```
+
+```ds
+class Base {
+    greet(value: string): void {}
+}
+
+class Derived extends Base {
+    override greet(value: number): void {}
+}
+```
+
+- contains: not assignable

@@ -4,9 +4,6 @@ Tests for comparison operator overloading via interface implementations.
 
 ## Equality and ordering
 
-> TODO #Broken: comparison operators should lower compare to Ordering checks that return boolean
- (probably should do this in desugar during Bind?)
-
 ### equality and comparison operators dispatch
 
 > Operators dispatch to interface methods when the receiver implements them.
@@ -60,3 +57,59 @@ left !== right;
 ```
 
 - contains: strict equality
+
+### comparison operators reject unavailable compare contracts
+
+> Ordering operators require a Compare implementation.
+
+```ds
+struct Measure { value: int }
+
+extension for Measure implements Equal<Measure> {
+    equal(other: Measure): boolean { return true }
+}
+
+declare function getMeasure(): Measure;
+
+const left = getMeasure();
+const right = getMeasure();
+
+const isLess = left < right;
+isLess satisfies boolean;
+```
+
+- contains: no matching overload
+
+### equality operators reject unavailable equal contracts
+
+> Equality operators require an Equal implementation.
+
+```ds
+struct Measure { value: int }
+
+extension for Measure implements Compare<Measure> {
+    compare(other: Measure): Ordering { return Ordering.Equal }
+}
+
+declare function getMeasure(): Measure;
+
+const left = getMeasure();
+const right = getMeasure();
+
+const isEqual = left == right;
+isEqual satisfies boolean;
+```
+
+- contains: no matching overload
+
+### strict equality accepts primitive operands
+
+> Strict equality remains valid on primitive identity types.
+
+```ds
+const same = 1 === 1;
+same satisfies boolean;
+
+const different = 1 !== 2;
+different satisfies boolean;
+```

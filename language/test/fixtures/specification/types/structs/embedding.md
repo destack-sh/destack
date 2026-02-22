@@ -97,3 +97,38 @@ canopy.label satisfies string;
 canopy.active satisfies boolean;
 canopy.count satisfies int32;
 ```
+
+### struct embedding rejects missing required embedded fields
+
+> Struct literal construction must include required fields from embeds.
+
+```ds
+struct Transform {
+    x: int32
+}
+
+struct Entity {
+    ...Transform
+}
+
+const entity = Entity {};
+```
+
+- contains: not assignable
+
+### struct embedding rejects duplicate field declarations
+
+> Embedding should reject conflicts when embedded and local fields share names.
+
+```ds
+struct Transform {
+    x: int32
+}
+
+struct Entity {
+    ...Transform
+    x: string
+}
+```
+
+- contains: duplicate

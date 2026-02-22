@@ -46,3 +46,97 @@ orValue satisfies Bits;
 const xorValue = left ^ right;
 xorValue satisfies Bits;
 ```
+
+### bitwise and shift operators reject unavailable methods
+
+> Bitwise and shift operators require their corresponding implemented operator contracts.
+
+```ds
+struct Bits { value: int }
+
+extension for Bits implements ShiftLeft<Bits>, And<Bits> {
+    shiftLeft(other: Bits): Bits { return this }
+    and(other: Bits): Bits { return this }
+}
+
+declare function getBits(): Bits;
+
+const left = getBits();
+const right = getBits();
+
+const shiftLeft = left << right;
+shiftLeft satisfies Bits;
+
+const shiftUnsigned = left >>> right;
+shiftUnsigned satisfies Bits;
+```
+
+- contains: no matching overload
+
+### bitwise and shift operators require rhs compatibility
+
+> Bitwise and shift operator dispatch requires a compatible right operand type.
+
+```ds
+struct Bits { value: int }
+struct OtherBits { value: int }
+
+extension for Bits implements And<Bits> {
+    and(other: Bits): Bits { return this }
+}
+
+declare function getBits(): Bits;
+declare function getOtherBits(): OtherBits;
+
+const left = getBits();
+const right = getOtherBits();
+
+const andValue = left & right;
+andValue satisfies Bits;
+```
+
+- contains: no matching overload
+
+### bitwise and shift operators do not use rhs-only implementations
+
+> Receiver-based operator dispatch does not accept rhs-only bitwise implementations.
+
+```ds
+struct Bits { value: int }
+struct OtherBits { value: int }
+
+extension for OtherBits implements And<Bits> {
+    and(other: Bits): OtherBits { return this }
+}
+
+declare function getBits(): Bits;
+declare function getOtherBits(): OtherBits;
+
+const left = getBits();
+const right = getOtherBits();
+
+const andValue = left & right;
+andValue satisfies OtherBits;
+```
+
+- contains: no matching overload
+
+### saturating shift operators require shift contracts
+
+> Saturating shift operators use the same shift contract requirements.
+
+```ds
+struct Bits { value: int }
+
+extension for Bits implements ShiftLeft<Bits> {
+    shiftLeft(other: Bits): Bits { return this }
+}
+
+declare function getBits(): Bits;
+
+const left = getBits();
+const right = getBits();
+
+const shifted = left <<| right;
+shifted satisfies Bits;
+```

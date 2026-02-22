@@ -57,3 +57,25 @@ x satisfies int;
 x satisfies float;
 x satisfies number;
 ```
+
+## mixed operands
+
+### arithmetic operators reject incompatible operand types
+
+> Arithmetic operators reject incompatible operand type pairs.
+
+```ds
+const value = 1 + "two";
+```
+
+- contains: no matching overload
+
+### arithmetic operators reject boolean operands
+
+> Arithmetic operators reject boolean operands.
+
+```ds
+const value = true * 2;
+```
+
+- contains: no matching overload

@@ -84,3 +84,47 @@ selected satisfies "static";
 ```
 
 - contains: not assignable
+
+### static overloads can infer comptime arguments from as comptime aliases
+
+> `as comptime` aliases should provide known static arguments for overload applicability.
+
+```ds
+const laneCount = 4;
+type Lane = uint8[laneCount as comptime];
+
+function make<comptime N: number>(value: uint8[N]): "static" {
+    return "static";
+}
+
+function make(value: uint8[]): "dynamic" {
+    return "dynamic";
+}
+
+declare const lane: Lane;
+
+const selected = make(lane);
+selected satisfies "static";
+```
+
+### static overloads skip when as comptime aliases are not used
+
+> Without fixed-size disambiguation, dynamic aliases should not satisfy static overloads.
+
+```ds
+const laneCount = 4;
+type Lane = uint8[];
+
+function make<comptime N: number>(value: uint8[N]): "static" {
+    return "static";
+}
+
+function make(value: uint8[]): "dynamic" {
+    return "dynamic";
+}
+
+declare const lane: Lane;
+
+const selected = make(lane);
+selected satisfies "dynamic";
+```

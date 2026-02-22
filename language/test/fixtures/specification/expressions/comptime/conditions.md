@@ -57,3 +57,23 @@ function format<T>(value: T): string {
 format("ok");
 format({ name: "Ada" });
 ```
+
+### comptime type condition does not narrow in false branch
+
+> The false branch does not gain members from a failed comptime relation.
+
+```ds
+interface Named {
+    name: string
+}
+
+function format<T>(value: T): string {
+    if (comptime T extends Named) {
+        return value.name;
+    }
+    value.name;
+    return "unknown";
+}
+```
+
+- contains: does not exist

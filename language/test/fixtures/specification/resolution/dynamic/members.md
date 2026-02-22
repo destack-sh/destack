@@ -81,3 +81,42 @@ getPerson().name;
 ```
 
 - contains: does not exist
+
+### union member access preserves optional member types
+
+> Member access on unions preserves optional member unions when all variants define the member.
+
+```ds
+struct User {
+    nickname?: string
+}
+
+struct Admin {
+    nickname?: string
+}
+
+declare function getPerson(): User | Admin;
+
+const nickname = getPerson().nickname;
+nickname satisfies string | undefined;
+```
+
+### union member access rejects properties missing from one variant
+
+> Member access on unions rejects properties absent from any union variant.
+
+```ds
+struct User {
+    profile: { displayName: string }
+}
+
+struct Guest {
+    profile: { id: int32 }
+}
+
+declare function getPerson(): User | Guest;
+
+getPerson().profile.displayName;
+```
+
+- contains: does not exist

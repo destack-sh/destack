@@ -101,3 +101,49 @@ selected satisfies "narrow";
 ```
 
 - contains: not assignable
+
+### method overload order is preserved through class inheritance
+
+> Overload declaration order should stay stable on inherited methods.
+
+```ds
+class BaseParser {
+    parse(value: number): "broad" {
+        return "broad";
+    }
+
+    parse(value: 1 | 2): "narrow" {
+        return "narrow";
+    }
+}
+
+class DerivedParser extends BaseParser {}
+
+const parser = new DerivedParser();
+const selected = parser.parse(1);
+selected satisfies "broad";
+```
+
+### method overload order through inheritance does not select later overloads
+
+> Inherited method overloads should not promote later declaration results.
+
+```ds
+class BaseParser {
+    parse(value: number): "broad" {
+        return "broad";
+    }
+
+    parse(value: 1 | 2): "narrow" {
+        return "narrow";
+    }
+}
+
+class DerivedParser extends BaseParser {}
+
+const parser = new DerivedParser();
+const selected = parser.parse(1);
+selected satisfies "narrow";
+```
+
+- contains: not assignable

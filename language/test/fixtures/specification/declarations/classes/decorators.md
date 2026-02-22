@@ -49,3 +49,35 @@ class User {
 declare const user: User;
 user.greet() satisfies string;
 ```
+
+### static method decorator allows declaration
+
+> Decorators are accepted on static class methods.
+
+```ds
+class User {
+    @deprecated
+    static create(): User {
+        User { name: "Ada" }
+    }
+
+    name: string;
+}
+
+const user = User.create();
+user.name satisfies string;
+```
+
+### class field decorators reject conflicting likely and unlikely
+
+> likely and unlikely decorators cannot be combined on class fields.
+
+```ds
+class User {
+    @likely
+    @unlikely
+    name: string = "";
+}
+```
+
+- contains: likely and unlikely decorators cannot be combined

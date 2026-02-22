@@ -55,3 +55,40 @@ function factorial(n: int): int {
 const value = comptime factorial(4);
 value satisfies int;
 ```
+
+### comptime calls reject runtime-only inputs
+
+> Comptime calls reject non-static runtime inputs.
+
+```ds
+function factorial(n: int): int {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+function compute_runtime(value: int): int {
+    const result = comptime factorial(value);
+    result
+}
+```
+
+- contains: static expression
+
+### class comptime blocks reject runtime instance access
+
+> Class comptime blocks cannot depend on runtime instance state.
+
+```ds
+class Counter {
+    value: int32 = 0
+
+    comptime {
+        let snapshot = this.value;
+        let _ = snapshot;
+    }
+}
+```
+
+- contains: static expression

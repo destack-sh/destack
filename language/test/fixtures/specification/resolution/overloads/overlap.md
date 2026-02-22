@@ -40,3 +40,56 @@ selected satisfies "narrow";
 ```
 
 - contains: not assignable
+
+### narrow overloads win when declared before broad overloads
+
+> A narrow overload declared first should win for matching literals.
+
+```ds
+function pick(value: 1 | 2): "narrow" {
+    return "narrow";
+}
+
+function pick(value: number): "broad" {
+    return "broad";
+}
+
+const selected = pick(1);
+selected satisfies "narrow";
+```
+
+### narrow-first declarations do not select later broad overloads
+
+> Later broad overloads should not replace earlier narrow matches.
+
+```ds
+function pick(value: 1 | 2): "narrow" {
+    return "narrow";
+}
+
+function pick(value: number): "broad" {
+    return "broad";
+}
+
+const selected = pick(1);
+selected satisfies "broad";
+```
+
+- contains: not assignable
+
+### generic-first overlap shadows literal overloads
+
+> Generic overlap declared first should shadow later literal overloads.
+
+```ds
+function classify<T>(value: T): "generic" {
+    return "generic";
+}
+
+function classify(value: "x"): "literal" {
+    return "literal";
+}
+
+const selected = classify("x");
+selected satisfies "generic";
+```

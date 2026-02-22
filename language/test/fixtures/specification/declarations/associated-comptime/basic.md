@@ -39,6 +39,22 @@ declare const chunk: Logs.Chunk;
 chunk satisfies string[8];
 ```
 
+### associated comptime declarations can reference sibling members through this
+
+> Inside associated comptime declarations, `this` refers to the owner with substitutions applied.
+> Sibling associated comptime references through `this` should fold after owner substitution.
+
+```ds
+class Layout<Row> {
+    comptime const Width: number = Row extends string ? 4 : 2;
+    comptime const DoubleWidth: number = this.Width * 2;
+    type Lane = Row[this.DoubleWidth];
+}
+
+declare const lane: Layout<string>.Lane;
+lane satisfies string[8];
+```
+
 ### extension implementor can provide required associated comptime
 
 > Extensions can satisfy associated comptime requirements.
@@ -77,3 +93,35 @@ function unresolved<Row>() {
 ```
 
 - contains: resolvable
+
+### associated comptime projections can drive fixed array aliases
+
+> Associated comptime projections can be used as fixed array sizes with `as comptime`.
+> The projection should fold from the specialized owner before array sizing.
+
+```ds
+class SegmentPlan<Row> {
+    comptime const Width: number = Row extends string ? 4 : 2;
+}
+
+type Lane<Row> = uint8[SegmentPlan<Row>.Width as comptime];
+
+declare const lane: Lane<string>;
+lane satisfies uint8[4];
+```
+
+### associated comptime projections stay out of instance value space
+
+> Associated comptime constants are projected from owners, not runtime instances.
+> Instance member access should not expose associated comptime constants.
+
+```ds
+class SegmentPlan<Row> {
+    comptime const Width: number = Row extends string ? 4 : 2;
+}
+
+const plan = new SegmentPlan<string>();
+const width = plan.Width;
+```
+
+- contains: does not exist

@@ -52,3 +52,28 @@ value &&= 1;
 ```
 
 - contains: not assignable
+
+## nullish assignment
+
+### nullish assignment preserves assignable values
+
+> Nullish assignment uses the same assignment compatibility rules.
+
+```ts
+let value: string | undefined = undefined;
+
+value ??= "fallback";
+value satisfies string | undefined;
+```
+
+### nullish assignment rejects incompatible values
+
+> Nullish assignment rejects incompatible right hand side values.
+
+```ts
+let value: string | undefined = undefined;
+
+value ??= 1;
+```
+
+- contains: not assignable

@@ -1,44 +1,124 @@
 # Tuple Types
 
-Tests for tuple type checking.
+Tuple type fixtures lock DS tuple semantics.
+Tuple types support both parenthesized and bracket syntax.
+These are equivalent tuple type constructors: `(T, U)` and `[T, U]`.
 
-## Basic Tuples
+## positional typing
 
-### two element tuple
+### parenthesized tuple positions carry declared element types
 
-> Tuples have fixed length and typed positions.
-
-```ds
-const x: [number, string] = [1, "hello"]
-```
-
-### three element tuple
-
-> Tuples can have any number of elements.
+> Tuple positions carry their declared element types.
 
 ```ds
-const x: [number, string, boolean] = [1, "hello", true]
+const pair: (int32, string) = (1, "hello");
 ```
 
-## Tuple Inference
+### bracket tuple positions carry declared element types
 
-### inferred tuple
-
-> Array literals can be inferred as tuples based on context.
+> Bracket tuple positions carry their declared element types.
 
 ```ds
-const x = [1, "hello"]
+const pair: [int32, string] = [1, "hello"];
 ```
 
-## tuple optional ordering
+### tuple syntaxes are mutually assignable
 
-### optional elements must be last
+> Parenthesized and bracket tuple annotations represent the same tuple shape.
 
-> Optional tuple elements must be last in the tuple.
-
-```ts
-type Bad = [string?, number];
-type BadLabeled = [x?: number, y: string];
+```ds
+const left: (int32, string) = [1, "hello"];
+const right: [int32, string] = (1, "hello");
 ```
 
-- contains: optional tuple elements must be last
+### parenthesized tuple arity is enforced on assignment
+
+> Tuple assignments must satisfy fixed positional arity.
+
+```ds
+const pair: (int32, string) = (1);
+```
+
+- contains: not assignable
+
+### bracket tuple arity is enforced on assignment
+
+> Bracket tuple assignments must satisfy fixed positional arity.
+
+```ds
+const pair: [int32, string] = [1];
+```
+
+- contains: not assignable
+
+### parenthesized tuple positional element types are enforced
+
+> Tuple assignments must satisfy each positional element type.
+
+```ds
+const pair: (int32, string) = ("one", 2);
+```
+
+- contains: not assignable
+
+### bracket tuple positional element types are enforced
+
+> Bracket tuple assignments must satisfy each positional element type.
+
+```ds
+const pair: [int32, string] = ["one", 2];
+```
+
+- contains: not assignable
+
+### nested tuples preserve nested element types across both syntaxes
+
+> Nested tuples preserve nested element types across both syntax forms.
+
+```ds
+const left: (int32, [string, boolean]) = (1, ["hello", true]);
+const right: [int32, (string, boolean)] = [1, ("hello", true)];
+```
+
+## tuple and array assignability
+
+### parenthesized tuples are assignable to dynamic arrays when elements are compatible
+
+> Tuples are assignable to dynamic arrays when element types are compatible.
+
+```ds
+const pair: (int32, int32) = (1, 2);
+const values: int32[] = pair;
+```
+
+### bracket tuples are assignable to dynamic arrays when elements are compatible
+
+> Bracket tuples are assignable to dynamic arrays when element types are compatible.
+
+```ds
+const pair: [int32, int32] = [1, 2];
+const values: int32[] = pair;
+```
+
+### tuples reject assignment to incompatible dynamic arrays
+
+> Tuples reject assignment to dynamic arrays with incompatible element types.
+
+```ds
+const pair: (int32, int32) = (1, 2);
+const values: string[] = pair;
+```
+
+- contains: not assignable
+
+### dynamic arrays are not assignable to fixed tuples
+
+> Dynamic arrays are not assignable to fixed tuples.
+
+```ds
+const values: int32[] = [1, 2];
+const pair: (int32, int32) = values;
+const pair2: [int32, int32] = values;
+```
+
+- contains: not assignable

@@ -23,3 +23,43 @@ let value: number = while (true) {
 ```
 
 - contains: not assignable
+
+### while allows continue in the loop body
+
+> Continue is valid in while loop bodies.
+
+```ds
+let i = 0;
+while (i < 3) {
+    i = i + 1;
+    if (i == 2) {
+        continue;
+    }
+}
+```
+
+### while allows break in the loop body
+
+> Break is valid in while loop bodies.
+
+```ds
+let i = 0;
+while (i < 3) {
+    i = i + 1;
+    if (i == 2) {
+        break;
+    }
+}
+```
+
+### while condition supports narrowing in the body
+
+> While conditions contribute control-flow narrowing inside the loop body.
+
+```ds
+let value: string | int32 = "ok";
+while (typeof value == "string") {
+    value satisfies string;
+    break;
+}
+```

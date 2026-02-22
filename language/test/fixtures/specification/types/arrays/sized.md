@@ -42,3 +42,23 @@ function take(values: int32[]): int32[] { return values; }
 let fixed: int32[2] = [1, 2];
 let dynamic = take(fixed);
 ```
+
+### sized arrays with equal lengths are assignable
+
+> Fixed arrays with equal lengths and element types are assignable.
+
+```ds
+let source: int32[2] = [1, 2];
+let target: int32[2] = source;
+```
+
+### sized arrays with different lengths are not assignable
+
+> Fixed arrays with different lengths are not assignable.
+
+```ds
+let source: int32[2] = [1, 2];
+let target: int32[3] = source;
+```
+
+- contains: not assignable

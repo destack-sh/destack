@@ -56,3 +56,103 @@ selected satisfies "narrow";
 ```
 
 - contains: not assignable
+
+### this parameter overloads apply through bind with declaration order
+
+> Bound calls should preserve declaration-order overload selection for `this` parameters.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictBindCallApply": true } }
+```
+
+```ds
+function use(this: { kind: string }, value: number): "broad" {
+    return "broad";
+}
+
+function use(this: { kind: "a" }, value: number): "narrow" {
+    return "narrow";
+}
+
+const bound = use.bind({ kind: "a" });
+const selected = bound(1);
+selected satisfies "broad";
+```
+
+### strictBindCallApply rejects incompatible this arguments
+
+> Strict bind/call/apply checks should reject incompatible `this` arguments.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictBindCallApply": true } }
+```
+
+```ds
+function use(this: { kind: string }, value: number): "broad" {
+    return "broad";
+}
+
+use.call({ kind: 1 }, 1);
+```
+
+- contains: not assignable
+
+### this parameter overloads preserve declaration order for apply
+
+> `.apply` should preserve declaration-order selection for `this` overloads.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictBindCallApply": true } }
+```
+
+```ds
+function use(this: { kind: string }, value: number): "broad" {
+    return "broad";
+}
+
+function use(this: { kind: "a" }, value: number): "narrow" {
+    return "narrow";
+}
+
+const selected = use.apply({ kind: "a" }, [1]);
+selected satisfies "broad";
+```
+
+### this parameter overloads with apply do not select later overloads
+
+> Later `this` overloads should not win through `.apply`.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictBindCallApply": true } }
+```
+
+```ds
+function use(this: { kind: string }, value: number): "broad" {
+    return "broad";
+}
+
+function use(this: { kind: "a" }, value: number): "narrow" {
+    return "narrow";
+}
+
+const selected = use.apply({ kind: "a" }, [1]);
+selected satisfies "narrow";
+```
+
+- contains: not assignable

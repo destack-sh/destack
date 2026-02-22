@@ -67,3 +67,96 @@ powWrapping satisfies Scalar;
 const powSaturating = left **| right;
 powSaturating satisfies Scalar;
 ```
+
+### arithmetic operators reject unavailable methods
+
+> Arithmetic operators require the corresponding implemented operator contract.
+
+```ds
+struct Scalar { value: int }
+
+extension for Scalar implements Add<Scalar> {
+    add(other: Scalar): Scalar { return this }
+}
+
+declare function getScalar(): Scalar;
+
+const left = getScalar();
+const right = getScalar();
+
+const add = left + right;
+add satisfies Scalar;
+
+const subtract = left - right;
+subtract satisfies Scalar;
+```
+
+- contains: no matching overload
+
+### arithmetic operators require rhs compatibility
+
+> Arithmetic operator dispatch requires a compatible right operand type.
+
+```ds
+struct Scalar { value: int }
+struct Other { value: int }
+
+extension for Scalar implements Add<Scalar> {
+    add(other: Scalar): Scalar { return this }
+}
+
+declare function getScalar(): Scalar;
+declare function getOther(): Other;
+
+const left = getScalar();
+const right = getOther();
+
+const add = left + right;
+add satisfies Scalar;
+```
+
+- contains: no matching overload
+
+### arithmetic operators do not use rhs-only implementations
+
+> Receiver-based operator dispatch does not accept rhs-only overload implementations.
+
+```ds
+struct Scalar { value: int }
+struct Other { value: int }
+
+extension for Other implements Add<Scalar> {
+    add(other: Scalar): Other { return this }
+}
+
+declare function getScalar(): Scalar;
+declare function getOther(): Other;
+
+const left = getScalar();
+const right = getOther();
+
+const add = left + right;
+add satisfies Other;
+```
+
+- contains: no matching overload
+
+### arithmetic wrapping operators require the same receiver contracts
+
+> Wrapping arithmetic operators use the same receiver-based contract requirements.
+
+```ds
+struct Scalar { value: int }
+
+extension for Scalar implements Add<Scalar> {
+    add(other: Scalar): Scalar { return this }
+}
+
+declare function getScalar(): Scalar;
+
+const left = getScalar();
+const right = getScalar();
+
+const wrapped = left +% right;
+wrapped satisfies Scalar;
+```

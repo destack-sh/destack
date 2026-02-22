@@ -1,6 +1,6 @@
-# Associated Comptime Constants: Type Composition
+# Associated Comptime Constants: Type Operators
 
-## composition
+## type-operators
 
 ### service profile composes batching with mapped envelopes
 
@@ -92,3 +92,43 @@ function unresolved<Row>(): number {
 ```
 
 - contains: resolvable
+
+### associated comptime defaults can feed mapped envelopes with fixed windows
+
+> Associated comptime defaults can feed mapped envelopes that carry fixed windows.
+> The mapped result should use the specialized comptime width in every field.
+
+```ds
+interface WindowedState<State> {
+    comptime const Width: number = 2;
+    type Window = uint8[this.Width];
+    type Envelope = { [K in keyof State]: [State[K], this.Window] };
+}
+
+class RuntimeState implements WindowedState<{ warm: boolean, retries: int32 }> {}
+
+declare const envelope: RuntimeState.Envelope;
+envelope satisfies { warm: [boolean, uint8[2]], retries: [int32, uint8[2]] };
+```
+
+### conditional associated comptime defaults can shape mapped packet aliases
+
+> Conditional associated comptime defaults can shape mapped packet aliases.
+> Branch selection should happen before mapped alias instantiation.
+
+```ds
+interface PacketShape<Row> {
+    comptime const Width: number = Row extends string ? 4 : 2;
+    type Packet = { [K in "head" | "tail"]: Row[this.Width] };
+}
+
+class TextPacket implements PacketShape<string> {}
+
+declare const packet: TextPacket.Packet;
+
+declare const head: TextPacket.Packet["head"];
+head satisfies string[4];
+
+declare const tail: TextPacket.Packet["tail"];
+tail satisfies string[4];
+```

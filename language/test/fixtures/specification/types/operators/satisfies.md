@@ -71,3 +71,47 @@ type Shape = { mode: "dev" | "prod" };
 let config = { mode: "dev" } satisfies Shape;
 config.mode satisfies "dev" | "prod";
 ```
+
+## expression identity
+
+### satisfies keeps source members after validation
+
+> Satisfies should validate against the target while keeping source member access.
+
+```ts
+type Target = { mode: "dev" | "prod"; retries: number };
+
+const config = { mode: "dev", retries: 3 } satisfies Target;
+
+config.retries satisfies number;
+```
+
+### satisfies keeps source method signatures
+
+> Satisfies should not erase source method signatures after target validation.
+
+```ts
+type Target = { mode: "dev" | "prod" };
+
+const config = {
+    mode: "dev",
+    next(value: number) {
+        return value + 1;
+    },
+} satisfies Target & { next(value: number): number };
+
+config.next(1) satisfies number;
+```
+
+## assignment target behavior
+
+### satisfies expressions are not assignment targets
+
+> Satisfies expressions should not be legal assignment targets.
+
+```ts
+let value = 1;
+(value satisfies number) = 2;
+```
+
+- contains: assignment

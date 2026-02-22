@@ -29,3 +29,22 @@ let value: character = "a";
 ```
 
 - contains: not assignable
+
+### character values are not assignable to numbers
+
+> Character values do not implicitly convert to numeric types.
+
+```ds
+let value: int32 = 'a';
+```
+
+- contains: not assignable
+
+### character values can flow through character unions
+
+> Character values are assignable to unions that include character.
+
+```ds
+let value: character | string = 'a';
+value satisfies character | string;
+```

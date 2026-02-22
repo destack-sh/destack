@@ -241,3 +241,139 @@ function dup(value: number, value: number) {
 ```
 
 - contains: duplicate identifier
+
+## moduleResolution
+
+### bundler resolution is accepted with commonjs modules
+
+> `moduleResolution: "bundler"` can be combined with `module: "commonjs"` for modern TypeScript parity.
+
+```ts:main.ts
+import { value } from "./dep";
+
+value satisfies number;
+```
+
+```ts:dep.ts
+export const value = 1;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{
+  "compilerOptions": {
+    "allowTs": true,
+    "checkTs": true,
+    "module": "commonjs",
+    "moduleResolution": "bundler"
+  }
+}
+```
+
+## noUncheckedSideEffectImports
+
+### noUncheckedSideEffectImports reports unresolved side-effect imports by default
+
+> Modern TypeScript parity reports unresolved side-effect imports when the option is enabled.
+
+```ts:main.ts
+import "./missing-side-effect";
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{
+  "compilerOptions": {
+    "allowTs": true,
+    "checkTs": true,
+    "noUncheckedSideEffectImports": true
+  }
+}
+```
+
+- contains: unresolved module
+
+### noUncheckedSideEffectImports false allows unresolved side-effect imports
+
+> Disabling noUncheckedSideEffectImports should allow unresolved side-effect imports.
+
+```ts:main.ts
+import "./missing-side-effect";
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{
+  "compilerOptions": {
+    "allowTs": true,
+    "checkTs": true,
+    "noUncheckedSideEffectImports": false
+  }
+}
+```
+
+### noUncheckedSideEffectImports true allows resolved side-effect imports
+
+> Enabling noUncheckedSideEffectImports still allows side-effect imports that resolve.
+
+```ts:dep.ts
+export const loaded = true;
+```
+
+```ts:main.ts
+import "./dep";
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{
+  "compilerOptions": {
+    "allowTs": true,
+    "checkTs": true,
+    "noUncheckedSideEffectImports": true
+  }
+}
+```
+
+## verbatimModuleSyntax
+
+### verbatimModuleSyntax keeps type-only imports erasable
+
+> Verbatim module syntax should still permit type-only imports used only in type positions.
+
+```ts:types.ts
+export type User = { name: string };
+```
+
+```ts:main.ts
+import type { User } from "./types";
+
+const user: User = { name: "Ada" };
+user satisfies User;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{
+  "compilerOptions": {
+    "allowTs": true,
+    "checkTs": true,
+    "verbatimModuleSyntax": true
+  }
+}
+```

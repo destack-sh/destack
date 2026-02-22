@@ -147,3 +147,125 @@ type Wrapped<T> = [T] extends [string] ? "yes" : "no";
 
 let ok: Wrapped<string | int32> = "no";
 ```
+
+## distribution torture
+
+### distributive conditionals preserve both matching branch results
+
+> Distributive conditionals should evaluate each union member independently.
+
+```ds
+type Dist<T> = T extends "a" ? 1 : 0;
+
+let one: Dist<"a" | "b"> = 1;
+let zero: Dist<"a" | "b"> = 0;
+```
+
+### non-distributive wrapped conditionals collapse union checks
+
+> Wrapped conditionals should evaluate the union as one whole relation.
+
+```ds
+type NonDist<T> = [T] extends ["a"] ? 1 : 0;
+
+let ok: NonDist<"a" | "b"> = 0;
+```
+
+### non-distributive wrapped conditionals reject distributive branch values
+
+> Wrapped conditionals should reject branch values that only exist in distributive evaluation.
+
+```ds
+type NonDist<T> = [T] extends ["a"] ? 1 : 0;
+
+let bad: NonDist<"a" | "b"> = 1;
+```
+
+- contains: not assignable
+
+### wrapped any conditionals choose the true branch
+
+> Wrapped `any` should evaluate as one relation and choose the true branch.
+
+```ds
+type WrappedAny = [any] extends [string] ? "yes" : "no";
+
+let ok: WrappedAny = "yes";
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
+### wrapped unknown conditionals choose the false branch
+
+> Wrapped `unknown` should not satisfy narrower true-branch constraints.
+
+```ds
+type WrappedUnknown = [unknown] extends [string] ? "yes" : "no";
+
+let ok: WrappedUnknown = "no";
+```
+
+## infer extraction
+
+### conditional infer extracts nested generic members
+
+> Conditional `infer` extracts nested generic members from matching shapes.
+
+```ts
+type Box<T> = { value: T };
+type Unbox<T> = T extends Box<infer U> ? U : never;
+
+const ok: Unbox<Box<"ready">> = "ready";
+```
+
+### conditional infer rejects non matching extracted members
+
+> Extracted conditional members reject incompatible assignments.
+
+```ts
+type Box<T> = { value: T };
+type Unbox<T> = T extends Box<infer U> ? U : never;
+
+const bad: Unbox<Box<"ready">> = "no";
+```
+
+- contains: not assignable
+
+### conditional infer over unions preserves distributed member unions
+
+> Conditional `infer` distributes over unions and preserves extracted member unions.
+
+```ts
+type Box<T> = { value: T };
+type Unbox<T> = T extends Box<infer U> ? U : never;
+
+const ok1: Unbox<Box<"a"> | Box<"b">> = "a";
+const ok2: Unbox<Box<"a"> | Box<"b">> = "b";
+```
+
+### conditional infer over unions rejects values outside extracted members
+
+> Distributed conditional extraction rejects values outside the extracted member union.
+
+```ts
+type Box<T> = { value: T };
+type Unbox<T> = T extends Box<infer U> ? U : never;
+
+const bad: Unbox<Box<"a"> | Box<"b">> = "c";
+```
+
+- contains: not assignable
+
+### wrapped conditional infer keeps union extraction in one relation
+
+> Wrapping both sides disables distribution and infers one union member relation.
+
+```ts
+type Box<T> = { value: T };
+type WrappedUnbox<T> = [T] extends [Box<infer U>] ? U : never;
+
+const ok1: WrappedUnbox<Box<"a"> | Box<"b">> = "a";
+const ok2: WrappedUnbox<Box<"a"> | Box<"b">> = "b";
+```
