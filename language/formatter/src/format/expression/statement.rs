@@ -1,22 +1,103 @@
-use super::dependency::{format_export_expression, format_import_expression};
-use super::sort::format_export_import_equals;
-use crate::analysis::timing::tags;
-use crate::directive::{
+use crate::format::analysis::timing::tags;
+use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
-use crate::expression::{
+use crate::format::expression::dependency::{format_export_expression, format_import_expression};
+use crate::format::expression::{
     Annotation, AnnotationPosition, Asynchrony, Block, DeclarationDescriptor, DeclarationKind,
-    Declarator, DestackFormatContext, DestackFormatter, Expression, ForEachBinding,
-    ForEachDeclarationKind, ForEachKind, FormatResult, IfKind, Keyword, LetKind, LocalNodeId,
-    Mutability, NodeType, Pattern, TypeUnaryOperator, WhileKind, YieldCardinality, block_indent,
-    detect_for_each_binding_keyword, expression_has_leading_prefix_comment, format_declarator,
-    format_expression, format_for_each_binding_pattern, format_if_else_chain, format_match,
+    Declarator, DependencyKind, DestackFormatContext, DestackFormatter, Expression, ForEachBinding,
+    ForEachDeclarationKind, ForEachKind, FormatResult, IfKind, ImportSource, Keyword, LetKind,
+    LocalNodeId, Mutability, NodeTree, NodeType, Pattern, TypeUnaryOperator, WhileKind,
+    YieldCardinality, block_indent, detect_for_each_binding_keyword,
+    expression_has_leading_prefix_comment, format_declarator, format_expression,
+    format_for_each_binding_pattern, format_if_else_chain, format_match,
     format_statement_body_block, format_ternary, format_with, group, hard_line_break,
     is_empty_statement_block, space, token, tree_literal_should_break,
 };
-use destack_ast::{Comment, CommentStyle};
-use destack_fir::format::{Buffer, Format};
+use destack_ast::{Comment, CommentStyle, ImportTarget};
+use destack_fir::format::{Buffer, Format, FormatError};
 use destack_fir::write;
+
+/// Format `export import ... = require(...)` when modeled as an export let.
+fn format_export_import_equals(
+    f: &mut DestackFormatter<'_, '_>,
+    tree: &NodeTree,
+    descriptor: &DeclarationDescriptor,
+    declarators: &[LocalNodeId<Declarator>],
+) -> FormatResult<bool> {
+    // descriptor.export is only set for export forms
+    let Some(export) = descriptor.export else {
+        return Ok(false);
+    };
+
+    // expect single declarator: const Alias = importEquals
+    if declarators.len() != 1 {
+        return Ok(false);
+    }
+
+    let Declarator {
+        pattern,
+        ty: None,
+        value: Some(value),
+    } = tree.get(declarators[0])
+    else {
+        return Ok(false);
+    };
+
+    if !matches!(tree.get(*pattern), Pattern::Binding { .. }) {
+        return Ok(false);
+    }
+
+    let Expression::Import {
+        source,
+        kind,
+        target,
+        items,
+        ..
+    } = tree.get(*value)
+    else {
+        return Ok(false);
+    };
+
+    if *source != ImportSource::ImportEquals {
+        return Ok(false);
+    }
+    let target = match target {
+        ImportTarget::String(target) => *target,
+        ImportTarget::Expression { .. } => {
+            return Ok(false);
+        }
+    };
+
+    let alias =
+        items
+            .first()
+            .and_then(|item| tree.get(*item).alias)
+            .ok_or(FormatError::SyntaxError {
+                message: "import equals requires an alias",
+            })?;
+
+    write!(f, [export, space(), Keyword::Import, space()])?;
+    if *kind == DependencyKind::Type {
+        write!(f, [Keyword::Type, space()])?;
+    }
+    write!(
+        f,
+        [
+            alias,
+            space(),
+            token("="),
+            space(),
+            token("require"),
+            token("("),
+            token("\""),
+            target,
+            token("\""),
+            token(")")
+        ]
+    )?;
+    Ok(true)
+}
 
 /// Return whether a statement wrapper should print a trailing semicolon.
 fn statement_expression_needs_semicolon(
@@ -592,7 +673,7 @@ fn format_return_expression<'ast>(
 }
 
 /// Format statement-like expression variants.
-pub(super) fn format_statement_expression<'ast>(
+pub(crate) fn format_statement_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expression: &Expression,

@@ -1,10 +1,11 @@
-use crate::expression::{
-    Argument, BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult,
-    IfKind, LocalNodeId, NodeTree, NodeType, OperatorPrecedence, ParenthesizedUnwrapPolicy,
-    PostfixPosition, ScalarLiteral, Span, StringId, TypeBinaryOperator,
-    argument_is_template_literal, block_indent, format_static_argument_list, format_with, group,
-    hard_line_break, indent, parenthesized_should_unwrap, should_parenthesize_index_expression,
-    soft_line_break, span_has_comment, token,
+use crate::format::chain::analyze_chain_parent_facts;
+use crate::format::expression::{
+    BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult, IfKind,
+    LocalNodeId, NodeTree, NodeType, OperatorPrecedence, ParenthesizedUnwrapPolicy,
+    PostfixPosition, ScalarLiteral, Span, StringId, TypeBinaryOperator, block_indent,
+    format_static_argument_list, format_with, group, hard_line_break, indent,
+    parenthesized_should_unwrap, should_parenthesize_index_expression, soft_line_break,
+    span_has_comment, token,
 };
 use destack_fir::format::Buffer;
 use destack_fir::{format_args, write};
@@ -53,83 +54,6 @@ fn format_member_receiver<'ast>(
     write_postfix_base_expression(f, receiver_id)
 }
 
-/// Return whether one call has a single multiline template literal argument.
-fn call_has_single_multiline_template_literal_argument(
-    context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    dynamic_arguments.len() == 1
-        && argument_is_template_literal(context, dynamic_arguments[0])
-        && context.node_has_newline(dynamic_arguments[0])
-}
-
-/// Return whether one member is the callee of a single multiline template call.
-fn member_is_callee_of_single_multiline_template_call(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    let Expression::Call {
-        left,
-        dynamic_arguments,
-        ..
-    } = context.tree.get(parent_expression_id)
-    else {
-        return false;
-    };
-
-    left.id == node_id.id
-        && call_has_single_multiline_template_literal_argument(context, dynamic_arguments)
-}
-
-/// Return whether one member receiver sits under an await-like unary owner.
-fn member_receiver_is_await_wrapped(
-    context: &DestackFormatContext<'_>,
-    receiver_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(receiver_id) else {
-        return false;
-    };
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    match context.tree.get(parent_expression_id) {
-        Expression::Await { expression } | Expression::AwaitMaybe { expression } => {
-            *expression == receiver_id
-        }
-        Expression::Parenthesized { expression } => {
-            if *expression != receiver_id {
-                return false;
-            }
-
-            let Some((grandparent_id, grandparent_type)) = context.parent(parent_expression_id)
-            else {
-                return false;
-            };
-            if grandparent_type != NodeType::Expression {
-                return false;
-            }
-
-            let grandparent_expression_id = LocalNodeId::<Expression>::new(grandparent_id);
-            matches!(
-                context.tree.get(grandparent_expression_id),
-                Expression::Await { expression } | Expression::AwaitMaybe { expression }
-                    if *expression == parent_expression_id
-            )
-        }
-        _ => false,
-    }
-}
-
 /// Format a member expression.
 pub(crate) fn format_member_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -152,12 +76,12 @@ pub(crate) fn format_member_expression<'ast>(
             } else {
                 *left
             };
+            let receiver_parent_facts = analyze_chain_parent_facts(f.context(), left);
             let is_breakable_member_receiver = matches!(
                 f.context().tree.get(left),
                 Expression::Call { .. } | Expression::Instantiation { .. }
-            )
-                && !member_is_callee_of_single_multiline_template_call(f.context(), node_id)
-                && !member_receiver_is_await_wrapped(f.context(), left);
+            ) && !receiver_parent_facts
+                .receiver_is_await_wrapped();
             let should_wrap_receiver_for_static_instantiation =
                 expression_has_trailing_static_instantiation(f.context().tree, left);
 
@@ -206,12 +130,12 @@ pub(crate) fn format_member_expression<'ast>(
             } else {
                 *left
             };
+            let receiver_parent_facts = analyze_chain_parent_facts(f.context(), left);
             let is_breakable_member_receiver = matches!(
                 f.context().tree.get(left),
                 Expression::Call { .. } | Expression::Instantiation { .. }
-            )
-                && !member_is_callee_of_single_multiline_template_call(f.context(), node_id)
-                && !member_receiver_is_await_wrapped(f.context(), left);
+            ) && !receiver_parent_facts
+                .receiver_is_await_wrapped();
             let should_wrap_receiver_for_static_instantiation =
                 expression_has_trailing_static_instantiation(f.context().tree, left);
 

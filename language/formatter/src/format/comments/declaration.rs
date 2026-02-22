@@ -1,13 +1,13 @@
 use ast::{AnnotationPosition, NodeParentIndex, NodeTree, NodeType, TokenType};
 use destack_ast as ast;
 
-use super::index::FormatterTriviaOwnerIndex;
-use super::owner::{
+use crate::format::comments::index::FormatterTriviaOwnerIndex;
+use crate::format::comments::owner::{
     find_next_declaration_owner_from_token, find_next_member_owner_from_token,
     find_smallest_owner_enclosing_range, normalize_formatter_trivia_target_owner,
     promote_owner_to_declaration_ancestor, promote_owner_to_node_type_ancestor,
 };
-use super::seam::{
+use crate::format::comments::seam::{
     CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
     CommentSeamKeyword,
 };
@@ -31,8 +31,59 @@ fn declaration_owner_has_head_before_open_brace(tree: &NodeTree, owner_id: u32) 
     )
 }
 
-/// Resolve declaration seam comment rules.
-pub(super) fn try_attach_comment_declaration(
+/// Resolve declaration `implements` own-line seam comments.
+pub(crate) fn try_attach_comment_declaration_implements_seam(
+    tree: &NodeTree,
+    facts: &CommentSeamFacts,
+    owners: CommentAttachmentOwners,
+) -> Option<CommentAttachmentDecision> {
+    if !facts.has_leading_newline {
+        return None;
+    }
+
+    if !facts.token_before_is_keyword(CommentSeamKeyword::Implements) {
+        return None;
+    }
+
+    let target_node = owners.left?;
+    let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+    Some((Some(target_node), AnnotationPosition::BlockPostfix))
+}
+
+/// Resolve declaration head comments directly before `{`.
+pub(crate) fn try_attach_comment_declaration_head_open_brace_seam(
+    tree: &NodeTree,
+    context: &CommentSeamContext<'_>,
+    facts: &CommentSeamFacts,
+    owners: CommentAttachmentOwners,
+) -> Option<CommentAttachmentDecision> {
+    if facts.has_leading_newline || !facts.comment_is_star {
+        return None;
+    }
+
+    if !facts.token_after_is(TokenType::OpenBrace) {
+        return None;
+    }
+
+    let target_node = context
+        .token_before_span
+        .zip(context.token_after_span)
+        .and_then(|(before, after)| {
+            find_smallest_owner_enclosing_range(tree, before.span.start, after.span.end)
+        })
+        .filter(|owner| declaration_owner_has_head_before_open_brace(tree, *owner))
+        .or_else(|| {
+            owners
+                .left
+                .filter(|owner| declaration_owner_has_head_before_open_brace(tree, *owner))
+        })?;
+
+    let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+    Some((Some(target_node), AnnotationPosition::LinePrefix))
+}
+
+/// Resolve declaration decorator-adjacent seam comments.
+pub(crate) fn try_attach_comment_declaration_decorator_seam(
     tree: &NodeTree,
     owner_index: &FormatterTriviaOwnerIndex,
     parents: &NodeParentIndex,
@@ -40,117 +91,164 @@ pub(super) fn try_attach_comment_declaration(
     facts: &CommentSeamFacts,
     owners: CommentAttachmentOwners,
 ) -> Option<CommentAttachmentDecision> {
-    let left_owner = owners.left;
-    let right_owner = owners.right;
-    let token_after = context.token_after;
-    let token_before_span = context.token_before_span;
-    let token_after_span = context.token_after_span;
-    let has_leading_newline = facts.has_leading_newline;
-    let has_trailing_newline = facts.has_trailing_newline;
-    let comment_is_star = facts.comment_is_star;
-    let token_after_is_at = facts.token_after_is(TokenType::At);
-    let token_after_is_open_brace = facts.token_after_is(TokenType::OpenBrace);
-    let token_after_is_arrow = matches!(
+    if !facts.token_after_is(TokenType::At) {
+        return None;
+    }
+
+    let member_target_from_token = context.token_after.and_then(|token_after_index| {
+        find_next_member_owner_from_token(tree, owner_index, token_after_index)
+    });
+    let member_target = owners.right.and_then(|owner| {
+        promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member)
+    });
+    let declaration_target = context
+        .token_after
+        .and_then(|token_after_index| {
+            find_next_declaration_owner_from_token(tree, owner_index, token_after_index)
+        })
+        .or_else(|| {
+            owners
+                .right
+                .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        })
+        .or_else(|| {
+            owners
+                .left
+                .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+        })
+        .or_else(|| {
+            owners
+                .right
+                .filter(|owner| tree.get_node_type(*owner) == NodeType::Declaration)
+        })
+        .or_else(|| {
+            owners
+                .left
+                .filter(|owner| tree.get_node_type(*owner) == NodeType::Declaration)
+        });
+
+    let target_node = member_target_from_token
+        .or(member_target)
+        .or(declaration_target)?;
+    let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+
+    if facts.has_leading_newline {
+        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+    }
+
+    Some((Some(target_node), AnnotationPosition::LinePrefix))
+}
+
+/// Resolve declaration comments between parameter lists and arrows.
+pub(crate) fn try_attach_comment_declaration_arrow_seam(
+    tree: &NodeTree,
+    context: &CommentSeamContext<'_>,
+    facts: &CommentSeamFacts,
+) -> Option<CommentAttachmentDecision> {
+    if !facts.comment_is_star {
+        return None;
+    }
+
+    if !matches!(
         facts.token_after_type,
         Some(TokenType::Arrow | TokenType::ArrowWide)
-    );
-
-    let token_before_is_export = facts.token_before_is_keyword(CommentSeamKeyword::Export);
-    let token_before_is_implements = facts.token_before_is_keyword(CommentSeamKeyword::Implements);
-
-    // own-line comments after `implements` should stay on the class declaration seam
-    if has_leading_newline
-        && token_before_is_implements
-        && let Some(target_node) = left_owner
-    {
-        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        return Some((Some(target_node), AnnotationPosition::BlockPostfix));
+    ) {
+        return None;
     }
 
-    // inline class and struct head comments before `{` stay on the declaration head.
-    if !has_leading_newline
-        && comment_is_star
-        && token_after_is_open_brace
-        && let Some(target_node) = token_before_span
-            .zip(token_after_span)
-            .and_then(|(before, after)| {
-                find_smallest_owner_enclosing_range(tree, before.span.start, after.span.end)
-            })
-            .filter(|owner| declaration_owner_has_head_before_open_brace(tree, *owner))
-            .or_else(|| {
-                left_owner
-                    .filter(|owner| declaration_owner_has_head_before_open_brace(tree, *owner))
-            })
-    {
-        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        return Some((Some(target_node), AnnotationPosition::LinePrefix));
+    let (token_before_span, token_after_span) =
+        (context.token_before_span?, context.token_after_span?);
+    let target_node = find_smallest_owner_enclosing_range(
+        tree,
+        token_before_span.span.start,
+        token_after_span.span.end,
+    )?;
+    let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+
+    Some((Some(target_node), AnnotationPosition::BlockInfix))
+}
+
+/// Resolve declaration export-head seam comments.
+pub(crate) fn try_attach_comment_declaration_export_seam(
+    tree: &NodeTree,
+    context: &CommentSeamContext<'_>,
+    facts: &CommentSeamFacts,
+) -> Option<CommentAttachmentDecision> {
+    if !facts.has_trailing_newline {
+        return None;
     }
 
-    // comments directly before decorators should bind to the right declaration owner
-    if token_after_is_at {
-        let member_target_from_token = token_after.and_then(|token_after_index| {
-            find_next_member_owner_from_token(tree, owner_index, token_after_index)
-        });
-        let member_target = right_owner.and_then(|owner| {
-            promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member)
-        });
-        let declaration_target = token_after
-            .and_then(|token_after_index| {
-                find_next_declaration_owner_from_token(tree, owner_index, token_after_index)
-            })
-            .or_else(|| {
-                right_owner
-                    .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-            })
-            .or_else(|| {
-                left_owner
-                    .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
-            })
-            .or_else(|| {
-                right_owner.filter(|owner| tree.get_node_type(*owner) == ast::NodeType::Declaration)
-            })
-            .or_else(|| {
-                left_owner.filter(|owner| tree.get_node_type(*owner) == ast::NodeType::Declaration)
-            });
-
-        if let Some(target_node) = member_target_from_token
-            .or(member_target)
-            .or(declaration_target)
-        {
-            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-            if has_leading_newline {
-                return Some((Some(target_node), AnnotationPosition::BlockPrefix));
-            }
-            return Some((Some(target_node), AnnotationPosition::LinePrefix));
-        }
+    if !facts.token_before_is_keyword(CommentSeamKeyword::Export) {
+        return None;
     }
 
-    // comments between parameter list and arrow belong to the enclosing arrow declaration seam
-    if token_after_is_arrow
-        && comment_is_star
-        && let (Some(token_before_span), Some(token_after_span)) =
-            (token_before_span, token_after_span)
-        && let Some(owner) = find_smallest_owner_enclosing_range(
-            tree,
-            token_before_span.span.start,
-            token_after_span.span.end,
-        )
-    {
-        let target_node = normalize_formatter_trivia_target_owner(tree, owner);
-        return Some((Some(target_node), AnnotationPosition::BlockInfix));
+    let target_node = context
+        .token_before_span
+        .zip(context.token_after_span)
+        .and_then(|(before, after)| {
+            find_smallest_owner_enclosing_range(tree, before.span.start, after.span.end)
+        })?;
+    let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+
+    Some((Some(target_node), AnnotationPosition::LinePrefix))
+}
+
+/// Resolve declaration return-type seam comments between `:` and the return type.
+pub(crate) fn try_attach_comment_declaration_return_type_seam(
+    tree: &NodeTree,
+    facts: &CommentSeamFacts,
+    owners: CommentAttachmentOwners,
+) -> Option<CommentAttachmentDecision> {
+    if facts.has_leading_newline || !facts.has_trailing_newline || !facts.comment_is_line {
+        return None;
     }
 
-    // export seam comments belong to the declaration head owner
-    if token_before_is_export
-        && has_trailing_newline
-        && let Some(owner) = token_before_span
-            .zip(token_after_span)
-            .and_then(|(before, after)| {
-                find_smallest_owner_enclosing_range(tree, before.span.start, after.span.end)
-            })
+    if !facts.token_before_is_return_type_colon {
+        return None;
+    }
+
+    let target_node = owners.right?;
+    let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+
+    Some((Some(target_node), AnnotationPosition::LinePrefix))
+}
+
+/// Resolve declaration seam comment rules.
+pub(crate) fn try_attach_comment_declaration(
+    tree: &NodeTree,
+    owner_index: &FormatterTriviaOwnerIndex,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    facts: &CommentSeamFacts,
+    owners: CommentAttachmentOwners,
+) -> Option<CommentAttachmentDecision> {
+    if let Some(decision) = try_attach_comment_declaration_implements_seam(tree, facts, owners) {
+        return Some(decision);
+    }
+
+    if let Some(decision) =
+        try_attach_comment_declaration_head_open_brace_seam(tree, context, facts, owners)
     {
-        let target_node = normalize_formatter_trivia_target_owner(tree, owner);
-        return Some((Some(target_node), AnnotationPosition::LinePrefix));
+        return Some(decision);
+    }
+
+    if let Some(decision) = try_attach_comment_declaration_decorator_seam(
+        tree,
+        owner_index,
+        parents,
+        context,
+        facts,
+        owners,
+    ) {
+        return Some(decision);
+    }
+
+    if let Some(decision) = try_attach_comment_declaration_arrow_seam(tree, context, facts) {
+        return Some(decision);
+    }
+
+    if let Some(decision) = try_attach_comment_declaration_export_seam(tree, context, facts) {
+        return Some(decision);
     }
 
     None

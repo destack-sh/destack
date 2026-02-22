@@ -1,10 +1,10 @@
-use crate::analysis::scan::{previous_non_whitespace_token_before_span, token_is_keyword};
-use crate::declaration::r#match::{MatchCaseStyle, format_match_case_with_style};
-use crate::directive::{
+use crate::empty_block_with_infix_annotations;
+use crate::format::analysis::scan::{previous_non_whitespace_token_before_span, token_is_keyword};
+use crate::format::declaration::r#match::{MatchCaseStyle, format_match_case_with_style};
+use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
-use crate::empty_block_with_infix_annotations;
-use crate::expression::{
+use crate::format::expression::{
     Annotation, AnnotationPosition, Block, DestackFormatContext, DestackFormatter, Expression,
     FormatResult, IfCondition, Keyword, LetKind, LocalNodeId, MatchKind, Pattern, TokenType,
     block_indent, format_declarator, format_expression, format_with, group, hard_line_break, space,
@@ -15,7 +15,7 @@ use destack_fir::format::{Buffer, FormatError};
 use destack_fir::{format_args, write};
 
 /// Format a statement body block, preserving wrapper semantics.
-pub(super) fn format_statement_body_block<'ast>(
+pub(crate) fn format_statement_body_block<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
@@ -80,7 +80,7 @@ fn is_statement_wrapper_block<'ast>(
 }
 
 /// Return true when this block is an empty statement wrapper.
-pub(super) fn is_empty_statement_block<'ast>(
+pub(crate) fn is_empty_statement_block<'ast>(
     context: &DestackFormatContext<'ast>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
@@ -89,7 +89,7 @@ pub(super) fn is_empty_statement_block<'ast>(
 }
 
 /// Detect a source binding keyword for a for each pattern binding.
-pub(super) fn detect_for_each_binding_keyword<'ast>(
+pub(crate) fn detect_for_each_binding_keyword<'ast>(
     context: &DestackFormatContext<'ast>,
     _for_each_id: LocalNodeId<Expression>,
     pattern_id: LocalNodeId<Pattern>,
@@ -112,7 +112,7 @@ pub(super) fn detect_for_each_binding_keyword<'ast>(
 }
 
 /// Format a for each binding pattern without repeating root mutability keywords.
-pub(super) fn format_for_each_binding_pattern<'ast>(
+pub(crate) fn format_for_each_binding_pattern<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     pattern_id: LocalNodeId<Pattern>,
 ) -> FormatResult<()> {

@@ -3,17 +3,17 @@ use ast::{
 };
 use destack_ast as ast;
 
-use super::index::FormatterTriviaOwnerIndex;
-use super::operator::try_attach_comment_expression_operator;
-use super::owner::{
+use crate::format::comments::index::FormatterTriviaOwnerIndex;
+use crate::format::comments::operator::try_attach_comment_expression_operator;
+use crate::format::comments::owner::{
     find_next_declaration_owner_from_token, find_preferred_owner_starting_at,
     find_smallest_owner_enclosing_range, find_smallest_owner_enclosing_token,
     lowest_common_owner_ancestor, normalize_formatter_trivia_target_owner,
-    promote_owner_by_shared_start, promote_owner_to_declaration_ancestor,
-    promote_owner_to_node_type_ancestor, promote_owner_to_parenthesized_expression_ancestor,
+    normalize_owner_with_shared_end, promote_owner_by_shared_start,
+    promote_owner_to_declaration_ancestor, promote_owner_to_node_type_ancestor,
+    promote_owner_to_parenthesized_expression_ancestor,
 };
-use super::rule::normalize_owner_with_shared_end;
-use super::seam::{
+use crate::format::comments::seam::{
     CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
     CommentSeamOwnerCache, resolve_comment_seam_owner,
 };
@@ -179,7 +179,7 @@ fn promote_owner_to_labelled_expression_ancestor(
 }
 
 /// Resolve expression and type seam comment rules.
-pub(super) fn try_attach_comment_expression(
+pub(crate) fn try_attach_comment_expression(
     tree: &NodeTree,
     owner_index: &FormatterTriviaOwnerIndex,
     parents: &NodeParentIndex,
@@ -637,6 +637,8 @@ pub(super) fn try_attach_comment_expression(
     if !has_leading_newline
         && comment_is_line
         && token_before_is_colon
+        && !facts.token_before_is_return_type_colon
+        && ternary_seam_owner.is_some()
         && let Some(target_node) = left_owner
     {
         let target_node = normalize_owner_with_shared_end(

@@ -131,7 +131,7 @@ pub fn tag_for_node_type(node_type: NodeType) -> FormatterTimingTag {
 }
 
 pub mod tags {
-    use super::FormatterTimingTag;
+    use crate::format::analysis::timing::FormatterTimingTag;
 
     pub const FORMAT_STATEMENT_LIST: FormatterTimingTag =
         FormatterTimingTag::new("format.statement_list");

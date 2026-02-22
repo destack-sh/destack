@@ -7,19 +7,19 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 
-use super::function::format_function_declaration;
-use super::module::{
+use crate::format::declaration::function::format_function_declaration;
+use crate::format::declaration::module::{
     format_extension_declaration, format_global_declaration, format_import_alias_declaration,
     format_namespace_declaration,
 };
-use super::r#type::{
+use crate::format::declaration::r#type::{
     EnumDeclarationFormatData, format_enum_declaration, format_interface_declaration,
     format_struct_or_class_declaration,
 };
-use super::type_alias::format_type_alias_declaration;
+use crate::format::declaration::type_alias::format_type_alias_declaration;
 
 /// Format one declaration export modifier and export-head seam comments.
-pub(super) fn format_declaration_export_modifier<'ast>(
+pub(crate) fn format_declaration_export_modifier<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     descriptor: &destack_ast::DeclarationDescriptor,
@@ -39,7 +39,7 @@ pub(super) fn format_declaration_export_modifier<'ast>(
 }
 
 /// Format a super type clause.
-pub(super) fn format_super_type_clause<'ast>(
+pub(crate) fn format_super_type_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     keyword: Keyword,
     types: &[LocalNodeId<Expression>],
@@ -48,7 +48,7 @@ pub(super) fn format_super_type_clause<'ast>(
 }
 
 /// Format a super type clause and optionally force line breaking.
-pub(super) fn format_super_type_clause_with_expand<'ast>(
+pub(crate) fn format_super_type_clause_with_expand<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     keyword: Keyword,
     types: &[LocalNodeId<Expression>],

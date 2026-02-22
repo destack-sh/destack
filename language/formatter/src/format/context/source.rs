@@ -1,4 +1,4 @@
-use super::{
+use crate::format::context::{
     Cell, Comment, Cow, DestackFormatContext, Expression, File, FxHashMap, Keyword, LocalNodeId,
     NODE_BOOL_STATE_FALSE, NODE_BOOL_STATE_TRUE, NODE_SPAN_CHAR_LEN_UNKNOWN, Node, NodeTree,
     NodeTreeImpl, NodeType, SmallVec, Span, TYPE_CONTEXT_STATE_FALSE, TYPE_CONTEXT_STATE_TRUE,
@@ -6,7 +6,7 @@ use super::{
 };
 
 /// Build one keyword map for identifier tokens across main and side streams.
-pub(super) fn build_token_keyword_map(
+pub(crate) fn build_token_keyword_map(
     file: &File,
     tokens: &[TokenSpan],
     side_tokens: &[TokenSpan],

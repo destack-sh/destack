@@ -5,10 +5,10 @@ use destack_ast as ast;
 use destack_source::{EnclosingSpan, Span};
 use smallvec::SmallVec;
 
-use super::index::FormatterTriviaOwnerIndex;
+use crate::format::comments::index::FormatterTriviaOwnerIndex;
 
 /// Return whether one node kind is excluded from trivia owner indexing.
-pub(super) fn is_trivia_excluded_owner_node_id(tree: &NodeTree, node_id: u32) -> bool {
+pub(crate) fn is_trivia_excluded_owner_node_id(tree: &NodeTree, node_id: u32) -> bool {
     matches!(
         tree.get_node_type(node_id),
         NodeType::Annotation
@@ -20,7 +20,7 @@ pub(super) fn is_trivia_excluded_owner_node_id(tree: &NodeTree, node_id: u32) ->
 }
 
 /// Normalize one trivia owner id to the canonical structural owner.
-pub(super) fn normalize_formatter_trivia_target_owner(tree: &NodeTree, owner_id: u32) -> u32 {
+pub(crate) fn normalize_formatter_trivia_target_owner(tree: &NodeTree, owner_id: u32) -> u32 {
     let mut current_id = owner_id;
 
     loop {
@@ -52,7 +52,7 @@ pub(super) fn normalize_formatter_trivia_target_owner(tree: &NodeTree, owner_id:
 }
 
 /// Return whether one owner is one block node or block expression wrapper.
-pub(super) fn is_block_like_owner(tree: &NodeTree, owner_id: u32) -> bool {
+pub(crate) fn is_block_like_owner(tree: &NodeTree, owner_id: u32) -> bool {
     if tree.get_node_type(owner_id) == NodeType::Block {
         return true;
     }
@@ -68,7 +68,7 @@ pub(super) fn is_block_like_owner(tree: &NodeTree, owner_id: u32) -> bool {
 }
 
 /// Return one preferred owner that starts at one token span.
-pub(super) fn find_preferred_owner_starting_at(tree: &NodeTree, span: Span) -> Option<u32> {
+pub(crate) fn find_preferred_owner_starting_at(tree: &NodeTree, span: Span) -> Option<u32> {
     let mut best_owner: Option<EnclosingSpan> = None;
     tree.source_map
         .visit_enclosing_spans(span.start, span.end.saturating_sub(1), |candidate| {
@@ -109,7 +109,7 @@ pub(super) fn find_preferred_owner_starting_at(tree: &NodeTree, span: Span) -> O
 }
 
 /// Return one smallest owner that encloses one token span.
-pub(super) fn find_smallest_owner_enclosing_token(tree: &NodeTree, span: Span) -> Option<u32> {
+pub(crate) fn find_smallest_owner_enclosing_token(tree: &NodeTree, span: Span) -> Option<u32> {
     let mut best_owner: Option<EnclosingSpan> = None;
     tree.source_map
         .visit_enclosing_spans(span.start, span.end.saturating_sub(1), |candidate| {
@@ -133,7 +133,7 @@ pub(super) fn find_smallest_owner_enclosing_token(tree: &NodeTree, span: Span) -
 }
 
 /// Return one smallest owner that encloses one seam range.
-pub(super) fn find_smallest_owner_enclosing_range(
+pub(crate) fn find_smallest_owner_enclosing_range(
     tree: &NodeTree,
     start: u32,
     end: u32,
@@ -165,7 +165,7 @@ pub(super) fn find_smallest_owner_enclosing_range(
 }
 
 /// Promote one owner while ancestor spans share the same seam end.
-pub(super) fn promote_owner_by_shared_end(
+pub(crate) fn promote_owner_by_shared_end(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     owner_id: u32,
@@ -191,7 +191,7 @@ pub(super) fn promote_owner_by_shared_end(
 }
 
 /// Promote one owner while ancestor spans share the same seam start.
-pub(super) fn promote_owner_by_shared_start(
+pub(crate) fn promote_owner_by_shared_start(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     owner_id: u32,
@@ -216,8 +216,42 @@ pub(super) fn promote_owner_by_shared_start(
     best_id
 }
 
+/// Normalize one owner and optionally promote across shared seam end.
+pub(crate) fn normalize_owner_with_shared_end(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+    token_before_span: Option<Span>,
+) -> u32 {
+    let target_node = normalize_formatter_trivia_target_owner(tree, owner_id);
+    token_before_span.map_or(target_node, |span| {
+        promote_owner_by_shared_end(tree, parents, target_node, span.end)
+    })
+}
+
+/// Promote one owner across shared seam start and normalize to expression when available.
+pub(crate) fn promote_rhs_expression_owner(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+    token_after_span: Option<Span>,
+) -> u32 {
+    let mut target_node = token_after_span.map_or(owner_id, |span| {
+        promote_owner_by_shared_start(tree, parents, owner_id, span.start)
+    });
+
+    if tree.get_node_type(target_node) != NodeType::Expression
+        && let Some(expression_target) =
+            promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Expression)
+    {
+        target_node = expression_target;
+    }
+
+    target_node
+}
+
 /// Return one block-interior placement target for boundary comments.
-pub(super) fn resolve_block_leading_comment_target(
+pub(crate) fn resolve_block_leading_comment_target(
     tree: &NodeTree,
     block_id: LocalNodeId<Block>,
 ) -> (u32, AnnotationPosition) {
@@ -234,7 +268,7 @@ pub(super) fn resolve_block_leading_comment_target(
 }
 
 /// Promote one owner to the nearest declaration ancestor.
-pub(super) fn promote_owner_to_declaration_ancestor(
+pub(crate) fn promote_owner_to_declaration_ancestor(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     owner_id: u32,
@@ -252,7 +286,7 @@ pub(super) fn promote_owner_to_declaration_ancestor(
 }
 
 /// Promote one owner to the nearest ancestor of one node type.
-pub(super) fn promote_owner_to_node_type_ancestor(
+pub(crate) fn promote_owner_to_node_type_ancestor(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     owner_id: u32,
@@ -271,7 +305,7 @@ pub(super) fn promote_owner_to_node_type_ancestor(
 }
 
 /// Promote one owner to the nearest `satisfies` expression ancestor.
-pub(super) fn promote_owner_to_satisfies_expression_ancestor(
+pub(crate) fn promote_owner_to_satisfies_expression_ancestor(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     owner_id: u32,
@@ -298,7 +332,7 @@ pub(super) fn promote_owner_to_satisfies_expression_ancestor(
 }
 
 /// Promote one owner to the nearest parenthesized expression ancestor.
-pub(super) fn promote_owner_to_parenthesized_expression_ancestor(
+pub(crate) fn promote_owner_to_parenthesized_expression_ancestor(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     owner_id: u32,
@@ -319,7 +353,7 @@ pub(super) fn promote_owner_to_parenthesized_expression_ancestor(
 }
 
 /// Find the next declaration owner at or after one semantic token index.
-pub(super) fn find_next_declaration_owner_from_token(
+pub(crate) fn find_next_declaration_owner_from_token(
     tree: &NodeTree,
     owner_index: &FormatterTriviaOwnerIndex,
     token_index: usize,
@@ -347,7 +381,7 @@ pub(super) fn find_next_declaration_owner_from_token(
 }
 
 /// Find the next member owner at or after one semantic token index.
-pub(super) fn find_next_member_owner_from_token(
+pub(crate) fn find_next_member_owner_from_token(
     tree: &NodeTree,
     owner_index: &FormatterTriviaOwnerIndex,
     token_index: usize,
@@ -374,7 +408,7 @@ pub(super) fn find_next_member_owner_from_token(
 }
 
 /// Return one lowest common ancestor for two owners.
-pub(super) fn lowest_common_owner_ancestor(
+pub(crate) fn lowest_common_owner_ancestor(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     left_owner: u32,

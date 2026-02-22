@@ -1,68 +1,68 @@
 # Formatter Inventory
 
-Root: `language/formatter/src`
+Root: `language/formatter/src/format`
 
 ## Summary
 
-- root: language/formatter/src
-- files: 102
-- lines: 37355
-- types: 86
-- impls: 67
-- functions_total: 927
-- methods: 79
-- free_functions: 848
+- root: language/formatter/src/format
+- files: 108
+- lines: 44151
+- types: 111
+- impls: 74
+- functions_total: 1117
+- methods: 101
+- free_functions: 1016
 
 ## Largest Files
 
 | File | Lines |
 | --- | ---: |
-| `language/formatter/src/format/tree.rs` | 2039 |
-| `language/formatter/src/format/expression/operator/binary.rs` | 1558 |
-| `language/formatter/src/format/expression/tests.rs` | 1398 |
-| `language/formatter/src/format/declaration/statement.rs` | 1245 |
-| `language/formatter/src/format/expression/statement.rs` | 1080 |
-| `language/formatter/src/format/expression/parentheses.rs` | 981 |
-| `language/formatter/src/format/chain/break.rs` | 955 |
-| `language/formatter/src/format/annotation/render.rs` | 952 |
-| `language/formatter/src/format/analysis/call/layout.rs` | 916 |
-| `language/formatter/src/format/call/layout.rs` | 893 |
-| `language/formatter/src/format/expression/primary.rs` | 876 |
-| `language/formatter/src/format/expression/declarator.rs` | 858 |
-| `language/formatter/src/format/chain/classify.rs` | 853 |
-| `language/formatter/src/format/collection/property.rs` | 818 |
-| `language/formatter/src/format/annotation/node.rs` | 786 |
-| `language/formatter/src/format/collection/literal.rs` | 765 |
-| `language/formatter/src/format/chain/base.rs` | 743 |
-| `language/formatter/src/format/declaration/signature.rs` | 722 |
-| `language/formatter/src/format/call/argument/node.rs` | 696 |
-| `language/formatter/src/format/directive.rs` | 691 |
-| `language/formatter/src/format/expression/binary.rs` | 676 |
-| `language/formatter/src/format/analysis/call/classify.rs` | 675 |
-| `language/formatter/src/format/expression/member.rs` | 642 |
-| `language/formatter/src/format/chain/normalize.rs` | 636 |
-| `language/formatter/src/tests/legacy_format_nodes.rs` | 630 |
-| `language/formatter/src/format/context/source.rs` | 614 |
-| `language/formatter/src/format/analysis/call/analyze.rs` | 602 |
-| `language/formatter/src/format/collection/pattern.rs` | 579 |
-| `language/formatter/src/format/declaration/type.rs` | 535 |
-| `language/formatter/src/format/context/annotation.rs` | 521 |
+| `language/formatter/src/format/operator/binary.rs` | 1666 |
+| `language/formatter/src/format/chain/break.rs` | 1616 |
+| `language/formatter/src/format/call/layout.rs` | 1543 |
+| `language/formatter/src/format/annotation/render.rs` | 1437 |
+| `language/formatter/src/format/expression/tests.rs` | 1362 |
+| `language/formatter/src/format/tree/argument.rs` | 1191 |
+| `language/formatter/src/format/expression/parentheses.rs` | 1120 |
+| `language/formatter/src/format/annotation/node.rs` | 1107 |
+| `language/formatter/src/format/expression/declarator.rs` | 1094 |
+| `language/formatter/src/format/expression/primary.rs` | 1075 |
+| `language/formatter/src/format/chain/classify.rs` | 936 |
+| `language/formatter/src/format/context/source.rs` | 899 |
+| `language/formatter/src/format/comments/expression.rs` | 892 |
+| `language/formatter/src/format/expression/statement.rs` | 876 |
+| `language/formatter/src/format/collection/literal.rs` | 856 |
+| `language/formatter/src/format/chain/normalize.rs` | 811 |
+| `language/formatter/src/format/declaration/statement.rs` | 798 |
+| `language/formatter/src/format/operator/context.rs` | 791 |
+| `language/formatter/src/format/tree/literal.rs` | 776 |
+| `language/formatter/src/format/directive.rs` | 756 |
+| `language/formatter/src/format/collection/property.rs` | 749 |
+| `language/formatter/src/format/collection/pattern.rs` | 731 |
+| `language/formatter/src/format/expression/member.rs` | 718 |
+| `language/formatter/src/format/operator/assign.rs` | 698 |
+| `language/formatter/src/format/call/facts.rs` | 665 |
+| `language/formatter/src/format/declaration/signature.rs` | 661 |
+| `language/formatter/src/format/call/arguments.rs` | 611 |
+| `language/formatter/src/format/declaration/statement_list.rs` | 580 |
+| `language/formatter/src/format/declaration/type.rs` | 579 |
+| `language/formatter/src/format/analysis/classify.rs` | 553 |
 
 ## Type Counts By Kind
 
 | Kind | Count |
 | --- | ---: |
-| `enum` | 19 |
-| `struct` | 62 |
+| `enum` | 22 |
+| `struct` | 83 |
 | `trait` | 1 |
-| `type` | 4 |
+| `type` | 5 |
 
 ## Function Counts By Kind
 
 | Kind | Count |
 | --- | ---: |
-| `function` | 848 |
-| `method` | 79 |
+| `function` | 1016 |
+| `method` | 101 |
 
 ## Artifact Paths
 

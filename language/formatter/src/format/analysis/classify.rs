@@ -1,10 +1,9 @@
-use crate::analysis::scan::previous_non_whitespace_token_before_annotation;
-use crate::expression::{
+use crate::format::analysis::scan::previous_non_whitespace_token_before_annotation;
+use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, Declaration, DestackFormatContext, Expression,
-    FunctionKind, LocalNodeId, NodeType, ScalarLiteral, Span, TokenType, TypeBinaryOperator,
-    argument_is_array_literal, argument_is_block_callback, argument_is_function_expression,
-    argument_is_lambda_expression, argument_is_object_literal, argument_value_id,
-    is_trivial_argument, is_trivial_expression, transparent_inner_expression,
+    FunctionKind, LocalNodeId, NodeType, Span, TokenType, argument_is_array_literal,
+    argument_is_block_callback, argument_is_object_literal, argument_value_id, is_trivial_argument,
+    is_trivial_expression, transparent_inner_expression,
 };
 use destack_ast::{Comment, CommentStyle, TemplateLiteral};
 
@@ -133,20 +132,6 @@ pub(crate) fn is_simple_static_argument(
     )
 }
 
-/// Return whether an argument is a string or template literal.
-pub(crate) fn argument_is_string_like(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let value_id = argument_value_id(context.tree, argument_id);
-    let value_id = transparent_inner_expression(context, value_id);
-
-    matches!(
-        context.tree.get(value_id),
-        Expression::ScalarLiteral(ScalarLiteral::String(_)) | Expression::TemplateExpression { .. }
-    )
-}
-
 /// Return whether an argument is an interpolated template literal.
 pub(crate) fn argument_is_interpolated_template_literal(
     context: &DestackFormatContext<'_>,
@@ -170,165 +155,6 @@ pub(crate) fn argument_is_collection_literal(
 ) -> bool {
     argument_is_object_literal(context, argument_id)
         || argument_is_array_literal(context, argument_id)
-}
-
-/// Return whether an argument is a reference style expression.
-pub(crate) fn argument_is_reference_like(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let value_id = argument_value_id(context.tree, argument_id);
-    let value_id = transparent_inner_expression(context, value_id);
-
-    matches!(
-        context.tree.get(value_id),
-        Expression::Path { .. }
-            | Expression::Member { .. }
-            | Expression::PrivateMember { .. }
-            | Expression::Index { .. }
-            | Expression::Maybe { .. }
-            | Expression::Must { .. }
-            | Expression::This
-            | Expression::Super
-            | Expression::PrivateIdentifier { .. }
-    )
-}
-
-/// Return whether a callee ends in a test style member name.
-pub(crate) fn call_callee_has_test_like_member_name(
-    context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Expression::Call { left, .. } = context.tree.get(call_node_id) else {
-        return false;
-    };
-
-    let mut current_id = *left;
-    loop {
-        current_id = transparent_inner_expression(context, current_id);
-        match context.tree.get(current_id) {
-            Expression::Member { name, .. } | Expression::PrivateMember { name, .. } => {
-                let name = context.strings.get(*name);
-                return matches!(
-                    name,
-                    "test"
-                        | "it"
-                        | "describe"
-                        | "only"
-                        | "skip"
-                        | "todo"
-                        | "fixme"
-                        | "serial"
-                        | "parallel"
-                );
-            }
-            Expression::Path { path, .. } => {
-                let Some(last_segment) = path.segments.last() else {
-                    return false;
-                };
-                let name = context.strings.get(*last_segment);
-                return matches!(
-                    name,
-                    "test"
-                        | "it"
-                        | "describe"
-                        | "only"
-                        | "skip"
-                        | "todo"
-                        | "fixme"
-                        | "serial"
-                        | "parallel"
-                );
-            }
-            Expression::Maybe { left, .. } | Expression::Must { left, .. } => {
-                current_id = *left;
-            }
-            _ => return false,
-        }
-    }
-}
-
-/// Return whether a call should keep leading string arguments with callback tails.
-pub(crate) fn call_should_force_hug_test_like_callback(
-    context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    if dynamic_arguments.len() != 2 {
-        return false;
-    }
-
-    if !argument_is_string_like(context, dynamic_arguments[0]) {
-        return false;
-    }
-
-    if !(argument_is_lambda_expression(context, dynamic_arguments[1])
-        || argument_is_function_expression(context, dynamic_arguments[1]))
-    {
-        return false;
-    }
-
-    call_callee_has_test_like_member_name(context, call_node_id)
-}
-
-/// Return whether an argument is a single-segment identifier path.
-fn argument_is_identifier_reference(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let value_id = argument_value_id(context.tree, argument_id);
-    let value_id = transparent_inner_expression(context, value_id);
-
-    matches!(
-        context.tree.get(value_id),
-        Expression::Path {
-            path,
-            static_arguments: None
-        } if path.segments.len() == 1
-    )
-}
-
-/// Return whether an argument is a zero-parameter block lambda.
-fn argument_is_zero_parameter_block_lambda(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    if !argument_is_block_callback(context, argument_id) {
-        return false;
-    }
-
-    let value_id = argument_value_id(context.tree, argument_id);
-    let value_id = transparent_inner_expression(context, value_id);
-    let Expression::Declaration(declaration_id) = context.tree.get(value_id) else {
-        return false;
-    };
-    let Declaration::Function { signature, .. } = context.tree.get(*declaration_id) else {
-        return false;
-    };
-
-    signature.kind == FunctionKind::Lambda && signature.dynamic_parameters.is_empty()
-}
-
-/// Return whether a call matches the react hook callback-plus-deps pattern.
-pub(crate) fn call_has_react_hook_like_callback_deps_array(
-    context: &DestackFormatContext<'_>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    if dynamic_arguments.len() < 2 || dynamic_arguments.len() > 3 {
-        return false;
-    }
-
-    let callback_index = if dynamic_arguments.len() == 2 { 0 } else { 1 };
-    let deps_index = callback_index + 1;
-
-    if dynamic_arguments.len() == 3
-        && !argument_is_identifier_reference(context, dynamic_arguments[0])
-    {
-        return false;
-    }
-
-    argument_is_zero_parameter_block_lambda(context, dynamic_arguments[callback_index])
-        && argument_is_array_literal(context, dynamic_arguments[deps_index])
 }
 
 /// Return whether call arguments span multiple lines in source.
@@ -690,26 +516,6 @@ pub(crate) fn call_has_static_arguments(
             .is_some_and(|arguments| !arguments.is_empty()),
         _ => false,
     }
-}
-
-/// Return whether a call or new expression callee is a cast or satisfies expression.
-pub(crate) fn call_like_has_type_binary_callee(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let callee = match context.tree.get(node_id) {
-        Expression::Call { left, .. } | Expression::New { left, .. } => *left,
-        _ => return false,
-    };
-    let callee = transparent_inner_expression(context, callee);
-
-    matches!(
-        context.tree.get(callee),
-        Expression::TypeBinary {
-            operator: TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies,
-            ..
-        }
-    )
 }
 
 /// Return whether call arguments are a leading callback with a simple tail.

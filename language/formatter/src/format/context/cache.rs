@@ -1,4 +1,4 @@
-use super::{
+use crate::format::context::{
     Annotation, AnnotationPosition, Cell, Expression, FxHashMap, LocalNodeId,
     NODE_BOOL_STATE_UNKNOWN, NODE_SPAN_CHAR_LEN_UNKNOWN, RefCell, TYPE_CONTEXT_STATE_UNKNOWN,
 };
@@ -261,39 +261,39 @@ pub struct CallArgumentLayoutFacts {
 
 /// Dense formatter node caches keyed by node id.
 #[derive(Debug, Clone)]
-pub(super) struct FormatterNodeCaches {
+pub(crate) struct FormatterNodeCaches {
     /// Cached span char lengths for node ids.
-    pub(super) node_span_char_len: Vec<Cell<u32>>,
+    pub(crate) node_span_char_len: Vec<Cell<u32>>,
     /// Cached node span newline predicates keyed by node id.
-    pub(super) node_has_newline: Vec<Cell<u8>>,
+    pub(crate) node_has_newline: Vec<Cell<u8>>,
     /// Cached call argument expansion profiles for regular and chain modes keyed by call node id.
-    pub(super) call_argument_expansion_profiles:
+    pub(crate) call_argument_expansion_profiles:
         Vec<Cell<Option<CallArgumentExpansionProfilesFacts>>>,
     /// Cached call argument annotation profiles keyed by argument node id.
-    pub(super) argument_annotation_facts: Vec<Cell<Option<ArgumentAnnotationFacts>>>,
+    pub(crate) argument_annotation_facts: Vec<Cell<Option<ArgumentAnnotationFacts>>>,
     /// Cached compact simple unannotated argument predicate keyed by argument node id.
-    pub(super) argument_compact_simple_unannotated: Vec<Cell<Option<bool>>>,
+    pub(crate) argument_compact_simple_unannotated: Vec<Cell<Option<bool>>>,
     /// Cached plain-call-argument predicate keyed by argument node id.
-    pub(super) argument_plain_call_argument: Vec<Cell<Option<bool>>>,
+    pub(crate) argument_plain_call_argument: Vec<Cell<Option<bool>>>,
     /// Cached call argument layout-class facts keyed by call expression node id.
-    pub(super) call_argument_layout_facts: Vec<Cell<Option<CallArgumentLayoutFacts>>>,
+    pub(crate) call_argument_layout_facts: Vec<Cell<Option<CallArgumentLayoutFacts>>>,
     /// Cached boundary-comment presence keyed by call expression node id.
-    pub(super) call_argument_boundary_comments: Vec<Cell<Option<bool>>>,
+    pub(crate) call_argument_boundary_comments: Vec<Cell<Option<bool>>>,
     /// Cached chain call force-expand decisions keyed by call expression node id.
-    pub(super) call_argument_chain_force_expand: Vec<Cell<Option<bool>>>,
+    pub(crate) call_argument_chain_force_expand: Vec<Cell<Option<bool>>>,
     /// Cached transparent inner expression ids keyed by expression node id.
-    pub(super) transparent_inner_expression: Vec<Cell<Option<LocalNodeId<Expression>>>>,
+    pub(crate) transparent_inner_expression: Vec<Cell<Option<LocalNodeId<Expression>>>>,
     /// Cached type-context decisions keyed by expression node id.
-    pub(super) expression_type_context: Vec<Cell<u8>>,
+    pub(crate) expression_type_context: Vec<Cell<u8>>,
     /// Cached template interpolation ancestry decisions keyed by expression node id.
-    pub(super) expression_template_interpolation: Vec<Cell<u8>>,
+    pub(crate) expression_template_interpolation: Vec<Cell<u8>>,
     /// Cached type-conditional ancestry decisions keyed by expression node id.
-    pub(super) expression_type_conditional_ancestor: Vec<Cell<u8>>,
+    pub(crate) expression_type_conditional_ancestor: Vec<Cell<u8>>,
 }
 
 impl FormatterNodeCaches {
     /// Build all dense formatter node caches.
-    pub(super) fn new(node_count: usize) -> Self {
+    pub(crate) fn new(node_count: usize) -> Self {
         Self {
             node_span_char_len: vec![Cell::new(NODE_SPAN_CHAR_LEN_UNKNOWN); node_count],
             node_has_newline: vec![Cell::new(NODE_BOOL_STATE_UNKNOWN); node_count],

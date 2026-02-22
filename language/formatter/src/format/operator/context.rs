@@ -1,20 +1,31 @@
-use crate::analysis::scan::{
+use crate::format::analysis::scan::{
     first_non_trivia_token_in_span, nth_non_trivia_token_in_span,
     previous_non_whitespace_token_before_span,
 };
-use crate::directive::{
+use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
-use crate::expression::{
+use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, BinaryOperand, BinaryOperator, Declaration,
     Declarator, DependencyKind, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     ImportAliasTarget, LocalNodeId, Member, NodeTree, NodeType, Parameter, Property, TokenType,
     TypeBinaryOperator, TypeLiteral, TypeUnaryOperator, WhereClause, expression_precedence,
-    format_expression, has_comment_between_expressions, parenthesized_has_leading_inner_trivia,
-    parenthesized_leading_type_grouping_operator, token, transparent_inner_expression,
+    format_expression, has_comment_between_expressions, is_trivial_expression,
+    parenthesized_has_leading_inner_trivia, parenthesized_leading_type_grouping_operator, token,
+    transparent_inner_expression,
 };
 use destack_fir::format::Buffer;
 use destack_fir::write;
+
+/// Return whether an expression is trivial and inline-safe without annotations.
+pub(crate) fn expression_is_trivial_inline_without_annotations(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    !context.has_annotation(expression_id)
+        && !context.node_has_newline(expression_id)
+        && is_trivial_expression(context.tree, context.tree.get(expression_id))
+}
 
 /// Return whether an expression is a type-grammar variant.
 pub(crate) fn is_type_expression_variant(expression: &Expression) -> bool {
@@ -482,6 +493,15 @@ pub(crate) fn union_has_leading_pipe_token(
         return true;
     }
 
+    let first_union_operand_id = first_union_operand_expression_id(context.tree, node_id);
+    let first_union_operand_span = context.span(first_union_operand_id);
+    let token_before_first_union_operand =
+        previous_non_whitespace_token_before_span(context, first_union_operand_span)
+            .is_some_and(|token| token.token.ty == TokenType::ElementwiseOr);
+    if token_before_first_union_operand {
+        return true;
+    }
+
     let mut current_id = node_id;
     while let Some((parent_id, parent_type)) = context.parent(current_id) {
         if parent_type != NodeType::Expression {
@@ -507,6 +527,33 @@ pub(crate) fn union_has_leading_pipe_token(
     }
 
     false
+}
+
+/// Return the leftmost operand expression id for a union-like binary chain.
+fn first_union_operand_expression_id(
+    tree: &NodeTree,
+    node_id: LocalNodeId<Expression>,
+) -> LocalNodeId<Expression> {
+    let mut current_id = node_id;
+
+    loop {
+        let next_id = match tree.get(current_id) {
+            Expression::Binary {
+                operator: BinaryOperator::ElementwiseOr,
+                left,
+                ..
+            } => Some(*left),
+            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+                Some(*expression)
+            }
+            _ => None,
+        };
+
+        let Some(next_id) = next_id else {
+            return current_id;
+        };
+        current_id = next_id;
+    }
 }
 
 /// Return whether a binary operator participates in type union or intersection grouping.

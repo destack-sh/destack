@@ -1,15 +1,15 @@
-use super::dispatch::{
+use crate::format::collection::list_like;
+use crate::format::collection::property::format_block_of_members;
+use crate::format::declaration::dispatch::{
     format_declaration_export_modifier, format_super_type_clause,
     format_super_type_clause_with_expand,
 };
-use crate::collection::list_like;
-use crate::collection::property::format_block_of_members;
-use crate::declaration::r#where::format_where_clause_with_break;
-use crate::directive::{
+use crate::format::declaration::signature::format_where_clause_with_break;
+use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
-use crate::expression::{expression_has_static_type_arguments, format_expression};
-use crate::{Annotation, DestackFormatter, empty_block_with_infix_annotations};
+use crate::format::expression::{expression_has_static_type_arguments, format_expression};
+use crate::{Annotation, DestackFormatter, FormatNode, empty_block_with_infix_annotations};
 use destack_ast::{
     AnnotationPosition, Declaration, DeclarationAbstraction, DeclarationDescriptor,
     DeclarationKind, EnumField, EnumKind, Expression, Generics, Heritage, Keyword, LocalNodeId,
@@ -361,7 +361,7 @@ fn format_anonymous_class_heritage<'ast>(
 
 /// Format a struct or class declaration and return whether it ended early.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn format_struct_or_class_declaration<'ast>(
+pub(crate) fn format_struct_or_class_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration_expression_id: Option<LocalNodeId<Expression>>,
@@ -450,8 +450,35 @@ pub(super) fn format_struct_or_class_declaration<'ast>(
     Ok(false)
 }
 
+/// Format one enum field entry.
+impl<'ast> FormatNode<'ast, EnumField> for EnumField {
+    /// Emit the field name, optional value, trailing comma, and attached annotations.
+    fn format_node(
+        &self,
+        node_id: LocalNodeId<EnumField>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+        // name
+        write!(f, [self.name])?;
+
+        // value
+        if let Some(value) = self.value {
+            write!(f, [space(), token("="), space(), value])?;
+        }
+
+        // comma after field
+        // NOTE #Cleanup: having commas inside EnumField formatting feels wrong
+        write!(f, [token(",")])?;
+
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+        Ok(())
+    }
+}
+
 /// Shared enum declaration inputs.
-pub(super) struct EnumDeclarationFormatData<'a> {
+pub(crate) struct EnumDeclarationFormatData<'a> {
     /// The shared declaration descriptor.
     pub descriptor: &'a DeclarationDescriptor,
     /// The enum kind.
@@ -467,7 +494,7 @@ pub(super) struct EnumDeclarationFormatData<'a> {
 }
 
 /// Format an enum declaration and return whether it ended early.
-pub(super) fn format_enum_declaration<'ast>(
+pub(crate) fn format_enum_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     data: EnumDeclarationFormatData<'_>,
@@ -534,7 +561,7 @@ pub(super) fn format_enum_declaration<'ast>(
 }
 
 /// Format an interface declaration and return whether it ended early.
-pub(super) fn format_interface_declaration<'ast>(
+pub(crate) fn format_interface_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     descriptor: &DeclarationDescriptor,
@@ -576,4 +603,56 @@ pub(super) fn format_interface_declaration<'ast>(
     write!(f, [f.context().block_infix_annotations(node_id)])?;
     write!(f, [hard_line_break(), token("}")])?;
     Ok(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{DestackFormatOptions, TestFormatter, assert_format};
+    use destack_ast::{DeclarationDescriptor, EnumKind};
+
+    #[test]
+    fn test_format_enum_empty() {
+        assert_format!(
+            "enum { }",
+            "enum {}",
+            |p| p.eat_enum(&p.mark(), EnumKind::Enum, DeclarationDescriptor::default()),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_enum_with_simple_fields() {
+        assert_format!(
+            "enum { A, B }",
+            "enum {\n\tA,\n\tB,\n}",
+            |p| p.eat_enum(&p.mark(), EnumKind::Enum, DeclarationDescriptor::default()),
+            DestackFormatOptions::default_tab()
+        );
+    }
+
+    #[test]
+    fn test_format_enum_with_annotations() {
+        assert_format!(
+            "enum { A }",
+            "enum {\n\tA,\n}",
+            |p| p.eat_enum(&p.mark(), EnumKind::Enum, DeclarationDescriptor::default()),
+            DestackFormatOptions::default_tab()
+        );
+    }
+
+    #[test]
+    fn test_format_enum_with_static_parameters() {
+        let source = r"enum Machine<T: int32 = 3, IsSomething: boolean = true> {
+    A = 1,
+    B = T,
+    @if(IsSomething)
+    C = 3,
+}";
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_enum(&p.mark(), EnumKind::Enum, DeclarationDescriptor::default()),
+            DestackFormatOptions::default()
+        );
+    }
 }

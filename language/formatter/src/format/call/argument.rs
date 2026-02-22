@@ -1,20 +1,20 @@
-use crate::analysis::scan::{
+use crate::format::analysis::scan::{
     next_non_whitespace_token_after_annotation, previous_non_whitespace_token_before_annotation,
 };
-use crate::collection::property::{
+use crate::format::collection::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Argument, CommentStyle, Declaration, Expression, FunctionKind, LocalNodeId,
-    NodeType, TokenType, TypeBinaryOperator,
+    AnnotationPosition, Argument, Comment, CommentStyle, Declaration, Expression, FunctionKind,
+    LocalNodeId, NodeType, TokenType, TypeBinaryOperator,
 };
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::*;
+use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::prelude::{hard_line_break, space, token};
 use destack_fir::write;
 
 /// Return whether an argument should emit its prefix annotations.
-fn argument_should_emit_prefix_annotations(
+pub(crate) fn argument_should_emit_prefix_annotations(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
@@ -42,7 +42,7 @@ fn argument_should_emit_prefix_annotations(
 }
 
 /// Return one satisfies static seam line comment annotation id for this argument when present.
-pub(in crate::format) fn argument_satisfies_static_seam_comment_annotation_id(
+pub(crate) fn argument_satisfies_static_seam_comment_annotation_id(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Annotation>> {
@@ -64,7 +64,7 @@ pub(in crate::format) fn argument_satisfies_static_seam_comment_annotation_id(
             continue;
         };
 
-        let comment = context.tree.get::<destack_ast::Comment>(node);
+        let comment = context.tree.get::<Comment>(node);
         if comment.style != CommentStyle::Slash {
             continue;
         }
@@ -76,7 +76,15 @@ pub(in crate::format) fn argument_satisfies_static_seam_comment_annotation_id(
     seam_comment_id
 }
 
-/// Return whether one argument is the first static argument in a `satisfies` rhs path with multiple arguments.
+/// Return whether this argument has one satisfies static seam prefix line comment.
+fn argument_has_satisfies_static_seam_prefix_line_comment(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    argument_satisfies_static_seam_comment_annotation_id(context, argument_id).is_some()
+}
+
+/// Return whether one argument is the first static argument in a satisfies rhs path with multiple arguments.
 fn argument_is_first_static_argument_of_satisfies_right_path(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
@@ -152,14 +160,6 @@ fn argument_is_first_static_argument_of_multi_argument_path(
         .is_some_and(|first| *first == argument_id)
 }
 
-/// Return whether this argument has one satisfies static seam prefix line comment.
-fn argument_has_satisfies_static_seam_prefix_line_comment(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    argument_satisfies_static_seam_comment_annotation_id(context, argument_id).is_some()
-}
-
 /// Return whether an argument belongs to a call or new expression.
 fn argument_is_call_or_new(
     context: &DestackFormatContext<'_>,
@@ -176,7 +176,7 @@ fn argument_is_call_or_new(
     matches!(expression, Expression::Call { .. } | Expression::New { .. })
 }
 
-/// Return whether an argument is the first in its call/new argument list.
+/// Return whether an argument is the first in its call or new argument list.
 fn argument_is_first_in_call_or_new(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
@@ -267,6 +267,88 @@ fn argument_has_blank_prefix_annotation_before_separator(
     })
 }
 
+impl<'ast> FormatNode<'ast, Argument> for Argument {
+    fn format_node(
+        &self,
+        node_id: LocalNodeId<Argument>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        if try_format_plain_unannotated_argument(self, node_id, f)? {
+            return Ok(());
+        }
+
+        let should_emit_prefix_annotations =
+            argument_should_emit_prefix_annotations(f.context(), node_id);
+        let has_lambda_value = argument_contains_lambda_value(f.context(), self);
+        let force_break_after_lambda_prefix_comment = has_lambda_value
+            && argument_prefix_lambda_comment_needs_forced_break(f.context(), node_id);
+
+        if has_lambda_value || should_emit_prefix_annotations {
+            write!(f, [f.context().any_prefix_annotations(node_id)])?;
+        }
+
+        write_argument_with_modifiers_and_value(self, force_break_after_lambda_prefix_comment, f)?;
+
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+
+        Ok(())
+    }
+}
+
+/// Format one annotation-free argument using the simple path.
+fn try_format_plain_unannotated_argument<'ast>(
+    argument: &Argument,
+    node_id: LocalNodeId<Argument>,
+    f: &mut DestackFormatter<'ast, '_>,
+) -> FormatResult<bool> {
+    if f.context().has_annotation(node_id) {
+        return Ok(false);
+    }
+
+    match argument {
+        Argument::Named {
+            modifiers: None,
+            name,
+            value,
+        } => {
+            write!(f, [*name, token(":"), space(), *value])?;
+            Ok(true)
+        }
+        Argument::Labeled {
+            modifiers: None,
+            label,
+            value,
+        } => {
+            write!(f, [*label, token(":"), space(), *value])?;
+            Ok(true)
+        }
+        Argument::Positional {
+            modifiers: None,
+            value,
+        } => {
+            write!(f, [*value])?;
+            Ok(true)
+        }
+        Argument::Spread {
+            modifiers: None,
+            label: None,
+            value,
+        } => {
+            write!(f, [token("..."), *value])?;
+            Ok(true)
+        }
+        Argument::Spread {
+            modifiers: None,
+            label: Some(label),
+            value,
+        } => {
+            write!(f, [token("..."), *label, token(":"), space(), *value])?;
+            Ok(true)
+        }
+        _ => Ok(false),
+    }
+}
+
 /// Return whether a lambda argument has an inline prefix comment that must break.
 fn argument_prefix_lambda_comment_needs_forced_break(
     context: &DestackFormatContext<'_>,
@@ -284,7 +366,7 @@ fn argument_prefix_lambda_comment_needs_forced_break(
             return false;
         }
 
-        let comment = context.tree.get::<destack_ast::Comment>(node);
+        let comment = context.tree.get::<Comment>(node);
         if comment.style != CommentStyle::Star {
             return false;
         }
@@ -304,142 +386,6 @@ fn argument_prefix_lambda_comment_needs_forced_break(
     })
 }
 
-impl<'ast> FormatNode<'ast, Argument> for Argument {
-    fn format_node(
-        &self,
-        node_id: LocalNodeId<Argument>,
-        f: &mut DestackFormatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        // short circuit: annotation free positional and spread arguments dominate call sites
-        // and do not need expensive prefix and trailing annotation checks
-        let has_argument_annotation = f.context().has_annotation(node_id);
-        if !has_argument_annotation {
-            match self {
-                Argument::Named {
-                    modifiers: None,
-                    name,
-                    value,
-                } => {
-                    write!(f, [*name, token(":"), space(), *value])?;
-                    return Ok(());
-                }
-                Argument::Labeled {
-                    modifiers: None,
-                    label,
-                    value,
-                } => {
-                    write!(f, [*label, token(":"), space(), *value])?;
-                    return Ok(());
-                }
-                Argument::Positional {
-                    modifiers: None,
-                    value,
-                } => {
-                    write!(f, [*value])?;
-                    return Ok(());
-                }
-                Argument::Spread {
-                    modifiers: None,
-                    label: None,
-                    value,
-                } => {
-                    write!(f, [token("..."), *value])?;
-                    return Ok(());
-                }
-                Argument::Spread {
-                    modifiers: None,
-                    label: Some(label),
-                    value,
-                } => {
-                    write!(f, [token("..."), *label, token(":"), space(), *value])?;
-                    return Ok(());
-                }
-                _ => {}
-            }
-        }
-
-        // lambda argument comments are handled at the lambda arrow site
-        let should_emit_prefix_annotations =
-            argument_should_emit_prefix_annotations(f.context(), node_id);
-        let has_lambda_value = argument_contains_lambda_value(f.context(), self);
-        let force_break_after_lambda_prefix_comment = has_lambda_value
-            && argument_prefix_lambda_comment_needs_forced_break(f.context(), node_id);
-
-        if has_lambda_value {
-            write!(f, [f.context().any_prefix_annotations(node_id)])?;
-        } else if should_emit_prefix_annotations {
-            write!(f, [f.context().any_prefix_annotations(node_id)])?;
-        }
-
-        match self {
-            Argument::Named {
-                modifiers,
-                name,
-                value,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // name
-                write!(f, [name])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                // value
-                write!(f, [token(":"), space(), value])?;
-            }
-            Argument::Labeled {
-                modifiers,
-                label,
-                value,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // label
-                write!(f, [label])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                // value
-                write!(f, [token(":"), space(), value])?;
-            }
-            Argument::Positional { modifiers, value } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // value
-                if force_break_after_lambda_prefix_comment {
-                    write!(f, [hard_line_break()])?;
-                }
-                write!(f, [value])?;
-                // modifiers
-                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-            }
-            Argument::Spread {
-                modifiers,
-                label,
-                value,
-            } => {
-                // modifiers
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
-                // keyword
-                write!(f, [token("...")])?;
-                if let Some(label) = label {
-                    write!(f, [label])?;
-                    format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                    write!(f, [token(":"), space(), value])?;
-                } else {
-                    if force_break_after_lambda_prefix_comment {
-                        write!(f, [hard_line_break()])?;
-                    }
-                    write!(f, [value])?;
-                    format_binding_modifiers_postfix_maybe(f, *modifiers)?;
-                }
-            }
-        }
-
-        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
-
-        Ok(())
-    }
-}
-
 /// Return whether this argument wraps a lambda declaration expression.
 fn argument_contains_lambda_value(context: &DestackFormatContext<'_>, argument: &Argument) -> bool {
     let value_id = match argument {
@@ -457,6 +403,69 @@ fn argument_contains_lambda_value(context: &DestackFormatContext<'_>, argument: 
         context.tree.get(*declaration_id),
         Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
     )
+}
+
+/// Write one argument with modifiers and value payload.
+fn write_argument_with_modifiers_and_value<'ast>(
+    argument: &Argument,
+    force_break_after_lambda_prefix_comment: bool,
+    f: &mut DestackFormatter<'ast, '_>,
+) -> FormatResult<()> {
+    match argument {
+        Argument::Named {
+            modifiers,
+            name,
+            value,
+        } => {
+            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+            write!(f, [name])?;
+            format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+            write!(f, [token(":"), space(), value])?;
+        }
+        Argument::Labeled {
+            modifiers,
+            label,
+            value,
+        } => {
+            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+            write!(f, [label])?;
+            format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+            write!(f, [token(":"), space(), value])?;
+        }
+        Argument::Positional { modifiers, value } => {
+            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+
+            if force_break_after_lambda_prefix_comment {
+                write!(f, [hard_line_break()])?;
+            }
+
+            write!(f, [value])?;
+            format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+        }
+        Argument::Spread {
+            modifiers,
+            label,
+            value,
+        } => {
+            format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+            write!(f, [token("...")])?;
+
+            if let Some(label) = label {
+                write!(f, [label])?;
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+                write!(f, [token(":"), space(), value])?;
+            } else {
+                if force_break_after_lambda_prefix_comment {
+                    write!(f, [hard_line_break()])?;
+                }
+
+                write!(f, [value])?;
+                format_binding_modifiers_postfix_maybe(f, *modifiers)?;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

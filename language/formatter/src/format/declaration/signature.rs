@@ -1,6 +1,6 @@
-use crate::analysis::scan::previous_non_whitespace_token_before_annotation;
-use crate::collection::list_like;
-use crate::collection::property::{
+use crate::format::analysis::scan::previous_non_whitespace_token_before_annotation;
+use crate::format::collection::list_like;
+use crate::format::collection::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
@@ -8,6 +8,7 @@ use destack_ast::{
     AnnotationPosition, Asynchrony, Comment, CommentStyle, Declaration, Expression,
     FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
     Keyword, LocalNodeId, Member, NodeType, Parameter, Pattern, PatternField, Property, TokenType,
+    WhereClause,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -603,6 +604,61 @@ pub(crate) fn write_signature_dynamic_parameter_list(
 
     write!(f, [parameters_list])?;
     Ok(())
+}
+
+/// Format a where clause list.
+pub(crate) fn format_where_clause<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    clauses: &[LocalNodeId<WhereClause>],
+) -> FormatResult<()> {
+    // keyword
+    write!(f, [Keyword::Where])?;
+    if clauses.is_empty() {
+        return Ok(());
+    }
+    write!(f, [space()])?;
+
+    // clauses
+    if clauses.len() == 1 {
+        write!(f, [&clauses[0]])?;
+    } else {
+        let clauses_vec = clauses.to_vec();
+        write!(f, [list_like("(", ")", ",", &clauses_vec)])?;
+    }
+
+    Ok(())
+}
+
+/// Format a where clause list in a soft break group.
+pub(crate) fn format_where_clause_with_break<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    clauses: &[LocalNodeId<WhereClause>],
+) -> FormatResult<()> {
+    write!(
+        f,
+        [group(&destack_fir::format_args![
+            soft_line_break_or_space(),
+            format_with(|f| format_where_clause(f, clauses)),
+        ])]
+    )?;
+
+    Ok(())
+}
+
+impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
+    fn format_node(
+        &self,
+        node_id: LocalNodeId<WhereClause>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+        write!(f, [self.left, token(":"), space(), self.right])?;
+
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

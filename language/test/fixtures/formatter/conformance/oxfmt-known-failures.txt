@@ -1,8 +1,1 @@
-js/arguments/empty-lines.js
-js/await-expression/private-field-access.js
-js/jsx/expression-with-dangling-comment.jsx
-js/jsx/issue-16199.jsx
-js/logicals/indent.js
-js/quote-props/with-clause.js
-js/typecast/rest_element_comments.js
-ts/arrow-function/object-method.ts
+

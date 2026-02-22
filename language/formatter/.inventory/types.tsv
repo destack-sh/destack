@@ -1,87 +1,112 @@
 file	line	visibility	kind	name	signature
-language/formatter/src/tests/tests.rs	13	pub	struct	TestFormatter	pub(crate) struct TestFormatter {
+language/formatter/src/format/declaration/signature.rs	380	pub	enum	FunctionHeaderStyle	pub(crate) enum FunctionHeaderStyle {
+language/formatter/src/format/declaration/type_alias.rs	21	private	struct	InlineTypePrefixCommentCluster	struct InlineTypePrefixCommentCluster {
+language/formatter/src/format/declaration/match.rs	11	pub	enum	MatchCaseStyle	pub(crate) enum MatchCaseStyle {
+language/formatter/src/format/declaration/statement.rs	21	pub	struct	StatementList	pub struct StatementList<'a> {
+language/formatter/src/format/declaration/statement.rs	69	pub	struct	EmptyBlockWithInfixAnnotations	pub struct EmptyBlockWithInfixAnnotations<T: Node> {
+language/formatter/src/format/declaration/type.rs	454	pub	struct	EnumDeclarationFormatData	pub(crate) struct EnumDeclarationFormatData<'a> {
+language/formatter/src/format/operator/binary.rs	36	pub	enum	BinaryLayout	pub(crate) enum BinaryLayout {
+language/formatter/src/format/operator/binary.rs	54	pub	struct	BinaryLayoutPlan	pub(crate) struct BinaryLayoutPlan {
+language/formatter/src/format/operator/binary.rs	650	private	struct	LeadingPipeUnionLayoutPolicy	struct LeadingPipeUnionLayoutPolicy {
 language/formatter/src/format/directive.rs	14	pub	enum	FormatterDirectiveKind	pub enum FormatterDirectiveKind {
 language/formatter/src/format/directive.rs	21	pub	enum	FormatterDirectivePosition	pub enum FormatterDirectivePosition {
 language/formatter/src/format/directive.rs	30	pub	struct	FormatterDirective	pub struct FormatterDirective {
 language/formatter/src/format/directive.rs	39	private	enum	FormatterDirectiveToken	enum FormatterDirectiveToken {
-language/formatter/src/format/declaration/type_alias.rs	22	private	struct	InlineTypePrefixCommentCluster	struct InlineTypePrefixCommentCluster {
-language/formatter/src/format/declaration/statement.rs	35	pub	struct	StatementList	pub struct StatementList<'a> {
-language/formatter/src/format/declaration/statement.rs	83	pub	struct	EmptyBlockWithInfixAnnotations	pub struct EmptyBlockWithInfixAnnotations<T: Node> {
-language/formatter/src/format/declaration/type.rs	410	pub	struct	EnumDeclarationFormatData	pub(super) struct EnumDeclarationFormatData<'a> {
-language/formatter/src/format/comments/seam.rs	13	pub	enum	CommentSeamKeyword	pub(super) enum CommentSeamKeyword {
-language/formatter/src/format/comments/seam.rs	60	pub	struct	CommentSeamContext	pub(super) struct CommentSeamContext<'a> {
-language/formatter/src/format/comments/seam.rs	83	pub	struct	CommentSeamFacts	pub(super) struct CommentSeamFacts {
-language/formatter/src/format/comments/seam.rs	201	pub	struct	CommentSeamRuleState	pub(super) struct CommentSeamRuleState {
-language/formatter/src/format/declaration/signature.rs	448	pub	enum	FunctionHeaderStyle	pub(crate) enum FunctionHeaderStyle {
-language/formatter/src/format/collection/list.rs	16	pub	enum	ListKind	pub(crate) enum ListKind {
-language/formatter/src/format/collection/list.rs	37	pub	struct	ListLike	pub(crate) struct ListLike<'ast, 'e, T>
+language/formatter/src/format/expression/declarator.rs	20	pub	enum	DeclaratorLayout	pub(crate) enum DeclaratorLayout {
+language/formatter/src/format/expression/declarator.rs	30	pub	struct	DeclaratorLayoutInputs	pub(crate) struct DeclaratorLayoutInputs {
+language/formatter/src/format/expression/declarator.rs	472	private	struct	DeclaratorShapeFacts	struct DeclaratorShapeFacts {
+language/formatter/src/format/expression/declarator.rs	488	private	struct	DeclaratorSourceProfile	struct DeclaratorSourceProfile {
+language/formatter/src/format/expression/parentheses.rs	18	pub	enum	ParenthesizedUnwrapPolicy	pub(crate) enum ParenthesizedUnwrapPolicy {
+language/formatter/src/format/expression/parentheses.rs	27	pub	enum	ParenthesizedDropPolicy	pub(crate) enum ParenthesizedDropPolicy {
+language/formatter/src/format/expression/member.rs	296	pub	struct	HugOptions	pub(crate) struct HugOptions {
+language/formatter/src/format/expression/member.rs	362	pub	struct	BinaryOperand	pub(crate) struct BinaryOperand {
+language/formatter/src/format/expression/member.rs	370	pub	type	BinaryOperands	pub(crate) type BinaryOperands = SmallVec<[BinaryOperand; 8]>;
+language/formatter/src/format/expression/core.rs	15	private	enum	ExpressionFormatRoute	enum ExpressionFormatRoute {
+language/formatter/src/format/context/model.rs	12	pub	enum	Annotation	pub enum Annotation {
+language/formatter/src/format/context/model.rs	62	pub	struct	FormatterAnnotationEntry	pub struct FormatterAnnotationEntry {
+language/formatter/src/format/context/model.rs	70	pub	type	DestackFormatter	pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, DestackFormatContext<'ast>>;
+language/formatter/src/format/context/model.rs	74	pub	struct	DestackFormatContext	pub struct DestackFormatContext<'a> {
+language/formatter/src/format/context/model.rs	143	pub	struct	DestackFormatArtifacts	pub struct DestackFormatArtifacts<'a> {
+language/formatter/src/format/context/model.rs	286	private	type	Options	type Options = DestackFormatOptions;
 language/formatter/src/format/collection/render.rs	7	pub	struct	CollectionBreakScore	pub(crate) struct CollectionBreakScore {
-language/formatter/src/format/expression/declarator.rs	73	private	enum	DeclaratorLayout	enum DeclaratorLayout {
-language/formatter/src/format/expression/declarator.rs	83	private	struct	DeclaratorLayoutInputs	struct DeclaratorLayoutInputs {
-language/formatter/src/format/expression/member.rs	224	pub	struct	HugOptions	pub(crate) struct HugOptions {
-language/formatter/src/format/expression/member.rs	290	pub	struct	BinaryOperand	pub(crate) struct BinaryOperand {
-language/formatter/src/format/expression/member.rs	298	pub	type	BinaryOperands	pub(crate) type BinaryOperands = SmallVec<[BinaryOperand; 8]>;
-language/formatter/src/format/context/model.rs	5	pub	enum	Annotation	pub enum Annotation {
-language/formatter/src/format/context/model.rs	55	pub	struct	FormatterAnnotationEntry	pub struct FormatterAnnotationEntry {
-language/formatter/src/format/context/model.rs	63	pub	type	DestackFormatter	pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, DestackFormatContext<'ast>>;
-language/formatter/src/format/context/model.rs	67	pub	struct	DestackFormatContext	pub struct DestackFormatContext<'a> {
-language/formatter/src/format/context/model.rs	134	pub	struct	DestackFormatArtifacts	pub struct DestackFormatArtifacts<'a> {
-language/formatter/src/format/context/model.rs	258	private	type	Options	type Options = DestackFormatOptions;
-language/formatter/src/format/comments/comment/context.rs	11	pub	struct	CommentAttachmentSetup	pub(super) struct CommentAttachmentSetup<'a> {
-language/formatter/src/format/context/options.rs	10	pub	struct	DestackFormatOptions	pub struct DestackFormatOptions {
-language/formatter/src/format/context/node.rs	4	pub	trait	FormatNode	pub(crate) trait FormatNode<'a, T: Node>
-language/formatter/src/format/context/cache.rs	5	pub	struct	FormatterCacheStatsSnapshot	pub struct FormatterCacheStatsSnapshot {
-language/formatter/src/format/context/cache.rs	26	pub	struct	FormatterCacheStatsCollector	pub struct FormatterCacheStatsCollector {
-language/formatter/src/format/context/cache.rs	47	pub	struct	FormatterCounterEntry	pub struct FormatterCounterEntry {
-language/formatter/src/format/context/cache.rs	56	pub	struct	FormatterCountersCollector	pub struct FormatterCountersCollector {
-language/formatter/src/format/context/cache.rs	86	pub	struct	AnnotationData	pub struct AnnotationData {
-language/formatter/src/format/context/cache.rs	176	pub	struct	ArgumentAnnotationFacts	pub struct ArgumentAnnotationFacts {
-language/formatter/src/format/context/cache.rs	189	pub	struct	CallArgumentExpansionProfileFacts	pub struct CallArgumentExpansionProfileFacts {
-language/formatter/src/format/context/cache.rs	200	pub	struct	CallArgumentExpansionProfilesFacts	pub struct CallArgumentExpansionProfilesFacts {
-language/formatter/src/format/context/cache.rs	209	pub	struct	CallArgumentLayoutFacts	pub struct CallArgumentLayoutFacts {
-language/formatter/src/format/context/cache.rs	254	pub	struct	FormatterNodeCaches	pub(super) struct FormatterNodeCaches {
-language/formatter/src/format/expression/operator/binary.rs	682	private	struct	LeadingPipeUnionLayoutPolicy	struct LeadingPipeUnionLayoutPolicy {
-language/formatter/src/format/tree.rs	28	pub	struct	TreeExpressionArgument	pub(crate) struct TreeExpressionArgument {
-language/formatter/src/format/tree.rs	472	private	struct	HuggedArrowLayoutSignals	struct HuggedArrowLayoutSignals {
-language/formatter/src/format/expression/core.rs	5	private	enum	ExpressionFormatRoute	enum ExpressionFormatRoute {
-language/formatter/src/format/comments/comment/facts.rs	9	pub	struct	CommentFallbackFacts	pub(super) struct CommentFallbackFacts {
-language/formatter/src/format/analysis/call/analyze.rs	17	pub	struct	CallArgumentExpansionProfile	pub(crate) struct CallArgumentExpansionProfile {
-language/formatter/src/format/analysis/call/analyze.rs	48	pub	struct	CallArgumentExpansionProfiles	pub(crate) struct CallArgumentExpansionProfiles {
-language/formatter/src/format/analysis/call/analyze.rs	75	pub	struct	CallArgumentCommentProfile	pub(crate) struct CallArgumentCommentProfile {
-language/formatter/src/format/annotation/node.rs	493	private	struct	Entity	struct Entity {}
-language/formatter/src/format/chain/break.rs	321	pub	struct	ChainCallSummary	pub(crate) struct ChainCallSummary {
-language/formatter/src/format/chain/break.rs	326	pub	struct	ChainBreakAnalysis	pub(crate) struct ChainBreakAnalysis {
-language/formatter/src/format/expression/parentheses.rs	7	pub	enum	ParenthesizedUnwrapPolicy	pub(crate) enum ParenthesizedUnwrapPolicy {
-language/formatter/src/format/expression/parentheses.rs	16	pub	enum	ParenthesizedDropPolicy	pub(crate) enum ParenthesizedDropPolicy {
-language/formatter/src/format/annotation/render.rs	342	pub	struct	AnnotationRenderFacts	pub(super) struct AnnotationRenderFacts {
-language/formatter/src/format/annotation/render.rs	392	pub	enum	AnnotationCapture	pub enum AnnotationCapture {
-language/formatter/src/format/annotation/render.rs	410	pub	struct	Annotations	pub struct Annotations<T: Node> {
-language/formatter/src/format/declaration/match.rs	11	pub	enum	MatchCaseStyle	pub(crate) enum MatchCaseStyle {
-language/formatter/src/format/comments/index.rs	9	private	struct	FormatterTokenNeighborIndex	struct FormatterTokenNeighborIndex {
-language/formatter/src/format/comments/index.rs	15	pub	struct	FormatterTriviaOwnerIndex	pub(super) struct FormatterTriviaOwnerIndex {
-language/formatter/src/format/comments/index.rs	23	pub	struct	FormatterTriviaSeamIndex	pub(super) struct FormatterTriviaSeamIndex {
-language/formatter/src/format/chain/policy.rs	5	private	struct	ChainOperationFacts	struct ChainOperationFacts {
-language/formatter/src/format/chain/policy.rs	13	pub	struct	ChainRenderInputs	pub(super) struct ChainRenderInputs {
-language/formatter/src/format/chain/policy.rs	28	pub	enum	ChainRenderDecision	pub(super) enum ChainRenderDecision {
-language/formatter/src/format/chain/policy.rs	119	pub	struct	ChainRenderInputOptions	pub(super) struct ChainRenderInputOptions {
-language/formatter/src/format/chain/base.rs	73	pub	enum	ChainExpressionBaseHead	pub(crate) enum ChainExpressionBaseHead {
-language/formatter/src/format/chain/base.rs	85	pub	struct	ChainExpressionBase	pub(crate) struct ChainExpressionBase {
-language/formatter/src/format/chain/base.rs	92	pub	enum	ChainExpression	pub(crate) enum ChainExpression {
-language/formatter/src/format/chain/line_group.rs	70	private	type	ChainOperationIter	type ChainOperationIter = std::iter::Peekable<std::vec::IntoIter<ChainExpression>>;
 language/formatter/src/format/analysis/timing.rs	10	pub	struct	FormatterTimingTag	pub struct FormatterTimingTag {
 language/formatter/src/format/analysis/timing.rs	28	pub	struct	FormatterTimingEntry	pub struct FormatterTimingEntry {
 language/formatter/src/format/analysis/timing.rs	39	pub	struct	FormatterTimings	pub struct FormatterTimings {
 language/formatter/src/format/analysis/timing.rs	67	pub	enum	FormatterTimingScope	pub enum FormatterTimingScope {
-language/formatter/src/format/chain/normalize.rs	39	private	struct	ChainRootParts	struct ChainRootParts {
-language/formatter/src/format/chain/normalize.rs	45	private	struct	NormalizedChainLayout	struct NormalizedChainLayout {
-language/formatter/src/format/chain/normalize.rs	101	pub	struct	ChainLayoutPlan	pub(super) struct ChainLayoutPlan {
-language/formatter/src/format/analysis/call/classify.rs	7	pub	struct	ArgumentSimplicityOptions	pub(crate) struct ArgumentSimplicityOptions {
-language/formatter/src/format/analysis/call/layout.rs	67	pub	struct	SingleSimpleArgumentFastPathOptions	pub(crate) struct SingleSimpleArgumentFastPathOptions {
-language/formatter/src/format/analysis/call/layout.rs	80	pub	struct	CallArgumentShape	pub(crate) struct CallArgumentShape {
-language/formatter/src/format/analysis/call/layout.rs	102	private	struct	CallArgumentLayoutScanState	struct CallArgumentLayoutScanState {
-language/formatter/src/format/analysis/call/layout.rs	502	pub	struct	SingleSimpleArgumentInlineOptions	pub(crate) struct SingleSimpleArgumentInlineOptions {
-language/formatter/src/format/analysis/call/layout.rs	553	pub	struct	CallArgumentPlannerBaseState	pub(crate) struct CallArgumentPlannerBaseState {
-language/formatter/src/format/analysis/call/layout.rs	566	pub	struct	CallArgumentPlannerState	pub(crate) struct CallArgumentPlannerState {
-language/formatter/src/format/analysis/call/layout.rs	613	pub	enum	HugLastCallArgumentLayout	pub(crate) enum HugLastCallArgumentLayout {
-language/formatter/src/format/analysis/call/layout.rs	827	pub	enum	CallArgumentLayoutDecision	pub(crate) enum CallArgumentLayoutDecision {
-language/formatter/src/format/analysis/call/layout.rs	845	pub	struct	CallArgumentLayoutRenderState	pub(crate) struct CallArgumentLayoutRenderState {
+language/formatter/src/format/chain/classify.rs	722	private	struct	PoorChainFacts	struct PoorChainFacts {
+language/formatter/src/format/collection/list.rs	21	pub	enum	ListKind	pub(crate) enum ListKind {
+language/formatter/src/format/collection/list.rs	42	pub	struct	ListLike	pub(crate) struct ListLike<'ast, 'e, T>
+language/formatter/src/format/chain/line_group.rs	73	private	type	ChainOperationIter	type ChainOperationIter = std::iter::Peekable<std::vec::IntoIter<ChainExpression>>;
+language/formatter/src/format/context/node.rs	10	pub	trait	FormatNode	pub(crate) trait FormatNode<'a, T: Node>
+language/formatter/src/format/comments/context.rs	14	pub	struct	CommentAttachmentSetup	pub(crate) struct CommentAttachmentSetup<'a> {
+language/formatter/src/format/chain/normalize.rs	49	private	struct	ChainRootParts	struct ChainRootParts {
+language/formatter/src/format/chain/normalize.rs	55	private	struct	NormalizedChainLayout	struct NormalizedChainLayout {
+language/formatter/src/format/chain/normalize.rs	111	pub	struct	ChainLayoutPlan	pub(crate) struct ChainLayoutPlan {
+language/formatter/src/format/call/facts.rs	26	pub	struct	CallArgumentCommentProfile	pub(crate) struct CallArgumentCommentProfile {
+language/formatter/src/format/call/facts.rs	205	pub	struct	CallArgumentExpansionProfile	pub(crate) struct CallArgumentExpansionProfile {
+language/formatter/src/format/call/facts.rs	236	private	struct	CallArgumentExpansionProfiles	struct CallArgumentExpansionProfiles {
+language/formatter/src/format/annotation/node.rs	651	private	struct	Entity	struct Entity {}
+language/formatter/src/format/annotation/render.rs	19	pub	enum	AnnotationCapture	pub enum AnnotationCapture {
+language/formatter/src/format/annotation/render.rs	38	pub	struct	Annotations	pub struct Annotations<T: Node> {
+language/formatter/src/format/annotation/render.rs	47	pub	struct	AnnotationRenderState	pub(crate) struct AnnotationRenderState {
+language/formatter/src/format/annotation/render.rs	193	pub	struct	AnnotationRenderFacts	pub(crate) struct AnnotationRenderFacts {
+language/formatter/src/format/annotation/render.rs	665	pub	struct	AnnotationRenderItem	pub(crate) struct AnnotationRenderItem {
+language/formatter/src/format/annotation/render.rs	731	pub	struct	AnnotationFlowFacts	pub(crate) struct AnnotationFlowFacts {
+language/formatter/src/format/analysis/classify.rs	12	pub	struct	ArgumentSimplicityOptions	pub(crate) struct ArgumentSimplicityOptions {
+language/formatter/src/format/chain/base.rs	63	pub	enum	ChainExpressionBaseHead	pub(crate) enum ChainExpressionBaseHead {
+language/formatter/src/format/chain/base.rs	75	pub	struct	ChainExpressionBase	pub(crate) struct ChainExpressionBase {
+language/formatter/src/format/chain/base.rs	82	pub	enum	ChainExpression	pub(crate) enum ChainExpression {
+language/formatter/src/format/tree/argument.rs	136	pub	struct	TreeExpressionArgument	pub(crate) struct TreeExpressionArgument {
+language/formatter/src/format/tree/argument.rs	142	private	enum	TreeNamedAttributeSyntaxStyle	enum TreeNamedAttributeSyntaxStyle {
+language/formatter/src/format/tree/argument.rs	857	private	struct	HuggedArrowLayoutSignals	struct HuggedArrowLayoutSignals {
+language/formatter/src/format/collection/literal.rs	23	private	struct	ScalarLiteralSourceFacts	struct ScalarLiteralSourceFacts {
+language/formatter/src/format/context/options.rs	10	pub	struct	DestackFormatOptions	pub struct DestackFormatOptions {
+language/formatter/src/format/context/cache.rs	8	pub	struct	FormatterCacheStatsSnapshot	pub struct FormatterCacheStatsSnapshot {
+language/formatter/src/format/context/cache.rs	29	pub	struct	FormatterCacheStatsCollector	pub struct FormatterCacheStatsCollector {
+language/formatter/src/format/context/cache.rs	50	pub	struct	FormatterCounterEntry	pub struct FormatterCounterEntry {
+language/formatter/src/format/context/cache.rs	59	pub	struct	FormatterCountersCollector	pub struct FormatterCountersCollector {
+language/formatter/src/format/context/cache.rs	89	pub	struct	AnnotationData	pub struct AnnotationData {
+language/formatter/src/format/context/cache.rs	186	pub	struct	ArgumentAnnotationFacts	pub struct ArgumentAnnotationFacts {
+language/formatter/src/format/context/cache.rs	199	pub	struct	CallArgumentExpansionProfileFacts	pub struct CallArgumentExpansionProfileFacts {
+language/formatter/src/format/context/cache.rs	210	pub	struct	CallArgumentExpansionProfilesFacts	pub struct CallArgumentExpansionProfilesFacts {
+language/formatter/src/format/context/cache.rs	219	pub	struct	CallArgumentLayoutFacts	pub struct CallArgumentLayoutFacts {
+language/formatter/src/format/context/cache.rs	264	pub	struct	FormatterNodeCaches	pub(crate) struct FormatterNodeCaches {
+language/formatter/src/format/call/separator.rs	12	pub	struct	SeparatorLineCommentSource	pub(crate) struct SeparatorLineCommentSource {
+language/formatter/src/format/call/arguments.rs	159	pub	struct	SingleArgumentFacts	pub(crate) struct SingleArgumentFacts {
+language/formatter/src/format/call/arguments.rs	219	private	enum	SingleArgumentFormatPath	enum SingleArgumentFormatPath {
+language/formatter/src/format/call/layout.rs	33	pub	struct	CallArgumentShape	pub(crate) struct CallArgumentShape {
+language/formatter/src/format/call/layout.rs	145	pub	struct	SingleSimpleArgumentShortCircuitOptions	pub(crate) struct SingleSimpleArgumentShortCircuitOptions {
+language/formatter/src/format/call/layout.rs	156	pub	struct	SingleSimpleArgumentInlineOptions	pub(crate) struct SingleSimpleArgumentInlineOptions {
+language/formatter/src/format/call/layout.rs	167	pub	struct	CallArgumentLayoutBaseState	pub(crate) struct CallArgumentLayoutBaseState {
+language/formatter/src/format/call/layout.rs	178	pub	struct	CallArgumentLayoutState	pub(crate) struct CallArgumentLayoutState {
+language/formatter/src/format/call/layout.rs	193	pub	struct	CallArgumentLayoutRenderState	pub(crate) struct CallArgumentLayoutRenderState {
+language/formatter/src/format/call/layout.rs	263	pub	struct	CallArgumentAnnotationScanState	pub(crate) struct CallArgumentAnnotationScanState {
+language/formatter/src/format/call/layout.rs	283	pub	struct	CallArgumentCallbackScanState	pub(crate) struct CallArgumentCallbackScanState {
+language/formatter/src/format/call/layout.rs	295	pub	struct	CallArgumentComplexityScanState	pub(crate) struct CallArgumentComplexityScanState {
+language/formatter/src/format/call/layout.rs	315	pub	struct	CallArgumentLayoutScanState	pub(crate) struct CallArgumentLayoutScanState {
+language/formatter/src/format/call/layout.rs	334	pub	struct	CallArgumentCallbackFlags	pub(crate) struct CallArgumentCallbackFlags {
+language/formatter/src/format/call/layout.rs	694	pub	struct	CallArgumentDefaultListLayout	pub(crate) struct CallArgumentDefaultListLayout {
+language/formatter/src/format/call/layout.rs	709	pub	struct	CallArgumentCommentExpandedLayout	pub(crate) struct CallArgumentCommentExpandedLayout {
+language/formatter/src/format/call/layout.rs	721	pub	enum	CallArgumentLayoutDecision	pub(crate) enum CallArgumentLayoutDecision {
+language/formatter/src/format/call/layout.rs	826	pub	enum	HugLastCallArgumentLayout	pub(crate) enum HugLastCallArgumentLayout {
+language/formatter/src/format/call/layout.rs	1189	pub	struct	EarlyCallArgumentLayoutSignals	pub(crate) struct EarlyCallArgumentLayoutSignals {
+language/formatter/src/format/call/layout.rs	1197	pub	enum	EarlyCallArgumentLayoutOutcome	pub(crate) enum EarlyCallArgumentLayoutOutcome {
+language/formatter/src/format/call/layout.rs	1205	pub	struct	EarlyCommentLayoutResult	pub(crate) struct EarlyCommentLayoutResult {
+language/formatter/src/format/call/layout.rs	1372	pub	struct	ProfileForceExpandState	pub(crate) struct ProfileForceExpandState {
+language/formatter/src/format/tree/literal.rs	21	private	struct	TreeChildrenLayoutFacts	struct TreeChildrenLayoutFacts {
+language/formatter/src/format/comments/index.rs	9	private	struct	FormatterTokenNeighborIndex	struct FormatterTokenNeighborIndex {
+language/formatter/src/format/comments/index.rs	15	pub	struct	FormatterTriviaOwnerIndex	pub(crate) struct FormatterTriviaOwnerIndex {
+language/formatter/src/format/comments/index.rs	23	pub	struct	FormatterTriviaSeamIndex	pub(crate) struct FormatterTriviaSeamIndex {
+language/formatter/src/format/chain/break.rs	16	pub	struct	ChainCallSummary	pub(crate) struct ChainCallSummary {
+language/formatter/src/format/chain/break.rs	305	pub	struct	ChainBreakAnalysis	pub(crate) struct ChainBreakAnalysis {
+language/formatter/src/format/chain/break.rs	657	pub	struct	HeadSplitFacts	pub(crate) struct HeadSplitFacts {
+language/formatter/src/format/chain/break.rs	1211	pub	struct	CallParentFacts	pub(crate) struct CallParentFacts {
+language/formatter/src/format/chain/break.rs	1224	pub	struct	ReceiverParentFacts	pub(crate) struct ReceiverParentFacts {
+language/formatter/src/format/chain/break.rs	1235	pub	struct	TypeBinaryLeftFacts	pub(crate) struct TypeBinaryLeftFacts {
+language/formatter/src/format/chain/break.rs	1424	pub	struct	ChainParentFacts	pub(crate) struct ChainParentFacts {
+language/formatter/src/format/comments/seam.rs	13	pub	enum	CommentSeamKeyword	pub(crate) enum CommentSeamKeyword {
+language/formatter/src/format/comments/seam.rs	68	pub	struct	CommentSeamContext	pub(crate) struct CommentSeamContext<'a> {
+language/formatter/src/format/comments/seam.rs	93	pub	struct	CommentSeamFacts	pub(crate) struct CommentSeamFacts {
+language/formatter/src/format/comments/seam.rs	212	pub	struct	CommentSeamOwnerCache	pub(crate) struct CommentSeamOwnerCache {
+language/formatter/src/format/comments/seam.rs	220	pub	type	CommentAttachmentDecision	pub(crate) type CommentAttachmentDecision = (Option<u32>, AnnotationPosition);
+language/formatter/src/format/comments/seam.rs	224	pub	struct	CommentAttachmentOwners	pub(crate) struct CommentAttachmentOwners {

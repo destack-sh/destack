@@ -1,15 +1,18 @@
-use crate::analysis::timing::tags;
-use crate::directive::{
+use crate::format::analysis::timing::tags;
+use crate::format::chain::{should_expand_static_argument_list, should_hug_static_argument_list};
+use crate::format::collection::list_like;
+use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
     write_ignored_node,
 };
-use crate::expression::{format_primary_expression, format_statement_expression};
-use crate::operator::format_operator_expression;
+use crate::format::expression::{format_primary_expression, format_statement_expression};
+use crate::format::operator::format_operator_expression;
 use crate::{Annotation, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Declarator, Expression, IfKind, LocalNodeId, NodeType, TypeUnaryOperator,
+    AnnotationPosition, Argument, Declarator, Expression, IfKind, LocalNodeId, NodeType,
+    TypeUnaryOperator,
 };
-use destack_fir::format::{Buffer, FormatError, FormatResult};
+use destack_fir::format::{Buffer, FormatError, FormatResult, space, token};
 use destack_fir::write;
 
 enum ExpressionFormatRoute {
@@ -183,6 +186,48 @@ pub(crate) fn format_expression<'ast>(
     Err(FormatError::SyntaxError {
         message: "unsupported expression kind for expression core formatter",
     })
+}
+
+/// Format static type arguments without multiline trailing commas.
+pub(crate) fn format_static_argument_list<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    static_arguments: &[LocalNodeId<Argument>],
+) -> FormatResult<()> {
+    if should_hug_static_argument_list(f.context(), static_arguments) {
+        write!(f, [token("<")])?;
+        for (index, argument_id) in static_arguments.iter().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
+            write!(f, [*argument_id])?;
+        }
+        write!(f, [token(">")])?;
+        return Ok(());
+    }
+
+    let should_expand = should_expand_static_argument_list(f.context(), static_arguments);
+    let mut list = list_like("<", ">", ",", static_arguments);
+    list.disallow_trailing_separator();
+    if should_expand {
+        write!(f, [list.as_collection().should_expand(true)])
+    } else {
+        write!(f, [list])
+    }
+}
+
+/// Format static type arguments with relational spacing for index-following instantiations.
+pub(crate) fn format_static_argument_list_with_relational_spacing<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    static_arguments: &[LocalNodeId<Argument>],
+) -> FormatResult<()> {
+    write!(f, [space(), token("<"), space()])?;
+    for (index, argument_id) in static_arguments.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+        write!(f, [*argument_id])?;
+    }
+    write!(f, [space(), token(">"), space()])
 }
 
 impl<'ast> FormatNode<'ast, Expression> for Expression {

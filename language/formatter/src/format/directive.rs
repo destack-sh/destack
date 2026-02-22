@@ -638,7 +638,9 @@ mod tests {
     use destack_source::{File, FileId, FileType, LanguageType, Uri};
     use destack_workspace::FormatterOptions;
 
-    use super::{collect_comment_tokens, ignore_range_for_node, ignored_span_source};
+    use crate::format::directive::{
+        collect_comment_tokens, ignore_range_for_node, ignored_span_source,
+    };
     use crate::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions};
 
     #[test]

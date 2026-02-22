@@ -1,13 +1,13 @@
 use crate::Annotation;
-use crate::analysis::scan::next_non_whitespace_token_after_span;
-use crate::chain::expression_is_in_template_literal_interpolation;
-use crate::expression::{
+use crate::format::analysis::scan::next_non_whitespace_token_after_span;
+use crate::format::chain::expression_is_in_template_literal_interpolation;
+use crate::format::expression::{
     AnnotationPosition, Argument, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     IfCondition, IfKind, LocalNodeId, NodeTree, NodeType, TypeLiteral, format_with, group,
     if_group_breaks, indent, soft_block_indent, soft_line_break_or_space, space, token,
     transparent_inner_expression,
 };
-use crate::tree::tree_argument_is_wrapped_in_braces;
+use crate::format::tree::tree_argument_is_wrapped_in_braces;
 use destack_fir::format::Buffer;
 use destack_fir::{format_args, write};
 use destack_source::Span;

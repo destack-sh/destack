@@ -6,9 +6,11 @@ use smallvec::SmallVec;
 
 use crate::format::context::{Annotation, FormatterAnnotationEntry};
 
-use super::blank::resolve_formatter_blank_trivia_attachment;
-use super::index::{build_formatter_trivia_owner_index, build_formatter_trivia_seam_index};
-use super::resolve::resolve_comment_trivia_attachment;
+use crate::format::comments::blank::resolve_formatter_blank_trivia_attachment;
+use crate::format::comments::index::{
+    build_formatter_trivia_owner_index, build_formatter_trivia_seam_index,
+};
+use crate::format::comments::resolve::resolve_comment_trivia_attachment;
 
 pub(crate) fn build_formatter_annotation_projection(
     file: &File,

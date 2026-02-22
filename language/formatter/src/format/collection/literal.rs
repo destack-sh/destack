@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 
-use crate::expression::{is_expression_breakable, is_trivial_expression};
+use crate::format::expression::{is_expression_breakable, is_trivial_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 
 use destack_ast::{
-    Argument, Expression, FloatType, IfKind, IntType, LiteralType, LocalNodeId, ScalarLiteral,
-    TemplateLiteral, TypeLiteral,
+    Argument, Expression, FloatType, IfKind, IntType, LiteralType, LocalNodeId, Path,
+    ScalarLiteral, TemplateLiteral, TypeLiteral,
 };
 use destack_base::StringId;
 use destack_fir::format::{Format, FormatResult, text, token};
@@ -17,6 +17,25 @@ use destack_workspace::QuoteStyle;
 // template interpolation complexity thresholds
 const TEMPLATE_COMPLEX_ARGUMENT_COUNT_THRESHOLD: usize = 2;
 const TEMPLATE_COMPLEX_OBJECT_PROPERTY_THRESHOLD: usize = 2;
+
+/// Format a path with dot separated segments.
+impl<'ast> Format<DestackFormatContext<'ast>> for Path {
+    /// Write every segment with `.` separators.
+    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+        let mut segments = self.segments.iter().copied();
+        let Some(first_segment) = segments.next() else {
+            return Ok(());
+        };
+
+        write!(f, [first_segment])?;
+
+        for segment in segments {
+            write!(f, [token("."), segment])?;
+        }
+
+        Ok(())
+    }
+}
 
 /// One token-level source facts snapshot for scalar literal formatting.
 #[derive(Clone, Debug, Default)]
@@ -851,6 +870,36 @@ mod tests {
             source,
             |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default_with_line_width(40)
+        );
+    }
+
+    #[test]
+    fn test_format_path_short() {
+        assert_format!(
+            "destack",
+            "destack",
+            |p| p.eat_path(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_path_multiple_segments() {
+        assert_format!(
+            "destack.geometry.math",
+            "destack.geometry.math",
+            |p| p.eat_path(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_path_with_overlong_line() {
+        assert_format!(
+            "destack.geometry.math.vector.point",
+            "destack.geometry.math.vector.point",
+            |p| p.eat_path(),
+            DestackFormatOptions::default().with_line_width(20)
         );
     }
 }
