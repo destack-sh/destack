@@ -1,6 +1,5 @@
 mod annotation;
 mod cache;
-mod metric;
 mod model;
 mod node;
 mod options;

@@ -1,8 +1,9 @@
-use super::dispatch::{format_declaration_export_modifier, format_super_type_clause};
-use crate::collection::key::format_key_with_quote_policy;
-use crate::collection::property::format_block_of_members;
-use crate::declaration::statement::format_block_of_statements;
-use crate::declaration::r#where::format_where_clause_with_break;
+use crate::format::collection::property::{format_block_of_members, format_key_with_quote_policy};
+use crate::format::declaration::dispatch::{
+    format_declaration_export_modifier, format_super_type_clause,
+};
+use crate::format::declaration::signature::format_where_clause_with_break;
+use crate::format::declaration::statement::format_block_of_statements;
 use crate::{DestackFormatter, empty_block_with_infix_annotations};
 use destack_ast::{
     Declaration, DeclarationDescriptor, DeclarationKind, DependencyKind, Expression, Generics,
@@ -13,7 +14,7 @@ use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 
 /// Format a global augmentation declaration.
-pub(super) fn format_global_declaration<'ast>(
+pub(crate) fn format_global_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     descriptor: &DeclarationDescriptor,
@@ -53,7 +54,7 @@ pub(super) fn format_global_declaration<'ast>(
 }
 
 /// Format a namespace declaration.
-pub(super) fn format_namespace_declaration<'ast>(
+pub(crate) fn format_namespace_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     descriptor: &DeclarationDescriptor,
@@ -120,7 +121,7 @@ pub(super) fn format_namespace_declaration<'ast>(
 }
 
 /// Format an import alias declaration.
-pub(super) fn format_import_alias_declaration<'ast>(
+pub(crate) fn format_import_alias_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     descriptor: &DeclarationDescriptor,
@@ -167,7 +168,7 @@ pub(super) fn format_import_alias_declaration<'ast>(
 }
 
 /// Format an extension declaration.
-pub(super) fn format_extension_declaration<'ast>(
+pub(crate) fn format_extension_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     descriptor: &DeclarationDescriptor,

@@ -1,8 +1,8 @@
-root: language/formatter/src
-files: 102
-lines: 37355
-types: 86
-impls: 67
-functions_total: 927
-methods: 79
-free_functions: 848
+root: language/formatter/src/format
+files: 108
+lines: 44151
+types: 111
+impls: 74
+functions_total: 1117
+methods: 101
+free_functions: 1016

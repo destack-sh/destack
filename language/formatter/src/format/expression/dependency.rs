@@ -1,5 +1,5 @@
-use crate::declaration::imports::sort_dependency_items;
-use crate::expression::{
+use crate::format::declaration::dependency::sort_dependency_items;
+use crate::format::expression::{
     Argument, DependencyItem, DependencyKind, DependencyMode, DestackFormatter, FormatResult,
     ImportSource, Keyword, LocalNodeId, call_arguments_are_multiline_span, list_like, space, token,
 };
@@ -26,7 +26,7 @@ fn format_dependency_with_arguments<'ast>(
 }
 
 /// Format an import expression.
-pub(super) fn format_import_expression<'ast>(
+pub(crate) fn format_import_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     source: ImportSource,
     kind: DependencyKind,
@@ -220,7 +220,7 @@ pub(super) fn format_import_expression<'ast>(
 }
 
 /// Format an export expression.
-pub(super) fn format_export_expression<'ast>(
+pub(crate) fn format_export_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     kind: DependencyKind,
     target: Option<StringId>,

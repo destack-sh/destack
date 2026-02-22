@@ -1,13 +1,13 @@
-use crate::collection::{collection_nodes_have_annotations, collection_nodes_have_newline};
-use crate::directive::any_ignore_range_for_nodes;
-use crate::expression::{
+use crate::format::collection::{collection_nodes_have_annotations, collection_nodes_have_newline};
+use crate::format::directive::any_ignore_range_for_nodes;
+use crate::format::expression::{
     Argument, DestackFormatContext, DestackFormatter, Expression, FormatResult, LocalNodeId,
     NodeType, Pattern, PatternField, Property, SmallVec, Span, TrailingComma, block_indent,
     format_block_of_properties, format_with, group, hard_line_break, if_group_breaks,
     is_tree_attribute_expression, list_like, property_has_complex_type_value,
     property_has_complex_value, soft_block_indent, space, span_has_comment, token,
 };
-use crate::operator::{
+use crate::format::operator::{
     is_parameter_type_annotation, is_static_type_argument_context, is_type_context,
 };
 use destack_fir::format::Buffer;
@@ -19,7 +19,7 @@ const INLINE_ASSIGNMENT_TARGET_MAX_PROPERTIES: usize = 2;
 const COMPLEX_ASSIGNMENT_TARGET_MIN_PROPERTIES: usize = 3;
 
 /// Format boundary comments for array-like structures.
-pub(super) fn format_boundary_comment_array<'ast>(
+pub(crate) fn format_boundary_comment_array<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     elements: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {

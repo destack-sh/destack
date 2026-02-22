@@ -1,4 +1,4 @@
-use super::{
+use crate::format::chain::{
     Annotation, AnnotationPosition, ChainBreakAnalysis, ChainExpression, ChainExpressionBase,
     ChainExpressionBaseHead, DestackFormatContext, Expression, FormatError, FormatResult,
     LocalNodeId, NodeTree, NodeType, ParenthesizedUnwrapPolicy, PostfixPosition, SmallVec,
@@ -11,7 +11,7 @@ use super::{
 };
 use destack_ast::{Comment, CommentStyle, Doc, DocStyle};
 
-use super::line_group::{
+use crate::format::chain::line_group::{
     expression_has_line_postfix_boundary_comment, group_chain_expression_lines,
 };
 
@@ -108,11 +108,11 @@ fn resolve_chain_base_root_id(
 }
 
 /// Store planned chain layout used by render-only formatting.
-pub(super) struct ChainLayoutPlan {
-    pub(super) base: ChainExpressionBase,
-    pub(super) lines: Vec<SmallVec<[ChainExpression; 2]>>,
-    pub(super) should_break: bool,
-    pub(super) instantiation_prefix_wrap_body_ops: Option<usize>,
+pub(crate) struct ChainLayoutPlan {
+    pub(crate) base: ChainExpressionBase,
+    pub(crate) lines: Vec<SmallVec<[ChainExpression; 2]>>,
+    pub(crate) should_break: bool,
+    pub(crate) instantiation_prefix_wrap_body_ops: Option<usize>,
 }
 
 /// Build base head and synthetic root operations for a chain root.
@@ -743,7 +743,7 @@ fn normalize_chain_layout(
 }
 
 /// Build a scored chain layout plan that rendering can consume directly.
-pub(super) fn plan_chain_layout(
+pub(crate) fn plan_chain_layout(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<ChainLayoutPlan> {

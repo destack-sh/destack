@@ -1,12 +1,11 @@
-use super::dispatch::format_declaration_export_modifier;
-use crate::collection::list_like;
-use crate::declaration::signature::{
-    FunctionHeaderStyle, parameter_is_variadic, signature_parameters_should_expand,
-    signature_return_type_has_line_postfix_boundary_annotation,
+use crate::format::collection::list_like;
+use crate::format::declaration::dispatch::format_declaration_export_modifier;
+use crate::format::declaration::signature::{
+    FunctionHeaderStyle, format_where_clause_with_break, parameter_is_variadic,
+    signature_parameters_should_expand, signature_return_type_has_line_postfix_boundary_annotation,
     signature_should_elide_space_before_body, single_parameter_should_hug,
     write_function_header_prefix, write_signature_dynamic_parameter_list,
 };
-use crate::declaration::r#where::format_where_clause_with_break;
 use crate::{Annotation, DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, Comment, CommentStyle, Declaration, DeclarationDescriptor, Expression,
@@ -211,7 +210,7 @@ fn write_lambda_arrow_with_infix_annotations<'ast>(
 
 /// Format a function declaration.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn format_function_declaration<'ast>(
+pub(crate) fn format_function_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     descriptor: &DeclarationDescriptor,
@@ -374,7 +373,7 @@ pub(super) fn format_function_declaration<'ast>(
                     )
             );
             let force_break =
-                crate::expression::lambda_expression_should_break(f.context(), node_id);
+                crate::format::expression::lambda_expression_should_break(f.context(), node_id);
 
             // arrow is fine since lambdas can only have return type or body
             if body_is_block {
@@ -417,10 +416,10 @@ pub(super) fn format_function_declaration<'ast>(
                 // default expression body formatting
                 let body_break = format_with(|f| write!(f, [body]));
                 let inline_body_expression_id =
-                    crate::expression::transparent_inner_expression(f.context(), *body);
+                    crate::format::expression::transparent_inner_expression(f.context(), *body);
                 let body_is_simple_inline_expression = !force_break
                     && !f.context().has_annotation(inline_body_expression_id)
-                    && crate::expression::is_trivial_expression(
+                    && crate::format::expression::is_trivial_expression(
                         f.context().tree,
                         f.context().tree.get(inline_body_expression_id),
                     );
@@ -440,8 +439,7 @@ pub(super) fn format_function_declaration<'ast>(
                         f,
                         [group(&format_args![
                             format_with(|f| write_lambda_arrow_with_infix_annotations(f, node_id)),
-                            space(),
-                            body_break
+                            indent(&format_args![soft_line_break_or_space(), body_break])
                         ])
                         .should_expand(false)]
                     )?;

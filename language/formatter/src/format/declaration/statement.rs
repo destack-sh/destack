@@ -6,13 +6,14 @@ use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::Span;
 
-use super::block_policy::block_allows_value_tail;
-use super::statement_list::{format_block_body_narrow, format_block_body_wide};
-use crate::analysis::timing::tags;
-use crate::directive::{has_file_ignore_directive, write_ignored_span};
+use crate::format::analysis::timing::tags;
+use crate::format::declaration::statement_list::{
+    block_allows_value_tail, format_block_body_narrow, format_block_body_wide,
+};
+use crate::format::directive::{has_file_ignore_directive, write_ignored_span};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 
-pub(crate) use super::statement_list::format_block_of_statements;
+pub(crate) use crate::format::declaration::statement_list::format_block_of_statements;
 
 /// A formatted list of expression statements.
 #[derive(Debug, Clone, Copy)]

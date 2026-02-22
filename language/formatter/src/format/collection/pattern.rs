@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use destack_fir::format::FormatResult;
 
-use crate::collection::{CollectionBreakScore, list_like};
+use crate::format::collection::{CollectionBreakScore, list_like};
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{Expression, LocalNodeId, Mutability, NodeTree, NodeType, Pattern, PatternField};
 use destack_fir::prelude::*;

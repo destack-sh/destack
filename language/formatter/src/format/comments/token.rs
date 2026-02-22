@@ -3,7 +3,7 @@ use destack_ast as ast;
 
 /// Return whether one token kind is an opening delimiter.
 #[inline]
-pub(super) fn is_open_delimiter_token(token_type: TokenType) -> bool {
+pub(crate) fn is_open_delimiter_token(token_type: TokenType) -> bool {
     matches!(
         token_type,
         TokenType::OpenParenthesis | TokenType::OpenBrace | TokenType::OpenBracket
@@ -12,7 +12,7 @@ pub(super) fn is_open_delimiter_token(token_type: TokenType) -> bool {
 
 /// Return whether one token kind is a closing delimiter.
 #[inline]
-pub(super) fn is_close_delimiter_token(token_type: TokenType) -> bool {
+pub(crate) fn is_close_delimiter_token(token_type: TokenType) -> bool {
     matches!(
         token_type,
         TokenType::CloseParenthesis | TokenType::CloseBrace | TokenType::CloseBracket
@@ -21,7 +21,7 @@ pub(super) fn is_close_delimiter_token(token_type: TokenType) -> bool {
 
 /// Return whether one open and close delimiter token pair matches.
 #[inline]
-pub(super) fn delimiters_match(open: TokenType, close: TokenType) -> bool {
+pub(crate) fn delimiters_match(open: TokenType, close: TokenType) -> bool {
     matches!(
         (open, close),
         (TokenType::OpenParenthesis, TokenType::CloseParenthesis)
@@ -32,7 +32,7 @@ pub(super) fn delimiters_match(open: TokenType, close: TokenType) -> bool {
 
 /// Return whether one token after a comment seam prefers left ownership.
 #[inline]
-pub(super) fn token_after_prefers_left_ownership(token_type: TokenType) -> bool {
+pub(crate) fn token_after_prefers_left_ownership(token_type: TokenType) -> bool {
     matches!(
         token_type,
         TokenType::Semicolon
@@ -75,7 +75,7 @@ pub(super) fn token_after_prefers_left_ownership(token_type: TokenType) -> bool 
 }
 
 /// Return the previous non-newline semantic token index before one index.
-pub(super) fn previous_non_newline_token_index(
+pub(crate) fn previous_non_newline_token_index(
     semantic_tokens: &[TokenSpan],
     index: usize,
 ) -> Option<usize> {

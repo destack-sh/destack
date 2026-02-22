@@ -2,7 +2,7 @@ use ast::{NodeTree, NodeType, TokenSpan, TokenType};
 use destack_ast as ast;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::owner::is_trivia_excluded_owner_node_id;
+use crate::format::comments::owner::is_trivia_excluded_owner_node_id;
 
 const NO_TOKEN_INDEX: u32 = u32::MAX;
 
@@ -12,18 +12,18 @@ struct FormatterTokenNeighborIndex {
 }
 
 #[derive(Debug)]
-pub(super) struct FormatterTriviaOwnerIndex {
-    pub(super) owner_start_by_token: Vec<Option<u32>>,
-    pub(super) owner_end_by_token: Vec<Option<u32>>,
-    pub(super) nearest_owner_start_by_token: Vec<Option<u32>>,
-    pub(super) nearest_owner_end_by_token: Vec<Option<u32>>,
+pub(crate) struct FormatterTriviaOwnerIndex {
+    pub(crate) owner_start_by_token: Vec<Option<u32>>,
+    pub(crate) owner_end_by_token: Vec<Option<u32>>,
+    pub(crate) nearest_owner_start_by_token: Vec<Option<u32>>,
+    pub(crate) nearest_owner_end_by_token: Vec<Option<u32>>,
 }
 
 #[derive(Debug)]
-pub(super) struct FormatterTriviaSeamIndex {
-    pub(super) comment_seams: FxHashSet<u64>,
-    pub(super) line_comment_seams: FxHashSet<u64>,
-    pub(super) first_comment_start_by_seam: FxHashMap<u64, u32>,
+pub(crate) struct FormatterTriviaSeamIndex {
+    pub(crate) comment_seams: FxHashSet<u64>,
+    pub(crate) line_comment_seams: FxHashSet<u64>,
+    pub(crate) first_comment_start_by_seam: FxHashMap<u64, u32>,
 }
 
 /// Return true when one semantic token can own trivia seams.
@@ -209,7 +209,7 @@ fn build_formatter_nearest_owner_end_by_token(
 }
 
 /// Build owner indexes for formatter-side trivia attachment.
-pub(super) fn build_formatter_trivia_owner_index(
+pub(crate) fn build_formatter_trivia_owner_index(
     tree: &NodeTree,
     semantic_tokens: &[TokenSpan],
 ) -> FormatterTriviaOwnerIndex {
@@ -237,12 +237,12 @@ pub(super) fn build_formatter_trivia_owner_index(
 
 /// Encode one trivia token seam into one compact key.
 #[inline]
-pub(super) fn encode_trivia_seam(token_before: u32, token_after: u32) -> u64 {
+pub(crate) fn encode_trivia_seam(token_before: u32, token_after: u32) -> u64 {
     ((token_before as u64) << 32) | token_after as u64
 }
 
 /// Build formatter-side trivia seam indexes.
-pub(super) fn build_formatter_trivia_seam_index(tree: &NodeTree) -> FormatterTriviaSeamIndex {
+pub(crate) fn build_formatter_trivia_seam_index(tree: &NodeTree) -> FormatterTriviaSeamIndex {
     let mut comment_seams = FxHashSet::default();
     comment_seams.reserve(tree.comment_trivia().len());
     let mut line_comment_seams = FxHashSet::default();
@@ -272,6 +272,6 @@ pub(super) fn build_formatter_trivia_seam_index(tree: &NodeTree) -> FormatterTri
 }
 
 /// Decode one compact token index with sentinel for none.
-pub(super) fn decode_token_index(token_index: u32) -> Option<usize> {
+pub(crate) fn decode_token_index(token_index: u32) -> Option<usize> {
     (token_index != NO_TOKEN_INDEX).then_some(token_index as usize)
 }

@@ -4,19 +4,19 @@ use ast::{
 };
 use destack_ast as ast;
 
-use super::owner::{
+use crate::format::comments::declaration::try_attach_comment_declaration_return_type_seam;
+use crate::format::comments::owner::{
     find_smallest_owner_enclosing_token, lowest_common_owner_ancestor,
-    normalize_formatter_trivia_target_owner, promote_owner_to_node_type_ancestor,
-    resolve_block_leading_comment_target,
+    normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
+    promote_owner_to_node_type_ancestor, resolve_block_leading_comment_target,
 };
-use super::rule::normalize_owner_with_shared_end;
-use super::seam::{
+use crate::format::comments::seam::{
     CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
     CommentSeamKeyword, CommentSeamOwnerCache, resolve_comment_seam_owner,
 };
 
 /// Resolve statement-prefix seam comment rules.
-pub(super) fn try_attach_comment_statement_prefix(
+pub(crate) fn try_attach_comment_statement_prefix(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
@@ -124,7 +124,7 @@ pub(super) fn try_attach_comment_statement_prefix(
 }
 
 /// Resolve statement-suffix seam comment rules.
-pub(super) fn try_attach_comment_statement_suffix(
+pub(crate) fn try_attach_comment_statement_suffix(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     facts: &CommentSeamFacts,
@@ -144,8 +144,6 @@ pub(super) fn try_attach_comment_statement_suffix(
     let token_before_is_close_parenthesis = facts.token_before_is(TokenType::CloseParenthesis);
 
     let token_before_is_comma = facts.token_before_is(TokenType::Comma);
-    let token_before_is_return_type_colon = facts.token_before_is_return_type_colon;
-
     // inline block comments between `else` and `{` stay with the else body block
     if !has_leading_newline
         && !has_trailing_newline
@@ -207,14 +205,8 @@ pub(super) fn try_attach_comment_statement_suffix(
     }
 
     // return type seam comments should stay between `:` and the return type
-    if !has_leading_newline
-        && has_trailing_newline
-        && token_before_is_return_type_colon
-        && comment_is_line
-        && let Some(target_node) = right_owner
-    {
-        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        return Some((Some(target_node), AnnotationPosition::LinePrefix));
+    if let Some(decision) = try_attach_comment_declaration_return_type_seam(tree, facts, owners) {
+        return Some(decision);
     }
 
     // parameter and argument trailing comments before `)` should stay on the container item
@@ -259,7 +251,7 @@ pub(super) fn try_attach_comment_statement_suffix(
 }
 
 /// Resolve block body seam comment rules.
-pub(super) fn try_attach_comment_block_body(
+pub(crate) fn try_attach_comment_block_body(
     tree: &NodeTree,
     facts: &CommentSeamFacts,
     owners: CommentAttachmentOwners,

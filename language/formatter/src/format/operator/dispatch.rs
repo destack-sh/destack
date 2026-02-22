@@ -1,18 +1,21 @@
-use super::assign::format_assign_expression;
-use super::binary::{format_binary_expression, format_type_binary_expression};
-use super::r#new::format_new_expression;
-use crate::analysis::scan::first_non_trivia_token_in_span;
-use crate::analysis::timing::tags;
-use crate::chain::{
-    format_call_expression, format_expression_chain, format_index_expression,
-    format_instantiation_expression, format_maybe_expression, format_member_expression,
-    has_chain_parent, is_expression_chain, needs_parens_in_postfix_position,
+use crate::format::analysis::scan::first_non_trivia_token_in_span;
+use crate::format::analysis::timing::tags;
+use crate::format::call::format_call_arguments;
+use crate::format::chain::{
+    analyze_chain_parent_facts, extract_parenthesized_index_chain, format_call_expression,
+    format_expression_chain, format_index_expression, format_instantiation_expression,
+    format_maybe_expression, format_member_expression, has_chain_parent, is_expression_chain,
+    needs_parens_in_postfix_position,
 };
-use crate::expression::{
+use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, DestackFormatContext, DestackFormatter, Expression,
-    FormatResult, LocalNodeId, TypeUnaryOperator, UnaryOperator,
-    expression_has_leading_prefix_comment, hard_line_break, space, token,
+    FormatResult, LocalNodeId, ParenthesizedUnwrapPolicy, TypeUnaryOperator, UnaryOperator,
+    expression_has_leading_prefix_comment, format_static_argument_list, format_with,
+    hard_line_break, parenthesized_prefers_new_member_callee_parentheses,
+    parenthesized_should_unwrap, space, token,
 };
+use crate::format::operator::assign::format_assign_expression;
+use crate::format::operator::binary::{format_binary_expression, format_type_binary_expression};
 use destack_ast::{Comment, CommentStyle, Mutability, PostfixPosition, TokenType};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::write;
@@ -56,69 +59,78 @@ fn call_should_route_to_chain_for_boundary_comment(
         || expression_has_line_postfix_boundary_comment(context, *left)
 }
 
-/// Return whether one call should bypass chain routing for multiline template arguments.
-fn call_prefers_non_chain_for_multiline_template_argument(
-    context: &DestackFormatContext<'_>,
+/// Format a `new` expression.
+pub(crate) fn format_new_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Expression::Call {
-        left,
-        dynamic_arguments,
-        ..
-    } = context.tree.get(node_id)
+    left: LocalNodeId<Expression>,
+    static_arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    dynamic_arguments: &[LocalNodeId<Argument>],
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+
+    // unwrap redundant parenthesized member callees
+    let mut left = left;
+    if let Expression::Parenthesized { expression } = tree.get(left)
+        && parenthesized_should_unwrap(
+            f.context(),
+            left,
+            *expression,
+            ParenthesizedUnwrapPolicy::NewMemberCallee,
+        )
+    {
+        left = *expression;
+    }
+
+    // preserve parenthesized index chains like `(foo[bar])`
+    if let Some((base_expression, indices)) =
+        extract_parenthesized_index_chain(f.context().tree, left)
+    {
+        let formatted_left = format_with(move |f| {
+            write!(f, [token("("), base_expression])?;
+            for index in &indices {
+                write!(f, [token("["), *index, token("]")])?;
+            }
+            write!(f, [token(")")])
+        });
+
+        write!(f, [token("new"), space(), formatted_left])?;
+    }
+    // otherwise use regular member-callee wrapping rules
     else {
-        return false;
-    };
-    if dynamic_arguments.len() != 1 {
-        return false;
+        let should_wrap_member_callee = matches!(
+            tree.get(left),
+            Expression::Member {
+                left: member_left,
+                ..
+            } | Expression::PrivateMember {
+                left: member_left,
+                ..
+            } if parenthesized_prefers_new_member_callee_parentheses(
+                f.context(),
+                *member_left
+            )
+        );
+
+        // keep wrapped member callee when required
+        if should_wrap_member_callee {
+            write!(f, [token("new"), space(), token("("), left, token(")")])?;
+        }
+        // otherwise write regular new callee
+        else {
+            write!(f, [token("new"), space(), left])?;
+        }
     }
 
-    let argument_id = dynamic_arguments[0];
-    let argument_value_id = match context.tree.get(argument_id) {
-        Argument::Named { value, .. }
-        | Argument::Labeled { value, .. }
-        | Argument::Positional { value, .. }
-        | Argument::Spread { value, .. } => *value,
-    };
-    let is_template_literal = matches!(
-        context.tree.get(argument_value_id),
-        Expression::TemplateExpression { .. }
-    );
-    if !is_template_literal || !context.node_has_newline(argument_value_id) {
-        return false;
+    // write static type arguments
+    if let Some(static_arguments) = static_arguments {
+        format_static_argument_list(f, static_arguments)?;
     }
 
-    matches!(
-        context.tree.get(*left),
-        Expression::Member { .. }
-            | Expression::PrivateMember { .. }
-            | Expression::Index { .. }
-            | Expression::Call { .. }
-    )
-}
+    // write dynamic argument list
+    format_call_arguments(f, node_id, dynamic_arguments)?;
 
-/// Return whether one call should bypass chain routing for parenthesized await member receivers.
-fn call_prefers_non_chain_for_parenthesized_await_member_receiver(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Expression::Call { left, .. } = context.tree.get(node_id) else {
-        return false;
-    };
-
-    let member_receiver_id = match context.tree.get(*left) {
-        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => *left,
-        _ => return false,
-    };
-
-    let Expression::Parenthesized { expression } = context.tree.get(member_receiver_id) else {
-        return false;
-    };
-
-    matches!(
-        context.tree.get(*expression),
-        Expression::Await { .. } | Expression::AwaitMaybe { .. }
-    )
+    Ok(())
 }
 
 /// Collect block infix comment nodes for one type unary expression node.
@@ -139,7 +151,7 @@ fn collect_type_unary_infix_comment_facts(
             continue;
         }
 
-        let comment = context.tree.get::<destack_ast::Comment>(node);
+        let comment = context.tree.get::<Comment>(node);
         let annotation_span = context.annotation_span(annotation_id);
         comments.push((comment.style, context.has_newline(annotation_span), node));
     }
@@ -477,10 +489,12 @@ fn format_call_or_chain_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
+    let parent_facts = analyze_chain_parent_facts(f.context(), node_id);
+    let call_has_await_wrapped_member_receiver =
+        parent_facts.call_has_parenthesized_await_member_receiver();
     let should_route_to_chain = (is_expression_chain(f.context().tree, node_id)
         || call_should_route_to_chain_for_boundary_comment(f.context(), node_id))
-        && !call_prefers_non_chain_for_multiline_template_argument(f.context(), node_id)
-        && !call_prefers_non_chain_for_parenthesized_await_member_receiver(f.context(), node_id);
+        && !call_has_await_wrapped_member_receiver;
     if should_route_to_chain {
         let _timing = f
             .context()

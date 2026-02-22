@@ -1,16 +1,16 @@
-use super::argument::{
-    TreeExpressionArgument, should_force_break_tree_attributes, tree_argument_is_wrapped_in_braces,
-};
-use super::children::{
-    tree_child_breaks_element, tree_children_have_blank_line_between,
-    tree_text_boundary_separator_space, tree_text_is_whitespace_only,
-};
-use crate::expression::{
+use crate::format::expression::{
     Argument, DestackFormatContext, DestackFormatter, Expression, FormatResult, LocalNodeId,
     NodeTree, ScalarLiteral, block_indent, empty_line, expand_parent,
     expression_has_static_type_arguments, format_with, group, hard_line_break, if_group_breaks,
     if_group_fits_on_line, indent, soft_block_indent, soft_line_break, soft_line_break_or_space,
     space, token, transparent_inner_expression,
+};
+use crate::format::tree::argument::{
+    TreeExpressionArgument, should_force_break_tree_attributes, tree_argument_is_wrapped_in_braces,
+};
+use crate::format::tree::children::{
+    tree_child_breaks_element, tree_children_have_blank_line_between,
+    tree_text_boundary_separator_space, tree_text_is_whitespace_only,
 };
 use destack_ast::{IfKind, NodeType};
 use destack_fir::format::{Buffer, Format};
@@ -498,6 +498,18 @@ pub(crate) fn tree_literal_should_break(
     layout_facts.force_break
 }
 
+/// Decide whether a tree literal should expand in rendered output.
+pub(crate) fn tree_literal_should_expand(
+    context: &DestackFormatContext<'_>,
+    arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    elements: &Option<Vec<LocalNodeId<Argument>>>,
+) -> bool {
+    let has_multiline_whitespace_tree_seam = elements
+        .as_ref()
+        .is_some_and(|elements| tree_literal_has_multiline_whitespace_tree_seam(context, elements));
+    tree_literal_should_break(context, arguments, elements) || has_multiline_whitespace_tree_seam
+}
+
 /// Return whether a tree literal should be wrapped in parentheses when it breaks.
 pub(crate) fn tree_literal_wraps_on_break(
     context: &DestackFormatContext<'_>,
@@ -566,7 +578,7 @@ pub(crate) fn format_tree_literal_expression<'ast>(
         return format_tree_literal(f, node_id, left, arguments, elements);
     }
 
-    let should_expand = tree_literal_should_break(f.context(), arguments, elements);
+    let should_expand = tree_literal_should_expand(f.context(), arguments, elements);
 
     write!(
         f,
@@ -597,11 +609,7 @@ pub(crate) fn format_tree_literal<'ast>(
     arguments: &Option<Vec<LocalNodeId<Argument>>>,
     elements: &Option<Vec<LocalNodeId<Argument>>>,
 ) -> FormatResult<()> {
-    let has_multiline_whitespace_tree_seam = elements.as_ref().is_some_and(|elements| {
-        tree_literal_has_multiline_whitespace_tree_seam(f.context(), elements)
-    });
-    let should_expand_tree = tree_literal_should_break(f.context(), arguments, elements)
-        || has_multiline_whitespace_tree_seam;
+    let should_expand_tree = tree_literal_should_expand(f.context(), arguments, elements);
     let force_break_attributes = arguments
         .as_ref()
         .is_some_and(|arguments| should_force_break_tree_attributes(f.context(), arguments));

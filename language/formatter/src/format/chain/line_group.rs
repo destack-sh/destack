@@ -1,11 +1,11 @@
-use super::{
+use crate::format::chain::{
     Annotation, AnnotationPosition, ChainExpression, DestackFormatContext, Expression, LocalNodeId,
     PostfixPosition, SmallVec, argument_is_template_literal, chain_node_has_non_inline_annotation,
 };
 use smallvec::smallvec;
 
 /// Return whether an expression has a line postfix boundary comment annotation.
-pub(super) fn expression_has_line_postfix_boundary_comment(
+pub(crate) fn expression_has_line_postfix_boundary_comment(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -40,7 +40,7 @@ fn chain_call_has_single_template_literal_argument(
 }
 
 /// Group chain operations into the segments that should share lines.
-pub(super) fn group_chain_expression_lines(
+pub(crate) fn group_chain_expression_lines(
     context: &DestackFormatContext<'_>,
     operations: Vec<ChainExpression>,
 ) -> Vec<SmallVec<[ChainExpression; 2]>> {

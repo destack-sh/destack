@@ -1,6 +1,6 @@
 use destack_fir::format::FormatResult;
 
-use crate::declaration::statement::format_block_of_statements;
+use crate::format::declaration::statement::format_block_of_statements;
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{BlockFormat, Expression, Keyword, LocalNodeId, MatchCase, MatchSelector};
 use destack_fir::prelude::*;

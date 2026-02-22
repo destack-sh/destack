@@ -3,14 +3,14 @@ use destack_ast as ast;
 use destack_source::{File, Span};
 use rustc_hash::FxHashMap;
 
-use super::owner::find_smallest_owner_enclosing_range;
-use super::token::{
+use crate::format::comments::owner::find_smallest_owner_enclosing_range;
+use crate::format::comments::token::{
     is_open_delimiter_token, previous_non_newline_token_index, token_after_prefers_left_ownership,
 };
 
 /// One normalized identifier keyword used in comment seam rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum CommentSeamKeyword {
+pub(crate) enum CommentSeamKeyword {
     /// One non-keyword identifier.
     None,
     /// One `as` keyword.
@@ -33,7 +33,7 @@ pub(super) enum CommentSeamKeyword {
 
 /// Classify one identifier token into one seam keyword family.
 #[inline]
-pub(super) fn classify_comment_seam_keyword(
+pub(crate) fn classify_comment_seam_keyword(
     token_keyword_by_span: &FxHashMap<Span, Option<Keyword>>,
     token: Option<TokenSpan>,
 ) -> CommentSeamKeyword {
@@ -65,61 +65,61 @@ pub(super) fn classify_comment_seam_keyword(
 
 /// Immutable context for one comment seam attachment decision.
 #[derive(Clone, Copy)]
-pub(super) struct CommentSeamContext<'a> {
+pub(crate) struct CommentSeamContext<'a> {
     /// The source file.
-    pub(super) file: &'a File,
+    pub(crate) file: &'a File,
     /// The syntax tree.
-    pub(super) tree: &'a NodeTree,
+    pub(crate) tree: &'a NodeTree,
     /// The semantic token stream.
-    pub(super) semantic_tokens: &'a [TokenSpan],
+    pub(crate) semantic_tokens: &'a [TokenSpan],
     /// Parsed identifier keywords by token span.
-    pub(super) token_keyword_by_span: &'a FxHashMap<Span, Option<Keyword>>,
+    pub(crate) token_keyword_by_span: &'a FxHashMap<Span, Option<Keyword>>,
     /// The comment trivia payload.
-    pub(super) trivia: destack_ast::CommentTrivia,
+    pub(crate) trivia: destack_ast::CommentTrivia,
     /// Parent links for owner promotion.
-    pub(super) parents: &'a NodeParentIndex,
+    pub(crate) parents: &'a NodeParentIndex,
     /// Token index before the seam.
-    pub(super) token_before: Option<usize>,
+    pub(crate) token_before: Option<usize>,
     /// Token index after the seam.
-    pub(super) token_after: Option<usize>,
+    pub(crate) token_after: Option<usize>,
     /// Token span before the seam.
-    pub(super) token_before_span: Option<TokenSpan>,
+    pub(crate) token_before_span: Option<TokenSpan>,
     /// Token span after the seam.
-    pub(super) token_after_span: Option<TokenSpan>,
+    pub(crate) token_after_span: Option<TokenSpan>,
 }
 
 /// Compact seam facts derived once per comment seam.
 #[derive(Clone, Copy)]
-pub(super) struct CommentSeamFacts {
+pub(crate) struct CommentSeamFacts {
     /// Whether trivia has at least one newline before comment text.
-    pub(super) has_leading_newline: bool,
+    pub(crate) has_leading_newline: bool,
     /// Whether trivia has at least one newline after comment text.
-    pub(super) has_trailing_newline: bool,
+    pub(crate) has_trailing_newline: bool,
     /// Whether comment style is `//`.
-    pub(super) comment_is_line: bool,
+    pub(crate) comment_is_line: bool,
     /// Whether comment style is `/* */`.
-    pub(super) comment_is_star: bool,
+    pub(crate) comment_is_star: bool,
     /// Whether `/* */` comment text spans multiple lines.
-    pub(super) comment_is_multiline_star: bool,
+    pub(crate) comment_is_multiline_star: bool,
     /// Token kind before seam.
-    pub(super) token_before_type: Option<TokenType>,
+    pub(crate) token_before_type: Option<TokenType>,
     /// Token kind after seam.
-    pub(super) token_after_type: Option<TokenType>,
+    pub(crate) token_after_type: Option<TokenType>,
     /// Keyword class for identifier before seam.
-    pub(super) token_before_keyword: CommentSeamKeyword,
+    pub(crate) token_before_keyword: CommentSeamKeyword,
     /// Keyword class for identifier after seam.
-    pub(super) token_after_keyword: CommentSeamKeyword,
+    pub(crate) token_after_keyword: CommentSeamKeyword,
     /// Whether token after seam structurally prefers left ownership.
-    pub(super) token_after_prefers_left: bool,
+    pub(crate) token_after_prefers_left: bool,
     /// Whether seam is one return type boundary after `):`.
-    pub(super) token_before_is_return_type_colon: bool,
+    pub(crate) token_before_is_return_type_colon: bool,
     /// Whether default trailing behavior should prefer right binding.
-    pub(super) seam_binds_right: bool,
+    pub(crate) seam_binds_right: bool,
 }
 
 impl CommentSeamFacts {
     /// Build one seam fact snapshot.
-    pub(super) fn build(context: &CommentSeamContext<'_>) -> Self {
+    pub(crate) fn build(context: &CommentSeamContext<'_>) -> Self {
         let token_before_type = context.token_before_span.map(|token| token.token.ty);
         let token_after_type = context.token_after_span.map(|token| token.token.ty);
         let token_before_keyword =
@@ -177,31 +177,31 @@ impl CommentSeamFacts {
 
     /// Return whether token before seam has one type.
     #[inline]
-    pub(super) fn token_before_is(self, token_type: TokenType) -> bool {
+    pub(crate) fn token_before_is(self, token_type: TokenType) -> bool {
         self.token_before_type == Some(token_type)
     }
 
     /// Return whether token after seam has one type.
     #[inline]
-    pub(super) fn token_after_is(self, token_type: TokenType) -> bool {
+    pub(crate) fn token_after_is(self, token_type: TokenType) -> bool {
         self.token_after_type == Some(token_type)
     }
 
     /// Return whether token before seam is one keyword.
     #[inline]
-    pub(super) fn token_before_is_keyword(self, keyword: CommentSeamKeyword) -> bool {
+    pub(crate) fn token_before_is_keyword(self, keyword: CommentSeamKeyword) -> bool {
         self.token_before_keyword == keyword
     }
 
     /// Return whether token after seam is one keyword.
     #[inline]
-    pub(super) fn token_after_is_keyword(self, keyword: CommentSeamKeyword) -> bool {
+    pub(crate) fn token_after_is_keyword(self, keyword: CommentSeamKeyword) -> bool {
         self.token_after_keyword == keyword
     }
 
     /// Return whether token after seam starts one switch label.
     #[inline]
-    pub(super) fn token_after_is_case_or_default(self) -> bool {
+    pub(crate) fn token_after_is_case_or_default(self) -> bool {
         self.token_after_keyword == CommentSeamKeyword::Case
             || self.token_after_keyword == CommentSeamKeyword::Default
     }
@@ -209,35 +209,35 @@ impl CommentSeamFacts {
 
 /// Mutable caches for one seam attachment evaluation.
 #[derive(Default)]
-pub(super) struct CommentSeamOwnerCache {
+pub(crate) struct CommentSeamOwnerCache {
     /// Lazily resolved smallest owner that encloses seam token range.
-    pub(super) seam_owner: Option<u32>,
+    pub(crate) seam_owner: Option<u32>,
     /// Whether seam owner lookup was executed.
-    pub(super) seam_owner_resolved: bool,
+    pub(crate) seam_owner_resolved: bool,
 }
 
 /// One resolved attachment decision for one comment seam.
-pub(super) type CommentAttachmentDecision = (Option<u32>, AnnotationPosition);
+pub(crate) type CommentAttachmentDecision = (Option<u32>, AnnotationPosition);
 
 /// Owner candidates adjacent to one comment seam.
 #[derive(Clone, Copy, Debug, Default)]
-pub(super) struct CommentAttachmentOwners {
+pub(crate) struct CommentAttachmentOwners {
     /// The nearest left owner candidate.
-    pub(super) left: Option<u32>,
+    pub(crate) left: Option<u32>,
     /// The nearest right owner candidate.
-    pub(super) right: Option<u32>,
+    pub(crate) right: Option<u32>,
 }
 
 impl CommentAttachmentOwners {
     /// Build one owner candidate pair.
     #[inline]
-    pub(super) fn new(left: Option<u32>, right: Option<u32>) -> Self {
+    pub(crate) fn new(left: Option<u32>, right: Option<u32>) -> Self {
         Self { left, right }
     }
 }
 
 /// Resolve one seam owner lazily from seam token range.
-pub(super) fn resolve_comment_seam_owner(
+pub(crate) fn resolve_comment_seam_owner(
     context: &CommentSeamContext<'_>,
     cache: &mut CommentSeamOwnerCache,
 ) -> Option<u32> {

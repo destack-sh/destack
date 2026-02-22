@@ -1,10 +1,12 @@
-use super::{
+use crate::format::analysis::scan::{
+    first_non_trivia_token_in_span, last_non_trivia_token_in_span,
+};
+use crate::format::directive::comment_node_is_ignore_directive;
+use crate::format::expression::{
     Annotation, AnnotationPosition, DestackFormatContext, Expression, IfCondition, IfKind,
     LocalNodeId, NodeType, TokenType, parenthesized_has_leading_inner_trivia,
     transparent_inner_expression,
 };
-use crate::analysis::scan::{first_non_trivia_token_in_span, last_non_trivia_token_in_span};
-use crate::directive::comment_node_is_ignore_directive;
 
 /// Return whether an expression tree contains static type arguments.
 pub(crate) fn expression_has_static_type_arguments(
@@ -83,7 +85,7 @@ pub(crate) fn expression_has_non_doc_multiline_block_prefix_comment_annotation(
 }
 
 /// Return whether expression source is wrapped in a top-level parenthesis pair.
-pub(super) fn expression_has_outer_parentheses_tokens(
+pub(crate) fn expression_has_outer_parentheses_tokens(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -100,7 +102,7 @@ pub(super) fn expression_has_outer_parentheses_tokens(
 }
 
 /// Return whether an expression has a prefix comment annotation.
-pub(super) fn expression_has_prefix_comment_annotation(
+pub(crate) fn expression_has_prefix_comment_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -123,7 +125,7 @@ pub(super) fn expression_has_prefix_comment_annotation(
 }
 
 /// Return whether an expression has a prefix ignore-directive comment annotation.
-pub(super) fn expression_has_prefix_ignore_directive_comment_annotation(
+pub(crate) fn expression_has_prefix_ignore_directive_comment_annotation(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -195,7 +197,7 @@ pub(crate) fn expression_has_leading_prefix_comment(
 }
 
 /// Return whether parenthesized cast comments should be hoisted before `(`.
-pub(super) fn should_hoist_parenthesized_inner_cast_prefix_comments(
+pub(crate) fn should_hoist_parenthesized_inner_cast_prefix_comments(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     inner_id: LocalNodeId<Expression>,
@@ -233,7 +235,7 @@ pub(super) fn should_hoist_parenthesized_inner_cast_prefix_comments(
 }
 
 /// Decide whether a sequence expression needs parentheses in its parent context.
-pub(super) fn sequence_expression_needs_parens(
+pub(crate) fn sequence_expression_needs_parens(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {

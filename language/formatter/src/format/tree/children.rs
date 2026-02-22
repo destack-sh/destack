@@ -1,12 +1,12 @@
-use super::argument::{
-    argument_lambda_declaration_id, argument_transparent_value_id, declaration_is_lambda,
-    expression_function_declaration_id, expression_postfix_receiver_id, lambda_body_expression_id,
-};
-use crate::expression::{
+use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, Declaration, DestackFormatContext, Expression,
     FunctionKind, IfCondition, IfKind, LocalNodeId, ScalarLiteral, Span, collect_chain_nodes,
     has_comment_between_expressions, member_has_intervening_comment, span_has_comment,
     transparent_inner_expression,
+};
+use crate::format::tree::argument::{
+    argument_lambda_declaration_id, argument_transparent_value_id, declaration_is_lambda,
+    expression_function_declaration_id, expression_postfix_receiver_id, lambda_body_expression_id,
 };
 
 /// Check whether a tree text child is whitespace-only.

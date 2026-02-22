@@ -1,10 +1,10 @@
-use super::normalize::{ChainLayoutPlan, plan_chain_layout};
-use super::{
+use crate::format::chain::normalize::{ChainLayoutPlan, plan_chain_layout};
+use crate::format::chain::{
     ChainExpression, ChainExpressionBase, ChainExpressionBaseHead,
     chain_line_starts_with_block_prefix_annotation, expression_is_in_conditional_branch,
     format_call_arguments, member_is_private_hash, transparent_inner_expression,
 };
-use crate::expression::{
+use crate::format::expression::{
     AnnotationPosition, Argument, Declaration, DestackFormatContext, DestackFormatter, Expression,
     FormatResult, FunctionKind, LocalNodeId, NodeType, PostfixPosition, SmallVec, expand_parent,
     format_static_argument_list, format_static_argument_list_with_relational_spacing, format_with,

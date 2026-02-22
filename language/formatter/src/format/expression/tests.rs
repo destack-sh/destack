@@ -1,4 +1,4 @@
-use crate::operator::{is_type_context, union_has_leading_pipe_token};
+use crate::format::operator::{is_type_context, union_has_leading_pipe_token};
 use crate::{
     DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, TestFormatter,
     assert_format,

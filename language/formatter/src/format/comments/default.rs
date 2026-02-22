@@ -3,19 +3,18 @@ use ast::{
 };
 use destack_ast as ast;
 
-use super::owner::{
+use crate::format::comments::owner::{
     find_smallest_owner_enclosing_range, find_smallest_owner_enclosing_token, is_block_like_owner,
-    normalize_formatter_trivia_target_owner, promote_owner_by_shared_start,
-    promote_owner_to_node_type_ancestor,
+    normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
+    promote_owner_by_shared_start, promote_owner_to_node_type_ancestor,
 };
-use super::rule::normalize_owner_with_shared_end;
-use super::seam::{
+use crate::format::comments::seam::{
     CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
     CommentSeamKeyword, CommentSeamOwnerCache, resolve_comment_seam_owner,
 };
 
 /// Resolve the default comment trivia rules after specialized seam cases.
-pub(super) fn attach_comment_default(
+pub(crate) fn attach_comment_default(
     context: &CommentSeamContext<'_>,
     facts: &CommentSeamFacts,
     seam_owner_cache: &mut CommentSeamOwnerCache,

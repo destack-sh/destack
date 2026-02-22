@@ -3,11 +3,12 @@ use ast::{
 };
 use destack_ast as ast;
 
-use super::owner::{
+use crate::format::comments::owner::{
     find_smallest_owner_enclosing_token, normalize_formatter_trivia_target_owner,
     promote_owner_by_shared_start, promote_owner_to_satisfies_expression_ancestor,
+    promote_rhs_expression_owner,
 };
-use super::seam::{
+use crate::format::comments::seam::{
     CommentAttachmentDecision, CommentAttachmentOwners, CommentSeamContext, CommentSeamFacts,
     CommentSeamKeyword, CommentSeamOwnerCache, resolve_comment_seam_owner,
 };
@@ -65,8 +66,94 @@ fn descend_owner_through_transparent_expression_wrappers(tree: &NodeTree, owner_
     }
 }
 
+/// Resolve assignment seam comment rules.
+pub(crate) fn try_attach_comment_assignment(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    facts: &CommentSeamFacts,
+    seam_owner_cache: &mut CommentSeamOwnerCache,
+    owners: CommentAttachmentOwners,
+) -> Option<CommentAttachmentDecision> {
+    let right_owner = owners.right;
+    let has_leading_newline = facts.has_leading_newline;
+    let has_trailing_newline = facts.has_trailing_newline;
+    let comment_is_line = facts.comment_is_line;
+    let comment_is_star = facts.comment_is_star;
+    let token_before_is_assign = facts.token_before_is(TokenType::Assign);
+    let token_after_span = context.token_after_span;
+    let token_before_span = context.token_before_span;
+
+    // inline block comments between assignment and rhs should stay inline with the rhs expression
+    if !has_leading_newline
+        && !has_trailing_newline
+        && comment_is_star
+        && token_before_is_assign
+        && let Some(target_node) =
+            right_owner.or_else(|| resolve_comment_seam_owner(context, seam_owner_cache))
+    {
+        let target_node = promote_rhs_expression_owner(
+            tree,
+            parents,
+            target_node,
+            token_after_span.map(|token| token.span),
+        );
+        return Some((Some(target_node), AnnotationPosition::LinePrefix));
+    }
+
+    // comments between assignment and rhs should bind to the rhs seam
+    if !has_leading_newline
+        && has_trailing_newline
+        && token_before_is_assign
+        && let Some(target_node) =
+            right_owner.or_else(|| resolve_comment_seam_owner(context, seam_owner_cache))
+    {
+        let target_node = promote_rhs_expression_owner(
+            tree,
+            parents,
+            target_node,
+            token_after_span.map(|token| token.span),
+        );
+
+        let comment_starts_on_assign_line = token_before_span.is_some_and(|before_token| {
+            let before_line = context
+                .file
+                .get_position(before_token.span.start)
+                .map_or(0, |position| position.0);
+            let comment_line = context
+                .file
+                .get_position(context.trivia.span.start)
+                .map_or(0, |position| position.0);
+            before_line == comment_line
+        });
+
+        if comment_is_line && comment_starts_on_assign_line {
+            return Some((Some(target_node), AnnotationPosition::LinePrefix));
+        }
+
+        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+    }
+
+    // own-line comments between assignment and rhs stay on the rhs value region
+    if has_leading_newline
+        && token_before_is_assign
+        && let Some(target_node) =
+            right_owner.or_else(|| resolve_comment_seam_owner(context, seam_owner_cache))
+    {
+        let target_node = promote_rhs_expression_owner(
+            tree,
+            parents,
+            target_node,
+            token_after_span.map(|token| token.span),
+        );
+        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+    }
+
+    None
+}
+
 /// Resolve expression operator seam comment rules.
-pub(super) fn try_attach_comment_expression_operator(
+pub(crate) fn try_attach_comment_expression_operator(
     tree: &NodeTree,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
