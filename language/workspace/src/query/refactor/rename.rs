@@ -8,9 +8,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::Session;
 use crate::query::common::{
-    QueryContext, ReferenceCollectionOptions, SymbolAtOffset, collect_symbol_references_in_context,
-    find_symbol_at_offset, get_canonical_symbol, get_symbol_definition_span, is_simple_identifier,
-    member_key_name, resolve_symbol_name, sort_and_dedup_spans, token_at_offset,
+    ReferenceCollectionOptions, SymbolAtOffset, collect_symbol_references_in_context,
+    find_symbol_at_offset, get_canonical_symbol, get_symbol_definition_span,
+    get_symbol_local_definition_span, is_simple_identifier, member_key_name,
+    resolve_local_import_alias_name, resolve_symbol_name, sort_and_dedup_spans, token_at_offset,
 };
 
 /// Result of a prepare rename query.
@@ -123,13 +124,14 @@ pub fn rename(
     // resolve the rename target at the cursor
     let (_, canonical_id, old_name) = resolve_rename_target(session, file, offset)?;
     let interface_member_target = resolve_interface_member_target(session, canonical_id);
+    let preserve_local_definition =
+        resolve_local_import_alias_name(session, canonical_id).is_some();
 
     // collect primary symbol spans and group by file
     let mut edits_by_file: HashMap<FileId, Vec<Span>> = HashMap::new();
-    extend_spans_by_file(
-        &mut edits_by_file,
-        collect_symbol_rename_spans(session, canonical_id, &old_name),
-    );
+    let primary_spans =
+        collect_symbol_rename_spans(session, canonical_id, &old_name, preserve_local_definition);
+    extend_spans_by_file(&mut edits_by_file, primary_spans);
 
     // include implementation member spans when renaming interface members
     if let Some(interface_member_target) = interface_member_target {
@@ -141,7 +143,7 @@ pub fn rename(
                 continue;
             }
 
-            let spans = collect_symbol_rename_spans(session, member_symbol, &old_name);
+            let spans = collect_symbol_rename_spans(session, member_symbol, &old_name, false);
             extend_spans_by_file(&mut edits_by_file, spans);
         }
     }
@@ -149,6 +151,7 @@ pub fn rename(
     // normalize span ordering and remove duplicates per file
     for spans in edits_by_file.values_mut() {
         sort_and_dedup_spans(spans);
+        prune_overlapping_spans(spans);
     }
 
     // create BatchEdit from collected spans
@@ -179,9 +182,16 @@ fn resolve_rename_target(
         return None;
     }
 
+    let symbol_id = symbol_at.symbol_id;
+
+    // keep explicit local import aliases as local rename targets
+    if let Some(local_alias_name) = resolve_local_import_alias_name(session, symbol_id) {
+        return Some((symbol_at, symbol_id, local_alias_name));
+    }
+
     // resolve canonical symbol and stable rename name
-    let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
-    let name = resolve_rename_name(session, canonical_id, &symbol_at)?;
+    let canonical_id = get_canonical_symbol(session, symbol_id);
+    let name = resolve_rename_name(session, canonical_id)?;
 
     Some((symbol_at, canonical_id, name))
 }
@@ -205,10 +215,17 @@ fn collect_symbol_rename_spans(
     session: &Session,
     canonical_id: dir::GlobalSymbolId,
     target_name: &str,
+    preserve_local_definition: bool,
 ) -> Vec<Span> {
     // seed spans with the declaration site
     let mut spans = Vec::new();
-    if let Some(definition_span) = get_symbol_definition_span(session, canonical_id) {
+    let definition_span = if preserve_local_definition {
+        get_symbol_local_definition_span(session, canonical_id)
+            .or_else(|| get_symbol_definition_span(session, canonical_id))
+    } else {
+        get_symbol_definition_span(session, canonical_id)
+    };
+    if let Some(definition_span) = definition_span {
         spans.push(definition_span);
     }
 
@@ -259,65 +276,86 @@ fn extend_spans_by_file(edits_by_file: &mut HashMap<FileId, Vec<Span>>, spans: V
     }
 }
 
-fn resolve_rename_name(
-    session: &Session,
-    canonical_id: dir::GlobalSymbolId,
-    symbol_at: &SymbolAtOffset,
-) -> Option<String> {
-    // prefer the canonical symbol name when available
+/// Remove overlapping spans by keeping the most specific span at each overlap.
+fn prune_overlapping_spans(spans: &mut Vec<Span>) {
+    if spans.len() < 2 {
+        return;
+    }
+
+    let mut filtered = Vec::with_capacity(spans.len());
+    for span in spans.iter().copied() {
+        let Some(last_span) = filtered.last_mut() else {
+            filtered.push(span);
+            continue;
+        };
+
+        if !last_span.intersects(span) {
+            filtered.push(span);
+            continue;
+        }
+
+        if span.len() < last_span.len()
+            || (span.len() == last_span.len() && span.start >= last_span.start)
+        {
+            *last_span = span;
+        }
+    }
+
+    *spans = filtered;
+}
+
+/// Resolve the stable rename source name for a symbol.
+fn resolve_rename_name(session: &Session, canonical_id: dir::GlobalSymbolId) -> Option<String> {
+    // prefer the canonical symbol metadata name when present
     if let Some(name) = resolve_symbol_name(session, canonical_id) {
         return Some(name);
     }
 
-    // fall back to the local node name in the current module
-    let module = session.modules.get(symbol_at.symbol_id.module_id);
-    let module = module.read();
-    let ctx = session.query_context(&module)?;
-    resolve_name_from_node(session, &ctx, symbol_at.node_id)
+    // fall back to declaration based name extraction
+    resolve_name_from_primary_declaration(session, canonical_id)
 }
 
-fn resolve_name_from_node(
+/// Resolve a symbol name from its primary declaration when symbol metadata has no name.
+fn resolve_name_from_primary_declaration(
     session: &Session,
-    ctx: &QueryContext<'_>,
-    node_id: dir::LocalNodeIdAny,
+    canonical_id: dir::GlobalSymbolId,
 ) -> Option<String> {
-    // resolve the dir tree for node lookup
-    let dir_tree = ctx.tree();
+    // resolve query context for the symbol module
+    let module = session.modules.get(canonical_id.module_id);
+    let module = module.read();
+    let ctx = session.query_context(&module)?;
 
-    match node_id.ty {
-        dir::NodeType::Expression => {
-            let Ok(expr_id) = node_id.try_into() else {
-                return None;
-            };
-            let expr = dir_tree.get::<dir::Expression>(expr_id);
-            match expr {
-                dir::Expression::Member { name, .. } => {
-                    Some(session.strings.get(*name).to_string())
-                }
-                _ => None,
-            }
-        }
+    // resolve the primary declaration node id
+    let symbols = ctx.symbols();
+    let symbol = symbols.get_symbol(canonical_id.local_id);
+    let declaration = symbol.primary_declaration?;
+    drop(symbols);
+
+    let dir_tree = ctx.tree();
+    match declaration.local_id.ty {
         dir::NodeType::Member => {
-            let Ok(member_id) = node_id.try_into() else {
-                return None;
-            };
+            let member_id = declaration.local_id.try_into().ok()?;
             let member = dir_tree.get::<dir::Member>(member_id);
             let key = member.key()?;
             member_key_name(session, key)
         }
         dir::NodeType::EnumField => {
-            let Ok(field_id) = node_id.try_into() else {
-                return None;
-            };
+            let field_id = declaration.local_id.try_into().ok()?;
             let field = dir_tree.get::<dir::EnumField>(field_id);
             Some(session.strings.get(field.name).to_string())
         }
+        dir::NodeType::Declaration => {
+            let declaration_id = declaration.local_id.try_into().ok()?;
+            let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
+            declaration
+                .descriptor()
+                .name
+                .map(|name| session.strings.get(name.string()).to_string())
+        }
         dir::NodeType::Parameter => {
-            let Ok(param_id) = node_id.try_into() else {
-                return None;
-            };
-            let param = dir_tree.get::<dir::Parameter>(param_id);
-            match param {
+            let parameter_id = declaration.local_id.try_into().ok()?;
+            let parameter = dir_tree.get::<dir::Parameter>(parameter_id);
+            match parameter {
                 dir::Parameter::Named { name, .. } => Some(session.strings.get(*name).to_string()),
                 dir::Parameter::VariadicNamed { name, .. } => {
                     Some(session.strings.get(*name).to_string())
@@ -325,33 +363,49 @@ fn resolve_name_from_node(
                 dir::Parameter::Pattern { .. } | dir::Parameter::VariadicPattern { .. } => None,
             }
         }
-        dir::NodeType::Declaration => {
-            let Ok(decl_id) = node_id.try_into() else {
-                return None;
-            };
-            let declaration = dir_tree.get::<dir::Declaration>(decl_id);
-            let descriptor = declaration.descriptor();
-            descriptor
-                .name
-                .map(|name| session.strings.get(name.string()).to_string())
+        dir::NodeType::Pattern => {
+            let pattern_id = declaration.local_id.try_into().ok()?;
+            let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
+            match pattern {
+                dir::Pattern::Binding { name, .. } => Some(session.strings.get(*name).to_string()),
+                _ => None,
+            }
+        }
+        dir::NodeType::PatternField => {
+            let field_id = declaration.local_id.try_into().ok()?;
+            let field = dir_tree.get::<dir::PatternField>(field_id);
+            match field {
+                dir::PatternField::Alias { alias, .. } => {
+                    Some(session.strings.get(*alias).to_string())
+                }
+                _ => None,
+            }
         }
         _ => None,
     }
 }
 
+/// Interface member kind used for implementation matching.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum InterfaceMemberKind {
+    /// A callable member declaration.
     Method,
+    /// A field-like member declaration.
     Field,
 }
 
+/// Interface member information used for implementation propagation.
 #[derive(Debug, Clone)]
 struct InterfaceMemberTarget {
+    /// The canonical interface symbol.
     interface_symbol: dir::GlobalSymbolId,
+    /// The member name to propagate.
     member_name: String,
+    /// The member shape to match.
     member_kind: InterfaceMemberKind,
 }
 
+/// Resolve the interface member target for an interface member symbol.
 fn resolve_interface_member_target(
     session: &Session,
     canonical_id: dir::GlobalSymbolId,
@@ -409,6 +463,7 @@ fn resolve_interface_member_target(
     })
 }
 
+/// Collect implementation member symbols for a resolved interface member target.
 fn collect_interface_member_implementations(
     session: &Session,
     target: &InterfaceMemberTarget,
@@ -501,7 +556,7 @@ fn collect_interface_member_implementations(
     members
 }
 
-/// Check whether a keyword is a declaration modifier.
+/// Check whether a keyword can participate in rename as a declaration modifier.
 fn is_modifier_keyword(token: &str) -> bool {
     let Ok(keyword) = Keyword::from_str(token) else {
         return false;
@@ -525,7 +580,7 @@ fn is_modifier_keyword(token: &str) -> bool {
     )
 }
 
-/// Check whether a token is a keyword.
+/// Check whether a token is any language keyword.
 fn is_keyword(token: &str) -> bool {
     Keyword::from_str(token).is_ok()
 }

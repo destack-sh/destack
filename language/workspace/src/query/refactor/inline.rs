@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::Session;
 use crate::query::common::{
     QueryContext, ReferenceCollectionOptions, collect_symbol_references_in_context,
-    get_canonical_symbol, get_module_by_file_id, get_symbol_definition_span, is_simple_identifier,
-    line_start_for_offset, main_span_for_dir_node, member_key_name, resolve_symbol_name,
-    span_contains_span, span_for_dir_node,
+    find_symbol_at_offset, get_canonical_symbol, get_member_access_name_span,
+    get_module_by_file_id, get_symbol_definition_span, is_simple_identifier, line_start_for_offset,
+    main_span_for_dir_node, member_key_name, resolve_symbol_name, span_for_dir_node,
 };
 
 /// Request payload for inline refactor queries.
@@ -62,7 +62,7 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     let ctx = session.query_context(&module)?;
 
     // find the symbol at the cursor
-    let symbol_at = crate::query::common::find_symbol_at_offset(session, file, offset)?;
+    let symbol_at = find_symbol_at_offset(session, file, offset)?;
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
 
     // only inline symbols defined in this file
@@ -208,8 +208,6 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
         batch_edit.push(file_edit);
     }
 
-    // NOTE #Incomplete: skip multi-binding destructuring to avoid removing sibling bindings
-
     Some(InlineResult::from_edits(batch_edit))
 }
 
@@ -261,7 +259,6 @@ fn collect_inline_reference_entries(
 ) -> Vec<ReferenceEntry> {
     // collect reference expressions for the inline target
     let dir_tree = ctx.tree();
-    let source_file = session.files.get(file);
     let mut entries = Vec::new();
 
     for (expr_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
@@ -277,13 +274,7 @@ fn collect_inline_reference_entries(
             continue;
         }
 
-        let span = reference_span_for_expression(
-            ctx,
-            &dir_tree,
-            expr_id,
-            &source_file,
-            reference_name.as_deref(),
-        );
+        let span = reference_span_for_expression(ctx, &dir_tree, expr_id);
         if span.file != file {
             continue;
         }
@@ -673,29 +664,45 @@ fn reference_span_for_expression(
     ctx: &QueryContext<'_>,
     dir_tree: &dir::NodeTree,
     expr_id: dir::LocalNodeId<dir::Expression>,
-    source_file: &destack_source::File,
-    reference_name: Option<&str>,
 ) -> Span {
-    // prefer a tight span for the identifier when possible
-    let full_span = span_for_dir_node(ctx, dir_tree, expr_id.into());
-    let Some(reference_name) = reference_name else {
-        return full_span;
+    let span = main_span_for_dir_node(ctx, dir_tree, expr_id.into())
+        .unwrap_or_else(|| span_for_dir_node(ctx, dir_tree, expr_id.into()));
+
+    let Some(parent) = dir_tree.get_parent(expr_id.id) else {
+        return span;
     };
-
-    let text = source_file.span_str(full_span);
-    let Some(match_start) = text.find(reference_name) else {
-        return full_span;
-    };
-
-    let start = full_span.start + match_start as u32;
-    let end = start + reference_name.len() as u32;
-    let candidate = Span::new(full_span.file, start, end);
-
-    if span_contains_span(full_span, candidate) {
-        return candidate;
+    if parent.ty != dir::NodeType::Expression {
+        return span;
     }
 
-    full_span
+    let Ok(parent_expr_id) = parent.try_into() else {
+        return span;
+    };
+    let parent_expr = dir_tree.get::<dir::Expression>(parent_expr_id);
+    let dir::Expression::Member { left, .. } = parent_expr else {
+        return span;
+    };
+    if *left != expr_id {
+        return span;
+    }
+
+    let Some(name_span) = get_member_access_name_span(ctx, parent_expr_id) else {
+        return span;
+    };
+    let receiver_end = name_span.start.saturating_sub(1);
+
+    // clamp spans that include `.member` to only the receiver expression
+    if span.file == name_span.file && span.start < receiver_end && span.end >= receiver_end {
+        return Span::new(span.file, span.start, receiver_end);
+    }
+
+    // recover receiver spans when direct mapping points at member names
+    let member_span = span_for_dir_node(ctx, dir_tree, parent);
+    if member_span.file == name_span.file && member_span.start < receiver_end {
+        return Span::new(member_span.file, member_span.start, receiver_end);
+    }
+
+    span
 }
 
 /// Collect captured symbols referenced inside the inline value.

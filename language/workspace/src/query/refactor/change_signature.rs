@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::Session;
 use crate::query::common::{
-    QueryContext, get_canonical_symbol, get_module_by_file_id, resolve_member_access_symbol,
-    resolve_module_id_for_import_target, resolve_symbol_name_id, resolve_value_symbol_from_module,
-    span_for_dir_node,
+    QueryContext, find_symbol_at_offset, get_canonical_symbol, get_module_by_file_id,
+    resolve_member_access_symbol, resolve_module_id_for_import_target, resolve_symbol_name_id,
+    resolve_value_symbol_from_module, span_for_dir_node,
 };
 
 /// Placeholder argument text inserted for newly required parameters.
@@ -72,7 +72,7 @@ pub fn change_signature(
 ) -> Option<ChangeSignatureResult> {
     // resolve the function symbol at the cursor
     let _module = get_module_by_file_id(session, file)?;
-    let symbol_at = crate::query::common::find_symbol_at_offset(session, file, offset)?;
+    let symbol_at = find_symbol_at_offset(session, file, offset)?;
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
     let constructor_owner = constructor_owner_symbol(session, canonical_id);
     let old_param_positions = function_parameter_name_positions(session, canonical_id);

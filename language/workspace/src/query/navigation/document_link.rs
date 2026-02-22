@@ -116,6 +116,7 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
                 links.push(link);
             }
         }
+
         return links;
     }
 

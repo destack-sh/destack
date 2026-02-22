@@ -1,18 +1,20 @@
 use std::collections::HashSet;
 
+use destack_ast as ast;
+use destack_base::StringId;
 use destack_dir::{
     self as dir, DependencyItem, DependencyKind, DependencyMode, Expression, GlobalSymbolId,
-    NodeType, SymbolSpace,
+    NodeType, StaticKey, SymbolSpace,
 };
 use destack_source::{FileId, ModuleId, NodeSpanType, Span};
 
 use super::resolve::resolve_type_symbol_from_imports;
 use super::span::{get_dir_node_main_span, get_dir_node_span};
 use super::symbol::{
-    find_symbol_at_offset, get_canonical_symbol, get_member_access_name_span,
-    is_dependency_alias_for_target, resolve_member_access_symbol,
+    get_canonical_symbol, get_member_access_name_span, is_dependency_alias_for_target,
+    resolve_member_access_symbol,
 };
-use super::{QueryContext, is_identifier_continue, visible_symbols, visible_symbols_full};
+use super::{QueryContext, visible_symbols, visible_symbols_full};
 use crate::Session;
 
 /// Options for collecting symbol references.
@@ -119,7 +121,7 @@ fn collect_expression_reference_spans(
         dir_tree
             .iter_nodes_of_type::<Expression>()
             .filter_map(|(expression_id, expression)| {
-                let target_symbol = resolve_expression_target_symbol(
+                let resolved_target_symbol = resolve_expression_target_symbol(
                     session,
                     ctx,
                     &dir_tree,
@@ -133,10 +135,15 @@ fn collect_expression_reference_spans(
                 if options.include_members && matches!(expression, Expression::Member { .. }) {
                     return None;
                 }
+                if options.include_members
+                    && expression_is_member_receiver_expression(&dir_tree, expression_id)
+                {
+                    return None;
+                }
 
                 // skip dependency aliases when requested
                 let is_alias = if options.skip_dependency_aliases {
-                    target_symbol
+                    resolved_target_symbol
                         .map(|target_symbol| {
                             is_dependency_alias_for_target(
                                 session,
@@ -154,21 +161,24 @@ fn collect_expression_reference_spans(
                 }
 
                 // check for a canonical target match
-                let target_symbol = target_symbol?;
-                if symbol_resolves_to_canonical(session, target_symbol, canonical_id) {
-                    return Some(expression_id);
+                if let Some(target_symbol) = resolved_target_symbol {
+                    if symbol_resolves_to_canonical(session, target_symbol, canonical_id) {
+                        return Some(expression_id);
+                    }
+
+                    return None;
                 }
 
-                // fall back to matching visible type parameters by name
-                let target_name = options.target_name?;
+                // fall back to matching unresolved type parameters by scope visibility
+                if !matches!(expression, Expression::UnresolvedPath { .. }) {
+                    return None;
+                }
                 if !symbol_is_type_parameter(session, canonical_id) {
                     return None;
                 }
                 if !symbol_visible_in_scope(ctx, &dir_tree, expression_id, canonical_id) {
                     return None;
                 }
-                let full_span = get_dir_node_span(ctx.ast, ctx.dir, expression_id.into())?;
-                find_name_span_in_span(session, full_span, target_name, true)?;
 
                 Some(expression_id)
             })
@@ -176,9 +186,10 @@ fn collect_expression_reference_spans(
     };
 
     // resolve spans for the matching expressions
+    let dir_tree = ctx.tree();
     let mut spans = Vec::new();
     for expression_id in matching_expression_ids {
-        let span = resolve_expression_reference_span(session, ctx, expression_id, options);
+        let span = resolve_expression_reference_span(ctx, &dir_tree, expression_id);
         let Some(span) = span else {
             continue;
         };
@@ -197,27 +208,22 @@ fn collect_expression_reference_spans(
     // capture member receiver spans when the receiver matches the target symbol
     if options.include_members {
         let dir_tree = ctx.tree();
-        for (_expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
+        for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
             let Expression::Member { left, .. } = expression else {
                 continue;
             };
-            let left_expr = dir_tree.get::<Expression>(*left);
-            let target_symbol = left_expr.target_symbol().or_else(|| {
-                let span = get_dir_node_main_span(ctx.ast, ctx.dir, (*left).into())
-                    .or_else(|| get_dir_node_span(ctx.ast, ctx.dir, (*left).into()))?;
-                let symbol_at = find_symbol_at_offset(session, ctx.file_id, span.start)?;
-                Some(symbol_at.symbol_id)
-            });
-            let Some(target_symbol) = target_symbol else {
-                continue;
-            };
-            if !symbol_resolves_to_canonical(session, target_symbol, canonical_id) {
+            if !member_receiver_matches_target(
+                session,
+                ctx,
+                &dir_tree,
+                *left,
+                canonical_id,
+                options.target_name,
+            ) {
                 continue;
             }
 
-            let span = resolve_receiver_reference_span(session, ctx, *left, options)
-                .or_else(|| get_dir_node_main_span(ctx.ast, ctx.dir, (*left).into()))
-                .or_else(|| get_dir_node_span(ctx.ast, ctx.dir, (*left).into()));
+            let span = resolve_member_receiver_reference_span(ctx, expression_id, *left);
             let Some(span) = span else {
                 continue;
             };
@@ -231,67 +237,118 @@ fn collect_expression_reference_spans(
             spans.push(span);
         }
 
-        // capture receiver spans for qualified path references
-        if let Some(target_name) = options.target_name {
-            for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
-                let path = match expression {
-                    Expression::LocalReference { path, .. }
-                    | Expression::ModuleReference { path, .. }
-                    | Expression::GlobalReference { path, .. } => path,
-                    _ => continue,
-                };
-                if path.segments.len() < 2 {
-                    continue;
-                }
-
-                if path
-                    .first_segment()
-                    .is_some_and(|id| session.strings.get(id) != target_name)
-                {
-                    continue;
-                }
-
-                let full_span = get_dir_node_span(ctx.ast, ctx.dir, expression_id.into());
-                let Some(full_span) = full_span else {
-                    continue;
-                };
-                let receiver_span = find_name_span_in_span(session, full_span, target_name, false);
-                let Some(receiver_span) = receiver_span else {
-                    continue;
-                };
-
-                let is_visible_target = if canonical_id.module_id == ctx.module_id {
-                    let (scope_id, mark) = dir_tree.get_scope(expression_id);
-                    let symbols = ctx.symbols();
-                    let symbol = symbols.get_symbol(canonical_id.local_id);
-                    visible_symbols(&symbols, scope_id, mark, Some(symbol.space))
-                        .any(|visible| visible.id == canonical_id.local_id)
-                } else {
-                    let symbol_at =
-                        find_symbol_at_offset(session, receiver_span.file, receiver_span.start);
-                    let Some(symbol_at) = symbol_at else {
-                        continue;
-                    };
-                    symbol_resolves_to_canonical(session, symbol_at.symbol_id, canonical_id)
-                };
-
-                if !is_visible_target {
-                    continue;
-                }
-
-                if let Some(limit_file) = options.limit_to_file
-                    && receiver_span.file != limit_file
-                {
-                    continue;
-                }
-
-                spans.push(receiver_span);
-            }
+        // recover namespace receiver spans from AST when DIR links are incomplete
+        if options.include_namespace_members {
+            let namespace_spans =
+                collect_namespace_receiver_spans_from_ast(session, ctx, canonical_id, options);
+            spans.extend(namespace_spans);
         }
     }
 
     // return the matching spans
     spans
+}
+
+/// Check whether an expression is used as the receiver of a member access.
+fn expression_is_member_receiver_expression(
+    dir_tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<Expression>,
+) -> bool {
+    let Some(parent) = dir_tree.get_parent(expression_id.id) else {
+        return false;
+    };
+    if parent.ty != NodeType::Expression {
+        return false;
+    }
+
+    let Ok(parent_expression_id) = parent.try_into() else {
+        return false;
+    };
+    let parent_expression = dir_tree.get::<Expression>(parent_expression_id);
+    matches!(
+        parent_expression,
+        Expression::Member { left, .. } if *left == expression_id
+    )
+}
+
+/// Check whether a member receiver expression matches the canonical symbol target.
+fn member_receiver_matches_target(
+    session: &Session,
+    ctx: &QueryContext<'_>,
+    dir_tree: &dir::NodeTree,
+    receiver_expression_id: dir::LocalNodeId<Expression>,
+    canonical_id: GlobalSymbolId,
+    target_name: Option<&str>,
+) -> bool {
+    let receiver_expression = dir_tree.get::<Expression>(receiver_expression_id);
+
+    if let Some(target_symbol) = receiver_expression.target_symbol() {
+        return symbol_resolves_to_canonical(session, target_symbol, canonical_id);
+    }
+
+    if canonical_id.module_id != ctx.module_id {
+        return false;
+    }
+
+    let Some(receiver_name_id) =
+        path_like_expression_last_segment_name_id(dir_tree, receiver_expression_id)
+    else {
+        return false;
+    };
+
+    if let Some(target_name) = target_name
+        && session.strings.get(receiver_name_id) != target_name
+    {
+        return false;
+    }
+
+    if symbol_visible_in_scope_any_space(ctx, dir_tree, receiver_expression_id, canonical_id) {
+        return true;
+    }
+
+    if !symbol_is_namespace_in_context(ctx, canonical_id) {
+        return false;
+    }
+
+    let Some(target_name) = target_name else {
+        return false;
+    };
+    if scope_has_conflicting_visible_name(
+        session,
+        ctx,
+        dir_tree,
+        receiver_expression_id,
+        canonical_id,
+        target_name,
+    ) {
+        return false;
+    }
+
+    true
+}
+
+/// Resolve the last segment name of a path-like expression.
+fn path_like_expression_last_segment_name_id(
+    dir_tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<Expression>,
+) -> Option<StringId> {
+    let mut current_expression_id = expression_id;
+
+    loop {
+        let expression = dir_tree.get::<Expression>(current_expression_id);
+        match expression {
+            Expression::UnresolvedPath { path, .. }
+            | Expression::LocalReference { path, .. }
+            | Expression::ModuleReference { path, .. }
+            | Expression::GlobalReference { path, .. } => {
+                return path.last_segment();
+            }
+            Expression::Parenthesized { expression } => {
+                current_expression_id = *expression;
+            }
+            _ => return None,
+        }
+    }
 }
 
 /// Resolve the target symbol for an expression reference, including import fallbacks.
@@ -342,6 +399,11 @@ fn symbol_resolves_to_canonical(
     symbol_id: GlobalSymbolId,
     canonical_id: GlobalSymbolId,
 ) -> bool {
+    // allow exact symbol identity matches before canonical expansion
+    if symbol_id == canonical_id {
+        return true;
+    }
+
     // prefer the canonical symbol chain when it matches
     if get_canonical_symbol(session, symbol_id) == canonical_id {
         return true;
@@ -381,111 +443,116 @@ fn symbol_resolves_to_canonical(
 
 /// Resolve the best span for a reference expression.
 fn resolve_expression_reference_span(
-    session: &Session,
     ctx: &QueryContext<'_>,
+    dir_tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<Expression>,
-    options: ReferenceCollectionOptions<'_>,
 ) -> Option<Span> {
-    // resolve the full expression span for fallback lookup
-    let full_span = get_dir_node_span(ctx.ast, ctx.dir, expression_id.into())?;
+    let span = get_dir_node_main_span(ctx.ast, ctx.dir, expression_id.into())
+        .or_else(|| get_dir_node_span(ctx.ast, ctx.dir, expression_id.into()))?;
 
-    // prefer a precise name span when a target name is available
-    if let Some(target_name) = options.target_name {
-        if let Some(span) = find_name_span_in_span(session, full_span, target_name, true) {
-            return Some(span);
-        }
-
-        // avoid guessing for rename-style queries
-        if options.skip_dependency_aliases {
-            return None;
-        }
+    let Some(parent) = dir_tree.get_parent(expression_id.id) else {
+        return Some(span);
+    };
+    if parent.ty != NodeType::Expression {
+        return Some(span);
     }
 
-    // fall back to the main span when available
-    get_dir_node_main_span(ctx.ast, ctx.dir, expression_id.into()).or(Some(full_span))
+    let Ok(parent_expression_id) = parent.try_into() else {
+        return Some(span);
+    };
+    let parent_expression = dir_tree.get::<Expression>(parent_expression_id);
+    let Expression::Member { left, .. } = parent_expression else {
+        return Some(span);
+    };
+    if *left != expression_id {
+        return Some(span);
+    }
+
+    let Some(member_name_span) = get_member_access_name_span(ctx, parent_expression_id) else {
+        return Some(span);
+    };
+    let receiver_end = member_name_span.start.saturating_sub(1);
+
+    // clamp spans that include `.member` to only the receiver expression
+    if span.file == member_name_span.file && span.start < receiver_end && span.end >= receiver_end {
+        return Some(Span::new(span.file, span.start, receiver_end));
+    }
+
+    // recover receiver spans when direct mapping points at member names
+    if let Some(member_span) = get_dir_node_span(ctx.ast, ctx.dir, parent_expression_id.into())
+        && member_span.file == member_name_span.file
+        && member_span.start < receiver_end
+    {
+        return Some(Span::new(member_span.file, member_span.start, receiver_end));
+    }
+
+    Some(span)
 }
 
-/// Resolve a receiver span inside a member access expression.
-fn resolve_receiver_reference_span(
-    session: &Session,
+/// Resolve the best span for a member receiver expression.
+fn resolve_member_receiver_reference_span(
     ctx: &QueryContext<'_>,
-    left_expression_id: dir::LocalNodeId<Expression>,
-    options: ReferenceCollectionOptions<'_>,
+    member_expression_id: dir::LocalNodeId<Expression>,
+    receiver_expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
-    // require a target name to find a receiver span within the expression text
-    let target_name = options.target_name?;
-    let span = get_dir_node_span(ctx.ast, ctx.dir, left_expression_id.into())?;
-    find_name_span_in_span(session, span, target_name, true)
-}
-
-/// Find a name span inside a larger span.
-fn find_name_span_in_span(
-    session: &Session,
-    span: Span,
-    target_name: &str,
-    prefer_last: bool,
-) -> Option<Span> {
-    let source_file = session.files.get(span.file);
-    let text = source_file.span_str(span);
-    let pos = find_name_offset(text, target_name, prefer_last)?;
-    let start = span.start + pos as u32;
-    let end = start + target_name.len() as u32;
-    Some(Span::new(span.file, start, end))
-}
-
-/// Collect all matching name spans inside a larger span.
-fn collect_name_spans_in_span(session: &Session, span: Span, target_name: &str) -> Vec<Span> {
-    let source_file = session.files.get(span.file);
-    let text = source_file.span_str(span);
-    let mut spans = Vec::new();
-
-    for (pos, _) in text.match_indices(target_name) {
-        if !is_identifier_boundary(text, pos, pos + target_name.len()) {
-            continue;
-        }
-        let start = span.start + pos as u32;
-        let end = start + target_name.len() as u32;
-        spans.push(Span::new(span.file, start, end));
-    }
-
-    spans
-}
-
-/// Find the byte offset of an identifier name in a string.
-fn find_name_offset(text: &str, target_name: &str, prefer_last: bool) -> Option<usize> {
-    // scan for matching identifier spans
-    let mut match_pos = None;
-    for (pos, _) in text.match_indices(target_name) {
-        if !is_identifier_boundary(text, pos, pos + target_name.len()) {
-            continue;
-        }
-
-        match_pos = Some(pos);
-        if !prefer_last {
+    let dir_tree = ctx.tree();
+    let mut receiver_expression_id = receiver_expression_id;
+    loop {
+        let receiver_expression = dir_tree.get::<Expression>(receiver_expression_id);
+        let Expression::Parenthesized { expression } = receiver_expression else {
             break;
-        }
+        };
+        receiver_expression_id = *expression;
+    }
+    drop(dir_tree);
+
+    let receiver_span = ast_member_receiver_span(ctx, member_expression_id)
+        .or_else(|| get_dir_node_main_span(ctx.ast, ctx.dir, receiver_expression_id.into()))
+        .or_else(|| get_dir_node_span(ctx.ast, ctx.dir, receiver_expression_id.into()))?;
+
+    let Some(member_name_span) = get_member_access_name_span(ctx, member_expression_id) else {
+        return Some(receiver_span);
+    };
+    let receiver_end = member_name_span.start.saturating_sub(1);
+
+    // clamp spans that include `.member` to only the receiver expression
+    if receiver_span.file == member_name_span.file
+        && receiver_span.start < receiver_end
+        && receiver_span.end >= receiver_end
+    {
+        return Some(Span::new(
+            receiver_span.file,
+            receiver_span.start,
+            receiver_end,
+        ));
     }
 
-    match_pos
+    // recover from member spans that only map to the member name
+    if let Some(member_span) = get_dir_node_span(ctx.ast, ctx.dir, member_expression_id.into())
+        && member_span.file == member_name_span.file
+        && member_span.start < receiver_end
+    {
+        return Some(Span::new(member_span.file, member_span.start, receiver_end));
+    }
+
+    Some(receiver_span)
 }
 
-/// Check that a match aligns with identifier boundaries.
-fn is_identifier_boundary(text: &str, start: usize, end: usize) -> bool {
-    // ensure the match is not part of a larger identifier
-    let bytes = text.as_bytes();
-    if start > 0 {
-        let prev = bytes[start - 1] as char;
-        if is_identifier_continue(prev) {
-            return false;
-        }
-    }
-    if end < bytes.len() {
-        let next = bytes[end] as char;
-        if is_identifier_continue(next) {
-            return false;
-        }
-    }
-    true
+/// Resolve a member receiver span from AST when DIR source spans are unavailable.
+fn ast_member_receiver_span(
+    ctx: &QueryContext<'_>,
+    member_expression_id: dir::LocalNodeId<Expression>,
+) -> Option<Span> {
+    let dir_tree = ctx.tree();
+    let source_id = dir_tree.get_source(member_expression_id.id);
+    drop(dir_tree);
+
+    let expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
+    let expression = ctx.ast.tree.get(expression_id);
+    let ast::Expression::Member { left, .. } = expression else {
+        return None;
+    };
+    ast_expression_main_span_without_parentheses(ctx, *left)
 }
 
 /// Check whether a symbol represents a static type parameter.
@@ -534,12 +601,91 @@ fn symbol_visible_in_scope(
         .any(|visible| visible.id == symbol_id.local_id)
 }
 
+/// Check whether a symbol is visible at an expression's scope in any symbol space.
+fn symbol_visible_in_scope_any_space(
+    ctx: &QueryContext<'_>,
+    dir_tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<Expression>,
+    symbol_id: GlobalSymbolId,
+) -> bool {
+    if symbol_id.module_id != ctx.module_id {
+        return false;
+    }
+
+    let (scope_id, mark) = dir_tree.get_scope(expression_id);
+    let symbols = ctx.symbols();
+    if visible_symbols(&symbols, scope_id, mark, None)
+        .any(|visible| visible.id == symbol_id.local_id)
+    {
+        return true;
+    }
+
+    visible_symbols_full(&symbols, scope_id, None).any(|visible| visible.id == symbol_id.local_id)
+}
+
+/// Check whether a canonical symbol is a namespace in the current query context.
+fn symbol_is_namespace_in_context(ctx: &QueryContext<'_>, symbol_id: GlobalSymbolId) -> bool {
+    if symbol_id.module_id != ctx.module_id {
+        return false;
+    }
+
+    let symbols = ctx.symbols();
+    let symbol = symbols.get_symbol(symbol_id.local_id);
+    let Some(declaration) = symbol.primary_declaration else {
+        return false;
+    };
+    drop(symbols);
+
+    if declaration.local_id.ty != NodeType::Declaration {
+        return false;
+    }
+
+    let Ok(declaration_id) = declaration.local_id.try_into() else {
+        return false;
+    };
+    let dir_tree = ctx.tree();
+    let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
+    matches!(declaration, dir::Declaration::Namespace { .. })
+}
+
+/// Check whether a receiver scope has a conflicting visible name for a fallback match.
+fn scope_has_conflicting_visible_name(
+    session: &Session,
+    ctx: &QueryContext<'_>,
+    dir_tree: &dir::NodeTree,
+    expression_id: dir::LocalNodeId<Expression>,
+    canonical_id: GlobalSymbolId,
+    target_name: &str,
+) -> bool {
+    let (scope_id, mark) = dir_tree.get_scope(expression_id);
+    let symbols = ctx.symbols();
+    let has_conflict = |key: StaticKey, symbol_id: dir::LocalSymbolId| {
+        let StaticKey::Name(name_id) = key else {
+            return false;
+        };
+        if session.strings.get(name_id) != target_name {
+            return false;
+        }
+
+        symbol_id != canonical_id.local_id
+    };
+
+    if visible_symbols(&symbols, scope_id, mark, None)
+        .any(|visible| has_conflict(visible.key, visible.id))
+    {
+        return true;
+    }
+
+    visible_symbols_full(&symbols, scope_id, None)
+        .any(|visible| has_conflict(visible.key, visible.id))
+}
+
 /// Collect reference spans for type parameters owned by interfaces.
 fn collect_interface_type_parameter_spans(
     session: &Session,
     ctx: &QueryContext<'_>,
     canonical_id: GlobalSymbolId,
-    target_name: &str,
+    _target_name: &str,
     options: ReferenceCollectionOptions<'_>,
 ) -> Vec<Span> {
     if canonical_id.module_id != ctx.module_id {
@@ -571,12 +717,53 @@ fn collect_interface_type_parameter_spans(
                 break;
             }
 
-            let Some(span) = get_dir_node_span(ctx.ast, ctx.dir, parent) else {
+            let Some(interface_span) = get_dir_node_span(ctx.ast, ctx.dir, parent) else {
                 break;
             };
-            let mut spans = collect_name_spans_in_span(session, span, target_name);
-            if let Some(limit_file) = options.limit_to_file {
-                spans.retain(|span| span.file == limit_file);
+
+            let mut spans = Vec::new();
+            for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
+                let Some(expression_span) =
+                    get_dir_node_span(ctx.ast, ctx.dir, expression_id.into())
+                else {
+                    continue;
+                };
+                if expression_span.file != interface_span.file {
+                    continue;
+                }
+                if expression_span.start < interface_span.start
+                    || expression_span.end > interface_span.end
+                {
+                    continue;
+                }
+
+                let Some(target_symbol) = resolve_expression_target_symbol(
+                    session,
+                    ctx,
+                    &dir_tree,
+                    expression_id,
+                    expression,
+                    canonical_id,
+                    options,
+                ) else {
+                    continue;
+                };
+                if !symbol_resolves_to_canonical(session, target_symbol, canonical_id) {
+                    continue;
+                }
+
+                let Some(span) = get_dir_node_main_span(ctx.ast, ctx.dir, expression_id.into())
+                    .or(Some(expression_span))
+                else {
+                    continue;
+                };
+                if let Some(limit_file) = options.limit_to_file
+                    && span.file != limit_file
+                {
+                    continue;
+                }
+
+                spans.push(span);
             }
             return spans;
         }
@@ -585,6 +772,180 @@ fn collect_interface_type_parameter_spans(
     }
 
     Vec::new()
+}
+
+/// Collect namespace member receiver spans from AST when DIR receiver links are missing.
+fn collect_namespace_receiver_spans_from_ast(
+    session: &Session,
+    ctx: &QueryContext<'_>,
+    canonical_id: GlobalSymbolId,
+    options: ReferenceCollectionOptions<'_>,
+) -> Vec<Span> {
+    if canonical_id.module_id != ctx.module_id {
+        return Vec::new();
+    }
+    if !symbol_is_namespace_in_context(ctx, canonical_id) {
+        return Vec::new();
+    }
+    let Some(target_name) = options.target_name else {
+        return Vec::new();
+    };
+
+    let mut spans = Vec::new();
+    let dir_tree = ctx.tree();
+    for expression_id in ctx.ast.tree.iter_nodes::<ast::Expression>() {
+        let expression = ctx.ast.tree.get(expression_id);
+        let (source_node_id, span) = match expression {
+            ast::Expression::Member { left, .. } => {
+                if !ast_path_expression_matches_name(ctx, *left, target_name) {
+                    continue;
+                }
+
+                let Some(receiver_span) = ast_expression_main_span_without_parentheses(ctx, *left)
+                else {
+                    continue;
+                };
+                (left.id, receiver_span)
+            }
+            ast::Expression::Path { path, .. } => {
+                let Some(first_segment) = path.segments.first() else {
+                    continue;
+                };
+                if path.segments.len() < 2 || ctx.ast.strings.get(*first_segment) != target_name {
+                    continue;
+                }
+
+                let expression_span = ctx.ast.tree.source_map.get(expression_id.id);
+                let Some(receiver_span) = first_identifier_span_in_expression(ctx, expression_span)
+                else {
+                    continue;
+                };
+
+                (expression_id.id, receiver_span)
+            }
+            _ => continue,
+        };
+
+        if let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(source_node_id)
+            && dir_node_id.ty == NodeType::Expression
+            && let Ok(dir_expression_id) = dir_node_id.try_into()
+            && scope_has_conflicting_visible_name(
+                session,
+                ctx,
+                &dir_tree,
+                dir_expression_id,
+                canonical_id,
+                target_name,
+            )
+        {
+            continue;
+        }
+
+        if let Some(limit_file) = options.limit_to_file
+            && span.file != limit_file
+        {
+            continue;
+        }
+
+        spans.push(span);
+    }
+
+    spans
+}
+
+/// Resolve an AST expression main span, unwrapping parenthesized expressions.
+fn ast_expression_main_span_without_parentheses(
+    ctx: &QueryContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<Span> {
+    let mut expression_id = expression_id;
+    loop {
+        let expression = ctx.ast.tree.get(expression_id);
+        let ast::Expression::Parenthesized { expression } = expression else {
+            break;
+        };
+        expression_id = *expression;
+    }
+
+    let expression = ctx.ast.tree.get(expression_id);
+    if let ast::Expression::Path { .. } = expression {
+        let expression_span = ctx.ast.tree.source_map.get(expression_id.id);
+        if let Some(identifier_span) = last_identifier_span_in_expression(ctx, expression_span) {
+            return Some(identifier_span);
+        }
+    }
+
+    let span = ctx
+        .ast
+        .tree
+        .source_map
+        .get_main(expression_id.id)
+        .unwrap_or_else(|| ctx.ast.tree.source_map.get(expression_id.id));
+    Some(Span::new(ctx.file_id, span.start, span.end))
+}
+
+/// Check whether an AST path-like expression ends with the requested name.
+fn ast_path_expression_matches_name(
+    ctx: &QueryContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    target_name: &str,
+) -> bool {
+    let expression = ctx.ast.tree.get(expression_id);
+    match expression {
+        ast::Expression::Path { path, .. } => path
+            .segments
+            .last()
+            .is_some_and(|name_id| ctx.ast.strings.get(*name_id) == target_name),
+        ast::Expression::Parenthesized { expression } => {
+            ast_path_expression_matches_name(ctx, *expression, target_name)
+        }
+        _ => false,
+    }
+}
+
+/// Resolve the first identifier token span inside an expression span.
+fn first_identifier_span_in_expression(
+    ctx: &QueryContext<'_>,
+    expression_span: Span,
+) -> Option<Span> {
+    for token in &ctx.ast.tokens {
+        if token.span.file != ctx.file_id {
+            continue;
+        }
+        if token.token.ty != ast::TokenType::Identifier {
+            continue;
+        }
+        if token.span.start < expression_span.start || token.span.end > expression_span.end {
+            continue;
+        }
+
+        return Some(token.span);
+    }
+
+    None
+}
+
+/// Resolve the last identifier token span inside an expression span.
+fn last_identifier_span_in_expression(
+    ctx: &QueryContext<'_>,
+    expression_span: Span,
+) -> Option<Span> {
+    let mut last_identifier_span = None;
+    for token in &ctx.ast.tokens {
+        if token.span.file != ctx.file_id {
+            continue;
+        }
+        if token.token.ty != ast::TokenType::Identifier {
+            continue;
+        }
+        if token.span.start < expression_span.start || token.span.end > expression_span.end {
+            continue;
+        }
+
+        last_identifier_span = Some(token.span);
+    }
+
+    last_identifier_span
 }
 
 /// Collect member access reference spans.
@@ -613,9 +974,7 @@ fn collect_member_reference_spans(
                 continue;
             }
 
-            let member_name = session.strings.get(*name).to_string();
-            let Some(span) = get_member_access_name_span(session, ctx, expression_id, &member_name)
-            else {
+            let Some(span) = get_member_access_name_span(ctx, expression_id) else {
                 continue;
             };
 
@@ -655,8 +1014,7 @@ fn collect_member_reference_spans(
             continue;
         }
 
-        let Some(span) = get_member_access_name_span(session, ctx, expression_id, &member_name)
-        else {
+        let Some(span) = get_member_access_name_span(ctx, expression_id) else {
             continue;
         };
 

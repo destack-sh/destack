@@ -370,6 +370,7 @@ struct CallCollector<'a> {
 }
 
 impl<'a> CallCollector<'a> {
+    /// Create a call collector for one query pass.
     fn new(session: &'a Session) -> Self {
         Self {
             session,
@@ -380,10 +381,12 @@ impl<'a> CallCollector<'a> {
 }
 
 impl NodeVisitor for CallCollector<'_> {
+    /// Return node visitor options for call collection.
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
 
+    /// Visit expressions and record call targets.
     fn visit_expression(
         &mut self,
         tree: &NodeTree,
@@ -433,7 +436,7 @@ fn find_containing_function(
 }
 
 /// Convert a symbol ID to a CallHierarchyItem.
-pub fn call_hierarchy_item_from_symbol(
+fn call_hierarchy_item_from_symbol(
     session: &Session,
     symbol_id: GlobalSymbolId,
 ) -> Option<CallHierarchyItem> {

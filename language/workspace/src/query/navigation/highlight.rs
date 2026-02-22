@@ -74,7 +74,7 @@ pub struct DocumentHighlightResponse {
 /// Highlight all occurrences of the symbol at the given position in the document.
 ///
 /// Only highlights within the same file (for cross file, use find_references).
-pub fn document_highlight(session: &Session, file: FileId, offset: u32) -> Vec<DocumentHighlight> {
+pub fn document_highlights(session: &Session, file: FileId, offset: u32) -> Vec<DocumentHighlight> {
     // find the symbol at offset
     let Some(symbol_at) = find_symbol_at_offset(session, file, offset) else {
         return Vec::new();

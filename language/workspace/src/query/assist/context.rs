@@ -6,8 +6,8 @@ use {destack_ast as ast, destack_dir as dir};
 use crate::Session;
 use crate::query::common::{
     QueryContext, enclosing_spans_with_previous, extract_string_literal_prefix,
-    get_module_by_file_id, import_clause_brace_span, resolve_nominal_symbol_from_initializer,
-    resolve_nominal_symbol_from_type_expression, sorted_enclosing_spans, span_for_dir_node,
+    find_symbol_at_offset, get_module_by_file_id, import_clause_brace_span,
+    resolve_nominal_symbol_from_initializer, sorted_enclosing_spans, span_for_dir_node,
     visible_symbols,
 };
 
@@ -275,7 +275,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
     };
 
     // read the source text for this file
-    let source_file = session.files.get(file_id);
+    let source_file = session.files.get(ctx.file_id);
     let source = source_file.text();
 
     // resolve cursor positioning and token context
@@ -343,7 +343,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
         let receiver_position = offset.saturating_sub(2);
 
         let offset_context = member_access_context_at_offset(session, &ctx, receiver_position);
-        let token_context = member_access_context_from_tokens(session, &ctx, file_id, offset);
+        let token_context = member_access_context_from_tokens(session, &ctx, offset);
         if let Some(context) = merge_member_access_contexts(offset_context, token_context) {
             return ContextResult { context, token };
         }
@@ -360,7 +360,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
         }
     }
 
-    if let Some(context) = member_access_context_from_tokens(session, &ctx, file_id, offset) {
+    if let Some(context) = member_access_context_from_tokens(session, &ctx, offset) {
         return ContextResult { context, token };
     }
 
@@ -614,6 +614,7 @@ fn member_access_context_at_offset(
 
     // resolve the dir tree for span to dir lookup
     let dir_tree = ctx.tree();
+    let mut fallback_context = None;
 
     // scan for the nearest enclosing expression
     for enc in &enclosing {
@@ -639,6 +640,17 @@ fn member_access_context_at_offset(
             let receiver_local: dir::LocalNodeIdAny = (*left).into();
             let receiver_global = receiver_local.into_global(ctx.module_id);
             let receiver_symbol = get_expression_symbol(&dir_tree, *left);
+            if receiver_symbol.is_none() {
+                if fallback_context.is_none() {
+                    fallback_context = Some(CompletionContext::MemberAccess {
+                        receiver_node: receiver_local,
+                        receiver_symbol,
+                        receiver_type: None,
+                        fallback_type_name: None,
+                    });
+                }
+                continue;
+            }
 
             // resolve the receiver type
             let receiver_type = get_receiver_type(session, ctx, receiver_global, receiver_symbol);
@@ -653,6 +665,17 @@ fn member_access_context_at_offset(
 
         // otherwise treat the expression itself as the receiver
         let receiver_symbol = actual_expr.target_symbol();
+        if receiver_symbol.is_none() {
+            if fallback_context.is_none() {
+                fallback_context = Some(CompletionContext::MemberAccess {
+                    receiver_node: actual_node_id,
+                    receiver_symbol,
+                    receiver_type: None,
+                    fallback_type_name: None,
+                });
+            }
+            continue;
+        }
         let receiver_global = actual_node_id.into_global(ctx.module_id);
 
         // resolve the receiver type
@@ -666,14 +689,13 @@ fn member_access_context_at_offset(
         });
     }
 
-    None
+    fallback_context
 }
 
 /// Resolve member access context using token lookups.
 fn member_access_context_from_tokens(
     session: &Session,
     ctx: &QueryContext<'_>,
-    file_id: FileId,
     offset: u32,
 ) -> Option<CompletionContext> {
     // resolve the previous significant token
@@ -697,16 +719,16 @@ fn member_access_context_from_tokens(
 
     // resolve the receiver offset for span lookups
     let receiver_offset = receiver_token.span.end.saturating_sub(1);
-
-    // read the source text for name lookups
-    let source_file = session.files.get(file_id);
+    let source_file = session.files.get(ctx.file_id);
     let source = source_file.text();
+    let receiver_name = token_text(source, receiver_token.span)?;
 
     let mut receiver_node = None;
     let mut receiver_symbol = None;
+    let mut fallback_receiver_node = None;
     let mut fallback_type_name = None;
 
-    // fall back to resolving the receiver node from enclosing AST spans
+    // resolve the receiver node from enclosing AST spans
     if receiver_node.is_none() {
         let enclosing = sorted_enclosing_spans(ctx, receiver_offset, receiver_offset);
         let dir_tree = ctx.tree();
@@ -721,115 +743,100 @@ fn member_access_context_from_tokens(
                 continue;
             };
             let expr = dir_tree.get::<dir::Expression>(expr_id);
-            receiver_node = Some(dir_node_id);
-            receiver_symbol = expr.target_symbol();
-            break;
+            let (actual_node_id, actual_expr) =
+                unwrap_statement_expression(&dir_tree, dir_node_id, expr);
+
+            if let dir::Expression::Member { left, .. } = actual_expr {
+                let receiver_local: dir::LocalNodeIdAny = (*left).into();
+                let receiver_local_symbol = get_expression_symbol(&dir_tree, *left);
+
+                if fallback_receiver_node.is_none() {
+                    fallback_receiver_node = Some(receiver_local);
+                }
+                if receiver_local_symbol.is_some() {
+                    receiver_node = Some(receiver_local);
+                    receiver_symbol = receiver_local_symbol;
+                    break;
+                }
+
+                continue;
+            }
+
+            if fallback_receiver_node.is_none() {
+                fallback_receiver_node = Some(actual_node_id);
+            }
+
+            let actual_symbol = actual_expr.target_symbol();
+            if actual_symbol.is_some() {
+                receiver_node = Some(actual_node_id);
+                receiver_symbol = actual_symbol;
+                break;
+            }
         }
     }
 
-    // fall back to visible symbol lookup by name
-    if receiver_symbol.is_none() {
-        let name = token_text(source, receiver_token.span)?;
-        let mut resolved = None;
-        if let Some(scope) = find_scope_at_offset(ctx, offset) {
-            let symbols = ctx.symbols();
-            resolved =
-                resolve_visible_symbol(session, &symbols, name, scope.scope_id, scope.scope_mark);
-        }
+    if receiver_node.is_none() {
+        receiver_node = fallback_receiver_node;
+    }
 
-        if resolved.is_none() {
-            let symbols = ctx.symbols();
-            resolved = resolve_visible_symbol(
+    // resolve the receiver symbol from visible scopes when direct expression symbols are missing
+    if receiver_symbol.is_none() {
+        let symbols = ctx.symbols();
+
+        if let Some(scope) = find_scope_at_offset(ctx, receiver_offset) {
+            receiver_symbol = resolve_member_receiver_symbol_in_scope(
                 session,
                 &symbols,
-                name,
+                receiver_name,
+                scope.scope_id,
+                scope.scope_mark,
+            );
+        }
+
+        if receiver_symbol.is_none() {
+            receiver_symbol = resolve_member_receiver_symbol_in_scope(
+                session,
+                &symbols,
+                receiver_name,
                 ctx.dir.namespace_scope,
                 dir::LocalScopeMark::end(),
             );
         }
-
-        if resolved.is_none() {
-            let symbols = ctx.symbols();
-            resolved =
-                resolve_symbol_by_unique_match(ctx, session, &symbols, name, receiver_offset);
+    }
+    // resolve the receiver from structural symbol lookup when scope matching misses
+    if (receiver_node.is_none() || receiver_symbol.is_none())
+        && let Some(symbol_at) = find_symbol_at_offset(session, ctx.file_id, receiver_offset)
+    {
+        if receiver_node.is_none() {
+            receiver_node = Some(symbol_at.node_id);
         }
-
-        if resolved.is_none() {
-            let scope_at_offset = find_scope_at_offset(ctx, offset);
-            let ast_declarator = find_ast_declarator_for_receiver(ctx, name, receiver_offset);
-            if let Some(declarator_id) = ast_declarator {
-                let declarator = ctx.ast.tree.get(declarator_id);
-                fallback_type_name = declarator
-                    .ty
-                    .and_then(|ty_expr_id| ast_type_name_from_expression(ctx, ty_expr_id))
-                    .or_else(|| {
-                        declarator
-                            .value
-                            .and_then(|value_id| ast_type_name_from_value_expression(ctx, value_id))
-                    });
-
-                let mut type_symbol = declarator
-                    .ty
-                    .and_then(|ty_expr_id| {
-                        resolve_type_symbol_from_ast_expression(
-                            ctx,
-                            session,
-                            ty_expr_id,
-                            scope_at_offset,
-                        )
-                    })
-                    .or_else(|| {
-                        declarator.value.and_then(|value_id| {
-                            resolve_type_symbol_from_ast_value_expression(
-                                ctx,
-                                session,
-                                value_id,
-                                scope_at_offset,
-                            )
-                        })
-                    });
-
-                if let Some(type_symbol) = type_symbol.take() {
-                    resolved = Some((type_symbol, Some(ctx.dir.anchor_node)));
-                }
-            }
-        }
-
-        // treat direct type references as potential member receivers
-        if resolved.is_none() && fallback_type_name.is_none() {
-            fallback_type_name = Some(name.to_string());
-        }
-
-        // fall back to a module wide symbol name match when scope based resolution fails
-        if resolved.is_none() {
-            let symbols = ctx.symbols();
-            resolved = resolve_symbol_by_name_any_space(session, &symbols, name);
-        }
-
-        if let Some((symbol_id, node_id)) = resolved {
-            receiver_symbol = Some(symbol_id);
-            if receiver_node.is_none() {
-                receiver_node = node_id;
-            }
+        if receiver_symbol.is_none() {
+            receiver_symbol = Some(symbol_at.symbol_id);
         }
     }
 
-    // try to recover receiver node from symbol declaration when possible
+    // recover a receiver node from the resolved symbol declaration
     if receiver_node.is_none()
         && let Some(symbol_id) = receiver_symbol
         && symbol_id.module_id == ctx.module_id
     {
         let symbols = ctx.symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        if let Some(primary) = symbol.primary_declaration {
-            receiver_node = Some(primary.local_id);
-        }
+        receiver_node = symbol
+            .primary_declaration
+            .map(|declaration| declaration.local_id);
     }
 
-    // fall back to the anchor node when type info is still available
-    if receiver_node.is_none() {
+    // derive a nominal receiver type name from local declarators when symbols are unavailable
+    if fallback_type_name.is_none() {
+        fallback_type_name =
+            fallback_type_name_from_receiver_binding(session, ctx, receiver_name, receiver_offset);
+    }
+
+    if receiver_node.is_none() && receiver_symbol.is_some() {
         receiver_node = Some(ctx.dir.anchor_node);
     }
+
     let receiver_node = receiver_node?;
 
     // resolve receiver type for member completions
@@ -844,100 +851,15 @@ fn member_access_context_from_tokens(
     })
 }
 
-/// Resolve a fallback type name from an AST type expression.
-fn ast_type_name_from_expression(
-    ctx: &QueryContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<String> {
-    let expression = ctx.ast.tree.get(expression_id);
-
-    match expression {
-        ast::Expression::Path { path, .. } => path
-            .segments
-            .last()
-            .map(|name_id| ctx.ast.strings.get(*name_id).to_string()),
-        ast::Expression::Member { name, .. } => Some(ctx.ast.strings.get(*name).to_string()),
-        ast::Expression::Instantiation { left, .. }
-        | ast::Expression::Call { left, .. }
-        | ast::Expression::New { left, .. } => ast_type_name_from_expression(ctx, *left),
-        ast::Expression::ObjectExpression { ty: Some(ty), .. } => {
-            ast_type_name_from_expression(ctx, *ty)
-        }
-        _ => None,
-    }
-}
-
-/// Resolve a fallback type name from an AST value expression.
-fn ast_type_name_from_value_expression(
-    ctx: &QueryContext<'_>,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<String> {
-    let expression = ctx.ast.tree.get(expression_id);
-    match expression {
-        ast::Expression::New { left, .. } | ast::Expression::Instantiation { left, .. } => {
-            ast_type_name_from_expression(ctx, *left)
-        }
-        ast::Expression::ObjectExpression { ty: Some(ty), .. } => {
-            ast_type_name_from_expression(ctx, *ty)
-        }
-        _ => None,
-    }
-}
-
-/// Resolve a symbol by name from the module symbol table.
-fn resolve_symbol_by_name_any_space(
-    session: &Session,
-    symbols: &dir::SymbolTable,
-    receiver_name: &str,
-) -> Option<(dir::GlobalSymbolId, Option<dir::LocalNodeIdAny>)> {
-    let mut best: Option<(dir::LocalSymbolId, u8, Option<dir::LocalNodeIdAny>)> = None;
-
-    // prefer active symbols and rank type spaces above value space for static member access
-    for symbol_id in symbols.active_symbol_ids() {
-        let symbol = symbols.get_symbol(symbol_id);
-        let Some(name_id) = symbol.name() else {
-            continue;
-        };
-        if session.strings.get(name_id) != receiver_name {
-            continue;
-        }
-
-        let score = match symbol.space {
-            dir::SymbolSpace::TypeValue => 3,
-            dir::SymbolSpace::Type => 2,
-            dir::SymbolSpace::Value => 1,
-            _ => 0,
-        };
-
-        if best
-            .as_ref()
-            .is_none_or(|(_, best_score, _)| score > *best_score)
-        {
-            let node_id = symbol.primary_declaration.map(|decl| decl.local_id);
-            best = Some((symbol_id, score, node_id));
-        }
-    }
-
-    let (local_id, _score, node_id) = best?;
-    Some((
-        dir::GlobalSymbolId {
-            module_id: symbols.module_id,
-            local_id,
-        },
-        node_id,
-    ))
-}
-
-/// Resolve a visible symbol by name within a scope.
-fn resolve_visible_symbol(
+/// Resolve a receiver symbol by name in the visible scope chain.
+fn resolve_member_receiver_symbol_in_scope(
     session: &Session,
     symbols: &dir::SymbolTable,
     receiver_name: &str,
     scope_id: dir::LocalScopeId,
     scope_mark: dir::LocalScopeMark,
-) -> Option<(dir::GlobalSymbolId, Option<dir::LocalNodeIdAny>)> {
-    // prefer value space symbols for member access
-    let mut resolved = None;
+) -> Option<dir::GlobalSymbolId> {
+    // prefer value-space symbols for member access receivers
     for visible in visible_symbols(symbols, scope_id, scope_mark, Some(dir::SymbolSpace::Value)) {
         let dir::StaticKey::Name(name_id) = visible.key else {
             continue;
@@ -946,170 +868,18 @@ fn resolve_visible_symbol(
             continue;
         }
 
-        let symbol_id = dir::GlobalSymbolId {
+        return Some(dir::GlobalSymbolId {
             module_id: symbols.module_id,
             local_id: visible.id,
-        };
-        let node_id = visible.symbol.primary_declaration.map(|decl| decl.local_id);
-        resolved = Some((symbol_id, node_id));
-        break;
+        });
     }
 
-    if resolved.is_some() {
-        return resolved;
-    }
-
-    // fall back to any matching symbol when no value symbol is found
+    // fall back to any symbol space when no value symbol matches
     for visible in visible_symbols(symbols, scope_id, scope_mark, None) {
         let dir::StaticKey::Name(name_id) = visible.key else {
             continue;
         };
         if session.strings.get(name_id) != receiver_name {
-            continue;
-        }
-
-        let symbol_id = dir::GlobalSymbolId {
-            module_id: symbols.module_id,
-            local_id: visible.id,
-        };
-        let node_id = visible.symbol.primary_declaration.map(|decl| decl.local_id);
-        return Some((symbol_id, node_id));
-    }
-
-    None
-}
-
-/// Resolve a symbol by name when there is a unique local match.
-fn resolve_symbol_by_unique_match(
-    ctx: &QueryContext<'_>,
-    session: &Session,
-    symbols: &dir::SymbolTable,
-    receiver_name: &str,
-    receiver_offset: u32,
-) -> Option<(dir::GlobalSymbolId, Option<dir::LocalNodeIdAny>)> {
-    // resolve the dir tree for span lookups
-    let dir_tree = ctx.tree();
-
-    // track the unique match before the receiver
-    let mut candidate = None;
-
-    // scan active symbols for matching names
-    for symbol_id in symbols.active_symbol_ids() {
-        let symbol = symbols.get_symbol(symbol_id);
-        let Some(name_id) = symbol.name() else {
-            continue;
-        };
-        if session.strings.get(name_id) != receiver_name {
-            continue;
-        }
-
-        let node_id = symbol.primary_declaration.map(|decl| decl.local_id);
-        let Some(node_id) = node_id else {
-            continue;
-        };
-        let span = span_for_dir_node(ctx, &dir_tree, node_id);
-        if span.file != ctx.file_id {
-            continue;
-        }
-        if span.start > receiver_offset {
-            continue;
-        }
-
-        let global_id = dir::GlobalSymbolId {
-            module_id: symbols.module_id,
-            local_id: symbol_id,
-        };
-
-        if candidate.is_some() {
-            return None;
-        }
-
-        candidate = Some((global_id, Some(node_id)));
-    }
-
-    candidate
-}
-
-/// Find the nearest AST declarator for a receiver name.
-fn find_ast_declarator_for_receiver(
-    ctx: &QueryContext<'_>,
-    receiver_name: &str,
-    receiver_offset: u32,
-) -> Option<ast::LocalNodeId<ast::Declarator>> {
-    // track the closest match before the receiver
-    let mut best = None;
-    let mut best_start = 0u32;
-
-    // scan AST declarators for the receiver binding
-    for declarator_id in ctx.ast.tree.iter_nodes::<ast::Declarator>() {
-        let declarator = ctx.ast.tree.get(declarator_id);
-        let pattern = ctx.ast.tree.get(declarator.pattern);
-        let ast::Pattern::Binding { name, .. } = pattern else {
-            continue;
-        };
-        if ctx.ast.strings.get(*name) != receiver_name {
-            continue;
-        }
-
-        let span = ctx.ast.tree.source_map.get(declarator_id.id);
-        if span.file != ctx.file_id {
-            continue;
-        }
-        if span.start > receiver_offset {
-            continue;
-        }
-
-        if best.is_none() || span.start >= best_start {
-            best = Some(declarator_id);
-            best_start = span.start;
-        }
-    }
-
-    best
-}
-
-/// Resolve a type symbol by name in the current module scope.
-fn resolve_type_symbol_by_name(
-    ctx: &QueryContext<'_>,
-    name_id: destack_base::StringId,
-    scope: Option<ScopeAtOffset>,
-) -> Option<dir::GlobalSymbolId> {
-    // resolve the symbol table for the module
-    let symbols = ctx.symbols();
-
-    // scan visible type symbols in the current scope when available
-    if let Some(scope) = scope {
-        for visible in visible_symbols(
-            &symbols,
-            scope.scope_id,
-            scope.scope_mark,
-            Some(dir::SymbolSpace::Type),
-        ) {
-            let dir::StaticKey::Name(visible_name) = visible.key else {
-                continue;
-            };
-            if visible_name != name_id {
-                continue;
-            }
-
-            return Some(dir::GlobalSymbolId {
-                module_id: symbols.module_id,
-                local_id: visible.id,
-            });
-        }
-    }
-
-    // fall back to namespace scope for module-level type declarations
-    for visible in visible_symbols(
-        &symbols,
-        ctx.dir.namespace_scope,
-        dir::LocalScopeMark::end(),
-        Some(dir::SymbolSpace::Type),
-    ) {
-        let dir::StaticKey::Name(visible_name) = visible.key else {
-            continue;
-        };
-        if visible_name != name_id {
             continue;
         }
 
@@ -1120,71 +890,6 @@ fn resolve_type_symbol_by_name(
     }
 
     None
-}
-
-/// Resolve a nominal type symbol from an AST expression.
-fn resolve_type_symbol_from_ast_expression(
-    ctx: &QueryContext<'_>,
-    session: &Session,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    scope: Option<ScopeAtOffset>,
-) -> Option<dir::GlobalSymbolId> {
-    // try resolving via a mapped DIR expression when available
-    let dir_tree = ctx.tree();
-    if let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(expression_id.id)
-        && dir_node_id.ty == dir::NodeType::Expression
-        && let Ok(expr_id) = dir_node_id.try_into()
-        && let Some(symbol_id) = resolve_nominal_symbol_from_type_expression(session, ctx, expr_id)
-    {
-        return Some(symbol_id);
-    }
-
-    // resolve the expression node
-    let expression = ctx.ast.tree.get(expression_id);
-
-    let name_id = match expression {
-        ast::Expression::Path { path, .. } => path.segments.last().copied(),
-        ast::Expression::Member { name, .. } => Some(*name),
-        ast::Expression::Instantiation { left, .. }
-        | ast::Expression::Call { left, .. }
-        | ast::Expression::New { left, .. } => {
-            return resolve_type_symbol_from_ast_expression(ctx, session, *left, scope);
-        }
-        ast::Expression::ObjectExpression { ty: Some(ty), .. } => {
-            return resolve_type_symbol_from_ast_expression(ctx, session, *ty, scope);
-        }
-        _ => None,
-    }?;
-
-    // resolve the symbol from the visible scope when available
-    let name_id = session.strings.intern_from(&ctx.ast.strings, name_id);
-    if let Some(symbol_id) = resolve_type_symbol_by_name(ctx, name_id, scope) {
-        return Some(symbol_id);
-    }
-
-    // return none when the symbol is not visible in scope
-    None
-}
-
-/// Resolve a nominal type symbol from an AST value expression.
-fn resolve_type_symbol_from_ast_value_expression(
-    ctx: &QueryContext<'_>,
-    session: &Session,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-    scope: Option<ScopeAtOffset>,
-) -> Option<dir::GlobalSymbolId> {
-    // resolve the expression node
-    let expression = ctx.ast.tree.get(expression_id);
-
-    match expression {
-        ast::Expression::New { left, .. } | ast::Expression::Instantiation { left, .. } => {
-            resolve_type_symbol_from_ast_expression(ctx, session, *left, scope)
-        }
-        ast::Expression::ObjectExpression { ty: Some(ty), .. } => {
-            resolve_type_symbol_from_ast_expression(ctx, session, *ty, scope)
-        }
-        _ => None,
-    }
 }
 
 /// Unwrap Statement expressions to get the inner expression.
@@ -1204,6 +909,172 @@ fn unwrap_statement_expression<'a>(
         return unwrap_statement_expression(dir_tree, inner_node_id, inner_expr);
     }
     (node_id, expr)
+}
+
+/// Resolve a fallback nominal type name for a receiver binding at an offset.
+fn fallback_type_name_from_receiver_binding(
+    session: &Session,
+    ctx: &QueryContext<'_>,
+    receiver_name: &str,
+    receiver_offset: u32,
+) -> Option<String> {
+    let dir_tree = ctx.tree();
+    let mut best_match = None;
+
+    for (declarator_id, declarator) in dir_tree.iter_nodes_of_type::<dir::Declarator>() {
+        let Some(binding_name) = binding_name_for_pattern(&dir_tree, session, declarator.pattern)
+        else {
+            continue;
+        };
+        if binding_name != receiver_name {
+            continue;
+        }
+
+        let declarator_span = span_for_dir_node(ctx, &dir_tree, declarator_id.into());
+        if declarator_span.file != ctx.file_id || declarator_span.start > receiver_offset {
+            continue;
+        }
+
+        let type_name = declarator
+            .ty
+            .and_then(|ty| nominal_type_name_for_expression(&dir_tree, session, ty))
+            .or_else(|| {
+                declarator
+                    .value
+                    .and_then(|value| nominal_type_name_for_expression(&dir_tree, session, value))
+            });
+        let Some(type_name) = type_name else {
+            continue;
+        };
+
+        let sort_key = declarator_span.end;
+        let should_replace = best_match
+            .as_ref()
+            .map(|(best_end, _): &(u32, String)| sort_key >= *best_end)
+            .unwrap_or(true);
+        if should_replace {
+            best_match = Some((sort_key, type_name));
+        }
+    }
+
+    if let Some((_, type_name)) = best_match {
+        return Some(type_name);
+    }
+
+    fallback_type_name_from_receiver_ast(ctx, receiver_name, receiver_offset)
+}
+
+/// Resolve the binding name for a simple declarator pattern.
+fn binding_name_for_pattern(
+    dir_tree: &dir::NodeTree,
+    session: &Session,
+    pattern_id: dir::LocalNodeId<dir::Pattern>,
+) -> Option<String> {
+    let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
+    match pattern {
+        dir::Pattern::Binding { name, .. } => Some(session.strings.get(*name).to_string()),
+        _ => None,
+    }
+}
+
+/// Resolve a nominal type name from a DIR expression.
+fn nominal_type_name_for_expression(
+    dir_tree: &dir::NodeTree,
+    session: &Session,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<String> {
+    let expression = dir_tree.get::<dir::Expression>(expression_id);
+    match expression {
+        dir::Expression::UnresolvedPath { path, .. }
+        | dir::Expression::LocalReference { path, .. }
+        | dir::Expression::ModuleReference { path, .. }
+        | dir::Expression::GlobalReference { path, .. } => path
+            .last_segment()
+            .map(|name_id| session.strings.get(name_id).to_string()),
+        dir::Expression::Instantiation { left, .. }
+        | dir::Expression::Call { left, .. }
+        | dir::Expression::New { left, .. } => {
+            nominal_type_name_for_expression(dir_tree, session, *left)
+        }
+        dir::Expression::TaggedScalarExpression { ty, .. }
+        | dir::Expression::TaggedTupleExpression { ty, .. }
+        | dir::Expression::TaggedObjectExpression { ty, .. } => {
+            nominal_type_name_for_expression(dir_tree, session, *ty)
+        }
+        _ => None,
+    }
+}
+
+/// Resolve a fallback nominal type name from AST declarators near the cursor.
+fn fallback_type_name_from_receiver_ast(
+    ctx: &QueryContext<'_>,
+    receiver_name: &str,
+    receiver_offset: u32,
+) -> Option<String> {
+    let mut best_match = None;
+
+    for declarator_id in ctx.ast.tree.iter_nodes::<ast::Declarator>() {
+        let declarator = ctx.ast.tree.get(declarator_id);
+        let pattern = ctx.ast.tree.get(declarator.pattern);
+        let ast::Pattern::Binding { name, .. } = pattern else {
+            continue;
+        };
+
+        let binding_name = ctx.ast.strings.get(*name);
+        if binding_name != receiver_name {
+            continue;
+        }
+
+        let declarator_span = ctx.ast.tree.source_map.get(declarator_id.id);
+        if declarator_span.file != ctx.file_id || declarator_span.start > receiver_offset {
+            continue;
+        }
+
+        let type_name = declarator
+            .ty
+            .and_then(|ty| nominal_type_name_for_ast_expression(ctx, ty))
+            .or_else(|| {
+                declarator
+                    .value
+                    .and_then(|value| nominal_type_name_for_ast_expression(ctx, value))
+            });
+        let Some(type_name) = type_name else {
+            continue;
+        };
+
+        let sort_key = declarator_span.end;
+        let should_replace = best_match
+            .as_ref()
+            .map(|(best_end, _): &(u32, String)| sort_key >= *best_end)
+            .unwrap_or(true);
+        if should_replace {
+            best_match = Some((sort_key, type_name));
+        }
+    }
+
+    best_match.map(|(_, type_name)| type_name)
+}
+
+/// Resolve a nominal type name from an AST expression.
+fn nominal_type_name_for_ast_expression(
+    ctx: &QueryContext<'_>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> Option<String> {
+    let expression = ctx.ast.tree.get(expression_id);
+    match expression {
+        ast::Expression::Path { path, .. } => path
+            .segments
+            .last()
+            .map(|name_id| ctx.ast.strings.get(*name_id).to_string()),
+        ast::Expression::Member { name, .. } => Some(ctx.ast.strings.get(*name).to_string()),
+        ast::Expression::Instantiation { left, .. }
+        | ast::Expression::Call { left, .. }
+        | ast::Expression::New { left, .. } => nominal_type_name_for_ast_expression(ctx, *left),
+        ast::Expression::ObjectExpression { ty: Some(ty), .. } => {
+            nominal_type_name_for_ast_expression(ctx, *ty)
+        }
+        _ => None,
+    }
 }
 
 /// Detect partial identifier at cursor position.

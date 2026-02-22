@@ -6,10 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::Session;
 use crate::program::ModuleAst;
-use crate::query::QueryContext;
 pub use crate::query::common::SymbolKind;
 use crate::query::common::{
-    declaration_display_name, declaration_symbol_kind, get_module_by_file_id,
+    QueryContext, declaration_display_name, declaration_symbol_kind, get_module_by_file_id,
     is_synthetic_function_keyword_field, main_span_for_dir_node, member_key_name,
     member_symbol_kind, span_for_dir_node, with_query_context_for_file,
 };

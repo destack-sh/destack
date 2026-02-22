@@ -17,17 +17,26 @@ pub(crate) fn is_identifier_continue(ch: char) -> bool {
 
 /// Extract the identifier token at a given offset.
 pub(crate) fn token_at_offset(session: &Session, file_id: FileId, offset: u32) -> Option<String> {
-    // resolve query context for token lookup
-    let module = get_module_by_file_id(session, file_id)?;
-    let module = module.read();
-    let ctx = session.query_context(&module)?;
+    // resolve the token text at the cursor
+    let token_text = token_text_at_offset(session, file_id, offset)?;
 
-    // find the token at the cursor
-    let token = token_span_at_offset(&ctx, offset)?;
+    // ensure the token is an identifier
+    let token = token_span_at_offset(session, file_id, offset)?;
     if token.token.ty != TokenType::Identifier {
         return None;
     }
 
+    Some(token_text)
+}
+
+/// Extract the non-trivia token text at a given offset.
+pub(crate) fn token_text_at_offset(
+    session: &Session,
+    file_id: FileId,
+    offset: u32,
+) -> Option<String> {
+    // find the token at the cursor
+    let token = token_span_at_offset(session, file_id, offset)?;
     // read the source content
     let file = session.files.get(file_id);
     let content = match &file.content {
@@ -43,8 +52,22 @@ pub(crate) fn token_at_offset(session: &Session, file_id: FileId, offset: u32) -
     Some(text.to_string())
 }
 
+/// Find the non-trivia token span that contains the offset.
+pub(crate) fn token_span_at_offset(
+    session: &Session,
+    file_id: FileId,
+    offset: u32,
+) -> Option<ast::TokenSpan> {
+    // resolve query context for token lookup
+    let module = get_module_by_file_id(session, file_id)?;
+    let module = module.read();
+    let ctx = session.query_context(&module)?;
+
+    token_span_at_offset_in_context(&ctx, offset)
+}
+
 /// Find the token span that contains the offset.
-fn token_span_at_offset(ctx: &QueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
+fn token_span_at_offset_in_context(ctx: &QueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
     // track the last token starting before the offset
     let mut candidate = None;
 
@@ -90,46 +113,6 @@ fn is_trivia_token(token: TokenType) -> bool {
             | TokenType::DocBlockComment
             | TokenType::End
     )
-}
-
-/// Extract the first identifier from a string.
-pub(crate) fn extract_identifier(text: &str) -> Option<String> {
-    // scan for the first valid identifier start
-    let mut chars = text.chars().peekable();
-    while let Some(ch) = chars.peek().copied() {
-        if is_identifier_start(ch) {
-            break;
-        }
-        chars.next();
-    }
-
-    // collect identifier characters
-    let mut name = String::new();
-    while let Some(ch) = chars.peek().copied() {
-        if name.is_empty() {
-            if !is_identifier_start(ch) {
-                chars.next();
-                continue;
-            }
-            name.push(ch);
-            chars.next();
-            continue;
-        }
-
-        if is_identifier_continue(ch) {
-            name.push(ch);
-            chars.next();
-        } else {
-            break;
-        }
-    }
-
-    if name.is_empty() {
-        return None;
-    }
-
-    // return the extracted identifier
-    Some(name)
 }
 
 /// Check if a string is a simple identifier.

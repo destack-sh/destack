@@ -79,6 +79,7 @@ pub(crate) fn owned_scope_for_symbol(
     None
 }
 
+/// Check whether a symbol resolves in the requested symbol space.
 fn symbol_matches_space(session: &Session, symbol_id: GlobalSymbolId, space: SymbolSpace) -> bool {
     // resolve the module and query context
     let module = session.modules.get(symbol_id.module_id);
@@ -124,18 +125,48 @@ pub(crate) fn resolve_member_access_symbol(
     // resolve the member name string
     let member_name = session.strings.get(name).to_string();
 
-    // resolve the base nominal symbol for the left expression
-    let base_symbol = nominal_symbol_for_expression(session, ctx, left)?;
+    // resolve nominal members when the receiver is a nominal type
+    if let Some(base_symbol) = nominal_symbol_for_expression(session, ctx, left) {
+        if let Some(symbol_id) =
+            resolve_member_symbol_from_declaration(session, base_symbol, &member_name)
+        {
+            return Some(symbol_id);
+        }
 
-    // resolve members declared directly on the base type
-    if let Some(symbol_id) =
-        resolve_member_symbol_from_declaration(session, base_symbol, &member_name)
+        if let Some(symbol_id) =
+            resolve_member_symbol_from_lineage(session, base_symbol, &member_name)
+        {
+            return Some(symbol_id);
+        }
+
+        if let Some(symbol_id) =
+            resolve_extension_member_symbol(session, base_symbol, ctx.module_id, &member_name)
+        {
+            return Some(symbol_id);
+        }
+    }
+
+    // resolve namespace members through namespace imports and re-exports
+    let dir_tree = ctx.tree();
+    let left_expression = dir_tree.get::<Expression>(left);
+    let receiver_name = match left_expression {
+        Expression::UnresolvedPath { path, .. }
+        | Expression::LocalReference { path, .. }
+        | Expression::ModuleReference { path, .. }
+        | Expression::GlobalReference { path, .. } => path.last_segment(),
+        _ => None,
+    };
+
+    let namespace_symbol = left_expression
+        .target_symbol()
+        .or_else(|| receiver_name.and_then(|name_id| resolve_namespace_alias_symbol(ctx, name_id)));
+    if let Some(namespace_symbol) = namespace_symbol
+        && let Some(symbol_id) = resolve_namespace_member_symbol(session, namespace_symbol, name)
     {
         return Some(symbol_id);
     }
 
-    // resolve members provided by extensions
-    resolve_extension_member_symbol(session, base_symbol, ctx.module_id, &member_name)
+    resolve_namespace_member_symbol_from_name(session, ctx, receiver_name?, name)
 }
 
 /// Resolve the nominal symbol for an expression, using type info or fallbacks.
@@ -211,6 +242,7 @@ fn resolve_nominal_symbol_from_type(
     }
 }
 
+/// Resolve a member symbol id from declaration members by name.
 fn resolve_member_from_members(
     session: &Session,
     tree: &dir::NodeTree,
@@ -221,25 +253,33 @@ fn resolve_member_from_members(
     for member_id in member_ids {
         let member = tree.get(*member_id);
 
-        // skip members without a static key
-        let Some(key) = member.key() else {
-            continue;
-        };
+        match member {
+            Member::Type { name, symbol, .. } | Member::ComptimeConst { name, symbol, .. } => {
+                let key_name = session.strings.get(*name).to_string();
+                if key_name == member_name {
+                    return Some(*symbol);
+                }
+            }
+            _ => {
+                let Some(key) = member.key() else {
+                    continue;
+                };
 
-        // skip members whose key cannot be resolved to a name
-        let Some(key_name) = member_key_name(session, key) else {
-            continue;
-        };
+                let Some(key_name) = member_key_name(session, key) else {
+                    continue;
+                };
 
-        // return the member symbol when the name matches
-        if key_name == member_name {
-            return Some(member.symbol());
+                if key_name == member_name {
+                    return Some(member.symbol());
+                }
+            }
         }
     }
 
     None
 }
 
+/// Resolve an enum field symbol id by field name.
 fn resolve_member_from_enum_fields(
     session: &Session,
     tree: &dir::NodeTree,
@@ -260,6 +300,7 @@ fn resolve_member_from_enum_fields(
     None
 }
 
+/// Resolve a member symbol from a declaration owned by a base symbol.
 fn resolve_member_symbol_from_declaration(
     session: &Session,
     base_symbol: GlobalSymbolId,
@@ -310,6 +351,53 @@ fn resolve_member_symbol_from_declaration(
     None
 }
 
+/// Resolve a member symbol through lineage relationships.
+fn resolve_member_symbol_from_lineage(
+    session: &Session,
+    base_symbol: GlobalSymbolId,
+    member_name: &str,
+) -> Option<GlobalSymbolId> {
+    // resolve the module query context for lineage lookup
+    let module = session.modules.get(base_symbol.module_id);
+    let module = module.read();
+    let ctx = session.query_context(&module)?;
+
+    // collect direct lineage targets for inheritance and implementation
+    let types = ctx.types();
+    let lineage = types.get_lineage_for_symbol(base_symbol)?;
+    let extends = lineage.extends;
+    let implements = lineage.implements.clone();
+    let embedded = lineage.embedded.clone();
+    drop(types);
+    drop(module);
+
+    // prefer direct parent first for deterministic results
+    if let Some(parent_symbol) = extends
+        && let Some(symbol_id) =
+            resolve_member_symbol_from_declaration(session, parent_symbol, member_name)
+    {
+        return Some(symbol_id);
+    }
+
+    for interface_symbol in implements {
+        if let Some(symbol_id) =
+            resolve_member_symbol_from_declaration(session, interface_symbol, member_name)
+        {
+            return Some(symbol_id);
+        }
+    }
+
+    for embedded_symbol in embedded {
+        if let Some(symbol_id) =
+            resolve_member_symbol_from_declaration(session, embedded_symbol, member_name)
+        {
+            return Some(symbol_id);
+        }
+    }
+
+    None
+}
+
 /// Resolve a member symbol from extensions for a target type.
 pub(crate) fn resolve_extension_member_symbol(
     session: &Session,
@@ -335,6 +423,7 @@ pub(crate) fn resolve_extension_member_symbol(
     resolved
 }
 
+/// Resolve a nominal symbol from a symbol declaration and initializer.
 pub(crate) fn resolve_nominal_symbol_from_initializer(
     session: &Session,
     ctx: &QueryContext<'_>,
@@ -381,6 +470,7 @@ pub(crate) fn resolve_nominal_symbol_from_initializer(
     None
 }
 
+/// Resolve a nominal symbol from a value expression.
 fn resolve_nominal_symbol_from_value_expression(
     session: &Session,
     ctx: &QueryContext<'_>,
@@ -416,6 +506,32 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
     // resolve the expression and target symbol
     let dir_tree = ctx.tree();
     let expression = dir_tree.get::<Expression>(expression_id);
+
+    // unwrap type operators and wrappers to the underlying nominal expression
+    match expression {
+        Expression::ReferenceOf { right, .. }
+        | Expression::PointerOf { right, .. }
+        | Expression::ValueOf { right, .. }
+        | Expression::Maybe { left: right }
+        | Expression::Must { left: right } => {
+            return resolve_nominal_symbol_from_type_expression(session, ctx, *right);
+        }
+        Expression::Parenthesized { expression } => {
+            return resolve_nominal_symbol_from_type_expression(session, ctx, *expression);
+        }
+        Expression::Instantiation { left, .. } => {
+            return resolve_nominal_symbol_from_type_expression(session, ctx, *left);
+        }
+        Expression::Member { left, name, .. } => {
+            if let Some(symbol_id) =
+                resolve_member_access_symbol(session, ctx, expression_id, *left, *name)
+            {
+                return Some(symbol_id);
+            }
+        }
+        _ => {}
+    }
+
     if let Some(target_symbol) = expression.target_symbol() {
         // return the target when it already resolves to a nominal type symbol
         if symbol_is_type_symbol(session, target_symbol) {
@@ -444,6 +560,7 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
     None
 }
 
+/// Resolve a type symbol by following a target symbol into its module context.
 fn resolve_type_symbol_from_target_symbol(
     session: &Session,
     ctx: &QueryContext<'_>,
@@ -462,6 +579,7 @@ fn resolve_type_symbol_from_target_symbol(
     resolve_type_symbol_from_target_context(session, &target_ctx, symbol_id, name_id)
 }
 
+/// Resolve a type symbol by name from a specific module context.
 fn resolve_type_symbol_from_target_context(
     session: &Session,
     ctx: &QueryContext<'_>,
@@ -499,6 +617,7 @@ fn resolve_type_symbol_from_target_context(
     resolve_type_symbol_from_dependency_symbol(session, ctx, target_symbol, name_id)
 }
 
+/// Resolve a type symbol from a dependency symbol.
 pub(crate) fn resolve_type_symbol_from_dependency_symbol(
     session: &Session,
     ctx: &QueryContext<'_>,
@@ -532,6 +651,7 @@ pub(crate) fn resolve_type_symbol_from_dependency_symbol(
     resolve_type_symbol_from_module(session, target_module_id, name_id, &mut HashSet::new())
 }
 
+/// Resolve a type symbol from import items in the current context.
 pub(crate) fn resolve_type_symbol_from_imports(
     session: &Session,
     ctx: &QueryContext<'_>,
@@ -693,6 +813,337 @@ pub(crate) fn resolve_value_symbol_from_module(
     None
 }
 
+/// Resolve a namespace alias symbol by name from import items.
+pub(crate) fn resolve_namespace_alias_symbol(
+    ctx: &QueryContext<'_>,
+    name_id: StringId,
+) -> Option<GlobalSymbolId> {
+    // scan namespace value imports for a matching local name
+    let dir_tree = ctx.tree();
+    for item_id in dir_tree.iter_node_ids_of_type::<DependencyItem>() {
+        let item = dir_tree.get::<DependencyItem>(item_id);
+        let (mode, kind, name, alias, symbol) = match item {
+            DependencyItem::Remote {
+                mode,
+                kind,
+                name,
+                alias,
+                symbol,
+                ..
+            }
+            | DependencyItem::UnresolvedRemote {
+                mode,
+                kind,
+                name,
+                alias,
+                symbol,
+                ..
+            } => (*mode, *kind, *name, *alias, *symbol),
+            _ => continue,
+        };
+
+        if mode != DependencyMode::Namespace || kind != DependencyKind::Value {
+            continue;
+        }
+
+        let name_matches =
+            alias == Some(name_id) || name.map(|name| name.string()) == Some(name_id);
+        if !name_matches {
+            continue;
+        }
+
+        let symbol = symbol?;
+        return Some(GlobalSymbolId::new(ctx.module_id, symbol));
+    }
+
+    None
+}
+
+/// Resolve a namespace member symbol for a namespace alias symbol.
+pub(crate) fn resolve_namespace_member_symbol(
+    session: &Session,
+    alias_symbol: GlobalSymbolId,
+    member_name: StringId,
+) -> Option<GlobalSymbolId> {
+    let mut visited = HashSet::new();
+    resolve_namespace_member_symbol_inner(session, alias_symbol, member_name, &mut visited)
+}
+
+/// Resolve a namespace member symbol by following alias chains.
+fn resolve_namespace_member_symbol_inner(
+    session: &Session,
+    alias_symbol: GlobalSymbolId,
+    member_name: StringId,
+    visited: &mut HashSet<GlobalSymbolId>,
+) -> Option<GlobalSymbolId> {
+    // avoid symbol cycles across alias chains
+    if !visited.insert(alias_symbol) {
+        return None;
+    }
+
+    // resolve the alias symbol in its owning module
+    let module = session.modules.get(alias_symbol.module_id);
+    let module = module.read();
+    let alias_ctx = session.query_context(&module)?;
+
+    // require a dependency item declaration for the alias symbol
+    let symbols = alias_ctx.symbols();
+    let symbol = symbols.get_symbol(alias_symbol.local_id);
+    let declaration = symbol.primary_declaration;
+    let symbol_name = symbol.name();
+    let forwarded_symbol = symbol.target_symbol.or_else(|| {
+        symbol
+            .canonical_symbol
+            .filter(|canonical| *canonical != alias_symbol)
+    });
+    drop(symbols);
+
+    let Some(declaration) = declaration else {
+        if let Some(alias_name) = symbol_name
+            && let Some(symbol_id) = resolve_namespace_member_symbol_from_name(
+                session,
+                &alias_ctx,
+                alias_name,
+                member_name,
+            )
+        {
+            return Some(symbol_id);
+        }
+
+        if let Some(next_symbol) = forwarded_symbol {
+            return resolve_namespace_member_symbol_inner(
+                session,
+                next_symbol,
+                member_name,
+                visited,
+            );
+        }
+
+        return None;
+    };
+
+    if declaration.local_id.ty != NodeType::DependencyItem {
+        if let Some(next_symbol) = forwarded_symbol {
+            return resolve_namespace_member_symbol_inner(
+                session,
+                next_symbol,
+                member_name,
+                visited,
+            );
+        }
+
+        return None;
+    }
+    let Ok(item_id) = declaration.local_id.try_into() else {
+        if let Some(next_symbol) = forwarded_symbol {
+            return resolve_namespace_member_symbol_inner(
+                session,
+                next_symbol,
+                member_name,
+                visited,
+            );
+        }
+
+        return None;
+    };
+
+    // resolve the namespace import target module
+    let dir_tree = alias_ctx.tree();
+    let item = dir_tree.get::<DependencyItem>(item_id);
+    let (mode, kind, name, alias, target, target_module) = match item {
+        DependencyItem::Remote {
+            mode,
+            kind,
+            name,
+            alias,
+            target,
+            target_module,
+            ..
+        } => (
+            *mode,
+            *kind,
+            *name,
+            *alias,
+            Some(*target),
+            Some(*target_module),
+        ),
+        DependencyItem::UnresolvedRemote {
+            mode,
+            kind,
+            name,
+            alias,
+            target,
+            target_module,
+            ..
+        } => (*mode, *kind, *name, *alias, Some(*target), *target_module),
+        _ => return None,
+    };
+
+    if mode != DependencyMode::Namespace || kind != DependencyKind::Value {
+        let mut imported_namespace_symbol = None;
+        let mut target_module_id = target_module
+            .and_then(|targets| targets.value.or(targets.ty))
+            .and_then(|target| target.module_id());
+        if target_module_id.is_none()
+            && let Some(target) = target
+        {
+            let target_text = session.strings.get(target).to_string();
+            target_module_id =
+                resolve_module_id_for_import_target(session, &alias_ctx, target_text.as_str());
+        }
+
+        let import_name_id = alias.or(name.map(|name| name.string()));
+        if let Some(import_name_id) = import_name_id
+            && let Some(target_module_id) = target_module_id
+        {
+            if let Some(symbol_id) = resolve_namespace_member_symbol_from_module_name(
+                session,
+                target_module_id,
+                import_name_id,
+                member_name,
+            ) {
+                return Some(symbol_id);
+            }
+
+            let mut visited_modules = HashSet::new();
+            imported_namespace_symbol = resolve_value_symbol_from_module(
+                session,
+                target_module_id,
+                import_name_id,
+                &mut visited_modules,
+            );
+        }
+
+        if let Some(imported_namespace_symbol) = imported_namespace_symbol
+            && imported_namespace_symbol != alias_symbol
+        {
+            return resolve_namespace_member_symbol_inner(
+                session,
+                imported_namespace_symbol,
+                member_name,
+                visited,
+            );
+        }
+
+        if let Some(next_symbol) = forwarded_symbol {
+            return resolve_namespace_member_symbol_inner(
+                session,
+                next_symbol,
+                member_name,
+                visited,
+            );
+        }
+
+        return None;
+    }
+
+    let mut target_module_id = target_module
+        .and_then(|targets| targets.value.or(targets.ty))
+        .and_then(|target| target.module_id());
+    if target_module_id.is_none()
+        && let Some(target) = target
+    {
+        let target_text = session.strings.get(target).to_string();
+        target_module_id =
+            resolve_module_id_for_import_target(session, &alias_ctx, target_text.as_str());
+    }
+
+    let target_module_id = target_module_id?;
+    let mut visited = HashSet::new();
+    resolve_value_symbol_from_module(session, target_module_id, member_name, &mut visited)
+}
+
+/// Resolve a namespace member symbol through a target module alias.
+fn resolve_namespace_member_symbol_from_module_name(
+    session: &Session,
+    module_id: ModuleId,
+    alias_name: StringId,
+    member_name: StringId,
+) -> Option<GlobalSymbolId> {
+    let module = session.modules.get(module_id);
+    let module = module.read();
+    let ctx = session.query_context(&module)?;
+
+    resolve_namespace_member_symbol_from_name(session, &ctx, alias_name, member_name)
+}
+
+/// Resolve a namespace member symbol directly from a namespace alias name.
+pub(crate) fn resolve_namespace_member_symbol_from_name(
+    session: &Session,
+    ctx: &QueryContext<'_>,
+    alias_name: StringId,
+    member_name: StringId,
+) -> Option<GlobalSymbolId> {
+    // scan namespace value imports for the matching alias and resolve its module
+    let dir_tree = ctx.tree();
+    for item_id in dir_tree.iter_node_ids_of_type::<DependencyItem>() {
+        let item = dir_tree.get::<DependencyItem>(item_id);
+        let (mode, kind, name, alias, target, target_module) = match item {
+            DependencyItem::Remote {
+                mode,
+                kind,
+                name,
+                alias,
+                target,
+                target_module,
+                ..
+            } => (
+                *mode,
+                *kind,
+                *name,
+                *alias,
+                Some(*target),
+                Some(*target_module),
+            ),
+            DependencyItem::UnresolvedRemote {
+                mode,
+                kind,
+                name,
+                alias,
+                target,
+                target_module,
+                ..
+            } => (*mode, *kind, *name, *alias, Some(*target), *target_module),
+            _ => continue,
+        };
+
+        if mode != DependencyMode::Namespace || kind != DependencyKind::Value {
+            continue;
+        }
+
+        let alias_matches =
+            alias == Some(alias_name) || name.map(|name| name.string()) == Some(alias_name);
+        if !alias_matches {
+            continue;
+        }
+
+        let mut target_module_id = target_module
+            .and_then(|targets| targets.value.or(targets.ty))
+            .and_then(|target| target.module_id());
+        if target_module_id.is_none()
+            && let Some(target) = target
+        {
+            let target_text = session.strings.get(target).to_string();
+            target_module_id =
+                resolve_module_id_for_import_target(session, ctx, target_text.as_str());
+        }
+
+        let Some(target_module_id) = target_module_id else {
+            continue;
+        };
+
+        let mut visited = HashSet::new();
+        if let Some(symbol_id) =
+            resolve_value_symbol_from_module(session, target_module_id, member_name, &mut visited)
+        {
+            return Some(symbol_id);
+        }
+    }
+
+    None
+}
+
+/// Resolve a module id from an import target string.
 pub(crate) fn resolve_module_id_for_import_target(
     session: &Session,
     ctx: &QueryContext<'_>,
@@ -703,6 +1154,7 @@ pub(crate) fn resolve_module_id_for_import_target(
     resolve_module_id_for_import_target_path(session, source_path, target)
 }
 
+/// Resolve a module id from an import target path and source file path.
 pub(crate) fn resolve_module_id_for_import_target_path(
     session: &Session,
     source_path: &Path,
@@ -950,6 +1402,7 @@ pub(crate) fn dependency_item_matches_name(
     false
 }
 
+/// Resolve the recorded member target for an expression resolution.
 fn recorded_member_resolution(
     ctx: &QueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,

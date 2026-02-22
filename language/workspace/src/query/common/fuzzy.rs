@@ -101,15 +101,14 @@ fn prefix_indices(s: &str, n: usize) -> Vec<usize> {
 /// Word boundaries are: start of string, uppercase letters, after underscore.
 /// Example: "gEA" matches "getElementsByAttribute" (g E A are at boundaries).
 fn word_boundary_match_indices(candidate: &str, prefix: &str) -> Option<Vec<usize>> {
-    // collect word boundary positions
-    let boundaries: Vec<usize> = candidate
+    // collect word boundary positions with the boundary character
+    let boundaries: Vec<(usize, char)> = candidate
         .char_indices()
         .filter(|(i, c)| {
             *i == 0
                 || c.is_uppercase()
                 || (*i > 0 && candidate.as_bytes().get(i - 1) == Some(&b'_'))
         })
-        .map(|(i, _)| i)
         .collect();
 
     // match prefix chars against boundary positions
@@ -118,14 +117,10 @@ fn word_boundary_match_indices(candidate: &str, prefix: &str) -> Option<Vec<usiz
     let mut matched_indices = Vec::new();
 
     // walk boundaries and match prefix chars in order
-    for &boundary in &boundaries {
+    for (boundary, candidate_char) in boundaries {
         if prefix_idx >= prefix_chars.len() {
             break;
         }
-
-        let Some(candidate_char) = candidate.chars().nth(boundary) else {
-            continue;
-        };
 
         // case insensitive comparison
         if candidate_char.to_lowercase().next() == prefix_chars[prefix_idx].to_lowercase().next() {
@@ -258,5 +253,13 @@ mod tests {
     fn test_match_positions_fuzzy() {
         let m = score_completion("hello", "hlo").unwrap();
         assert_eq!(m.matched_indices, vec![0, 2, 4]);
+    }
+
+    /// Match word boundaries correctly when names contain non ascii characters.
+    #[test]
+    fn test_word_boundary_match_with_non_ascii_prefix() {
+        let m = score_completion("BücherTag", "BT").unwrap();
+        assert_eq!(m.tier, MatchTier::WordBoundary);
+        assert_eq!(m.matched_indices, vec![0, 7]);
     }
 }

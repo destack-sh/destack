@@ -1,8 +1,8 @@
 use destack_dir::{Extension, ExtensionKind, GlobalSymbolId};
 use destack_source::ModuleId;
 
-use crate::query::common::QueryContext;
-use crate::{Session, get_canonical_symbol};
+use crate::Session;
+use crate::query::common::{QueryContext, get_canonical_symbol};
 
 /// Visit each visible extension that targets the given symbol.
 ///
