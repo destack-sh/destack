@@ -1,4 +1,4 @@
-use destack_dir::{self as dir, EnumField, Member, NodeType, Parameter};
+use destack_dir::{self as dir, EnumField, LocalNodeIdAny, Member, NodeType, Parameter};
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +8,8 @@ use crate::format::{
     format_member_hover, format_parameter_hover, format_simple_signature, format_symbol_signature,
 };
 use crate::query::common::{
-    container_name_for_symbol, doc_text_for_node, find_symbol_at_offset, get_canonical_symbol,
+    container_name_for_symbol, doc_text_for_node, find_symbol_for_hover_at_offset,
+    get_canonical_symbol, get_dir_node_span,
 };
 
 /// Hover information for a symbol.
@@ -107,7 +108,7 @@ pub struct HoverResponse {
 /// Get hover information for the symbol at the given position.
 pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> {
     // resolve the hovered symbol and profile
-    let symbol_at = find_symbol_at_offset(session, file, offset)?;
+    let symbol_at = find_symbol_for_hover_at_offset(session, file, offset)?;
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
     let profile = session.default_profile_for_module(canonical_id.module_id);
 
@@ -228,6 +229,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     let type_text =
         resolve_hover_type_text(session, &ctx, &symbols, hover_node_id, symbol_at.symbol_id);
     let location = hover_location(session, symbol_at.span);
+    let range = hover_range_for_symbol(&ctx, symbol_at.node_id, symbol_at.span);
 
     // return the assembled hover payload
     Some(
@@ -235,7 +237,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
             .with_documentation(documentation.unwrap_or_default())
             .with_type_text(type_text)
             .with_location(location)
-            .with_range(symbol_at.span),
+            .with_range(range),
     )
 }
 
@@ -330,4 +332,20 @@ fn hover_location(session: &Session, span: Span) -> Option<String> {
         line + 1,
         col + 1
     ))
+}
+
+/// Resolve the visible hover range for a symbol.
+fn hover_range_for_symbol(
+    ctx: &crate::query::common::QueryContext<'_>,
+    node_id: LocalNodeIdAny,
+    default_span: Span,
+) -> Span {
+    // preserve full declaration ranges for member declarations
+    if node_id.ty == NodeType::Member
+        && let Some(span) = get_dir_node_span(ctx.ast, ctx.dir, node_id)
+    {
+        return span;
+    }
+
+    default_span
 }

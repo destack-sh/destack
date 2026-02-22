@@ -220,7 +220,7 @@ pub fn subtypes(session: &Session, item: &TypeHierarchyItem) -> Vec<TypeHierarch
 }
 
 /// Convert a symbol ID to a TypeHierarchyItem.
-pub fn type_hierarchy_item_from_symbol(
+fn type_hierarchy_item_from_symbol(
     session: &Session,
     symbol_id: GlobalSymbolId,
 ) -> Option<TypeHierarchyItem> {

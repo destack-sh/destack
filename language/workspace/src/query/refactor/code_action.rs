@@ -6,13 +6,14 @@ use destack_source::{Applicability, BatchEdit, Diagnostic, Edit, FileEdit, FileI
 use serde::{Deserialize, Serialize};
 
 use super::{extract_function, extract_variable, inline_symbol};
+use crate::Session;
 use crate::query::assist::{CompletionContext, detect_completion_context};
 use crate::query::common::{
-    ImportEditMode, build_import_display_path, build_import_edits_with_mode, extract_identifier,
-    get_module_by_file_id, is_simple_identifier, matches_symbol_space_filter, program_for_file,
-    search_importable_symbols_for_program, token_at_offset,
+    ImportDeclarationKey, ImportEditMode, build_import_display_path, build_import_edits_with_mode,
+    categorize_import, get_module_by_file_id, is_simple_identifier, matches_symbol_space_filter,
+    program_for_file, search_importable_symbols_for_program, sort_import_declaration_indices,
+    token_at_offset,
 };
-use crate::{ImportDeclarationKey, Session, categorize_import, sort_import_declaration_indices};
 use destack_dir::SymbolSpace;
 
 /// Kind of code action.
@@ -363,9 +364,6 @@ fn collect_auto_import_actions(
     range: Span,
     actions: &mut Vec<CodeAction>,
 ) {
-    // track whether we added any actions
-    let mut added_any = false;
-
     // resolve the current module for import exclusions
     let exclude_module_id = get_module_by_file_id(session, file).map(|module| module.read().id);
 
@@ -395,7 +393,6 @@ fn collect_auto_import_actions(
                 continue;
             };
 
-            let before_len = actions.len();
             let (import_mode, space_filter) =
                 auto_import_mode_for_offset(session, file, diag_span.start);
             collect_auto_import_actions_for_symbol(
@@ -408,13 +405,11 @@ fn collect_auto_import_actions(
                 Some(&diagnostic.code),
                 actions,
             );
-            added_any |= actions.len() > before_len;
         }
     }
 
-    // fall back to the token under the cursor when no diagnostics produced actions
-    if !added_any
-        && let Some(symbol_name) = token_at_offset(session, file, range.start)
+    // allow token-driven auto-imports when diagnostics are unavailable
+    if let Some(symbol_name) = token_at_offset(session, file, range.start)
         && is_simple_identifier(&symbol_name)
     {
         let (import_mode, space_filter) = auto_import_mode_for_offset(session, file, range.start);
@@ -544,13 +539,7 @@ fn auto_import_mode_for_offset(
 
 /// Resolve a missing symbol name from a diagnostic.
 fn missing_symbol_name(session: &Session, diagnostic: &Diagnostic) -> Option<String> {
-    // prefer extracting the symbol from the diagnostic span
-    if let Some(name) = missing_symbol_name_from_span(session, diagnostic.primary_span.span) {
-        return Some(name);
-    }
-
-    // fall back to extracting the symbol from the diagnostic message
-    missing_symbol_name_from_message(&diagnostic.message)
+    missing_symbol_name_from_span(session, diagnostic.primary_span.span)
 }
 
 /// Resolve a missing symbol name from a diagnostic span.
@@ -567,16 +556,6 @@ fn missing_symbol_name_from_span(session: &Session, span: Span) -> Option<String
 
     // return the cleaned identifier
     Some(name.to_string())
-}
-
-/// Resolve a missing symbol name from a diagnostic message.
-fn missing_symbol_name_from_message(message: &str) -> Option<String> {
-    // extract the name from the error message prefix
-    let name = message.strip_prefix("missing symbol ")?;
-    let name = name.trim().trim_matches(&['\'', '"', '`'][..]);
-
-    // extract the first identifier from the message suffix
-    extract_identifier(name)
 }
 
 /// Collect quick fixes from diagnostics that overlap with the range.

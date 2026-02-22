@@ -216,7 +216,7 @@ impl LanguageService {
                     Some(file_id) => {
                         let file_id =
                             self.ensure_semantic_query_ready(program, file_id, &params.uri)?;
-                        query::document_highlight(session, file_id, params.offset)
+                        query::document_highlights(session, file_id, params.offset)
                     }
                     None => Vec::new(),
                 };

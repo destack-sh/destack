@@ -86,7 +86,6 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
         }
         rename_map.insert(old_path, new_path);
     }
-
     // return early when nothing changed
     if rename_map.is_empty() {
         return None;
@@ -103,10 +102,9 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
         };
 
         // resolve file content for literal edits
-        let Some(file_view) = file_for_rename(session, ctx.file_id) else {
+        let Some(file) = file_for_rename(session, ctx.file_id) else {
             continue;
         };
-        let file = file_view.file();
 
         // scan import and re export expressions
         let dir_tree = ctx.tree();
@@ -191,7 +189,7 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
 
                 rewrite_import_specifier(
                     session,
-                    file,
+                    &file,
                     &specifier_text,
                     &target_path,
                     &new_path,
@@ -203,7 +201,7 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
             {
                 rewrite_import_specifier(
                     session,
-                    file,
+                    &file,
                     &specifier_text,
                     &target_path,
                     &new_path,
@@ -215,7 +213,7 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
             {
                 rewrite_import_specifier(
                     session,
-                    file,
+                    &file,
                     &specifier_text,
                     &target_path,
                     &new_path,
@@ -231,7 +229,7 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
 
                 rewrite_import_specifier(
                     session,
-                    file,
+                    &file,
                     &specifier_text,
                     &target_path,
                     &new_path,
@@ -249,9 +247,13 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
             // resolve the string literal span for the import target
             let ast_span = ctx.ast.tree.source_map.get_main_or_enclosing(expr_id.id);
             let enclosing = Span::new(ctx.file_id, ast_span.start, ast_span.end);
-            let span =
-                string_literal_span_in_enclosing(file, &ctx.ast.tokens, enclosing, &specifier_text)
-                    .unwrap_or(enclosing);
+            let span = string_literal_span_in_enclosing(
+                &file,
+                &ctx.ast.tokens,
+                enclosing,
+                &specifier_text,
+            )
+            .unwrap_or(enclosing);
             let literal = file.span_str(span);
             if literal.is_empty() {
                 continue;
@@ -441,6 +443,7 @@ fn match_directory_rename_target(
     None
 }
 
+/// Match a specifier path to the best rename map entry.
 fn match_path_rename_entry(
     session: &Session,
     rename_map: &HashMap<PathBuf, PathBuf>,
@@ -453,6 +456,65 @@ fn match_path_rename_entry(
 
     // resolve directory rename entries
     let workspace_root = session.workspace.read().root.normalize();
+
+    // check normalized file rename entries, including extensionless specifiers
+    for (old_path, new_path) in rename_map {
+        let absolute_old = if old_path.is_absolute() {
+            old_path.to_path_buf()
+        } else {
+            workspace_root.join(old_path)
+        };
+        let absolute_new = if new_path.is_absolute() {
+            new_path.to_path_buf()
+        } else {
+            workspace_root.join(new_path)
+        };
+
+        if specifier_path == absolute_old {
+            return Some((absolute_old, absolute_new));
+        }
+
+        if specifier_path.extension().is_none()
+            && let Some(old_no_extension) = strip_path_extension(&absolute_old)
+            && specifier_path == old_no_extension
+        {
+            return Some((absolute_old, absolute_new));
+        }
+
+        // match absolute specifiers against workspace-root relative rename suffixes
+        if specifier_path.is_absolute() {
+            let old_suffix = old_path
+                .strip_prefix(&workspace_root)
+                .unwrap_or(old_path.as_path());
+
+            if strip_path_suffix(specifier_path, old_suffix).is_some() {
+                return Some((old_path.clone(), new_path.clone()));
+            }
+
+            if specifier_path.extension().is_none()
+                && let Some(old_no_extension) = strip_path_extension(old_suffix)
+                && strip_path_suffix(specifier_path, &old_no_extension).is_some()
+            {
+                return Some((old_path.clone(), new_path.clone()));
+            }
+
+            let shared_suffix = common_suffix_len(specifier_path, old_path);
+            if shared_suffix >= 2 {
+                return Some((old_path.clone(), new_path.clone()));
+            }
+
+            if specifier_path.extension().is_none()
+                && let Some(old_no_extension) = strip_path_extension(old_path)
+            {
+                let shared_suffix_no_extension =
+                    common_suffix_len(specifier_path, &old_no_extension);
+                if shared_suffix_no_extension >= 2 {
+                    return Some((old_path.clone(), new_path.clone()));
+                }
+            }
+        }
+    }
+
     for (old_path, new_path) in rename_map {
         if !is_directory_rename_entry(session, old_path, new_path) {
             continue;
@@ -474,69 +536,6 @@ fn match_path_rename_entry(
             };
             return Some((specifier_path.to_path_buf(), updated));
         }
-
-        if !old_path.is_absolute()
-            && !new_path.is_absolute()
-            && let Some(updated) = replace_path_components(specifier_path, old_path, new_path)
-        {
-            return Some((specifier_path.to_path_buf(), updated));
-        }
-    }
-
-    // fall back to workspace-relative suffix matches
-    let specifier_str = normalize_separators(&specifier_path.to_string_lossy());
-    let mut best_match: Option<(usize, PathBuf, PathBuf)> = None;
-    for (old_path, new_path) in rename_map {
-        let old_relative = old_path
-            .strip_prefix(&workspace_root)
-            .unwrap_or(old_path.as_path());
-
-        if strip_path_suffix(specifier_path, old_relative).is_some() {
-            return Some((old_path.clone(), new_path.clone()));
-        }
-
-        let old_str = normalize_separators(&old_path.to_string_lossy());
-        if specifier_str.ends_with(&old_str) {
-            return Some((old_path.clone(), new_path.clone()));
-        }
-
-        let old_relative_str = normalize_separators(&old_relative.to_string_lossy());
-        if specifier_str.ends_with(&old_relative_str) {
-            return Some((old_path.clone(), new_path.clone()));
-        }
-
-        if specifier_path.extension().is_none() {
-            let Some(old_no_ext) = strip_path_extension(old_relative) else {
-                continue;
-            };
-            if strip_path_suffix(specifier_path, &old_no_ext).is_some() {
-                return Some((old_path.clone(), new_path.clone()));
-            }
-        }
-
-        let common_len = common_suffix_len(specifier_path, old_path);
-        if common_len >= 2 {
-            best_match = match best_match {
-                Some((current_len, _, _)) if current_len >= common_len => best_match,
-                _ => Some((common_len, old_path.clone(), new_path.clone())),
-            };
-        }
-
-        if specifier_path.extension().is_none() {
-            let Some(old_no_ext) = strip_path_extension(old_path) else {
-                continue;
-            };
-            let common_len = common_suffix_len(specifier_path, &old_no_ext);
-            if common_len >= 2 {
-                best_match = match best_match {
-                    Some((current_len, _, _)) if current_len >= common_len => best_match,
-                    _ => Some((common_len, old_path.clone(), new_path.clone())),
-                };
-            }
-        }
-    }
-    if let Some((_len, old_path, new_path)) = best_match {
-        return Some((old_path, new_path));
     }
 
     None
@@ -564,68 +563,15 @@ fn is_directory_rename_entry(session: &Session, old_path: &Path, new_path: &Path
     old_path.extension().is_none() && new_path.extension().is_none()
 }
 
-/// Replace a matching component sequence within a specifier path.
-fn replace_path_components(
-    specifier_path: &Path,
-    old_path: &Path,
-    new_path: &Path,
-) -> Option<PathBuf> {
-    let spec_components: Vec<_> = specifier_path.components().collect();
-    let old_components: Vec<_> = old_path.components().collect();
-    let new_components: Vec<_> = new_path.components().collect();
-
-    if old_components.is_empty() {
-        return None;
-    }
-
-    let mut match_index = None;
-    for start in 0..=spec_components.len().saturating_sub(old_components.len()) {
-        if spec_components[start..start + old_components.len()] == old_components[..] {
-            match_index = Some(start);
-        }
-    }
-
-    let start = match_index?;
-    let end = start + old_components.len();
-    let mut updated = PathBuf::new();
-    for component in &spec_components[..start] {
-        updated.push(component.as_os_str());
-    }
-    for component in &new_components {
-        updated.push(component.as_os_str());
-    }
-    for component in &spec_components[end..] {
-        updated.push(component.as_os_str());
-    }
-
-    Some(updated)
-}
-
-/// File content view for rename edits.
-enum FileForRename {
-    Borrowed(Arc<File>),
-    Owned(Box<File>),
-}
-
-impl FileForRename {
-    /// Return a file reference for edits.
-    fn file(&self) -> &File {
-        match self {
-            Self::Borrowed(file) => file,
-            Self::Owned(file) => file.as_ref(),
-        }
-    }
-}
-
 /// Resolve file content for file rename edits.
-fn file_for_rename(session: &Session, file_id: FileId) -> Option<FileForRename> {
+fn file_for_rename(session: &Session, file_id: FileId) -> Option<Arc<File>> {
     // return the file when content is loaded
     let file = session.files.get(file_id);
     if file.is_loaded() && file.line_start_offsets.is_some() {
-        return Some(FileForRename::Borrowed(file));
+        return Some(file);
     }
 
-    // fall back to reading from the file system
+    // load file content from the filesystem when session text is unavailable
     let path = file.path.as_ref()?;
     let content = session.fs.read_to_string(path).ok()?;
     let loaded = File::from_text(
@@ -637,7 +583,7 @@ fn file_for_rename(session: &Session, file_id: FileId) -> Option<FileForRename> 
         content,
     );
 
-    Some(FileForRename::Owned(Box::new(loaded)))
+    Some(Arc::new(loaded))
 }
 
 /// Rewrite an import specifier for a renamed target file.

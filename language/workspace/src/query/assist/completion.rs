@@ -17,8 +17,8 @@ use crate::query::common::{
     get_canonical_symbol, get_module_by_file_id, matches_symbol_space_filter,
     module_name_from_path, owned_scope_for_symbol, path_component_count, path_distance,
     program_for_file, resolve_extension_members_for_symbol,
-    resolve_nominal_symbol_from_initializer, resolve_reference_members, resolve_type_members,
-    score_completion, search_importable_symbols_for_program, visible_symbols,
+    resolve_nominal_symbol_from_initializer, resolve_reference_members, resolve_symbol_name,
+    resolve_type_members, score_completion, search_importable_symbols_for_program, visible_symbols,
 };
 use crate::{Session, TokenAtCursor};
 
@@ -654,13 +654,12 @@ fn collect_visible_names(
     scope_mark: Option<dir::LocalScopeMark>,
     space_filter: Option<SymbolSpace>,
 ) -> Option<HashSet<String>> {
-    let scope_id = scope_id?;
-
     // resolve the module and query context
     let module = get_module_by_file_id(session, file_id)?;
     let module = module.read();
     let ctx = session.query_context(&module)?;
     let symbols = ctx.symbols();
+    let scope_id = scope_id.unwrap_or(ctx.dir.namespace_scope);
 
     // collect names from visible symbols when scope is available
     let mut names = HashSet::new();
@@ -837,6 +836,44 @@ fn is_auto_import_completion(completion: &Completion) -> bool {
     completion.is_auto_import
 }
 
+/// Resolve auto import completion settings from a completion context.
+fn auto_import_settings_for_context(
+    context: &CompletionContext,
+) -> Option<(
+    SymbolSpace,
+    Option<dir::LocalScopeId>,
+    Option<dir::LocalScopeMark>,
+    bool,
+)> {
+    match context {
+        CompletionContext::ValuePosition {
+            scope_id,
+            scope_mark,
+        }
+        | CompletionContext::StatementPosition {
+            scope_id,
+            scope_mark,
+        }
+        | CompletionContext::ObjectLiteralValue {
+            scope_id,
+            scope_mark,
+        }
+        | CompletionContext::CallArgument {
+            scope_id,
+            scope_mark,
+        } => Some((SymbolSpace::Value, *scope_id, *scope_mark, false)),
+        CompletionContext::TypePosition {
+            scope_id,
+            scope_mark,
+        } => Some((SymbolSpace::Type, *scope_id, *scope_mark, false)),
+        CompletionContext::NewExpression {
+            scope_id,
+            scope_mark,
+        } => Some((SymbolSpace::Value, *scope_id, *scope_mark, true)),
+        _ => None,
+    }
+}
+
 /// Get completions at the given position.
 pub fn completions(
     session: &Session,
@@ -929,101 +966,25 @@ pub fn completions(
     };
 
     // add auto import completions for relevant positions
-    match context {
-        CompletionContext::ValuePosition {
+    if let Some((space_filter, scope_id, scope_mark, constructable_only)) =
+        auto_import_settings_for_context(&context)
+    {
+        let mut auto_imports = complete_auto_imports_with_visibility(
+            session,
+            file,
+            prefix,
+            Some(space_filter),
             scope_id,
             scope_mark,
-        } => {
-            let auto_imports = complete_auto_imports_with_visibility(
-                session,
-                file,
-                prefix,
-                Some(SymbolSpace::Value),
-                scope_id,
-                scope_mark,
-                allow_short_prefix,
-            );
-            results.extend(auto_imports);
-        }
-        CompletionContext::StatementPosition {
-            scope_id,
-            scope_mark,
-        } => {
-            let auto_imports = complete_auto_imports_with_visibility(
-                session,
-                file,
-                prefix,
-                Some(SymbolSpace::Value),
-                scope_id,
-                scope_mark,
-                allow_short_prefix,
-            );
-            results.extend(auto_imports);
-        }
-        CompletionContext::TypePosition {
-            scope_id,
-            scope_mark,
-        } => {
-            let auto_imports = complete_auto_imports_with_visibility(
-                session,
-                file,
-                prefix,
-                Some(SymbolSpace::Type),
-                scope_id,
-                scope_mark,
-                allow_short_prefix,
-            );
-            results.extend(auto_imports);
-        }
-        CompletionContext::ObjectLiteralValue {
-            scope_id,
-            scope_mark,
-        } => {
-            let auto_imports = complete_auto_imports_with_visibility(
-                session,
-                file,
-                prefix,
-                Some(SymbolSpace::Value),
-                scope_id,
-                scope_mark,
-                allow_short_prefix,
-            );
-            results.extend(auto_imports);
-        }
-        CompletionContext::CallArgument {
-            scope_id,
-            scope_mark,
-        } => {
-            let auto_imports = complete_auto_imports_with_visibility(
-                session,
-                file,
-                prefix,
-                Some(SymbolSpace::Value),
-                scope_id,
-                scope_mark,
-                allow_short_prefix,
-            );
-            results.extend(auto_imports);
-        }
-        CompletionContext::NewExpression {
-            scope_id,
-            scope_mark,
-        } => {
-            let mut auto_imports = complete_auto_imports_with_visibility(
-                session,
-                file,
-                prefix,
-                Some(SymbolSpace::Value),
-                scope_id,
-                scope_mark,
-                allow_short_prefix,
-            );
+            allow_short_prefix,
+        );
 
-            // filter to constructable auto import entries
+        // filter to constructable entries in new expression context
+        if constructable_only {
             auto_imports.retain(is_constructable_completion);
-            results.extend(auto_imports);
         }
-        _ => {}
+
+        results.extend(auto_imports);
     }
 
     // apply fuzzy matching to filter and rank results
@@ -1055,7 +1016,16 @@ fn complete_members(
     let current_module_id = ctx.module_id;
     let fallback_type_name = fallback_type_name
         .map(ToOwned::to_owned)
-        .or_else(|| ast_type_name_from_receiver_node(&ctx, receiver_node));
+        .or_else(|| ast_type_name_from_receiver_node(&ctx, receiver_node))
+        .or_else(|| {
+            let symbol_id = receiver_symbol?;
+            if symbol_id.module_id != current_module_id {
+                return None;
+            }
+
+            let type_symbol = resolve_nominal_symbol_from_initializer(session, &ctx, symbol_id)?;
+            resolve_symbol_name(session, type_symbol)
+        });
 
     // primary path: use receiver type for type aware completions
     if let Some(type_id) = receiver_type {
@@ -1490,10 +1460,6 @@ fn complete_types(
     scope_id: Option<dir::LocalScopeId>,
     scope_mark: Option<dir::LocalScopeMark>,
 ) -> Vec<Completion> {
-    if scope_id.is_none() {
-        return primitive_type_completions();
-    }
-
     // get module AST/DIR
     let Some(module) = get_module_by_file_id(session, file) else {
         return primitive_type_completions();
@@ -1535,14 +1501,9 @@ fn complete_types(
     };
 
     // walk up from the scope to collect visible types
+    let visible_scope_id = scope_id.unwrap_or(ctx.dir.namespace_scope);
     let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
-
-    for visible in visible_symbols(
-        &symbols,
-        scope_id.expect("scope_id is required for type completions"),
-        mark,
-        Some(SymbolSpace::Type),
-    ) {
+    for visible in visible_symbols(&symbols, visible_scope_id, mark, Some(SymbolSpace::Type)) {
         let dir::StaticKey::Name(name_id) = visible.key else {
             continue;
         };
@@ -1578,6 +1539,31 @@ fn complete_types(
 
         let kind = CompletionKind::from(resolve_symbol_type(symbol_id, symbol));
         results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+    }
+
+    // ast fallback for incomplete type positions where dir visibility may be missing
+    if results.is_empty() {
+        for declaration_id in ctx.ast.tree.iter_nodes::<ast::Declaration>() {
+            let declaration = ctx.ast.tree.get(declaration_id);
+            let kind = match declaration {
+                ast::Declaration::Class { .. } => CompletionKind::Class,
+                ast::Declaration::Struct { .. } => CompletionKind::Struct,
+                ast::Declaration::Interface { .. } => CompletionKind::Interface,
+                ast::Declaration::Enum { .. } => CompletionKind::Enum,
+                ast::Declaration::Type { .. } => CompletionKind::TypeParameter,
+                _ => continue,
+            };
+
+            let Some(name) = declaration.name() else {
+                continue;
+            };
+            let name = ctx.ast.strings.get(name.string()).to_string();
+            if !seen_names.insert(name.clone()) {
+                continue;
+            }
+
+            results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+        }
     }
 
     // add primitive types
@@ -1661,14 +1647,6 @@ fn complete_values(
     scope_mark: Option<dir::LocalScopeMark>,
     include_keywords: bool,
 ) -> Vec<Completion> {
-    if scope_id.is_none() {
-        return if include_keywords {
-            keyword_completions()
-        } else {
-            Vec::new()
-        };
-    }
-
     // get module AST/DIR
     let Some(module) = get_module_by_file_id(session, file) else {
         return keyword_completions();
@@ -1688,14 +1666,10 @@ fn complete_values(
 
     // walk visible symbols in scope order
     let mut seen_names = HashSet::new();
+    let scope_id = scope_id.unwrap_or(ctx.dir.namespace_scope);
     let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
-    for visible in visible_symbols(
-        &symbols,
-        scope_id.expect("scope_id is required for value completions"),
-        mark,
-        Some(SymbolSpace::Value),
-    ) {
+    for visible in visible_symbols(&symbols, scope_id, mark, Some(SymbolSpace::Value)) {
         let dir::StaticKey::Name(name_id) = visible.key else {
             continue;
         };

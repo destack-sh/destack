@@ -1,7 +1,8 @@
 use destack_ast::{self as ast, DependencyItem, Expression};
 use destack_source::Span;
-use destack_workspace::{
-    ImportDeclarationKey, LintSeverity, categorize_import, sort_import_declaration_indices,
+use destack_workspace::LintSeverity;
+use destack_workspace::common::{
+    ImportDeclarationKey, categorize_import, sort_import_declaration_indices,
 };
 
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
@@ -65,6 +66,7 @@ struct ImportInfo {
 }
 
 impl LintRule for SortImports {
+    /// Return the static lint metadata.
     fn meta(&self) -> &'static crate::LintMeta {
         SortImports::meta()
     }
@@ -356,6 +358,7 @@ mod tests {
     use crate::linter::TestProgram;
 
     #[test]
+    /// Detect unsorted import members.
     fn test_unsorted_members_detected() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -368,6 +371,7 @@ import { z, a, m } from "utils"
     }
 
     #[test]
+    /// Allow already sorted import members.
     fn test_sorted_members_allowed() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -380,6 +384,7 @@ import { a, m, z } from "utils"
     }
 
     #[test]
+    /// Sort member names case-insensitively.
     fn test_member_sorting_case_insensitive() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -392,6 +397,7 @@ import { Alpha, beta, Gamma } from "utils"
     }
 
     #[test]
+    /// Allow single-member imports.
     fn test_single_member_allowed() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -404,6 +410,7 @@ import { foo } from "utils"
     }
 
     #[test]
+    /// Require external imports before sibling imports.
     fn test_external_before_sibling_required() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -417,6 +424,7 @@ import { external } from "external"
     }
 
     #[test]
+    /// Allow declarations in canonical group order.
     fn test_correct_group_order_allowed() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -432,6 +440,7 @@ import { sibling } from "./sibling"
     }
 
     #[test]
+    /// Require internal alias imports before parent imports.
     fn test_internal_before_parent_required() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -445,6 +454,7 @@ import { internal } from "@/internal"
     }
 
     #[test]
+    /// Require parent imports before sibling imports.
     fn test_parent_before_sibling_required() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -458,6 +468,7 @@ import { parent } from "../parent"
     }
 
     #[test]
+    /// Sort external imports alphabetically.
     fn test_alphabetical_within_external_group() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -471,6 +482,7 @@ import { a } from "axios"
     }
 
     #[test]
+    /// Sort sibling imports alphabetically.
     fn test_alphabetical_within_sibling_group() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -484,6 +496,7 @@ import { a } from "./a"
     }
 
     #[test]
+    /// Allow declarations already sorted within groups.
     fn test_sorted_within_groups_allowed() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -501,6 +514,7 @@ import { z } from "./z"
     // === Mixed tests ===
 
     #[test]
+    /// Detect both member-order and declaration-order violations.
     fn test_both_member_and_declaration_issues() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -515,6 +529,7 @@ import { foo } from "external"
     }
 
     #[test]
+    /// Treat internal alias prefixes as internal group imports.
     fn test_internal_alias_paths() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -529,6 +544,7 @@ import { c } from "~/utils"
     }
 
     #[test]
+    /// Provide a safe fix for declaration reordering.
     fn test_declaration_reorder_has_safe_fix() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
@@ -551,6 +567,7 @@ import { local } from "./local";
     }
 
     #[test]
+    /// Do not emit declaration reordering fixes for member sorting findings.
     fn test_member_sorting_has_no_declaration_fix() {
         let test = TestProgram::for_rule_without_prelude(SortImports);
         let result = test.lint_ast(
