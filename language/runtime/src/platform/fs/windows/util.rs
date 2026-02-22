@@ -735,6 +735,7 @@ pub(super) fn posix_sids(
     // read the domain SID from configuration
     let domain_sid = context
         .runtime()
+        .platform_options
         .windows
         .posix_domain_sid
         .as_deref()

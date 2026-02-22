@@ -340,6 +340,11 @@ impl EventLoop {
         self.dropped_external_events = self.dropped_external_events.saturating_add(1);
     }
 
+    /// Record multiple dropped external events.
+    pub fn record_dropped_external_events(&mut self, dropped_count: u64) {
+        self.dropped_external_events = self.dropped_external_events.saturating_add(dropped_count);
+    }
+
     /// Return the number of dropped external events.
     pub const fn dropped_external_events(&self) -> u64 {
         self.dropped_external_events

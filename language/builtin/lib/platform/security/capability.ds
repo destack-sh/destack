@@ -1,11 +1,12 @@
 import { Slice } from "native";
+import type { PlatformCapability as IntrinsicPlatformCapability } from "../../../core/intrinsic/binding.ds";
 import type { PlatformError } from "../error/index.ds";
 
 /// Platform capability selector.
 ///
 /// Capability names are validated by runtime policy and binding metadata.
 /// The canonical list is defined by binding metadata declarations.
-export type PlatformCapability = string;
+export type PlatformCapability = IntrinsicPlatformCapability;
 
 /// Security capability bindings.
 declare namespace security {
