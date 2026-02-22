@@ -68,8 +68,17 @@ export newtype AudioBackendCapabilityFlags = uint64;
 /// Device capability flags.
 export newtype AudioDeviceCapabilityFlags = uint64;
 
-/// Backend-specific open flags.
-export newtype AudioBackendOpenFlags = uint64;
+/// Supported stream-option flags for one backend or device.
+export newtype AudioSupportedStreamFlags = uint32;
+
+/// Supported stream-requirement flags for one backend or device.
+export newtype AudioSupportedStreamRequirementFlags = uint32;
+
+/// Supported event-subscription flags for one backend or device.
+export newtype AudioSupportedEventSubscriptionFlags = uint32;
+
+/// Supported stream-clock domains for one backend or device.
+export newtype AudioSupportedStreamClockDomains = uint32;
 
 /// Audio sample format selector.
 export enum AudioSampleFormat {
@@ -120,7 +129,21 @@ export struct AudioBackendDescriptor {
     /// Priority in default auto-selection order.
     priority: uint16;
     /// Backend-level capability flags.
+    /// These are coarse feature categories.
+    /// Use `supported*` masks for lane-level support decisions.
     capabilityFlags: AudioBackendCapabilityFlags;
+    /// Supported device-list flags for this backend.
+    supportedDeviceListFlags: AudioDeviceListFlags;
+    /// Supported device-open flags for this backend.
+    supportedDeviceOpenFlags: AudioDeviceOpenFlags;
+    /// Supported stream-option flags for this backend.
+    supportedStreamFlags: AudioSupportedStreamFlags;
+    /// Supported stream-requirement flags for this backend.
+    supportedStreamRequirementFlags: AudioSupportedStreamRequirementFlags;
+    /// Supported event-subscription flags for this backend.
+    supportedEventSubscriptionFlags: AudioSupportedEventSubscriptionFlags;
+    /// Supported stream-clock domains for this backend.
+    supportedStreamClockDomains: AudioSupportedStreamClockDomains;
 }
 
 /// Audio device list request.
@@ -147,11 +170,6 @@ export struct AudioDeviceOpenOptions {
     shareMode: AudioShareMode;
     /// Open option flags.
     flags: AudioDeviceOpenFlags;
-    /// Backend-specific open flags.
-    backendFlags: AudioBackendOpenFlags;
-    /// Backend-specific selector string.
-    /// Examples: ASIO driver name, JACK client name, or one host endpoint profile.
-    backendHint: string;
 }
 
 /// Audio device information.
@@ -179,7 +197,19 @@ export struct AudioDeviceDescriptor {
     /// Whether this device is the default loopback endpoint.
     isDefaultLoopback: boolean;
     /// Device-level capability flags.
+    /// These are coarse feature categories.
+    /// Use `supported*` masks for lane-level support decisions.
     capabilityFlags: AudioDeviceCapabilityFlags;
+    /// Supported device-open flags for this device.
+    supportedDeviceOpenFlags: AudioDeviceOpenFlags;
+    /// Supported stream-option flags for this device.
+    supportedStreamFlags: AudioSupportedStreamFlags;
+    /// Supported stream-requirement flags for this device.
+    supportedStreamRequirementFlags: AudioSupportedStreamRequirementFlags;
+    /// Supported event-subscription flags for this device.
+    supportedEventSubscriptionFlags: AudioSupportedEventSubscriptionFlags;
+    /// Supported stream-clock domains for this device.
+    supportedStreamClockDomains: AudioSupportedStreamClockDomains;
     /// Preferred sample rate in hertz.
     preferredSampleRate: uint32;
     /// Minimum sample rate in hertz.
@@ -430,45 +460,10 @@ export const AUDIO_DEVICE_OPEN_NONE: AudioDeviceOpenFlags = AudioDeviceOpenFlags
 export const AUDIO_DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x1);
 /// Request low-latency scheduling policy where supported.
 export const AUDIO_DEVICE_OPEN_LOW_LATENCY: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x2);
-/// Disable backend-side automatic format conversion where possible.
-export const AUDIO_DEVICE_OPEN_NO_AUTO_CONVERT: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x4);
-/// Disable backend-side automatic stream routing where possible.
-export const AUDIO_DEVICE_OPEN_NO_AUTO_ROUTE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x8);
-/// Request hardware offload lanes where available.
-export const AUDIO_DEVICE_OPEN_HARDWARE_OFFLOAD: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x10);
 /// Request realtime callback thread scheduling where available.
-export const AUDIO_DEVICE_OPEN_REALTIME_THREAD: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x20);
+export const AUDIO_DEVICE_OPEN_REALTIME_THREAD: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x4);
 /// Request raw endpoint mode where available.
-export const AUDIO_DEVICE_OPEN_RAW: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x40);
-/// Request explicit sample-format matching with no backend substitution.
-export const AUDIO_DEVICE_OPEN_EXPLICIT_SAMPLE_FORMAT: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x80);
-/// Request backend-default PCM routing for ALSA-style stacks.
-export const AUDIO_DEVICE_OPEN_USE_DEFAULT_PCM: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x100);
-/// Request JACK-style no-autoconnect behavior.
-export const AUDIO_DEVICE_OPEN_JACK_DONT_CONNECT: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x200);
-/// Request hard-exclusive endpoint ownership where available.
-export const AUDIO_DEVICE_OPEN_HOG_DEVICE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x400);
-/// Request minimized callback period where available.
-export const AUDIO_DEVICE_OPEN_MINIMIZE_LATENCY: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x800);
-
-/// Default backend-open behavior.
-export const AUDIO_BACKEND_OPEN_NONE: AudioBackendOpenFlags = AudioBackendOpenFlags(0x0);
-/// Request one event-driven callback scheduling mode on WASAPI-like backends.
-export const AUDIO_BACKEND_OPEN_WASAPI_EVENT_CALLBACK: AudioBackendOpenFlags = AudioBackendOpenFlags(0x1);
-/// Request one exclusive endpoint path on backends that expose explicit exclusive mode.
-export const AUDIO_BACKEND_OPEN_REQUIRE_EXCLUSIVE: AudioBackendOpenFlags = AudioBackendOpenFlags(0x2);
-/// Request one host loopback path when supported by the selected backend.
-export const AUDIO_BACKEND_OPEN_REQUIRE_LOOPBACK: AudioBackendOpenFlags = AudioBackendOpenFlags(0x4);
-/// Request no-autoconnect behavior on JACK-like backends.
-export const AUDIO_BACKEND_OPEN_JACK_NO_AUTOCONNECT: AudioBackendOpenFlags = AudioBackendOpenFlags(0x8);
-/// Request no-resample behavior on ALSA-style backends.
-export const AUDIO_BACKEND_OPEN_ALSA_NO_RESAMPLE: AudioBackendOpenFlags = AudioBackendOpenFlags(0x10);
-/// Request hog mode on CoreAudio-like backends.
-export const AUDIO_BACKEND_OPEN_COREAUDIO_HOG_MODE: AudioBackendOpenFlags = AudioBackendOpenFlags(0x20);
-/// Request hardware timestamps when backend support exists.
-export const AUDIO_BACKEND_OPEN_REQUIRE_HARDWARE_TIMESTAMPS: AudioBackendOpenFlags = AudioBackendOpenFlags(0x40);
-/// Request bit-exact PCM path with no backend-side format conversion.
-export const AUDIO_BACKEND_OPEN_REQUIRE_BIT_EXACT_PCM: AudioBackendOpenFlags = AudioBackendOpenFlags(0x80);
+export const AUDIO_DEVICE_OPEN_RAW: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x8);
 
 /// Backend supports hotplug notifications.
 export const AUDIO_BACKEND_CAP_HOTPLUG_EVENTS: AudioBackendCapabilityFlags = AudioBackendCapabilityFlags(0x1);
@@ -488,6 +483,8 @@ export const AUDIO_BACKEND_CAP_NON_INTERLEAVED: AudioBackendCapabilityFlags = Au
 export const AUDIO_BACKEND_CAP_DEVICE_CLOCK: AudioBackendCapabilityFlags = AudioBackendCapabilityFlags(0x80);
 /// Backend supports scheduled write or presentation-time submission.
 export const AUDIO_BACKEND_CAP_SCHEDULED_WRITE: AudioBackendCapabilityFlags = AudioBackendCapabilityFlags(0x100);
+/// Backend supports native event feed instead of synthesized polling.
+export const AUDIO_BACKEND_CAP_NATIVE_EVENT_FEED: AudioBackendCapabilityFlags = AudioBackendCapabilityFlags(0x200);
 
 /// Device supports shared stream mode.
 export const AUDIO_DEVICE_CAP_SHARED_MODE: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x1);
@@ -511,3 +508,99 @@ export const AUDIO_DEVICE_CAP_REROUTE_EVENTS: AudioDeviceCapabilityFlags = Audio
 export const AUDIO_DEVICE_CAP_INTERRUPTION_EVENTS: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x200);
 /// Device supports backend disconnect notifications.
 export const AUDIO_DEVICE_CAP_BACKEND_DISCONNECT_EVENTS: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x400);
+/// Device supports bit-exact PCM without backend-side format conversion.
+export const AUDIO_DEVICE_CAP_BIT_EXACT_PCM: AudioDeviceCapabilityFlags = AudioDeviceCapabilityFlags(0x800);
+
+/// No supported stream option flags.
+export const AUDIO_SUPPORTED_STREAM_FLAG_NONE: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x0);
+/// Supported stream option flag bit for non-interleaved channel buffers.
+export const AUDIO_SUPPORTED_STREAM_FLAG_NON_INTERLEAVED: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x1);
+/// Supported stream option flag bit for low-latency callback policy.
+export const AUDIO_SUPPORTED_STREAM_FLAG_MINIMIZE_LATENCY: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x2);
+/// Supported stream option flag bit for realtime callback scheduling.
+export const AUDIO_SUPPORTED_STREAM_FLAG_SCHEDULE_REALTIME: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x4);
+/// Supported stream option flag bit for explicit sample-format matching.
+export const AUDIO_SUPPORTED_STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x8);
+/// Supported stream option flag bit for disabling backend auto-convert.
+export const AUDIO_SUPPORTED_STREAM_FLAG_NO_AUTO_CONVERT: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x10);
+/// Supported stream option flag bit for xrun status reporting.
+export const AUDIO_SUPPORTED_STREAM_FLAG_REPORT_XRUN: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x20);
+/// Supported stream option flag bit for never-drop-input backend policy.
+export const AUDIO_SUPPORTED_STREAM_FLAG_NEVER_DROP_INPUT: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x40);
+/// Supported stream option flag bit for output priming policy.
+export const AUDIO_SUPPORTED_STREAM_FLAG_PRIME_OUTPUT_BUFFERS: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x80);
+
+/// No supported stream requirement flags.
+export const AUDIO_SUPPORTED_STREAM_REQUIREMENT_NONE: AudioSupportedStreamRequirementFlags =
+    AudioSupportedStreamRequirementFlags(0x0);
+/// Supported stream requirement flag bit for non-interleaved channel buffers.
+export const AUDIO_SUPPORTED_STREAM_REQUIREMENT_NON_INTERLEAVED: AudioSupportedStreamRequirementFlags =
+    AudioSupportedStreamRequirementFlags(0x1);
+/// Supported stream requirement flag bit for scheduled writes.
+export const AUDIO_SUPPORTED_STREAM_REQUIREMENT_SCHEDULED_WRITE: AudioSupportedStreamRequirementFlags =
+    AudioSupportedStreamRequirementFlags(0x2);
+/// Supported stream requirement flag bit for pause and resume.
+export const AUDIO_SUPPORTED_STREAM_REQUIREMENT_PAUSE: AudioSupportedStreamRequirementFlags =
+    AudioSupportedStreamRequirementFlags(0x4);
+/// Supported stream requirement flag bit for hardware timestamps.
+export const AUDIO_SUPPORTED_STREAM_REQUIREMENT_HARDWARE_TIMESTAMPS: AudioSupportedStreamRequirementFlags =
+    AudioSupportedStreamRequirementFlags(0x8);
+/// Supported stream requirement flag bit for bit-exact PCM.
+export const AUDIO_SUPPORTED_STREAM_REQUIREMENT_BIT_EXACT_PCM: AudioSupportedStreamRequirementFlags =
+    AudioSupportedStreamRequirementFlags(0x10);
+
+/// No supported event-subscription flags.
+export const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_NONE: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x0);
+/// Supported event-subscription flag bit for device hotplug notifications.
+export const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_DEVICE_HOTPLUG: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x1);
+/// Supported event-subscription flag bit for default-route notifications.
+export const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_DEFAULT_ROUTE: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x2);
+/// Supported event-subscription flag bit for format-change notifications.
+export const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_FORMAT_CHANGE: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x4);
+/// Supported event-subscription flag bit for reroute notifications.
+export const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_REROUTE: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x8);
+/// Supported event-subscription flag bit for interruption notifications.
+export const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_INTERRUPTION: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x10);
+/// Supported event-subscription flag bit for backend reset and disconnect notifications.
+export const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_BACKEND: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x20);
+/// Supported event-subscription flag bit for stream xrun and state notifications.
+export const AUDIO_SUPPORTED_EVENT_SUBSCRIPTION_STREAM: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x40);
+
+/// No supported stream-clock domain bits.
+export const AUDIO_SUPPORTED_STREAM_CLOCK_NONE: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0x0);
+/// Supported stream-clock domain bit for monotonic timestamps.
+export const AUDIO_SUPPORTED_STREAM_CLOCK_MONOTONIC: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0x1);
+/// Supported stream-clock domain bit for wall clock timestamps.
+export const AUDIO_SUPPORTED_STREAM_CLOCK_WALL: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0x2);
+/// Supported stream-clock domain bit for one backend device timeline.
+export const AUDIO_SUPPORTED_STREAM_CLOCK_DEVICE: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0x4);
+/// Supported stream-clock domain bit for callback timestamps.
+export const AUDIO_SUPPORTED_STREAM_CLOCK_CALLBACK: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0x8);
+/// Supported stream-clock domain bit for input ADC timestamps.
+export const AUDIO_SUPPORTED_STREAM_CLOCK_INPUT_ADC: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0x10);
+/// Supported stream-clock domain bit for output DAC timestamps.
+export const AUDIO_SUPPORTED_STREAM_CLOCK_OUTPUT_DAC: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0x20);

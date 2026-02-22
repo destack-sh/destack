@@ -7,14 +7,11 @@ use crate::runtime::BindingCallContext;
 
 /// Read one timestamp in one selected clock domain.
 ///
-/// Read one clock timestamp for the selected domain.
-/// Domain availability and precision follow host backend behavior.
-/// `AudioClockDomain.Device` requires one backend-wide device timeline and can return `notSupported` otherwise.
+/// Read one clock timestamp for one process-wide domain.
+/// Domain availability and precision follow host platform behavior.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Mirrors PortAudio `Pa_GetStreamTime` monotonic stream-time semantics.
-/// Mirrors cubeb stream and latency clock snapshot semantics.
 /// Mirrors host monotonic and wall clock query semantics.
 ///
 /// # Errors
@@ -44,8 +41,10 @@ pub(crate) unsafe fn destack_audio_clock_now(
 
 /// Read one stream clock snapshot.
 ///
-/// Read one synchronized stream-position and clock timestamp snapshot.
+/// Read one synchronized stream-position and selected clock-domain timestamp snapshot.
 /// Snapshot values are advisory and can change immediately after read.
+/// This is the strict lane-select API.
+/// For one full best-effort snapshot without lane-specific errors use `audio.stream.timing`.
 /// Domain-specific lanes like `InputAdc`, `OutputDac`, and `Device` can return `notSupported` when the opened stream does not expose them.
 ///
 /// # Platform

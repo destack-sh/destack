@@ -220,3 +220,101 @@ pub(crate) fn resolve_host_device_by_id(
             )
         })
 }
+
+/// Return whether one unix backend exposes native device-event subscriptions.
+pub(crate) fn backend_native_device_events_supported(backend: audio_core::AudioBackend) -> bool {
+    #[cfg(feature = "audio-alsa")]
+    if backend == audio_core::AudioBackend::Alsa {
+        return alsa::native_device_events_supported();
+    }
+
+    #[cfg(feature = "audio-pulseaudio")]
+    if backend == audio_core::AudioBackend::PulseAudio {
+        return pulseaudio::native_device_events_supported();
+    }
+
+    #[cfg(feature = "audio-pipewire")]
+    if backend == audio_core::AudioBackend::PipeWire {
+        return pipewire::native_device_events_supported();
+    }
+
+    #[cfg(feature = "audio-coreaudio")]
+    if backend == audio_core::AudioBackend::CoreAudio {
+        return coreaudio::native_device_events_supported();
+    }
+
+    #[cfg(feature = "audio-jack")]
+    if backend == audio_core::AudioBackend::Jack {
+        return jack::native_device_events_supported();
+    }
+
+    false
+}
+
+/// Start one unix backend native device-event monitor.
+pub(crate) fn start_backend_native_device_events(
+    backend: audio_core::AudioBackend,
+) -> RuntimeResult<()> {
+    #[cfg(feature = "audio-alsa")]
+    if backend == audio_core::AudioBackend::Alsa {
+        return alsa::start_native_device_event_monitor();
+    }
+
+    #[cfg(feature = "audio-pulseaudio")]
+    if backend == audio_core::AudioBackend::PulseAudio {
+        return pulseaudio::start_native_device_event_monitor();
+    }
+
+    #[cfg(feature = "audio-pipewire")]
+    if backend == audio_core::AudioBackend::PipeWire {
+        return pipewire::start_native_device_event_monitor();
+    }
+
+    #[cfg(feature = "audio-coreaudio")]
+    if backend == audio_core::AudioBackend::CoreAudio {
+        return coreaudio::start_native_device_event_monitor();
+    }
+
+    #[cfg(feature = "audio-jack")]
+    if backend == audio_core::AudioBackend::Jack {
+        return jack::start_native_device_event_monitor();
+    }
+
+    let _ = backend;
+    Ok(())
+}
+
+/// Stop one unix backend native device-event monitor.
+pub(crate) fn stop_backend_native_device_events(backend: audio_core::AudioBackend) {
+    #[cfg(feature = "audio-alsa")]
+    if backend == audio_core::AudioBackend::Alsa {
+        alsa::stop_native_device_event_monitor();
+        return;
+    }
+
+    #[cfg(feature = "audio-pulseaudio")]
+    if backend == audio_core::AudioBackend::PulseAudio {
+        pulseaudio::stop_native_device_event_monitor();
+        return;
+    }
+
+    #[cfg(feature = "audio-pipewire")]
+    if backend == audio_core::AudioBackend::PipeWire {
+        pipewire::stop_native_device_event_monitor();
+        return;
+    }
+
+    #[cfg(feature = "audio-coreaudio")]
+    if backend == audio_core::AudioBackend::CoreAudio {
+        coreaudio::stop_native_device_event_monitor();
+        return;
+    }
+
+    #[cfg(feature = "audio-jack")]
+    if backend == audio_core::AudioBackend::Jack {
+        jack::stop_native_device_event_monitor();
+        return;
+    }
+
+    let _ = backend;
+}

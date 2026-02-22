@@ -2,8 +2,6 @@
 use std::ptr;
 
 #[cfg(target_os = "macos")]
-use crate::platform::audio::AudioStreamFlags;
-#[cfg(target_os = "macos")]
 use crate::platform::audio::core as audio_core;
 
 #[cfg(target_os = "macos")]
@@ -53,7 +51,6 @@ pub(super) fn probe_loopback_support(device_id: AudioDeviceID) -> bool {
         format: audio_core::AudioSampleFormat::F32,
         period_frames: COREAUDIO_LOOPBACK_PROBE_FRAMES,
         transfer_mode: audio_core::AudioStreamTransferMode::Push,
-        flags: AudioStreamFlags(0),
     };
 
     // reject probing when we cannot derive a valid stream description

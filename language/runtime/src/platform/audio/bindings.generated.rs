@@ -7,18 +7,23 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
     AudioBackend, AudioBackendCapabilityFlags, AudioBackendDescriptor,
-    AudioBackendDescriptorReplayRecord, AudioBackendDescriptorVm, AudioBackendOpenFlags,
-    AudioBackendSelectionPolicy, AudioChannelLayout, AudioClockDomain, AudioClockSnapshot,
-    AudioClockSnapshotVm, AudioDeviceCapabilityFlags, AudioDeviceDescriptor,
-    AudioDeviceDescriptorReplayRecord, AudioDeviceDescriptorVm, AudioDeviceDirection,
-    AudioDeviceListFlags, AudioDeviceListRequest, AudioDeviceListRequestVm, AudioDeviceOpenFlags,
-    AudioDeviceOpenOptions, AudioDeviceOpenOptionsVm, AudioEvent, AudioEventReplayRecord,
+    AudioBackendDescriptorReplayRecord, AudioBackendDescriptorVm, AudioBackendSelectionPolicy,
+    AudioChannelLayout, AudioClockDomain, AudioClockSnapshot, AudioClockSnapshotVm,
+    AudioDeviceCapabilityFlags, AudioDeviceDescriptor, AudioDeviceDescriptorReplayRecord,
+    AudioDeviceDescriptorVm, AudioDeviceDirection, AudioDeviceListFlags, AudioDeviceListRequest,
+    AudioDeviceListRequestVm, AudioDeviceOpenFlags, AudioDeviceOpenOptions,
+    AudioDeviceOpenOptionsVm, AudioEvent, AudioEventDeliveryMode, AudioEventKind,
+    AudioEventOverflowPolicy, AudioEventReplayRecord, AudioEventSource,
     AudioEventSubscriptionFlags, AudioEventSubscriptionOptions, AudioEventSubscriptionOptionsVm,
     AudioEventVm, AudioSampleFormat, AudioShareMode, AudioStreamAvailability,
     AudioStreamAvailabilityVm, AudioStreamClockDomain, AudioStreamConfig, AudioStreamConfigVm,
-    AudioStreamFlags, AudioStreamSnapshot, AudioStreamSnapshotReplayRecord, AudioStreamSnapshotVm,
-    AudioStreamState, AudioStreamStateVm, AudioStreamTiming, AudioStreamTimingVm,
-    AudioStreamTransferMode,
+    AudioStreamDescriptor, AudioStreamDescriptorReplayRecord, AudioStreamDescriptorVm,
+    AudioStreamFlags, AudioStreamOpenOptions, AudioStreamOpenOptionsVm,
+    AudioStreamRequirementFlags, AudioStreamState, AudioStreamStateVm, AudioStreamStatusFlags,
+    AudioStreamSupport, AudioStreamSupportReplayRecord, AudioStreamSupportVm, AudioStreamTiming,
+    AudioStreamTimingVm, AudioStreamTransferMode, AudioSupportedEventSubscriptionFlags,
+    AudioSupportedStreamClockDomains, AudioSupportedStreamFlags,
+    AudioSupportedStreamRequirementFlags,
 };
 use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmSlice, abi as platform_abi,
@@ -183,7 +188,6 @@ fn decode_destack_audio_clock_now_args(
     let domain = match domain_raw {
         1u8 => AudioClockDomain::Monotonic,
         2u8 => AudioClockDomain::Wall,
-        3u8 => AudioClockDomain::Device,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "domain",
@@ -244,15 +248,23 @@ fn encode_destack_audio_clock_stream_result(
     result.map(|value| {
         let field_0 = vm::Value::uint(value.stream_frames, 64);
         let field_1 = vm::Value::uint(value.clock_ns, 64);
-        let field_2 = vm::Value::bool(value.has_callback_ns);
-        let field_3 = vm::Value::uint(value.callback_ns, 64);
-        let field_4 = vm::Value::bool(value.has_input_adc_ns);
-        let field_5 = vm::Value::uint(value.input_adc_ns, 64);
-        let field_6 = vm::Value::bool(value.has_output_dac_ns);
-        let field_7 = vm::Value::uint(value.output_dac_ns, 64);
-        let field_8 = vm::Value::uint(value.monotonic_ns, 64);
+        let field_2 = vm::Value::uint(value.clock_quality as u8 as u64, 8);
+        let field_3 = vm::Value::bool(value.has_callback_ns);
+        let field_4 = vm::Value::uint(value.callback_ns, 64);
+        let field_5 = vm::Value::uint(value.callback_quality as u8 as u64, 8);
+        let field_6 = vm::Value::bool(value.has_input_adc_ns);
+        let field_7 = vm::Value::uint(value.input_adc_ns, 64);
+        let field_8 = vm::Value::uint(value.input_adc_quality as u8 as u64, 8);
+        let field_9 = vm::Value::bool(value.has_output_dac_ns);
+        let field_10 = vm::Value::uint(value.output_dac_ns, 64);
+        let field_11 = vm::Value::uint(value.output_dac_quality as u8 as u64, 8);
+        let field_12 = vm::Value::bool(value.has_device_ns);
+        let field_13 = vm::Value::uint(value.device_ns, 64);
+        let field_14 = vm::Value::uint(value.device_quality as u8 as u64, 8);
+        let field_15 = vm::Value::uint(value.monotonic_ns, 64);
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15,
         ])
     })
 }
@@ -389,23 +401,29 @@ fn encode_destack_audio_device_descriptor_result(
         let field_9 = vm::Value::bool(value.is_default_capture);
         let field_10 = vm::Value::bool(value.is_default_loopback);
         let field_11 = vm::Value::uint(value.capability_flags.0, 64);
-        let field_12 = vm::Value::uint(value.preferred_sample_rate as u64, 32);
-        let field_13 = vm::Value::uint(value.min_sample_rate as u64, 32);
-        let field_14 = vm::Value::uint(value.max_sample_rate as u64, 32);
-        let field_15 = vm::Value::uint(value.preferred_period_frames as u64, 32);
-        let field_16 = vm::Value::uint(value.min_channels as u64, 16);
-        let field_17 = vm::Value::uint(value.max_channels as u64, 16);
-        let field_18 = vm::Value::uint(value.preferred_layout as u8 as u64, 8);
-        let field_19 = vm::Value::uint(value.preferred_channel_mask, 64);
-        let field_20 = vm::Value::uint(value.supported_channel_mask, 64);
-        let field_21 = vm::Value::uint(value.min_period_frames as u64, 32);
-        let field_22 = vm::Value::uint(value.max_period_frames as u64, 32);
-        let field_23 = vm::Value::uint(value.format_mask as u64, 32);
-        let field_24 = vm::Value::uint(value.share_mode_mask as u64, 32);
+        let field_12 = vm::Value::uint(value.supported_device_open_flags.0 as u64, 32);
+        let field_13 = vm::Value::uint(value.supported_stream_flags.0 as u64, 32);
+        let field_14 = vm::Value::uint(value.supported_stream_requirement_flags.0 as u64, 32);
+        let field_15 = vm::Value::uint(value.supported_event_subscription_flags.0 as u64, 32);
+        let field_16 = vm::Value::uint(value.supported_stream_clock_domains.0 as u64, 32);
+        let field_17 = vm::Value::uint(value.preferred_sample_rate as u64, 32);
+        let field_18 = vm::Value::uint(value.min_sample_rate as u64, 32);
+        let field_19 = vm::Value::uint(value.max_sample_rate as u64, 32);
+        let field_20 = vm::Value::uint(value.preferred_period_frames as u64, 32);
+        let field_21 = vm::Value::uint(value.min_channels as u64, 16);
+        let field_22 = vm::Value::uint(value.max_channels as u64, 16);
+        let field_23 = vm::Value::uint(value.preferred_layout as u8 as u64, 8);
+        let field_24 = vm::Value::uint(value.preferred_channel_mask, 64);
+        let field_25 = vm::Value::uint(value.supported_channel_mask, 64);
+        let field_26 = vm::Value::uint(value.min_period_frames as u64, 32);
+        let field_27 = vm::Value::uint(value.max_period_frames as u64, 32);
+        let field_28 = vm::Value::uint(value.format_mask as u64, 32);
+        let field_29 = vm::Value::uint(value.share_mode_mask as u64, 32);
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
             field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
             field_17, field_18, field_19, field_20, field_21, field_22, field_23, field_24,
+            field_25, field_26, field_27, field_28, field_29,
         ])
     })
 }
@@ -524,10 +542,10 @@ fn decode_destack_audio_device_open_args(
         let slots = context
             .aggregate_slots(options_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "options",
-                "expected 7 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
@@ -593,18 +611,12 @@ fn decode_destack_audio_device_open_args(
         };
         let options_flags_inner = decode_uint32(slots[4], "options_flags_inner", "flags")?;
         let options_flags = AudioDeviceOpenFlags(options_flags_inner);
-        let options_backend_flags_inner =
-            decode_uint64(slots[5], "options_backend_flags_inner", "backendFlags")?;
-        let options_backend_flags = AudioBackendOpenFlags(options_backend_flags_inner);
-        let options_backend_hint = decode_string(slots[6], "options_backend_hint", "backendHint")?;
         AudioDeviceOpenOptionsVm {
             direction: options_direction,
             backend: options_backend,
             backend_policy: options_backend_policy,
             share_mode: options_share_mode,
             flags: options_flags,
-            backend_flags: options_backend_flags,
-            backend_hint: options_backend_hint,
         }
     };
     Ok((id, options))
@@ -716,10 +728,10 @@ fn decode_destack_audio_event_open_args(
         let slots = context
             .aggregate_slots(options_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
+        if slots.len() != 9 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "options",
-                "expected 7 fields",
+                "expected 9 fields",
             ))
             .boxed());
         }
@@ -759,19 +771,49 @@ fn decode_destack_audio_event_open_args(
         };
         let options_flags_inner = decode_uint32(slots[2], "options_flags_inner", "flags")?;
         let options_flags = AudioEventSubscriptionFlags(options_flags_inner);
-        let options_has_stream = decode_bool(slots[3], "options_has_stream", "hasStream")?;
+        let options_delivery_mode_raw =
+            decode_uint8(slots[3], "options_delivery_mode_raw", "deliveryMode")?;
+        let options_delivery_mode = match options_delivery_mode_raw {
+            1u8 => AudioEventDeliveryMode::Auto,
+            2u8 => AudioEventDeliveryMode::NativeOnly,
+            3u8 => AudioEventDeliveryMode::PollOnly,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_delivery_mode",
+                    "unknown AudioEventDeliveryMode value",
+                ))
+                .boxed());
+            }
+        };
+        let options_overflow_policy_raw =
+            decode_uint8(slots[4], "options_overflow_policy_raw", "overflowPolicy")?;
+        let options_overflow_policy = match options_overflow_policy_raw {
+            1u8 => AudioEventOverflowPolicy::DropOldest,
+            2u8 => AudioEventOverflowPolicy::DropNewest,
+            3u8 => AudioEventOverflowPolicy::Error,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_overflow_policy",
+                    "unknown AudioEventOverflowPolicy value",
+                ))
+                .boxed());
+            }
+        };
+        let options_has_stream = decode_bool(slots[5], "options_has_stream", "hasStream")?;
         let options_stream_inner_inner =
-            decode_uint64(slots[4], "options_stream_inner_inner", "stream")?;
+            decode_uint64(slots[6], "options_stream_inner_inner", "stream")?;
         let options_stream_inner = resource::ResourceId(options_stream_inner_inner);
         let options_stream = resource::AudioStreamHandle(options_stream_inner);
         let options_queue_capacity =
-            decode_uint32(slots[5], "options_queue_capacity", "queueCapacity")?;
+            decode_uint32(slots[7], "options_queue_capacity", "queueCapacity")?;
         let options_poll_interval_ns =
-            decode_uint64(slots[6], "options_poll_interval_ns", "pollIntervalNs")?;
+            decode_uint64(slots[8], "options_poll_interval_ns", "pollIntervalNs")?;
         AudioEventSubscriptionOptionsVm {
             backend: options_backend,
             backend_policy: options_backend_policy,
             flags: options_flags,
+            delivery_mode: options_delivery_mode,
+            overflow_policy: options_overflow_policy,
             has_stream: options_has_stream,
             stream: options_stream,
             queue_capacity: options_queue_capacity,
@@ -814,19 +856,48 @@ fn encode_destack_audio_event_read_result(
     result.map(|value| {
         let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
         let field_1 = vm::Value::uint(value.timestamp_ns, 64);
-        let field_2 = vm::Value::uint(value.backend as u8 as u64, 8);
-        let field_3 = vm::Value::uint(value.flags as u64, 32);
-        let field_4 = vm::Value::uint(value.status_flags.0 as u64, 32);
-        let field_5 = vm::Value::uint(value.xrun_count_delta, 64);
-        let field_6 = vm::Value::bool(value.has_device_id);
-        let field_7 = value.device_id.value();
-        let field_8 = vm::Value::bool(value.has_stream);
-        let field_9 = vm::Value::uint(value.stream.0.0, 64);
+        let field_2 = vm::Value::uint(value.sequence, 64);
+        let field_3 = vm::Value::uint(value.dropped_count, 64);
+        let field_4 = vm::Value::uint(value.source as u8 as u64, 8);
+        let field_5 = vm::Value::uint(value.backend as u8 as u64, 8);
+        let field_6 = vm::Value::uint(value.flags as u64, 32);
+        let field_7 = vm::Value::uint(value.status_flags.0 as u64, 32);
+        let field_8 = vm::Value::uint(value.xrun_count_delta, 64);
+        let field_9 = vm::Value::bool(value.has_device_id);
+        let field_10 = value.device_id.value();
+        let field_11 = vm::Value::bool(value.has_stream);
+        let field_12 = vm::Value::uint(value.stream.0.0, 64);
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9,
+            field_9, field_10, field_11, field_12,
         ])
     })
+}
+
+/// Decode arguments for destack.audio.event.readBatch.
+#[inline]
+fn decode_destack_audio_event_read_batch_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioEventHandle, u32, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioEventHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "AudioEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioEventHandle(handle_inner);
+    let maxevents_value = arg_value(args, 1, "maxevents", "uint32")?;
+    let maxevents = decode_uint32(maxevents_value, "maxevents", "uint32")?;
+    let timeoutns_value = arg_value(args, 2, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, maxevents, timeoutns))
+}
+
+/// Encode the result for destack.audio.event.readBatch.
+#[inline]
+fn encode_destack_audio_event_read_batch_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<AudioEventVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.audio.event.tryRead.
@@ -851,19 +922,46 @@ fn encode_destack_audio_event_try_read_result(
     result.map(|value| {
         let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
         let field_1 = vm::Value::uint(value.timestamp_ns, 64);
-        let field_2 = vm::Value::uint(value.backend as u8 as u64, 8);
-        let field_3 = vm::Value::uint(value.flags as u64, 32);
-        let field_4 = vm::Value::uint(value.status_flags.0 as u64, 32);
-        let field_5 = vm::Value::uint(value.xrun_count_delta, 64);
-        let field_6 = vm::Value::bool(value.has_device_id);
-        let field_7 = value.device_id.value();
-        let field_8 = vm::Value::bool(value.has_stream);
-        let field_9 = vm::Value::uint(value.stream.0.0, 64);
+        let field_2 = vm::Value::uint(value.sequence, 64);
+        let field_3 = vm::Value::uint(value.dropped_count, 64);
+        let field_4 = vm::Value::uint(value.source as u8 as u64, 8);
+        let field_5 = vm::Value::uint(value.backend as u8 as u64, 8);
+        let field_6 = vm::Value::uint(value.flags as u64, 32);
+        let field_7 = vm::Value::uint(value.status_flags.0 as u64, 32);
+        let field_8 = vm::Value::uint(value.xrun_count_delta, 64);
+        let field_9 = vm::Value::bool(value.has_device_id);
+        let field_10 = value.device_id.value();
+        let field_11 = vm::Value::bool(value.has_stream);
+        let field_12 = vm::Value::uint(value.stream.0.0, 64);
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9,
+            field_9, field_10, field_11, field_12,
         ])
     })
+}
+
+/// Decode arguments for destack.audio.event.tryReadBatch.
+#[inline]
+fn decode_destack_audio_event_try_read_batch_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioEventHandle, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioEventHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "AudioEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioEventHandle(handle_inner);
+    let maxevents_value = arg_value(args, 1, "maxevents", "uint32")?;
+    let maxevents = decode_uint32(maxevents_value, "maxevents", "uint32")?;
+    Ok((handle, maxevents))
+}
+
+/// Encode the result for destack.audio.event.tryReadBatch.
+#[inline]
+fn encode_destack_audio_event_try_read_batch_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<AudioEventVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.audio.stream.abort.
@@ -942,6 +1040,58 @@ fn encode_destack_audio_stream_close_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.audio.stream.descriptor.
+#[inline]
+fn decode_destack_audio_stream_descriptor_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::AudioStreamHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::AudioStreamHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.audio.stream.descriptor.
+#[inline]
+fn encode_destack_audio_stream_descriptor_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<AudioStreamDescriptorVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.backend as u8 as u64, 8);
+        let field_1 = value.backend_id.value();
+        let field_2 = value.device_id.value();
+        let field_3 = vm::Value::uint(value.sample_rate as u64, 32);
+        let field_4 = vm::Value::uint(value.channels as u64, 16);
+        let field_5 = vm::Value::uint(value.channel_layout as u8 as u64, 8);
+        let field_6 = vm::Value::uint(value.channel_mask, 64);
+        let field_7 = vm::Value::uint(value.format as u8 as u64, 8);
+        let field_8 = vm::Value::uint(value.period_frames as u64, 32);
+        let field_9 = vm::Value::uint(value.transfer_mode as u8 as u64, 8);
+        let field_10 = vm::Value::uint(value.share_mode as u8 as u64, 8);
+        let field_11 = vm::Value::uint(value.requested_flags.0 as u64, 32);
+        let field_12 = vm::Value::uint(value.requested_requirements.0 as u64, 32);
+        let field_13 = vm::Value::uint(value.effective_flags.0 as u64, 32);
+        let field_14 = vm::Value::uint(value.effective_requirements.0 as u64, 32);
+        let field_15 = vm::Value::uint(value.period_jitter_ns, 64);
+        let field_16 = vm::Value::bool(value.non_interleaved);
+        let field_17 = vm::Value::bool(value.supports_write_at);
+        let field_18 = vm::Value::bool(value.supports_pause);
+        let field_19 = vm::Value::bool(value.supports_non_interleaved);
+        let field_20 = vm::Value::bool(value.supports_volume);
+        let field_21 = vm::Value::bool(value.supports_mute);
+        let field_22 = vm::Value::bool(value.supports_hardware_timestamps);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+            field_17, field_18, field_19, field_20, field_21, field_22,
+        ])
+    })
+}
+
 /// Decode arguments for destack.audio.stream.drain.
 #[inline]
 fn decode_destack_audio_stream_drain_args(
@@ -995,7 +1145,11 @@ fn encode_destack_audio_stream_flush_result(
 fn decode_destack_audio_stream_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::AudioDeviceHandle, AudioStreamConfigVm)> {
+) -> RuntimeResult<(
+    resource::AudioDeviceHandle,
+    AudioStreamConfigVm,
+    AudioStreamOpenOptionsVm,
+)> {
     let device_value = arg_value(args, 0, "device", "AudioDeviceHandle")?;
     let device_inner_inner =
         decode_uint64(device_value, "device_inner_inner", "AudioDeviceHandle")?;
@@ -1013,10 +1167,10 @@ fn decode_destack_audio_stream_open_args(
         let slots = context
             .aggregate_slots(config_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
+        if slots.len() != 7 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "config",
-                "expected 8 fields",
+                "expected 7 fields",
             ))
             .boxed());
         }
@@ -1072,8 +1226,6 @@ fn decode_destack_audio_stream_open_args(
                 .boxed());
             }
         };
-        let config_flags_inner = decode_uint32(slots[7], "config_flags_inner", "flags")?;
-        let config_flags = AudioStreamFlags(config_flags_inner);
         AudioStreamConfigVm {
             sample_rate: config_sample_rate,
             channels: config_channels,
@@ -1082,10 +1234,38 @@ fn decode_destack_audio_stream_open_args(
             format: config_format,
             period_frames: config_period_frames,
             transfer_mode: config_transfer_mode,
-            flags: config_flags,
         }
     };
-    Ok((device, config))
+    let options_value = arg_value(args, 2, "options", "AudioStreamOpenOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "AudioStreamOpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let options_flags_inner = decode_uint32(slots[0], "options_flags_inner", "flags")?;
+        let options_flags = AudioStreamFlags(options_flags_inner);
+        let options_requirements_inner =
+            decode_uint32(slots[1], "options_requirements_inner", "requirements")?;
+        let options_requirements = AudioStreamRequirementFlags(options_requirements_inner);
+        AudioStreamOpenOptionsVm {
+            flags: options_flags,
+            requirements: options_requirements,
+        }
+    };
+    Ok((device, config, options))
 }
 
 /// Encode the result for destack.audio.stream.open.
@@ -1248,54 +1428,6 @@ fn encode_destack_audio_stream_set_volume_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.audio.stream.snapshot.
-#[inline]
-fn decode_destack_audio_stream_snapshot_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::AudioStreamHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "AudioStreamHandle")?;
-    let handle_inner_inner =
-        decode_uint64(handle_value, "handle_inner_inner", "AudioStreamHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::AudioStreamHandle(handle_inner);
-    Ok((handle,))
-}
-
-/// Encode the result for destack.audio.stream.snapshot.
-#[inline]
-fn encode_destack_audio_stream_snapshot_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<AudioStreamSnapshotVm>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.backend as u8 as u64, 8);
-        let field_1 = value.backend_id.value();
-        let field_2 = value.device_id.value();
-        let field_3 = vm::Value::uint(value.sample_rate as u64, 32);
-        let field_4 = vm::Value::uint(value.channels as u64, 16);
-        let field_5 = vm::Value::uint(value.channel_layout as u8 as u64, 8);
-        let field_6 = vm::Value::uint(value.channel_mask, 64);
-        let field_7 = vm::Value::uint(value.format as u8 as u64, 8);
-        let field_8 = vm::Value::uint(value.period_frames as u64, 32);
-        let field_9 = vm::Value::uint(value.transfer_mode as u8 as u64, 8);
-        let field_10 = vm::Value::uint(value.share_mode as u8 as u64, 8);
-        let field_11 = vm::Value::uint(value.period_jitter_ns, 64);
-        let field_12 = vm::Value::bool(value.non_interleaved);
-        let field_13 = vm::Value::bool(value.supports_write_at);
-        let field_14 = vm::Value::bool(value.supports_pause);
-        let field_15 = vm::Value::bool(value.supports_non_interleaved);
-        let field_16 = vm::Value::bool(value.supports_volume);
-        let field_17 = vm::Value::bool(value.supports_mute);
-        let field_18 = vm::Value::bool(value.supports_hardware_timestamps);
-        context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
-            field_17, field_18,
-        ])
-    })
-}
-
 /// Decode arguments for destack.audio.stream.start.
 #[inline]
 fn decode_destack_audio_stream_start_args(
@@ -1384,6 +1516,178 @@ fn encode_destack_audio_stream_stop_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.audio.stream.support.
+#[inline]
+fn decode_destack_audio_stream_support_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::AudioDeviceHandle,
+    AudioStreamConfigVm,
+    AudioStreamOpenOptionsVm,
+)> {
+    let device_value = arg_value(args, 0, "device", "AudioDeviceHandle")?;
+    let device_inner_inner =
+        decode_uint64(device_value, "device_inner_inner", "AudioDeviceHandle")?;
+    let device_inner = resource::ResourceId(device_inner_inner);
+    let device = resource::AudioDeviceHandle(device_inner);
+    let config_value = arg_value(args, 1, "config", "AudioStreamConfig")?;
+    let config = {
+        if config_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "config",
+                "AudioStreamConfig",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(config_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "config",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let config_sample_rate = decode_uint32(slots[0], "config_sample_rate", "sampleRate")?;
+        let config_channels = decode_uint16(slots[1], "config_channels", "channels")?;
+        let config_channel_layout_raw =
+            decode_uint8(slots[2], "config_channel_layout_raw", "channelLayout")?;
+        let config_channel_layout = match config_channel_layout_raw {
+            0u8 => AudioChannelLayout::Unknown,
+            1u8 => AudioChannelLayout::Mono,
+            2u8 => AudioChannelLayout::Stereo,
+            3u8 => AudioChannelLayout::Quad,
+            4u8 => AudioChannelLayout::Surround41,
+            5u8 => AudioChannelLayout::Surround51,
+            6u8 => AudioChannelLayout::Surround61,
+            7u8 => AudioChannelLayout::Surround71,
+            255u8 => AudioChannelLayout::Custom,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "config_channel_layout",
+                    "unknown AudioChannelLayout value",
+                ))
+                .boxed());
+            }
+        };
+        let config_channel_mask = decode_uint64(slots[3], "config_channel_mask", "channelMask")?;
+        let config_format_raw = decode_uint8(slots[4], "config_format_raw", "format")?;
+        let config_format = match config_format_raw {
+            1u8 => AudioSampleFormat::U8,
+            2u8 => AudioSampleFormat::S16,
+            3u8 => AudioSampleFormat::S24,
+            4u8 => AudioSampleFormat::S32,
+            5u8 => AudioSampleFormat::F32,
+            6u8 => AudioSampleFormat::F64,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "config_format",
+                    "unknown AudioSampleFormat value",
+                ))
+                .boxed());
+            }
+        };
+        let config_period_frames = decode_uint32(slots[5], "config_period_frames", "periodFrames")?;
+        let config_transfer_mode_raw =
+            decode_uint8(slots[6], "config_transfer_mode_raw", "transferMode")?;
+        let config_transfer_mode = match config_transfer_mode_raw {
+            1u8 => AudioStreamTransferMode::Push,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "config_transfer_mode",
+                    "unknown AudioStreamTransferMode value",
+                ))
+                .boxed());
+            }
+        };
+        AudioStreamConfigVm {
+            sample_rate: config_sample_rate,
+            channels: config_channels,
+            channel_layout: config_channel_layout,
+            channel_mask: config_channel_mask,
+            format: config_format,
+            period_frames: config_period_frames,
+            transfer_mode: config_transfer_mode,
+        }
+    };
+    let options_value = arg_value(args, 2, "options", "AudioStreamOpenOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "AudioStreamOpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let options_flags_inner = decode_uint32(slots[0], "options_flags_inner", "flags")?;
+        let options_flags = AudioStreamFlags(options_flags_inner);
+        let options_requirements_inner =
+            decode_uint32(slots[1], "options_requirements_inner", "requirements")?;
+        let options_requirements = AudioStreamRequirementFlags(options_requirements_inner);
+        AudioStreamOpenOptionsVm {
+            flags: options_flags,
+            requirements: options_requirements,
+        }
+    };
+    Ok((device, config, options))
+}
+
+/// Encode the result for destack.audio.stream.support.
+#[inline]
+fn encode_destack_audio_stream_support_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<AudioStreamSupportVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::bool(value.supported);
+        let field_1 = {
+            let field_0 = vm::Value::uint(value.descriptor.backend as u8 as u64, 8);
+            let field_1 = value.descriptor.backend_id.value();
+            let field_2 = value.descriptor.device_id.value();
+            let field_3 = vm::Value::uint(value.descriptor.sample_rate as u64, 32);
+            let field_4 = vm::Value::uint(value.descriptor.channels as u64, 16);
+            let field_5 = vm::Value::uint(value.descriptor.channel_layout as u8 as u64, 8);
+            let field_6 = vm::Value::uint(value.descriptor.channel_mask, 64);
+            let field_7 = vm::Value::uint(value.descriptor.format as u8 as u64, 8);
+            let field_8 = vm::Value::uint(value.descriptor.period_frames as u64, 32);
+            let field_9 = vm::Value::uint(value.descriptor.transfer_mode as u8 as u64, 8);
+            let field_10 = vm::Value::uint(value.descriptor.share_mode as u8 as u64, 8);
+            let field_11 = vm::Value::uint(value.descriptor.requested_flags.0 as u64, 32);
+            let field_12 = vm::Value::uint(value.descriptor.requested_requirements.0 as u64, 32);
+            let field_13 = vm::Value::uint(value.descriptor.effective_flags.0 as u64, 32);
+            let field_14 = vm::Value::uint(value.descriptor.effective_requirements.0 as u64, 32);
+            let field_15 = vm::Value::uint(value.descriptor.period_jitter_ns, 64);
+            let field_16 = vm::Value::bool(value.descriptor.non_interleaved);
+            let field_17 = vm::Value::bool(value.descriptor.supports_write_at);
+            let field_18 = vm::Value::bool(value.descriptor.supports_pause);
+            let field_19 = vm::Value::bool(value.descriptor.supports_non_interleaved);
+            let field_20 = vm::Value::bool(value.descriptor.supports_volume);
+            let field_21 = vm::Value::bool(value.descriptor.supports_mute);
+            let field_22 = vm::Value::bool(value.descriptor.supports_hardware_timestamps);
+            context.allocate_aggregate(vec![
+                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+                field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+                field_17, field_18, field_19, field_20, field_21, field_22,
+            ])
+        };
+        let field_2 = vm::Value::uint(value.satisfied_requirements.0 as u64, 32);
+        let field_3 = vm::Value::uint(value.unsatisfied_requirements.0 as u64, 32);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    })
+}
+
 /// Decode arguments for destack.audio.stream.timing.
 #[inline]
 fn decode_destack_audio_stream_timing_args(
@@ -1411,14 +1715,16 @@ fn encode_destack_audio_stream_timing_result(
         let field_3 = vm::Value::uint(value.input_adc_time_ns, 64);
         let field_4 = vm::Value::bool(value.has_output_dac_time);
         let field_5 = vm::Value::uint(value.output_dac_time_ns, 64);
-        let field_6 = vm::Value::uint(value.callback_time_ns, 64);
-        let field_7 = vm::Value::uint(value.device_clock_ns, 64);
-        let field_8 = vm::Value::uint(value.monotonic_clock_ns, 64);
-        let field_9 = vm::Value::float64(value.drift_ppm);
-        let field_10 = vm::Value::float64(value.callback_cpu_load);
+        let field_6 = vm::Value::bool(value.has_callback_time_ns);
+        let field_7 = vm::Value::uint(value.callback_time_ns, 64);
+        let field_8 = vm::Value::bool(value.has_device_clock_ns);
+        let field_9 = vm::Value::uint(value.device_clock_ns, 64);
+        let field_10 = vm::Value::uint(value.monotonic_clock_ns, 64);
+        let field_11 = vm::Value::float64(value.drift_ppm);
+        let field_12 = vm::Value::float64(value.callback_cpu_load);
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10,
+            field_9, field_10, field_11, field_12,
         ])
     })
 }
@@ -1717,11 +2023,25 @@ struct AudioEventReadReplay {
     pub result: Result<AudioEventReplayRecord, PlatformError>,
 }
 
+/// Replay payload for destack.audio.event.readBatch.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioEventReadBatchReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<AudioEventReplayRecord>, PlatformError>,
+}
+
 /// Replay payload for destack.audio.event.tryRead.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioEventTryReadReplay {
     /// Replay result payload.
     pub result: Result<AudioEventReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.audio.event.tryReadBatch.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioEventTryReadBatchReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<AudioEventReplayRecord>, PlatformError>,
 }
 
 /// Replay payload for destack.audio.stream.abort.
@@ -1743,6 +2063,13 @@ struct AudioStreamAvailabilityReplay {
 struct AudioStreamCloseReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.audio.stream.descriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioStreamDescriptorReplay {
+    /// Replay result payload.
+    pub result: Result<AudioStreamDescriptorReplayRecord, PlatformError>,
 }
 
 /// Replay payload for destack.audio.stream.drain.
@@ -1808,13 +2135,6 @@ struct AudioStreamSetVolumeReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.audio.stream.snapshot.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct AudioStreamSnapshotReplay {
-    /// Replay result payload.
-    pub result: Result<AudioStreamSnapshotReplayRecord, PlatformError>,
-}
-
 /// Replay payload for destack.audio.stream.start.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamStartReplay {
@@ -1834,6 +2154,13 @@ struct AudioStreamStateReplay {
 struct AudioStreamStopReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.audio.stream.support.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioStreamSupportReplay {
+    /// Replay result payload.
+    pub result: Result<AudioStreamSupportReplayRecord, PlatformError>,
 }
 
 /// Replay payload for destack.audio.stream.timing.
@@ -2099,6 +2426,18 @@ pub const AUDIO_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.audio.event.readBatch.
+pub const AUDIO_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.event.readBatch",
+    "export function eventReadBatch(handle: AudioEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<Slice<AudioEvent>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.device.monitor"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.audio.event.tryRead.
 pub const AUDIO_EVENT_TRY_READ: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
@@ -2124,6 +2463,18 @@ pub const AUDIO_EVENT_TRY_READ: BindingDescriptor =
         "solaris",
         "windows",
     ]);
+
+/// Binding descriptor for destack.audio.event.tryReadBatch.
+pub const AUDIO_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.event.tryReadBatch",
+    "export function eventTryReadBatch(handle: AudioEventHandle, maxEvents: uint32): Result<Slice<AudioEvent>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.device.monitor"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.abort.
 pub const AUDIO_STREAM_ABORT: BindingDescriptor =
@@ -2189,6 +2540,18 @@ pub const AUDIO_STREAM_CLOSE: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.audio.stream.descriptor.
+pub const AUDIO_STREAM_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.descriptor",
+    "export function streamDescriptor(handle: AudioStreamHandle): Result<AudioStreamDescriptor, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.control"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.audio.stream.drain.
 pub const AUDIO_STREAM_DRAIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.drain",
@@ -2230,7 +2593,7 @@ pub const AUDIO_STREAM_FLUSH: BindingDescriptor =
 /// Binding descriptor for destack.audio.stream.open.
 pub const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.audio.stream.open",
-    "export function streamOpen(device: AudioDeviceHandle, config: AudioStreamConfig): Result<AudioStreamHandle, PlatformError>",
+    "export function streamOpen(device: AudioDeviceHandle, config: AudioStreamConfig, options: AudioStreamOpenOptions): Result<AudioStreamHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["audio.stream"],
@@ -2311,18 +2674,6 @@ pub const AUDIO_STREAM_SET_VOLUME: BindingDescriptor = BindingDescriptor::extern
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.audio.stream.snapshot.
-pub const AUDIO_STREAM_SNAPSHOT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.audio.stream.snapshot",
-    "export function streamSnapshot(handle: AudioStreamHandle): Result<AudioStreamSnapshot, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::Regular,
-    &["audio.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
 /// Binding descriptor for destack.audio.stream.start.
 pub const AUDIO_STREAM_START: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
@@ -2386,6 +2737,18 @@ pub const AUDIO_STREAM_STOP: BindingDescriptor =
         "solaris",
         "windows",
     ]);
+
+/// Binding descriptor for destack.audio.stream.support.
+pub const AUDIO_STREAM_SUPPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.stream.support",
+    "export function streamSupport(device: AudioDeviceHandle, config: AudioStreamConfig, options: AudioStreamOpenOptions): Result<AudioStreamSupport, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.stream"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.timing.
 pub const AUDIO_STREAM_TIMING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -2509,10 +2872,13 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     AUDIO_EVENT_CLOSE,
     AUDIO_EVENT_OPEN,
     AUDIO_EVENT_READ,
+    AUDIO_EVENT_READ_BATCH,
     AUDIO_EVENT_TRY_READ,
+    AUDIO_EVENT_TRY_READ_BATCH,
     AUDIO_STREAM_ABORT,
     AUDIO_STREAM_AVAILABILITY,
     AUDIO_STREAM_CLOSE,
+    AUDIO_STREAM_DESCRIPTOR,
     AUDIO_STREAM_DRAIN,
     AUDIO_STREAM_FLUSH,
     AUDIO_STREAM_OPEN,
@@ -2522,10 +2888,10 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     AUDIO_STREAM_SET_MUTE,
     AUDIO_STREAM_SET_NAME,
     AUDIO_STREAM_SET_VOLUME,
-    AUDIO_STREAM_SNAPSHOT,
     AUDIO_STREAM_START,
     AUDIO_STREAM_STATE,
     AUDIO_STREAM_STOP,
+    AUDIO_STREAM_SUPPORT,
     AUDIO_STREAM_TIMING,
     AUDIO_STREAM_TRY_READ,
     AUDIO_STREAM_TRY_READV,
@@ -2602,9 +2968,19 @@ pub const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_audio_event_read as *const (),
         ),
         NativeBinding::new(
+            AUDIO_EVENT_READ_BATCH,
+            "destack.audio.event.readBatch",
+            destack_audio_event_read_batch as *const (),
+        ),
+        NativeBinding::new(
             AUDIO_EVENT_TRY_READ,
             "destack.audio.event.tryRead",
             destack_audio_event_try_read as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_EVENT_TRY_READ_BATCH,
+            "destack.audio.event.tryReadBatch",
+            destack_audio_event_try_read_batch as *const (),
         ),
         NativeBinding::new(
             AUDIO_STREAM_ABORT,
@@ -2620,6 +2996,11 @@ pub const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             AUDIO_STREAM_CLOSE,
             "destack.audio.stream.close",
             destack_audio_stream_close as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_STREAM_DESCRIPTOR,
+            "destack.audio.stream.descriptor",
+            destack_audio_stream_descriptor as *const (),
         ),
         NativeBinding::new(
             AUDIO_STREAM_DRAIN,
@@ -2667,11 +3048,6 @@ pub const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_audio_stream_set_volume as *const (),
         ),
         NativeBinding::new(
-            AUDIO_STREAM_SNAPSHOT,
-            "destack.audio.stream.snapshot",
-            destack_audio_stream_snapshot as *const (),
-        ),
-        NativeBinding::new(
             AUDIO_STREAM_START,
             "destack.audio.stream.start",
             destack_audio_stream_start as *const (),
@@ -2685,6 +3061,11 @@ pub const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             AUDIO_STREAM_STOP,
             "destack.audio.stream.stop",
             destack_audio_stream_stop as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_STREAM_SUPPORT,
+            "destack.audio.stream.support",
+            destack_audio_stream_support as *const (),
         ),
         NativeBinding::new(
             AUDIO_STREAM_TIMING,
@@ -2771,12 +3152,36 @@ fn destack_audio_backend_list_replay(
                     let result_recorded_item_recorded_priority = result_recorded_item.priority;
                     let result_recorded_item_recorded_capability_flags =
                         result_recorded_item.capability_flags;
+                    let result_recorded_item_recorded_supported_device_list_flags =
+                        result_recorded_item.supported_device_list_flags;
+                    let result_recorded_item_recorded_supported_device_open_flags =
+                        result_recorded_item.supported_device_open_flags;
+                    let result_recorded_item_recorded_supported_stream_flags =
+                        result_recorded_item.supported_stream_flags;
+                    let result_recorded_item_recorded_supported_stream_requirement_flags =
+                        result_recorded_item.supported_stream_requirement_flags;
+                    let result_recorded_item_recorded_supported_event_subscription_flags =
+                        result_recorded_item.supported_event_subscription_flags;
+                    let result_recorded_item_recorded_supported_stream_clock_domains =
+                        result_recorded_item.supported_stream_clock_domains;
                     let result_recorded_item_recorded = AudioBackendDescriptorReplayRecord {
                         backend: result_recorded_item_recorded_backend,
                         name: result_recorded_item_recorded_name,
                         available: result_recorded_item_recorded_available,
                         priority: result_recorded_item_recorded_priority,
                         capability_flags: result_recorded_item_recorded_capability_flags,
+                        supported_device_list_flags:
+                            result_recorded_item_recorded_supported_device_list_flags,
+                        supported_device_open_flags:
+                            result_recorded_item_recorded_supported_device_open_flags,
+                        supported_stream_flags:
+                            result_recorded_item_recorded_supported_stream_flags,
+                        supported_stream_requirement_flags:
+                            result_recorded_item_recorded_supported_stream_requirement_flags,
+                        supported_event_subscription_flags:
+                            result_recorded_item_recorded_supported_event_subscription_flags,
+                        supported_stream_clock_domains:
+                            result_recorded_item_recorded_supported_stream_clock_domains,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -2809,12 +3214,35 @@ fn destack_audio_backend_list_replay(
                         let value_native_item_native_priority = value_native_item.priority;
                         let value_native_item_native_capability_flags =
                             value_native_item.capability_flags;
+                        let value_native_item_native_supported_device_list_flags =
+                            value_native_item.supported_device_list_flags;
+                        let value_native_item_native_supported_device_open_flags =
+                            value_native_item.supported_device_open_flags;
+                        let value_native_item_native_supported_stream_flags =
+                            value_native_item.supported_stream_flags;
+                        let value_native_item_native_supported_stream_requirement_flags =
+                            value_native_item.supported_stream_requirement_flags;
+                        let value_native_item_native_supported_event_subscription_flags =
+                            value_native_item.supported_event_subscription_flags;
+                        let value_native_item_native_supported_stream_clock_domains =
+                            value_native_item.supported_stream_clock_domains;
                         let value_native_item_native = AudioBackendDescriptor {
                             backend: value_native_item_native_backend,
                             name: value_native_item_native_name,
                             available: value_native_item_native_available,
                             priority: value_native_item_native_priority,
                             capability_flags: value_native_item_native_capability_flags,
+                            supported_device_list_flags:
+                                value_native_item_native_supported_device_list_flags,
+                            supported_device_open_flags:
+                                value_native_item_native_supported_device_open_flags,
+                            supported_stream_flags: value_native_item_native_supported_stream_flags,
+                            supported_stream_requirement_flags:
+                                value_native_item_native_supported_stream_requirement_flags,
+                            supported_event_subscription_flags:
+                                value_native_item_native_supported_event_subscription_flags,
+                            supported_stream_clock_domains:
+                                value_native_item_native_supported_stream_clock_domains,
                         };
                         value_native_values.push(value_native_item_native);
                     }
@@ -2922,22 +3350,36 @@ fn destack_audio_clock_stream_replay(
                 };
                 let result_recorded_stream_frames = result_value.stream_frames;
                 let result_recorded_clock_ns = result_value.clock_ns;
+                let result_recorded_clock_quality = result_value.clock_quality;
                 let result_recorded_has_callback_ns = result_value.has_callback_ns;
                 let result_recorded_callback_ns = result_value.callback_ns;
+                let result_recorded_callback_quality = result_value.callback_quality;
                 let result_recorded_has_input_adc_ns = result_value.has_input_adc_ns;
                 let result_recorded_input_adc_ns = result_value.input_adc_ns;
+                let result_recorded_input_adc_quality = result_value.input_adc_quality;
                 let result_recorded_has_output_dac_ns = result_value.has_output_dac_ns;
                 let result_recorded_output_dac_ns = result_value.output_dac_ns;
+                let result_recorded_output_dac_quality = result_value.output_dac_quality;
+                let result_recorded_has_device_ns = result_value.has_device_ns;
+                let result_recorded_device_ns = result_value.device_ns;
+                let result_recorded_device_quality = result_value.device_quality;
                 let result_recorded_monotonic_ns = result_value.monotonic_ns;
                 let result_recorded = AudioClockSnapshot {
                     stream_frames: result_recorded_stream_frames,
                     clock_ns: result_recorded_clock_ns,
+                    clock_quality: result_recorded_clock_quality,
                     has_callback_ns: result_recorded_has_callback_ns,
                     callback_ns: result_recorded_callback_ns,
+                    callback_quality: result_recorded_callback_quality,
                     has_input_adc_ns: result_recorded_has_input_adc_ns,
                     input_adc_ns: result_recorded_input_adc_ns,
+                    input_adc_quality: result_recorded_input_adc_quality,
                     has_output_dac_ns: result_recorded_has_output_dac_ns,
                     output_dac_ns: result_recorded_output_dac_ns,
+                    output_dac_quality: result_recorded_output_dac_quality,
+                    has_device_ns: result_recorded_has_device_ns,
+                    device_ns: result_recorded_device_ns,
+                    device_quality: result_recorded_device_quality,
                     monotonic_ns: result_recorded_monotonic_ns,
                 };
                 let payload = AudioClockStreamReplay {
@@ -2962,22 +3404,36 @@ fn destack_audio_clock_stream_replay(
                 Ok(value) => {
                     let value_native_stream_frames = value.stream_frames;
                     let value_native_clock_ns = value.clock_ns;
+                    let value_native_clock_quality = value.clock_quality;
                     let value_native_has_callback_ns = value.has_callback_ns;
                     let value_native_callback_ns = value.callback_ns;
+                    let value_native_callback_quality = value.callback_quality;
                     let value_native_has_input_adc_ns = value.has_input_adc_ns;
                     let value_native_input_adc_ns = value.input_adc_ns;
+                    let value_native_input_adc_quality = value.input_adc_quality;
                     let value_native_has_output_dac_ns = value.has_output_dac_ns;
                     let value_native_output_dac_ns = value.output_dac_ns;
+                    let value_native_output_dac_quality = value.output_dac_quality;
+                    let value_native_has_device_ns = value.has_device_ns;
+                    let value_native_device_ns = value.device_ns;
+                    let value_native_device_quality = value.device_quality;
                     let value_native_monotonic_ns = value.monotonic_ns;
                     let value_native = AudioClockSnapshot {
                         stream_frames: value_native_stream_frames,
                         clock_ns: value_native_clock_ns,
+                        clock_quality: value_native_clock_quality,
                         has_callback_ns: value_native_has_callback_ns,
                         callback_ns: value_native_callback_ns,
+                        callback_quality: value_native_callback_quality,
                         has_input_adc_ns: value_native_has_input_adc_ns,
                         input_adc_ns: value_native_input_adc_ns,
+                        input_adc_quality: value_native_input_adc_quality,
                         has_output_dac_ns: value_native_has_output_dac_ns,
                         output_dac_ns: value_native_output_dac_ns,
+                        output_dac_quality: value_native_output_dac_quality,
+                        has_device_ns: value_native_has_device_ns,
+                        device_ns: value_native_device_ns,
+                        device_quality: value_native_device_quality,
                         monotonic_ns: value_native_monotonic_ns,
                     };
                     unsafe {
@@ -3156,6 +3612,15 @@ fn destack_audio_device_descriptor_replay(
                 let result_recorded_is_default_capture = result_value.is_default_capture;
                 let result_recorded_is_default_loopback = result_value.is_default_loopback;
                 let result_recorded_capability_flags = result_value.capability_flags;
+                let result_recorded_supported_device_open_flags =
+                    result_value.supported_device_open_flags;
+                let result_recorded_supported_stream_flags = result_value.supported_stream_flags;
+                let result_recorded_supported_stream_requirement_flags =
+                    result_value.supported_stream_requirement_flags;
+                let result_recorded_supported_event_subscription_flags =
+                    result_value.supported_event_subscription_flags;
+                let result_recorded_supported_stream_clock_domains =
+                    result_value.supported_stream_clock_domains;
                 let result_recorded_preferred_sample_rate = result_value.preferred_sample_rate;
                 let result_recorded_min_sample_rate = result_value.min_sample_rate;
                 let result_recorded_max_sample_rate = result_value.max_sample_rate;
@@ -3182,6 +3647,13 @@ fn destack_audio_device_descriptor_replay(
                     is_default_capture: result_recorded_is_default_capture,
                     is_default_loopback: result_recorded_is_default_loopback,
                     capability_flags: result_recorded_capability_flags,
+                    supported_device_open_flags: result_recorded_supported_device_open_flags,
+                    supported_stream_flags: result_recorded_supported_stream_flags,
+                    supported_stream_requirement_flags:
+                        result_recorded_supported_stream_requirement_flags,
+                    supported_event_subscription_flags:
+                        result_recorded_supported_event_subscription_flags,
+                    supported_stream_clock_domains: result_recorded_supported_stream_clock_domains,
                     preferred_sample_rate: result_recorded_preferred_sample_rate,
                     min_sample_rate: result_recorded_min_sample_rate,
                     max_sample_rate: result_recorded_max_sample_rate,
@@ -3228,6 +3700,15 @@ fn destack_audio_device_descriptor_replay(
                     let value_native_is_default_capture = value.is_default_capture;
                     let value_native_is_default_loopback = value.is_default_loopback;
                     let value_native_capability_flags = value.capability_flags;
+                    let value_native_supported_device_open_flags =
+                        value.supported_device_open_flags;
+                    let value_native_supported_stream_flags = value.supported_stream_flags;
+                    let value_native_supported_stream_requirement_flags =
+                        value.supported_stream_requirement_flags;
+                    let value_native_supported_event_subscription_flags =
+                        value.supported_event_subscription_flags;
+                    let value_native_supported_stream_clock_domains =
+                        value.supported_stream_clock_domains;
                     let value_native_preferred_sample_rate = value.preferred_sample_rate;
                     let value_native_min_sample_rate = value.min_sample_rate;
                     let value_native_max_sample_rate = value.max_sample_rate;
@@ -3254,6 +3735,13 @@ fn destack_audio_device_descriptor_replay(
                         is_default_capture: value_native_is_default_capture,
                         is_default_loopback: value_native_is_default_loopback,
                         capability_flags: value_native_capability_flags,
+                        supported_device_open_flags: value_native_supported_device_open_flags,
+                        supported_stream_flags: value_native_supported_stream_flags,
+                        supported_stream_requirement_flags:
+                            value_native_supported_stream_requirement_flags,
+                        supported_event_subscription_flags:
+                            value_native_supported_event_subscription_flags,
+                        supported_stream_clock_domains: value_native_supported_stream_clock_domains,
                         preferred_sample_rate: value_native_preferred_sample_rate,
                         min_sample_rate: value_native_min_sample_rate,
                         max_sample_rate: value_native_max_sample_rate,
@@ -3331,6 +3819,16 @@ fn destack_audio_device_list_replay(
                         result_recorded_item.is_default_loopback;
                     let result_recorded_item_recorded_capability_flags =
                         result_recorded_item.capability_flags;
+                    let result_recorded_item_recorded_supported_device_open_flags =
+                        result_recorded_item.supported_device_open_flags;
+                    let result_recorded_item_recorded_supported_stream_flags =
+                        result_recorded_item.supported_stream_flags;
+                    let result_recorded_item_recorded_supported_stream_requirement_flags =
+                        result_recorded_item.supported_stream_requirement_flags;
+                    let result_recorded_item_recorded_supported_event_subscription_flags =
+                        result_recorded_item.supported_event_subscription_flags;
+                    let result_recorded_item_recorded_supported_stream_clock_domains =
+                        result_recorded_item.supported_stream_clock_domains;
                     let result_recorded_item_recorded_preferred_sample_rate =
                         result_recorded_item.preferred_sample_rate;
                     let result_recorded_item_recorded_min_sample_rate =
@@ -3370,6 +3868,16 @@ fn destack_audio_device_list_replay(
                         is_default_capture: result_recorded_item_recorded_is_default_capture,
                         is_default_loopback: result_recorded_item_recorded_is_default_loopback,
                         capability_flags: result_recorded_item_recorded_capability_flags,
+                        supported_device_open_flags:
+                            result_recorded_item_recorded_supported_device_open_flags,
+                        supported_stream_flags:
+                            result_recorded_item_recorded_supported_stream_flags,
+                        supported_stream_requirement_flags:
+                            result_recorded_item_recorded_supported_stream_requirement_flags,
+                        supported_event_subscription_flags:
+                            result_recorded_item_recorded_supported_event_subscription_flags,
+                        supported_stream_clock_domains:
+                            result_recorded_item_recorded_supported_stream_clock_domains,
                         preferred_sample_rate: result_recorded_item_recorded_preferred_sample_rate,
                         min_sample_rate: result_recorded_item_recorded_min_sample_rate,
                         max_sample_rate: result_recorded_item_recorded_max_sample_rate,
@@ -3431,6 +3939,16 @@ fn destack_audio_device_list_replay(
                             value_native_item.is_default_loopback;
                         let value_native_item_native_capability_flags =
                             value_native_item.capability_flags;
+                        let value_native_item_native_supported_device_open_flags =
+                            value_native_item.supported_device_open_flags;
+                        let value_native_item_native_supported_stream_flags =
+                            value_native_item.supported_stream_flags;
+                        let value_native_item_native_supported_stream_requirement_flags =
+                            value_native_item.supported_stream_requirement_flags;
+                        let value_native_item_native_supported_event_subscription_flags =
+                            value_native_item.supported_event_subscription_flags;
+                        let value_native_item_native_supported_stream_clock_domains =
+                            value_native_item.supported_stream_clock_domains;
                         let value_native_item_native_preferred_sample_rate =
                             value_native_item.preferred_sample_rate;
                         let value_native_item_native_min_sample_rate =
@@ -3467,6 +3985,15 @@ fn destack_audio_device_list_replay(
                             is_default_capture: value_native_item_native_is_default_capture,
                             is_default_loopback: value_native_item_native_is_default_loopback,
                             capability_flags: value_native_item_native_capability_flags,
+                            supported_device_open_flags:
+                                value_native_item_native_supported_device_open_flags,
+                            supported_stream_flags: value_native_item_native_supported_stream_flags,
+                            supported_stream_requirement_flags:
+                                value_native_item_native_supported_stream_requirement_flags,
+                            supported_event_subscription_flags:
+                                value_native_item_native_supported_event_subscription_flags,
+                            supported_stream_clock_domains:
+                                value_native_item_native_supported_stream_clock_domains,
                             preferred_sample_rate: value_native_item_native_preferred_sample_rate,
                             min_sample_rate: value_native_item_native_min_sample_rate,
                             max_sample_rate: value_native_item_native_max_sample_rate,
@@ -3753,6 +4280,9 @@ fn destack_audio_event_read_replay(
                 };
                 let result_recorded_kind = result_value.kind;
                 let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_dropped_count = result_value.dropped_count;
+                let result_recorded_source = result_value.source;
                 let result_recorded_backend = result_value.backend;
                 let result_recorded_flags = result_value.flags;
                 let result_recorded_status_flags = result_value.status_flags;
@@ -3765,6 +4295,9 @@ fn destack_audio_event_read_replay(
                 let result_recorded = AudioEventReplayRecord {
                     kind: result_recorded_kind,
                     timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    dropped_count: result_recorded_dropped_count,
+                    source: result_recorded_source,
                     backend: result_recorded_backend,
                     flags: result_recorded_flags,
                     status_flags: result_recorded_status_flags,
@@ -3796,6 +4329,9 @@ fn destack_audio_event_read_replay(
                 Ok(value) => {
                     let value_native_kind = value.kind;
                     let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_dropped_count = value.dropped_count;
+                    let value_native_source = value.source;
                     let value_native_backend = value.backend;
                     let value_native_flags = value.flags;
                     let value_native_status_flags = value.status_flags;
@@ -3807,6 +4343,9 @@ fn destack_audio_event_read_replay(
                     let value_native = AudioEvent {
                         kind: value_native_kind,
                         timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        dropped_count: value_native_dropped_count,
+                        source: value_native_source,
                         backend: value_native_backend,
                         flags: value_native_flags,
                         status_flags: value_native_status_flags,
@@ -3816,6 +4355,148 @@ fn destack_audio_event_read_replay(
                         has_stream: value_native_has_stream,
                         stream: value_native_stream,
                     };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_event_read_batch_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<AudioEvent>,
+    handle: resource::AudioEventHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &maxevents, &timeoutns);
+
+    context.replay().run_binding_with_policy(
+        AUDIO_EVENT_READ_BATCH,
+        context.replay_payload_for(AUDIO_EVENT_READ_BATCH)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_event_read_batch(
+                    context, out, handle, maxevents, timeoutns,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_audio_event_read_batch(
+                    context, out, handle, maxevents, timeoutns,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded_timestamp_ns =
+                        result_recorded_item.timestamp_ns;
+                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
+                    let result_recorded_item_recorded_dropped_count =
+                        result_recorded_item.dropped_count;
+                    let result_recorded_item_recorded_source = result_recorded_item.source;
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
+                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded_status_flags =
+                        result_recorded_item.status_flags;
+                    let result_recorded_item_recorded_xrun_count_delta =
+                        result_recorded_item.xrun_count_delta;
+                    let result_recorded_item_recorded_has_device_id =
+                        result_recorded_item.has_device_id;
+                    let result_recorded_item_recorded_device_id =
+                        unsafe { result_recorded_item.device_id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_has_stream = result_recorded_item.has_stream;
+                    let result_recorded_item_recorded_stream = result_recorded_item.stream;
+                    let result_recorded_item_recorded = AudioEventReplayRecord {
+                        kind: result_recorded_item_recorded_kind,
+                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
+                        sequence: result_recorded_item_recorded_sequence,
+                        dropped_count: result_recorded_item_recorded_dropped_count,
+                        source: result_recorded_item_recorded_source,
+                        backend: result_recorded_item_recorded_backend,
+                        flags: result_recorded_item_recorded_flags,
+                        status_flags: result_recorded_item_recorded_status_flags,
+                        xrun_count_delta: result_recorded_item_recorded_xrun_count_delta,
+                        has_device_id: result_recorded_item_recorded_has_device_id,
+                        device_id: result_recorded_item_recorded_device_id,
+                        has_stream: result_recorded_item_recorded_has_stream,
+                        stream: result_recorded_item_recorded_stream,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = AudioEventReadBatchReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioEventReadBatchReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_kind = value_native_item.kind;
+                        let value_native_item_native_timestamp_ns = value_native_item.timestamp_ns;
+                        let value_native_item_native_sequence = value_native_item.sequence;
+                        let value_native_item_native_dropped_count =
+                            value_native_item.dropped_count;
+                        let value_native_item_native_source = value_native_item.source;
+                        let value_native_item_native_backend = value_native_item.backend;
+                        let value_native_item_native_flags = value_native_item.flags;
+                        let value_native_item_native_status_flags = value_native_item.status_flags;
+                        let value_native_item_native_xrun_count_delta =
+                            value_native_item.xrun_count_delta;
+                        let value_native_item_native_has_device_id =
+                            value_native_item.has_device_id;
+                        let value_native_item_native_device_id =
+                            context.store_string(&value_native_item.device_id);
+                        let value_native_item_native_has_stream = value_native_item.has_stream;
+                        let value_native_item_native_stream = value_native_item.stream;
+                        let value_native_item_native = AudioEvent {
+                            kind: value_native_item_native_kind,
+                            timestamp_ns: value_native_item_native_timestamp_ns,
+                            sequence: value_native_item_native_sequence,
+                            dropped_count: value_native_item_native_dropped_count,
+                            source: value_native_item_native_source,
+                            backend: value_native_item_native_backend,
+                            flags: value_native_item_native_flags,
+                            status_flags: value_native_item_native_status_flags,
+                            xrun_count_delta: value_native_item_native_xrun_count_delta,
+                            has_device_id: value_native_item_native_has_device_id,
+                            device_id: value_native_item_native_device_id,
+                            has_stream: value_native_item_native_has_stream,
+                            stream: value_native_item_native_stream,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -3857,6 +4538,9 @@ fn destack_audio_event_try_read_replay(
                 };
                 let result_recorded_kind = result_value.kind;
                 let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_dropped_count = result_value.dropped_count;
+                let result_recorded_source = result_value.source;
                 let result_recorded_backend = result_value.backend;
                 let result_recorded_flags = result_value.flags;
                 let result_recorded_status_flags = result_value.status_flags;
@@ -3869,6 +4553,9 @@ fn destack_audio_event_try_read_replay(
                 let result_recorded = AudioEventReplayRecord {
                     kind: result_recorded_kind,
                     timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    dropped_count: result_recorded_dropped_count,
+                    source: result_recorded_source,
                     backend: result_recorded_backend,
                     flags: result_recorded_flags,
                     status_flags: result_recorded_status_flags,
@@ -3900,6 +4587,9 @@ fn destack_audio_event_try_read_replay(
                 Ok(value) => {
                     let value_native_kind = value.kind;
                     let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_dropped_count = value.dropped_count;
+                    let value_native_source = value.source;
                     let value_native_backend = value.backend;
                     let value_native_flags = value.flags;
                     let value_native_status_flags = value.status_flags;
@@ -3911,6 +4601,9 @@ fn destack_audio_event_try_read_replay(
                     let value_native = AudioEvent {
                         kind: value_native_kind,
                         timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        dropped_count: value_native_dropped_count,
+                        source: value_native_source,
                         backend: value_native_backend,
                         flags: value_native_flags,
                         status_flags: value_native_status_flags,
@@ -3920,6 +4613,145 @@ fn destack_audio_event_try_read_replay(
                         has_stream: value_native_has_stream,
                         stream: value_native_stream,
                     };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_event_try_read_batch_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<AudioEvent>,
+    handle: resource::AudioEventHandle,
+    maxevents: u32,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &maxevents);
+
+    context.replay().run_binding_with_policy(
+        AUDIO_EVENT_TRY_READ_BATCH,
+        context.replay_payload_for(AUDIO_EVENT_TRY_READ_BATCH)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_event_try_read_batch(context, out, handle, maxevents)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_audio_event_try_read_batch(
+                    context, out, handle, maxevents,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded_timestamp_ns =
+                        result_recorded_item.timestamp_ns;
+                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
+                    let result_recorded_item_recorded_dropped_count =
+                        result_recorded_item.dropped_count;
+                    let result_recorded_item_recorded_source = result_recorded_item.source;
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
+                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded_status_flags =
+                        result_recorded_item.status_flags;
+                    let result_recorded_item_recorded_xrun_count_delta =
+                        result_recorded_item.xrun_count_delta;
+                    let result_recorded_item_recorded_has_device_id =
+                        result_recorded_item.has_device_id;
+                    let result_recorded_item_recorded_device_id =
+                        unsafe { result_recorded_item.device_id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_has_stream = result_recorded_item.has_stream;
+                    let result_recorded_item_recorded_stream = result_recorded_item.stream;
+                    let result_recorded_item_recorded = AudioEventReplayRecord {
+                        kind: result_recorded_item_recorded_kind,
+                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
+                        sequence: result_recorded_item_recorded_sequence,
+                        dropped_count: result_recorded_item_recorded_dropped_count,
+                        source: result_recorded_item_recorded_source,
+                        backend: result_recorded_item_recorded_backend,
+                        flags: result_recorded_item_recorded_flags,
+                        status_flags: result_recorded_item_recorded_status_flags,
+                        xrun_count_delta: result_recorded_item_recorded_xrun_count_delta,
+                        has_device_id: result_recorded_item_recorded_has_device_id,
+                        device_id: result_recorded_item_recorded_device_id,
+                        has_stream: result_recorded_item_recorded_has_stream,
+                        stream: result_recorded_item_recorded_stream,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = AudioEventTryReadBatchReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioEventTryReadBatchReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_kind = value_native_item.kind;
+                        let value_native_item_native_timestamp_ns = value_native_item.timestamp_ns;
+                        let value_native_item_native_sequence = value_native_item.sequence;
+                        let value_native_item_native_dropped_count =
+                            value_native_item.dropped_count;
+                        let value_native_item_native_source = value_native_item.source;
+                        let value_native_item_native_backend = value_native_item.backend;
+                        let value_native_item_native_flags = value_native_item.flags;
+                        let value_native_item_native_status_flags = value_native_item.status_flags;
+                        let value_native_item_native_xrun_count_delta =
+                            value_native_item.xrun_count_delta;
+                        let value_native_item_native_has_device_id =
+                            value_native_item.has_device_id;
+                        let value_native_item_native_device_id =
+                            context.store_string(&value_native_item.device_id);
+                        let value_native_item_native_has_stream = value_native_item.has_stream;
+                        let value_native_item_native_stream = value_native_item.stream;
+                        let value_native_item_native = AudioEvent {
+                            kind: value_native_item_native_kind,
+                            timestamp_ns: value_native_item_native_timestamp_ns,
+                            sequence: value_native_item_native_sequence,
+                            dropped_count: value_native_item_native_dropped_count,
+                            source: value_native_item_native_source,
+                            backend: value_native_item_native_backend,
+                            flags: value_native_item_native_flags,
+                            status_flags: value_native_item_native_status_flags,
+                            xrun_count_delta: value_native_item_native_xrun_count_delta,
+                            has_device_id: value_native_item_native_has_device_id,
+                            device_id: value_native_item_native_device_id,
+                            has_stream: value_native_item_native_has_stream,
+                            stream: value_native_item_native_stream,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -4111,6 +4943,166 @@ fn destack_audio_stream_close_replay(
 }
 
 #[inline]
+fn destack_audio_stream_descriptor_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut AudioStreamDescriptor,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        AUDIO_STREAM_DESCRIPTOR,
+        context.replay_payload_for(AUDIO_STREAM_DESCRIPTOR)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_stream_descriptor(context, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_audio_stream_descriptor(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_backend = result_value.backend;
+                let result_recorded_backend_id =
+                    unsafe { result_value.backend_id.as_str()? }.to_string();
+                let result_recorded_device_id =
+                    unsafe { result_value.device_id.as_str()? }.to_string();
+                let result_recorded_sample_rate = result_value.sample_rate;
+                let result_recorded_channels = result_value.channels;
+                let result_recorded_channel_layout = result_value.channel_layout;
+                let result_recorded_channel_mask = result_value.channel_mask;
+                let result_recorded_format = result_value.format;
+                let result_recorded_period_frames = result_value.period_frames;
+                let result_recorded_transfer_mode = result_value.transfer_mode;
+                let result_recorded_share_mode = result_value.share_mode;
+                let result_recorded_requested_flags = result_value.requested_flags;
+                let result_recorded_requested_requirements = result_value.requested_requirements;
+                let result_recorded_effective_flags = result_value.effective_flags;
+                let result_recorded_effective_requirements = result_value.effective_requirements;
+                let result_recorded_period_jitter_ns = result_value.period_jitter_ns;
+                let result_recorded_non_interleaved = result_value.non_interleaved;
+                let result_recorded_supports_write_at = result_value.supports_write_at;
+                let result_recorded_supports_pause = result_value.supports_pause;
+                let result_recorded_supports_non_interleaved =
+                    result_value.supports_non_interleaved;
+                let result_recorded_supports_volume = result_value.supports_volume;
+                let result_recorded_supports_mute = result_value.supports_mute;
+                let result_recorded_supports_hardware_timestamps =
+                    result_value.supports_hardware_timestamps;
+                let result_recorded = AudioStreamDescriptorReplayRecord {
+                    backend: result_recorded_backend,
+                    backend_id: result_recorded_backend_id,
+                    device_id: result_recorded_device_id,
+                    sample_rate: result_recorded_sample_rate,
+                    channels: result_recorded_channels,
+                    channel_layout: result_recorded_channel_layout,
+                    channel_mask: result_recorded_channel_mask,
+                    format: result_recorded_format,
+                    period_frames: result_recorded_period_frames,
+                    transfer_mode: result_recorded_transfer_mode,
+                    share_mode: result_recorded_share_mode,
+                    requested_flags: result_recorded_requested_flags,
+                    requested_requirements: result_recorded_requested_requirements,
+                    effective_flags: result_recorded_effective_flags,
+                    effective_requirements: result_recorded_effective_requirements,
+                    period_jitter_ns: result_recorded_period_jitter_ns,
+                    non_interleaved: result_recorded_non_interleaved,
+                    supports_write_at: result_recorded_supports_write_at,
+                    supports_pause: result_recorded_supports_pause,
+                    supports_non_interleaved: result_recorded_supports_non_interleaved,
+                    supports_volume: result_recorded_supports_volume,
+                    supports_mute: result_recorded_supports_mute,
+                    supports_hardware_timestamps: result_recorded_supports_hardware_timestamps,
+                };
+                let payload = AudioStreamDescriptorReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamDescriptorReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_backend = value.backend;
+                    let value_native_backend_id = context.store_string(&value.backend_id);
+                    let value_native_device_id = context.store_string(&value.device_id);
+                    let value_native_sample_rate = value.sample_rate;
+                    let value_native_channels = value.channels;
+                    let value_native_channel_layout = value.channel_layout;
+                    let value_native_channel_mask = value.channel_mask;
+                    let value_native_format = value.format;
+                    let value_native_period_frames = value.period_frames;
+                    let value_native_transfer_mode = value.transfer_mode;
+                    let value_native_share_mode = value.share_mode;
+                    let value_native_requested_flags = value.requested_flags;
+                    let value_native_requested_requirements = value.requested_requirements;
+                    let value_native_effective_flags = value.effective_flags;
+                    let value_native_effective_requirements = value.effective_requirements;
+                    let value_native_period_jitter_ns = value.period_jitter_ns;
+                    let value_native_non_interleaved = value.non_interleaved;
+                    let value_native_supports_write_at = value.supports_write_at;
+                    let value_native_supports_pause = value.supports_pause;
+                    let value_native_supports_non_interleaved = value.supports_non_interleaved;
+                    let value_native_supports_volume = value.supports_volume;
+                    let value_native_supports_mute = value.supports_mute;
+                    let value_native_supports_hardware_timestamps =
+                        value.supports_hardware_timestamps;
+                    let value_native = AudioStreamDescriptor {
+                        backend: value_native_backend,
+                        backend_id: value_native_backend_id,
+                        device_id: value_native_device_id,
+                        sample_rate: value_native_sample_rate,
+                        channels: value_native_channels,
+                        channel_layout: value_native_channel_layout,
+                        channel_mask: value_native_channel_mask,
+                        format: value_native_format,
+                        period_frames: value_native_period_frames,
+                        transfer_mode: value_native_transfer_mode,
+                        share_mode: value_native_share_mode,
+                        requested_flags: value_native_requested_flags,
+                        requested_requirements: value_native_requested_requirements,
+                        effective_flags: value_native_effective_flags,
+                        effective_requirements: value_native_effective_requirements,
+                        period_jitter_ns: value_native_period_jitter_ns,
+                        non_interleaved: value_native_non_interleaved,
+                        supports_write_at: value_native_supports_write_at,
+                        supports_pause: value_native_supports_pause,
+                        supports_non_interleaved: value_native_supports_non_interleaved,
+                        supports_volume: value_native_supports_volume,
+                        supports_mute: value_native_supports_mute,
+                        supports_hardware_timestamps: value_native_supports_hardware_timestamps,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_audio_stream_drain_replay(
     context: &BindingCallContext,
     world: RuntimeWorld,
@@ -4214,18 +5206,21 @@ fn destack_audio_stream_open_replay(
     out: *mut resource::AudioStreamHandle,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfig,
+    options: AudioStreamOpenOptions,
 ) -> RuntimeResult<()> {
-    let _ = (&device, &config);
+    let _ = (&device, &config, &options);
 
     context.replay().run_binding_with_policy(
         AUDIO_STREAM_OPEN,
         context.replay_payload_for(AUDIO_STREAM_OPEN)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_open(context, out, device, config)
+                platform_native::destack_audio_stream_open(context, out, device, config, options)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_open(context, out, device, config)
+                platform_simulation_native::destack_audio_stream_open(
+                    context, out, device, config, options,
+                )
             },
         },
         |result| {
@@ -4607,150 +5602,6 @@ fn destack_audio_stream_set_volume_replay(
 }
 
 #[inline]
-fn destack_audio_stream_snapshot_replay(
-    context: &BindingCallContext,
-    world: RuntimeWorld,
-    out: *mut AudioStreamSnapshot,
-    handle: resource::AudioStreamHandle,
-) -> RuntimeResult<()> {
-    let _ = &handle;
-
-    context.replay().run_binding_with_policy(
-        AUDIO_STREAM_SNAPSHOT,
-        context.replay_payload_for(AUDIO_STREAM_SNAPSHOT)?,
-        || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_audio_stream_snapshot(context, out, handle)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_audio_stream_snapshot(context, out, handle)
-            },
-        },
-        |result| {
-            if let Ok(()) = result {
-                let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
-                    *out
-                };
-                let result_recorded_backend = result_value.backend;
-                let result_recorded_backend_id =
-                    unsafe { result_value.backend_id.as_str()? }.to_string();
-                let result_recorded_device_id =
-                    unsafe { result_value.device_id.as_str()? }.to_string();
-                let result_recorded_sample_rate = result_value.sample_rate;
-                let result_recorded_channels = result_value.channels;
-                let result_recorded_channel_layout = result_value.channel_layout;
-                let result_recorded_channel_mask = result_value.channel_mask;
-                let result_recorded_format = result_value.format;
-                let result_recorded_period_frames = result_value.period_frames;
-                let result_recorded_transfer_mode = result_value.transfer_mode;
-                let result_recorded_share_mode = result_value.share_mode;
-                let result_recorded_period_jitter_ns = result_value.period_jitter_ns;
-                let result_recorded_non_interleaved = result_value.non_interleaved;
-                let result_recorded_supports_write_at = result_value.supports_write_at;
-                let result_recorded_supports_pause = result_value.supports_pause;
-                let result_recorded_supports_non_interleaved =
-                    result_value.supports_non_interleaved;
-                let result_recorded_supports_volume = result_value.supports_volume;
-                let result_recorded_supports_mute = result_value.supports_mute;
-                let result_recorded_supports_hardware_timestamps =
-                    result_value.supports_hardware_timestamps;
-                let result_recorded = AudioStreamSnapshotReplayRecord {
-                    backend: result_recorded_backend,
-                    backend_id: result_recorded_backend_id,
-                    device_id: result_recorded_device_id,
-                    sample_rate: result_recorded_sample_rate,
-                    channels: result_recorded_channels,
-                    channel_layout: result_recorded_channel_layout,
-                    channel_mask: result_recorded_channel_mask,
-                    format: result_recorded_format,
-                    period_frames: result_recorded_period_frames,
-                    transfer_mode: result_recorded_transfer_mode,
-                    share_mode: result_recorded_share_mode,
-                    period_jitter_ns: result_recorded_period_jitter_ns,
-                    non_interleaved: result_recorded_non_interleaved,
-                    supports_write_at: result_recorded_supports_write_at,
-                    supports_pause: result_recorded_supports_pause,
-                    supports_non_interleaved: result_recorded_supports_non_interleaved,
-                    supports_volume: result_recorded_supports_volume,
-                    supports_mute: result_recorded_supports_mute,
-                    supports_hardware_timestamps: result_recorded_supports_hardware_timestamps,
-                };
-                let payload = AudioStreamSnapshotReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    AudioStreamSnapshotReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |payload| {
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let value_native_backend = value.backend;
-                    let value_native_backend_id = context.store_string(&value.backend_id);
-                    let value_native_device_id = context.store_string(&value.device_id);
-                    let value_native_sample_rate = value.sample_rate;
-                    let value_native_channels = value.channels;
-                    let value_native_channel_layout = value.channel_layout;
-                    let value_native_channel_mask = value.channel_mask;
-                    let value_native_format = value.format;
-                    let value_native_period_frames = value.period_frames;
-                    let value_native_transfer_mode = value.transfer_mode;
-                    let value_native_share_mode = value.share_mode;
-                    let value_native_period_jitter_ns = value.period_jitter_ns;
-                    let value_native_non_interleaved = value.non_interleaved;
-                    let value_native_supports_write_at = value.supports_write_at;
-                    let value_native_supports_pause = value.supports_pause;
-                    let value_native_supports_non_interleaved = value.supports_non_interleaved;
-                    let value_native_supports_volume = value.supports_volume;
-                    let value_native_supports_mute = value.supports_mute;
-                    let value_native_supports_hardware_timestamps =
-                        value.supports_hardware_timestamps;
-                    let value_native = AudioStreamSnapshot {
-                        backend: value_native_backend,
-                        backend_id: value_native_backend_id,
-                        device_id: value_native_device_id,
-                        sample_rate: value_native_sample_rate,
-                        channels: value_native_channels,
-                        channel_layout: value_native_channel_layout,
-                        channel_mask: value_native_channel_mask,
-                        format: value_native_format,
-                        period_frames: value_native_period_frames,
-                        transfer_mode: value_native_transfer_mode,
-                        share_mode: value_native_share_mode,
-                        period_jitter_ns: value_native_period_jitter_ns,
-                        non_interleaved: value_native_non_interleaved,
-                        supports_write_at: value_native_supports_write_at,
-                        supports_pause: value_native_supports_pause,
-                        supports_non_interleaved: value_native_supports_non_interleaved,
-                        supports_volume: value_native_supports_volume,
-                        supports_mute: value_native_supports_mute,
-                        supports_hardware_timestamps: value_native_supports_hardware_timestamps,
-                    };
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
-                    Ok(())
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    )
-}
-
-#[inline]
 fn destack_audio_stream_start_replay(
     context: &BindingCallContext,
     world: RuntimeWorld,
@@ -4966,6 +5817,211 @@ fn destack_audio_stream_stop_replay(
 }
 
 #[inline]
+fn destack_audio_stream_support_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut AudioStreamSupport,
+    device: resource::AudioDeviceHandle,
+    config: AudioStreamConfig,
+    options: AudioStreamOpenOptions,
+) -> RuntimeResult<()> {
+    let _ = (&device, &config, &options);
+
+    context.replay().run_binding_with_policy(
+        AUDIO_STREAM_SUPPORT,
+        context.replay_payload_for(AUDIO_STREAM_SUPPORT)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_stream_support(context, out, device, config, options)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_audio_stream_support(
+                    context, out, device, config, options,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_supported = result_value.supported;
+                let result_recorded_descriptor_backend = result_value.descriptor.backend;
+                let result_recorded_descriptor_backend_id =
+                    unsafe { result_value.descriptor.backend_id.as_str()? }.to_string();
+                let result_recorded_descriptor_device_id =
+                    unsafe { result_value.descriptor.device_id.as_str()? }.to_string();
+                let result_recorded_descriptor_sample_rate = result_value.descriptor.sample_rate;
+                let result_recorded_descriptor_channels = result_value.descriptor.channels;
+                let result_recorded_descriptor_channel_layout =
+                    result_value.descriptor.channel_layout;
+                let result_recorded_descriptor_channel_mask = result_value.descriptor.channel_mask;
+                let result_recorded_descriptor_format = result_value.descriptor.format;
+                let result_recorded_descriptor_period_frames =
+                    result_value.descriptor.period_frames;
+                let result_recorded_descriptor_transfer_mode =
+                    result_value.descriptor.transfer_mode;
+                let result_recorded_descriptor_share_mode = result_value.descriptor.share_mode;
+                let result_recorded_descriptor_requested_flags =
+                    result_value.descriptor.requested_flags;
+                let result_recorded_descriptor_requested_requirements =
+                    result_value.descriptor.requested_requirements;
+                let result_recorded_descriptor_effective_flags =
+                    result_value.descriptor.effective_flags;
+                let result_recorded_descriptor_effective_requirements =
+                    result_value.descriptor.effective_requirements;
+                let result_recorded_descriptor_period_jitter_ns =
+                    result_value.descriptor.period_jitter_ns;
+                let result_recorded_descriptor_non_interleaved =
+                    result_value.descriptor.non_interleaved;
+                let result_recorded_descriptor_supports_write_at =
+                    result_value.descriptor.supports_write_at;
+                let result_recorded_descriptor_supports_pause =
+                    result_value.descriptor.supports_pause;
+                let result_recorded_descriptor_supports_non_interleaved =
+                    result_value.descriptor.supports_non_interleaved;
+                let result_recorded_descriptor_supports_volume =
+                    result_value.descriptor.supports_volume;
+                let result_recorded_descriptor_supports_mute =
+                    result_value.descriptor.supports_mute;
+                let result_recorded_descriptor_supports_hardware_timestamps =
+                    result_value.descriptor.supports_hardware_timestamps;
+                let result_recorded_descriptor = AudioStreamDescriptorReplayRecord {
+                    backend: result_recorded_descriptor_backend,
+                    backend_id: result_recorded_descriptor_backend_id,
+                    device_id: result_recorded_descriptor_device_id,
+                    sample_rate: result_recorded_descriptor_sample_rate,
+                    channels: result_recorded_descriptor_channels,
+                    channel_layout: result_recorded_descriptor_channel_layout,
+                    channel_mask: result_recorded_descriptor_channel_mask,
+                    format: result_recorded_descriptor_format,
+                    period_frames: result_recorded_descriptor_period_frames,
+                    transfer_mode: result_recorded_descriptor_transfer_mode,
+                    share_mode: result_recorded_descriptor_share_mode,
+                    requested_flags: result_recorded_descriptor_requested_flags,
+                    requested_requirements: result_recorded_descriptor_requested_requirements,
+                    effective_flags: result_recorded_descriptor_effective_flags,
+                    effective_requirements: result_recorded_descriptor_effective_requirements,
+                    period_jitter_ns: result_recorded_descriptor_period_jitter_ns,
+                    non_interleaved: result_recorded_descriptor_non_interleaved,
+                    supports_write_at: result_recorded_descriptor_supports_write_at,
+                    supports_pause: result_recorded_descriptor_supports_pause,
+                    supports_non_interleaved: result_recorded_descriptor_supports_non_interleaved,
+                    supports_volume: result_recorded_descriptor_supports_volume,
+                    supports_mute: result_recorded_descriptor_supports_mute,
+                    supports_hardware_timestamps:
+                        result_recorded_descriptor_supports_hardware_timestamps,
+                };
+                let result_recorded_satisfied_requirements = result_value.satisfied_requirements;
+                let result_recorded_unsatisfied_requirements =
+                    result_value.unsatisfied_requirements;
+                let result_recorded = AudioStreamSupportReplayRecord {
+                    supported: result_recorded_supported,
+                    descriptor: result_recorded_descriptor,
+                    satisfied_requirements: result_recorded_satisfied_requirements,
+                    unsatisfied_requirements: result_recorded_unsatisfied_requirements,
+                };
+                let payload = AudioStreamSupportReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamSupportReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_supported = value.supported;
+                    let value_native_descriptor_backend = value.descriptor.backend;
+                    let value_native_descriptor_backend_id =
+                        context.store_string(&value.descriptor.backend_id);
+                    let value_native_descriptor_device_id =
+                        context.store_string(&value.descriptor.device_id);
+                    let value_native_descriptor_sample_rate = value.descriptor.sample_rate;
+                    let value_native_descriptor_channels = value.descriptor.channels;
+                    let value_native_descriptor_channel_layout = value.descriptor.channel_layout;
+                    let value_native_descriptor_channel_mask = value.descriptor.channel_mask;
+                    let value_native_descriptor_format = value.descriptor.format;
+                    let value_native_descriptor_period_frames = value.descriptor.period_frames;
+                    let value_native_descriptor_transfer_mode = value.descriptor.transfer_mode;
+                    let value_native_descriptor_share_mode = value.descriptor.share_mode;
+                    let value_native_descriptor_requested_flags = value.descriptor.requested_flags;
+                    let value_native_descriptor_requested_requirements =
+                        value.descriptor.requested_requirements;
+                    let value_native_descriptor_effective_flags = value.descriptor.effective_flags;
+                    let value_native_descriptor_effective_requirements =
+                        value.descriptor.effective_requirements;
+                    let value_native_descriptor_period_jitter_ns =
+                        value.descriptor.period_jitter_ns;
+                    let value_native_descriptor_non_interleaved = value.descriptor.non_interleaved;
+                    let value_native_descriptor_supports_write_at =
+                        value.descriptor.supports_write_at;
+                    let value_native_descriptor_supports_pause = value.descriptor.supports_pause;
+                    let value_native_descriptor_supports_non_interleaved =
+                        value.descriptor.supports_non_interleaved;
+                    let value_native_descriptor_supports_volume = value.descriptor.supports_volume;
+                    let value_native_descriptor_supports_mute = value.descriptor.supports_mute;
+                    let value_native_descriptor_supports_hardware_timestamps =
+                        value.descriptor.supports_hardware_timestamps;
+                    let value_native_descriptor = AudioStreamDescriptor {
+                        backend: value_native_descriptor_backend,
+                        backend_id: value_native_descriptor_backend_id,
+                        device_id: value_native_descriptor_device_id,
+                        sample_rate: value_native_descriptor_sample_rate,
+                        channels: value_native_descriptor_channels,
+                        channel_layout: value_native_descriptor_channel_layout,
+                        channel_mask: value_native_descriptor_channel_mask,
+                        format: value_native_descriptor_format,
+                        period_frames: value_native_descriptor_period_frames,
+                        transfer_mode: value_native_descriptor_transfer_mode,
+                        share_mode: value_native_descriptor_share_mode,
+                        requested_flags: value_native_descriptor_requested_flags,
+                        requested_requirements: value_native_descriptor_requested_requirements,
+                        effective_flags: value_native_descriptor_effective_flags,
+                        effective_requirements: value_native_descriptor_effective_requirements,
+                        period_jitter_ns: value_native_descriptor_period_jitter_ns,
+                        non_interleaved: value_native_descriptor_non_interleaved,
+                        supports_write_at: value_native_descriptor_supports_write_at,
+                        supports_pause: value_native_descriptor_supports_pause,
+                        supports_non_interleaved: value_native_descriptor_supports_non_interleaved,
+                        supports_volume: value_native_descriptor_supports_volume,
+                        supports_mute: value_native_descriptor_supports_mute,
+                        supports_hardware_timestamps:
+                            value_native_descriptor_supports_hardware_timestamps,
+                    };
+                    let value_native_satisfied_requirements = value.satisfied_requirements;
+                    let value_native_unsatisfied_requirements = value.unsatisfied_requirements;
+                    let value_native = AudioStreamSupport {
+                        supported: value_native_supported,
+                        descriptor: value_native_descriptor,
+                        satisfied_requirements: value_native_satisfied_requirements,
+                        unsatisfied_requirements: value_native_unsatisfied_requirements,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_audio_stream_timing_replay(
     context: &BindingCallContext,
     world: RuntimeWorld,
@@ -4999,7 +6055,9 @@ fn destack_audio_stream_timing_replay(
                 let result_recorded_input_adc_time_ns = result_value.input_adc_time_ns;
                 let result_recorded_has_output_dac_time = result_value.has_output_dac_time;
                 let result_recorded_output_dac_time_ns = result_value.output_dac_time_ns;
+                let result_recorded_has_callback_time_ns = result_value.has_callback_time_ns;
                 let result_recorded_callback_time_ns = result_value.callback_time_ns;
+                let result_recorded_has_device_clock_ns = result_value.has_device_clock_ns;
                 let result_recorded_device_clock_ns = result_value.device_clock_ns;
                 let result_recorded_monotonic_clock_ns = result_value.monotonic_clock_ns;
                 let result_recorded_drift_ppm = result_value.drift_ppm;
@@ -5011,7 +6069,9 @@ fn destack_audio_stream_timing_replay(
                     input_adc_time_ns: result_recorded_input_adc_time_ns,
                     has_output_dac_time: result_recorded_has_output_dac_time,
                     output_dac_time_ns: result_recorded_output_dac_time_ns,
+                    has_callback_time_ns: result_recorded_has_callback_time_ns,
                     callback_time_ns: result_recorded_callback_time_ns,
+                    has_device_clock_ns: result_recorded_has_device_clock_ns,
                     device_clock_ns: result_recorded_device_clock_ns,
                     monotonic_clock_ns: result_recorded_monotonic_clock_ns,
                     drift_ppm: result_recorded_drift_ppm,
@@ -5043,7 +6103,9 @@ fn destack_audio_stream_timing_replay(
                     let value_native_input_adc_time_ns = value.input_adc_time_ns;
                     let value_native_has_output_dac_time = value.has_output_dac_time;
                     let value_native_output_dac_time_ns = value.output_dac_time_ns;
+                    let value_native_has_callback_time_ns = value.has_callback_time_ns;
                     let value_native_callback_time_ns = value.callback_time_ns;
+                    let value_native_has_device_clock_ns = value.has_device_clock_ns;
                     let value_native_device_clock_ns = value.device_clock_ns;
                     let value_native_monotonic_clock_ns = value.monotonic_clock_ns;
                     let value_native_drift_ppm = value.drift_ppm;
@@ -5055,7 +6117,9 @@ fn destack_audio_stream_timing_replay(
                         input_adc_time_ns: value_native_input_adc_time_ns,
                         has_output_dac_time: value_native_has_output_dac_time,
                         output_dac_time_ns: value_native_output_dac_time_ns,
+                        has_callback_time_ns: value_native_has_callback_time_ns,
                         callback_time_ns: value_native_callback_time_ns,
+                        has_device_clock_ns: value_native_has_device_clock_ns,
                         device_clock_ns: value_native_device_clock_ns,
                         monotonic_clock_ns: value_native_monotonic_clock_ns,
                         drift_ppm: value_native_drift_ppm,
@@ -5801,6 +6865,24 @@ pub unsafe extern "C" fn destack_audio_event_read(
     })
 }
 
+#[unsafe(export_name = "destack.audio.event.readBatch")]
+pub unsafe extern "C" fn destack_audio_event_read_batch(
+    out: *mut NativeSlice<AudioEvent>,
+    handle: resource::AudioEventHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &maxevents, &timeoutns);
+
+        let world = context.check_and_resolve_world(AUDIO_EVENT_READ_BATCH)?;
+        destack_audio_event_read_batch_replay(context, world, out, handle, maxevents, timeoutns)
+    })
+}
+
 #[unsafe(export_name = "destack.audio.event.tryRead")]
 pub unsafe extern "C" fn destack_audio_event_try_read(
     out: *mut AudioEvent,
@@ -5814,6 +6896,23 @@ pub unsafe extern "C" fn destack_audio_event_try_read(
 
         let world = context.check_and_resolve_world(AUDIO_EVENT_TRY_READ)?;
         destack_audio_event_try_read_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.event.tryReadBatch")]
+pub unsafe extern "C" fn destack_audio_event_try_read_batch(
+    out: *mut NativeSlice<AudioEvent>,
+    handle: resource::AudioEventHandle,
+    maxevents: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &maxevents);
+
+        let world = context.check_and_resolve_world(AUDIO_EVENT_TRY_READ_BATCH)?;
+        destack_audio_event_try_read_batch_replay(context, world, out, handle, maxevents)
     })
 }
 
@@ -5857,6 +6956,22 @@ pub unsafe extern "C" fn destack_audio_stream_close(
     })
 }
 
+#[unsafe(export_name = "destack.audio.stream.descriptor")]
+pub unsafe extern "C" fn destack_audio_stream_descriptor(
+    out: *mut AudioStreamDescriptor,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let world = context.check_and_resolve_world(AUDIO_STREAM_DESCRIPTOR)?;
+        destack_audio_stream_descriptor_replay(context, world, out, handle)
+    })
+}
+
 #[unsafe(export_name = "destack.audio.stream.drain")]
 pub unsafe extern "C" fn destack_audio_stream_drain(
     handle: resource::AudioStreamHandle,
@@ -5887,15 +7002,16 @@ pub unsafe extern "C" fn destack_audio_stream_open(
     out: *mut resource::AudioStreamHandle,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfig,
+    options: AudioStreamOpenOptions,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &device, &config);
+        let _ = (&out, &device, &config, &options);
 
         let world = context.check_and_resolve_world(AUDIO_STREAM_OPEN)?;
-        destack_audio_stream_open_replay(context, world, out, device, config)
+        destack_audio_stream_open_replay(context, world, out, device, config, options)
     })
 }
 
@@ -5985,22 +7101,6 @@ pub unsafe extern "C" fn destack_audio_stream_set_volume(
     })
 }
 
-#[unsafe(export_name = "destack.audio.stream.snapshot")]
-pub unsafe extern "C" fn destack_audio_stream_snapshot(
-    out: *mut AudioStreamSnapshot,
-    handle: resource::AudioStreamHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle);
-
-        let world = context.check_and_resolve_world(AUDIO_STREAM_SNAPSHOT)?;
-        destack_audio_stream_snapshot_replay(context, world, out, handle)
-    })
-}
-
 #[unsafe(export_name = "destack.audio.stream.start")]
 pub unsafe extern "C" fn destack_audio_stream_start(
     handle: resource::AudioStreamHandle,
@@ -6038,6 +7138,24 @@ pub unsafe extern "C" fn destack_audio_stream_stop(
 
         let world = context.check_and_resolve_world(AUDIO_STREAM_STOP)?;
         destack_audio_stream_stop_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.stream.support")]
+pub unsafe extern "C" fn destack_audio_stream_support(
+    out: *mut AudioStreamSupport,
+    device: resource::AudioDeviceHandle,
+    config: AudioStreamConfig,
+    options: AudioStreamOpenOptions,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &device, &config, &options);
+
+        let world = context.check_and_resolve_world(AUDIO_STREAM_SUPPORT)?;
+        destack_audio_stream_support_replay(context, world, out, device, config, options)
     })
 }
 
@@ -6237,10 +7355,10 @@ fn destack_audio_backend_list_vm_replay(
                         let slots = context
                             .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 5 {
+                        if slots.len() != 11 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                                 "result_recorded_item",
-                                "expected 5 fields",
+                                "expected 11 fields",
                             ))
                             .boxed());
                         }
@@ -6282,12 +7400,77 @@ fn destack_audio_backend_list_vm_replay(
                         let result_recorded_item_capability_flags = AudioBackendCapabilityFlags(
                             result_recorded_item_capability_flags_inner,
                         );
+                        let result_recorded_item_supported_device_list_flags_inner = decode_uint32(
+                            slots[5],
+                            "result_recorded_item_supported_device_list_flags_inner",
+                            "supportedDeviceListFlags",
+                        )?;
+                        let result_recorded_item_supported_device_list_flags = AudioDeviceListFlags(
+                            result_recorded_item_supported_device_list_flags_inner,
+                        );
+                        let result_recorded_item_supported_device_open_flags_inner = decode_uint32(
+                            slots[6],
+                            "result_recorded_item_supported_device_open_flags_inner",
+                            "supportedDeviceOpenFlags",
+                        )?;
+                        let result_recorded_item_supported_device_open_flags = AudioDeviceOpenFlags(
+                            result_recorded_item_supported_device_open_flags_inner,
+                        );
+                        let result_recorded_item_supported_stream_flags_inner = decode_uint32(
+                            slots[7],
+                            "result_recorded_item_supported_stream_flags_inner",
+                            "supportedStreamFlags",
+                        )?;
+                        let result_recorded_item_supported_stream_flags = AudioSupportedStreamFlags(
+                            result_recorded_item_supported_stream_flags_inner,
+                        );
+                        let result_recorded_item_supported_stream_requirement_flags_inner =
+                            decode_uint32(
+                                slots[8],
+                                "result_recorded_item_supported_stream_requirement_flags_inner",
+                                "supportedStreamRequirementFlags",
+                            )?;
+                        let result_recorded_item_supported_stream_requirement_flags =
+                            AudioSupportedStreamRequirementFlags(
+                                result_recorded_item_supported_stream_requirement_flags_inner,
+                            );
+                        let result_recorded_item_supported_event_subscription_flags_inner =
+                            decode_uint32(
+                                slots[9],
+                                "result_recorded_item_supported_event_subscription_flags_inner",
+                                "supportedEventSubscriptionFlags",
+                            )?;
+                        let result_recorded_item_supported_event_subscription_flags =
+                            AudioSupportedEventSubscriptionFlags(
+                                result_recorded_item_supported_event_subscription_flags_inner,
+                            );
+                        let result_recorded_item_supported_stream_clock_domains_inner =
+                            decode_uint32(
+                                slots[10],
+                                "result_recorded_item_supported_stream_clock_domains_inner",
+                                "supportedStreamClockDomains",
+                            )?;
+                        let result_recorded_item_supported_stream_clock_domains =
+                            AudioSupportedStreamClockDomains(
+                                result_recorded_item_supported_stream_clock_domains_inner,
+                            );
                         AudioBackendDescriptorVm {
                             backend: result_recorded_item_backend,
                             name: result_recorded_item_name,
                             available: result_recorded_item_available,
                             priority: result_recorded_item_priority,
                             capability_flags: result_recorded_item_capability_flags,
+                            supported_device_list_flags:
+                                result_recorded_item_supported_device_list_flags,
+                            supported_device_open_flags:
+                                result_recorded_item_supported_device_open_flags,
+                            supported_stream_flags: result_recorded_item_supported_stream_flags,
+                            supported_stream_requirement_flags:
+                                result_recorded_item_supported_stream_requirement_flags,
+                            supported_event_subscription_flags:
+                                result_recorded_item_supported_event_subscription_flags,
+                            supported_stream_clock_domains:
+                                result_recorded_item_supported_stream_clock_domains,
                         }
                     };
                     let result_recorded_item_recorded_backend = result_recorded_item.backend;
@@ -6301,12 +7484,36 @@ fn destack_audio_backend_list_vm_replay(
                     let result_recorded_item_recorded_priority = result_recorded_item.priority;
                     let result_recorded_item_recorded_capability_flags =
                         result_recorded_item.capability_flags;
+                    let result_recorded_item_recorded_supported_device_list_flags =
+                        result_recorded_item.supported_device_list_flags;
+                    let result_recorded_item_recorded_supported_device_open_flags =
+                        result_recorded_item.supported_device_open_flags;
+                    let result_recorded_item_recorded_supported_stream_flags =
+                        result_recorded_item.supported_stream_flags;
+                    let result_recorded_item_recorded_supported_stream_requirement_flags =
+                        result_recorded_item.supported_stream_requirement_flags;
+                    let result_recorded_item_recorded_supported_event_subscription_flags =
+                        result_recorded_item.supported_event_subscription_flags;
+                    let result_recorded_item_recorded_supported_stream_clock_domains =
+                        result_recorded_item.supported_stream_clock_domains;
                     let result_recorded_item_recorded = AudioBackendDescriptorReplayRecord {
                         backend: result_recorded_item_recorded_backend,
                         name: result_recorded_item_recorded_name,
                         available: result_recorded_item_recorded_available,
                         priority: result_recorded_item_recorded_priority,
                         capability_flags: result_recorded_item_recorded_capability_flags,
+                        supported_device_list_flags:
+                            result_recorded_item_recorded_supported_device_list_flags,
+                        supported_device_open_flags:
+                            result_recorded_item_recorded_supported_device_open_flags,
+                        supported_stream_flags:
+                            result_recorded_item_recorded_supported_stream_flags,
+                        supported_stream_requirement_flags:
+                            result_recorded_item_recorded_supported_stream_requirement_flags,
+                        supported_event_subscription_flags:
+                            result_recorded_item_recorded_supported_event_subscription_flags,
+                        supported_stream_clock_domains:
+                            result_recorded_item_recorded_supported_stream_clock_domains,
                     };
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -6342,12 +7549,35 @@ fn destack_audio_backend_list_vm_replay(
                         let vm_result_item_value_available = vm_result_item.available;
                         let vm_result_item_value_priority = vm_result_item.priority;
                         let vm_result_item_value_capability_flags = vm_result_item.capability_flags;
+                        let vm_result_item_value_supported_device_list_flags =
+                            vm_result_item.supported_device_list_flags;
+                        let vm_result_item_value_supported_device_open_flags =
+                            vm_result_item.supported_device_open_flags;
+                        let vm_result_item_value_supported_stream_flags =
+                            vm_result_item.supported_stream_flags;
+                        let vm_result_item_value_supported_stream_requirement_flags =
+                            vm_result_item.supported_stream_requirement_flags;
+                        let vm_result_item_value_supported_event_subscription_flags =
+                            vm_result_item.supported_event_subscription_flags;
+                        let vm_result_item_value_supported_stream_clock_domains =
+                            vm_result_item.supported_stream_clock_domains;
                         let vm_result_item_value = AudioBackendDescriptorVm {
                             backend: vm_result_item_value_backend,
                             name: vm_result_item_value_name,
                             available: vm_result_item_value_available,
                             priority: vm_result_item_value_priority,
                             capability_flags: vm_result_item_value_capability_flags,
+                            supported_device_list_flags:
+                                vm_result_item_value_supported_device_list_flags,
+                            supported_device_open_flags:
+                                vm_result_item_value_supported_device_open_flags,
+                            supported_stream_flags: vm_result_item_value_supported_stream_flags,
+                            supported_stream_requirement_flags:
+                                vm_result_item_value_supported_stream_requirement_flags,
+                            supported_event_subscription_flags:
+                                vm_result_item_value_supported_event_subscription_flags,
+                            supported_stream_clock_domains:
+                                vm_result_item_value_supported_stream_clock_domains,
                         };
                         let vm_result_item_value_encoded = {
                             let field_0 =
@@ -6357,8 +7587,33 @@ fn destack_audio_backend_list_vm_replay(
                             let field_3 = vm::Value::uint(vm_result_item_value.priority as u64, 16);
                             let field_4 =
                                 vm::Value::uint(vm_result_item_value.capability_flags.0, 64);
+                            let field_5 = vm::Value::uint(
+                                vm_result_item_value.supported_device_list_flags.0 as u64,
+                                32,
+                            );
+                            let field_6 = vm::Value::uint(
+                                vm_result_item_value.supported_device_open_flags.0 as u64,
+                                32,
+                            );
+                            let field_7 = vm::Value::uint(
+                                vm_result_item_value.supported_stream_flags.0 as u64,
+                                32,
+                            );
+                            let field_8 = vm::Value::uint(
+                                vm_result_item_value.supported_stream_requirement_flags.0 as u64,
+                                32,
+                            );
+                            let field_9 = vm::Value::uint(
+                                vm_result_item_value.supported_event_subscription_flags.0 as u64,
+                                32,
+                            );
+                            let field_10 = vm::Value::uint(
+                                vm_result_item_value.supported_stream_clock_domains.0 as u64,
+                                32,
+                            );
                             context.allocate_aggregate(vec![
-                                field_0, field_1, field_2, field_3, field_4,
+                                field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+                                field_7, field_8, field_9, field_10,
                             ])
                         };
                         vm_result_values.push(vm_result_item_value_encoded);
@@ -6459,22 +7714,36 @@ fn destack_audio_clock_stream_vm_replay(
                 let result_value: AudioClockSnapshotVm = value.clone();
                 let result_recorded_stream_frames = result_value.stream_frames;
                 let result_recorded_clock_ns = result_value.clock_ns;
+                let result_recorded_clock_quality = result_value.clock_quality;
                 let result_recorded_has_callback_ns = result_value.has_callback_ns;
                 let result_recorded_callback_ns = result_value.callback_ns;
+                let result_recorded_callback_quality = result_value.callback_quality;
                 let result_recorded_has_input_adc_ns = result_value.has_input_adc_ns;
                 let result_recorded_input_adc_ns = result_value.input_adc_ns;
+                let result_recorded_input_adc_quality = result_value.input_adc_quality;
                 let result_recorded_has_output_dac_ns = result_value.has_output_dac_ns;
                 let result_recorded_output_dac_ns = result_value.output_dac_ns;
+                let result_recorded_output_dac_quality = result_value.output_dac_quality;
+                let result_recorded_has_device_ns = result_value.has_device_ns;
+                let result_recorded_device_ns = result_value.device_ns;
+                let result_recorded_device_quality = result_value.device_quality;
                 let result_recorded_monotonic_ns = result_value.monotonic_ns;
                 let result_recorded = AudioClockSnapshot {
                     stream_frames: result_recorded_stream_frames,
                     clock_ns: result_recorded_clock_ns,
+                    clock_quality: result_recorded_clock_quality,
                     has_callback_ns: result_recorded_has_callback_ns,
                     callback_ns: result_recorded_callback_ns,
+                    callback_quality: result_recorded_callback_quality,
                     has_input_adc_ns: result_recorded_has_input_adc_ns,
                     input_adc_ns: result_recorded_input_adc_ns,
+                    input_adc_quality: result_recorded_input_adc_quality,
                     has_output_dac_ns: result_recorded_has_output_dac_ns,
                     output_dac_ns: result_recorded_output_dac_ns,
+                    output_dac_quality: result_recorded_output_dac_quality,
+                    has_device_ns: result_recorded_has_device_ns,
+                    device_ns: result_recorded_device_ns,
+                    device_quality: result_recorded_device_quality,
                     monotonic_ns: result_recorded_monotonic_ns,
                 };
                 let payload = AudioClockStreamReplay {
@@ -6500,22 +7769,36 @@ fn destack_audio_clock_stream_vm_replay(
                 Ok(value) => {
                     let vm_result_stream_frames = value.stream_frames;
                     let vm_result_clock_ns = value.clock_ns;
+                    let vm_result_clock_quality = value.clock_quality;
                     let vm_result_has_callback_ns = value.has_callback_ns;
                     let vm_result_callback_ns = value.callback_ns;
+                    let vm_result_callback_quality = value.callback_quality;
                     let vm_result_has_input_adc_ns = value.has_input_adc_ns;
                     let vm_result_input_adc_ns = value.input_adc_ns;
+                    let vm_result_input_adc_quality = value.input_adc_quality;
                     let vm_result_has_output_dac_ns = value.has_output_dac_ns;
                     let vm_result_output_dac_ns = value.output_dac_ns;
+                    let vm_result_output_dac_quality = value.output_dac_quality;
+                    let vm_result_has_device_ns = value.has_device_ns;
+                    let vm_result_device_ns = value.device_ns;
+                    let vm_result_device_quality = value.device_quality;
                     let vm_result_monotonic_ns = value.monotonic_ns;
                     let vm_result = AudioClockSnapshotVm {
                         stream_frames: vm_result_stream_frames,
                         clock_ns: vm_result_clock_ns,
+                        clock_quality: vm_result_clock_quality,
                         has_callback_ns: vm_result_has_callback_ns,
                         callback_ns: vm_result_callback_ns,
+                        callback_quality: vm_result_callback_quality,
                         has_input_adc_ns: vm_result_has_input_adc_ns,
                         input_adc_ns: vm_result_input_adc_ns,
+                        input_adc_quality: vm_result_input_adc_quality,
                         has_output_dac_ns: vm_result_has_output_dac_ns,
                         output_dac_ns: vm_result_output_dac_ns,
+                        output_dac_quality: vm_result_output_dac_quality,
+                        has_device_ns: vm_result_has_device_ns,
+                        device_ns: vm_result_device_ns,
+                        device_quality: vm_result_device_quality,
                         monotonic_ns: vm_result_monotonic_ns,
                     };
                     Ok(vm_result)
@@ -6705,6 +7988,15 @@ fn destack_audio_device_descriptor_vm_replay(
                 let result_recorded_is_default_capture = result_value.is_default_capture;
                 let result_recorded_is_default_loopback = result_value.is_default_loopback;
                 let result_recorded_capability_flags = result_value.capability_flags;
+                let result_recorded_supported_device_open_flags =
+                    result_value.supported_device_open_flags;
+                let result_recorded_supported_stream_flags = result_value.supported_stream_flags;
+                let result_recorded_supported_stream_requirement_flags =
+                    result_value.supported_stream_requirement_flags;
+                let result_recorded_supported_event_subscription_flags =
+                    result_value.supported_event_subscription_flags;
+                let result_recorded_supported_stream_clock_domains =
+                    result_value.supported_stream_clock_domains;
                 let result_recorded_preferred_sample_rate = result_value.preferred_sample_rate;
                 let result_recorded_min_sample_rate = result_value.min_sample_rate;
                 let result_recorded_max_sample_rate = result_value.max_sample_rate;
@@ -6731,6 +8023,13 @@ fn destack_audio_device_descriptor_vm_replay(
                     is_default_capture: result_recorded_is_default_capture,
                     is_default_loopback: result_recorded_is_default_loopback,
                     capability_flags: result_recorded_capability_flags,
+                    supported_device_open_flags: result_recorded_supported_device_open_flags,
+                    supported_stream_flags: result_recorded_supported_stream_flags,
+                    supported_stream_requirement_flags:
+                        result_recorded_supported_stream_requirement_flags,
+                    supported_event_subscription_flags:
+                        result_recorded_supported_event_subscription_flags,
+                    supported_stream_clock_domains: result_recorded_supported_stream_clock_domains,
                     preferred_sample_rate: result_recorded_preferred_sample_rate,
                     min_sample_rate: result_recorded_min_sample_rate,
                     max_sample_rate: result_recorded_max_sample_rate,
@@ -6782,6 +8081,14 @@ fn destack_audio_device_descriptor_vm_replay(
                     let vm_result_is_default_capture = value.is_default_capture;
                     let vm_result_is_default_loopback = value.is_default_loopback;
                     let vm_result_capability_flags = value.capability_flags;
+                    let vm_result_supported_device_open_flags = value.supported_device_open_flags;
+                    let vm_result_supported_stream_flags = value.supported_stream_flags;
+                    let vm_result_supported_stream_requirement_flags =
+                        value.supported_stream_requirement_flags;
+                    let vm_result_supported_event_subscription_flags =
+                        value.supported_event_subscription_flags;
+                    let vm_result_supported_stream_clock_domains =
+                        value.supported_stream_clock_domains;
                     let vm_result_preferred_sample_rate = value.preferred_sample_rate;
                     let vm_result_min_sample_rate = value.min_sample_rate;
                     let vm_result_max_sample_rate = value.max_sample_rate;
@@ -6808,6 +8115,13 @@ fn destack_audio_device_descriptor_vm_replay(
                         is_default_capture: vm_result_is_default_capture,
                         is_default_loopback: vm_result_is_default_loopback,
                         capability_flags: vm_result_capability_flags,
+                        supported_device_open_flags: vm_result_supported_device_open_flags,
+                        supported_stream_flags: vm_result_supported_stream_flags,
+                        supported_stream_requirement_flags:
+                            vm_result_supported_stream_requirement_flags,
+                        supported_event_subscription_flags:
+                            vm_result_supported_event_subscription_flags,
+                        supported_stream_clock_domains: vm_result_supported_stream_clock_domains,
                         preferred_sample_rate: vm_result_preferred_sample_rate,
                         min_sample_rate: vm_result_min_sample_rate,
                         max_sample_rate: vm_result_max_sample_rate,
@@ -6867,10 +8181,10 @@ fn destack_audio_device_list_vm_replay(
                         let slots = context
                             .aggregate_slots(result_recorded_item_value)
                             .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 25 {
+                        if slots.len() != 30 {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                                 "result_recorded_item",
-                                "expected 25 fields",
+                                "expected 30 fields",
                             ))
                             .boxed());
                         }
@@ -6953,38 +8267,84 @@ fn destack_audio_device_list_vm_replay(
                         )?;
                         let result_recorded_item_capability_flags =
                             AudioDeviceCapabilityFlags(result_recorded_item_capability_flags_inner);
-                        let result_recorded_item_preferred_sample_rate = decode_uint32(
+                        let result_recorded_item_supported_device_open_flags_inner = decode_uint32(
                             slots[12],
+                            "result_recorded_item_supported_device_open_flags_inner",
+                            "supportedDeviceOpenFlags",
+                        )?;
+                        let result_recorded_item_supported_device_open_flags = AudioDeviceOpenFlags(
+                            result_recorded_item_supported_device_open_flags_inner,
+                        );
+                        let result_recorded_item_supported_stream_flags_inner = decode_uint32(
+                            slots[13],
+                            "result_recorded_item_supported_stream_flags_inner",
+                            "supportedStreamFlags",
+                        )?;
+                        let result_recorded_item_supported_stream_flags = AudioSupportedStreamFlags(
+                            result_recorded_item_supported_stream_flags_inner,
+                        );
+                        let result_recorded_item_supported_stream_requirement_flags_inner =
+                            decode_uint32(
+                                slots[14],
+                                "result_recorded_item_supported_stream_requirement_flags_inner",
+                                "supportedStreamRequirementFlags",
+                            )?;
+                        let result_recorded_item_supported_stream_requirement_flags =
+                            AudioSupportedStreamRequirementFlags(
+                                result_recorded_item_supported_stream_requirement_flags_inner,
+                            );
+                        let result_recorded_item_supported_event_subscription_flags_inner =
+                            decode_uint32(
+                                slots[15],
+                                "result_recorded_item_supported_event_subscription_flags_inner",
+                                "supportedEventSubscriptionFlags",
+                            )?;
+                        let result_recorded_item_supported_event_subscription_flags =
+                            AudioSupportedEventSubscriptionFlags(
+                                result_recorded_item_supported_event_subscription_flags_inner,
+                            );
+                        let result_recorded_item_supported_stream_clock_domains_inner =
+                            decode_uint32(
+                                slots[16],
+                                "result_recorded_item_supported_stream_clock_domains_inner",
+                                "supportedStreamClockDomains",
+                            )?;
+                        let result_recorded_item_supported_stream_clock_domains =
+                            AudioSupportedStreamClockDomains(
+                                result_recorded_item_supported_stream_clock_domains_inner,
+                            );
+                        let result_recorded_item_preferred_sample_rate = decode_uint32(
+                            slots[17],
                             "result_recorded_item_preferred_sample_rate",
                             "preferredSampleRate",
                         )?;
                         let result_recorded_item_min_sample_rate = decode_uint32(
-                            slots[13],
+                            slots[18],
                             "result_recorded_item_min_sample_rate",
                             "minSampleRate",
                         )?;
                         let result_recorded_item_max_sample_rate = decode_uint32(
-                            slots[14],
+                            slots[19],
                             "result_recorded_item_max_sample_rate",
                             "maxSampleRate",
                         )?;
                         let result_recorded_item_preferred_period_frames = decode_uint32(
-                            slots[15],
+                            slots[20],
                             "result_recorded_item_preferred_period_frames",
                             "preferredPeriodFrames",
                         )?;
                         let result_recorded_item_min_channels = decode_uint16(
-                            slots[16],
+                            slots[21],
                             "result_recorded_item_min_channels",
                             "minChannels",
                         )?;
                         let result_recorded_item_max_channels = decode_uint16(
-                            slots[17],
+                            slots[22],
                             "result_recorded_item_max_channels",
                             "maxChannels",
                         )?;
                         let result_recorded_item_preferred_layout_raw = decode_uint8(
-                            slots[18],
+                            slots[23],
                             "result_recorded_item_preferred_layout_raw",
                             "preferredLayout",
                         )?;
@@ -7010,32 +8370,32 @@ fn destack_audio_device_list_vm_replay(
                                 }
                             };
                         let result_recorded_item_preferred_channel_mask = decode_uint64(
-                            slots[19],
+                            slots[24],
                             "result_recorded_item_preferred_channel_mask",
                             "preferredChannelMask",
                         )?;
                         let result_recorded_item_supported_channel_mask = decode_uint64(
-                            slots[20],
+                            slots[25],
                             "result_recorded_item_supported_channel_mask",
                             "supportedChannelMask",
                         )?;
                         let result_recorded_item_min_period_frames = decode_uint32(
-                            slots[21],
+                            slots[26],
                             "result_recorded_item_min_period_frames",
                             "minPeriodFrames",
                         )?;
                         let result_recorded_item_max_period_frames = decode_uint32(
-                            slots[22],
+                            slots[27],
                             "result_recorded_item_max_period_frames",
                             "maxPeriodFrames",
                         )?;
                         let result_recorded_item_format_mask = decode_uint32(
-                            slots[23],
+                            slots[28],
                             "result_recorded_item_format_mask",
                             "formatMask",
                         )?;
                         let result_recorded_item_share_mode_mask = decode_uint32(
-                            slots[24],
+                            slots[29],
                             "result_recorded_item_share_mode_mask",
                             "shareModeMask",
                         )?;
@@ -7052,6 +8412,15 @@ fn destack_audio_device_list_vm_replay(
                             is_default_capture: result_recorded_item_is_default_capture,
                             is_default_loopback: result_recorded_item_is_default_loopback,
                             capability_flags: result_recorded_item_capability_flags,
+                            supported_device_open_flags:
+                                result_recorded_item_supported_device_open_flags,
+                            supported_stream_flags: result_recorded_item_supported_stream_flags,
+                            supported_stream_requirement_flags:
+                                result_recorded_item_supported_stream_requirement_flags,
+                            supported_event_subscription_flags:
+                                result_recorded_item_supported_event_subscription_flags,
+                            supported_stream_clock_domains:
+                                result_recorded_item_supported_stream_clock_domains,
                             preferred_sample_rate: result_recorded_item_preferred_sample_rate,
                             min_sample_rate: result_recorded_item_min_sample_rate,
                             max_sample_rate: result_recorded_item_max_sample_rate,
@@ -7107,6 +8476,16 @@ fn destack_audio_device_list_vm_replay(
                         result_recorded_item.is_default_loopback;
                     let result_recorded_item_recorded_capability_flags =
                         result_recorded_item.capability_flags;
+                    let result_recorded_item_recorded_supported_device_open_flags =
+                        result_recorded_item.supported_device_open_flags;
+                    let result_recorded_item_recorded_supported_stream_flags =
+                        result_recorded_item.supported_stream_flags;
+                    let result_recorded_item_recorded_supported_stream_requirement_flags =
+                        result_recorded_item.supported_stream_requirement_flags;
+                    let result_recorded_item_recorded_supported_event_subscription_flags =
+                        result_recorded_item.supported_event_subscription_flags;
+                    let result_recorded_item_recorded_supported_stream_clock_domains =
+                        result_recorded_item.supported_stream_clock_domains;
                     let result_recorded_item_recorded_preferred_sample_rate =
                         result_recorded_item.preferred_sample_rate;
                     let result_recorded_item_recorded_min_sample_rate =
@@ -7146,6 +8525,16 @@ fn destack_audio_device_list_vm_replay(
                         is_default_capture: result_recorded_item_recorded_is_default_capture,
                         is_default_loopback: result_recorded_item_recorded_is_default_loopback,
                         capability_flags: result_recorded_item_recorded_capability_flags,
+                        supported_device_open_flags:
+                            result_recorded_item_recorded_supported_device_open_flags,
+                        supported_stream_flags:
+                            result_recorded_item_recorded_supported_stream_flags,
+                        supported_stream_requirement_flags:
+                            result_recorded_item_recorded_supported_stream_requirement_flags,
+                        supported_event_subscription_flags:
+                            result_recorded_item_recorded_supported_event_subscription_flags,
+                        supported_stream_clock_domains:
+                            result_recorded_item_recorded_supported_stream_clock_domains,
                         preferred_sample_rate: result_recorded_item_recorded_preferred_sample_rate,
                         min_sample_rate: result_recorded_item_recorded_min_sample_rate,
                         max_sample_rate: result_recorded_item_recorded_max_sample_rate,
@@ -7216,6 +8605,16 @@ fn destack_audio_device_list_vm_replay(
                         let vm_result_item_value_is_default_loopback =
                             vm_result_item.is_default_loopback;
                         let vm_result_item_value_capability_flags = vm_result_item.capability_flags;
+                        let vm_result_item_value_supported_device_open_flags =
+                            vm_result_item.supported_device_open_flags;
+                        let vm_result_item_value_supported_stream_flags =
+                            vm_result_item.supported_stream_flags;
+                        let vm_result_item_value_supported_stream_requirement_flags =
+                            vm_result_item.supported_stream_requirement_flags;
+                        let vm_result_item_value_supported_event_subscription_flags =
+                            vm_result_item.supported_event_subscription_flags;
+                        let vm_result_item_value_supported_stream_clock_domains =
+                            vm_result_item.supported_stream_clock_domains;
                         let vm_result_item_value_preferred_sample_rate =
                             vm_result_item.preferred_sample_rate;
                         let vm_result_item_value_min_sample_rate = vm_result_item.min_sample_rate;
@@ -7248,6 +8647,15 @@ fn destack_audio_device_list_vm_replay(
                             is_default_capture: vm_result_item_value_is_default_capture,
                             is_default_loopback: vm_result_item_value_is_default_loopback,
                             capability_flags: vm_result_item_value_capability_flags,
+                            supported_device_open_flags:
+                                vm_result_item_value_supported_device_open_flags,
+                            supported_stream_flags: vm_result_item_value_supported_stream_flags,
+                            supported_stream_requirement_flags:
+                                vm_result_item_value_supported_stream_requirement_flags,
+                            supported_event_subscription_flags:
+                                vm_result_item_value_supported_event_subscription_flags,
+                            supported_stream_clock_domains:
+                                vm_result_item_value_supported_stream_clock_domains,
                             preferred_sample_rate: vm_result_item_value_preferred_sample_rate,
                             min_sample_rate: vm_result_item_value_min_sample_rate,
                             max_sample_rate: vm_result_item_value_max_sample_rate,
@@ -7280,42 +8688,63 @@ fn destack_audio_device_list_vm_replay(
                             let field_11 =
                                 vm::Value::uint(vm_result_item_value.capability_flags.0, 64);
                             let field_12 = vm::Value::uint(
+                                vm_result_item_value.supported_device_open_flags.0 as u64,
+                                32,
+                            );
+                            let field_13 = vm::Value::uint(
+                                vm_result_item_value.supported_stream_flags.0 as u64,
+                                32,
+                            );
+                            let field_14 = vm::Value::uint(
+                                vm_result_item_value.supported_stream_requirement_flags.0 as u64,
+                                32,
+                            );
+                            let field_15 = vm::Value::uint(
+                                vm_result_item_value.supported_event_subscription_flags.0 as u64,
+                                32,
+                            );
+                            let field_16 = vm::Value::uint(
+                                vm_result_item_value.supported_stream_clock_domains.0 as u64,
+                                32,
+                            );
+                            let field_17 = vm::Value::uint(
                                 vm_result_item_value.preferred_sample_rate as u64,
                                 32,
                             );
-                            let field_13 =
+                            let field_18 =
                                 vm::Value::uint(vm_result_item_value.min_sample_rate as u64, 32);
-                            let field_14 =
+                            let field_19 =
                                 vm::Value::uint(vm_result_item_value.max_sample_rate as u64, 32);
-                            let field_15 = vm::Value::uint(
+                            let field_20 = vm::Value::uint(
                                 vm_result_item_value.preferred_period_frames as u64,
                                 32,
                             );
-                            let field_16 =
+                            let field_21 =
                                 vm::Value::uint(vm_result_item_value.min_channels as u64, 16);
-                            let field_17 =
+                            let field_22 =
                                 vm::Value::uint(vm_result_item_value.max_channels as u64, 16);
-                            let field_18 = vm::Value::uint(
+                            let field_23 = vm::Value::uint(
                                 vm_result_item_value.preferred_layout as u8 as u64,
                                 8,
                             );
-                            let field_19 =
-                                vm::Value::uint(vm_result_item_value.preferred_channel_mask, 64);
-                            let field_20 =
-                                vm::Value::uint(vm_result_item_value.supported_channel_mask, 64);
-                            let field_21 =
-                                vm::Value::uint(vm_result_item_value.min_period_frames as u64, 32);
-                            let field_22 =
-                                vm::Value::uint(vm_result_item_value.max_period_frames as u64, 32);
-                            let field_23 =
-                                vm::Value::uint(vm_result_item_value.format_mask as u64, 32);
                             let field_24 =
+                                vm::Value::uint(vm_result_item_value.preferred_channel_mask, 64);
+                            let field_25 =
+                                vm::Value::uint(vm_result_item_value.supported_channel_mask, 64);
+                            let field_26 =
+                                vm::Value::uint(vm_result_item_value.min_period_frames as u64, 32);
+                            let field_27 =
+                                vm::Value::uint(vm_result_item_value.max_period_frames as u64, 32);
+                            let field_28 =
+                                vm::Value::uint(vm_result_item_value.format_mask as u64, 32);
+                            let field_29 =
                                 vm::Value::uint(vm_result_item_value.share_mode_mask as u64, 32);
                             context.allocate_aggregate(vec![
                                 field_0, field_1, field_2, field_3, field_4, field_5, field_6,
                                 field_7, field_8, field_9, field_10, field_11, field_12, field_13,
                                 field_14, field_15, field_16, field_17, field_18, field_19,
-                                field_20, field_21, field_22, field_23, field_24,
+                                field_20, field_21, field_22, field_23, field_24, field_25,
+                                field_26, field_27, field_28, field_29,
                             ])
                         };
                         vm_result_values.push(vm_result_item_value_encoded);
@@ -7579,6 +9008,9 @@ fn destack_audio_event_read_vm_replay(
                 let result_value: AudioEventVm = value.clone();
                 let result_recorded_kind = result_value.kind;
                 let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_dropped_count = result_value.dropped_count;
+                let result_recorded_source = result_value.source;
                 let result_recorded_backend = result_value.backend;
                 let result_recorded_flags = result_value.flags;
                 let result_recorded_status_flags = result_value.status_flags;
@@ -7595,6 +9027,9 @@ fn destack_audio_event_read_vm_replay(
                 let result_recorded = AudioEventReplayRecord {
                     kind: result_recorded_kind,
                     timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    dropped_count: result_recorded_dropped_count,
+                    source: result_recorded_source,
                     backend: result_recorded_backend,
                     flags: result_recorded_flags,
                     status_flags: result_recorded_status_flags,
@@ -7627,6 +9062,9 @@ fn destack_audio_event_read_vm_replay(
                 Ok(value) => {
                     let vm_result_kind = value.kind;
                     let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_dropped_count = value.dropped_count;
+                    let vm_result_source = value.source;
                     let vm_result_backend = value.backend;
                     let vm_result_flags = value.flags;
                     let vm_result_status_flags = value.status_flags;
@@ -7639,6 +9077,9 @@ fn destack_audio_event_read_vm_replay(
                     let vm_result = AudioEventVm {
                         kind: vm_result_kind,
                         timestamp_ns: vm_result_timestamp_ns,
+                        sequence: vm_result_sequence,
+                        dropped_count: vm_result_dropped_count,
+                        source: vm_result_source,
                         backend: vm_result_backend,
                         flags: vm_result_flags,
                         status_flags: vm_result_status_flags,
@@ -7655,6 +9096,317 @@ fn destack_audio_event_read_vm_replay(
         },
     );
     let result = encode_destack_audio_event_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_event_read_batch_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioEventHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_EVENT_READ_BATCH,
+        runtime.replay_payload_for(AUDIO_EVENT_READ_BATCH)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_event_read_batch(
+                runtime, context, handle, maxevents, timeoutns,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_read_batch(
+                runtime, context, handle, maxevents, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<AudioEventVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 13 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 13 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_kind_raw =
+                            decode_uint8(slots[0], "result_recorded_item_kind_raw", "kind")?;
+                        let result_recorded_item_kind = match result_recorded_item_kind_raw {
+                            1u8 => AudioEventKind::DeviceAdded,
+                            2u8 => AudioEventKind::DeviceRemoved,
+                            3u8 => AudioEventKind::DefaultPlaybackChanged,
+                            4u8 => AudioEventKind::DefaultCaptureChanged,
+                            5u8 => AudioEventKind::DefaultLoopbackChanged,
+                            6u8 => AudioEventKind::DeviceFormatChanged,
+                            7u8 => AudioEventKind::DeviceRerouted,
+                            8u8 => AudioEventKind::InterruptionBegan,
+                            9u8 => AudioEventKind::InterruptionEnded,
+                            10u8 => AudioEventKind::BackendDisconnected,
+                            11u8 => AudioEventKind::StreamXRun,
+                            12u8 => AudioEventKind::StreamDeviceChanged,
+                            13u8 => AudioEventKind::StreamStateChanged,
+                            14u8 => AudioEventKind::BackendReset,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item_kind",
+                                        "unknown AudioEventKind value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                        let result_recorded_item_timestamp_ns = decode_uint64(
+                            slots[1],
+                            "result_recorded_item_timestamp_ns",
+                            "timestampNs",
+                        )?;
+                        let result_recorded_item_sequence =
+                            decode_uint64(slots[2], "result_recorded_item_sequence", "sequence")?;
+                        let result_recorded_item_dropped_count = decode_uint64(
+                            slots[3],
+                            "result_recorded_item_dropped_count",
+                            "droppedCount",
+                        )?;
+                        let result_recorded_item_source_raw =
+                            decode_uint8(slots[4], "result_recorded_item_source_raw", "source")?;
+                        let result_recorded_item_source = match result_recorded_item_source_raw {
+                            1u8 => AudioEventSource::Native,
+                            2u8 => AudioEventSource::SyntheticPoll,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item_source",
+                                        "unknown AudioEventSource value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                        let result_recorded_item_backend_raw =
+                            decode_uint8(slots[5], "result_recorded_item_backend_raw", "backend")?;
+                        let result_recorded_item_backend = match result_recorded_item_backend_raw {
+                            0u8 => AudioBackend::Auto,
+                            1u8 => AudioBackend::Alsa,
+                            2u8 => AudioBackend::PulseAudio,
+                            3u8 => AudioBackend::PipeWire,
+                            4u8 => AudioBackend::CoreAudio,
+                            5u8 => AudioBackend::Wasapi,
+                            6u8 => AudioBackend::AAudio,
+                            7u8 => AudioBackend::OpenSLES,
+                            8u8 => AudioBackend::Jack,
+                            9u8 => AudioBackend::Asio,
+                            255u8 => AudioBackend::Null,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item_backend",
+                                        "unknown AudioBackend value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                        let result_recorded_item_flags =
+                            decode_uint32(slots[6], "result_recorded_item_flags", "flags")?;
+                        let result_recorded_item_status_flags_inner = decode_uint32(
+                            slots[7],
+                            "result_recorded_item_status_flags_inner",
+                            "statusFlags",
+                        )?;
+                        let result_recorded_item_status_flags =
+                            AudioStreamStatusFlags(result_recorded_item_status_flags_inner);
+                        let result_recorded_item_xrun_count_delta = decode_uint64(
+                            slots[8],
+                            "result_recorded_item_xrun_count_delta",
+                            "xrunCountDelta",
+                        )?;
+                        let result_recorded_item_has_device_id = decode_bool(
+                            slots[9],
+                            "result_recorded_item_has_device_id",
+                            "hasDeviceId",
+                        )?;
+                        let result_recorded_item_device_id =
+                            decode_string(slots[10], "result_recorded_item_device_id", "deviceId")?;
+                        let result_recorded_item_has_stream =
+                            decode_bool(slots[11], "result_recorded_item_has_stream", "hasStream")?;
+                        let result_recorded_item_stream_inner_inner = decode_uint64(
+                            slots[12],
+                            "result_recorded_item_stream_inner_inner",
+                            "stream",
+                        )?;
+                        let result_recorded_item_stream_inner =
+                            resource::ResourceId(result_recorded_item_stream_inner_inner);
+                        let result_recorded_item_stream =
+                            resource::AudioStreamHandle(result_recorded_item_stream_inner);
+                        AudioEventVm {
+                            kind: result_recorded_item_kind,
+                            timestamp_ns: result_recorded_item_timestamp_ns,
+                            sequence: result_recorded_item_sequence,
+                            dropped_count: result_recorded_item_dropped_count,
+                            source: result_recorded_item_source,
+                            backend: result_recorded_item_backend,
+                            flags: result_recorded_item_flags,
+                            status_flags: result_recorded_item_status_flags,
+                            xrun_count_delta: result_recorded_item_xrun_count_delta,
+                            has_device_id: result_recorded_item_has_device_id,
+                            device_id: result_recorded_item_device_id,
+                            has_stream: result_recorded_item_has_stream,
+                            stream: result_recorded_item_stream,
+                        }
+                    };
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded_timestamp_ns =
+                        result_recorded_item.timestamp_ns;
+                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
+                    let result_recorded_item_recorded_dropped_count =
+                        result_recorded_item.dropped_count;
+                    let result_recorded_item_recorded_source = result_recorded_item.source;
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
+                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded_status_flags =
+                        result_recorded_item.status_flags;
+                    let result_recorded_item_recorded_xrun_count_delta =
+                        result_recorded_item.xrun_count_delta;
+                    let result_recorded_item_recorded_has_device_id =
+                        result_recorded_item.has_device_id;
+                    let result_recorded_item_recorded_device_id = {
+                        let result_recorded_item_recorded_device_id_ref = context
+                            .string_ref(result_recorded_item.device_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_device_id_ref
+                            .as_str()
+                            .to_string()
+                    };
+                    let result_recorded_item_recorded_has_stream = result_recorded_item.has_stream;
+                    let result_recorded_item_recorded_stream = result_recorded_item.stream;
+                    let result_recorded_item_recorded = AudioEventReplayRecord {
+                        kind: result_recorded_item_recorded_kind,
+                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
+                        sequence: result_recorded_item_recorded_sequence,
+                        dropped_count: result_recorded_item_recorded_dropped_count,
+                        source: result_recorded_item_recorded_source,
+                        backend: result_recorded_item_recorded_backend,
+                        flags: result_recorded_item_recorded_flags,
+                        status_flags: result_recorded_item_recorded_status_flags,
+                        xrun_count_delta: result_recorded_item_recorded_xrun_count_delta,
+                        has_device_id: result_recorded_item_recorded_has_device_id,
+                        device_id: result_recorded_item_recorded_device_id,
+                        has_stream: result_recorded_item_recorded_has_stream,
+                        stream: result_recorded_item_recorded_stream,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = AudioEventReadBatchReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioEventReadBatchReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_kind = vm_result_item.kind;
+                        let vm_result_item_value_timestamp_ns = vm_result_item.timestamp_ns;
+                        let vm_result_item_value_sequence = vm_result_item.sequence;
+                        let vm_result_item_value_dropped_count = vm_result_item.dropped_count;
+                        let vm_result_item_value_source = vm_result_item.source;
+                        let vm_result_item_value_backend = vm_result_item.backend;
+                        let vm_result_item_value_flags = vm_result_item.flags;
+                        let vm_result_item_value_status_flags = vm_result_item.status_flags;
+                        let vm_result_item_value_xrun_count_delta = vm_result_item.xrun_count_delta;
+                        let vm_result_item_value_has_device_id = vm_result_item.has_device_id;
+                        let vm_result_item_value_device_id_value =
+                            context.intern_string(vm_result_item.device_id.as_str());
+                        let vm_result_item_value_device_id =
+                            vm::StringHandle::new(vm_result_item_value_device_id_value);
+                        let vm_result_item_value_has_stream = vm_result_item.has_stream;
+                        let vm_result_item_value_stream = vm_result_item.stream;
+                        let vm_result_item_value = AudioEventVm {
+                            kind: vm_result_item_value_kind,
+                            timestamp_ns: vm_result_item_value_timestamp_ns,
+                            sequence: vm_result_item_value_sequence,
+                            dropped_count: vm_result_item_value_dropped_count,
+                            source: vm_result_item_value_source,
+                            backend: vm_result_item_value_backend,
+                            flags: vm_result_item_value_flags,
+                            status_flags: vm_result_item_value_status_flags,
+                            xrun_count_delta: vm_result_item_value_xrun_count_delta,
+                            has_device_id: vm_result_item_value_has_device_id,
+                            device_id: vm_result_item_value_device_id,
+                            has_stream: vm_result_item_value_has_stream,
+                            stream: vm_result_item_value_stream,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 =
+                                vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8);
+                            let field_1 = vm::Value::uint(vm_result_item_value.timestamp_ns, 64);
+                            let field_2 = vm::Value::uint(vm_result_item_value.sequence, 64);
+                            let field_3 = vm::Value::uint(vm_result_item_value.dropped_count, 64);
+                            let field_4 =
+                                vm::Value::uint(vm_result_item_value.source as u8 as u64, 8);
+                            let field_5 =
+                                vm::Value::uint(vm_result_item_value.backend as u8 as u64, 8);
+                            let field_6 = vm::Value::uint(vm_result_item_value.flags as u64, 32);
+                            let field_7 =
+                                vm::Value::uint(vm_result_item_value.status_flags.0 as u64, 32);
+                            let field_8 =
+                                vm::Value::uint(vm_result_item_value.xrun_count_delta, 64);
+                            let field_9 = vm::Value::bool(vm_result_item_value.has_device_id);
+                            let field_10 = vm_result_item_value.device_id.value();
+                            let field_11 = vm::Value::bool(vm_result_item_value.has_stream);
+                            let field_12 = vm::Value::uint(vm_result_item_value.stream.0.0, 64);
+                            context.allocate_aggregate(vec![
+                                field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+                                field_7, field_8, field_9, field_10, field_11, field_12,
+                            ])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmSlice<AudioEventVm> = VmSlice {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_audio_event_read_batch_result(context, result)?;
     Ok(result)
 }
 
@@ -7683,6 +9435,9 @@ fn destack_audio_event_try_read_vm_replay(
                 let result_value: AudioEventVm = value.clone();
                 let result_recorded_kind = result_value.kind;
                 let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_dropped_count = result_value.dropped_count;
+                let result_recorded_source = result_value.source;
                 let result_recorded_backend = result_value.backend;
                 let result_recorded_flags = result_value.flags;
                 let result_recorded_status_flags = result_value.status_flags;
@@ -7699,6 +9454,9 @@ fn destack_audio_event_try_read_vm_replay(
                 let result_recorded = AudioEventReplayRecord {
                     kind: result_recorded_kind,
                     timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    dropped_count: result_recorded_dropped_count,
+                    source: result_recorded_source,
                     backend: result_recorded_backend,
                     flags: result_recorded_flags,
                     status_flags: result_recorded_status_flags,
@@ -7731,6 +9489,9 @@ fn destack_audio_event_try_read_vm_replay(
                 Ok(value) => {
                     let vm_result_kind = value.kind;
                     let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_dropped_count = value.dropped_count;
+                    let vm_result_source = value.source;
                     let vm_result_backend = value.backend;
                     let vm_result_flags = value.flags;
                     let vm_result_status_flags = value.status_flags;
@@ -7743,6 +9504,9 @@ fn destack_audio_event_try_read_vm_replay(
                     let vm_result = AudioEventVm {
                         kind: vm_result_kind,
                         timestamp_ns: vm_result_timestamp_ns,
+                        sequence: vm_result_sequence,
+                        dropped_count: vm_result_dropped_count,
+                        source: vm_result_source,
                         backend: vm_result_backend,
                         flags: vm_result_flags,
                         status_flags: vm_result_status_flags,
@@ -7759,6 +9523,316 @@ fn destack_audio_event_try_read_vm_replay(
         },
     );
     let result = encode_destack_audio_event_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_event_try_read_batch_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioEventHandle,
+    maxevents: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_EVENT_TRY_READ_BATCH,
+        runtime.replay_payload_for(AUDIO_EVENT_TRY_READ_BATCH)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_event_try_read_batch(runtime, context, handle, maxevents)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_event_try_read_batch(
+                runtime, context, handle, maxevents,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<AudioEventVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 13 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 13 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_kind_raw =
+                            decode_uint8(slots[0], "result_recorded_item_kind_raw", "kind")?;
+                        let result_recorded_item_kind = match result_recorded_item_kind_raw {
+                            1u8 => AudioEventKind::DeviceAdded,
+                            2u8 => AudioEventKind::DeviceRemoved,
+                            3u8 => AudioEventKind::DefaultPlaybackChanged,
+                            4u8 => AudioEventKind::DefaultCaptureChanged,
+                            5u8 => AudioEventKind::DefaultLoopbackChanged,
+                            6u8 => AudioEventKind::DeviceFormatChanged,
+                            7u8 => AudioEventKind::DeviceRerouted,
+                            8u8 => AudioEventKind::InterruptionBegan,
+                            9u8 => AudioEventKind::InterruptionEnded,
+                            10u8 => AudioEventKind::BackendDisconnected,
+                            11u8 => AudioEventKind::StreamXRun,
+                            12u8 => AudioEventKind::StreamDeviceChanged,
+                            13u8 => AudioEventKind::StreamStateChanged,
+                            14u8 => AudioEventKind::BackendReset,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item_kind",
+                                        "unknown AudioEventKind value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                        let result_recorded_item_timestamp_ns = decode_uint64(
+                            slots[1],
+                            "result_recorded_item_timestamp_ns",
+                            "timestampNs",
+                        )?;
+                        let result_recorded_item_sequence =
+                            decode_uint64(slots[2], "result_recorded_item_sequence", "sequence")?;
+                        let result_recorded_item_dropped_count = decode_uint64(
+                            slots[3],
+                            "result_recorded_item_dropped_count",
+                            "droppedCount",
+                        )?;
+                        let result_recorded_item_source_raw =
+                            decode_uint8(slots[4], "result_recorded_item_source_raw", "source")?;
+                        let result_recorded_item_source = match result_recorded_item_source_raw {
+                            1u8 => AudioEventSource::Native,
+                            2u8 => AudioEventSource::SyntheticPoll,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item_source",
+                                        "unknown AudioEventSource value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                        let result_recorded_item_backend_raw =
+                            decode_uint8(slots[5], "result_recorded_item_backend_raw", "backend")?;
+                        let result_recorded_item_backend = match result_recorded_item_backend_raw {
+                            0u8 => AudioBackend::Auto,
+                            1u8 => AudioBackend::Alsa,
+                            2u8 => AudioBackend::PulseAudio,
+                            3u8 => AudioBackend::PipeWire,
+                            4u8 => AudioBackend::CoreAudio,
+                            5u8 => AudioBackend::Wasapi,
+                            6u8 => AudioBackend::AAudio,
+                            7u8 => AudioBackend::OpenSLES,
+                            8u8 => AudioBackend::Jack,
+                            9u8 => AudioBackend::Asio,
+                            255u8 => AudioBackend::Null,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item_backend",
+                                        "unknown AudioBackend value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                        let result_recorded_item_flags =
+                            decode_uint32(slots[6], "result_recorded_item_flags", "flags")?;
+                        let result_recorded_item_status_flags_inner = decode_uint32(
+                            slots[7],
+                            "result_recorded_item_status_flags_inner",
+                            "statusFlags",
+                        )?;
+                        let result_recorded_item_status_flags =
+                            AudioStreamStatusFlags(result_recorded_item_status_flags_inner);
+                        let result_recorded_item_xrun_count_delta = decode_uint64(
+                            slots[8],
+                            "result_recorded_item_xrun_count_delta",
+                            "xrunCountDelta",
+                        )?;
+                        let result_recorded_item_has_device_id = decode_bool(
+                            slots[9],
+                            "result_recorded_item_has_device_id",
+                            "hasDeviceId",
+                        )?;
+                        let result_recorded_item_device_id =
+                            decode_string(slots[10], "result_recorded_item_device_id", "deviceId")?;
+                        let result_recorded_item_has_stream =
+                            decode_bool(slots[11], "result_recorded_item_has_stream", "hasStream")?;
+                        let result_recorded_item_stream_inner_inner = decode_uint64(
+                            slots[12],
+                            "result_recorded_item_stream_inner_inner",
+                            "stream",
+                        )?;
+                        let result_recorded_item_stream_inner =
+                            resource::ResourceId(result_recorded_item_stream_inner_inner);
+                        let result_recorded_item_stream =
+                            resource::AudioStreamHandle(result_recorded_item_stream_inner);
+                        AudioEventVm {
+                            kind: result_recorded_item_kind,
+                            timestamp_ns: result_recorded_item_timestamp_ns,
+                            sequence: result_recorded_item_sequence,
+                            dropped_count: result_recorded_item_dropped_count,
+                            source: result_recorded_item_source,
+                            backend: result_recorded_item_backend,
+                            flags: result_recorded_item_flags,
+                            status_flags: result_recorded_item_status_flags,
+                            xrun_count_delta: result_recorded_item_xrun_count_delta,
+                            has_device_id: result_recorded_item_has_device_id,
+                            device_id: result_recorded_item_device_id,
+                            has_stream: result_recorded_item_has_stream,
+                            stream: result_recorded_item_stream,
+                        }
+                    };
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded_timestamp_ns =
+                        result_recorded_item.timestamp_ns;
+                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
+                    let result_recorded_item_recorded_dropped_count =
+                        result_recorded_item.dropped_count;
+                    let result_recorded_item_recorded_source = result_recorded_item.source;
+                    let result_recorded_item_recorded_backend = result_recorded_item.backend;
+                    let result_recorded_item_recorded_flags = result_recorded_item.flags;
+                    let result_recorded_item_recorded_status_flags =
+                        result_recorded_item.status_flags;
+                    let result_recorded_item_recorded_xrun_count_delta =
+                        result_recorded_item.xrun_count_delta;
+                    let result_recorded_item_recorded_has_device_id =
+                        result_recorded_item.has_device_id;
+                    let result_recorded_item_recorded_device_id = {
+                        let result_recorded_item_recorded_device_id_ref = context
+                            .string_ref(result_recorded_item.device_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_device_id_ref
+                            .as_str()
+                            .to_string()
+                    };
+                    let result_recorded_item_recorded_has_stream = result_recorded_item.has_stream;
+                    let result_recorded_item_recorded_stream = result_recorded_item.stream;
+                    let result_recorded_item_recorded = AudioEventReplayRecord {
+                        kind: result_recorded_item_recorded_kind,
+                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
+                        sequence: result_recorded_item_recorded_sequence,
+                        dropped_count: result_recorded_item_recorded_dropped_count,
+                        source: result_recorded_item_recorded_source,
+                        backend: result_recorded_item_recorded_backend,
+                        flags: result_recorded_item_recorded_flags,
+                        status_flags: result_recorded_item_recorded_status_flags,
+                        xrun_count_delta: result_recorded_item_recorded_xrun_count_delta,
+                        has_device_id: result_recorded_item_recorded_has_device_id,
+                        device_id: result_recorded_item_recorded_device_id,
+                        has_stream: result_recorded_item_recorded_has_stream,
+                        stream: result_recorded_item_recorded_stream,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = AudioEventTryReadBatchReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioEventTryReadBatchReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_kind = vm_result_item.kind;
+                        let vm_result_item_value_timestamp_ns = vm_result_item.timestamp_ns;
+                        let vm_result_item_value_sequence = vm_result_item.sequence;
+                        let vm_result_item_value_dropped_count = vm_result_item.dropped_count;
+                        let vm_result_item_value_source = vm_result_item.source;
+                        let vm_result_item_value_backend = vm_result_item.backend;
+                        let vm_result_item_value_flags = vm_result_item.flags;
+                        let vm_result_item_value_status_flags = vm_result_item.status_flags;
+                        let vm_result_item_value_xrun_count_delta = vm_result_item.xrun_count_delta;
+                        let vm_result_item_value_has_device_id = vm_result_item.has_device_id;
+                        let vm_result_item_value_device_id_value =
+                            context.intern_string(vm_result_item.device_id.as_str());
+                        let vm_result_item_value_device_id =
+                            vm::StringHandle::new(vm_result_item_value_device_id_value);
+                        let vm_result_item_value_has_stream = vm_result_item.has_stream;
+                        let vm_result_item_value_stream = vm_result_item.stream;
+                        let vm_result_item_value = AudioEventVm {
+                            kind: vm_result_item_value_kind,
+                            timestamp_ns: vm_result_item_value_timestamp_ns,
+                            sequence: vm_result_item_value_sequence,
+                            dropped_count: vm_result_item_value_dropped_count,
+                            source: vm_result_item_value_source,
+                            backend: vm_result_item_value_backend,
+                            flags: vm_result_item_value_flags,
+                            status_flags: vm_result_item_value_status_flags,
+                            xrun_count_delta: vm_result_item_value_xrun_count_delta,
+                            has_device_id: vm_result_item_value_has_device_id,
+                            device_id: vm_result_item_value_device_id,
+                            has_stream: vm_result_item_value_has_stream,
+                            stream: vm_result_item_value_stream,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 =
+                                vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8);
+                            let field_1 = vm::Value::uint(vm_result_item_value.timestamp_ns, 64);
+                            let field_2 = vm::Value::uint(vm_result_item_value.sequence, 64);
+                            let field_3 = vm::Value::uint(vm_result_item_value.dropped_count, 64);
+                            let field_4 =
+                                vm::Value::uint(vm_result_item_value.source as u8 as u64, 8);
+                            let field_5 =
+                                vm::Value::uint(vm_result_item_value.backend as u8 as u64, 8);
+                            let field_6 = vm::Value::uint(vm_result_item_value.flags as u64, 32);
+                            let field_7 =
+                                vm::Value::uint(vm_result_item_value.status_flags.0 as u64, 32);
+                            let field_8 =
+                                vm::Value::uint(vm_result_item_value.xrun_count_delta, 64);
+                            let field_9 = vm::Value::bool(vm_result_item_value.has_device_id);
+                            let field_10 = vm_result_item_value.device_id.value();
+                            let field_11 = vm::Value::bool(vm_result_item_value.has_stream);
+                            let field_12 = vm::Value::uint(vm_result_item_value.stream.0.0, 64);
+                            context.allocate_aggregate(vec![
+                                field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+                                field_7, field_8, field_9, field_10, field_11, field_12,
+                            ])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmSlice<AudioEventVm> = VmSlice {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_audio_event_try_read_batch_result(context, result)?;
     Ok(result)
 }
 
@@ -7941,6 +10015,171 @@ fn destack_audio_stream_close_vm_replay(
 }
 
 #[inline]
+fn destack_audio_stream_descriptor_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::AudioStreamHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_DESCRIPTOR,
+        runtime.replay_payload_for(AUDIO_STREAM_DESCRIPTOR)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_descriptor(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_stream_descriptor(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: AudioStreamDescriptorVm = value.clone();
+                let result_recorded_backend = result_value.backend;
+                let result_recorded_backend_id = {
+                    let result_recorded_backend_id_ref = context
+                        .string_ref(result_value.backend_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_backend_id_ref.as_str().to_string()
+                };
+                let result_recorded_device_id = {
+                    let result_recorded_device_id_ref = context
+                        .string_ref(result_value.device_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_device_id_ref.as_str().to_string()
+                };
+                let result_recorded_sample_rate = result_value.sample_rate;
+                let result_recorded_channels = result_value.channels;
+                let result_recorded_channel_layout = result_value.channel_layout;
+                let result_recorded_channel_mask = result_value.channel_mask;
+                let result_recorded_format = result_value.format;
+                let result_recorded_period_frames = result_value.period_frames;
+                let result_recorded_transfer_mode = result_value.transfer_mode;
+                let result_recorded_share_mode = result_value.share_mode;
+                let result_recorded_requested_flags = result_value.requested_flags;
+                let result_recorded_requested_requirements = result_value.requested_requirements;
+                let result_recorded_effective_flags = result_value.effective_flags;
+                let result_recorded_effective_requirements = result_value.effective_requirements;
+                let result_recorded_period_jitter_ns = result_value.period_jitter_ns;
+                let result_recorded_non_interleaved = result_value.non_interleaved;
+                let result_recorded_supports_write_at = result_value.supports_write_at;
+                let result_recorded_supports_pause = result_value.supports_pause;
+                let result_recorded_supports_non_interleaved =
+                    result_value.supports_non_interleaved;
+                let result_recorded_supports_volume = result_value.supports_volume;
+                let result_recorded_supports_mute = result_value.supports_mute;
+                let result_recorded_supports_hardware_timestamps =
+                    result_value.supports_hardware_timestamps;
+                let result_recorded = AudioStreamDescriptorReplayRecord {
+                    backend: result_recorded_backend,
+                    backend_id: result_recorded_backend_id,
+                    device_id: result_recorded_device_id,
+                    sample_rate: result_recorded_sample_rate,
+                    channels: result_recorded_channels,
+                    channel_layout: result_recorded_channel_layout,
+                    channel_mask: result_recorded_channel_mask,
+                    format: result_recorded_format,
+                    period_frames: result_recorded_period_frames,
+                    transfer_mode: result_recorded_transfer_mode,
+                    share_mode: result_recorded_share_mode,
+                    requested_flags: result_recorded_requested_flags,
+                    requested_requirements: result_recorded_requested_requirements,
+                    effective_flags: result_recorded_effective_flags,
+                    effective_requirements: result_recorded_effective_requirements,
+                    period_jitter_ns: result_recorded_period_jitter_ns,
+                    non_interleaved: result_recorded_non_interleaved,
+                    supports_write_at: result_recorded_supports_write_at,
+                    supports_pause: result_recorded_supports_pause,
+                    supports_non_interleaved: result_recorded_supports_non_interleaved,
+                    supports_volume: result_recorded_supports_volume,
+                    supports_mute: result_recorded_supports_mute,
+                    supports_hardware_timestamps: result_recorded_supports_hardware_timestamps,
+                };
+                let payload = AudioStreamDescriptorReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamDescriptorReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_backend = value.backend;
+                    let vm_result_backend_id_value =
+                        context.intern_string(value.backend_id.as_str());
+                    let vm_result_backend_id = vm::StringHandle::new(vm_result_backend_id_value);
+                    let vm_result_device_id_value = context.intern_string(value.device_id.as_str());
+                    let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
+                    let vm_result_sample_rate = value.sample_rate;
+                    let vm_result_channels = value.channels;
+                    let vm_result_channel_layout = value.channel_layout;
+                    let vm_result_channel_mask = value.channel_mask;
+                    let vm_result_format = value.format;
+                    let vm_result_period_frames = value.period_frames;
+                    let vm_result_transfer_mode = value.transfer_mode;
+                    let vm_result_share_mode = value.share_mode;
+                    let vm_result_requested_flags = value.requested_flags;
+                    let vm_result_requested_requirements = value.requested_requirements;
+                    let vm_result_effective_flags = value.effective_flags;
+                    let vm_result_effective_requirements = value.effective_requirements;
+                    let vm_result_period_jitter_ns = value.period_jitter_ns;
+                    let vm_result_non_interleaved = value.non_interleaved;
+                    let vm_result_supports_write_at = value.supports_write_at;
+                    let vm_result_supports_pause = value.supports_pause;
+                    let vm_result_supports_non_interleaved = value.supports_non_interleaved;
+                    let vm_result_supports_volume = value.supports_volume;
+                    let vm_result_supports_mute = value.supports_mute;
+                    let vm_result_supports_hardware_timestamps = value.supports_hardware_timestamps;
+                    let vm_result = AudioStreamDescriptorVm {
+                        backend: vm_result_backend,
+                        backend_id: vm_result_backend_id,
+                        device_id: vm_result_device_id,
+                        sample_rate: vm_result_sample_rate,
+                        channels: vm_result_channels,
+                        channel_layout: vm_result_channel_layout,
+                        channel_mask: vm_result_channel_mask,
+                        format: vm_result_format,
+                        period_frames: vm_result_period_frames,
+                        transfer_mode: vm_result_transfer_mode,
+                        share_mode: vm_result_share_mode,
+                        requested_flags: vm_result_requested_flags,
+                        requested_requirements: vm_result_requested_requirements,
+                        effective_flags: vm_result_effective_flags,
+                        effective_requirements: vm_result_effective_requirements,
+                        period_jitter_ns: vm_result_period_jitter_ns,
+                        non_interleaved: vm_result_non_interleaved,
+                        supports_write_at: vm_result_supports_write_at,
+                        supports_pause: vm_result_supports_pause,
+                        supports_non_interleaved: vm_result_supports_non_interleaved,
+                        supports_volume: vm_result_supports_volume,
+                        supports_mute: vm_result_supports_mute,
+                        supports_hardware_timestamps: vm_result_supports_hardware_timestamps,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_audio_stream_descriptor_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_audio_stream_drain_vm_replay(
     runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -8050,6 +10289,7 @@ fn destack_audio_stream_open_vm_replay(
     world: RuntimeWorld,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfigVm,
+    options: AudioStreamOpenOptionsVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context_policy(
         AUDIO_STREAM_OPEN,
@@ -8057,11 +10297,11 @@ fn destack_audio_stream_open_vm_replay(
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_open(runtime, context, device, config)
+                platform_vm::destack_audio_stream_open(runtime, context, device, config, options)
             }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_open(runtime, context, device, config)
-            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_open(
+                runtime, context, device, config, options,
+            ),
         },
         |context, result| {
             let _ = &context;
@@ -8427,155 +10667,6 @@ fn destack_audio_stream_set_volume_vm_replay(
 }
 
 #[inline]
-fn destack_audio_stream_snapshot_vm_replay(
-    runtime: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
-    world: RuntimeWorld,
-    handle: resource::AudioStreamHandle,
-) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context_policy(
-        AUDIO_STREAM_SNAPSHOT,
-        runtime.replay_payload_for(AUDIO_STREAM_SNAPSHOT)?,
-        context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_audio_stream_snapshot(runtime, context, handle)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_audio_stream_snapshot(runtime, context, handle)
-            }
-        },
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value: AudioStreamSnapshotVm = value.clone();
-                let result_recorded_backend = result_value.backend;
-                let result_recorded_backend_id = {
-                    let result_recorded_backend_id_ref = context
-                        .string_ref(result_value.backend_id)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_backend_id_ref.as_str().to_string()
-                };
-                let result_recorded_device_id = {
-                    let result_recorded_device_id_ref = context
-                        .string_ref(result_value.device_id)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_device_id_ref.as_str().to_string()
-                };
-                let result_recorded_sample_rate = result_value.sample_rate;
-                let result_recorded_channels = result_value.channels;
-                let result_recorded_channel_layout = result_value.channel_layout;
-                let result_recorded_channel_mask = result_value.channel_mask;
-                let result_recorded_format = result_value.format;
-                let result_recorded_period_frames = result_value.period_frames;
-                let result_recorded_transfer_mode = result_value.transfer_mode;
-                let result_recorded_share_mode = result_value.share_mode;
-                let result_recorded_period_jitter_ns = result_value.period_jitter_ns;
-                let result_recorded_non_interleaved = result_value.non_interleaved;
-                let result_recorded_supports_write_at = result_value.supports_write_at;
-                let result_recorded_supports_pause = result_value.supports_pause;
-                let result_recorded_supports_non_interleaved =
-                    result_value.supports_non_interleaved;
-                let result_recorded_supports_volume = result_value.supports_volume;
-                let result_recorded_supports_mute = result_value.supports_mute;
-                let result_recorded_supports_hardware_timestamps =
-                    result_value.supports_hardware_timestamps;
-                let result_recorded = AudioStreamSnapshotReplayRecord {
-                    backend: result_recorded_backend,
-                    backend_id: result_recorded_backend_id,
-                    device_id: result_recorded_device_id,
-                    sample_rate: result_recorded_sample_rate,
-                    channels: result_recorded_channels,
-                    channel_layout: result_recorded_channel_layout,
-                    channel_mask: result_recorded_channel_mask,
-                    format: result_recorded_format,
-                    period_frames: result_recorded_period_frames,
-                    transfer_mode: result_recorded_transfer_mode,
-                    share_mode: result_recorded_share_mode,
-                    period_jitter_ns: result_recorded_period_jitter_ns,
-                    non_interleaved: result_recorded_non_interleaved,
-                    supports_write_at: result_recorded_supports_write_at,
-                    supports_pause: result_recorded_supports_pause,
-                    supports_non_interleaved: result_recorded_supports_non_interleaved,
-                    supports_volume: result_recorded_supports_volume,
-                    supports_mute: result_recorded_supports_mute,
-                    supports_hardware_timestamps: result_recorded_supports_hardware_timestamps,
-                };
-                let payload = AudioStreamSnapshotReplay {
-                    result: Ok(result_recorded),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    AudioStreamSnapshotReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result_backend = value.backend;
-                    let vm_result_backend_id_value =
-                        context.intern_string(value.backend_id.as_str());
-                    let vm_result_backend_id = vm::StringHandle::new(vm_result_backend_id_value);
-                    let vm_result_device_id_value = context.intern_string(value.device_id.as_str());
-                    let vm_result_device_id = vm::StringHandle::new(vm_result_device_id_value);
-                    let vm_result_sample_rate = value.sample_rate;
-                    let vm_result_channels = value.channels;
-                    let vm_result_channel_layout = value.channel_layout;
-                    let vm_result_channel_mask = value.channel_mask;
-                    let vm_result_format = value.format;
-                    let vm_result_period_frames = value.period_frames;
-                    let vm_result_transfer_mode = value.transfer_mode;
-                    let vm_result_share_mode = value.share_mode;
-                    let vm_result_period_jitter_ns = value.period_jitter_ns;
-                    let vm_result_non_interleaved = value.non_interleaved;
-                    let vm_result_supports_write_at = value.supports_write_at;
-                    let vm_result_supports_pause = value.supports_pause;
-                    let vm_result_supports_non_interleaved = value.supports_non_interleaved;
-                    let vm_result_supports_volume = value.supports_volume;
-                    let vm_result_supports_mute = value.supports_mute;
-                    let vm_result_supports_hardware_timestamps = value.supports_hardware_timestamps;
-                    let vm_result = AudioStreamSnapshotVm {
-                        backend: vm_result_backend,
-                        backend_id: vm_result_backend_id,
-                        device_id: vm_result_device_id,
-                        sample_rate: vm_result_sample_rate,
-                        channels: vm_result_channels,
-                        channel_layout: vm_result_channel_layout,
-                        channel_mask: vm_result_channel_mask,
-                        format: vm_result_format,
-                        period_frames: vm_result_period_frames,
-                        transfer_mode: vm_result_transfer_mode,
-                        share_mode: vm_result_share_mode,
-                        period_jitter_ns: vm_result_period_jitter_ns,
-                        non_interleaved: vm_result_non_interleaved,
-                        supports_write_at: vm_result_supports_write_at,
-                        supports_pause: vm_result_supports_pause,
-                        supports_non_interleaved: vm_result_supports_non_interleaved,
-                        supports_volume: vm_result_supports_volume,
-                        supports_mute: vm_result_supports_mute,
-                        supports_hardware_timestamps: vm_result_supports_hardware_timestamps,
-                    };
-                    Ok(vm_result)
-                }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    );
-    let result = encode_destack_audio_stream_snapshot_result(context, result)?;
-    Ok(result)
-}
-
-#[inline]
 fn destack_audio_stream_start_vm_replay(
     runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -8788,6 +10879,218 @@ fn destack_audio_stream_stop_vm_replay(
 }
 
 #[inline]
+fn destack_audio_stream_support_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    device: resource::AudioDeviceHandle,
+    config: AudioStreamConfigVm,
+    options: AudioStreamOpenOptionsVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_STREAM_SUPPORT,
+        runtime.replay_payload_for(AUDIO_STREAM_SUPPORT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_stream_support(runtime, context, device, config, options)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_stream_support(
+                runtime, context, device, config, options,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: AudioStreamSupportVm = value.clone();
+                let result_recorded_supported = result_value.supported;
+                let result_recorded_descriptor_backend = result_value.descriptor.backend;
+                let result_recorded_descriptor_backend_id = {
+                    let result_recorded_descriptor_backend_id_ref = context
+                        .string_ref(result_value.descriptor.backend_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_descriptor_backend_id_ref
+                        .as_str()
+                        .to_string()
+                };
+                let result_recorded_descriptor_device_id = {
+                    let result_recorded_descriptor_device_id_ref = context
+                        .string_ref(result_value.descriptor.device_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_descriptor_device_id_ref
+                        .as_str()
+                        .to_string()
+                };
+                let result_recorded_descriptor_sample_rate = result_value.descriptor.sample_rate;
+                let result_recorded_descriptor_channels = result_value.descriptor.channels;
+                let result_recorded_descriptor_channel_layout =
+                    result_value.descriptor.channel_layout;
+                let result_recorded_descriptor_channel_mask = result_value.descriptor.channel_mask;
+                let result_recorded_descriptor_format = result_value.descriptor.format;
+                let result_recorded_descriptor_period_frames =
+                    result_value.descriptor.period_frames;
+                let result_recorded_descriptor_transfer_mode =
+                    result_value.descriptor.transfer_mode;
+                let result_recorded_descriptor_share_mode = result_value.descriptor.share_mode;
+                let result_recorded_descriptor_requested_flags =
+                    result_value.descriptor.requested_flags;
+                let result_recorded_descriptor_requested_requirements =
+                    result_value.descriptor.requested_requirements;
+                let result_recorded_descriptor_effective_flags =
+                    result_value.descriptor.effective_flags;
+                let result_recorded_descriptor_effective_requirements =
+                    result_value.descriptor.effective_requirements;
+                let result_recorded_descriptor_period_jitter_ns =
+                    result_value.descriptor.period_jitter_ns;
+                let result_recorded_descriptor_non_interleaved =
+                    result_value.descriptor.non_interleaved;
+                let result_recorded_descriptor_supports_write_at =
+                    result_value.descriptor.supports_write_at;
+                let result_recorded_descriptor_supports_pause =
+                    result_value.descriptor.supports_pause;
+                let result_recorded_descriptor_supports_non_interleaved =
+                    result_value.descriptor.supports_non_interleaved;
+                let result_recorded_descriptor_supports_volume =
+                    result_value.descriptor.supports_volume;
+                let result_recorded_descriptor_supports_mute =
+                    result_value.descriptor.supports_mute;
+                let result_recorded_descriptor_supports_hardware_timestamps =
+                    result_value.descriptor.supports_hardware_timestamps;
+                let result_recorded_descriptor = AudioStreamDescriptorReplayRecord {
+                    backend: result_recorded_descriptor_backend,
+                    backend_id: result_recorded_descriptor_backend_id,
+                    device_id: result_recorded_descriptor_device_id,
+                    sample_rate: result_recorded_descriptor_sample_rate,
+                    channels: result_recorded_descriptor_channels,
+                    channel_layout: result_recorded_descriptor_channel_layout,
+                    channel_mask: result_recorded_descriptor_channel_mask,
+                    format: result_recorded_descriptor_format,
+                    period_frames: result_recorded_descriptor_period_frames,
+                    transfer_mode: result_recorded_descriptor_transfer_mode,
+                    share_mode: result_recorded_descriptor_share_mode,
+                    requested_flags: result_recorded_descriptor_requested_flags,
+                    requested_requirements: result_recorded_descriptor_requested_requirements,
+                    effective_flags: result_recorded_descriptor_effective_flags,
+                    effective_requirements: result_recorded_descriptor_effective_requirements,
+                    period_jitter_ns: result_recorded_descriptor_period_jitter_ns,
+                    non_interleaved: result_recorded_descriptor_non_interleaved,
+                    supports_write_at: result_recorded_descriptor_supports_write_at,
+                    supports_pause: result_recorded_descriptor_supports_pause,
+                    supports_non_interleaved: result_recorded_descriptor_supports_non_interleaved,
+                    supports_volume: result_recorded_descriptor_supports_volume,
+                    supports_mute: result_recorded_descriptor_supports_mute,
+                    supports_hardware_timestamps:
+                        result_recorded_descriptor_supports_hardware_timestamps,
+                };
+                let result_recorded_satisfied_requirements = result_value.satisfied_requirements;
+                let result_recorded_unsatisfied_requirements =
+                    result_value.unsatisfied_requirements;
+                let result_recorded = AudioStreamSupportReplayRecord {
+                    supported: result_recorded_supported,
+                    descriptor: result_recorded_descriptor,
+                    satisfied_requirements: result_recorded_satisfied_requirements,
+                    unsatisfied_requirements: result_recorded_unsatisfied_requirements,
+                };
+                let payload = AudioStreamSupportReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioStreamSupportReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_supported = value.supported;
+                    let vm_result_descriptor_backend = value.descriptor.backend;
+                    let vm_result_descriptor_backend_id_value =
+                        context.intern_string(value.descriptor.backend_id.as_str());
+                    let vm_result_descriptor_backend_id =
+                        vm::StringHandle::new(vm_result_descriptor_backend_id_value);
+                    let vm_result_descriptor_device_id_value =
+                        context.intern_string(value.descriptor.device_id.as_str());
+                    let vm_result_descriptor_device_id =
+                        vm::StringHandle::new(vm_result_descriptor_device_id_value);
+                    let vm_result_descriptor_sample_rate = value.descriptor.sample_rate;
+                    let vm_result_descriptor_channels = value.descriptor.channels;
+                    let vm_result_descriptor_channel_layout = value.descriptor.channel_layout;
+                    let vm_result_descriptor_channel_mask = value.descriptor.channel_mask;
+                    let vm_result_descriptor_format = value.descriptor.format;
+                    let vm_result_descriptor_period_frames = value.descriptor.period_frames;
+                    let vm_result_descriptor_transfer_mode = value.descriptor.transfer_mode;
+                    let vm_result_descriptor_share_mode = value.descriptor.share_mode;
+                    let vm_result_descriptor_requested_flags = value.descriptor.requested_flags;
+                    let vm_result_descriptor_requested_requirements =
+                        value.descriptor.requested_requirements;
+                    let vm_result_descriptor_effective_flags = value.descriptor.effective_flags;
+                    let vm_result_descriptor_effective_requirements =
+                        value.descriptor.effective_requirements;
+                    let vm_result_descriptor_period_jitter_ns = value.descriptor.period_jitter_ns;
+                    let vm_result_descriptor_non_interleaved = value.descriptor.non_interleaved;
+                    let vm_result_descriptor_supports_write_at = value.descriptor.supports_write_at;
+                    let vm_result_descriptor_supports_pause = value.descriptor.supports_pause;
+                    let vm_result_descriptor_supports_non_interleaved =
+                        value.descriptor.supports_non_interleaved;
+                    let vm_result_descriptor_supports_volume = value.descriptor.supports_volume;
+                    let vm_result_descriptor_supports_mute = value.descriptor.supports_mute;
+                    let vm_result_descriptor_supports_hardware_timestamps =
+                        value.descriptor.supports_hardware_timestamps;
+                    let vm_result_descriptor = AudioStreamDescriptorVm {
+                        backend: vm_result_descriptor_backend,
+                        backend_id: vm_result_descriptor_backend_id,
+                        device_id: vm_result_descriptor_device_id,
+                        sample_rate: vm_result_descriptor_sample_rate,
+                        channels: vm_result_descriptor_channels,
+                        channel_layout: vm_result_descriptor_channel_layout,
+                        channel_mask: vm_result_descriptor_channel_mask,
+                        format: vm_result_descriptor_format,
+                        period_frames: vm_result_descriptor_period_frames,
+                        transfer_mode: vm_result_descriptor_transfer_mode,
+                        share_mode: vm_result_descriptor_share_mode,
+                        requested_flags: vm_result_descriptor_requested_flags,
+                        requested_requirements: vm_result_descriptor_requested_requirements,
+                        effective_flags: vm_result_descriptor_effective_flags,
+                        effective_requirements: vm_result_descriptor_effective_requirements,
+                        period_jitter_ns: vm_result_descriptor_period_jitter_ns,
+                        non_interleaved: vm_result_descriptor_non_interleaved,
+                        supports_write_at: vm_result_descriptor_supports_write_at,
+                        supports_pause: vm_result_descriptor_supports_pause,
+                        supports_non_interleaved: vm_result_descriptor_supports_non_interleaved,
+                        supports_volume: vm_result_descriptor_supports_volume,
+                        supports_mute: vm_result_descriptor_supports_mute,
+                        supports_hardware_timestamps:
+                            vm_result_descriptor_supports_hardware_timestamps,
+                    };
+                    let vm_result_satisfied_requirements = value.satisfied_requirements;
+                    let vm_result_unsatisfied_requirements = value.unsatisfied_requirements;
+                    let vm_result = AudioStreamSupportVm {
+                        supported: vm_result_supported,
+                        descriptor: vm_result_descriptor,
+                        satisfied_requirements: vm_result_satisfied_requirements,
+                        unsatisfied_requirements: vm_result_unsatisfied_requirements,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_audio_stream_support_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_audio_stream_timing_vm_replay(
     runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -8816,7 +11119,9 @@ fn destack_audio_stream_timing_vm_replay(
                 let result_recorded_input_adc_time_ns = result_value.input_adc_time_ns;
                 let result_recorded_has_output_dac_time = result_value.has_output_dac_time;
                 let result_recorded_output_dac_time_ns = result_value.output_dac_time_ns;
+                let result_recorded_has_callback_time_ns = result_value.has_callback_time_ns;
                 let result_recorded_callback_time_ns = result_value.callback_time_ns;
+                let result_recorded_has_device_clock_ns = result_value.has_device_clock_ns;
                 let result_recorded_device_clock_ns = result_value.device_clock_ns;
                 let result_recorded_monotonic_clock_ns = result_value.monotonic_clock_ns;
                 let result_recorded_drift_ppm = result_value.drift_ppm;
@@ -8828,7 +11133,9 @@ fn destack_audio_stream_timing_vm_replay(
                     input_adc_time_ns: result_recorded_input_adc_time_ns,
                     has_output_dac_time: result_recorded_has_output_dac_time,
                     output_dac_time_ns: result_recorded_output_dac_time_ns,
+                    has_callback_time_ns: result_recorded_has_callback_time_ns,
                     callback_time_ns: result_recorded_callback_time_ns,
+                    has_device_clock_ns: result_recorded_has_device_clock_ns,
                     device_clock_ns: result_recorded_device_clock_ns,
                     monotonic_clock_ns: result_recorded_monotonic_clock_ns,
                     drift_ppm: result_recorded_drift_ppm,
@@ -8861,7 +11168,9 @@ fn destack_audio_stream_timing_vm_replay(
                     let vm_result_input_adc_time_ns = value.input_adc_time_ns;
                     let vm_result_has_output_dac_time = value.has_output_dac_time;
                     let vm_result_output_dac_time_ns = value.output_dac_time_ns;
+                    let vm_result_has_callback_time_ns = value.has_callback_time_ns;
                     let vm_result_callback_time_ns = value.callback_time_ns;
+                    let vm_result_has_device_clock_ns = value.has_device_clock_ns;
                     let vm_result_device_clock_ns = value.device_clock_ns;
                     let vm_result_monotonic_clock_ns = value.monotonic_clock_ns;
                     let vm_result_drift_ppm = value.drift_ppm;
@@ -8873,7 +11182,9 @@ fn destack_audio_stream_timing_vm_replay(
                         input_adc_time_ns: vm_result_input_adc_time_ns,
                         has_output_dac_time: vm_result_has_output_dac_time,
                         output_dac_time_ns: vm_result_output_dac_time_ns,
+                        has_callback_time_ns: vm_result_has_callback_time_ns,
                         callback_time_ns: vm_result_callback_time_ns,
+                        has_device_clock_ns: vm_result_has_device_clock_ns,
                         device_clock_ns: vm_result_device_clock_ns,
                         monotonic_clock_ns: vm_result_monotonic_clock_ns,
                         drift_ppm: vm_result_drift_ppm,
@@ -9582,6 +11893,27 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
         binding!(
             registry,
             isolate,
+            AUDIO_EVENT_READ_BATCH,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, maxevents, timeoutns) =
+                        decode_destack_audio_event_read_batch_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(AUDIO_EVENT_READ_BATCH)?;
+                    destack_audio_event_read_batch_vm_replay(
+                        runtime, context, world, handle, maxevents, timeoutns,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             AUDIO_EVENT_TRY_READ,
             move |context, args| {
                 with_binding_call_context(|runtime| {
@@ -9591,6 +11923,27 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     // execute binding
                     let world = runtime.check_and_resolve_world(AUDIO_EVENT_TRY_READ)?;
                     destack_audio_event_try_read_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_EVENT_TRY_READ_BATCH,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, maxevents) =
+                        decode_destack_audio_event_try_read_batch_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(AUDIO_EVENT_TRY_READ_BATCH)?;
+                    destack_audio_event_try_read_batch_vm_replay(
+                        runtime, context, world, handle, maxevents,
+                    )
                 })
                 .map_err(Into::into)
             }
@@ -9654,6 +12007,24 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
         binding!(
             registry,
             isolate,
+            AUDIO_STREAM_DESCRIPTOR,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_audio_stream_descriptor_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_DESCRIPTOR)?;
+                    destack_audio_stream_descriptor_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             AUDIO_STREAM_DRAIN,
             move |context, args| {
                 with_binding_call_context(|runtime| {
@@ -9695,11 +12066,14 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             move |context, args| {
                 with_binding_call_context(|runtime| {
                     // decode args
-                    let (device, config) = decode_destack_audio_stream_open_args(context, args)?;
+                    let (device, config, options) =
+                        decode_destack_audio_stream_open_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(AUDIO_STREAM_OPEN)?;
-                    destack_audio_stream_open_vm_replay(runtime, context, world, device, config)
+                    destack_audio_stream_open_vm_replay(
+                        runtime, context, world, device, config, options,
+                    )
                 })
                 .map_err(Into::into)
             }
@@ -9820,24 +12194,6 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
         binding!(
             registry,
             isolate,
-            AUDIO_STREAM_SNAPSHOT,
-            move |context, args| {
-                with_binding_call_context(|runtime| {
-                    // decode args
-                    let (handle,) = decode_destack_audio_stream_snapshot_args(context, args)?;
-
-                    // execute binding
-                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_SNAPSHOT)?;
-                    destack_audio_stream_snapshot_vm_replay(runtime, context, world, handle)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
             AUDIO_STREAM_START,
             move |context, args| {
                 with_binding_call_context(|runtime| {
@@ -9883,6 +12239,27 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     // execute binding
                     let world = runtime.check_and_resolve_world(AUDIO_STREAM_STOP)?;
                     destack_audio_stream_stop_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_STREAM_SUPPORT,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (device, config, options) =
+                        decode_destack_audio_stream_support_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(AUDIO_STREAM_SUPPORT)?;
+                    destack_audio_stream_support_vm_replay(
+                        runtime, context, world, device, config, options,
+                    )
                 })
                 .map_err(Into::into)
             }

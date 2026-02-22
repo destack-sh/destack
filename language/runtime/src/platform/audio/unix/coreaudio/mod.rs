@@ -6,6 +6,7 @@ mod callback;
 mod constants;
 mod core;
 mod device;
+mod event;
 #[cfg(target_os = "macos")]
 mod format;
 #[cfg(target_os = "macos")]
@@ -21,4 +22,5 @@ mod sample;
 mod stream;
 
 pub(crate) use device::*;
+pub(crate) use event::*;
 pub(crate) use stream::*;

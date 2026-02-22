@@ -151,3 +151,54 @@ pub(crate) fn resolve_host_device_by_id(
             )
         })
 }
+
+/// Return whether one windows backend exposes native device-event subscriptions.
+pub(crate) fn backend_native_device_events_supported(backend: audio_core::AudioBackend) -> bool {
+    #[cfg(feature = "audio-wasapi")]
+    if backend == audio_core::AudioBackend::Wasapi {
+        return wasapi::native_device_events_supported();
+    }
+
+    #[cfg(feature = "audio-asio")]
+    if backend == audio_core::AudioBackend::Asio {
+        return asio::native_device_events_supported();
+    }
+
+    let _ = backend;
+    false
+}
+
+/// Start one windows backend native device-event monitor.
+pub(crate) fn start_backend_native_device_events(
+    backend: audio_core::AudioBackend,
+) -> RuntimeResult<()> {
+    #[cfg(feature = "audio-wasapi")]
+    if backend == audio_core::AudioBackend::Wasapi {
+        return wasapi::start_native_device_event_monitor();
+    }
+
+    #[cfg(feature = "audio-asio")]
+    if backend == audio_core::AudioBackend::Asio {
+        return asio::start_native_device_event_monitor();
+    }
+
+    let _ = backend;
+    Ok(())
+}
+
+/// Stop one windows backend native device-event monitor.
+pub(crate) fn stop_backend_native_device_events(backend: audio_core::AudioBackend) {
+    #[cfg(feature = "audio-wasapi")]
+    if backend == audio_core::AudioBackend::Wasapi {
+        wasapi::stop_native_device_event_monitor();
+        return;
+    }
+
+    #[cfg(feature = "audio-asio")]
+    if backend == audio_core::AudioBackend::Asio {
+        asio::stop_native_device_event_monitor();
+        return;
+    }
+
+    let _ = backend;
+}

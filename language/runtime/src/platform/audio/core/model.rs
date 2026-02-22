@@ -275,6 +275,12 @@ pub(crate) struct AudioEventBinding {
     pub(crate) previous_stream_xrun_count: u64,
     /// Last poll refresh timestamp in nanoseconds.
     pub(crate) last_refresh_ns: u64,
+    /// Next sequence number for queued events.
+    pub(crate) next_sequence: u64,
+    /// Total dropped event count.
+    pub(crate) dropped_count: u64,
+    /// Pending overflow error flag for error overflow policy.
+    pub(crate) overflow_error_pending: bool,
     /// Pending events.
     pub(crate) pending: VecDeque<AudioEventRecord>,
 }
@@ -286,6 +292,12 @@ pub(crate) struct AudioEventRecord {
     pub(crate) kind: AudioEventKind,
     /// Monotonic timestamp.
     pub(crate) timestamp_ns: u64,
+    /// Queue sequence number.
+    pub(crate) sequence: u64,
+    /// Total dropped event count before this record.
+    pub(crate) dropped_count: u64,
+    /// Event source.
+    pub(crate) source: AudioEventSource,
     /// Backend selector for this event.
     pub(crate) backend: AudioBackend,
     /// Device identifier.

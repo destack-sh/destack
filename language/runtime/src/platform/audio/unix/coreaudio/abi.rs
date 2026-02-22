@@ -45,6 +45,14 @@ pub(super) type AudioQueuePropertyID = u32;
 /// CoreAudio type alias `AudioQueueBufferRef`.
 #[cfg(target_os = "macos")]
 pub(super) type AudioQueueBufferRef = *mut AudioQueueBuffer;
+/// CoreAudio type alias `AudioObjectPropertyListenerProc`.
+#[cfg(target_os = "macos")]
+pub(super) type AudioObjectPropertyListenerProc = unsafe extern "C" fn(
+    AudioObjectID,
+    u32,
+    *const AudioObjectPropertyAddress,
+    *mut c_void,
+) -> OSStatus;
 
 /// CoreAudio struct `AudioObjectPropertyAddress`.
 #[cfg(target_os = "macos")]
@@ -263,6 +271,22 @@ unsafe extern "C" {
         in_qualifier_data: *const c_void,
         in_data_size: u32,
         in_data: *const c_void,
+    ) -> OSStatus;
+
+    /// Add one property-change listener callback for one address.
+    pub(super) fn AudioObjectAddPropertyListener(
+        in_object_id: AudioObjectID,
+        in_address: *const AudioObjectPropertyAddress,
+        in_listener: Option<AudioObjectPropertyListenerProc>,
+        in_client_data: *mut c_void,
+    ) -> OSStatus;
+
+    /// Remove one property-change listener callback for one address.
+    pub(super) fn AudioObjectRemovePropertyListener(
+        in_object_id: AudioObjectID,
+        in_address: *const AudioObjectPropertyAddress,
+        in_listener: Option<AudioObjectPropertyListenerProc>,
+        in_client_data: *mut c_void,
     ) -> OSStatus;
 }
 

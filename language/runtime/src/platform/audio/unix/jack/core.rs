@@ -176,6 +176,15 @@ fn load_jack_api(handle: *mut c_void) -> Option<JackApi> {
             handle,
             b"jack_set_process_callback\0",
         )?,
+        jack_set_port_registration_callback: core_platform::load_dynamic_symbol(
+            handle,
+            b"jack_set_port_registration_callback\0",
+        )?,
+        jack_set_port_connect_callback: core_platform::load_dynamic_symbol(
+            handle,
+            b"jack_set_port_connect_callback\0",
+        )?,
+        jack_on_shutdown: core_platform::load_dynamic_symbol(handle, b"jack_on_shutdown\0")?,
         jack_port_register: core_platform::load_dynamic_symbol(handle, b"jack_port_register\0")?,
         jack_port_name: core_platform::load_dynamic_symbol(handle, b"jack_port_name\0")?,
         jack_port_get_buffer: core_platform::load_dynamic_symbol(

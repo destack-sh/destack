@@ -75,8 +75,8 @@ pub(crate) fn record_stream_callback_timing(
 
     // publish callback and endpoint timestamps
     state.last_callback_mono_ns = callback_mono_ns;
-    state.last_input_adc_ns = input_adc_ns.unwrap_or(callback_mono_ns);
-    state.last_output_dac_ns = output_dac_ns.unwrap_or(callback_mono_ns);
+    state.last_input_adc_ns = input_adc_ns.unwrap_or(0);
+    state.last_output_dac_ns = output_dac_ns.unwrap_or(0);
     state.last_callback_cpu_load = 0.0;
 }
 
@@ -135,7 +135,7 @@ pub(crate) fn stream_timing_snapshot(
     } else if state.last_input_adc_ns > 0 {
         state.last_input_adc_ns
     } else {
-        state.last_callback_mono_ns
+        0
     };
 
     AudioStreamTiming {
@@ -145,12 +145,56 @@ pub(crate) fn stream_timing_snapshot(
         input_adc_time_ns: state.last_input_adc_ns,
         has_output_dac_time: state.last_output_dac_ns > 0,
         output_dac_time_ns: state.last_output_dac_ns,
+        has_callback_time_ns: state.last_callback_mono_ns > 0,
         callback_time_ns: state.last_callback_mono_ns,
+        has_device_clock_ns: binding.runtime_capabilities.supports_hardware_timestamps
+            && device_clock_ns > 0,
         device_clock_ns,
         monotonic_clock_ns: context.runtime().time.mono_nanos(),
         drift_ppm: estimate_drift_ppm(&state, binding.sample_rate),
         callback_cpu_load: state.last_callback_cpu_load,
     }
+}
+
+/// Build one stream-option mask from stream runtime capabilities.
+pub(crate) fn effective_stream_flags(binding: &AudioStreamBinding) -> AudioStreamFlags {
+    let mut flags = STREAM_FLAG_REPORT_XRUN.0;
+    flags |= STREAM_FLAG_MINIMIZE_LATENCY.0;
+    flags |= STREAM_FLAG_SCHEDULE_REALTIME.0;
+    flags |= STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0;
+    flags |= STREAM_FLAG_NO_AUTO_CONVERT.0;
+    flags |= STREAM_FLAG_NEVER_DROP_INPUT.0;
+    flags |= STREAM_FLAG_PRIME_OUTPUT_BUFFERS.0;
+
+    if binding.runtime_capabilities.supports_non_interleaved {
+        flags |= STREAM_FLAG_NON_INTERLEAVED.0;
+    }
+
+    AudioStreamFlags(flags)
+}
+
+/// Build one stream-requirement mask satisfied by this stream.
+pub(crate) fn satisfied_stream_requirements(
+    binding: &AudioStreamBinding,
+) -> AudioStreamRequirementFlags {
+    let mut requirements = 0u32;
+    if binding.runtime_capabilities.supports_non_interleaved {
+        requirements |= STREAM_REQUIRE_NON_INTERLEAVED.0;
+    }
+    if binding.runtime_capabilities.supports_write_at {
+        requirements |= STREAM_REQUIRE_SCHEDULED_WRITE.0;
+    }
+    if binding.runtime_capabilities.supports_pause {
+        requirements |= STREAM_REQUIRE_PAUSE.0;
+    }
+    if binding.runtime_capabilities.supports_hardware_timestamps {
+        requirements |= STREAM_REQUIRE_HARDWARE_TIMESTAMPS.0;
+    }
+    if (binding.device.capability_flags.0 & DEVICE_CAPABILITY_BIT_EXACT_PCM.0) != 0 {
+        requirements |= STREAM_REQUIRE_BIT_EXACT_PCM.0;
+    }
+
+    AudioStreamRequirementFlags(requirements)
 }
 
 /// Build one stream availability snapshot.
@@ -181,17 +225,17 @@ pub(crate) fn stream_availability_snapshot(
 }
 
 /// Build one stream snapshot payload.
-pub(crate) fn stream_snapshot(
+pub(crate) fn stream_descriptor(
     context: &BindingCallContext,
     binding: &AudioStreamBinding,
-) -> AudioStreamSnapshot {
+) -> AudioStreamDescriptor {
     let state = binding
         .sync
         .state
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
-    AudioStreamSnapshot {
+    AudioStreamDescriptor {
         backend: binding.device.backend,
         backend_id: context.store_string(host::backend_name(binding.device.backend)),
         device_id: context.store_string(&binding.device.id),
@@ -203,9 +247,12 @@ pub(crate) fn stream_snapshot(
         period_frames: binding.period_frames,
         transfer_mode: binding.requested.transfer_mode,
         share_mode: binding.share_mode,
+        requested_flags: AudioStreamFlags(0),
+        requested_requirements: AudioStreamRequirementFlags(0),
+        effective_flags: effective_stream_flags(binding),
+        effective_requirements: satisfied_stream_requirements(binding),
         period_jitter_ns: state.last_period_jitter_ns,
-        non_interleaved: (binding.requested.flags.0 & STREAM_FLAG_NON_INTERLEAVED.0) != 0
-            && binding.runtime_capabilities.supports_non_interleaved,
+        non_interleaved: binding.runtime_capabilities.supports_non_interleaved,
         supports_write_at: binding.runtime_capabilities.supports_write_at,
         supports_pause: binding.runtime_capabilities.supports_pause,
         supports_non_interleaved: binding.runtime_capabilities.supports_non_interleaved,
@@ -232,12 +279,15 @@ pub(crate) fn build_null_worker(binding: Arc<AudioStreamBinding>) -> JoinHandle<
                 .state
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
+            let mut xrun_count_delta = 0u64;
+            let mut status_flags = AudioStreamStatusFlags(0);
 
             if state.shutdown {
                 break;
             }
 
             if state.running {
+                let previous_xrun_count = state.xrun_count;
                 let scalar_period = period_frames.saturating_mul(binding.channels as usize);
                 state.status_flags = AudioStreamStatusFlags(0);
 
@@ -288,10 +338,26 @@ pub(crate) fn build_null_worker(binding: Arc<AudioStreamBinding>) -> JoinHandle<
                     Some(callback_mono_ns),
                     Some(callback_mono_ns),
                 );
+
+                xrun_count_delta = state.xrun_count.saturating_sub(previous_xrun_count);
+                status_flags = state.status_flags;
             }
 
             drop(state);
             binding.sync.wake.notify_all();
+
+            if xrun_count_delta > 0
+                && let Some(stream_handle) = stream_handle_for_binding(&binding)
+            {
+                publish_stream_event_native(
+                    stream_handle,
+                    &binding,
+                    AudioEventKind::StreamXRun,
+                    status_flags,
+                    xrun_count_delta,
+                );
+            }
+
             thread::sleep(period_duration);
         }
     })
@@ -308,6 +374,7 @@ pub(crate) fn mark_stream_backend_disconnected(
     binding: &AudioStreamBinding,
     message: impl Into<String>,
 ) {
+    let mut status_flags = AudioStreamStatusFlags(0);
     let mut state = binding
         .sync
         .state
@@ -320,8 +387,26 @@ pub(crate) fn mark_stream_backend_disconnected(
     state.status_flags =
         AudioStreamStatusFlags(state.status_flags.0 | STREAM_STATUS_OUTPUT_UNDERFLOW.0);
     state.last_backend_message = Some(message.into());
+    status_flags = state.status_flags;
     drop(state);
     binding.sync.wake.notify_all();
+
+    if let Some(stream_handle) = stream_handle_for_binding(binding) {
+        publish_stream_event_native(
+            stream_handle,
+            binding,
+            AudioEventKind::BackendDisconnected,
+            status_flags,
+            0,
+        );
+        publish_stream_event_native(
+            stream_handle,
+            binding,
+            AudioEventKind::StreamStateChanged,
+            status_flags,
+            0,
+        );
+    }
 }
 
 /// Run one backend stream start hook when available.

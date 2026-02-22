@@ -2,14 +2,16 @@ use destack_vm as vm;
 
 use super::super::{
     AudioBackend, AudioBackendCapabilityFlags, AudioBackendDescriptor, AudioBackendDescriptorVm,
-    AudioBackendOpenFlags, AudioBackendSelectionPolicy, AudioChannelLayout, AudioClockSnapshot,
-    AudioClockSnapshotVm, AudioDeviceCapabilityFlags, AudioDeviceDescriptor,
-    AudioDeviceDescriptorVm, AudioDeviceDirection, AudioDeviceListRequest,
-    AudioDeviceListRequestVm, AudioDeviceOpenFlags, AudioDeviceOpenOptions,
-    AudioDeviceOpenOptionsVm, AudioEventSubscriptionOptions, AudioEventSubscriptionOptionsVm,
-    AudioSampleFormat, AudioShareMode, AudioStreamConfig, AudioStreamConfigVm, AudioStreamFlags,
-    AudioStreamSnapshot, AudioStreamSnapshotVm, AudioStreamState, AudioStreamStateVm,
-    AudioStreamTransferMode,
+    AudioBackendSelectionPolicy, AudioChannelLayout, AudioClockSnapshot, AudioClockSnapshotVm,
+    AudioDeviceCapabilityFlags, AudioDeviceDescriptor, AudioDeviceDescriptorVm,
+    AudioDeviceDirection, AudioDeviceListRequest, AudioDeviceListRequestVm, AudioDeviceOpenFlags,
+    AudioDeviceOpenOptions, AudioDeviceOpenOptionsVm, AudioEvent, AudioEventKind, AudioEventSource,
+    AudioEventSubscriptionOptions, AudioEventSubscriptionOptionsVm, AudioEventVm,
+    AudioSampleFormat, AudioShareMode, AudioStreamConfig, AudioStreamConfigVm,
+    AudioStreamDescriptor, AudioStreamDescriptorVm, AudioStreamFlags, AudioStreamOpenOptions,
+    AudioStreamOpenOptionsVm, AudioStreamRequirementFlags, AudioStreamState, AudioStreamStateVm,
+    AudioStreamSupport, AudioStreamSupportVm, AudioStreamTransferMode,
+    AudioSupportedEventSubscriptionFlags, AudioSupportedStreamClockDomains,
 };
 use super::{AudioHarnessContext, HarnessValue};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -18,6 +20,44 @@ use crate::platform::{NativeSlice, NativeStringRef, VmSlice, resource};
 type NativeByteVectors = NativeSlice<NativeSlice<u8>>;
 type VmByteVectors = VmSlice<VmSlice<u8>>;
 type ByteVectorsHarnessValue = HarnessValue<NativeByteVectors, VmByteVectors>;
+
+/// Deterministic pseudo-random sequence used by stress tests.
+pub(super) struct DeterministicSequence {
+    /// Internal state for the xorshift64 generator.
+    state: u64,
+}
+
+impl DeterministicSequence {
+    /// Create one deterministic sequence from one nonzero seed.
+    pub(super) fn new(seed: u64) -> Self {
+        let state = if seed == 0 {
+            0x9E37_79B9_7F4A_7C15
+        } else {
+            seed
+        };
+        Self { state }
+    }
+
+    /// Return one random u64 and advance sequence state.
+    pub(super) fn next_u64(&mut self) -> u64 {
+        let mut state = self.state;
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        self.state = state;
+        state
+    }
+
+    /// Return one random usize in range `[0, upper_exclusive)`.
+    pub(super) fn next_index(&mut self, upper_exclusive: usize) -> usize {
+        (self.next_u64() as usize) % upper_exclusive
+    }
+
+    /// Return one random bool.
+    pub(super) fn next_bool(&mut self) -> bool {
+        (self.next_u64() & 1) != 0
+    }
+}
 
 /// Return the mutable VM context when the harness is running in VM mode.
 pub(super) fn vm_context_mut<'a>(
@@ -46,22 +86,13 @@ pub(super) fn harness_device_options(
     context: &mut AudioHarnessContext<'_>,
     options: AudioDeviceOpenOptions,
 ) -> HarnessValue<AudioDeviceOpenOptions, AudioDeviceOpenOptionsVm> {
-    if let Some(vm_context) = vm_context_mut(context) {
-        let backend_hint = unsafe {
-            options
-                .backend_hint
-                .as_str()
-                .expect("backend hint should decode from native options")
-        };
-
+    if vm_context_mut(context).is_some() {
         let vm_options = AudioDeviceOpenOptionsVm {
             direction: options.direction,
             backend: options.backend,
             backend_policy: options.backend_policy,
             share_mode: options.share_mode,
             flags: options.flags,
-            backend_flags: options.backend_flags,
-            backend_hint: vm::StringHandle::new(vm_context.intern_string(backend_hint)),
         };
 
         context.harness_value_vm(vm_options)
@@ -80,6 +111,46 @@ pub(super) fn harness_stream_config(
     } else {
         context.harness_value(config)
     }
+}
+
+/// Build one harness stream-open options value for the current engine mode.
+pub(super) fn harness_stream_options(
+    context: &mut AudioHarnessContext<'_>,
+    options: AudioStreamOpenOptions,
+) -> HarnessValue<AudioStreamOpenOptions, AudioStreamOpenOptionsVm> {
+    if context.vm_context.is_some() {
+        context.harness_value_vm(options)
+    } else {
+        context.harness_value(options)
+    }
+}
+
+/// Return one default stream-open options payload.
+pub(super) fn default_stream_open_options() -> AudioStreamOpenOptions {
+    AudioStreamOpenOptions {
+        flags: AudioStreamFlags(0),
+        requirements: AudioStreamRequirementFlags(0),
+    }
+}
+
+/// Return one stream-open options payload with overridden stream flags.
+pub(super) fn default_stream_open_options_with_flags(
+    flags: AudioStreamFlags,
+) -> AudioStreamOpenOptions {
+    AudioStreamOpenOptions {
+        flags,
+        requirements: AudioStreamRequirementFlags(0),
+    }
+}
+
+/// Open one stream with default stream-open options.
+pub(super) fn stream_open_with_default_options(
+    context: &mut AudioHarnessContext<'_>,
+    device: resource::AudioDeviceHandle,
+    config: HarnessValue<AudioStreamConfig, AudioStreamConfigVm>,
+) -> RuntimeResult<resource::AudioStreamHandle> {
+    let options = harness_stream_options(context, default_stream_open_options());
+    context.destack_audio_stream_open(device, config, options)
 }
 
 /// Build one harness device-list request for the current engine mode.
@@ -287,6 +358,43 @@ pub(super) fn backend_availability_rows_with_capabilities(
     }
 }
 
+/// Decode one backend descriptor list into availability and event-support rows.
+pub(super) fn backend_event_support_rows(
+    context: &mut AudioHarnessContext<'_>,
+    value: HarnessValue<NativeSlice<AudioBackendDescriptor>, VmSlice<AudioBackendDescriptorVm>>,
+) -> RuntimeResult<Vec<(AudioBackend, bool, AudioSupportedEventSubscriptionFlags)>> {
+    match value {
+        HarnessValue::Native(value) => {
+            let values = unsafe { value.as_slice()? };
+            Ok(values
+                .iter()
+                .map(|value| {
+                    (
+                        value.backend,
+                        value.available,
+                        value.supported_event_subscription_flags,
+                    )
+                })
+                .collect::<Vec<_>>())
+        }
+        HarnessValue::Vm(value) => {
+            let vm_context = vm_context_mut(context)
+                .expect("vm payload requires vm context to decode backend descriptor slice");
+            let values = value.read_values(vm_context)?;
+            Ok(values
+                .iter()
+                .map(|value| {
+                    (
+                        value.backend,
+                        value.available,
+                        value.supported_event_subscription_flags,
+                    )
+                })
+                .collect::<Vec<_>>())
+        }
+    }
+}
+
 /// Decode one native or VM string payload into one rust string.
 pub(super) fn string_from_harness_value(
     context: &mut AudioHarnessContext<'_>,
@@ -340,9 +448,19 @@ pub(super) fn device_descriptor_direction_from_value(
     }
 }
 
-/// Decode one stream snapshot payload into support-flag booleans.
-pub(super) fn stream_snapshot_support_from_value(
-    value: HarnessValue<AudioStreamSnapshot, AudioStreamSnapshotVm>,
+/// Decode one device descriptor payload into one stream-clock support mask.
+pub(super) fn device_descriptor_stream_clock_domains_from_value(
+    value: HarnessValue<AudioDeviceDescriptor, AudioDeviceDescriptorVm>,
+) -> AudioSupportedStreamClockDomains {
+    match value {
+        HarnessValue::Native(value) => value.supported_stream_clock_domains,
+        HarnessValue::Vm(value) => value.supported_stream_clock_domains,
+    }
+}
+
+/// Decode one stream info payload into support-flag booleans.
+pub(super) fn stream_descriptor_flags_from_value(
+    value: HarnessValue<AudioStreamDescriptor, AudioStreamDescriptorVm>,
 ) -> (bool, bool, bool, bool, bool) {
     match value {
         HarnessValue::Native(value) => (
@@ -362,6 +480,93 @@ pub(super) fn stream_snapshot_support_from_value(
     }
 }
 
+/// Decode one stream support payload into support and requirement flags.
+pub(super) fn stream_support_from_value(
+    value: HarnessValue<AudioStreamSupport, AudioStreamSupportVm>,
+) -> (
+    bool,
+    AudioStreamRequirementFlags,
+    AudioStreamRequirementFlags,
+) {
+    match value {
+        HarnessValue::Native(value) => (
+            value.supported,
+            value.satisfied_requirements,
+            value.unsatisfied_requirements,
+        ),
+        HarnessValue::Vm(value) => (
+            value.supported,
+            value.satisfied_requirements,
+            value.unsatisfied_requirements,
+        ),
+    }
+}
+
+/// Return one event-batch length from one native or vm payload.
+pub(super) fn event_batch_len(
+    context: &mut AudioHarnessContext<'_>,
+    value: HarnessValue<NativeSlice<AudioEvent>, VmSlice<AudioEventVm>>,
+) -> RuntimeResult<usize> {
+    match value {
+        HarnessValue::Native(value) => Ok(unsafe { value.as_slice()? }.len()),
+        HarnessValue::Vm(value) => {
+            let vm_context = vm_context_mut(context)
+                .expect("vm payload requires vm context to decode event slice");
+            Ok(value.read_values(vm_context)?.len())
+        }
+    }
+}
+
+/// Decode one event-batch payload into sequence and dropped-count rows.
+pub(super) fn event_batch_sequence_rows(
+    context: &mut AudioHarnessContext<'_>,
+    value: HarnessValue<NativeSlice<AudioEvent>, VmSlice<AudioEventVm>>,
+) -> RuntimeResult<Vec<(u64, u64)>> {
+    match value {
+        HarnessValue::Native(value) => {
+            let values = unsafe { value.as_slice()? };
+            Ok(values
+                .iter()
+                .map(|value| (value.sequence, value.dropped_count))
+                .collect::<Vec<_>>())
+        }
+        HarnessValue::Vm(value) => {
+            let vm_context = vm_context_mut(context)
+                .expect("vm payload requires vm context to decode event slice");
+            let values = value.read_values(vm_context)?;
+            Ok(values
+                .iter()
+                .map(|value| (value.sequence, value.dropped_count))
+                .collect::<Vec<_>>())
+        }
+    }
+}
+
+/// Decode one event-batch payload into kind and xrun-delta rows.
+pub(super) fn event_batch_kind_rows(
+    context: &mut AudioHarnessContext<'_>,
+    value: HarnessValue<NativeSlice<AudioEvent>, VmSlice<AudioEventVm>>,
+) -> RuntimeResult<Vec<(AudioEventKind, u64, AudioEventSource)>> {
+    match value {
+        HarnessValue::Native(value) => {
+            let values = unsafe { value.as_slice()? };
+            Ok(values
+                .iter()
+                .map(|value| (value.kind, value.xrun_count_delta, value.source))
+                .collect::<Vec<_>>())
+        }
+        HarnessValue::Vm(value) => {
+            let vm_context = vm_context_mut(context)
+                .expect("vm payload requires vm context to decode event slice");
+            let values = value.read_values(vm_context)?;
+            Ok(values
+                .iter()
+                .map(|value| (value.kind, value.xrun_count_delta, value.source))
+                .collect::<Vec<_>>())
+        }
+    }
+}
+
 /// Decode one audio clock snapshot payload into one native snapshot.
 pub(super) fn clock_snapshot_from_value(
     value: HarnessValue<AudioClockSnapshot, AudioClockSnapshotVm>,
@@ -371,12 +576,19 @@ pub(super) fn clock_snapshot_from_value(
         HarnessValue::Vm(value) => AudioClockSnapshot {
             stream_frames: value.stream_frames,
             clock_ns: value.clock_ns,
+            clock_quality: value.clock_quality,
             has_callback_ns: value.has_callback_ns,
             callback_ns: value.callback_ns,
+            callback_quality: value.callback_quality,
             has_input_adc_ns: value.has_input_adc_ns,
             input_adc_ns: value.input_adc_ns,
+            input_adc_quality: value.input_adc_quality,
             has_output_dac_ns: value.has_output_dac_ns,
             output_dac_ns: value.output_dac_ns,
+            output_dac_quality: value.output_dac_quality,
+            has_device_ns: value.has_device_ns,
+            device_ns: value.device_ns,
+            device_quality: value.device_quality,
             monotonic_ns: value.monotonic_ns,
         },
     }
@@ -392,8 +604,6 @@ pub(super) fn open_null_duplex_stream(
         backend_policy: AudioBackendSelectionPolicy::Strict,
         share_mode: AudioShareMode::Shared,
         flags: AudioDeviceOpenFlags(0),
-        backend_flags: AudioBackendOpenFlags(0),
-        backend_hint: context.call_context.store_string(""),
     };
 
     let device_id = harness_string(context, "audio:null:duplex");
@@ -408,11 +618,12 @@ pub(super) fn open_null_duplex_stream(
         format: AudioSampleFormat::F32,
         period_frames: 128,
         transfer_mode: AudioStreamTransferMode::Push,
-        flags: AudioStreamFlags(0),
     };
 
     let stream_open_config = harness_stream_config(context, stream_config);
-    let stream = context.destack_audio_stream_open(device, stream_open_config)?;
+    let stream_open_options = harness_stream_options(context, default_stream_open_options());
+    let stream =
+        context.destack_audio_stream_open(device, stream_open_config, stream_open_options)?;
     context.destack_audio_stream_start(stream)?;
 
     Ok((device, stream))
@@ -428,8 +639,6 @@ pub(super) fn open_null_playback_stream(
         backend_policy: AudioBackendSelectionPolicy::Strict,
         share_mode: AudioShareMode::Shared,
         flags: AudioDeviceOpenFlags(0),
-        backend_flags: AudioBackendOpenFlags(0),
-        backend_hint: context.call_context.store_string(""),
     };
 
     let device_id = harness_string(context, "audio:null:playback");
@@ -444,11 +653,12 @@ pub(super) fn open_null_playback_stream(
         format: AudioSampleFormat::F32,
         period_frames: 128,
         transfer_mode: AudioStreamTransferMode::Push,
-        flags: AudioStreamFlags(0),
     };
 
     let stream_open_config = harness_stream_config(context, stream_config);
-    let stream = context.destack_audio_stream_open(device, stream_open_config)?;
+    let stream_open_options = harness_stream_options(context, default_stream_open_options());
+    let stream =
+        context.destack_audio_stream_open(device, stream_open_config, stream_open_options)?;
     context.destack_audio_stream_start(stream)?;
 
     Ok((device, stream))

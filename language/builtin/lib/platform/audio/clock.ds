@@ -7,9 +7,6 @@ export enum AudioClockDomain {
     Monotonic = 1,
     /// Host wall clock domain.
     Wall = 2,
-    /// Host audio device clock domain.
-    /// This is optional and can return `notSupported` when no global device timeline exists.
-    Device = 3,
 }
 
 /// Stream clock domain selector.
@@ -28,24 +25,48 @@ export enum AudioStreamClockDomain {
     OutputDac = 6,
 }
 
+/// Clock sample quality selector.
+export enum AudioClockQuality {
+    /// No clock sample was available.
+    None = 0,
+    /// Clock sample was estimated from software timing.
+    Estimated = 1,
+    /// Clock sample came from one hardware-correlated timeline.
+    Hardware = 2,
+}
+
 /// Audio clock snapshot.
 export struct AudioClockSnapshot {
     /// Stream position in frames.
     streamFrames: uint64;
     /// Selected clock timestamp in nanoseconds.
     clockNs: uint64;
+    /// Selected clock sample quality.
+    clockQuality: AudioClockQuality;
     /// Whether callback timestamp is available.
     hasCallbackNs: boolean;
     /// Callback timestamp in nanoseconds when available.
     callbackNs: uint64;
+    /// Callback timestamp quality.
+    callbackQuality: AudioClockQuality;
     /// Whether ADC capture timestamp is available.
     hasInputAdcNs: boolean;
     /// ADC capture timestamp in nanoseconds when available.
     inputAdcNs: uint64;
+    /// ADC capture timestamp quality.
+    inputAdcQuality: AudioClockQuality;
     /// Whether DAC presentation timestamp is available.
     hasOutputDacNs: boolean;
     /// DAC presentation timestamp in nanoseconds when available.
     outputDacNs: uint64;
+    /// DAC presentation timestamp quality.
+    outputDacQuality: AudioClockQuality;
+    /// Whether device timeline timestamp is available.
+    hasDeviceNs: boolean;
+    /// Device timeline timestamp in nanoseconds when available.
+    deviceNs: uint64;
+    /// Device timeline timestamp quality.
+    deviceQuality: AudioClockQuality;
     /// Runtime monotonic timestamp in nanoseconds.
     monotonicNs: uint64;
 }
@@ -54,14 +75,11 @@ export struct AudioClockSnapshot {
 declare namespace audio {
     /// Read one timestamp in one selected clock domain.
     ///
-    /// Read one clock timestamp for the selected domain.
-    /// Domain availability and precision follow host backend behavior.
-    /// `AudioClockDomain.Device` requires one backend-wide device timeline and can return `notSupported` otherwise.
+    /// Read one clock timestamp for one process-wide domain.
+    /// Domain availability and precision follow host platform behavior.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Mirrors PortAudio `Pa_GetStreamTime` monotonic stream-time semantics.
-    /// Mirrors cubeb stream and latency clock snapshot semantics.
     /// Mirrors host monotonic and wall clock query semantics.
     ///
     /// # Errors
@@ -84,8 +102,10 @@ declare namespace audio {
 
     /// Read one stream clock snapshot.
     ///
-    /// Read one synchronized stream-position and clock timestamp snapshot.
+    /// Read one synchronized stream-position and selected clock-domain timestamp snapshot.
     /// Snapshot values are advisory and can change immediately after read.
+    /// This is the strict lane-select API.
+    /// For one full best-effort snapshot without lane-specific errors use `audio.stream.timing`.
     /// Domain-specific lanes like `InputAdc`, `OutputDac`, and `Device` can return `notSupported` when the opened stream does not expose them.
     ///
     /// # Platform

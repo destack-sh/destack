@@ -12,7 +12,7 @@ use super::{
     AudioBackend, AudioChannelLayout, AudioClockDomain, AudioClockSnapshot, AudioDeviceDescriptor,
     AudioDeviceDirection, AudioDeviceEvent, AudioDeviceEventKind, AudioDeviceListRequest,
     AudioDeviceOpenOptions, AudioSampleFormat, AudioShareMode, AudioStreamAvailability,
-    AudioStreamConfig, AudioStreamSnapshot, AudioStreamState, AudioStreamStateKind,
+    AudioStreamConfig, AudioStreamDescriptor, AudioStreamState, AudioStreamStateKind,
     AudioStreamTiming, AudioStreamTransferMode,
 };
 use crate::platform::resource;
@@ -32,6 +32,19 @@ pub(crate) fn backend_stream_supported(_backend: AudioBackend) -> bool {
     false
 }
 
+/// Return whether one host backend exposes native device-event subscriptions on unsupported targets.
+pub(crate) fn backend_native_device_events_supported_impl(_backend: AudioBackend) -> bool {
+    false
+}
+
+/// Start one host backend native device-event monitor on unsupported targets.
+pub(crate) fn start_backend_native_device_events_impl(_backend: AudioBackend) -> RuntimeResult<()> {
+    Ok(())
+}
+
+/// Stop one host backend native device-event monitor on unsupported targets.
+pub(crate) fn stop_backend_native_device_events_impl(_backend: AudioBackend) {}
+
 /// Enumerate host devices for unsupported targets.
 pub(crate) fn enumerate_host_devices(
     backend: AudioBackend,
@@ -42,14 +55,11 @@ pub(crate) fn enumerate_host_devices(
 
 /// Read one timestamp in one selected clock domain.
 ///
-/// Read one clock timestamp for the selected domain.
-/// Domain availability and precision follow host backend behavior.
-/// `AudioClockDomain.Device` requires one backend-wide device timeline and can return `notSupported` otherwise.
+/// Read one clock timestamp for one process-wide domain.
+/// Domain availability and precision follow host platform behavior.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Mirrors PortAudio `Pa_GetStreamTime` monotonic stream-time semantics.
-/// Mirrors cubeb stream and latency clock snapshot semantics.
 /// Mirrors host monotonic and wall clock query semantics.
 ///
 /// # Errors
@@ -75,8 +85,10 @@ pub(crate) unsafe fn destack_audio_clock_now(
 
 /// Read one stream clock snapshot.
 ///
-/// Read one synchronized stream-position and clock timestamp snapshot.
+/// Read one synchronized stream-position and selected clock-domain timestamp snapshot.
 /// Snapshot values are advisory and can change immediately after read.
+/// This is the strict lane-select API.
+/// For one full best-effort snapshot without lane-specific errors use `audio.stream.timing`.
 /// Domain-specific lanes like `InputAdc`, `OutputDac`, and `Device` can return `notSupported` when the opened stream does not expose them.
 ///
 /// # Platform
@@ -373,9 +385,9 @@ pub(crate) unsafe fn destack_audio_event_try_read(
     Err(RuntimeError::from(PlatformError::not_supported("destack.audio.event.tryRead")).boxed())
 }
 
-/// Read one stream immediate availability snapshot.
+/// Read one stream immediate availability sample.
 ///
-/// Read one point-in-time snapshot of immediately readable and writable frame counts.
+/// Read one point-in-time sample of immediately readable and writable frame counts.
 /// Values are advisory and can change immediately after read.
 ///
 /// # Platform
@@ -485,9 +497,9 @@ pub(crate) unsafe fn destack_audio_stream_flush(
     Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.flush")).boxed())
 }
 
-/// Read one stream negotiated configuration snapshot.
+/// Read one stream negotiated configuration descriptor.
 ///
-/// Read one normalized snapshot of negotiated stream parameters and backend mode.
+/// Read one normalized view of negotiated stream parameters and backend mode.
 /// Values reflect backend negotiation outcomes and can differ from open-time requests.
 ///
 /// # Platform
@@ -502,9 +514,9 @@ pub(crate) unsafe fn destack_audio_stream_flush(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_stream_snapshot(
+pub(crate) unsafe fn destack_audio_stream_descriptor(
     _context: &BindingCallContext,
-    out: *mut AudioStreamSnapshot,
+    out: *mut AudioStreamDescriptor,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -512,12 +524,17 @@ pub(crate) unsafe fn destack_audio_stream_snapshot(
     }
     let _ = (out, handle);
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.info")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.audio.stream.descriptor",
+    ))
+    .boxed())
 }
 
 /// Open one audio stream on one device.
 ///
 /// Create one host audio stream with explicit sample format, channel, and period configuration.
+/// Open options carry optional tuning hints and strict requirement lanes.
+/// Any unsatisfied requirement must fail open with `notSupported`.
 /// Buffering and latency behavior follow host backend contracts.
 ///
 /// # Platform
@@ -660,10 +677,10 @@ pub(crate) unsafe fn destack_audio_stream_start(
     Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.start")).boxed())
 }
 
-/// Read one stream state snapshot.
+/// Read one stream state.
 ///
-/// Read one point-in-time snapshot of stream run state and backend buffering metrics.
-/// Snapshot values are advisory and can change immediately after read.
+/// Read one point-in-time state sample of stream run state and backend buffering metrics.
+/// State values are advisory and can change immediately after read.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -716,9 +733,10 @@ pub(crate) unsafe fn destack_audio_stream_stop(
     Err(RuntimeError::from(PlatformError::not_supported("destack.audio.stream.stop")).boxed())
 }
 
-/// Read one stream timing snapshot.
+/// Read one stream timing sample.
 ///
-/// Read one timing snapshot that correlates stream position and host device time.
+/// Read one full timing sample that correlates stream position and available backend clocks.
+/// Missing optional lanes are reported through `has*` fields instead of `notSupported`.
 /// Timing values are intended for drift correction and synchronization.
 ///
 /// # Platform

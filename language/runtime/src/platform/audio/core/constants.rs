@@ -44,40 +44,15 @@ pub(crate) const KNOWN_DEVICE_LIST_FLAGS_MASK: u32 = DEVICE_LIST_INCLUDE_DISCONN
 pub(crate) const DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x1);
 /// Request low-latency scheduling policy where supported.
 pub(crate) const DEVICE_OPEN_LOW_LATENCY: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x2);
-/// Disable backend-side automatic format conversion where possible.
-pub(crate) const DEVICE_OPEN_NO_AUTO_CONVERT: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x4);
-/// Disable backend-side automatic stream routing where possible.
-pub(crate) const DEVICE_OPEN_NO_AUTO_ROUTE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x8);
-/// Request hardware offload lanes where available.
-pub(crate) const DEVICE_OPEN_HARDWARE_OFFLOAD: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x10);
 /// Request realtime callback thread scheduling where available.
-pub(crate) const DEVICE_OPEN_REALTIME_THREAD: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x20);
+pub(crate) const DEVICE_OPEN_REALTIME_THREAD: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x4);
 /// Request raw endpoint mode where available.
-pub(crate) const DEVICE_OPEN_RAW: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x40);
-/// Request explicit sample-format matching with no backend substitution.
-pub(crate) const DEVICE_OPEN_EXPLICIT_SAMPLE_FORMAT: AudioDeviceOpenFlags =
-    AudioDeviceOpenFlags(0x80);
-/// Request backend-default PCM routing for ALSA-style stacks.
-pub(crate) const DEVICE_OPEN_USE_DEFAULT_PCM: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x100);
-/// Request JACK-style no-autoconnect behavior.
-pub(crate) const DEVICE_OPEN_JACK_DONT_CONNECT: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x200);
-/// Request hard-exclusive endpoint ownership where available.
-pub(crate) const DEVICE_OPEN_HOG_DEVICE: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x400);
-/// Request minimized callback period where available.
-pub(crate) const DEVICE_OPEN_MINIMIZE_LATENCY: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x800);
+pub(crate) const DEVICE_OPEN_RAW: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x8);
 /// Mask for all known device-open option bits.
 pub(crate) const KNOWN_DEVICE_OPEN_FLAGS_MASK: u32 = DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE.0
     | DEVICE_OPEN_LOW_LATENCY.0
-    | DEVICE_OPEN_NO_AUTO_CONVERT.0
-    | DEVICE_OPEN_NO_AUTO_ROUTE.0
-    | DEVICE_OPEN_HARDWARE_OFFLOAD.0
     | DEVICE_OPEN_REALTIME_THREAD.0
-    | DEVICE_OPEN_RAW.0
-    | DEVICE_OPEN_EXPLICIT_SAMPLE_FORMAT.0
-    | DEVICE_OPEN_USE_DEFAULT_PCM.0
-    | DEVICE_OPEN_JACK_DONT_CONNECT.0
-    | DEVICE_OPEN_HOG_DEVICE.0
-    | DEVICE_OPEN_MINIMIZE_LATENCY.0;
+    | DEVICE_OPEN_RAW.0;
 
 /// Backend supports hotplug notifications.
 pub(crate) const BACKEND_CAPABILITY_HOTPLUG_EVENTS: AudioBackendCapabilityFlags =
@@ -146,63 +121,157 @@ pub(crate) const DEVICE_CAPABILITY_INTERRUPTION_EVENTS: AudioDeviceCapabilityFla
 /// Device supports backend disconnect notifications.
 pub(crate) const DEVICE_CAPABILITY_BACKEND_DISCONNECT_EVENTS: AudioDeviceCapabilityFlags =
     AudioDeviceCapabilityFlags(0x400);
-
-/// Request one event-driven callback scheduling mode on WASAPI-like backends.
-pub(crate) const BACKEND_OPEN_WASAPI_EVENT_CALLBACK: AudioBackendOpenFlags =
-    AudioBackendOpenFlags(0x1);
-/// Request one exclusive endpoint path on backends that expose explicit exclusive mode.
-pub(crate) const BACKEND_OPEN_REQUIRE_EXCLUSIVE: AudioBackendOpenFlags = AudioBackendOpenFlags(0x2);
-/// Request one host loopback path when supported by the selected backend.
-pub(crate) const BACKEND_OPEN_REQUIRE_LOOPBACK: AudioBackendOpenFlags = AudioBackendOpenFlags(0x4);
-/// Request no-autoconnect behavior on JACK-like backends.
-pub(crate) const BACKEND_OPEN_JACK_NO_AUTOCONNECT: AudioBackendOpenFlags =
-    AudioBackendOpenFlags(0x8);
-/// Request no-resample behavior on ALSA-style backends.
-pub(crate) const BACKEND_OPEN_ALSA_NO_RESAMPLE: AudioBackendOpenFlags = AudioBackendOpenFlags(0x10);
-/// Request hog mode on CoreAudio-like backends.
-pub(crate) const BACKEND_OPEN_COREAUDIO_HOG_MODE: AudioBackendOpenFlags =
-    AudioBackendOpenFlags(0x20);
-/// Request hardware timestamps when backend support exists.
-pub(crate) const BACKEND_OPEN_REQUIRE_HARDWARE_TIMESTAMPS: AudioBackendOpenFlags =
-    AudioBackendOpenFlags(0x40);
-/// Request bit-exact PCM path with no backend-side format conversion.
-pub(crate) const BACKEND_OPEN_REQUIRE_BIT_EXACT_PCM: AudioBackendOpenFlags =
-    AudioBackendOpenFlags(0x80);
+/// Device supports bit-exact PCM with no backend-side conversion.
+pub(crate) const DEVICE_CAPABILITY_BIT_EXACT_PCM: AudioDeviceCapabilityFlags =
+    AudioDeviceCapabilityFlags(0x800);
 
 /// Request non-interleaved stream buffers where supported.
 pub(crate) const STREAM_FLAG_NON_INTERLEAVED: AudioStreamFlags = AudioStreamFlags(0x1);
 /// Request minimized callback period where supported.
 pub(crate) const STREAM_FLAG_MINIMIZE_LATENCY: AudioStreamFlags = AudioStreamFlags(0x2);
-/// Request hard-exclusive endpoint ownership where available.
-pub(crate) const STREAM_FLAG_HOG_DEVICE: AudioStreamFlags = AudioStreamFlags(0x4);
 /// Request realtime callback scheduling where supported.
-pub(crate) const STREAM_FLAG_SCHEDULE_REALTIME: AudioStreamFlags = AudioStreamFlags(0x8);
-/// Request backend-default PCM routing for ALSA-style stacks.
-pub(crate) const STREAM_FLAG_ALSA_USE_DEFAULT: AudioStreamFlags = AudioStreamFlags(0x10);
-/// Request JACK-style no-autoconnect behavior.
-pub(crate) const STREAM_FLAG_JACK_DONT_CONNECT: AudioStreamFlags = AudioStreamFlags(0x20);
+pub(crate) const STREAM_FLAG_SCHEDULE_REALTIME: AudioStreamFlags = AudioStreamFlags(0x4);
 /// Request explicit sample-format matching with no backend substitution.
-pub(crate) const STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT: AudioStreamFlags = AudioStreamFlags(0x40);
+pub(crate) const STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT: AudioStreamFlags = AudioStreamFlags(0x8);
 /// Disable backend-side automatic format conversion where possible.
-pub(crate) const STREAM_FLAG_NO_AUTO_CONVERT: AudioStreamFlags = AudioStreamFlags(0x80);
+pub(crate) const STREAM_FLAG_NO_AUTO_CONVERT: AudioStreamFlags = AudioStreamFlags(0x10);
 /// Request backend xrun status reporting where available.
-pub(crate) const STREAM_FLAG_REPORT_XRUN: AudioStreamFlags = AudioStreamFlags(0x100);
+pub(crate) const STREAM_FLAG_REPORT_XRUN: AudioStreamFlags = AudioStreamFlags(0x20);
 /// Request input no-drop capture behavior where available.
-pub(crate) const STREAM_FLAG_NEVER_DROP_INPUT: AudioStreamFlags = AudioStreamFlags(0x200);
+pub(crate) const STREAM_FLAG_NEVER_DROP_INPUT: AudioStreamFlags = AudioStreamFlags(0x40);
 /// Request backend output-buffer priming behavior where available.
-pub(crate) const STREAM_FLAG_PRIME_OUTPUT_BUFFERS: AudioStreamFlags = AudioStreamFlags(0x400);
+pub(crate) const STREAM_FLAG_PRIME_OUTPUT_BUFFERS: AudioStreamFlags = AudioStreamFlags(0x80);
 /// Mask for all known stream option bits.
 pub(crate) const KNOWN_STREAM_FLAGS_MASK: u32 = STREAM_FLAG_NON_INTERLEAVED.0
     | STREAM_FLAG_MINIMIZE_LATENCY.0
-    | STREAM_FLAG_HOG_DEVICE.0
     | STREAM_FLAG_SCHEDULE_REALTIME.0
-    | STREAM_FLAG_ALSA_USE_DEFAULT.0
-    | STREAM_FLAG_JACK_DONT_CONNECT.0
     | STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0
     | STREAM_FLAG_NO_AUTO_CONVERT.0
     | STREAM_FLAG_REPORT_XRUN.0
     | STREAM_FLAG_NEVER_DROP_INPUT.0
     | STREAM_FLAG_PRIME_OUTPUT_BUFFERS.0;
+
+/// Require one non-interleaved stream layout.
+pub(crate) const STREAM_REQUIRE_NON_INTERLEAVED: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(0x1);
+/// Require scheduled write support.
+pub(crate) const STREAM_REQUIRE_SCHEDULED_WRITE: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(0x2);
+/// Require pause support.
+pub(crate) const STREAM_REQUIRE_PAUSE: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(0x4);
+/// Require hardware timestamp correlation.
+pub(crate) const STREAM_REQUIRE_HARDWARE_TIMESTAMPS: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(0x8);
+/// Require bit-exact PCM behavior.
+pub(crate) const STREAM_REQUIRE_BIT_EXACT_PCM: AudioStreamRequirementFlags =
+    AudioStreamRequirementFlags(0x10);
+/// Mask for all known stream requirement bits.
+pub(crate) const KNOWN_STREAM_REQUIREMENT_FLAGS_MASK: u32 = STREAM_REQUIRE_NON_INTERLEAVED.0
+    | STREAM_REQUIRE_SCHEDULED_WRITE.0
+    | STREAM_REQUIRE_PAUSE.0
+    | STREAM_REQUIRE_HARDWARE_TIMESTAMPS.0
+    | STREAM_REQUIRE_BIT_EXACT_PCM.0;
+
+/// Supported-stream-flag bit for non-interleaved buffers.
+pub(crate) const SUPPORTED_STREAM_FLAG_NON_INTERLEAVED: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x1);
+/// Supported-stream-flag bit for low-latency policy.
+pub(crate) const SUPPORTED_STREAM_FLAG_MINIMIZE_LATENCY: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x2);
+/// Supported-stream-flag bit for realtime scheduling.
+pub(crate) const SUPPORTED_STREAM_FLAG_SCHEDULE_REALTIME: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x4);
+/// Supported-stream-flag bit for explicit format selection.
+pub(crate) const SUPPORTED_STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x8);
+/// Supported-stream-flag bit for no auto-convert policy.
+pub(crate) const SUPPORTED_STREAM_FLAG_NO_AUTO_CONVERT: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x10);
+/// Supported-stream-flag bit for xrun reporting.
+pub(crate) const SUPPORTED_STREAM_FLAG_REPORT_XRUN: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x20);
+/// Supported-stream-flag bit for never-drop-input policy.
+pub(crate) const SUPPORTED_STREAM_FLAG_NEVER_DROP_INPUT: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x40);
+/// Supported-stream-flag bit for output priming.
+pub(crate) const SUPPORTED_STREAM_FLAG_PRIME_OUTPUT_BUFFERS: AudioSupportedStreamFlags =
+    AudioSupportedStreamFlags(0x80);
+/// All supported-stream-flag bits known by this runtime.
+pub(crate) const KNOWN_SUPPORTED_STREAM_FLAGS_MASK: u32 = SUPPORTED_STREAM_FLAG_NON_INTERLEAVED.0
+    | SUPPORTED_STREAM_FLAG_MINIMIZE_LATENCY.0
+    | SUPPORTED_STREAM_FLAG_SCHEDULE_REALTIME.0
+    | SUPPORTED_STREAM_FLAG_EXPLICIT_SAMPLE_FORMAT.0
+    | SUPPORTED_STREAM_FLAG_NO_AUTO_CONVERT.0
+    | SUPPORTED_STREAM_FLAG_REPORT_XRUN.0
+    | SUPPORTED_STREAM_FLAG_NEVER_DROP_INPUT.0
+    | SUPPORTED_STREAM_FLAG_PRIME_OUTPUT_BUFFERS.0;
+
+/// Supported stream requirement bit for non-interleaved buffers.
+pub(crate) const SUPPORTED_STREAM_REQUIREMENT_NON_INTERLEAVED:
+    AudioSupportedStreamRequirementFlags = AudioSupportedStreamRequirementFlags(0x1);
+/// Supported stream requirement bit for scheduled writes.
+pub(crate) const SUPPORTED_STREAM_REQUIREMENT_SCHEDULED_WRITE:
+    AudioSupportedStreamRequirementFlags = AudioSupportedStreamRequirementFlags(0x2);
+/// Supported stream requirement bit for pause support.
+pub(crate) const SUPPORTED_STREAM_REQUIREMENT_PAUSE: AudioSupportedStreamRequirementFlags =
+    AudioSupportedStreamRequirementFlags(0x4);
+/// Supported stream requirement bit for hardware timestamps.
+pub(crate) const SUPPORTED_STREAM_REQUIREMENT_HARDWARE_TIMESTAMPS:
+    AudioSupportedStreamRequirementFlags = AudioSupportedStreamRequirementFlags(0x8);
+/// Supported stream requirement bit for bit-exact PCM.
+pub(crate) const SUPPORTED_STREAM_REQUIREMENT_BIT_EXACT_PCM: AudioSupportedStreamRequirementFlags =
+    AudioSupportedStreamRequirementFlags(0x10);
+
+/// Supported event-subscription bit for device hotplug.
+pub(crate) const SUPPORTED_EVENT_SUBSCRIPTION_DEVICE_HOTPLUG: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x1);
+/// Supported event-subscription bit for default-route changes.
+pub(crate) const SUPPORTED_EVENT_SUBSCRIPTION_DEFAULT_ROUTE: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x2);
+/// Supported event-subscription bit for format changes.
+pub(crate) const SUPPORTED_EVENT_SUBSCRIPTION_FORMAT_CHANGE: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x4);
+/// Supported event-subscription bit for reroute changes.
+pub(crate) const SUPPORTED_EVENT_SUBSCRIPTION_REROUTE: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x8);
+/// Supported event-subscription bit for interruptions.
+pub(crate) const SUPPORTED_EVENT_SUBSCRIPTION_INTERRUPTION: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x10);
+/// Supported event-subscription bit for backend resets and disconnects.
+pub(crate) const SUPPORTED_EVENT_SUBSCRIPTION_BACKEND: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x20);
+/// Supported event-subscription bit for stream events.
+pub(crate) const SUPPORTED_EVENT_SUBSCRIPTION_STREAM: AudioSupportedEventSubscriptionFlags =
+    AudioSupportedEventSubscriptionFlags(0x40);
+/// All supported event-subscription bits known by this runtime.
+pub(crate) const KNOWN_SUPPORTED_EVENT_SUBSCRIPTION_FLAGS_MASK: u32 =
+    SUPPORTED_EVENT_SUBSCRIPTION_DEVICE_HOTPLUG.0
+        | SUPPORTED_EVENT_SUBSCRIPTION_DEFAULT_ROUTE.0
+        | SUPPORTED_EVENT_SUBSCRIPTION_FORMAT_CHANGE.0
+        | SUPPORTED_EVENT_SUBSCRIPTION_REROUTE.0
+        | SUPPORTED_EVENT_SUBSCRIPTION_INTERRUPTION.0
+        | SUPPORTED_EVENT_SUBSCRIPTION_BACKEND.0
+        | SUPPORTED_EVENT_SUBSCRIPTION_STREAM.0;
+
+/// Supported stream-clock bit for monotonic clocks.
+pub(crate) const SUPPORTED_STREAM_CLOCK_MONOTONIC: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0x1);
+/// Supported stream-clock bit for wall clocks.
+pub(crate) const SUPPORTED_STREAM_CLOCK_WALL: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0x2);
+/// Supported stream-clock bit for device clocks.
+pub(crate) const SUPPORTED_STREAM_CLOCK_DEVICE: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0x4);
+/// Supported stream-clock bit for callback timestamps.
+pub(crate) const SUPPORTED_STREAM_CLOCK_CALLBACK: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0x8);
+/// Supported stream-clock bit for input ADC timestamps.
+pub(crate) const SUPPORTED_STREAM_CLOCK_INPUT_ADC: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0x10);
+/// Supported stream-clock bit for output DAC timestamps.
+pub(crate) const SUPPORTED_STREAM_CLOCK_OUTPUT_DAC: AudioSupportedStreamClockDomains =
+    AudioSupportedStreamClockDomains(0x20);
 
 /// Supported-direction bit for playback lanes.
 pub(crate) const DIRECTION_MASK_PLAYBACK: u32 = 1u32 << 0;

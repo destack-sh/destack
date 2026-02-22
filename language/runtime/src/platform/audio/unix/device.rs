@@ -63,7 +63,7 @@ pub(crate) unsafe fn destack_audio_backend_list(
 /// # Replay
 /// External, recordable.
 pub(crate) unsafe fn destack_audio_device_rescan(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     backend: AudioBackend,
     backend_policy: AudioBackendSelectionPolicy,
 ) -> RuntimeResult<()> {
@@ -73,6 +73,7 @@ pub(crate) unsafe fn destack_audio_device_rescan(
     if backend != AudioBackend::Null {
         audio_platform_core::rescan_host_backend(backend)?;
     }
+    audio_core::refresh_device_subscriptions_for_rescan(context, backend)?;
 
     Ok(())
 }
@@ -299,14 +300,6 @@ pub(crate) unsafe fn destack_audio_device_open(
     )?;
     let options =
         audio_core::normalize_device_open_options(options, backend, "destack.audio.device.open")?;
-    let backend_hint = audio_core::read_utf8(options.backend_hint, "options.backendHint")?;
-
-    if !backend_hint.is_empty() {
-        return Err(RuntimeError::from(PlatformError::not_supported(
-            "destack.audio.device.open backend hint",
-        ))
-        .boxed());
-    }
 
     if id.starts_with("audio:null:") && backend != AudioBackend::Null {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -332,6 +325,7 @@ pub(crate) unsafe fn destack_audio_device_open(
     } else {
         audio_platform_core::resolve_host_device_by_id(backend, &id)?
     };
+    audio_core::ensure_device_open_flags_supported(options, &info, "destack.audio.device.open")?;
 
     if options.direction == AudioDeviceDirection::Loopback
         && (info.capability_flags.0 & audio_core::DEVICE_CAPABILITY_LOOPBACK.0) == 0
@@ -363,7 +357,6 @@ pub(crate) unsafe fn destack_audio_device_open(
 
     let mut options = options;
     options.backend = backend;
-    options.backend_hint = context.store_string("");
 
     let payload = Arc::new(audio_core::AudioDeviceBinding {
         info,

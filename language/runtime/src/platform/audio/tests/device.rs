@@ -2,31 +2,24 @@ use super::super::core::{
     BACKEND_CAPABILITY_BACKEND_DISCONNECT_EVENTS, BACKEND_CAPABILITY_DEVICE_CLOCK,
     BACKEND_CAPABILITY_EXCLUSIVE_MODE, BACKEND_CAPABILITY_LOOPBACK,
     BACKEND_CAPABILITY_NON_INTERLEAVED, BACKEND_CAPABILITY_SCHEDULED_WRITE,
-    BACKEND_CAPABILITY_SHARED_MODE, BACKEND_OPEN_ALSA_NO_RESAMPLE,
-    BACKEND_OPEN_JACK_NO_AUTOCONNECT, BACKEND_OPEN_REQUIRE_BIT_EXACT_PCM,
-    BACKEND_OPEN_REQUIRE_HARDWARE_TIMESTAMPS, BACKEND_OPEN_REQUIRE_LOOPBACK,
-    DEVICE_CAPABILITY_BACKEND_DISCONNECT_EVENTS, DEVICE_CAPABILITY_LOOPBACK,
-    DEVICE_CAPABILITY_SCHEDULED_WRITE, DEVICE_LIST_INCLUDE_DISCONNECTED, DEVICE_OPEN_LOW_LATENCY,
+    BACKEND_CAPABILITY_SHARED_MODE, DEVICE_CAPABILITY_BACKEND_DISCONNECT_EVENTS,
+    DEVICE_CAPABILITY_LOOPBACK, DEVICE_CAPABILITY_SCHEDULED_WRITE,
+    DEVICE_LIST_INCLUDE_DISCONNECTED, DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE, DEVICE_OPEN_LOW_LATENCY,
+    DEVICE_OPEN_RAW, DEVICE_OPEN_REALTIME_THREAD, SUPPORTED_STREAM_CLOCK_INPUT_ADC,
+    SUPPORTED_STREAM_CLOCK_OUTPUT_DAC,
 };
 use super::super::{
-    AudioBackend, AudioBackendOpenFlags, AudioBackendSelectionPolicy, AudioDeviceDirection,
-    AudioDeviceListFlags, AudioDeviceListRequest, AudioDeviceOpenFlags, AudioDeviceOpenOptions,
-    AudioShareMode,
+    AudioBackend, AudioBackendSelectionPolicy, AudioDeviceDirection, AudioDeviceListFlags,
+    AudioDeviceListRequest, AudioDeviceOpenFlags, AudioDeviceOpenOptions, AudioShareMode,
 };
 use super::core::{
     backend_availability_rows, backend_availability_rows_with_capabilities, descriptor_count,
-    device_descriptor_direction_from_value, device_direction_capability_rows,
-    harness_device_options, harness_list_request, harness_string, string_from_harness_value,
+    device_descriptor_direction_from_value, device_descriptor_stream_clock_domains_from_value,
+    device_direction_capability_rows, harness_device_options, harness_list_request, harness_string,
+    string_from_harness_value,
 };
 use super::{assert_platform_error_code, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
-
-/// Backend flags that the null backend must reject.
-const NULL_BACKEND_REJECTED_TUNING_FLAGS: [AudioBackendOpenFlags; 3] = [
-    BACKEND_OPEN_JACK_NO_AUTOCONNECT,
-    BACKEND_OPEN_ALSA_NO_RESAMPLE,
-    BACKEND_OPEN_REQUIRE_BIT_EXACT_PCM,
-];
 
 #[cfg(any(unix, windows))]
 #[test]
@@ -329,8 +322,6 @@ fn test_audio_backend_share_mode_capabilities_match_device_open_behavior() {
                     backend_policy: AudioBackendSelectionPolicy::Strict,
                     share_mode,
                     flags: AudioDeviceOpenFlags(0),
-                    backend_flags: AudioBackendOpenFlags(0),
-                    backend_hint: context.call_context.store_string(""),
                 };
 
                 let device_id = harness_string(&mut context, &default_id);
@@ -735,8 +726,6 @@ fn test_audio_device_open_rejects_exclusive_mode() {
             backend_policy: AudioBackendSelectionPolicy::Strict,
             share_mode: AudioShareMode::Exclusive,
             flags: AudioDeviceOpenFlags(0),
-            backend_flags: AudioBackendOpenFlags(0),
-            backend_hint: context.call_context.store_string(""),
         };
 
         let device_id = harness_string(&mut context, "audio:null:playback");
@@ -752,16 +741,14 @@ fn test_audio_device_open_rejects_exclusive_mode() {
 
 #[cfg(any(unix, windows))]
 #[test]
-fn test_audio_device_open_rejects_backend_specific_tuning_without_support() {
+fn test_audio_device_open_rejects_raw_flag_for_non_wasapi_backend() {
     with_harness_context(|mut context| {
         let options = AudioDeviceOpenOptions {
             direction: AudioDeviceDirection::Playback,
             backend: AudioBackend::Null,
             backend_policy: AudioBackendSelectionPolicy::Strict,
             share_mode: AudioShareMode::Shared,
-            flags: AudioDeviceOpenFlags(0),
-            backend_flags: AudioBackendOpenFlags(0x1),
-            backend_hint: context.call_context.store_string(""),
+            flags: AudioDeviceOpenFlags(DEVICE_OPEN_RAW.0),
         };
 
         let device_id = harness_string(&mut context, "audio:null:playback");
@@ -770,33 +757,6 @@ fn test_audio_device_open_rejects_backend_specific_tuning_without_support() {
             context.destack_audio_device_open(device_id, options),
             PlatformErrorCode::NotSupported,
         )?;
-
-        Ok(())
-    });
-}
-
-#[cfg(any(unix, windows))]
-#[test]
-fn test_audio_device_open_rejects_unimplemented_backend_tuning_flags() {
-    with_harness_context(|mut context| {
-        for backend_flags in NULL_BACKEND_REJECTED_TUNING_FLAGS {
-            let options = AudioDeviceOpenOptions {
-                direction: AudioDeviceDirection::Playback,
-                backend: AudioBackend::Null,
-                backend_policy: AudioBackendSelectionPolicy::Strict,
-                share_mode: AudioShareMode::Shared,
-                flags: AudioDeviceOpenFlags(0),
-                backend_flags,
-                backend_hint: context.call_context.store_string(""),
-            };
-
-            let device_id = harness_string(&mut context, "audio:null:playback");
-            let options = harness_device_options(&mut context, options);
-            assert_platform_error_code(
-                context.destack_audio_device_open(device_id, options),
-                PlatformErrorCode::NotSupported,
-            )?;
-        }
 
         Ok(())
     });
@@ -834,8 +794,6 @@ fn test_audio_device_open_alsa_no_resample_matches_backend_support() {
             backend_policy: AudioBackendSelectionPolicy::Strict,
             share_mode: AudioShareMode::Shared,
             flags: AudioDeviceOpenFlags(0),
-            backend_flags: AudioBackendOpenFlags(BACKEND_OPEN_ALSA_NO_RESAMPLE.0),
-            backend_hint: context.call_context.store_string(""),
         };
 
         let device_id = harness_string(&mut context, &default_id);
@@ -890,8 +848,6 @@ fn test_audio_device_open_jack_no_autoconnect_matches_backend_support() {
             backend_policy: AudioBackendSelectionPolicy::Strict,
             share_mode: AudioShareMode::Shared,
             flags: AudioDeviceOpenFlags(0),
-            backend_flags: AudioBackendOpenFlags(BACKEND_OPEN_JACK_NO_AUTOCONNECT.0),
-            backend_hint: context.call_context.store_string(""),
         };
 
         let device_id = harness_string(&mut context, &default_id);
@@ -935,10 +891,6 @@ fn test_audio_device_open_require_hardware_timestamps_matches_backend_capability
                     backend_policy: AudioBackendSelectionPolicy::Strict,
                     share_mode: AudioShareMode::Shared,
                     flags: AudioDeviceOpenFlags(0),
-                    backend_flags: AudioBackendOpenFlags(
-                        BACKEND_OPEN_REQUIRE_HARDWARE_TIMESTAMPS.0,
-                    ),
-                    backend_hint: context.call_context.store_string(""),
                 };
 
                 let device_id = harness_string(&mut context, "audio:null:playback");
@@ -980,8 +932,6 @@ fn test_audio_device_open_require_hardware_timestamps_matches_backend_capability
                 backend_policy: AudioBackendSelectionPolicy::Strict,
                 share_mode,
                 flags: AudioDeviceOpenFlags(0),
-                backend_flags: AudioBackendOpenFlags(BACKEND_OPEN_REQUIRE_HARDWARE_TIMESTAMPS.0),
-                backend_hint: context.call_context.store_string(""),
             };
 
             let device_id = harness_string(&mut context, &default_id);
@@ -1007,7 +957,7 @@ fn test_audio_device_open_require_hardware_timestamps_matches_backend_capability
 
 #[cfg(any(unix, windows))]
 #[test]
-fn test_audio_device_list_rejects_unimplemented_request_flags() {
+fn test_audio_device_list_accepts_known_request_flags() {
     with_harness_context(|mut context| {
         let request = AudioDeviceListRequest {
             direction: AudioDeviceDirection::Playback,
@@ -1017,10 +967,12 @@ fn test_audio_device_list_rejects_unimplemented_request_flags() {
         };
 
         let list_request = harness_list_request(&mut context, request);
-        assert_platform_error_code(
-            context.destack_audio_device_list(list_request),
-            PlatformErrorCode::NotSupported,
-        )?;
+        let rows = context.destack_audio_device_list(list_request)?;
+        let row_count = descriptor_count(&mut context, rows)?;
+        assert!(
+            row_count >= 1,
+            "known list flags should keep null device listing functional",
+        );
 
         Ok(())
     });
@@ -1028,24 +980,24 @@ fn test_audio_device_list_rejects_unimplemented_request_flags() {
 
 #[cfg(any(unix, windows))]
 #[test]
-fn test_audio_device_open_rejects_unimplemented_open_flags() {
+fn test_audio_device_open_accepts_known_open_flags() {
     with_harness_context(|mut context| {
         let options = AudioDeviceOpenOptions {
             direction: AudioDeviceDirection::Playback,
             backend: AudioBackend::Null,
             backend_policy: AudioBackendSelectionPolicy::Strict,
             share_mode: AudioShareMode::Shared,
-            flags: AudioDeviceOpenFlags(DEVICE_OPEN_LOW_LATENCY.0),
-            backend_flags: AudioBackendOpenFlags(0),
-            backend_hint: context.call_context.store_string(""),
+            flags: AudioDeviceOpenFlags(
+                DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE.0
+                    | DEVICE_OPEN_LOW_LATENCY.0
+                    | DEVICE_OPEN_REALTIME_THREAD.0,
+            ),
         };
 
         let device_id = harness_string(&mut context, "audio:null:playback");
         let options = harness_device_options(&mut context, options);
-        assert_platform_error_code(
-            context.destack_audio_device_open(device_id, options),
-            PlatformErrorCode::NotSupported,
-        )?;
+        let device = context.destack_audio_device_open(device_id, options)?;
+        context.destack_audio_device_close(device)?;
 
         Ok(())
     });
@@ -1053,23 +1005,21 @@ fn test_audio_device_open_rejects_unimplemented_open_flags() {
 
 #[cfg(any(unix, windows))]
 #[test]
-fn test_audio_device_open_rejects_backend_hint_without_support() {
+fn test_audio_device_open_rejects_unknown_open_flag_bits() {
     with_harness_context(|mut context| {
         let options = AudioDeviceOpenOptions {
             direction: AudioDeviceDirection::Playback,
             backend: AudioBackend::Null,
             backend_policy: AudioBackendSelectionPolicy::Strict,
             share_mode: AudioShareMode::Shared,
-            flags: AudioDeviceOpenFlags(0),
-            backend_flags: AudioBackendOpenFlags(0),
-            backend_hint: context.call_context.store_string("driver-a"),
+            flags: AudioDeviceOpenFlags(0x8000_0000),
         };
 
         let device_id = harness_string(&mut context, "audio:null:playback");
         let options = harness_device_options(&mut context, options);
         assert_platform_error_code(
             context.destack_audio_device_open(device_id, options),
-            PlatformErrorCode::NotSupported,
+            PlatformErrorCode::InvalidArgumentValue,
         )?;
 
         Ok(())
@@ -1113,8 +1063,6 @@ fn test_audio_device_open_require_loopback_matches_backend_capability() {
                     backend_policy: AudioBackendSelectionPolicy::Strict,
                     share_mode: AudioShareMode::Shared,
                     flags: AudioDeviceOpenFlags(0),
-                    backend_flags: AudioBackendOpenFlags(BACKEND_OPEN_REQUIRE_LOOPBACK.0),
-                    backend_hint: context.call_context.store_string(""),
                 };
 
                 let device_id = harness_string(&mut context, &default_loopback);
@@ -1142,8 +1090,6 @@ fn test_audio_device_open_require_loopback_matches_backend_capability() {
                 backend_policy: AudioBackendSelectionPolicy::Strict,
                 share_mode: AudioShareMode::Shared,
                 flags: AudioDeviceOpenFlags(0),
-                backend_flags: AudioBackendOpenFlags(BACKEND_OPEN_REQUIRE_LOOPBACK.0),
-                backend_hint: context.call_context.store_string(""),
             };
 
             let device_id = harness_string(&mut context, "audio:null:playback");
@@ -1168,8 +1114,6 @@ fn test_audio_device_open_rejects_loopback_direction_without_loopback_capability
             backend_policy: AudioBackendSelectionPolicy::Strict,
             share_mode: AudioShareMode::Shared,
             flags: AudioDeviceOpenFlags(0),
-            backend_flags: AudioBackendOpenFlags(0),
-            backend_hint: context.call_context.store_string(""),
         };
 
         let device_id = harness_string(&mut context, "audio:null:duplex");
@@ -1193,8 +1137,6 @@ fn test_audio_device_descriptor_reports_opened_direction() {
             backend_policy: AudioBackendSelectionPolicy::Strict,
             share_mode: AudioShareMode::Shared,
             flags: AudioDeviceOpenFlags(0),
-            backend_flags: AudioBackendOpenFlags(0),
-            backend_hint: context.call_context.store_string(""),
         };
 
         let device_id = harness_string(&mut context, "audio:null:duplex");
@@ -1204,6 +1146,40 @@ fn test_audio_device_descriptor_reports_opened_direction() {
         let descriptor = context.destack_audio_device_descriptor(device)?;
         let descriptor_direction = device_descriptor_direction_from_value(descriptor);
         assert_eq!(descriptor_direction, AudioDeviceDirection::Capture);
+
+        context.destack_audio_device_close(device)?;
+        Ok(())
+    });
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn test_audio_device_descriptor_stream_clock_domains_follow_opened_direction() {
+    with_harness_context(|mut context| {
+        let options = AudioDeviceOpenOptions {
+            direction: AudioDeviceDirection::Capture,
+            backend: AudioBackend::Null,
+            backend_policy: AudioBackendSelectionPolicy::Strict,
+            share_mode: AudioShareMode::Shared,
+            flags: AudioDeviceOpenFlags(0),
+        };
+
+        let device_id = harness_string(&mut context, "audio:null:duplex");
+        let options = harness_device_options(&mut context, options);
+        let device = context.destack_audio_device_open(device_id, options)?;
+
+        let descriptor = context.destack_audio_device_descriptor(device)?;
+        let supported_domains = device_descriptor_stream_clock_domains_from_value(descriptor);
+        let supports_input_adc = (supported_domains.0 & SUPPORTED_STREAM_CLOCK_INPUT_ADC.0) != 0;
+        let supports_output_dac = (supported_domains.0 & SUPPORTED_STREAM_CLOCK_OUTPUT_DAC.0) != 0;
+        assert!(
+            supports_input_adc,
+            "capture-open descriptor should advertise input adc clock support",
+        );
+        assert!(
+            !supports_output_dac,
+            "capture-open descriptor should not advertise output dac clock support",
+        );
 
         context.destack_audio_device_close(device)?;
         Ok(())

@@ -13,6 +13,11 @@ mod event;
 mod jack;
 #[cfg(feature = "audio-opensles")]
 mod opensles;
+#[cfg(all(
+    target_os = "linux",
+    any(feature = "audio-pipewire", feature = "audio-pulseaudio"),
+))]
+mod pactl;
 #[cfg(feature = "audio-pipewire")]
 mod pipewire;
 #[cfg(feature = "audio-pulseaudio")]

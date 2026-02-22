@@ -10,20 +10,22 @@ fn stream_supports_clock_domain(
         AudioStreamClockDomain::Device => binding.runtime_capabilities.supports_hardware_timestamps,
         AudioStreamClockDomain::Callback => true,
         AudioStreamClockDomain::InputAdc => {
-            matches!(
-                binding.direction,
-                AudioDeviceDirection::Capture
-                    | AudioDeviceDirection::Duplex
-                    | AudioDeviceDirection::Loopback
-            )
+            binding.runtime_capabilities.supports_hardware_timestamps
+                && matches!(
+                    binding.direction,
+                    AudioDeviceDirection::Capture
+                        | AudioDeviceDirection::Duplex
+                        | AudioDeviceDirection::Loopback
+                )
         }
         AudioStreamClockDomain::OutputDac => {
-            matches!(
-                binding.direction,
-                AudioDeviceDirection::Playback
-                    | AudioDeviceDirection::Duplex
-                    | AudioDeviceDirection::Loopback
-            )
+            binding.runtime_capabilities.supports_hardware_timestamps
+                && matches!(
+                    binding.direction,
+                    AudioDeviceDirection::Playback
+                        | AudioDeviceDirection::Duplex
+                        | AudioDeviceDirection::Loopback
+                )
         }
     }
 }
@@ -36,11 +38,6 @@ pub(crate) fn clock_now_for_domain(
     match domain {
         AudioClockDomain::Monotonic => Ok(context.runtime().time.mono_nanos()),
         AudioClockDomain::Wall => Ok(context.runtime().time.wall_nanos()),
-        // global device clock requires one concrete opened stream clock source
-        AudioClockDomain::Device => Err(RuntimeError::from(PlatformError::not_supported(
-            "destack.audio.clock.now device domain",
-        ))
-        .boxed()),
     }
 }
 
@@ -74,10 +71,8 @@ pub(crate) fn stream_clock_snapshot(
                 output_dac_ns
             } else if input_adc_ns > 0 {
                 input_adc_ns
-            } else if callback_ns > 0 {
-                callback_ns
             } else {
-                monotonic_ns
+                0
             }
         }
         AudioStreamClockDomain::Callback => {
@@ -91,27 +86,73 @@ pub(crate) fn stream_clock_snapshot(
             if input_adc_ns > 0 {
                 input_adc_ns
             } else {
-                monotonic_ns
+                0
             }
         }
         AudioStreamClockDomain::OutputDac => {
             if output_dac_ns > 0 {
                 output_dac_ns
             } else {
-                monotonic_ns
+                0
             }
         }
+    };
+
+    let callback_quality = if callback_ns > 0 {
+        AudioClockQuality::Estimated
+    } else {
+        AudioClockQuality::None
+    };
+    let input_quality = if input_adc_ns > 0 {
+        AudioClockQuality::Hardware
+    } else {
+        AudioClockQuality::None
+    };
+    let output_quality = if output_dac_ns > 0 {
+        AudioClockQuality::Hardware
+    } else {
+        AudioClockQuality::None
+    };
+    let device_ns = if output_dac_ns > 0 {
+        output_dac_ns
+    } else if input_adc_ns > 0 {
+        input_adc_ns
+    } else {
+        callback_ns
+    };
+    let device_quality = if output_dac_ns > 0 || input_adc_ns > 0 {
+        AudioClockQuality::Hardware
+    } else if callback_ns > 0 {
+        AudioClockQuality::Estimated
+    } else {
+        AudioClockQuality::None
+    };
+    let clock_quality = match domain {
+        AudioStreamClockDomain::Monotonic | AudioStreamClockDomain::Wall => {
+            AudioClockQuality::Estimated
+        }
+        AudioStreamClockDomain::Device => device_quality,
+        AudioStreamClockDomain::Callback => callback_quality,
+        AudioStreamClockDomain::InputAdc => input_quality,
+        AudioStreamClockDomain::OutputDac => output_quality,
     };
 
     Ok(AudioClockSnapshot {
         stream_frames: state.stream_frames,
         clock_ns,
+        clock_quality,
         has_callback_ns: callback_ns > 0,
         callback_ns,
+        callback_quality,
         has_input_adc_ns: input_adc_ns > 0,
         input_adc_ns,
+        input_adc_quality: input_quality,
         has_output_dac_ns: output_dac_ns > 0,
         output_dac_ns,
+        output_dac_quality: output_quality,
+        has_device_ns: device_ns > 0,
+        device_ns,
+        device_quality,
         monotonic_ns,
     })
 }

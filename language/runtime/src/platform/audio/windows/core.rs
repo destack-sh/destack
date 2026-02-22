@@ -52,3 +52,22 @@ pub(crate) fn resolve_host_device_by_id(
 ) -> RuntimeResult<audio_core::HostDeviceDescriptor> {
     super::backend::resolve_host_device_by_id(backend, id)
 }
+
+/// Return whether one windows backend exposes native device-event subscriptions.
+pub(crate) fn backend_native_device_events_supported_impl(
+    backend: audio_core::AudioBackend,
+) -> bool {
+    super::backend::backend_native_device_events_supported(backend)
+}
+
+/// Start one windows backend native device-event monitor.
+pub(crate) fn start_backend_native_device_events_impl(
+    backend: audio_core::AudioBackend,
+) -> RuntimeResult<()> {
+    super::backend::start_backend_native_device_events(backend)
+}
+
+/// Stop one windows backend native device-event monitor.
+pub(crate) fn stop_backend_native_device_events_impl(backend: audio_core::AudioBackend) {
+    super::backend::stop_backend_native_device_events(backend);
+}
