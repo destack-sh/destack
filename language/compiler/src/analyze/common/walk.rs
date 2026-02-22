@@ -124,7 +124,7 @@ pub(crate) fn rewrite_type_with_cache<V: TypeRewriter + ?Sized>(
         return mapped;
     }
 
-    if let Some(entry) = types.rewrite_cached_type(cache_key, type_id) {
+    if let Some(entry) = types.get_rewrite_cached_type(cache_key, type_id) {
         for (dependency_id, _) in &entry.dependency_versions.type_versions {
             types.record_normalization_dependency(*dependency_id);
         }

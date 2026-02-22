@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode, ContextualTypingMode};
+use crate::analyze::module::GlobalMergeCategory;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
@@ -270,18 +271,24 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<InheritedStaticArguments> {
         // resolve the receiver into a symbol and static arguments
-        let reference = self
-            .receiver_reference_for_inherited_arguments(receiver_ty, types)
-            .or_else(|| {
-                self.well_known_type(profile, receiver_ty, types)
-                    .and_then(|reference_ty| match reference_ty {
-                        Type::Reference {
-                            symbol,
-                            static_arguments,
-                        } => Some((symbol, static_arguments)),
-                        _ => None,
-                    })
-            });
+        let reference = if let Some(reference) =
+            self.receiver_reference_for_inherited_arguments(receiver_ty, types)
+        {
+            Some(reference)
+        } else {
+            match self.well_known_type(profile, receiver_ty, types) {
+                Some(Type::Reference {
+                    symbol,
+                    static_arguments,
+                }) => {
+                    let symbol = self
+                        .remap_typevalue_symbol_to_canonical_type_space(module, profile, symbol)
+                        .map_err(AnalyzeError::from)?;
+                    Some((symbol, static_arguments))
+                }
+                _ => None,
+            }
+        };
         let mut reference = reference;
         let has_usable_reference_arguments =
             |reference: &Option<(GlobalSymbolId, Option<Vec<StaticArgument>>)>| {
@@ -2656,8 +2663,6 @@ impl Compiler {
             .ok();
         if let Some((symbol_key, symbol_space)) = symbol_info
             && let Some(symbol_key) = symbol_key
-            && let Some(ambient_symbols) =
-                self.get_ambient_lib_symbol_sources_for_merge(profile, symbol_key, symbol_space)
         {
             let resolved_parameter_types = parameter_symbols
                 .iter()
@@ -2665,14 +2670,23 @@ impl Compiler {
                 .collect::<Vec<_>>();
 
             if resolved_parameter_types.iter().any(|ty| ty.is_some()) {
-                for ambient_symbol in ambient_symbols {
-                    if ambient_symbol == symbol {
+                // propagate substitutions across all merge peers by position
+                let merge_symbols = self.collect_global_merge_sources_for_key(
+                    module,
+                    profile,
+                    symbol_key,
+                    symbol_space,
+                    GlobalMergeCategory::Instance,
+                );
+
+                for merge_symbol in merge_symbols {
+                    if merge_symbol == symbol {
                         continue;
                     }
 
                     let Some(other_parameters) = self.collect_static_parameter_symbols(
                         module,
-                        ambient_symbol,
+                        merge_symbol,
                         profile,
                         tree,
                         symbols,

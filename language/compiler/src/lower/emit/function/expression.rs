@@ -202,7 +202,7 @@ impl FunctionContext<'_> {
         let runtime_check_kind = self
             .env
             .types
-            .runtime_check_kind(expression_id.into_global_any(self.env.module_id));
+            .get_runtime_check_kind(expression_id.into_global_any(self.env.module_id));
         let Some(runtime_check_kind) = runtime_check_kind else {
             return Err(LowerError::Internal {
                 module: self.env.module_id,

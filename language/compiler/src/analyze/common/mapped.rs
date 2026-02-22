@@ -67,15 +67,9 @@ impl Compiler {
         // key queries should always use type operations semantics
         let relation_mode = RelationMode::TYPE_OPERATOR;
 
-        // TODO #Cleanup: move this instantiation gate into structural normalization, keep keyof unevaluated until inference binds parameters
-        // preserve keyof when the operand still depends on instantiation
-        let needs_instantiation =
-            self.type_needs_instantiation(module, profile, right, symbols, types);
-        let normalize_mode = if needs_instantiation {
-            NormalizationMode::Flow
-        } else {
-            mode
-        };
+        // preserve keyof when the operand still depends on evaluation
+        let (needs_evaluation, normalize_mode) =
+            self.keyof_normalization_policy(module, profile, right, symbols, types, mode);
 
         // normalize the operand before extracting keys
         let normalized_right = self.normalize_type_inner(
@@ -89,7 +83,7 @@ impl Compiler {
             visited,
         );
 
-        if needs_instantiation {
+        if needs_evaluation {
             if let Some(keyof_type_id) = keyof_type_id
                 && normalized_right == right
             {
@@ -2244,14 +2238,10 @@ impl Compiler {
                     relation_mode,
                     &mut normalize_visited,
                 );
-                if let Type::Unary {
-                    operator: TypeUnaryOperator::Keyof,
-                    right,
-                } = types.get_type(normalized)
-                    && self.type_needs_instantiation(module, profile, *right, symbols, types)
+                if self
+                    .type_is_deferred_keyof_projection(module, profile, normalized, symbols, types)
                 {
-                    // TODO #Cleanup: remove this bailout once key collection uses structural normalization
-                    // avoid recursing on unresolved keyof shapes
+                    // avoid recursing on deferred keyof projections
                     return;
                 }
                 self.collect_mapped_keys_for_type_inner(

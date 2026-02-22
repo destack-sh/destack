@@ -16,10 +16,7 @@ impl Compiler {
         stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
-        // remote reads must satisfy the stage gate
-        if module_id != module.id {
-            self.require_module_stage_for_read(module_id, profile, stage)?;
-        }
+        self.require_stage_for_remote_module_read(module.id, module_id, profile, stage)?;
 
         Ok(self.with_module_symbols_unchecked(module, profile, module_id, handle))
     }
@@ -34,10 +31,7 @@ impl Compiler {
         stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
-        // remote reads must satisfy the stage gate
-        if module_id != module.id {
-            self.require_module_stage_for_read(module_id, profile, stage)?;
-        }
+        self.require_stage_for_remote_module_read(module.id, module_id, profile, stage)?;
 
         Ok(
             self.with_module_symbols_or_local_unchecked(
@@ -55,10 +49,7 @@ impl Compiler {
         stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
-        // remote reads must satisfy the stage gate
-        if module_id != module.id {
-            self.require_module_stage_for_read(module_id, profile, stage)?;
-        }
+        self.require_stage_for_remote_module_read(module.id, module_id, profile, stage)?;
 
         Ok(self.with_module_symbols_base_unchecked(module, module_id, handle))
     }
@@ -73,10 +64,7 @@ impl Compiler {
         stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
-        // remote reads must satisfy the stage gate
-        if module_id != module.id {
-            self.require_module_stage_for_read(module_id, profile, stage)?;
-        }
+        self.require_stage_for_remote_module_read(module.id, module_id, profile, stage)?;
 
         Ok(self.with_module_symbols_base_or_local_unchecked(module, module_id, symbols, handle))
     }
@@ -90,10 +78,7 @@ impl Compiler {
         stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
-        // remote reads must satisfy the stage gate
-        if module_id != symbols.module_id {
-            self.require_module_stage_for_read(module_id, profile, stage)?;
-        }
+        self.require_stage_for_remote_module_read(symbols.module_id, module_id, profile, stage)?;
 
         Ok(self.with_module_symbols_by_id_unchecked(profile, module_id, symbols, handle))
     }

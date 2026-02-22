@@ -219,7 +219,7 @@ impl Compiler {
                 symbol.module_id,
                 types,
                 AnalyzeDependencyStage::Declare,
-                |_, owner_types| owner_types.get_static_parameter_symbols(symbol),
+                |_, owner_types| owner_types.query_published_static_parameter_symbols(symbol),
             )
             .ok()
             .flatten()

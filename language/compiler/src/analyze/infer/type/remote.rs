@@ -2,6 +2,35 @@ use super::*;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve a declared value type id for a symbol from remote declaration facts.
+    fn resolve_remote_declared_value_type_id(
+        &self,
+        remote_module: &Module,
+        target_symbol: GlobalSymbolId,
+        remote_tree: &NodeTree,
+        remote_symbols: &SymbolTable,
+        remote_types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        // prefer direct binding declarator declarations
+        if let Some(declarator_id) = self.direct_binding_declarator_for_symbol(
+            remote_module,
+            target_symbol,
+            remote_tree,
+            remote_symbols,
+        ) {
+            let declarator_global = declarator_id.into_global_any(remote_module.id);
+            if let Some(declared_type_id) = remote_types.get_declared_type_id(declarator_global) {
+                return Some(declared_type_id);
+            }
+        }
+
+        // otherwise fall back to the primary declaration type
+        let primary_declaration = remote_symbols
+            .get_symbol(target_symbol.local_id)
+            .primary_declaration?;
+        remote_types.get_declared_type_id(primary_declaration)
+    }
+
     pub(crate) fn resolve_remote_symbol_value_type(
         &self,
         module: &Module,
@@ -53,6 +82,31 @@ impl Compiler {
                         &mut remote_types,
                     )?;
                     let remote_ty = remote_types.get_type(remote_ty_id);
+                    let local_ty = self.import_type_from_remote_for_node(
+                        node_id,
+                        remote_ty,
+                        &remote_types,
+                        target_symbol,
+                        types,
+                    );
+                    Ok(local_ty)
+                } else if let Some(declared_type_id) = self.resolve_remote_declared_value_type_id(
+                    remote_module,
+                    target_symbol,
+                    remote_tree,
+                    remote_symbols,
+                    &remote_types,
+                ) {
+                    // materialize and import the declared value type
+                    self.materialize_imported_type(
+                        remote_module,
+                        profile,
+                        declared_type_id,
+                        remote_tree,
+                        remote_symbols,
+                        &mut remote_types,
+                    )?;
+                    let remote_ty = remote_types.get_type(declared_type_id);
                     let local_ty = self.import_type_from_remote_for_node(
                         node_id,
                         remote_ty,

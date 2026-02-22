@@ -16,10 +16,7 @@ impl Compiler {
         stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &NodeTree, &SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
-        // remote reads must satisfy the stage gate
-        if module_id != module.id {
-            self.require_module_stage_for_read(module_id, profile, stage)?;
-        }
+        self.require_stage_for_remote_module_read(module.id, module_id, profile, stage)?;
 
         Ok(self.with_module_tree_symbols_unchecked(module, profile, module_id, handle))
     }
@@ -35,10 +32,7 @@ impl Compiler {
         stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&Module, &NodeTree, &SymbolTable) -> R,
     ) -> Result<R, TaskDependencyError> {
-        // remote reads must satisfy the stage gate
-        if module_id != module.id {
-            self.require_module_stage_for_read(module_id, profile, stage)?;
-        }
+        self.require_stage_for_remote_module_read(module.id, module_id, profile, stage)?;
 
         Ok(self.with_module_tree_symbols_or_local_unchecked(
             module, profile, module_id, tree, symbols, handle,
@@ -70,10 +64,8 @@ impl Compiler {
         stage: AnalyzeDependencyStage,
         handle: impl FnOnce(&NodeTree, &SymbolTable, &TypeTable) -> R,
     ) -> Result<R, TaskDependencyError> {
-        // remote reads must satisfy the stage gate
-        if module_id != symbols.module_id || module_id != types.module_id {
-            self.require_module_stage_for_read(module_id, profile, stage)?;
-        }
+        self.require_stage_for_remote_module_read(symbols.module_id, module_id, profile, stage)?;
+        self.require_stage_for_remote_module_read(types.module_id, module_id, profile, stage)?;
 
         Ok(self.with_module_tree_symbols_types_by_id_unchecked(
             profile, module_id, tree, symbols, types, handle,

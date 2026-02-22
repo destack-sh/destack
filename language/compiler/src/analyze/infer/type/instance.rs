@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::module::GlobalMergeCategory;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -354,12 +355,24 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // load symbol metadata for merge group selection
-        let (symbol_type, symbol_key, symbol_space) = {
+        let (
+            symbol_type,
+            symbol_key,
+            symbol_space,
+            symbol_is_global_augmentation,
+            owner_is_ambient_lib,
+        ) = {
             let symbol_module = self.program.modules.get(symbol.module_id);
             let symbol_module = symbol_module.read();
             let symbol_table = symbol_module.dir_base().symbols.read();
             let symbol_entry = symbol_table.get_symbol(symbol.local_id);
-            (symbol_entry.ty, symbol_entry.key, symbol_entry.space)
+            (
+                symbol_entry.ty,
+                symbol_entry.key,
+                symbol_entry.space,
+                symbol_entry.origin.is_global_augmentation(),
+                self.module_is_ambient_lib(&symbol_module),
+            )
         };
 
         // normalize the symbol id to the stored symbol type
@@ -381,26 +394,24 @@ impl Compiler {
             .map_err(AnalyzeError::from)?;
 
         // select the global merge group when the symbol participates
-        let mut group_symbols = Vec::new();
-        if !self.module_is_ambient_lib(module)
-            && let Some(key) = symbol_key
-        {
-            if let Some(group) = self.get_global_symbol_group(module.id, profile, key, symbol_space)
-            {
-                group_symbols.extend(group);
+        let mut group_symbols = if symbol_is_global_augmentation || owner_is_ambient_lib {
+            if let Some(key) = symbol_key {
+                self.collect_global_merge_sources_for_key(
+                    module,
+                    profile,
+                    key,
+                    symbol_space,
+                    GlobalMergeCategory::Instance,
+                )
+            } else {
+                Vec::new()
             }
-            if let Some(ambient_symbols) =
-                self.get_ambient_lib_symbol_sources_for_merge(profile, key, symbol_space)
-            {
-                group_symbols.extend(ambient_symbols);
-            }
-        }
-        if group_symbols.is_empty() {
-            group_symbols.push(symbol);
         } else {
-            let mut seen = HashSet::new();
-            group_symbols.retain(|symbol| seen.insert(*symbol));
-        }
+            Vec::new()
+        };
+        group_symbols.push(symbol);
+        let mut seen = HashSet::new();
+        group_symbols.retain(|symbol| seen.insert(*symbol));
 
         // normalize group symbols to the stored symbol types
         let mut normalized_group_symbols = Vec::with_capacity(group_symbols.len());

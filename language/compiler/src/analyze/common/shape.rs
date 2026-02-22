@@ -1,11 +1,10 @@
-use std::collections::HashSet;
-
 use crate::analyze::common::AnalyzeDependencyStage;
+use crate::analyze::module::GlobalMergeCategory;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
     Asynchrony, Declaration, Expression, FunctionCardinality, GlobalSymbolId, LocalNodeId,
     LocalNodeIdAny, LocalSymbolId, LocalTypeId, NodeTree, StaticKey, SymbolSpace, SymbolTable,
-    SymbolType, Type, TypeField, TypeIndexSignature, TypeTable,
+    SymbolType, Type, TypeField, TypeIndexSignature, TypeTable, are_types_equal,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -15,6 +14,15 @@ enum ValueShapeSource {
     Declaration(LocalNodeId<Declaration>),
     /// Any node.
     Any(LocalNodeIdAny),
+}
+
+/// Remote shape import mode for merge symbols.
+#[derive(Clone, Copy)]
+enum RemoteMergeShapeKind {
+    /// Import the remote instance type shape.
+    Instance,
+    /// Import the remote value type shape.
+    Value,
 }
 
 impl ValueShapeSource {
@@ -180,6 +188,93 @@ struct SignatureShape {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Import one remote merge shape for a symbol into the local type table.
+    fn import_remote_merge_shape_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        declaration_id: LocalNodeId<Declaration>,
+        global_symbol: GlobalSymbolId,
+        kind: RemoteMergeShapeKind,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<ObjectShape>> {
+        self.with_module_tree_symbols_at_stage(
+            module,
+            profile,
+            global_symbol.module_id,
+            AnalyzeDependencyStage::Declare,
+            |remote_module, remote_tree, remote_symbols| {
+                let remote_dir = remote_module.dir(profile);
+                let mut remote_types = remote_dir.types.write();
+
+                // pick the remote shape source type
+                let remote_type_id = match kind {
+                    RemoteMergeShapeKind::Instance => {
+                        let Some(remote_type_id) = remote_types.get_instance_type_id(global_symbol)
+                        else {
+                            return Ok(None);
+                        };
+                        remote_type_id
+                    }
+                    RemoteMergeShapeKind::Value => {
+                        let Some(remote_type_id) = remote_types.get_value_type_id(global_symbol)
+                        else {
+                            return Ok(None);
+                        };
+                        remote_type_id
+                    }
+                };
+
+                // materialize the remote type before importing shape members
+                self.materialize_imported_type(
+                    remote_module,
+                    profile,
+                    remote_type_id,
+                    remote_tree,
+                    remote_symbols,
+                    &mut remote_types,
+                )?;
+
+                // import the remote type for local shape extraction
+                let remote_type = remote_types.get_type(remote_type_id).clone();
+                let local_type_id = self.import_type_from_remote_for_node(
+                    declaration_id.into_any(),
+                    &remote_type,
+                    &remote_types,
+                    global_symbol,
+                    types,
+                );
+
+                // extract the imported shape by mode
+                let mut shape = ObjectShape::default();
+                match kind {
+                    RemoteMergeShapeKind::Instance => {
+                        let local_type = types.get_type(local_type_id);
+                        if !shape.extend_from_object(local_type) {
+                            return Ok(None);
+                        }
+                    }
+                    RemoteMergeShapeKind::Value => {
+                        let mut extras = Vec::new();
+                        let mut visited = Vec::new();
+                        self.collect_value_shape_from_type(
+                            local_type_id,
+                            types,
+                            &mut shape,
+                            &mut extras,
+                            &mut visited,
+                        );
+                        if shape.is_empty() {
+                            return Ok(None);
+                        }
+                    }
+                }
+
+                Ok(Some(shape))
+            },
+        )?
+    }
+
     // build a value type from a merged shape and extras
     fn build_value_shape_type(
         &self,
@@ -266,10 +361,70 @@ impl Compiler {
 
         // merge the new shape into the instance type
         merged_shape.extend_from_shape(shape);
+        self.canonicalize_merged_object_shape(&mut merged_shape, types);
         let instance_ty = merged_shape.into_object_type();
         let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
         types.set_instance_type(symbol, instance_ty_id);
         instance_ty_id
+    }
+
+    /// Canonicalize merged object members by dropping equivalent duplicates.
+    fn canonicalize_merged_object_shape(&self, shape: &mut ObjectShape, types: &TypeTable) {
+        // dedupe equivalent fields by key and type
+        let mut deduped_fields = Vec::new();
+        for field in &shape.fields {
+            let duplicate = deduped_fields.iter().any(|existing: &TypeField| {
+                existing.key.matches(&field.key)
+                    && existing.is_optional == field.is_optional
+                    && existing.is_readonly == field.is_readonly
+                    && are_types_equal(existing.ty, field.ty, types)
+            });
+            if !duplicate {
+                deduped_fields.push(field.clone());
+            }
+        }
+        shape.fields = deduped_fields;
+
+        // dedupe equivalent call signatures
+        let mut deduped_call_signatures = Vec::new();
+        for signature in &shape.call_signatures {
+            let duplicate = deduped_call_signatures
+                .iter()
+                .any(|existing| are_types_equal(*existing, *signature, types));
+            if !duplicate {
+                deduped_call_signatures.push(*signature);
+            }
+        }
+        shape.call_signatures = deduped_call_signatures;
+
+        // dedupe equivalent construct signatures
+        let mut deduped_construct_signatures = Vec::new();
+        for signature in &shape.construct_signatures {
+            let duplicate = deduped_construct_signatures
+                .iter()
+                .any(|existing| are_types_equal(*existing, *signature, types));
+            if !duplicate {
+                deduped_construct_signatures.push(*signature);
+            }
+        }
+        shape.construct_signatures = deduped_construct_signatures;
+
+        // dedupe equivalent index signatures
+        let mut deduped_index_signatures = Vec::new();
+        for signature in &shape.index_signatures {
+            let duplicate = deduped_index_signatures
+                .iter()
+                .any(|existing: &TypeIndexSignature| {
+                    existing.name == signature.name
+                        && existing.is_readonly == signature.is_readonly
+                        && are_types_equal(existing.key_type, signature.key_type, types)
+                        && are_types_equal(existing.value_type, signature.value_type, types)
+                });
+            if !duplicate {
+                deduped_index_signatures.push(signature.clone());
+            }
+        }
+        shape.index_signatures = deduped_index_signatures;
     }
 
     /// Collect value members and extras from a value type.
@@ -867,13 +1022,21 @@ impl Compiler {
 
         // resolve the merge key for the symbol
         let symbol_entry = symbols.get_symbol(symbol_id);
+        if !symbol_entry.origin.is_global_augmentation() {
+            return Ok(());
+        }
         let Some(key) = symbol_entry.key else {
             return Ok(());
         };
 
         // collect merge symbols for this key and space
-        let merge_symbols =
-            self.collect_global_merge_symbols(module, profile, key, symbol_entry.space);
+        let merge_symbols = self.collect_global_merge_symbols(
+            module,
+            profile,
+            key,
+            symbol_entry.space,
+            GlobalMergeCategory::Instance,
+        );
         if merge_symbols.is_empty() {
             return Ok(());
         }
@@ -885,33 +1048,13 @@ impl Compiler {
                 continue;
             }
 
-            // TODO #Architecture: centralize local vs remote merge imports to keep symbol handling consistent
-            let shape = self.with_module_types_at_stage(
+            let shape = self.import_remote_merge_shape_for_symbol(
                 module,
                 profile,
-                global_symbol.module_id,
-                AnalyzeDependencyStage::Declare,
-                |_, remote_types| {
-                    // import the remote instance type into this module
-                    let remote_instance_id = remote_types.get_instance_type_id(global_symbol)?;
-                    let remote_ty = remote_types.get_type(remote_instance_id);
-                    let local_ty_id = self.import_type_from_remote_for_node(
-                        declaration_id.into_any(),
-                        remote_ty,
-                        remote_types,
-                        global_symbol,
-                        types,
-                    );
-                    let local_ty = types.get_type(local_ty_id);
-
-                    // skip non object instance types
-                    let mut shape = ObjectShape::default();
-                    if !shape.extend_from_object(local_ty) {
-                        return None;
-                    }
-
-                    Some(shape)
-                },
+                declaration_id,
+                global_symbol,
+                RemoteMergeShapeKind::Instance,
+                types,
             )?;
 
             let Some(shape) = shape else {
@@ -939,28 +1082,9 @@ impl Compiler {
         profile: ProfileId,
         key: StaticKey,
         space: SymbolSpace,
+        category: GlobalMergeCategory,
     ) -> Vec<GlobalSymbolId> {
-        // start merge symbol collection
-        let mut merge_symbols = Vec::new();
-
-        // include symbols from the global group
-        if let Some(global_symbols) = self.get_global_symbol_group(module.id, profile, key, space) {
-            merge_symbols.extend(global_symbols);
-        }
-
-        // include ambient lib symbols when available
-        if !self.module_is_ambient_lib(module)
-            && let Some(ambient_symbols) =
-                self.get_ambient_lib_symbol_sources_for_merge(profile, key, space)
-        {
-            merge_symbols.extend(ambient_symbols);
-        }
-
-        // remove duplicates in a stable order
-        let mut seen = HashSet::new();
-        merge_symbols.retain(|symbol| seen.insert(*symbol));
-
-        merge_symbols
+        self.collect_global_merge_sources_for_key(module, profile, key, space, category)
     }
 
     /// Merge global augmentation types into a symbol value type.
@@ -980,13 +1104,21 @@ impl Compiler {
 
         // resolve the merge key for the symbol
         let symbol_entry = symbols.get_symbol(symbol_id);
+        if !symbol_entry.origin.is_global_augmentation() {
+            return Ok(());
+        }
         let Some(key) = symbol_entry.key else {
             return Ok(());
         };
 
         // collect merge symbols for this key and space
-        let merge_symbols =
-            self.collect_global_merge_symbols(module, profile, key, symbol_entry.space);
+        let merge_symbols = self.collect_global_merge_symbols(
+            module,
+            profile,
+            key,
+            symbol_entry.space,
+            GlobalMergeCategory::Value,
+        );
         if merge_symbols.is_empty() {
             return Ok(());
         }
@@ -998,40 +1130,13 @@ impl Compiler {
                 continue;
             }
 
-            let remote_shape = self.with_module_types_at_stage(
+            let remote_shape = self.import_remote_merge_shape_for_symbol(
                 module,
                 profile,
-                global_symbol.module_id,
-                AnalyzeDependencyStage::Declare,
-                |_, remote_types| {
-                    // import the remote value type into this module
-                    let remote_value_id = remote_types.get_value_type_id(global_symbol)?;
-                    let remote_value_ty = remote_types.get_type(remote_value_id);
-                    let local_value_id = self.import_type_from_remote_for_node(
-                        declaration_id.into_any(),
-                        remote_value_ty,
-                        remote_types,
-                        global_symbol,
-                        types,
-                    );
-
-                    // collect the remote value shape
-                    let mut remote_shape = ObjectShape::default();
-                    let mut extras = Vec::new();
-                    let mut visited = Vec::new();
-                    self.collect_value_shape_from_type(
-                        local_value_id,
-                        types,
-                        &mut remote_shape,
-                        &mut extras,
-                        &mut visited,
-                    );
-                    if remote_shape.is_empty() {
-                        return None;
-                    }
-
-                    Some(remote_shape)
-                },
+                declaration_id,
+                global_symbol,
+                RemoteMergeShapeKind::Value,
+                types,
             )?;
             let Some(remote_shape) = remote_shape else {
                 continue;

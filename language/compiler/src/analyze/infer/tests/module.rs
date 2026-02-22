@@ -5,7 +5,7 @@ use crate::analyze::common::AnalyzeDependencyStage;
 #[test]
 fn test_merge_global_declarations_across_imports() {
     // arrange test modules
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     test.add_module(
         "a.ds",
         r#"
@@ -129,6 +129,246 @@ const thing: GlobalThing = { value: 1, label: "ok" };
     let label_key = StaticKey::Name(test.program.strings.intern("label"));
     assert!(fields.iter().any(|field| field.key.matches(&value_key)));
     assert!(fields.iter().any(|field| field.key.matches(&label_key)));
+}
+
+/// Merge global interface members from local and remote declarations.
+#[test]
+fn test_merge_global_interface_members_include_local_and_remote_fields() {
+    // arrange test modules
+    let test = TestProgram::memory_sequential();
+    test.add_module(
+        "a.ds",
+        r#"
+declare global {
+    interface GlobalThing {
+        left: number
+    }
+}
+"#,
+    );
+    test.add_module(
+        "b.ds",
+        r#"
+declare global {
+    interface GlobalThing {
+        right: string
+    }
+}
+"#,
+    );
+    let main_id = test.add_module(
+        "main.ds",
+        r#"
+import "./a.ds";
+import "./b.ds";
+
+declare global {
+    interface GlobalThing {
+        local: boolean
+    }
+}
+
+const thing: GlobalThing = { left: 1, right: "ok", local: true };
+"#,
+    );
+
+    // analyze the entry module
+    test.analyze_module_and_check_clean(main_id);
+
+    // load module data for inspection
+    let view = test.view(main_id);
+    let profile = view.profile_id();
+    let global_key = StaticKey::Name(test.program.strings.intern("GlobalThing"));
+    let global_group = test
+        .compiler
+        .get_global_symbol_group(main_id, profile, global_key, SymbolSpace::Type)
+        .expect("missing global group for GlobalThing");
+    assert_eq!(global_group.len(), 3);
+    let global_thing = global_group
+        .iter()
+        .find(|symbol| symbol.module_id == main_id)
+        .copied()
+        .expect("missing local GlobalThing symbol");
+    let instance_ty_id = view.expect_instance_type_id(global_thing);
+    let instance_ty = view.types().get_type(instance_ty_id);
+    let Type::Object { fields, .. } = instance_ty else {
+        panic!("expected object instance type for GlobalThing");
+    };
+
+    // assert merged fields include local and remote members
+    let left_key = StaticKey::Name(test.program.strings.intern("left"));
+    let right_key = StaticKey::Name(test.program.strings.intern("right"));
+    let local_key = StaticKey::Name(test.program.strings.intern("local"));
+    assert!(fields.iter().any(|field| field.key.matches(&left_key)));
+    assert!(fields.iter().any(|field| field.key.matches(&right_key)));
+    assert!(fields.iter().any(|field| field.key.matches(&local_key)));
+}
+
+/// Merge class and namespace global declarations into one value shape.
+#[test]
+fn test_merge_global_class_and_namespace_value_shapes() {
+    // arrange test modules
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    test.add_module(
+        "a.ds",
+        r#"
+declare global {
+    class GlobalWidget {
+        ping(): number;
+    }
+}
+"#,
+    );
+    test.add_module(
+        "b.ds",
+        r#"
+declare global {
+    namespace GlobalWidget {
+        export const tag: string;
+    }
+}
+"#,
+    );
+    let main_id = test.add_module(
+        "main.ds",
+        r#"
+import "./a.ds";
+import "./b.ds";
+
+declare const widget: GlobalWidget;
+widget.ping() satisfies number;
+
+const tag = GlobalWidget.tag;
+tag satisfies string;
+"#,
+    );
+
+    // analyze the entry module
+    test.analyze_module_and_check_clean(main_id);
+
+    // assert the projected static member preserves its declared type
+    let view = test.view(main_id);
+    let tag_symbol = test
+        .resolve_to_symbol("main.ds", "tag")
+        .expect("missing symbol for tag");
+    let tag_ty_id = view.expect_value_type_id(tag_symbol);
+    assert_type!(
+        view.types(),
+        tag_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::String)
+        }
+    );
+}
+
+/// Merge ambient Array members with local global Array augmentations.
+#[test]
+fn test_merge_global_array_augmentation_preserves_ambient_members() {
+    // arrange test module with ambient libs enabled
+    let test = TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es5"]);
+    let main_id = test.add_module(
+        "main.ds",
+        r#"
+declare global {
+    interface Array<T> {
+        first(): T | undefined;
+    }
+}
+const values = [1, 2, 3];
+const length = values.length;
+values.first() satisfies number | undefined;
+"#,
+    );
+
+    // analyze the entry module
+    test.analyze_module_and_check_clean(main_id);
+    let view = test.view(main_id);
+    let profile = view.profile_id();
+
+    // resolve the local Array symbol from global groups
+    let key = StaticKey::Name(test.program.strings.intern("Array"));
+    let type_group = test
+        .compiler
+        .get_global_symbol_group(main_id, profile, key, SymbolSpace::Type)
+        .expect("missing Array group");
+    let ambient_merge_group = test
+        .compiler
+        .get_ambient_lib_symbol_sources_for_merge(profile, key, SymbolSpace::Type)
+        .unwrap_or_default();
+    let array_symbol = type_group
+        .iter()
+        .find(|symbol| symbol.module_id == main_id)
+        .copied()
+        .expect("missing local Array symbol");
+
+    // assert the merged instance shape keeps ambient and local members
+    let instance_ty_id = view.expect_instance_type_id(array_symbol);
+    let instance_ty = view.types().get_type(instance_ty_id);
+    let Type::Object { fields, .. } = instance_ty else {
+        panic!("expected object instance type for Array");
+    };
+    let first_key = StaticKey::Name(test.program.strings.intern("first"));
+    let length_key = StaticKey::Name(test.program.strings.intern("length"));
+
+    // read one ambient Array shape for baseline member preservation
+    let ambient_symbol = ambient_merge_group
+        .first()
+        .copied()
+        .expect("missing ambient Array symbol for merge baseline");
+    let module = test.program.modules.get(main_id);
+    let module = module.read();
+    let ambient_keys = test
+        .compiler
+        .with_module_types_at_stage(
+            &module,
+            profile,
+            ambient_symbol.module_id,
+            AnalyzeDependencyStage::Declare,
+            |_, ambient_types| {
+                let ambient_instance = ambient_types
+                    .get_instance_type_id(ambient_symbol)
+                    .expect("missing ambient Array instance type");
+                let ambient_instance = ambient_types.get_type(ambient_instance);
+                let Type::Object { fields, .. } = ambient_instance else {
+                    panic!("expected ambient Array instance object type");
+                };
+
+                fields
+                    .iter()
+                    .map(|field| field.key.clone())
+                    .collect::<Vec<_>>()
+            },
+        )
+        .expect("declare stage should be ready for ambient Array merge baseline");
+    // assert merged shape preserves at least one ambient member
+    assert!(
+        ambient_keys
+            .iter()
+            .any(|ambient_key| fields.iter().any(|field| field.key.matches(ambient_key))),
+        "missing ambient members on merged Array shape",
+    );
+
+    // assert merged shape keeps the local augmentation member
+    assert!(
+        fields.iter().any(|field| field.key.matches(&first_key)),
+        "missing local member 'first' on merged Array shape",
+    );
+    assert!(
+        fields.iter().any(|field| field.key.matches(&length_key)),
+        "missing merged length member",
+    );
+
+    // assert ambient length member type stays numeric under global augmentation
+    let length_symbol = test
+        .resolve_to_symbol("main.ds", "length")
+        .expect("missing symbol for length");
+    let length_ty_id = view.expect_value_type_id(length_symbol);
+    match view.types().get_type(length_ty_id) {
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number),
+        } => {}
+        other => panic!("unexpected length type: {other:?}"),
+    }
 }
 
 /// Analyze cross module type import.
