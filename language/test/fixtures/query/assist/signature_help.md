@@ -209,3 +209,37 @@ const message = greeter.greet($0);
 active_signature=0 active_parameter=0
 signature[0] label=greet(name: string): string documentation=Greet someone. parameters=name: string param_docs=The person to greet
 ```
+
+### No signature outside call arguments
+
+Signature help should return none when the cursor is not inside a call expression.
+
+```ds
+function add(x: int32, y: int32): int32 {
+    return x + y;
+}
+
+const value = add(1, 2);
+const done = value$0;
+```
+
+```query signature_help $0
+<none>
+```
+
+## Damaged Syntax
+
+### Return no signature help for malformed unresolved member access
+
+Signature help should return none when the cursor is on malformed unresolved syntax.
+
+```ds
+function main(): void {
+    missingValue.
+//  ^^^^^^^^^^^ broken
+}
+```
+
+```query signature_help broken
+<none>
+```

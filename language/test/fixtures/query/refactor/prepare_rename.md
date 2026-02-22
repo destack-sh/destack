@@ -195,6 +195,88 @@ const message = greetDefault("Destack");
 greetDefault
 ```
 
+### Prepare rename on aliased import usage
+
+Prepare rename should resolve local import aliases.
+
+```ds:alias_export.ds
+export function greet(name: string): string {
+    return "Hello, " + name;
+}
+```
+
+```ds:alias_main.ds
+import { greet as localGreet } from "./alias_export.ds";
+
+const message = localGreet("Destack");
+//              ^^^^^^^^^^ use:local_greet_alias
+```
+
+```query prepare_rename use:local_greet_alias
+localGreet
+```
+
+### Prepare rename on imported name in aliased import
+
+Prepare rename on the imported name should resolve to the exported symbol name.
+
+```ds:alias_prepare_lib.ds
+export function greet(name: string): string {
+    return "Hello, " + name;
+}
+```
+
+```ds:alias_prepare_main.ds
+import { greet as localGreet } from "./alias_prepare_lib.ds";
+//       ^^^^^ use:greet_import_name
+
+const message = localGreet("Destack");
+```
+
+```query prepare_rename use:greet_import_name
+greet
+```
+
+### Prepare rename on namespace import alias usage
+
+Prepare rename on a namespace import alias usage should resolve to the local alias name.
+
+```ds:namespace_prepare_lib.ds
+export function ping(): void {}
+```
+
+```ds:namespace_prepare_main.ds
+import * as api from "./namespace_prepare_lib.ds";
+
+api.ping();
+// ^^^ use:namespace_alias_use
+```
+
+```query prepare_rename use:namespace_alias_use
+api
+```
+
+### Prepare rename on default import alias usage
+
+Prepare rename on a default import usage should resolve to the local alias name.
+
+```ds:default_prepare_lib.ds
+export default function greetDefault(name: string): string {
+    return "Hello, " + name;
+}
+```
+
+```ds:default_prepare_main.ds
+import welcome from "./default_prepare_lib.ds";
+
+const message = welcome("Destack");
+//              ^^^^^^^ use:default_alias_use
+```
+
+```query prepare_rename use:default_alias_use
+welcome
+```
+
 ## Exports
 
 ### Prepare rename on default export definition
@@ -245,6 +327,158 @@ const { value } = config;
 value
 ```
 
+### Prepare rename on namespace member usage
+
+Prepare rename should resolve namespace member call usages.
+
+```ds
+namespace Api {
+    export function ping(): void {}
+}
+
+Api.ping();
+//  ^^^^ use:ping
+```
+
+```query prepare_rename use:ping
+ping
+```
+
+### Prepare rename on parenthesized namespace receiver
+
+Prepare rename should resolve namespace receiver symbols in parenthesized member calls.
+
+```ds
+namespace Api {
+    export function ping(): void {}
+}
+
+(Api).ping();
+// ^^^ use:api_namespace
+```
+
+```query prepare_rename use:api_namespace
+Api
+```
+
+## TypeScript++ Surface
+
+### Prepare rename on tagged template tag usage
+
+Prepare rename should resolve tagged template tag functions.
+
+```ds
+function sql(parts: string[], ...values: int32): string {
+    return "";
+}
+
+const value = sql`select ${1}`;
+//            ^^^ use:sql_tag
+```
+
+```query prepare_rename use:sql_tag
+sql
+```
+
+### Prepare rename on decorator usage
+
+Prepare rename should resolve decorator identifiers.
+
+```ds
+function tracked<T>(value: T): T {
+    return value;
+}
+
+@tracked
+// ^^^^^^^ use:tracked_decorator
+class Service {}
+```
+
+```query prepare_rename use:tracked_decorator
+tracked
+```
+
+### Prepare rename on parameter decorator usage
+
+Prepare rename should resolve decorators attached to function parameters.
+
+```ds
+function trackUsage(target: unknown): void {
+    target;
+}
+
+function greet(@trackUsage name: string): string {
+//              ^^^^^^^^^^ use:track_usage_param
+    return name;
+}
+```
+
+```query prepare_rename use:track_usage_param
+trackUsage
+```
+
+### Prepare rename on match arm binding definition
+
+Prepare rename should resolve bindings introduced by match patterns.
+
+```ds
+declare const pair: (int32, int32);
+
+const total = match (pair) {
+    (left, right) => left + right
+//   ^^^^ def:match_left
+};
+```
+
+```query prepare_rename def:match_left
+left
+```
+
+### Prepare rename on template literal type parameter definition
+
+Prepare rename should resolve type parameters used inside template literal spans.
+
+```ds
+type Route<T extends string> = `api:${T}`;
+//         ^ def:route_param
+```
+
+```query prepare_rename def:route_param
+T
+```
+
+### Prepare rename on using binding usage
+
+Prepare rename should resolve symbols introduced by `using` bindings.
+
+```ds
+using session = 1;
+
+const next = session;
+//           ^^^^^^^ use:using_session
+```
+
+```query prepare_rename use:using_session
+session
+```
+
+### Prepare rename on comptime call usage
+
+Prepare rename should resolve function symbols used in comptime expressions.
+
+```ds
+function build(): int32 {
+    return 1;
+}
+
+const value = comptime build();
+//                      ^^^^^ use:comptime_build
+```
+
+```query prepare_rename use:comptime_build
+build
+```
+
 ## Keywords
 
 ### Prepare rename on keyword
@@ -262,4 +496,59 @@ Preparing rename on a keyword should return no result.
 
 ```query prepare_rename keyword:return
 <none>
+```
+
+## Unresolved Symbols
+
+### Prepare rename on unresolved identifiers
+
+Prepare rename should return no result for unresolved identifiers.
+
+```ds
+function main(): void {
+    missingValue;
+//  ^^^^^^^^^^^ unresolved
+}
+```
+
+```query prepare_rename unresolved
+<none>
+```
+
+## Damaged Syntax
+
+### Prepare rename on malformed unresolved member access
+
+Prepare rename should return no result when the cursor is on malformed unresolved syntax.
+
+```ds
+function main(): void {
+    missingValue.
+//  ^^^^^^^^^^^ broken
+}
+```
+
+```query prepare_rename broken
+<none>
+```
+
+## Associated Types
+
+### Prepare rename on associated type projection usage
+
+Prepare rename should resolve associated type projections.
+
+```ds
+interface Envelope<T extends string> {
+    type Label<U extends string> = `${T}:${U}`;
+}
+
+class Message<T extends string> implements Envelope<T> {}
+
+type EventLabel = Message<"orders">.Label<"created">;
+//                                  ^^^^^ use:assoc_label
+```
+
+```query prepare_rename use:assoc_label
+Label
 ```

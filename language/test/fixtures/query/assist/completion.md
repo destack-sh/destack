@@ -162,6 +162,21 @@ function test() {
 - int32: type_parameter
 ```
 
+### Complete declared types in unterminated annotations
+
+Type completion should still resolve local declarations in incomplete files.
+
+```ds
+struct PendingType {}
+
+function main() {
+    const value: PendingT$0
+```
+
+```query completion $0
+- PendingType: struct
+```
+
 ## Import Paths
 
 ### Suggest relative starters for empty import

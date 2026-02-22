@@ -65,6 +65,27 @@ const computed = 1 + 2;
 const value = computed;
 ```
 
+### Extracts local initializer expressions
+
+Extract should insert a const binding in the same local scope before the rewritten statement.
+
+```ds:main.ds
+function main(): void {
+    const value = 1 + 2;
+    //            ^^^^^ selection
+}
+```
+
+```query extract_variable selection computed
+```
+
+```expected:main.ds
+function main(): void {
+    const computed = 1 + 2;
+    const value = computed;
+}
+```
+
 ## Invalid Name
 
 ### Rejects invalid extracted names

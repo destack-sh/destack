@@ -136,6 +136,50 @@ main.ds:1:10-1:14
 main.ds:3:1-3:5
 ```
 
+## Type-Only And Value Imports
+
+### Find references across mixed import shapes
+
+Find references should keep type-only imports and value imports in their own symbol graphs.
+
+```ds:types.ds
+export type Settings = {
+//          ^^^^^^^^ def:settings_type
+    enabled: boolean,
+};
+```
+
+```ds:values.ds
+export function settings(): int32 {
+//              ^^^^^^^^ def:settings_value
+    return 1;
+}
+```
+
+```ds:main.ds
+import type { Settings } from "./types.ds";
+//            ^^^^^^^^ use:settings_type_import
+import { settings } from "./values.ds";
+//       ^^^^^^^^ use:settings_value_import
+
+const typed: Settings = { enabled: true };
+//          ^^^^^^^^ use:settings_type_use
+const value = settings();
+//            ^^^^^^^^ use:settings_value_call
+```
+
+```query find_references def:settings_type
+types.ds:1:13-1:21
+main.ds:1:15-1:23
+main.ds:4:14-4:22
+```
+
+```query find_references def:settings_value
+def:settings_value
+use:settings_value_import
+use:settings_value_call
+```
+
 ## Re-Exports
 
 ### Find references through re-exported aliases
@@ -162,4 +206,556 @@ alias_base.ds:1:17-1:21
 alias_barrel.ds:1:10-1:14
 alias_main.ds:1:10-1:19
 alias_main.ds:3:1-3:10
+```
+
+## Enum Members
+
+### Find references to enum members
+
+Find references should include enum member declarations and member accesses.
+
+```ds
+enum Color {
+    Red,
+//  ^^^ def:red
+    Blue,
+}
+
+const first = Color.Red;
+//                   ^^^ use:red_1
+const second = Color.Red;
+//                    ^^^ use:red_2
+```
+
+```query find_references def:red
+main.ds:2:5-2:8
+main.ds:6:21-6:24
+main.ds:7:22-7:25
+```
+
+## Namespace Receivers
+
+### Find references for namespace receivers across member forms
+
+Find references for a namespace symbol should include member receivers in plain and parenthesized forms.
+
+```ds
+namespace Api {
+//        ^^^ def:api
+    export function greet(): string {
+        return "Hello";
+    }
+}
+
+const one = Api.greet();
+//          ^^^ use:api_1
+const two = (Api).greet();
+//           ^^^ use:api_2
+```
+
+```query find_references def:api
+def:api
+use:api_1
+use:api_2
+```
+
+### Find references for import aliases
+
+Find references on an import alias should stay scoped to the alias declaration and alias call sites.
+
+```ds:alias_lib.ds
+export function greet(name: string): string {
+    return "Hello, " + name;
+}
+```
+
+```ds:alias_main.ds
+import { greet as localGreet } from "./alias_lib.ds";
+//                ^^^^^^^^^^ def:local_greet_alias
+
+const first = localGreet("Destack");
+//            ^^^^^^^^^^ use:local_greet_alias
+```
+
+```query find_references use:local_greet_alias
+def:local_greet_alias
+use:local_greet_alias
+```
+
+### Find references for imported names in aliased imports
+
+Find references on the imported side of an aliased import should follow the exported symbol graph.
+
+```ds:alias_import_lib.ds
+export function greet(name: string): string {
+//              ^^^^^ def:greet_export
+    return "Hello, " + name;
+}
+```
+
+```ds:alias_import_main.ds
+import { greet as localGreet } from "./alias_import_lib.ds";
+//       ^^^^^ use:greet_import_name
+
+const first = localGreet("Destack");
+//            ^^^^^^^^^^ use:greet_alias_call
+```
+
+```query find_references use:greet_import_name
+def:greet_export
+use:greet_import_name
+use:greet_alias_call
+```
+
+### Find references for namespace import aliases
+
+Find references on a namespace import alias should stay in the local alias graph.
+
+```ds:namespace_ref_lib.ds
+export function ping(): void {}
+```
+
+```ds:namespace_ref_main.ds
+import * as api from "./namespace_ref_lib.ds";
+//          ^^^ def:namespace_import_alias
+
+api.ping();
+// ^^^ use:namespace_import_alias_1
+(api).ping();
+// ^^^ use:namespace_import_alias_2
+```
+
+```query find_references use:namespace_import_alias_1
+namespace_ref_main.ds:1:13-1:16
+namespace_ref_main.ds:3:1-3:4
+namespace_ref_main.ds:4:2-4:5
+```
+
+### Find references for default import aliases
+
+Find references on a default import alias should stay in the local alias graph.
+
+```ds:default_ref_lib.ds
+export default function greetDefault(): string {
+//                      ^^^^^^^^^^^^ def:default_export_name
+    return "hello";
+}
+```
+
+```ds:default_ref_main.ds
+import welcome from "./default_ref_lib.ds";
+//     ^^^^^^^ def:default_import_alias
+
+const first = welcome();
+//            ^^^^^^^ use:default_import_alias_1
+const second = welcome();
+//             ^^^^^^^ use:default_import_alias_2
+```
+
+```query find_references use:default_import_alias_1
+def:default_import_alias
+use:default_import_alias_1
+use:default_import_alias_2
+```
+
+### Ignore shadowed namespace receivers
+
+Find references for a namespace receiver should ignore shadowed local bindings with the same name.
+
+```ds
+namespace Api {
+//        ^^^ def:api_shadowed
+    export function greet(): string {
+        return "Hello";
+    }
+}
+
+function localMessage(): string {
+    const Api = {
+        greet: function(): string {
+            return "Local";
+        },
+    };
+
+    return Api.greet();
+//         ^^^ use:api_local_shadow
+}
+
+const message = Api.greet();
+//              ^^^ use:api_namespace
+```
+
+```query find_references def:api_shadowed
+def:api_shadowed
+use:api_namespace
+```
+
+## TypeScript++ Surface
+
+### Find references for tagged template tag functions
+
+Find references on a tagged template tag should include the definition and tagged template call sites.
+
+```ds
+function sql(parts: string[], ...values: int32): string {
+//       ^^^ def:sql_tag
+    return "";
+}
+
+const first = sql`select ${1}`;
+//            ^^^ use:sql_tag_1
+const second = sql`where ${2}`;
+//             ^^^ use:sql_tag_2
+```
+
+```query find_references def:sql_tag
+def:sql_tag
+use:sql_tag_1
+use:sql_tag_2
+```
+
+### Find references for decorators
+
+Find references on a decorator function should include decorator attachment sites.
+
+```ds
+function tracked<T>(value: T): T {
+//       ^^^^^^^ def:tracked
+    return value;
+}
+
+@tracked
+//^^^^^^^ use:tracked_1
+class Service {}
+
+@tracked
+//^^^^^^^ use:tracked_2
+function greet(): void {}
+```
+
+```query find_references def:tracked
+main.ds:1:10-1:17
+main.ds:5:2-5:9
+main.ds:8:2-8:9
+```
+
+### Find references for decorators on members and parameters
+
+Find references on a decorator function should include member and parameter decorator sites.
+
+```ds
+function trackUsage(target: unknown): void {
+//       ^^^^^^^^^^ def:track_usage
+}
+
+class User {
+    @trackUsage
+//   ^^^^^^^^^^ use:track_usage_member
+    name: string = "";
+}
+
+function greet(@trackUsage name: string): string {
+//              ^^^^^^^^^^ use:track_usage_param
+    return name;
+}
+```
+
+```query find_references def:track_usage
+def:track_usage
+use:track_usage_member
+use:track_usage_param
+```
+
+### Find references for match arm bindings
+
+Find references on a match arm binding should include the binding and in-arm uses.
+
+```ds
+declare const pair: (int32, int32);
+
+const total = match (pair) {
+    (left, right) => left + right
+//   ^^^^ def:match_left
+//                  ^^^^ use:match_left
+};
+```
+
+```query find_references def:match_left
+main.ds:4:6-4:10
+main.ds:4:22-4:26
+```
+
+### Find references for template literal type parameter uses
+
+Find references on a template literal type parameter should include references inside template spans.
+
+```ds
+type Route<T extends string> = `api:${T}`;
+//         ^ def:route_param
+//                                 ^ use:route_param
+
+type UsersRoute = Route<"users">;
+```
+
+```query find_references def:route_param
+main.ds:1:12-1:13
+main.ds:1:39-1:40
+```
+
+### Find references for using bindings
+
+Find references on a `using` binding should include the binding and in scope usages.
+
+```ds
+function openSession(): int32 {
+    return 1;
+}
+
+using session = openSession();
+//    ^^^^^^^ def:using_session
+
+const first = session;
+//            ^^^^^^^ use:using_session_1
+const second = session;
+//             ^^^^^^^ use:using_session_2
+```
+
+```query find_references def:using_session
+def:using_session
+use:using_session_1
+use:using_session_2
+```
+
+### Find references for comptime call targets
+
+Find references on a function should include call sites in comptime expressions.
+
+```ds
+function scale(value: int32): int32 {
+//       ^^^^^ def:comptime_scale
+    return value * 2;
+}
+
+const a = comptime scale(2);
+//                 ^^^^^ use:comptime_scale_1
+const b = scale(3);
+//        ^^^^^ use:comptime_scale_2
+```
+
+```query find_references def:comptime_scale
+def:comptime_scale
+use:comptime_scale_1
+use:comptime_scale_2
+```
+
+## Damaged Syntax
+
+### Return no references for malformed unresolved access
+
+Find references should fail gracefully when the cursor is on malformed unresolved syntax.
+
+```ds
+function main(): void {
+    unknown.
+//  ^^^^^^^ broken
+}
+```
+
+```query find_references broken
+<none>
+```
+
+## Associated Types
+
+### Find references for associated type projections
+
+Find references on an associated type should include projection use sites.
+
+```ds
+interface Envelope<T extends string> {
+    type Label<U extends string> = `${T}:${U}`;
+//       ^^^^^ def:assoc_label
+}
+
+class Message<T extends string> implements Envelope<T> {}
+
+type EventLabel = Message<"orders">.Label<"created">;
+//                                  ^^^^^ use:assoc_label
+```
+
+```query find_references def:assoc_label
+def:assoc_label
+use:assoc_label
+```
+
+## Dynamic Resolution
+
+### Find references includes union receiver method calls
+
+Find references should include calls through union receivers for shared members.
+
+```ds
+class Cat {
+    speak(): string {
+//  ^^^^^ def:cat_speak
+        return "meow";
+    }
+}
+
+class Dog {
+    speak(): string {
+//  ^^^^^ def:dog_speak
+        return "woof";
+    }
+}
+
+declare const pet: Cat | Dog;
+
+const sound = pet.speak();
+//                ^^^^^ use:pet_speak
+```
+
+```query find_references def:cat_speak
+def:cat_speak
+use:pet_speak
+```
+
+## Using
+
+### Find references for await using bindings
+
+Find references should include bindings introduced by await using.
+
+```ds
+async function run(): void {
+    await using resource = 1;
+//              ^^^^^^^^ def:await_using_resource
+
+    const next = resource;
+//               ^^^^^^^^ use:await_using_resource
+}
+```
+
+```query find_references def:await_using_resource
+def:await_using_resource
+use:await_using_resource
+```
+
+### Find references for for using iteration bindings
+
+Find references should include iteration bindings introduced by for using.
+
+```ds
+declare function values(): int32[];
+
+for (using item of values()) {
+//         ^^^^ def:for_using_item
+    const next = item;
+//               ^^^^ use:for_using_item
+}
+```
+
+```query find_references def:for_using_item
+def:for_using_item
+use:for_using_item
+```
+
+### Find references for export using bindings
+
+Find references should include export using declarations and local uses.
+
+```ds
+export using cache = 1;
+//           ^^^^^ def:export_using_cache
+
+const value = cache;
+//            ^^^^^ use:export_using_cache
+```
+
+```query find_references def:export_using_cache
+def:export_using_cache
+use:export_using_cache
+```
+
+## Comptime
+
+### Find references for comptime static parameters
+
+Find references should include uses of comptime static parameters in type expressions.
+
+```ds
+type Buffer<comptime N: number> = uint8[N];
+//                   ^ def:comptime_n
+//                                    ^ use:comptime_n
+```
+
+```query find_references def:comptime_n
+main.ds:1:22-1:23
+main.ds:1:41-1:42
+```
+
+### Find references for comptime dynamic parameters
+
+Find references should include uses of comptime dynamic parameters in function bodies.
+
+```ds
+function createBuffer(comptime size: int): int {
+//                             ^^^^ def:comptime_size
+    return size;
+//         ^^^^ use:comptime_size
+}
+```
+
+```query find_references def:comptime_size
+def:comptime_size
+use:comptime_size
+```
+
+## Decorators
+
+### Find references for match arm decorators
+
+Find references should include decorator usage on match arms.
+
+```ds
+function cold(target: unknown): void {
+//       ^^^^ def:arm_decorator
+    target;
+}
+
+declare const value: int32 | string;
+
+const result = match (value) {
+    @cold
+//   ^^^^ use:arm_decorator
+    0 => "zero"
+    _ => "other"
+};
+```
+
+```query find_references def:arm_decorator
+def:arm_decorator
+use:arm_decorator
+```
+
+### Find references for statement decorators
+
+Find references should include decorator usage on statements.
+
+```ds
+function unroll(target: unknown): void {
+//       ^^^^^^ def:statement_decorator
+    target;
+}
+
+@unroll
+// ^^^^^^ use:statement_decorator
+for (let i = 0; i < 3; i++) {
+    const _ = i;
+}
+```
+
+```query find_references def:statement_decorator
+main.ds:1:10-1:16
+main.ds:5:2-5:8
 ```

@@ -534,3 +534,28 @@ import { foo } from "./utils/core";
 
 const value = foo;
 ```
+
+## Single File Rename
+
+### Updates one renamed target file
+
+Rename should update import specifiers when a single target file path changes.
+
+```ds:src/lib/index.ds
+export const value = 1;
+```
+
+```ds:src/main.ds
+import { value } from "./lib/index.ds";
+
+const current = value;
+```
+
+```query file_rename src/lib/index.ds src/lib/core.ds
+```
+
+```expected:src/main.ds
+import { value } from "./lib/core.ds";
+
+const current = value;
+```

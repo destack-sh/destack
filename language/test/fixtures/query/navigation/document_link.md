@@ -126,3 +126,15 @@ export type Foo = {
 ```query document_link $0
 main.ds:1:19-1:32 target=file:types/foo.ds tooltip=Go to ./types/foo
 ```
+
+### Ignore non import string literals
+
+Document links should ignore regular string literals that are not module specifiers.
+
+```ds
+const path = "./foo.ds";
+```
+
+```query document_link $0
+<none>
+```
