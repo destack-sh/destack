@@ -71,7 +71,6 @@ check:
     just client/check
     just platform/check
 
-
 # build everything
 build:
     just language/build
