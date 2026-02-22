@@ -2,7 +2,16 @@ use std::sync::Arc;
 
 #[cfg(not(target_os = "macos"))]
 use super::super::backend::backend_not_supported;
-use super::core::*;
+#[cfg(target_os = "macos")]
+use super::abi::{CoreAudioHostStreamOps, CoreAudioStreamRuntime};
+#[cfg(target_os = "macos")]
+use super::property::{enable_hog_mode, validate_open_stream_config};
+#[cfg(target_os = "macos")]
+use super::runtime::{
+    create_capture_queue, create_playback_queue, dispose_runtime_handles, spawn_cleanup_thread,
+};
+#[cfg(target_os = "macos")]
+use super::sample::device_id_from_stable_id;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
 
@@ -30,12 +39,16 @@ fn new_stream_binding(
             .max(audio_core::MIN_STREAM_PERIOD_FRAMES),
         share_mode,
         runtime_capabilities: audio_core::AudioStreamRuntimeCapabilities {
-            supports_write_at: false,
+            supports_write_at: matches!(
+                device_info.direction,
+                audio_core::AudioDeviceDirection::Playback
+                    | audio_core::AudioDeviceDirection::Duplex
+            ),
             supports_pause: true,
             supports_non_interleaved: false,
             supports_volume: true,
             supports_mute: true,
-            supports_hardware_timestamps: false,
+            supports_hardware_timestamps: true,
         },
         host_ops: audio_core::Mutex::new(Some(host_ops)),
         name: audio_core::Mutex::new(String::new()),
@@ -144,15 +157,17 @@ pub(crate) fn open_host_stream(
     device_info: &audio_core::HostDeviceDescriptor,
     config: audio_core::AudioStreamConfig,
     share_mode: audio_core::AudioShareMode,
+    backend_flags: audio_core::AudioBackendOpenFlags,
 ) -> RuntimeResult<Arc<audio_core::AudioStreamBinding>> {
     #[cfg(target_os = "macos")]
     {
+        let _ = backend_flags;
         open_host_stream_macos(device_info, config, share_mode)
     }
 
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = (device_info, config, share_mode);
+        let _ = (device_info, config, share_mode, backend_flags);
         Err(backend_not_supported(
             "destack.audio.stream.open",
             "coreaudio",

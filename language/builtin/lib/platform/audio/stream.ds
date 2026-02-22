@@ -121,6 +121,7 @@ export struct AudioStreamSnapshot {
     /// Effective share mode selected by backend.
     shareMode: AudioShareMode;
     /// Backend period jitter estimate in nanoseconds.
+    /// Zero indicates unavailable timing history or insufficient callback samples.
     periodJitterNs: uint64;
     /// Whether this stream currently uses non-interleaved backend buffers.
     nonInterleaved: boolean;
@@ -159,6 +160,7 @@ export struct AudioStreamTiming {
     /// Runtime monotonic clock in nanoseconds.
     monotonicClockNs: uint64;
     /// Estimated drift in parts-per-million.
+    /// Zero indicates unavailable timing history or insufficient callback samples.
     driftPpm: float64;
     /// Backend callback CPU load estimate in [0, +inf) when available.
     callbackCpuLoad: float64;
@@ -536,12 +538,12 @@ declare namespace audio {
 
     /// Set one stream gain multiplier.
     ///
-    /// Apply one linear gain multiplier for one stream where backend controls are available.
-    /// Gain handling can be backend-local and independent of global mixer volume.
+    /// Apply one linear gain multiplier for one stream processing lane.
+    /// This controls stream-level gain and does not imply global endpoint mixer ownership.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream volume controls when available.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO stream-level gain paths where available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -563,12 +565,12 @@ declare namespace audio {
 
     /// Set one stream mute state.
     ///
-    /// Apply one mute state for one stream where backend controls are available.
-    /// Mute behavior can be backend-local and independent of global endpoint mute.
+    /// Apply one mute state for one stream processing lane.
+    /// This controls stream-level mute and does not imply global endpoint mute ownership.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream mute controls when available.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO stream-level mute paths where available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.

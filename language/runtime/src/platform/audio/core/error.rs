@@ -32,6 +32,58 @@ pub(crate) fn audio_would_block(
     .boxed()
 }
 
+/// Build one audio-broken-pipe error.
+pub(crate) fn audio_broken_pipe(
+    operation: &'static str,
+    message: impl Into<String>,
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoBrokenPipe),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        message.into(),
+    ))
+    .boxed()
+}
+
+/// Build one stream-shutdown error from one stream state payload.
+pub(crate) fn stream_shutdown_error(
+    operation: &'static str,
+    state: &AudioStreamStateInner,
+) -> Box<RuntimeError> {
+    if state.state == AudioStreamStateKind::BackendDisconnected {
+        let message = state
+            .last_backend_message
+            .as_deref()
+            .unwrap_or("audio backend disconnected");
+        return audio_broken_pipe(operation, message.to_string());
+    }
+
+    if state.state == AudioStreamStateKind::DeviceLost {
+        let message = state
+            .last_backend_message
+            .as_deref()
+            .unwrap_or("audio device was lost");
+        return audio_not_found(operation, message.to_string());
+    }
+
+    audio_not_found(operation, "stream has been closed")
+}
+
+/// Return whether one stream state is terminal for I/O operations.
+pub(crate) fn stream_state_is_terminal(state: &AudioStreamStateInner) -> bool {
+    if state.shutdown {
+        return true;
+    }
+
+    matches!(
+        state.state,
+        AudioStreamStateKind::DeviceLost | AudioStreamStateKind::BackendDisconnected
+    )
+}
+
 /// Resolve one typed resource payload by kind and label.
 fn resolve_resource_payload<T: Clone + 'static>(
     context: &BindingCallContext,
@@ -158,6 +210,41 @@ pub(crate) fn validate_stream_config(config: AudioStreamConfig) -> RuntimeResult
         .boxed());
     }
 
+    // reject unknown stream-option flag bits
+    let unknown_stream_flags = config.flags.0 & !KNOWN_STREAM_FLAGS_MASK;
+    if unknown_stream_flags != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "config.flags",
+            format!("config.flags contains unknown bits: 0x{unknown_stream_flags:08x}"),
+        ))
+        .boxed());
+    }
+
+    // reject stream flags that are not wired in host implementations yet
+    let unsupported_stream_flags = config.flags.0 & !STREAM_FLAG_NON_INTERLEAVED.0;
+    if unsupported_stream_flags != 0 {
+        return Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.audio.stream.open stream flags",
+        ))
+        .boxed());
+    }
+
+    Ok(())
+}
+
+/// Validate stream flags for one selected backend.
+pub(crate) fn validate_stream_config_for_backend(
+    config: AudioStreamConfig,
+    backend: AudioBackend,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    if (config.flags.0 & STREAM_FLAG_NON_INTERLEAVED.0) != 0 && backend != AudioBackend::Asio {
+        return Err(RuntimeError::from(PlatformError::not_supported(format!(
+            "{operation} stream flag: non interleaved",
+        )))
+        .boxed());
+    }
+
     Ok(())
 }
 
@@ -195,4 +282,74 @@ pub(crate) fn ensure_stream_capability(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Return one platform error code from one runtime error payload.
+    fn platform_error_code(error: &RuntimeError) -> Option<PlatformErrorCode> {
+        error.platform_error().map(|platform| platform.code)
+    }
+
+    /// Return one platform error message from one runtime error payload.
+    fn platform_error_message(error: &RuntimeError) -> Option<String> {
+        error
+            .platform_error()
+            .and_then(|platform| platform.message.clone())
+    }
+
+    #[test]
+    fn test_stream_shutdown_error_uses_broken_pipe_for_backend_disconnect() {
+        let mut state = initial_stream_state();
+        state.shutdown = true;
+        state.state = AudioStreamStateKind::BackendDisconnected;
+        state.last_backend_message = Some("backend transport dropped".to_string());
+
+        let error = stream_shutdown_error("destack.audio.stream.read", &state);
+        let code = platform_error_code(error.as_ref());
+        assert_eq!(code, Some(PlatformErrorCode::IoBrokenPipe));
+
+        let message = platform_error_message(error.as_ref());
+        assert_eq!(message.as_deref(), Some("backend transport dropped"));
+    }
+
+    #[test]
+    fn test_stream_shutdown_error_uses_not_found_for_closed_stream() {
+        let mut state = initial_stream_state();
+        state.shutdown = true;
+
+        let error = stream_shutdown_error("destack.audio.stream.read", &state);
+        let code = platform_error_code(error.as_ref());
+        assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
+    }
+
+    #[test]
+    fn test_stream_shutdown_error_uses_not_found_for_device_lost() {
+        let mut state = initial_stream_state();
+        state.state = AudioStreamStateKind::DeviceLost;
+
+        let error = stream_shutdown_error("destack.audio.stream.read", &state);
+        let code = platform_error_code(error.as_ref());
+        assert_eq!(code, Some(PlatformErrorCode::IoNotFound));
+    }
+
+    #[test]
+    fn test_stream_shutdown_error_keeps_device_lost_backend_message() {
+        let mut state = initial_stream_state();
+        state.state = AudioStreamStateKind::DeviceLost;
+        state.last_backend_message = Some("ASIO driver requested reset".to_string());
+
+        let error = stream_shutdown_error("destack.audio.stream.read", &state);
+        let message = platform_error_message(error.as_ref());
+        assert_eq!(message.as_deref(), Some("ASIO driver requested reset"));
+    }
+
+    #[test]
+    fn test_stream_state_is_terminal_for_device_lost_without_shutdown() {
+        let mut state = initial_stream_state();
+        state.state = AudioStreamStateKind::DeviceLost;
+        assert!(stream_state_is_terminal(&state));
+    }
 }

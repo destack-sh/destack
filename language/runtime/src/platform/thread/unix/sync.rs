@@ -151,7 +151,7 @@ pub(crate) unsafe fn destack_thread_address_wait(
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         // validate word alignment for futex waits
-        if address % (std::mem::size_of::<u32>() as u64) != 0 {
+        if !address.is_multiple_of(std::mem::size_of::<u32>() as u64) {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "address",
                 "address must be aligned to 4 bytes",
@@ -196,13 +196,13 @@ pub(crate) unsafe fn destack_thread_address_wait(
 
             let errno = last_errno();
             if errno == libc::EINTR {
-                if let Some(deadline) = deadline {
-                    if Instant::now() >= deadline {
-                        return Err(core_thread::io_timed_out_error(
-                            "addressWait",
-                            "failed to wait on address: timed out waiting for wake",
-                        ));
-                    }
+                if let Some(deadline) = deadline
+                    && Instant::now() >= deadline
+                {
+                    return Err(core_thread::io_timed_out_error(
+                        "addressWait",
+                        "failed to wait on address: timed out waiting for wake",
+                    ));
                 }
                 continue;
             }
@@ -275,7 +275,7 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         // validate word alignment for futex wakes
-        if address % (std::mem::size_of::<u32>() as u64) != 0 {
+        if !address.is_multiple_of(std::mem::size_of::<u32>() as u64) {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "address",
                 "address must be aligned to 4 bytes",
@@ -304,7 +304,7 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -350,7 +350,7 @@ pub(crate) unsafe fn destack_thread_address_wake_one(
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         // validate word alignment for futex wakes
-        if address % (std::mem::size_of::<u32>() as u64) != 0 {
+        if !address.is_multiple_of(std::mem::size_of::<u32>() as u64) {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "address",
                 "address must be aligned to 4 bytes",
@@ -379,7 +379,7 @@ pub(crate) unsafe fn destack_thread_address_wake_one(
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -465,7 +465,7 @@ pub(crate) unsafe fn destack_thread_barrier_create(
             *out = handle;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android", target_os = "freebsd")))]
@@ -544,7 +544,7 @@ pub(crate) unsafe fn destack_thread_barrier_wait(
             *out = rc == libc::PTHREAD_BARRIER_SERIAL_THREAD;
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android", target_os = "freebsd")))]

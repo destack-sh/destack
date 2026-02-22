@@ -65,7 +65,7 @@ pub(crate) unsafe fn destack_fs_fadvise(
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -128,7 +128,7 @@ pub(crate) unsafe fn destack_fs_fallocate(
         if rc != 0 {
             return Err(core_platform::io_error("fallocate", None));
         }
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -207,13 +207,47 @@ pub(crate) unsafe fn destack_fs_sync_file_range(
     let offset = offset_to_off_t(offset)?;
     let length = length.0 as libc::off_t;
 
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     {
         let rc = unsafe { libc::sync_file_range(fd, offset, length, flags.0 as libc::c_uint) };
         if rc != 0 {
             return Err(core_platform::io_error("sync_file_range", None));
         }
         return Ok(());
+    }
+
+    #[cfg(all(target_os = "android", target_arch = "arm"))]
+    {
+        let rc = unsafe {
+            libc::syscall(
+                libc::SYS_arm_sync_file_range,
+                fd,
+                offset,
+                length,
+                flags.0 as libc::c_uint,
+            )
+        };
+        if rc != 0 {
+            return Err(core_platform::io_error("sync_file_range", None));
+        }
+        return Ok(());
+    }
+
+    #[cfg(all(target_os = "android", not(target_arch = "arm")))]
+    {
+        let rc = unsafe {
+            libc::syscall(
+                libc::SYS_sync_file_range,
+                fd,
+                offset,
+                length,
+                flags.0 as libc::c_uint,
+            )
+        };
+        if rc != 0 {
+            return Err(core_platform::io_error("sync_file_range", None));
+        }
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]

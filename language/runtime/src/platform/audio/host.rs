@@ -59,17 +59,78 @@ fn backend_capability_flags(backend: AudioBackend, available: bool) -> AudioBack
     let mut flags = audio_core::BACKEND_CAPABILITY_HOTPLUG_EVENTS.0
         | audio_core::BACKEND_CAPABILITY_DEFAULT_ROUTE_EVENTS.0;
 
+    // null backend: always available with synthetic shared loopback behavior
     if backend == AudioBackend::Null {
         flags |= audio_core::BACKEND_CAPABILITY_BACKEND_DISCONNECT_EVENTS.0;
         flags |= audio_core::BACKEND_CAPABILITY_SHARED_MODE.0;
         flags |= audio_core::BACKEND_CAPABILITY_LOOPBACK.0;
-    } else if backend_stream_supported(backend) {
-        flags |= audio_core::BACKEND_CAPABILITY_SHARED_MODE.0;
+        flags |= audio_core::BACKEND_CAPABILITY_DEVICE_CLOCK.0;
+        flags |= audio_core::BACKEND_CAPABILITY_SCHEDULED_WRITE.0;
+        return AudioBackendCapabilityFlags(flags);
+    }
 
-        if backend == AudioBackend::CoreAudio {
-            flags |= audio_core::BACKEND_CAPABILITY_EXCLUSIVE_MODE.0;
-            flags |= audio_core::BACKEND_CAPABILITY_LOOPBACK.0;
-        }
+    // unavailable stream backends only expose availability and route events
+    if !backend_stream_supported(backend) {
+        return AudioBackendCapabilityFlags(flags);
+    }
+
+    // shared mode families
+    if backend == AudioBackend::Wasapi
+        || backend == AudioBackend::CoreAudio
+        || backend == AudioBackend::PipeWire
+        || backend == AudioBackend::PulseAudio
+        || backend == AudioBackend::Alsa
+        || backend == AudioBackend::AAudio
+        || backend == AudioBackend::OpenSLES
+        || backend == AudioBackend::Jack
+    {
+        flags |= audio_core::BACKEND_CAPABILITY_SHARED_MODE.0;
+    }
+
+    // exclusive mode families
+    if backend == AudioBackend::Wasapi
+        || backend == AudioBackend::CoreAudio
+        || backend == AudioBackend::Asio
+        || backend == AudioBackend::Alsa
+        || backend == AudioBackend::AAudio
+    {
+        flags |= audio_core::BACKEND_CAPABILITY_EXCLUSIVE_MODE.0;
+    }
+
+    // loopback-capable host backends
+    if backend == AudioBackend::Wasapi
+        || backend == AudioBackend::CoreAudio
+        || backend == AudioBackend::PipeWire
+        || backend == AudioBackend::PulseAudio
+    {
+        flags |= audio_core::BACKEND_CAPABILITY_LOOPBACK.0;
+    }
+
+    // non-interleaved support currently comes from ASIO
+    if backend == AudioBackend::Asio {
+        flags |= audio_core::BACKEND_CAPABILITY_NON_INTERLEAVED.0;
+    }
+
+    // device-clock timestamp correlation support
+    if backend == AudioBackend::CoreAudio || backend == AudioBackend::Wasapi {
+        flags |= audio_core::BACKEND_CAPABILITY_DEVICE_CLOCK.0;
+    }
+
+    // scheduled write lane support
+    if backend == AudioBackend::CoreAudio || backend == AudioBackend::Wasapi {
+        flags |= audio_core::BACKEND_CAPABILITY_SCHEDULED_WRITE.0;
+    }
+
+    // backend disconnect and reset notifications
+    if backend == AudioBackend::Wasapi
+        || backend == AudioBackend::Asio
+        || backend == AudioBackend::Alsa
+        || backend == AudioBackend::PipeWire
+        || backend == AudioBackend::PulseAudio
+        || backend == AudioBackend::AAudio
+        || backend == AudioBackend::OpenSLES
+    {
+        flags |= audio_core::BACKEND_CAPABILITY_BACKEND_DISCONNECT_EVENTS.0;
     }
 
     AudioBackendCapabilityFlags(flags)

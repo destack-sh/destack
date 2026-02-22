@@ -58,7 +58,7 @@ pub(crate) unsafe fn destack_thread_get_affinity(
     )?;
 
     // read affinity on targets that expose pthread affinity APIs
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     {
         let mut cpu_set: libc::cpu_set_t = unsafe { mem::zeroed() };
         let rc = unsafe {
@@ -84,6 +84,16 @@ pub(crate) unsafe fn destack_thread_get_affinity(
             *out = mask;
         }
         return Ok(());
+    }
+
+    // report unsupported affinity reads on android pthread targets
+    #[cfg(target_os = "android")]
+    {
+        let _ = resource;
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.thread.priority.getAffinity",
+        ))
+        .boxed())
     }
 
     // report unsupported affinity reads on targets without pthread affinity APIs
@@ -189,7 +199,7 @@ pub(crate) unsafe fn destack_thread_set_affinity(
     )?;
 
     // write affinity on targets that expose pthread affinity APIs
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     {
         let mut cpu_set: libc::cpu_set_t = unsafe { mem::zeroed() };
         for cpu in 0..64 {
@@ -212,6 +222,16 @@ pub(crate) unsafe fn destack_thread_set_affinity(
         }
 
         return Ok(());
+    }
+
+    // report unsupported affinity writes on android pthread targets
+    #[cfg(target_os = "android")]
+    {
+        let _ = resource;
+        Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.thread.priority.setAffinity",
+        ))
+        .boxed())
     }
 
     // report unsupported affinity writes on targets without pthread affinity APIs

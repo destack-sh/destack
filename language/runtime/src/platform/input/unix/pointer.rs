@@ -48,6 +48,7 @@ fn resolve_pointer_binding(
 }
 
 /// Read one pointer snapshot from one opened unix handle.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn pointer_state(
     context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
@@ -102,6 +103,17 @@ fn pointer_state(
     snapshot.y = delta_y;
 
     Ok(snapshot)
+}
+
+/// Read one pointer snapshot from one opened unix handle.
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+fn pointer_state(
+    _context: &BindingCallContext,
+    _handle: resource::InputDeviceHandle,
+    _relative: bool,
+    operation: &'static str,
+) -> RuntimeResult<InputPointerState> {
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
 
 /// Capture one pointer baseline and relative-mode flag for one opened unix handle.

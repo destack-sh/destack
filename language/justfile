@@ -163,6 +163,81 @@ check-runtime-targets:
     cargo check -p destack_runtime --target x86_64-pc-windows-gnu
     CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target wasm32-wasip1
 
+# check runtime for android target using one configured ndk toolchain
+check-runtime-android:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    api_level="${ANDROID_API_LEVEL:-24}"
+    ndk_root="${ANDROID_NDK_ROOT:-${ANDROID_NDK_HOME:-}}"
+
+    if [ -z "${ndk_root}" ]; then
+        echo "missing ANDROID_NDK_ROOT (or ANDROID_NDK_HOME)"
+        exit 1
+    fi
+
+    toolchain_prebuilt_root="${ndk_root}/toolchains/llvm/prebuilt"
+    toolchain_bin=""
+
+    case "$(uname -s):$(uname -m)" in
+        Linux:*)
+            candidates=("linux-x86_64")
+            ;;
+        Darwin:arm64)
+            candidates=("darwin-arm64" "darwin-x86_64")
+            ;;
+        Darwin:x86_64)
+            candidates=("darwin-x86_64" "darwin-arm64")
+            ;;
+        *)
+            candidates=("linux-x86_64" "darwin-arm64" "darwin-x86_64" "windows-x86_64")
+            ;;
+    esac
+
+    for candidate in "${candidates[@]}"; do
+        candidate_bin="${toolchain_prebuilt_root}/${candidate}/bin"
+        if [ -d "${candidate_bin}" ]; then
+            toolchain_bin="${candidate_bin}"
+            break
+        fi
+    done
+
+    if [ -z "${toolchain_bin}" ]; then
+        echo "missing android llvm toolchain bin directory under ${toolchain_prebuilt_root}"
+        exit 1
+    fi
+
+    linker="${toolchain_bin}/aarch64-linux-android${api_level}-clang"
+    ar="${toolchain_bin}/llvm-ar"
+
+    if [ ! -x "${linker}" ]; then
+        echo "missing android linker: ${linker}"
+        exit 1
+    fi
+
+    if [ ! -x "${ar}" ]; then
+        echo "missing android archiver: ${ar}"
+        exit 1
+    fi
+
+    CARGO_INCREMENTAL=0 \
+    CRATE_CC_NO_DEFAULTS=1 \
+    CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${linker}" \
+    CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${ar}" \
+    CC_aarch64_linux_android="${linker}" \
+    AR_aarch64_linux_android="${ar}" \
+    CXX_aarch64_linux_android="${linker}" \
+    cargo check -p destack_runtime --target aarch64-linux-android
+
+    CARGO_INCREMENTAL=0 \
+    CRATE_CC_NO_DEFAULTS=1 \
+    CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${linker}" \
+    CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${ar}" \
+    CC_aarch64_linux_android="${linker}" \
+    AR_aarch64_linux_android="${ar}" \
+    CXX_aarch64_linux_android="${linker}" \
+    cargo clippy -p destack_runtime --target aarch64-linux-android -- -D warnings
+
 # build
 build:
     cargo build --release {{ packages }}

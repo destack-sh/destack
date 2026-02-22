@@ -1,9 +1,7 @@
-use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use super::super::resolve_requested_backend;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{AudioEvent, AudioEventSubscriptionOptions, core as audio_core};
 use crate::platform::resource::{ResourceEntry, ResourceKind};
@@ -70,26 +68,13 @@ pub(crate) unsafe fn destack_audio_event_open(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    let backend = resolve_requested_backend(
-        options.backend,
-        options.backend_policy,
+    let options = audio_core::normalize_event_subscription_options(
+        context,
+        options,
         "destack.audio.event.open",
     )?;
-
-    let mut options = options;
-    options.backend = backend;
-
-    let payload = Arc::new(Mutex::new(audio_core::AudioEventBinding {
-        options,
-        previous_signatures: HashMap::new(),
-        previous_default_playback: None,
-        previous_default_capture: None,
-        previous_default_loopback: None,
-        previous_stream_state: None,
-        previous_stream_device_id: None,
-        previous_stream_xrun_count: 0,
-        pending: VecDeque::new(),
-    }));
+    let binding = audio_core::build_event_binding(context, options)?;
+    let payload = Arc::new(Mutex::new(binding));
 
     let handle = context.runtime().resources.insert(
         ResourceEntry::new(ResourceKind::AudioEvent)
@@ -136,6 +121,7 @@ pub(crate) unsafe fn destack_audio_event_read(
 
     loop {
         let mut guard = binding.lock().unwrap_or_else(|error| error.into_inner());
+        let poll_interval_ns = guard.options.poll_interval_ns.max(1);
         audio_core::refresh_event_queue(context, &mut guard)?;
         if let Some(event) = guard.pending.pop_front() {
             unsafe {
@@ -153,7 +139,7 @@ pub(crate) unsafe fn destack_audio_event_read(
         }
 
         let remaining = deadline.saturating_sub(audio_core::host_monotonic_nanos());
-        let sleep_ns = remaining.min(audio_core::EVENT_POLL_INTERVAL_NS);
+        let sleep_ns = remaining.min(poll_interval_ns);
         thread::sleep(Duration::from_nanos(sleep_ns));
     }
 }

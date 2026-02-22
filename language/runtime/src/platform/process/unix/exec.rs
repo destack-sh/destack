@@ -160,6 +160,18 @@ pub(crate) unsafe fn destack_process_execat(
         let (environment_values, environment_pointers) = build_exec_environment(&environment)?;
 
         let _keep_alive = (argument_values, environment_values);
+        #[cfg(target_os = "android")]
+        let result = unsafe {
+            libc::syscall(
+                libc::SYS_execveat,
+                directory_fd,
+                path.as_ptr(),
+                argument_pointers.as_ptr() as *const *mut libc::c_char,
+                environment_pointers.as_ptr() as *const *mut libc::c_char,
+                flags.0 as libc::c_int,
+            ) as libc::c_int
+        };
+        #[cfg(not(target_os = "android"))]
         let result = unsafe {
             libc::execveat(
                 directory_fd,
@@ -176,7 +188,7 @@ pub(crate) unsafe fn destack_process_execat(
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -241,7 +253,7 @@ pub(crate) unsafe fn destack_process_fexec(
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(

@@ -23,7 +23,7 @@ const WAKE_TOKEN: PollerToken = PollerToken::WAKE;
 const TIMEOUT_TOKEN: PollerToken = PollerToken::TIMEOUT;
 
 /// io_uring backed poller for Linux targets.
-pub struct IoUringPoller {
+pub(crate) struct IoUringPoller {
     /// io_uring instance.
     ring: IoUring,
     /// Registered resource entries.
@@ -84,7 +84,7 @@ impl HostPollerWakeHandle for IoUringWakeHandle {
 
 impl IoUringPoller {
     /// Create a new io_uring poller instance.
-    pub fn new() -> RuntimeResult<Self> {
+    pub(crate) fn new() -> RuntimeResult<Self> {
         // initialize io_uring
         let ring = IoUring::new(DEFAULT_QUEUE_DEPTH).map_err(|error| {
             let errno = error.raw_os_error();

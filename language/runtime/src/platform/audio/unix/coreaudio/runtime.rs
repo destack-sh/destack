@@ -1,3 +1,37 @@
+#[cfg(target_os = "macos")]
+use std::ffi::c_void;
+#[cfg(target_os = "macos")]
+use std::ptr;
+#[cfg(target_os = "macos")]
+use std::sync::Arc;
+#[cfg(target_os = "macos")]
+use std::thread;
+#[cfg(target_os = "macos")]
+use std::time::Duration;
+
+#[cfg(target_os = "macos")]
+use crate::diagnostic::RuntimeResult;
+#[cfg(target_os = "macos")]
+use crate::platform::audio::core as audio_core;
+
+#[cfg(target_os = "macos")]
+use super::abi::{
+    AudioDeviceID, AudioQueueAllocateBuffer, AudioQueueEnqueueBuffer, AudioQueueNewInput,
+    AudioQueueNewOutput, AudioQueuePause, AudioQueueRef, AudioQueueReset, AudioQueueStart,
+    AudioQueueStop, AudioStreamBasicDescription, CoreAudioHostStreamOps, CoreAudioQueueHandle,
+    CoreAudioStreamContext, CoreAudioStreamRuntime, OSStatus,
+};
+#[cfg(target_os = "macos")]
+use super::callback::{fill_playback_bytes, input_callback, output_callback};
+#[cfg(target_os = "macos")]
+use super::constants::{
+    COREAUDIO_PLAYBACK_BUFFER_COUNT, K_AUDIO_QUEUE_ERR_INVALID_RUN_STATE, K_NO_ERR,
+};
+#[cfg(target_os = "macos")]
+use super::property::{error, release_hog_mode, stream_description};
+#[cfg(target_os = "macos")]
+use super::queue::{bind_queue_device, buffer_bytes, dispose_queue_handle};
+
 /// Dispose all queue handles in one queue-handle list.
 #[cfg(target_os = "macos")]
 pub(super) fn dispose_queue_list(queue_handles: Vec<CoreAudioQueueHandle>) {
@@ -156,7 +190,7 @@ fn initialize_queue_buffers(
                         buffer_mut.audio_data_bytes_capacity as usize,
                     )
                 };
-                fill_playback_bytes(binding, output);
+                fill_playback_bytes(binding, output, None);
                 buffer_mut.audio_data_byte_size = buffer_mut.audio_data_bytes_capacity;
             } else {
                 buffer_mut.audio_data_byte_size = 0;

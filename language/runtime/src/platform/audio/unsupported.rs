@@ -44,6 +44,7 @@ pub(crate) fn enumerate_host_devices(
 ///
 /// Read one clock timestamp for the selected domain.
 /// Domain availability and precision follow host backend behavior.
+/// `AudioClockDomain.Device` requires one backend-wide device timeline and can return `notSupported` otherwise.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -76,6 +77,7 @@ pub(crate) unsafe fn destack_audio_clock_now(
 ///
 /// Read one synchronized stream-position and clock timestamp snapshot.
 /// Snapshot values are advisory and can change immediately after read.
+/// Domain-specific lanes like `InputAdc`, `OutputDac`, and `Device` can return `notSupported` when the opened stream does not expose them.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -577,12 +579,12 @@ pub(crate) unsafe fn destack_audio_stream_read(
 
 /// Set one stream mute state.
 ///
-/// Apply one mute state for one stream where backend controls are available.
-/// Mute behavior can be backend-local and independent of global endpoint mute.
+/// Apply one mute state for one stream processing lane.
+/// This controls stream-level mute and does not imply global endpoint mute ownership.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream mute controls when available.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO stream-level mute paths where available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
@@ -604,12 +606,12 @@ pub(crate) unsafe fn destack_audio_stream_set_mute(
 
 /// Set one stream gain multiplier.
 ///
-/// Apply one linear gain multiplier for one stream where backend controls are available.
-/// Gain handling can be backend-local and independent of global mixer volume.
+/// Apply one linear gain multiplier for one stream processing lane.
+/// This controls stream-level gain and does not imply global endpoint mixer ownership.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream volume controls when available.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO stream-level gain paths where available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.

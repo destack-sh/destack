@@ -166,7 +166,7 @@ impl HostPollerWakeHandle for WindowsWakeHandle {
 }
 
 /// WSAPoll-backed poller for Windows.
-pub struct WindowsPoller {
+pub(crate) struct WindowsPoller {
     /// Registered resource entries.
     registrations: HashMap<ResourceId, PollRegistration>,
     /// Wake sockets used to interrupt polling.
@@ -191,7 +191,7 @@ impl std::fmt::Debug for WindowsPoller {
 
 impl WindowsPoller {
     /// Create a new Windows poller instance.
-    pub fn new() -> RuntimeResult<Self> {
+    pub(crate) fn new() -> RuntimeResult<Self> {
         let wake = WakeSockets::new()?;
 
         Ok(Self {

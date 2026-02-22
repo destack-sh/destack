@@ -35,8 +35,9 @@ pub(crate) fn open_host_stream(
     device_info: &audio_core::HostDeviceDescriptor,
     config: audio_core::AudioStreamConfig,
     share_mode: audio_core::AudioShareMode,
+    backend_flags: audio_core::AudioBackendOpenFlags,
 ) -> RuntimeResult<Arc<audio_core::AudioStreamBinding>> {
-    super::backend::open_host_stream(device_info, config, share_mode)
+    super::backend::open_host_stream(device_info, config, share_mode, backend_flags)
 }
 
 /// Trigger one windows backend device rescan.

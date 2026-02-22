@@ -397,7 +397,7 @@ pub(crate) unsafe fn destack_process_cgroup_get_limit(
         unsafe {
             *out = value;
         }
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "android")))]

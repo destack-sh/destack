@@ -2,8 +2,15 @@ use crate::platform::fs::{StatFs, StatFsFlags};
 
 use super::statfs_u64;
 
+/// Host statfs fsid type.
+#[cfg(target_os = "android")]
+type HostFsid = libc::__fsid_t;
+/// Host statfs fsid type.
+#[cfg(not(target_os = "android"))]
+type HostFsid = libc::fsid_t;
+
 /// Convert a libc fsid_t into a stable u64.
-pub(super) fn fsid_to_u64(fsid: libc::fsid_t) -> u64 {
+pub(super) fn fsid_to_u64(fsid: HostFsid) -> u64 {
     let raw: [libc::c_int; 2] = unsafe { std::mem::transmute(fsid) };
     (raw[0] as u32 as u64) | ((raw[1] as u32 as u64) << 32)
 }

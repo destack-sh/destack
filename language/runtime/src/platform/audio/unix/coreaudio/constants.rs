@@ -1,3 +1,11 @@
+#[cfg(target_os = "macos")]
+use super::abi::{
+    AudioObjectID, AudioObjectPropertyElement, AudioObjectPropertyScope,
+    AudioObjectPropertySelector, AudioQueuePropertyID, CFStringEncoding, OSStatus,
+};
+#[cfg(target_os = "macos")]
+use super::format::fourcc;
+
 /// CoreAudio constant `K_NO_ERR`.
 #[cfg(target_os = "macos")]
 pub(super) const K_NO_ERR: OSStatus = 0;
@@ -147,6 +155,9 @@ pub(super) const K_AUDIO_FORMAT_FLAG_IS_PACKED: u32 = 1u32 << 3;
 /// CoreAudio constant `K_AUDIO_QUEUE_PROPERTY_CURRENT_DEVICE`.
 #[cfg(target_os = "macos")]
 pub(super) const K_AUDIO_QUEUE_PROPERTY_CURRENT_DEVICE: AudioQueuePropertyID = fourcc(*b"aqcd");
+/// CoreAudio constant `K_AUDIO_TIME_STAMP_HOST_TIME_VALID`.
+#[cfg(target_os = "macos")]
+pub(super) const K_AUDIO_TIME_STAMP_HOST_TIME_VALID: u32 = 1u32 << 1;
 /// CoreAudio constant `COREAUDIO_PLAYBACK_BUFFER_COUNT`.
 #[cfg(target_os = "macos")]
 pub(super) const COREAUDIO_PLAYBACK_BUFFER_COUNT: usize = 3;

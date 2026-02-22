@@ -4,9 +4,9 @@ use super::super::{backend_descriptors, resolve_requested_backend};
 use super::core as audio_platform_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
-    AudioBackend, AudioBackendDescriptor, AudioBackendOpenFlags, AudioBackendSelectionPolicy,
-    AudioDeviceDescriptor, AudioDeviceDirection, AudioDeviceListFlags, AudioDeviceListRequest,
-    AudioDeviceOpenOptions, AudioShareMode, core as audio_core,
+    AudioBackend, AudioBackendDescriptor, AudioBackendSelectionPolicy, AudioDeviceDescriptor,
+    AudioDeviceDirection, AudioDeviceListFlags, AudioDeviceListRequest, AudioDeviceOpenOptions,
+    AudioShareMode, core as audio_core,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
@@ -297,14 +297,9 @@ pub(crate) unsafe fn destack_audio_device_open(
         options.backend_policy,
         "destack.audio.device.open",
     )?;
+    let options =
+        audio_core::normalize_device_open_options(options, backend, "destack.audio.device.open")?;
     let backend_hint = audio_core::read_utf8(options.backend_hint, "options.backendHint")?;
-
-    if options.backend_flags != AudioBackendOpenFlags(0) {
-        return Err(RuntimeError::from(PlatformError::not_supported(
-            "destack.audio.device.open backend flags",
-        ))
-        .boxed());
-    }
 
     if !backend_hint.is_empty() {
         return Err(RuntimeError::from(PlatformError::not_supported(

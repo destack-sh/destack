@@ -735,6 +735,7 @@ pub(super) fn gamepad_player_index(
 }
 
 /// Persist one relative-mode flag for one unix input handle.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 pub(super) fn set_relative_mode_flag(
     context: &BindingCallContext,
     handle: resource::InputDeviceHandle,
@@ -767,6 +768,7 @@ pub(super) fn set_relative_mode_flag(
 }
 
 /// Persist one pointer snapshot baseline for one unix input handle.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 pub(super) fn set_pointer_snapshot(
     context: &BindingCallContext,
     handle: resource::InputDeviceHandle,

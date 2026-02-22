@@ -1,4 +1,39 @@
 #[cfg(target_os = "macos")]
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+#[cfg(target_os = "macos")]
+use crate::platform::PlatformError;
+#[cfg(target_os = "macos")]
+use crate::platform::audio::core as audio_core;
+#[cfg(target_os = "macos")]
+use crate::platform::diagnostic::PlatformErrorCode;
+#[cfg(target_os = "macos")]
+use std::ffi::{CStr, c_void};
+#[cfg(target_os = "macos")]
+use std::mem::{MaybeUninit, size_of};
+
+#[cfg(target_os = "macos")]
+use super::abi::{
+    AudioBuffer, AudioBufferList, AudioDeviceID, AudioObjectGetPropertyData,
+    AudioObjectGetPropertyDataSize, AudioObjectHasProperty, AudioObjectID,
+    AudioObjectPropertyScope, AudioObjectPropertySelector, AudioObjectSetPropertyData,
+    AudioStreamBasicDescription, AudioValueRange, CFRelease, CFStringGetCString, CFStringGetLength,
+    CFStringGetMaximumSizeForEncoding, CFStringRef, CFTypeRef, CoreAudioStreamRuntime, OSStatus,
+};
+#[cfg(target_os = "macos")]
+use super::constants::{
+    K_AUDIO_DEVICE_PROPERTY_AVAILABLE_NOMINAL_SAMPLE_RATES,
+    K_AUDIO_DEVICE_PROPERTY_BUFFER_FRAME_SIZE_RANGE, K_AUDIO_DEVICE_PROPERTY_HOG_MODE,
+    K_AUDIO_DEVICE_PROPERTY_STREAM_CONFIGURATION, K_AUDIO_FORMAT_FLAG_IS_FLOAT,
+    K_AUDIO_FORMAT_FLAG_IS_PACKED, K_AUDIO_FORMAT_FLAG_IS_SIGNED_INTEGER,
+    K_AUDIO_FORMAT_LINEAR_PCM, K_AUDIO_HARDWARE_PROPERTY_DEVICES,
+    K_AUDIO_HARDWARE_PROPERTY_HOG_MODE_IS_ALLOWED, K_AUDIO_OBJECT_PROPERTY_SCOPE_GLOBAL,
+    K_AUDIO_OBJECT_PROPERTY_SCOPE_INPUT, K_AUDIO_OBJECT_PROPERTY_SCOPE_OUTPUT,
+    K_AUDIO_OBJECT_SYSTEM_OBJECT, K_CF_STRING_ENCODING_UTF8, K_NO_ERR,
+};
+#[cfg(target_os = "macos")]
+use super::format::property_address;
+
+#[cfg(target_os = "macos")]
 pub(super) fn error(
     operation: &'static str,
     status: OSStatus,

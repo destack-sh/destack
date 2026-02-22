@@ -9,6 +9,7 @@ use crate::runtime::BindingCallContext;
 ///
 /// Read one clock timestamp for the selected domain.
 /// Domain availability and precision follow host backend behavior.
+/// `AudioClockDomain.Device` requires one backend-wide device timeline and can return `notSupported` otherwise.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -45,6 +46,7 @@ pub(crate) unsafe fn destack_audio_clock_now(
 ///
 /// Read one synchronized stream-position and clock timestamp snapshot.
 /// Snapshot values are advisory and can change immediately after read.
+/// Domain-specific lanes like `InputAdc`, `OutputDac`, and `Device` can return `notSupported` when the opened stream does not expose them.
 ///
 /// # Platform
 /// Unix and Windows.

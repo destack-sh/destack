@@ -17,7 +17,7 @@ use crate::runtime::poller::{
 
 /// Epoll backed poller for Linux targets.
 #[derive(Debug)]
-pub struct EpollPoller {
+pub(crate) struct EpollPoller {
     /// Registered resource entries.
     registrations: HashMap<ResourceId, PollRegistration>,
     /// Token to resource mapping for event lookup.
@@ -60,7 +60,7 @@ struct PollRegistration {
 
 impl EpollPoller {
     /// Create a new epoll poller instance.
-    pub fn new() -> RuntimeResult<Self> {
+    pub(crate) fn new() -> RuntimeResult<Self> {
         // open the epoll descriptor
         let epoll_fd = unsafe { epoll_create1(libc::EPOLL_CLOEXEC) };
         if epoll_fd < 0 {

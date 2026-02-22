@@ -142,6 +142,12 @@ pub(crate) struct AudioStreamStateInner {
     pub(crate) status_flags: AudioStreamStatusFlags,
     /// Last callback monotonic timestamp.
     pub(crate) last_callback_mono_ns: u64,
+    /// First callback monotonic timestamp used for drift estimation.
+    pub(crate) first_callback_mono_ns: u64,
+    /// Stream frame counter at the first callback timing sample.
+    pub(crate) first_callback_stream_frames: u64,
+    /// Last callback-period jitter estimate in nanoseconds.
+    pub(crate) last_period_jitter_ns: u64,
     /// Last input ADC timestamp in nanoseconds when available.
     pub(crate) last_input_adc_ns: u64,
     /// Last output DAC timestamp in nanoseconds when available.
@@ -152,6 +158,8 @@ pub(crate) struct AudioStreamStateInner {
     pub(crate) volume: f64,
     /// Mute state.
     pub(crate) muted: bool,
+    /// Last backend disconnect reason when the stream backend disconnects.
+    pub(crate) last_backend_message: Option<String>,
 }
 
 /// Stream runtime payload.
@@ -265,6 +273,8 @@ pub(crate) struct AudioEventBinding {
     pub(crate) previous_stream_device_id: Option<String>,
     /// Previous stream xrun counter for optional stream tracking.
     pub(crate) previous_stream_xrun_count: u64,
+    /// Last poll refresh timestamp in nanoseconds.
+    pub(crate) last_refresh_ns: u64,
     /// Pending events.
     pub(crate) pending: VecDeque<AudioEventRecord>,
 }
@@ -309,10 +319,14 @@ pub(crate) fn initial_stream_state() -> AudioStreamStateInner {
         output_overflow_count: 0,
         status_flags: AudioStreamStatusFlags(0),
         last_callback_mono_ns: host_monotonic_nanos(),
+        first_callback_mono_ns: 0,
+        first_callback_stream_frames: 0,
+        last_period_jitter_ns: 0,
         last_input_adc_ns: 0,
         last_output_dac_ns: 0,
         last_callback_cpu_load: 0.0,
         volume: DEFAULT_STREAM_VOLUME,
         muted: false,
+        last_backend_message: None,
     }
 }

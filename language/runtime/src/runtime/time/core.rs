@@ -9,7 +9,7 @@ pub(crate) fn null_pointer_error(field: &str) -> Box<RuntimeError> {
 }
 
 /// Return one unsupported runtime host time operation error.
-#[cfg(unix)]
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "android"))))]
 pub(crate) fn unsupported_host_operation_error(operation: &str) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::not_supported(operation)).boxed()
 }

@@ -437,11 +437,11 @@ pub(crate) unsafe fn destack_process_set_group_ids(
         if result != 0 {
             return Err(core_process::process_last_error(
                 "setresgid",
-                format!("failed to set group ids to {:?}", ids),
+                format!("failed to set group ids to {ids:?}"),
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -584,11 +584,11 @@ pub(crate) unsafe fn destack_process_set_user_ids(
         if result != 0 {
             return Err(core_process::process_last_error(
                 "setresuid",
-                format!("failed to set user ids to {:?}", ids),
+                format!("failed to set user ids to {ids:?}"),
             ));
         }
 
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(any(target_os = "macos", target_os = "ios"))]
