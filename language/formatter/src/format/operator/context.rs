@@ -637,11 +637,22 @@ pub(crate) fn format_binary_operand_with_grouping_parentheses<'ast>(
             BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce,
         )
     );
+    let needs_mixed_logical_grouping_parentheses = matches!(
+        (parent_operator, expression),
+        (
+            BinaryOperator::Or | BinaryOperator::Coalesce,
+            Expression::Binary {
+                operator: BinaryOperator::And | BinaryOperator::Coalesce,
+                ..
+            },
+        )
+    );
     let needs_precedence_parentheses = !matches!(expression, Expression::Parenthesized { .. })
         && expression_precedence(expression) < parent_operator.precedence()
         && !suppress_precedence_parentheses_for_type_binary;
-    let needs_grouping_parentheses =
-        needs_type_grouping_parentheses || needs_precedence_parentheses;
+    let needs_grouping_parentheses = needs_type_grouping_parentheses
+        || needs_precedence_parentheses
+        || needs_mixed_logical_grouping_parentheses;
     let operand_has_prefix_annotation = f.context().has_prefix_annotation(operand_id);
 
     if needs_grouping_parentheses {
@@ -730,11 +741,22 @@ pub(crate) fn format_binary_operand_without_prefix_annotations_with_grouping_par
             BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce,
         )
     );
+    let needs_mixed_logical_grouping_parentheses = matches!(
+        (parent_operator, expression),
+        (
+            BinaryOperator::Or | BinaryOperator::Coalesce,
+            Expression::Binary {
+                operator: BinaryOperator::And | BinaryOperator::Coalesce,
+                ..
+            },
+        )
+    );
     let needs_precedence_parentheses = !matches!(expression, Expression::Parenthesized { .. })
         && expression_precedence(expression) < parent_operator.precedence()
         && !suppress_precedence_parentheses_for_type_binary;
-    let needs_grouping_parentheses =
-        needs_type_grouping_parentheses || needs_precedence_parentheses;
+    let needs_grouping_parentheses = needs_type_grouping_parentheses
+        || needs_precedence_parentheses
+        || needs_mixed_logical_grouping_parentheses;
 
     if needs_grouping_parentheses {
         write!(f, [token("(")])?;

@@ -249,7 +249,7 @@ pub(crate) fn sequence_expression_needs_parens(
 
     let parent_id = LocalNodeId::<Expression>::new(parent_id);
     match context.tree.get(parent_id) {
-        Expression::Statement(inner_id) => *inner_id != node_id,
+        Expression::Statement(_) => true,
         Expression::Return { value } => value.is_some_and(|value_id| value_id != node_id),
         Expression::Throw { value } => *value != node_id,
         Expression::Parenthesized { expression } => *expression != node_id,

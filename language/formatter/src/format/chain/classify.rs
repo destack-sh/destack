@@ -1253,6 +1253,17 @@ fn static_argument_expression_is_hug_safe(
         Expression::Parenthesized { expression } | Expression::Statement(expression) => {
             static_argument_expression_is_hug_safe(context, *expression)
         }
+        Expression::Binary {
+            operator:
+                destack_ast::BinaryOperator::ElementwiseAnd
+                | destack_ast::BinaryOperator::ElementwiseOr
+                | destack_ast::BinaryOperator::ElementwiseXor,
+            left,
+            right,
+        } => {
+            static_argument_expression_is_hug_safe(context, *left)
+                && static_argument_expression_is_hug_safe(context, *right)
+        }
         _ => false,
     }
 }

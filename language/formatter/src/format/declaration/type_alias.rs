@@ -4,10 +4,8 @@ use crate::format::declaration::dispatch::format_declaration_export_modifier;
 use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
-use crate::format::expression::{
-    BinaryOperator, flatten_binary_expression, format_expression, is_expression_breakable,
-};
-use crate::format::operator::{is_type_context, union_has_leading_pipe_token};
+use crate::format::expression::{format_expression, is_expression_breakable};
+use crate::format::operator::is_type_context;
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AnnotationPosition, Comment, CommentStyle, Declaration, DeclarationDescriptor, DeclarationKind,
@@ -196,46 +194,6 @@ fn format_expression_without_prefix_annotations<'ast>(
     Ok(())
 }
 
-/// Format one type alias value using leading-pipe union style when applicable.
-fn format_leading_pipe_type_alias_value<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    value_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let operands =
-        flatten_binary_expression(f.context().tree, value_id, BinaryOperator::ElementwiseOr);
-    if operands.len() <= 1 {
-        write!(f, [space(), value_id])?;
-        return Ok(());
-    }
-
-    for operand in operands {
-        write!(
-            f,
-            [hard_line_break(), token("|"), space(), operand.expression]
-        )?;
-    }
-
-    Ok(())
-}
-
-/// Return whether one expression is a union-like type alias value candidate.
-fn value_is_union_like_type_alias_expression(
-    tree: &destack_ast::NodeTree,
-    value_expression: &Expression,
-) -> bool {
-    match value_expression {
-        Expression::Binary { operator, .. } => *operator == BinaryOperator::ElementwiseOr,
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => matches!(
-            tree.get(*expression),
-            Expression::Binary {
-                operator: BinaryOperator::ElementwiseOr,
-                ..
-            }
-        ),
-        _ => false,
-    }
-}
-
 /// Format a type alias declaration.
 pub(crate) fn format_type_alias_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -346,20 +304,6 @@ pub(crate) fn format_type_alias_declaration<'ast>(
             ])]
         )
     });
-    let format_hard_break = format_with(|f| {
-        write!(
-            f,
-            [group(&format_args![
-                header,
-                space(),
-                token("="),
-                indent(&format_args![format_with(|f| {
-                    format_leading_pipe_type_alias_value(f, value_id)
-                })])
-            ])]
-        )
-    });
-
     // expand inline if breakable (like let x = [\n ... ])
     let format_inline_expanded = format_with(|f| {
         write!(
@@ -406,15 +350,8 @@ pub(crate) fn format_type_alias_declaration<'ast>(
         }
         _ => false,
     };
-    let value_has_leading_pipe_type_union =
-        value_is_union_like_type_alias_expression(tree, value_expression)
-            && is_type_context(f.context(), value_id)
-            && union_has_leading_pipe_token(f.context(), value_id);
-
     if inline_prefix_comment_cluster.is_some() {
         format_inline.format(f)?;
-    } else if value_has_leading_pipe_type_union && !value_has_prefix_annotation {
-        format_hard_break.format(f)?;
     } else if should_break_after_equals || should_break_template_literal_type_after_equals {
         format_soft_break.format(f)?;
     } else if is_expression_breakable(tree, tree.get(value_id)) {

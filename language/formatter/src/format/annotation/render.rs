@@ -31,6 +31,10 @@ pub enum AnnotationCapture {
     DeclarationExportHead,
     DeclarationGenericHead,
     DeclarationBodyHead,
+    DeclarationNewHead,
+    DeclarationArrowInfix,
+    MethodNameInfix,
+    MethodParameterHeadInfix,
 }
 
 /// Annotations for a node.
@@ -263,6 +267,123 @@ fn declaration_has_export_modifier(
     }
 }
 
+/// Return whether one declaration is a `new (...) => ...` function signature.
+fn declaration_is_new_signature(
+    context: &DestackFormatContext<'_>,
+    declaration_id: LocalNodeId<Declaration>,
+) -> bool {
+    let Declaration::Function { signature, .. } = context.tree.get(declaration_id) else {
+        return false;
+    };
+
+    signature.mode == Some(destack_ast::FunctionMode::New)
+}
+
+/// Return whether one annotation is a constructor-head seam comment after `new`.
+pub(crate) fn annotation_is_declaration_new_head_comment<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation: Annotation,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    if T::TYPE != NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = LocalNodeId::<Declaration>::new(node_id.id);
+    if !declaration_is_new_signature(context, declaration_id) {
+        return false;
+    }
+
+    let Annotation::Comment {
+        position: AnnotationPosition::BlockInfix,
+        ..
+    } = annotation
+    else {
+        return false;
+    };
+
+    let annotation_span = context.annotation_span(annotation_id);
+    matches!(
+        next_non_whitespace_after_span(context, annotation_span),
+        Some('(')
+    )
+}
+
+/// Return whether one annotation is one lambda-arrow infix seam comment.
+pub(crate) fn annotation_is_declaration_arrow_infix_comment<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    annotation: Annotation,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    if T::TYPE != NodeType::Declaration {
+        return false;
+    }
+
+    let Annotation::Comment {
+        position: AnnotationPosition::BlockInfix,
+        ..
+    } = annotation
+    else {
+        return false;
+    };
+
+    !annotation_is_declaration_new_head_comment(context, node_id, annotation, annotation_id)
+}
+
+/// Return whether one annotation is one method name seam infix comment.
+pub(crate) fn annotation_is_method_name_infix_comment<T: Node>(
+    context: &DestackFormatContext<'_>,
+    _node_id: LocalNodeId<T>,
+    annotation: Annotation,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    if T::TYPE != NodeType::Member && T::TYPE != NodeType::Property {
+        return false;
+    }
+
+    let Annotation::Comment {
+        position: AnnotationPosition::BlockInfix,
+        ..
+    } = annotation
+    else {
+        return false;
+    };
+
+    let annotation_span = context.annotation_span(annotation_id);
+    !matches!(
+        next_non_whitespace_after_span(context, annotation_span),
+        Some('(')
+    )
+}
+
+/// Return whether one annotation is one method parameter-head seam infix comment.
+pub(crate) fn annotation_is_method_parameter_head_infix_comment<T: Node>(
+    context: &DestackFormatContext<'_>,
+    _node_id: LocalNodeId<T>,
+    annotation: Annotation,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    if T::TYPE != NodeType::Member && T::TYPE != NodeType::Property {
+        return false;
+    }
+
+    let Annotation::Comment {
+        position: AnnotationPosition::BlockInfix,
+        ..
+    } = annotation
+    else {
+        return false;
+    };
+
+    let annotation_span = context.annotation_span(annotation_id);
+    matches!(
+        next_non_whitespace_after_span(context, annotation_span),
+        Some('(')
+    )
+}
+
 /// Return whether one annotation is an export-head seam comment for a declaration.
 pub(crate) fn annotation_is_declaration_export_head_comment<T: Node>(
     context: &DestackFormatContext<'_>,
@@ -482,6 +603,54 @@ impl<'ast> DestackFormatContext<'ast> {
         }
     }
 
+    /// Format declaration constructor-head seam comments after `new`.
+    #[inline]
+    pub fn declaration_new_head_annotations(
+        &self,
+        node_id: LocalNodeId<Declaration>,
+    ) -> Annotations<Declaration> {
+        Annotations {
+            position: AnnotationCapture::DeclarationNewHead,
+            node_id,
+        }
+    }
+
+    /// Format declaration lambda-arrow infix seam comments.
+    #[inline]
+    pub fn declaration_arrow_infix_annotations(
+        &self,
+        node_id: LocalNodeId<Declaration>,
+    ) -> Annotations<Declaration> {
+        Annotations {
+            position: AnnotationCapture::DeclarationArrowInfix,
+            node_id,
+        }
+    }
+
+    /// Format method-name infix seam comments.
+    #[inline]
+    pub fn method_name_infix_annotations<T: Node>(
+        &self,
+        node_id: LocalNodeId<T>,
+    ) -> Annotations<T> {
+        Annotations {
+            position: AnnotationCapture::MethodNameInfix,
+            node_id,
+        }
+    }
+
+    /// Format method parameter-head infix seam comments.
+    #[inline]
+    pub fn method_parameter_head_infix_annotations<T: Node>(
+        &self,
+        node_id: LocalNodeId<T>,
+    ) -> Annotations<T> {
+        Annotations {
+            position: AnnotationCapture::MethodParameterHeadInfix,
+            node_id,
+        }
+    }
+
     /// Return whether one declaration has any generic-head seam comment annotations.
     pub fn has_declaration_generic_head_annotation(
         &self,
@@ -517,6 +686,21 @@ impl<'ast> DestackFormatContext<'ast> {
         })
     }
 
+    /// Return whether one declaration has any lambda-arrow infix seam comment annotations.
+    pub fn has_declaration_arrow_infix_annotation(
+        &self,
+        node_id: LocalNodeId<Declaration>,
+    ) -> bool {
+        let Some(annotation_ids) = self.annotations(node_id) else {
+            return false;
+        };
+
+        annotation_ids.iter().copied().any(|annotation_id| {
+            let annotation = self.annotation(annotation_id);
+            annotation_is_declaration_arrow_infix_comment(self, node_id, annotation, annotation_id)
+        })
+    }
+
     /// Format the line and block postfix annotations for a node.
     #[inline]
     pub fn any_postfix_annotations<T: Node>(&self, node_id: LocalNodeId<T>) -> Annotations<T> {
@@ -547,6 +731,10 @@ pub(crate) fn annotation_capture_includes_position(
     match position {
         AnnotationPosition::BlockInfix => {
             capture == AnnotationCapture::BlockInfix
+                || capture == AnnotationCapture::DeclarationNewHead
+                || capture == AnnotationCapture::DeclarationArrowInfix
+                || capture == AnnotationCapture::MethodNameInfix
+                || capture == AnnotationCapture::MethodParameterHeadInfix
                 || capture == AnnotationCapture::AnyInfixOrPostfix
         }
         AnnotationPosition::BlockPrefix => {
@@ -648,6 +836,50 @@ pub(crate) fn annotation_is_included_for_capture<T: Node>(
 
     if capture == AnnotationCapture::DeclarationGenericHead
         && !annotation_is_declaration_generic_head_comment(
+            context,
+            LocalNodeId::<T>::new(node_id.id),
+            annotation,
+            annotation_id,
+        )
+    {
+        return false;
+    }
+
+    if capture == AnnotationCapture::DeclarationNewHead
+        && !annotation_is_declaration_new_head_comment(
+            context,
+            LocalNodeId::<T>::new(node_id.id),
+            annotation,
+            annotation_id,
+        )
+    {
+        return false;
+    }
+
+    if capture == AnnotationCapture::DeclarationArrowInfix
+        && !annotation_is_declaration_arrow_infix_comment(
+            context,
+            LocalNodeId::<T>::new(node_id.id),
+            annotation,
+            annotation_id,
+        )
+    {
+        return false;
+    }
+
+    if capture == AnnotationCapture::MethodNameInfix
+        && !annotation_is_method_name_infix_comment(
+            context,
+            LocalNodeId::<T>::new(node_id.id),
+            annotation,
+            annotation_id,
+        )
+    {
+        return false;
+    }
+
+    if capture == AnnotationCapture::MethodParameterHeadInfix
+        && !annotation_is_method_parameter_head_infix_comment(
             context,
             LocalNodeId::<T>::new(node_id.id),
             annotation,
@@ -1148,6 +1380,7 @@ pub(crate) fn write_first_annotation_spacing<'ast>(
             if flow_facts.is_inline_block_star_comment {
                 if !flow_facts.inline_block_comment_follows_opening_delimiter
                     && !flow_facts.starts_on_own_line
+                    && capture != AnnotationCapture::DeclarationNewHead
                 {
                     write!(f, [space()])?;
                 }
@@ -1221,6 +1454,7 @@ pub(crate) fn should_skip_blank_annotation_before_own_line_comment(
 /// Emit spacing after one annotation.
 pub(crate) fn write_annotation_trailing_spacing<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    capture: AnnotationCapture,
     position: AnnotationPosition,
     flow_facts: AnnotationFlowFacts,
 ) -> FormatResult<()> {
@@ -1252,11 +1486,17 @@ pub(crate) fn write_annotation_trailing_spacing<'ast>(
         AnnotationPosition::BlockInfix => {
             let should_keep_space_before_adjacent_block_comment =
                 should_keep_space_before_adjacent_block_comment(flow_facts);
+            let is_new_head_or_method_parameter_parenthesis_seam =
+                matches!(
+                    capture,
+                    AnnotationCapture::DeclarationNewHead
+                        | AnnotationCapture::MethodParameterHeadInfix
+                ) && flow_facts.render_facts.next_character == Some('(');
             if flow_facts.is_inline_block_star_comment {
                 if !flow_facts.render_facts.precedes_separator
                     || !self::inline_block_comment_allows_tight_separator(
                         flow_facts.render_facts.next_character,
-                    )
+                    ) && !is_new_head_or_method_parameter_parenthesis_seam
                     || should_keep_space_before_adjacent_block_comment
                 {
                     write!(f, [space()])?;
@@ -1427,7 +1667,7 @@ where
             }
 
             // spacing after one emitted annotation
-            write_annotation_trailing_spacing(f, item.position, flow_facts)?;
+            write_annotation_trailing_spacing(f, self.position, item.position, flow_facts)?;
 
             state.previous_was_blank_annotation = false;
         }

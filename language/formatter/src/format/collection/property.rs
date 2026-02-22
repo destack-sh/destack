@@ -14,7 +14,7 @@ use destack_ast::{
     AbstractionModifier, AccessorKind, BindingAnchor, BindingKind, BindingModifier,
     BindingOperator, Comment, Declaration, DeclarationKind, Expression, FunctionSignature, Key,
     Keyword, LocalNodeId, Member, Mutability, Name, Node, NodeTree, NodeTreeImpl, NodeType,
-    Property, Timing, VarianceModifier, is_identifier,
+    Parameter, Property, Timing, VarianceModifier, is_identifier,
 };
 use destack_base::StringId;
 use destack_fir::format::{FormatResult, text};
@@ -491,15 +491,20 @@ fn format_field_like<'ast>(
 }
 
 /// Format shared property or member method output.
-fn format_method_like<'ast>(
+fn format_method_like<'ast, N>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<N>,
     modifiers: Option<BindingModifier>,
     key: Option<Key>,
     signature: &FunctionSignature,
     body: Option<LocalNodeId<Expression>>,
     force_quote_keys: bool,
     signature_is_multiline_before_body: bool,
-) -> FormatResult<()> {
+) -> FormatResult<()>
+where
+    N: Node + Clone,
+    NodeTree: NodeTreeImpl<N>,
+{
     let generics = signature.generics.as_ref();
 
     // modifiers
@@ -513,6 +518,9 @@ fn format_method_like<'ast>(
         format_key_with_quote_policy(f, key, force_quote_keys)?;
     }
 
+    // name seam comments
+    write!(f, [f.context().method_name_infix_annotations(node_id)])?;
+
     // name postfix modifiers: `?` and `!` belong on the method name
     format_binding_modifiers_postfix_maybe(f, modifiers)?;
 
@@ -521,8 +529,17 @@ fn format_method_like<'ast>(
         generics.and_then(|generics| generics.static_parameters.as_ref())
         && !static_parameters.is_empty()
     {
-        write!(f, [list_like("<", ">", ",", static_parameters)])?;
+        write!(
+            f,
+            [list_like::<Parameter>("<", ">", ",", static_parameters)]
+        )?;
     }
+
+    // optional marker to parameter list seam
+    write!(
+        f,
+        [f.context().method_parameter_head_infix_annotations(node_id)]
+    )?;
 
     // dynamic parameters
     let should_expand_parameters = signature_parameters_should_expand(
@@ -577,6 +594,41 @@ fn format_method_like<'ast>(
     Ok(())
 }
 
+/// Format one method-like node with directive handling and method-local infix ownership.
+fn format_method_node_with_directive<'ast, T, F>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<T>,
+    mut format_node: F,
+) -> FormatResult<()>
+where
+    T: Node + Clone,
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Comment>,
+    F: FnMut(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
+{
+    let directive = directive_for_node(f.context(), node_id);
+    write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+    if let Some(directive) = directive
+        && directive.kind == FormatterDirectiveKind::IgnoreFormat
+    {
+        write_ignored_node(f, node_id, directive)?;
+
+        if !matches!(
+            directive.position,
+            FormatterDirectivePosition::Postfix { .. }
+        ) {
+            write!(f, [f.context().any_postfix_annotations(node_id)])?;
+        }
+
+        return Ok(());
+    }
+
+    format_node(f)?;
+    write!(f, [f.context().any_postfix_annotations(node_id)])?;
+
+    Ok(())
+}
+
 /// Format one node with shared directive handling and annotations.
 fn format_node_with_directive<'ast, T, F>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -618,6 +670,33 @@ impl<'ast> FormatNode<'ast, Property> for Property {
         node_id: LocalNodeId<Property>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        if let Property::Method {
+            modifiers,
+            key,
+            signature,
+            body,
+        } = self
+        {
+            return format_method_node_with_directive(f, node_id, |f| {
+                let force_quote_keys = should_force_quote_keys_for_property();
+                let signature_is_multiline_before_body = method_signature_is_multiline_before_body(
+                    f.context(),
+                    f.context().span(node_id),
+                    *body,
+                );
+                format_method_like(
+                    f,
+                    node_id,
+                    *modifiers,
+                    *key,
+                    signature,
+                    *body,
+                    force_quote_keys,
+                    signature_is_multiline_before_body,
+                )
+            });
+        }
+
         format_node_with_directive(f, node_id, |f| {
             match self {
                 Property::Field {
@@ -629,29 +708,6 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                     let force_quote_keys = should_force_quote_keys_for_property();
                     format_field_like(f, *modifiers, *key, *value, *default, force_quote_keys)?;
                 }
-                Property::Method {
-                    modifiers,
-                    key,
-                    signature,
-                    body,
-                } => {
-                    let force_quote_keys = should_force_quote_keys_for_property();
-                    let signature_is_multiline_before_body =
-                        method_signature_is_multiline_before_body(
-                            f.context(),
-                            f.context().span(node_id),
-                            *body,
-                        );
-                    format_method_like(
-                        f,
-                        *modifiers,
-                        *key,
-                        signature,
-                        *body,
-                        force_quote_keys,
-                        signature_is_multiline_before_body,
-                    )?;
-                }
                 Property::Spread { modifiers, value } => {
                     // modifiers
                     format_binding_modifiers_prefix_maybe(f, *modifiers)?;
@@ -662,6 +718,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                     // modifiers
                     format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 }
+                Property::Method { .. } => {}
             }
 
             Ok(())
@@ -675,6 +732,39 @@ impl<'ast> FormatNode<'ast, Member> for Member {
         node_id: LocalNodeId<Member>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        if let Member::Method {
+            modifiers,
+            key,
+            signature,
+            body,
+        } = self
+        {
+            return format_method_node_with_directive(f, node_id, |f| {
+                let force_quote_keys = should_force_quote_keys_for_member(f, node_id);
+                let signature_is_multiline_before_body = method_signature_is_multiline_before_body(
+                    f.context(),
+                    f.context().span(node_id),
+                    *body,
+                );
+                format_method_like(
+                    f,
+                    node_id,
+                    *modifiers,
+                    *key,
+                    signature,
+                    *body,
+                    force_quote_keys,
+                    signature_is_multiline_before_body,
+                )?;
+
+                if body.is_none() {
+                    write!(f, [token(";")])?;
+                }
+
+                Ok(())
+            });
+        }
+
         format_node_with_directive(f, node_id, |f| {
             match self {
                 Member::Type {
@@ -751,29 +841,6 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     let force_quote_keys = should_force_quote_keys_for_member(f, node_id);
                     format_field_like(f, *modifiers, *key, *value, *default, force_quote_keys)?;
                 }
-                Member::Method {
-                    modifiers,
-                    key,
-                    signature,
-                    body,
-                } => {
-                    let force_quote_keys = should_force_quote_keys_for_member(f, node_id);
-                    let signature_is_multiline_before_body =
-                        method_signature_is_multiline_before_body(
-                            f.context(),
-                            f.context().span(node_id),
-                            *body,
-                        );
-                    format_method_like(
-                        f,
-                        *modifiers,
-                        *key,
-                        signature,
-                        *body,
-                        force_quote_keys,
-                        signature_is_multiline_before_body,
-                    )?;
-                }
                 Member::Embed { modifiers, value } => {
                     // modifiers
                     format_binding_modifiers_prefix_maybe(f, *modifiers)?;
@@ -801,12 +868,10 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     // body
                     write!(f, [body])?;
                 }
+                Member::Method { .. } => {}
             }
 
-            let needs_semicolon = matches!(
-                self,
-                Member::Field { .. } | Member::Method { body: None, .. }
-            );
+            let needs_semicolon = matches!(self, Member::Field { .. });
             if needs_semicolon {
                 write!(f, [token(";")])?;
             }

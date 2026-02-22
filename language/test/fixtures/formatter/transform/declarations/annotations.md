@@ -209,8 +209,9 @@ export type Value = /** union-doc
 
 ```ts expected
 export type Value = /** union-doc
-   */
-    { ok: true } | { ok: false; value: bigint | null };
+     */
+    | { ok: true }
+    | { ok: false; value: bigint | null };
 ```
 
 ### union last arm trailing line comment
@@ -224,7 +225,9 @@ type Value =
 ```
 
 ```ts expected
-type Value = First | Second; // second-tail
+type Value =
+    | First
+    | Second; // second-tail
 ```
 
 ### parenthesized union comment attachment
@@ -630,8 +633,8 @@ type Value<T> = {
 ```ts expected
 // prettier-ignore
 type Value<T> = {
-    [K in keyof T as // mapped-key
-        `${K & string}`]: T[K]
+  [K in keyof T as // mapped-key
+    `${K & string}`]: T[K]
 }
 ```
 
@@ -863,8 +866,8 @@ type Value =
 ```ts expected
 // prettier-ignore
 type Value =
-    | A // a-tail
-    | B // b-tail
+  | A // a-tail
+  | B // b-tail
 ;
 ```
 
@@ -879,7 +882,9 @@ type Value =
 ```
 
 ```ts expected
-type Value = A | B; // last-union
+type Value =
+    | A
+    | B; // last-union
 ```
 
 ## Mapped Type Conformance Permutations

@@ -66,6 +66,34 @@ fn descend_owner_through_transparent_expression_wrappers(tree: &NodeTree, owner_
     }
 }
 
+/// Return whether one owner is a mapped type expression.
+fn owner_is_type_mapped_expression(tree: &NodeTree, owner_id: u32) -> bool {
+    if tree.get_node_type(owner_id) != NodeType::Expression {
+        return false;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(owner_id);
+    matches!(tree.get(expression_id), Expression::TypeMapped { .. })
+}
+
+/// Return whether one owner has a mapped-type expression ancestor.
+fn owner_has_type_mapped_expression_ancestor(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+) -> bool {
+    let mut current_id = Some(owner_id);
+    while let Some(node_id) = current_id {
+        if owner_is_type_mapped_expression(tree, node_id) {
+            return true;
+        }
+
+        current_id = parents.get_by_id(node_id);
+    }
+
+    false
+}
+
 /// Resolve assignment seam comment rules.
 pub(crate) fn try_attach_comment_assignment(
     tree: &NodeTree,
@@ -240,6 +268,7 @@ pub(crate) fn try_attach_comment_expression_operator(
         && token_after_is_maybe
         && comment_is_line
         && let Some(target_node) = resolve_comment_seam_owner(context, seam_owner_cache)
+        && tree.get_node_type(target_node) == NodeType::Expression
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::LinePostfix));
@@ -252,6 +281,7 @@ pub(crate) fn try_attach_comment_expression_operator(
         && token_after_is_maybe
         && comment_is_star
         && let Some(target_node) = left_owner
+        && tree.get_node_type(target_node) == NodeType::Expression
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::LinePostfix));
@@ -268,15 +298,28 @@ pub(crate) fn try_attach_comment_expression_operator(
         return Some((Some(target_node), AnnotationPosition::LinePostfix));
     }
 
-    // comments after `as` should resolve to the cast expression seam
-    if token_before_is_as
-        && !has_leading_newline
-        && has_trailing_newline
-        && comment_is_line
-        && let Some(target_node) = resolve_comment_seam_owner(context, seam_owner_cache)
-    {
-        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
+    // comments after `as` stay on cast seams, except mapped-type remap seams
+    if token_before_is_as && !has_leading_newline && has_trailing_newline && comment_is_line {
+        if let Some(target_node) = right_owner
+            && tree.get_node_type(target_node) == NodeType::Expression
+            && owner_has_type_mapped_expression_ancestor(tree, parents, target_node)
+        {
+            let target_expression = LocalNodeId::<Expression>::new(target_node);
+            if let Expression::TypeTemplateLiteral { spans, .. } = tree.get(target_expression)
+                && let Some(first_span) = spans.first()
+            {
+                let target_node = normalize_formatter_trivia_target_owner(tree, first_span.id);
+                return Some((Some(target_node), AnnotationPosition::LinePostfix));
+            }
+
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            return Some((Some(target_node), AnnotationPosition::LinePrefix));
+        }
+
+        if let Some(target_node) = resolve_comment_seam_owner(context, seam_owner_cache) {
+            let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+            return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
+        }
     }
 
     // line comments after `satisfies` only move to rhs prefixes for multi-argument type paths

@@ -19,10 +19,66 @@ use destack_fir::{format_args, write};
 /// Store computed tree-child layout facts for one tree body.
 #[derive(Clone, Copy, Debug, Default)]
 struct TreeChildrenLayoutFacts {
+    /// Whether all children are tree expressions.
     all_tree_children: bool,
+    /// Whether all children are tree expressions or comment stubs.
     only_tree_or_comment_children: bool,
+    /// Whether the tree body should force multiline layout.
     force_break: bool,
+    /// Whether multiline body should use fill separators.
     force_break_with_fill: bool,
+}
+
+/// Store one-pass scan facts for tree-child layout decisions.
+#[derive(Clone, Copy, Debug, Default)]
+struct TreeChildrenScanFacts {
+    /// The number of tree-expression children.
+    tree_child_count: usize,
+    /// The number of non-tree expression children.
+    expression_child_count: usize,
+    /// Whether any child forces a break.
+    has_breaking_child: bool,
+    /// Whether any child is braced whitespace.
+    has_braced_whitespace_child: bool,
+    /// Whether any child is non-whitespace text.
+    has_non_whitespace_text_child: bool,
+    /// Whether any child is newline whitespace text outside braces.
+    has_newline_whitespace_text_child: bool,
+    /// Whether all children are tree expressions or comment stubs.
+    only_tree_or_comment_children: bool,
+}
+
+/// Store top-level tree literal layout facts shared by break and render decisions.
+#[derive(Clone, Copy, Debug, Default)]
+struct TreeLiteralLayoutFacts {
+    /// Whether attributes force multiline tag layout.
+    force_break_attributes: bool,
+    /// Child layout facts when the tree has a non-empty body.
+    children: Option<TreeChildrenLayoutFacts>,
+    /// Whether the tree should break across multiple lines.
+    should_break: bool,
+    /// Whether the tree group should expand.
+    should_expand: bool,
+}
+
+/// Store opening-tag layout facts shared by attribute and self-closing rendering.
+#[derive(Clone, Copy, Debug, Default)]
+struct TreeOpeningTagLayoutFacts {
+    /// Whether single-attribute-per-line mode is enabled.
+    single_attribute_per_line: bool,
+    /// Whether closing bracket should stay on the same line.
+    bracket_same_line: bool,
+}
+
+/// Store the rendering strategy selected for a tree body.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TreeChildrenRenderStrategy {
+    /// Emit one child per line with hard separators and blank-line preservation.
+    Multiline,
+    /// Emit one tree child per line.
+    TreePerLine,
+    /// Emit mixed children with fill separators.
+    Fill,
 }
 
 /// Return the value expression id for one tree child argument.
@@ -39,90 +95,105 @@ fn tree_child_value_id(
     }
 }
 
+/// Scan one tree body and collect child-shape facts in one pass.
+fn scan_tree_children_layout_facts(
+    context: &DestackFormatContext<'_>,
+    elements: &[LocalNodeId<Argument>],
+) -> TreeChildrenScanFacts {
+    let tree = context.tree;
+    let mut facts = TreeChildrenScanFacts {
+        only_tree_or_comment_children: true,
+        ..TreeChildrenScanFacts::default()
+    };
+
+    for element_id in elements {
+        let value_id = tree_child_value_id(tree, *element_id);
+        let raw_value = tree.get(value_id);
+        let value_id = transparent_inner_expression(context, value_id);
+        let value = tree.get(value_id);
+
+        if matches!(raw_value, Expression::TreeExpression { .. }) {
+            facts.tree_child_count += 1;
+        }
+
+        if !matches!(
+            value,
+            Expression::TreeExpression { .. }
+                | Expression::Stub
+                | Expression::ScalarLiteral(ScalarLiteral::String(_))
+                | Expression::ScalarLiteral(ScalarLiteral::Character(_))
+        ) {
+            facts.expression_child_count += 1;
+        }
+
+        if !matches!(value, Expression::TreeExpression { .. } | Expression::Stub) {
+            facts.only_tree_or_comment_children = false;
+        }
+
+        if tree_child_breaks_element(context, *element_id) {
+            facts.has_breaking_child = true;
+        }
+
+        let whitespace_info = tree_text_is_whitespace_only(context, *element_id);
+        if let Some((is_whitespace_only, has_newline)) = whitespace_info {
+            let is_braced_whitespace =
+                tree_argument_is_wrapped_in_braces(context, *element_id) && is_whitespace_only;
+            if is_braced_whitespace {
+                facts.has_braced_whitespace_child = true;
+            }
+
+            if !is_whitespace_only {
+                facts.has_non_whitespace_text_child = true;
+            }
+
+            if is_whitespace_only
+                && has_newline
+                && !tree_argument_is_wrapped_in_braces(context, *element_id)
+            {
+                facts.has_newline_whitespace_text_child = true;
+            }
+        }
+    }
+
+    facts
+}
+
 /// Build tree-child layout facts for one tree body.
 fn collect_tree_children_layout_facts(
     context: &DestackFormatContext<'_>,
     elements: &[LocalNodeId<Argument>],
     force_break_attributes: bool,
 ) -> TreeChildrenLayoutFacts {
-    let tree = context.tree;
-    let tree_child_count = elements
-        .iter()
-        .filter(|element_id| {
-            let value_id = tree_child_value_id(tree, **element_id);
-            matches!(tree.get(value_id), Expression::TreeExpression { .. })
-        })
-        .count();
-    let expression_child_count = elements
-        .iter()
-        .filter(|element_id| {
-            let value_id = tree_child_value_id(tree, **element_id);
-            let value_id = transparent_inner_expression(context, value_id);
-
-            !matches!(
-                tree.get(value_id),
-                Expression::TreeExpression { .. }
-                    | Expression::Stub
-                    | Expression::ScalarLiteral(ScalarLiteral::String(_))
-                    | Expression::ScalarLiteral(ScalarLiteral::Character(_))
-            )
-        })
-        .count();
-    let has_breaking_child = elements
-        .iter()
-        .any(|element_id| tree_child_breaks_element(context, *element_id));
-    let has_braced_whitespace_child = elements.iter().any(|element_id| {
-        let is_whitespace_only =
-            tree_text_is_whitespace_only(context, *element_id).is_some_and(|(is_only, _)| is_only);
-        is_whitespace_only && tree_argument_is_wrapped_in_braces(context, *element_id)
-    });
-    let has_non_whitespace_text_child = elements.iter().any(|element_id| {
-        tree_text_is_whitespace_only(context, *element_id).is_some_and(|(is_only, _)| !is_only)
-    });
-    let has_newline_whitespace_text_child = elements.iter().any(|element_id| {
-        tree_text_is_whitespace_only(context, *element_id)
-            .is_some_and(|(is_only, has_newline)| is_only && has_newline)
-            && !tree_argument_is_wrapped_in_braces(context, *element_id)
-    });
-    let all_tree_children = tree_child_count == elements.len();
-    let only_tree_or_comment_children = elements.iter().all(|element_id| {
-        let value_id = tree_child_value_id(tree, *element_id);
-        let value_id = transparent_inner_expression(context, value_id);
-        matches!(
-            tree.get(value_id),
-            Expression::TreeExpression { .. } | Expression::Stub
-        )
-    });
-
-    let has_tree_child = tree_child_count > 0;
-    let has_multiple_tree_children = tree_child_count >= 2;
-    let has_multiple_expression_children = expression_child_count >= 2;
-    let has_tree_and_expression_children = has_tree_child && expression_child_count > 0;
-    let has_tree_and_text_children = has_tree_child && has_non_whitespace_text_child;
+    let scanned = scan_tree_children_layout_facts(context, elements);
+    let has_tree_child = scanned.tree_child_count > 0;
+    let has_multiple_tree_children = scanned.tree_child_count >= 2;
+    let has_multiple_expression_children = scanned.expression_child_count >= 2;
+    let has_tree_and_expression_children = has_tree_child && scanned.expression_child_count > 0;
+    let has_tree_and_text_children = has_tree_child && scanned.has_non_whitespace_text_child;
     let force_break = if context.options.language_type.is_destack() {
         force_break_attributes
-            || has_breaking_child
+            || scanned.has_breaking_child
             || has_tree_child
             || has_multiple_expression_children
-            || has_newline_whitespace_text_child
+            || scanned.has_newline_whitespace_text_child
     } else {
         force_break_attributes
-            || has_breaking_child
+            || scanned.has_breaking_child
             || has_multiple_tree_children
             || has_multiple_expression_children
             || has_tree_and_expression_children
-            || (has_tree_child && has_braced_whitespace_child)
-            || has_newline_whitespace_text_child
+            || (has_tree_child && scanned.has_braced_whitespace_child)
+            || scanned.has_newline_whitespace_text_child
     };
     let force_break_with_fill = !context.options.language_type.is_destack()
         && force_break
         && has_tree_and_text_children
-        && expression_child_count == 0
+        && scanned.expression_child_count == 0
         && !has_tree_and_expression_children;
 
     TreeChildrenLayoutFacts {
-        all_tree_children,
-        only_tree_or_comment_children,
+        all_tree_children: scanned.tree_child_count == elements.len(),
+        only_tree_or_comment_children: scanned.only_tree_or_comment_children,
         force_break,
         force_break_with_fill,
     }
@@ -462,17 +533,91 @@ fn format_tree_children<'ast>(
     elements: &[LocalNodeId<Argument>],
     layout_facts: TreeChildrenLayoutFacts,
 ) -> FormatResult<()> {
-    if layout_facts.force_break && !layout_facts.force_break_with_fill && elements.len() > 1 {
-        return format_tree_children_multiline(f, elements);
+    let render_strategy = select_tree_children_render_strategy(layout_facts, elements.len());
+    match render_strategy {
+        TreeChildrenRenderStrategy::Multiline => format_tree_children_multiline(f, elements),
+        TreeChildrenRenderStrategy::TreePerLine => format_tree_children_tree_per_line(f, elements),
+        TreeChildrenRenderStrategy::Fill => format_tree_children_fill(f, elements),
+    }
+}
+
+/// Select one tree-child rendering strategy from computed layout facts.
+fn select_tree_children_render_strategy(
+    layout_facts: TreeChildrenLayoutFacts,
+    element_count: usize,
+) -> TreeChildrenRenderStrategy {
+    if layout_facts.force_break && !layout_facts.force_break_with_fill && element_count > 1 {
+        return TreeChildrenRenderStrategy::Multiline;
     }
 
     if (layout_facts.all_tree_children || layout_facts.only_tree_or_comment_children)
-        && elements.len() > 1
+        && element_count > 1
     {
-        return format_tree_children_tree_per_line(f, elements);
+        return TreeChildrenRenderStrategy::TreePerLine;
     }
 
-    format_tree_children_fill(f, elements)
+    TreeChildrenRenderStrategy::Fill
+}
+
+/// Collect opening-tag facts for one tree literal.
+fn collect_tree_opening_tag_layout_facts(
+    context: &DestackFormatContext<'_>,
+    left: &Option<LocalNodeId<Expression>>,
+    arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    elements: &Option<Vec<LocalNodeId<Argument>>>,
+) -> TreeOpeningTagLayoutFacts {
+    let tag_has_static_type_arguments =
+        left.is_some_and(|left_id| expression_has_static_type_arguments(context, left_id));
+    let single_attribute_per_line = context.options.single_attribute_per_line;
+    let prefer_same_line_self_closing = !context.options.language_type.is_destack()
+        && elements.is_none()
+        && !single_attribute_per_line
+        && arguments
+            .as_ref()
+            .is_some_and(|arguments| arguments.len() > 2)
+        && !tag_has_static_type_arguments;
+    let bracket_same_line = context.options.bracket_same_line || prefer_same_line_self_closing;
+
+    TreeOpeningTagLayoutFacts {
+        single_attribute_per_line,
+        bracket_same_line,
+    }
+}
+
+/// Collect top-level layout facts for one tree literal.
+fn collect_tree_literal_layout_facts(
+    context: &DestackFormatContext<'_>,
+    arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    elements: &Option<Vec<LocalNodeId<Argument>>>,
+) -> TreeLiteralLayoutFacts {
+    let force_break_attributes = arguments
+        .as_ref()
+        .is_some_and(|arguments| should_force_break_tree_attributes(context, arguments));
+    let children = elements.as_ref().and_then(|elements| {
+        if elements.is_empty() {
+            None
+        } else {
+            Some(collect_tree_children_layout_facts(
+                context,
+                elements,
+                force_break_attributes,
+            ))
+        }
+    });
+    let has_multiline_whitespace_tree_seam = elements
+        .as_ref()
+        .is_some_and(|elements| tree_literal_has_multiline_whitespace_tree_seam(context, elements));
+    let should_break = children
+        .map(|children_layout| children_layout.force_break)
+        .unwrap_or(force_break_attributes);
+    let should_expand = should_break || has_multiline_whitespace_tree_seam;
+
+    TreeLiteralLayoutFacts {
+        force_break_attributes,
+        children,
+        should_break,
+        should_expand,
+    }
 }
 
 /// Decide whether a tree literal should break across multiple lines.
@@ -481,21 +626,7 @@ pub(crate) fn tree_literal_should_break(
     arguments: &Option<Vec<LocalNodeId<Argument>>>,
     elements: &Option<Vec<LocalNodeId<Argument>>>,
 ) -> bool {
-    let force_break_attributes = arguments
-        .as_ref()
-        .is_some_and(|arguments| should_force_break_tree_attributes(context, arguments));
-
-    let Some(elements) = elements else {
-        return force_break_attributes;
-    };
-
-    if elements.is_empty() {
-        return force_break_attributes;
-    }
-
-    let layout_facts =
-        collect_tree_children_layout_facts(context, elements, force_break_attributes);
-    layout_facts.force_break
+    collect_tree_literal_layout_facts(context, arguments, elements).should_break
 }
 
 /// Decide whether a tree literal should expand in rendered output.
@@ -504,10 +635,7 @@ pub(crate) fn tree_literal_should_expand(
     arguments: &Option<Vec<LocalNodeId<Argument>>>,
     elements: &Option<Vec<LocalNodeId<Argument>>>,
 ) -> bool {
-    let has_multiline_whitespace_tree_seam = elements
-        .as_ref()
-        .is_some_and(|elements| tree_literal_has_multiline_whitespace_tree_seam(context, elements));
-    tree_literal_should_break(context, arguments, elements) || has_multiline_whitespace_tree_seam
+    collect_tree_literal_layout_facts(context, arguments, elements).should_expand
 }
 
 /// Return whether a tree literal should be wrapped in parentheses when it breaks.
@@ -578,16 +706,24 @@ pub(crate) fn format_tree_literal_expression<'ast>(
         return format_tree_literal(f, node_id, left, arguments, elements);
     }
 
-    let should_expand = tree_literal_should_expand(f.context(), arguments, elements);
+    let layout_facts = collect_tree_literal_layout_facts(f.context(), arguments, elements);
 
     write!(
         f,
         [group(&format_with(|f| {
             write!(f, [if_group_breaks(&token("("))])?;
 
-            let formatted_tree =
-                format_with(|f| format_tree_literal(f, node_id, left, arguments, elements));
-            if should_expand {
+            let formatted_tree = format_with(|f| {
+                format_tree_literal_with_layout_facts(
+                    f,
+                    node_id,
+                    left,
+                    arguments,
+                    elements,
+                    layout_facts,
+                )
+            });
+            if layout_facts.should_expand {
                 write!(f, [block_indent(&formatted_tree)])?;
             } else {
                 write!(f, [soft_block_indent(&formatted_tree)])?;
@@ -596,7 +732,180 @@ pub(crate) fn format_tree_literal_expression<'ast>(
             write!(f, [if_group_breaks(&token(")"))])?;
             Ok(())
         }))
-        .should_expand(should_expand)]
+        .should_expand(layout_facts.should_expand)]
+    )
+}
+
+/// Format tree attributes in one opening tag.
+fn format_tree_attributes<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    arguments: &[LocalNodeId<Argument>],
+    force_break_attributes: bool,
+    opening_layout: TreeOpeningTagLayoutFacts,
+) -> FormatResult<()> {
+    let attr_separator: &dyn Format<DestackFormatContext<'ast>> = if force_break_attributes
+        || (opening_layout.single_attribute_per_line && arguments.len() > 1)
+    {
+        &hard_line_break()
+    } else {
+        &soft_line_break_or_space()
+    };
+    let format_attrs = format_with(|f| {
+        f.join_with(attr_separator)
+            .entries(arguments.iter().map(|argument| TreeExpressionArgument {
+                argument_id: *argument,
+            }))
+            .finish()
+    });
+
+    if force_break_attributes {
+        write!(f, [expand_parent()])?;
+    }
+
+    if opening_layout.bracket_same_line {
+        if force_break_attributes {
+            write!(
+                f,
+                [
+                    if_group_fits_on_line(&space()),
+                    indent(&format_args![hard_line_break(), format_attrs])
+                ]
+            )?;
+        } else {
+            write!(
+                f,
+                [
+                    if_group_fits_on_line(&space()),
+                    indent(&format_args![soft_line_break(), format_attrs])
+                ]
+            )?;
+        }
+    } else if force_break_attributes {
+        write!(
+            f,
+            [
+                if_group_fits_on_line(&space()),
+                group(&soft_block_indent(&format_attrs)).should_expand(true)
+            ]
+        )?;
+    } else {
+        write!(
+            f,
+            [
+                if_group_fits_on_line(&space()),
+                soft_block_indent(&format_attrs)
+            ]
+        )?;
+    }
+
+    Ok(())
+}
+
+/// Write one self-closing marker for a tree opening tag.
+fn write_tree_self_closing_marker<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    left: &Option<LocalNodeId<Expression>>,
+    arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    opening_layout: TreeOpeningTagLayoutFacts,
+) -> FormatResult<()> {
+    let has_attributes = arguments.is_some();
+    if left.is_some() || has_attributes {
+        if has_attributes {
+            if opening_layout.bracket_same_line {
+                write!(f, [if_group_breaks(&space())])?;
+            }
+            write!(f, [if_group_fits_on_line(&space())])?;
+        } else {
+            write!(f, [space()])?;
+        }
+    }
+
+    write!(f, [token("/")])
+}
+
+/// Format one tree opening tag.
+fn format_tree_opening_tag<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    left: &Option<LocalNodeId<Expression>>,
+    arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    elements: &Option<Vec<LocalNodeId<Argument>>>,
+    layout_facts: TreeLiteralLayoutFacts,
+) -> FormatResult<()> {
+    let opening_layout =
+        collect_tree_opening_tag_layout_facts(f.context(), left, arguments, elements);
+
+    write!(f, [token("<")])?;
+    if let Some(left) = left {
+        write!(f, [left])?;
+    }
+
+    if let Some(arguments) = arguments {
+        format_tree_attributes(
+            f,
+            arguments,
+            layout_facts.force_break_attributes,
+            opening_layout,
+        )?;
+    }
+
+    if elements.is_none() {
+        write_tree_self_closing_marker(f, left, arguments, opening_layout)?;
+    }
+
+    write!(f, [token(">")])
+}
+
+/// Format one tree body and closing tag.
+fn format_tree_body<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    left: &Option<LocalNodeId<Expression>>,
+    elements: &Option<Vec<LocalNodeId<Argument>>>,
+    layout_facts: TreeLiteralLayoutFacts,
+) -> FormatResult<()> {
+    let Some(elements) = elements else {
+        return Ok(());
+    };
+
+    if elements.is_empty() {
+        return write_tree_closing_tag(f, left);
+    }
+
+    let children_layout = layout_facts.children.unwrap_or_else(|| {
+        collect_tree_children_layout_facts(
+            f.context(),
+            elements,
+            layout_facts.force_break_attributes,
+        )
+    });
+    let format_children = format_with(|f| format_tree_children(f, elements, children_layout));
+    if children_layout.force_break {
+        write!(f, [block_indent(&group(&format_children))])?;
+    } else {
+        write!(f, [group(&soft_block_indent(&format_children))])?;
+    }
+
+    write_tree_closing_tag(f, left)
+}
+
+/// Format one tree literal from precomputed layout facts.
+fn format_tree_literal_with_layout_facts<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    _expression_id: LocalNodeId<Expression>,
+    left: &Option<LocalNodeId<Expression>>,
+    arguments: &Option<Vec<LocalNodeId<Argument>>>,
+    elements: &Option<Vec<LocalNodeId<Argument>>>,
+    layout_facts: TreeLiteralLayoutFacts,
+) -> FormatResult<()> {
+    write!(
+        f,
+        [group(&format_with(|f| {
+            let opening_tag = format_with(|f| {
+                format_tree_opening_tag(f, left, arguments, elements, layout_facts)
+            });
+            write!(f, [group(&opening_tag)])?;
+            format_tree_body(f, left, elements, layout_facts)
+        }))
+        .should_expand(layout_facts.should_expand)]
     )
 }
 
@@ -604,173 +913,11 @@ pub(crate) fn format_tree_literal_expression<'ast>(
 #[inline]
 pub(crate) fn format_tree_literal<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    _expression_id: LocalNodeId<Expression>,
+    expression_id: LocalNodeId<Expression>,
     left: &Option<LocalNodeId<Expression>>,
     arguments: &Option<Vec<LocalNodeId<Argument>>>,
     elements: &Option<Vec<LocalNodeId<Argument>>>,
 ) -> FormatResult<()> {
-    let should_expand_tree = tree_literal_should_expand(f.context(), arguments, elements);
-    let force_break_attributes = arguments
-        .as_ref()
-        .is_some_and(|arguments| should_force_break_tree_attributes(f.context(), arguments));
-
-    write!(
-        f,
-        [group(&format_with(|f| {
-            // header
-            write!(
-                f,
-                [group(&format_with(|f| {
-                    // <
-                    write!(f, [token("<")])?;
-                    // left
-                    if let Some(left) = left {
-                        write!(f, [left])?;
-                    }
-                    // arguments
-                    if let Some(arguments) = arguments {
-                        let single_attr_per_line = f.context().options.single_attribute_per_line;
-                        let tag_has_static_type_arguments = left.is_some_and(|left_id| {
-                            expression_has_static_type_arguments(f.context(), left_id)
-                        });
-                        let prefer_same_line_self_closing =
-                            !f.context().options.language_type.is_destack()
-                                && elements.is_none()
-                                && !single_attr_per_line
-                                && arguments.len() > 2
-                                && !tag_has_static_type_arguments;
-                        let bracket_same_line =
-                            f.context().options.bracket_same_line || prefer_same_line_self_closing;
-
-                        // separator between attributes
-                        let attr_separator: &dyn Format<DestackFormatContext<'ast>> =
-                            if force_break_attributes
-                                || (single_attr_per_line && arguments.len() > 1)
-                            {
-                                &hard_line_break()
-                            } else {
-                                &soft_line_break_or_space()
-                            };
-
-                        // format attribute list
-                        let format_attrs = format_with(|f| {
-                            f.join_with(attr_separator)
-                                .entries(arguments.iter().map(|argument| TreeExpressionArgument {
-                                    argument_id: *argument,
-                                }))
-                                .finish()
-                        });
-
-                        // complex attributes should expand the element
-                        if force_break_attributes {
-                            write!(f, [expand_parent()])?;
-                        }
-
-                        // when bracket_same_line is true, don't add trailing line break before >
-                        // when false (default), soft_block_indent adds trailing soft_line_break
-                        if bracket_same_line {
-                            // avoid a trailing break before `>` when bracket_same_line is enabled
-                            if force_break_attributes {
-                                write!(
-                                    f,
-                                    [
-                                        if_group_fits_on_line(&space()),
-                                        indent(&format_args![hard_line_break(), format_attrs])
-                                    ]
-                                )?;
-                            } else {
-                                write!(
-                                    f,
-                                    [
-                                        if_group_fits_on_line(&space()),
-                                        indent(&format_args![soft_line_break(), format_attrs])
-                                    ]
-                                )?;
-                            }
-                        } else {
-                            // force expansion for complex attributes in the default layout
-                            if force_break_attributes {
-                                write!(
-                                    f,
-                                    [
-                                        if_group_fits_on_line(&space()),
-                                        group(&soft_block_indent(&format_attrs))
-                                            .should_expand(true)
-                                    ]
-                                )?;
-                            } else {
-                                write!(
-                                    f,
-                                    [
-                                        if_group_fits_on_line(&space()),
-                                        soft_block_indent(&format_attrs)
-                                    ]
-                                )?;
-                            }
-                        }
-                    }
-                    // /
-                    if elements.is_none() {
-                        let tag_has_static_type_arguments = left.is_some_and(|left_id| {
-                            expression_has_static_type_arguments(f.context(), left_id)
-                        });
-                        let prefer_same_line_self_closing =
-                            !f.context().options.language_type.is_destack()
-                                && !f.context().options.single_attribute_per_line
-                                && arguments
-                                    .as_ref()
-                                    .is_some_and(|arguments| arguments.len() > 2)
-                                && !tag_has_static_type_arguments;
-                        let bracket_same_line =
-                            f.context().options.bracket_same_line || prefer_same_line_self_closing;
-                        let has_attributes = arguments.is_some();
-                        if left.is_some() || has_attributes {
-                            if has_attributes {
-                                // space before /> when inline, or when bracket_same_line is true
-                                if bracket_same_line {
-                                    write!(f, [if_group_breaks(&space())])?;
-                                }
-                                write!(f, [if_group_fits_on_line(&space())])?;
-                            } else {
-                                write!(f, [space()])?;
-                            }
-                        }
-                        write!(f, [token("/")])?;
-                    }
-                    // >
-                    write!(f, [token(">")])?;
-                    Ok(())
-                }))]
-            )?;
-
-            // body
-            if let Some(elements) = elements {
-                // preserve compact empty paired tags
-                if elements.is_empty() {
-                    write_tree_closing_tag(f, left)?;
-                    return Ok(());
-                }
-
-                let layout_facts = collect_tree_children_layout_facts(
-                    f.context(),
-                    elements,
-                    force_break_attributes,
-                );
-                let format_children =
-                    format_with(|f| format_tree_children(f, elements, layout_facts));
-                if layout_facts.force_break {
-                    write!(f, [block_indent(&group(&format_children))])?;
-                } else {
-                    // use soft indent: stays on one line if it fits
-                    write!(f, [group(&soft_block_indent(&format_children))])?;
-                }
-
-                // closing tag uses path only, no static arguments
-                write_tree_closing_tag(f, left)?;
-            }
-
-            Ok(())
-        }))
-        .should_expand(should_expand_tree)]
-    )
+    let layout_facts = collect_tree_literal_layout_facts(f.context(), arguments, elements);
+    format_tree_literal_with_layout_facts(f, expression_id, left, arguments, elements, layout_facts)
 }
