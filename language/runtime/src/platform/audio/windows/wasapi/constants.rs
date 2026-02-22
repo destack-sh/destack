@@ -5,6 +5,8 @@ use windows_sys::core::{GUID, HRESULT};
 
 pub(super) const IID_IMM_DEVICE_ENUMERATOR: GUID =
     GUID::from_u128(0xa95664d2_9614_4f35_a746_de8db63617e6);
+pub(super) const IID_IMM_NOTIFICATION_CLIENT: GUID =
+    GUID::from_u128(0x7991eec9_7e89_4d85_8390_6c703cec60c0);
 pub(super) const IID_IAUDIO_CLIENT: GUID = GUID::from_u128(0x1cb9ad4c_dbfa_4c32_b178_c2f568a703b2);
 pub(super) const IID_IAUDIO_RENDER_CLIENT: GUID =
     GUID::from_u128(0xf294acfc_3146_4483_a7bf_addca7c260e2);

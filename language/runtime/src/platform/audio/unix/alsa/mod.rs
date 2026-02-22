@@ -7,6 +7,7 @@ mod core;
 #[cfg(target_os = "linux")]
 mod descriptor;
 mod device;
+mod event;
 #[cfg(target_os = "linux")]
 mod ffi;
 #[cfg(target_os = "linux")]
@@ -20,4 +21,5 @@ mod stream;
 mod transfer;
 
 pub(crate) use device::*;
+pub(crate) use event::*;
 pub(crate) use stream::*;

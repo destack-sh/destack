@@ -136,6 +136,42 @@ fn backend_capability_flags(backend: AudioBackend, available: bool) -> AudioBack
     AudioBackendCapabilityFlags(flags)
 }
 
+/// Return one device-list support mask for one backend.
+fn supported_device_list_flags(backend: AudioBackend) -> super::AudioDeviceListFlags {
+    audio_core::supported_backend_device_list_flags(backend)
+}
+
+/// Return one device-open support mask for one backend.
+fn supported_device_open_flags(backend: AudioBackend) -> super::AudioDeviceOpenFlags {
+    audio_core::supported_backend_device_open_flags(backend)
+}
+
+/// Return one stream-option support mask for one backend.
+fn supported_stream_flags(backend: AudioBackend) -> super::AudioSupportedStreamFlags {
+    audio_core::supported_backend_stream_flags(backend)
+}
+
+/// Return one stream-requirement support mask for one backend.
+fn supported_stream_requirement_flags(
+    backend: AudioBackend,
+) -> super::AudioSupportedStreamRequirementFlags {
+    audio_core::supported_backend_stream_requirement_flags(backend)
+}
+
+/// Return one event-subscription support mask for one backend.
+fn supported_event_subscription_flags(
+    backend: AudioBackend,
+) -> super::AudioSupportedEventSubscriptionFlags {
+    audio_core::supported_backend_event_subscription_flags(backend)
+}
+
+/// Return one stream-clock support mask for one backend.
+fn supported_stream_clock_domains(
+    backend: AudioBackend,
+) -> super::AudioSupportedStreamClockDomains {
+    audio_core::supported_backend_stream_clock_domains(backend)
+}
+
 /// Build backend descriptors for the current host family.
 pub(crate) fn backend_descriptors(context: &BindingCallContext) -> Vec<AudioBackendDescriptor> {
     let active_backend = active_host_backend();
@@ -160,13 +196,28 @@ pub(crate) fn backend_descriptors(context: &BindingCallContext) -> Vec<AudioBack
             AudioBackend::Null => true,
             _ => backend_supported(*backend),
         };
+        let capability_backend = if *backend == AudioBackend::Auto {
+            active_backend.unwrap_or(AudioBackend::Auto)
+        } else {
+            *backend
+        };
 
         rows.push(AudioBackendDescriptor {
             backend: *backend,
             name: context.store_string(backend_name(*backend)),
             available,
             priority: index as u16,
-            capability_flags: backend_capability_flags(*backend, available),
+            capability_flags: backend_capability_flags(capability_backend, available),
+            supported_device_list_flags: supported_device_list_flags(capability_backend),
+            supported_device_open_flags: supported_device_open_flags(capability_backend),
+            supported_stream_flags: supported_stream_flags(capability_backend),
+            supported_stream_requirement_flags: supported_stream_requirement_flags(
+                capability_backend,
+            ),
+            supported_event_subscription_flags: supported_event_subscription_flags(
+                capability_backend,
+            ),
+            supported_stream_clock_domains: supported_stream_clock_domains(capability_backend),
         });
     }
 
@@ -207,4 +258,19 @@ pub(crate) fn resolve_requested_backend(
         backend_name(backend),
     )))
     .boxed())
+}
+
+/// Return whether one backend exposes native device-event subscriptions.
+pub(crate) fn backend_native_device_events_supported(backend: AudioBackend) -> bool {
+    backend_native_device_events_supported_impl(backend)
+}
+
+/// Start one backend native device-event monitor.
+pub(crate) fn start_backend_native_device_events(backend: AudioBackend) -> RuntimeResult<()> {
+    start_backend_native_device_events_impl(backend)
+}
+
+/// Stop one backend native device-event monitor.
+pub(crate) fn stop_backend_native_device_events(backend: AudioBackend) {
+    stop_backend_native_device_events_impl(backend)
 }

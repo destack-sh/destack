@@ -582,25 +582,13 @@ unsafe extern "C" fn jack_process_callback(nframes: u32, argument: *mut c_void) 
 
     // publish one callback timing sample
     let callback_mono_ns = audio_core::host_monotonic_nanos();
-    let input_adc_ns = if context.input_ports.is_empty() {
-        None
-    } else {
-        Some(callback_mono_ns)
-    };
-    let output_dac_ns = if context.output_ports.is_empty() {
-        None
-    } else if state.last_output_dac_ns > 0 {
-        Some(state.last_output_dac_ns)
-    } else {
-        Some(callback_mono_ns)
-    };
     audio_core::record_stream_callback_timing(
         &mut state,
         context.sample_rate,
         nframes,
         callback_mono_ns,
-        input_adc_ns,
-        output_dac_ns,
+        None,
+        None,
     );
 
     drop(state);

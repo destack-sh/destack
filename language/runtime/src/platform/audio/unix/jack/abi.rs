@@ -32,6 +32,24 @@ pub(super) struct JackApi {
         Option<unsafe extern "C" fn(u32, *mut c_void) -> c_int>,
         *mut c_void,
     ) -> c_int,
+    /// `jack_set_port_registration_callback` function pointer.
+    pub(super) jack_set_port_registration_callback: unsafe extern "C" fn(
+        *mut JackClient,
+        Option<unsafe extern "C" fn(u32, c_int, *mut c_void)>,
+        *mut c_void,
+    ) -> c_int,
+    /// `jack_set_port_connect_callback` function pointer.
+    pub(super) jack_set_port_connect_callback: unsafe extern "C" fn(
+        *mut JackClient,
+        Option<unsafe extern "C" fn(u32, u32, c_int, *mut c_void)>,
+        *mut c_void,
+    ) -> c_int,
+    /// `jack_on_shutdown` function pointer.
+    pub(super) jack_on_shutdown: unsafe extern "C" fn(
+        *mut JackClient,
+        Option<unsafe extern "C" fn(*mut c_void)>,
+        *mut c_void,
+    ),
     /// `jack_port_register` function pointer.
     pub(super) jack_port_register: unsafe extern "C" fn(
         *mut JackClient,

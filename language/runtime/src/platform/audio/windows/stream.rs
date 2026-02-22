@@ -4,8 +4,9 @@ use std::time::Duration;
 use super::core as audio_platform_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
-    AudioStreamAvailability, AudioStreamConfig, AudioStreamSnapshot, AudioStreamState,
-    AudioStreamStateKind, AudioStreamStatusFlags, AudioStreamTiming, core as audio_core,
+    AudioEventKind, AudioStreamAvailability, AudioStreamConfig, AudioStreamDescriptor,
+    AudioStreamOpenOptions, AudioStreamRequirementFlags, AudioStreamState, AudioStreamStateKind,
+    AudioStreamStatusFlags, AudioStreamSupport, AudioStreamTiming, core as audio_core,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeSlice, NativeStringRef, PlatformError, resource};
@@ -58,9 +59,9 @@ unsafe fn copy_into_vectorized_buffers(
     Ok(copied as u64)
 }
 
-/// Read one stream immediate availability snapshot.
+/// Read one stream immediate availability sample.
 ///
-/// Read one point-in-time snapshot of immediately readable and writable frame counts.
+/// Read one point-in-time sample of immediately readable and writable frame counts.
 /// Values are advisory and can change immediately after read.
 ///
 /// # Platform
@@ -114,6 +115,10 @@ pub(crate) unsafe fn destack_audio_stream_close(
     context: &BindingCallContext,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
+    let binding =
+        audio_core::resolve_stream_binding(context, handle, "destack.audio.stream.close")?;
+    audio_core::unregister_stream_binding_handle(&binding);
+
     let removed = context.runtime().resources.remove(handle.0);
     if removed.is_none() {
         return Err(audio_core::audio_not_found(
@@ -219,9 +224,9 @@ pub(crate) unsafe fn destack_audio_stream_flush(
     Ok(())
 }
 
-/// Read one stream negotiated configuration snapshot.
+/// Read one stream negotiated configuration descriptor.
 ///
-/// Read one normalized snapshot of negotiated stream parameters and backend mode.
+/// Read one normalized view of negotiated stream parameters and backend mode.
 /// Values reflect backend negotiation outcomes and can differ from open-time requests.
 ///
 /// # Platform
@@ -236,9 +241,9 @@ pub(crate) unsafe fn destack_audio_stream_flush(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) unsafe fn destack_audio_stream_snapshot(
+pub(crate) unsafe fn destack_audio_stream_descriptor(
     context: &BindingCallContext,
-    out: *mut AudioStreamSnapshot,
+    out: *mut AudioStreamDescriptor,
     handle: resource::AudioStreamHandle,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -246,9 +251,9 @@ pub(crate) unsafe fn destack_audio_stream_snapshot(
     }
 
     let binding =
-        audio_core::resolve_stream_binding(context, handle, "destack.audio.stream.snapshot")?;
+        audio_core::resolve_stream_binding(context, handle, "destack.audio.stream.descriptor")?;
     unsafe {
-        *out = audio_core::stream_snapshot(context, &binding);
+        *out = audio_core::stream_descriptor(context, &binding);
     }
 
     Ok(())
@@ -257,6 +262,8 @@ pub(crate) unsafe fn destack_audio_stream_snapshot(
 /// Open one audio stream on one device.
 ///
 /// Create one host audio stream with explicit sample format, channel, and period configuration.
+/// Open options carry optional tuning hints and strict requirement lanes.
+/// Any unsatisfied requirement must fail open with `notSupported`.
 /// Buffering and latency behavior follow host backend contracts.
 ///
 /// # Platform
@@ -276,18 +283,20 @@ pub(crate) unsafe fn destack_audio_stream_open(
     out: *mut resource::AudioStreamHandle,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfig,
+    options: AudioStreamOpenOptions,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
     audio_core::validate_stream_config(config)?;
+    audio_core::validate_stream_open_options(options, "destack.audio.stream.open")?;
 
     let device_binding =
         audio_core::resolve_device_binding(context, device, "destack.audio.stream.open")?;
     let stream_device = audio_core::stream_device_from_binding(&device_binding);
-    audio_core::validate_stream_config_for_backend(
-        config,
+    audio_core::validate_stream_open_options_for_backend(
+        options,
         stream_device.backend,
         "destack.audio.stream.open",
     )?;
@@ -304,18 +313,105 @@ pub(crate) unsafe fn destack_audio_stream_open(
             &stream_device,
             config,
             device_binding.options.share_mode,
-            device_binding.options.backend_flags,
+            device_binding.options.flags,
         )?
     };
+
+    let satisfied_requirements = audio_core::satisfied_stream_requirements(&stream);
+    audio_core::ensure_stream_requirements_satisfied(
+        options.requirements,
+        satisfied_requirements,
+        "destack.audio.stream.open",
+    )?;
 
     let resource_id = context.runtime().resources.insert(
         ResourceEntry::new(ResourceKind::AudioStream)
             .with_label(audio_core::AUDIO_STREAM_RESOURCE_LABEL)
-            .with_payload(stream),
+            .with_payload(stream.clone()),
     );
+    let stream_handle = resource::AudioStreamHandle(resource_id);
+    audio_core::register_stream_binding_handle(&stream, stream_handle);
 
     unsafe {
-        *out = resource::AudioStreamHandle(resource_id);
+        *out = stream_handle;
+    }
+
+    Ok(())
+}
+
+/// Check one audio stream configuration for backend support.
+///
+/// Check one stream configuration and return backend negotiation results without opening one long-lived stream handle.
+/// Requirement flags are resolved into `satisfiedRequirements` and `unsatisfiedRequirements`.
+///
+/// # Platform
+/// Unix and Windows.
+/// Mirrors PortAudio `Pa_IsFormatSupported` intent and miniaudio native-format probing behavior.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.stream`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_audio_stream_support(
+    context: &BindingCallContext,
+    out: *mut AudioStreamSupport,
+    device: resource::AudioDeviceHandle,
+    config: AudioStreamConfig,
+    options: AudioStreamOpenOptions,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+
+    audio_core::validate_stream_config(config)?;
+    audio_core::validate_stream_open_options(options, "destack.audio.stream.support")?;
+
+    let device_binding =
+        audio_core::resolve_device_binding(context, device, "destack.audio.stream.support")?;
+    let stream_device = audio_core::stream_device_from_binding(&device_binding);
+    audio_core::validate_stream_open_options_for_backend(
+        options,
+        stream_device.backend,
+        "destack.audio.stream.support",
+    )?;
+
+    let stream = if stream_device.is_null {
+        audio_core::open_null_stream(
+            &stream_device,
+            device_binding.opened_direction,
+            config,
+            device_binding.options.share_mode,
+        )
+    } else {
+        audio_platform_core::open_host_stream(
+            &stream_device,
+            config,
+            device_binding.options.share_mode,
+            device_binding.options.flags,
+        )?
+    };
+
+    let mut descriptor = audio_core::stream_descriptor(context, &stream);
+    descriptor.requested_flags = options.flags;
+    descriptor.requested_requirements = options.requirements;
+    let effective_requirements = audio_core::satisfied_stream_requirements(&stream);
+    descriptor.effective_requirements = effective_requirements;
+
+    let unsatisfied_requirements =
+        AudioStreamRequirementFlags(options.requirements.0 & !effective_requirements.0);
+    let supported = unsatisfied_requirements.0 == 0;
+
+    unsafe {
+        *out = AudioStreamSupport {
+            supported,
+            descriptor,
+            satisfied_requirements: effective_requirements,
+            unsatisfied_requirements,
+        };
     }
 
     Ok(())
@@ -653,8 +749,16 @@ pub(crate) unsafe fn destack_audio_stream_start(
         state.running = false;
         state.paused = false;
         state.state = AudioStreamStateKind::Stopped;
+        let status_flags = state.status_flags;
         drop(state);
         binding.sync.wake.notify_all();
+        audio_core::publish_stream_event_native(
+            handle,
+            &binding,
+            AudioEventKind::StreamStateChanged,
+            status_flags,
+            0,
+        );
 
         return Err(error);
     }
@@ -668,8 +772,16 @@ pub(crate) unsafe fn destack_audio_stream_start(
     state.paused = false;
     state.state = AudioStreamStateKind::Running;
     state.last_backend_message = None;
+    let status_flags = state.status_flags;
     drop(state);
     binding.sync.wake.notify_all();
+    audio_core::publish_stream_event_native(
+        handle,
+        &binding,
+        AudioEventKind::StreamStateChanged,
+        status_flags,
+        0,
+    );
 
     Ok(())
 }
@@ -732,8 +844,16 @@ pub(crate) unsafe fn destack_audio_stream_pause(
     } else {
         AudioStreamStateKind::Running
     };
+    let status_flags = state.status_flags;
     drop(state);
     binding.sync.wake.notify_all();
+    audio_core::publish_stream_event_native(
+        handle,
+        &binding,
+        AudioEventKind::StreamStateChanged,
+        status_flags,
+        0,
+    );
 
     Ok(())
 }
@@ -789,16 +909,24 @@ pub(crate) unsafe fn destack_audio_stream_abort(
     state.state = AudioStreamStateKind::Stopped;
     state.playback_samples.clear();
     state.capture_samples.clear();
+    let status_flags = state.status_flags;
     drop(state);
     binding.sync.wake.notify_all();
+    audio_core::publish_stream_event_native(
+        handle,
+        &binding,
+        AudioEventKind::StreamStateChanged,
+        status_flags,
+        0,
+    );
 
     Ok(())
 }
 
-/// Read one stream state snapshot.
+/// Read one stream state.
 ///
-/// Read one point-in-time snapshot of stream run state and backend buffering metrics.
-/// Snapshot values are advisory and can change immediately after read.
+/// Read one point-in-time state sample of stream run state and backend buffering metrics.
+/// State values are advisory and can change immediately after read.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -890,15 +1018,24 @@ pub(crate) unsafe fn destack_audio_stream_stop(
     state.running = false;
     state.paused = false;
     state.state = AudioStreamStateKind::Stopped;
+    let status_flags = state.status_flags;
     drop(state);
     binding.sync.wake.notify_all();
+    audio_core::publish_stream_event_native(
+        handle,
+        &binding,
+        AudioEventKind::StreamStateChanged,
+        status_flags,
+        0,
+    );
 
     Ok(())
 }
 
-/// Read one stream timing snapshot.
+/// Read one stream timing sample.
 ///
-/// Read one timing snapshot that correlates stream position and host device time.
+/// Read one full timing sample that correlates stream position and available backend clocks.
+/// Missing optional lanes are reported through `has*` fields instead of `notSupported`.
 /// Timing values are intended for drift correction and synchronization.
 ///
 /// # Platform

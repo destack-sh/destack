@@ -8,17 +8,21 @@ use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::{
     AudioBackend, AudioBackendCapabilityFlags, AudioBackendDescriptor, AudioBackendDescriptorVm,
-    AudioBackendOpenFlags, AudioBackendSelectionPolicy, AudioChannelLayout, AudioClockDomain,
+    AudioBackendSelectionPolicy, AudioChannelLayout, AudioClockDomain, AudioClockQuality,
     AudioClockSnapshot, AudioClockSnapshotVm, AudioDeviceCapabilityFlags, AudioDeviceDescriptor,
     AudioDeviceDescriptorVm, AudioDeviceDirection, AudioDeviceListFlags, AudioDeviceListRequest,
     AudioDeviceListRequestVm, AudioDeviceOpenFlags, AudioDeviceOpenOptions,
-    AudioDeviceOpenOptionsVm, AudioEvent, AudioEventKind, AudioEventSubscriptionFlags,
+    AudioDeviceOpenOptionsVm, AudioEvent, AudioEventDeliveryMode, AudioEventKind,
+    AudioEventOverflowPolicy, AudioEventSource, AudioEventSubscriptionFlags,
     AudioEventSubscriptionOptions, AudioEventSubscriptionOptionsVm, AudioEventVm,
     AudioSampleFormat, AudioShareMode, AudioStreamAvailability, AudioStreamAvailabilityVm,
-    AudioStreamClockDomain, AudioStreamConfig, AudioStreamConfigVm, AudioStreamFlags,
-    AudioStreamSnapshot, AudioStreamSnapshotVm, AudioStreamState, AudioStreamStateKind,
-    AudioStreamStateVm, AudioStreamStatusFlags, AudioStreamTiming, AudioStreamTimingVm,
-    AudioStreamTransferMode, native as audio_native, vm as audio_vm,
+    AudioStreamClockDomain, AudioStreamConfig, AudioStreamConfigVm, AudioStreamDescriptor,
+    AudioStreamDescriptorVm, AudioStreamFlags, AudioStreamOpenOptions, AudioStreamOpenOptionsVm,
+    AudioStreamRequirementFlags, AudioStreamState, AudioStreamStateKind, AudioStreamStateVm,
+    AudioStreamStatusFlags, AudioStreamSupport, AudioStreamSupportVm, AudioStreamTiming,
+    AudioStreamTimingVm, AudioStreamTransferMode, AudioSupportedEventSubscriptionFlags,
+    AudioSupportedStreamClockDomains, AudioSupportedStreamFlags,
+    AudioSupportedStreamRequirementFlags, native as audio_native, vm as audio_vm,
 };
 use crate::platform::{
     NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmSlice, resource,
@@ -84,14 +88,11 @@ impl<'call> AudioHarnessContext<'call> {
 
     /// Read one timestamp in one selected clock domain.
     ///
-    /// Read one clock timestamp for the selected domain.
-    /// Domain availability and precision follow host backend behavior.
-    /// `AudioClockDomain.Device` requires one backend-wide device timeline and can return `notSupported` otherwise.
+    /// Read one clock timestamp for one process-wide domain.
+    /// Domain availability and precision follow host platform behavior.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Mirrors PortAudio `Pa_GetStreamTime` monotonic stream-time semantics.
-    /// Mirrors cubeb stream and latency clock snapshot semantics.
     /// Mirrors host monotonic and wall clock query semantics.
     ///
     /// # Errors
@@ -128,8 +129,10 @@ impl<'call> AudioHarnessContext<'call> {
 
     /// Read one stream clock snapshot.
     ///
-    /// Read one synchronized stream-position and clock timestamp snapshot.
+    /// Read one synchronized stream-position and selected clock-domain timestamp snapshot.
     /// Snapshot values are advisory and can change immediately after read.
+    /// This is the strict lane-select API.
+    /// For one full best-effort snapshot without lane-specific errors use `audio.stream.timing`.
     /// Domain-specific lanes like `InputAdc`, `OutputDac`, and `Device` can return `notSupported` when the opened stream does not expose them.
     ///
     /// # Platform
@@ -550,6 +553,58 @@ impl<'call> AudioHarnessContext<'call> {
         }
     }
 
+    /// Wait for one batch of audio events.
+    ///
+    /// Wait for pending events from one subscription queue and return up to `maxEvents` events.
+    /// Timeout uses nanoseconds in the runtime monotonic domain.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO queue-drain operations where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device.monitor`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_event_read_batch(
+        &mut self,
+        handle: resource::AudioEventHandle,
+        maxevents: u32,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<AudioEvent>, VmSlice<AudioEventVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = audio_vm::destack_audio_event_read_batch(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxevents,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<AudioEvent>>::uninit();
+                unsafe {
+                    audio_native::destack_audio_event_read_batch(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxevents,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Poll one audio event without blocking.
     ///
     /// Poll one pending event from one subscription queue.
@@ -592,6 +647,54 @@ impl<'call> AudioHarnessContext<'call> {
         }
     }
 
+    /// Poll one batch of audio events without blocking.
+    ///
+    /// Poll pending events from one subscription queue and return up to `maxEvents` events.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO nonblocking queue-drain operations where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.device.monitor`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_event_try_read_batch(
+        &mut self,
+        handle: resource::AudioEventHandle,
+        maxevents: u32,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<AudioEvent>, VmSlice<AudioEventVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = audio_vm::destack_audio_event_try_read_batch(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxevents,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<AudioEvent>>::uninit();
+                unsafe {
+                    audio_native::destack_audio_event_try_read_batch(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxevents,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Abort one audio stream immediately.
     ///
     /// Request one immediate stream stop without graceful drain.
@@ -621,9 +724,9 @@ impl<'call> AudioHarnessContext<'call> {
         }
     }
 
-    /// Read one stream immediate availability snapshot.
+    /// Read one stream immediate availability sample.
     ///
-    /// Read one point-in-time snapshot of immediately readable and writable frame counts.
+    /// Read one point-in-time sample of immediately readable and writable frame counts.
     /// Values are advisory and can change immediately after read.
     ///
     /// # Platform
@@ -695,6 +798,48 @@ impl<'call> AudioHarnessContext<'call> {
         }
     }
 
+    /// Read one stream negotiated configuration descriptor.
+    ///
+    /// Read one normalized view of negotiated stream parameters and backend mode.
+    /// Values reflect backend negotiation outcomes and can differ from open-time requests.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream-parameter query operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_descriptor(
+        &mut self,
+        handle: resource::AudioStreamHandle,
+    ) -> RuntimeResult<HarnessValue<AudioStreamDescriptor, AudioStreamDescriptorVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    audio_vm::destack_audio_stream_descriptor(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<AudioStreamDescriptor>::uninit();
+                unsafe {
+                    audio_native::destack_audio_stream_descriptor(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Drain one playback stream.
     ///
     /// Wait for one playback stream to consume currently queued samples.
@@ -759,6 +904,8 @@ impl<'call> AudioHarnessContext<'call> {
     /// Open one audio stream on one device.
     ///
     /// Create one host audio stream with explicit sample format, channel, and period configuration.
+    /// Open options carry optional tuning hints and strict requirement lanes.
+    /// Any unsatisfied requirement must fail open with `notSupported`.
     /// Buffering and latency behavior follow host backend contracts.
     ///
     /// # Platform
@@ -777,20 +924,24 @@ impl<'call> AudioHarnessContext<'call> {
         &mut self,
         device: resource::AudioDeviceHandle,
         config: HarnessValue<AudioStreamConfig, AudioStreamConfigVm>,
+        options: HarnessValue<AudioStreamOpenOptions, AudioStreamOpenOptionsVm>,
     ) -> RuntimeResult<resource::AudioStreamHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let config = config.into_vm("config")?;
+                let options = options.into_vm("options")?;
                 let out = audio_vm::destack_audio_stream_open(
                     self.call_context,
                     context,
                     device,
                     config,
+                    options,
                 )?;
                 Ok(out)
             }
             None => {
                 let config = config.into_native("config")?;
+                let options = options.into_native("options")?;
                 let mut out = std::mem::MaybeUninit::<resource::AudioStreamHandle>::uninit();
                 unsafe {
                     audio_native::destack_audio_stream_open(
@@ -798,6 +949,7 @@ impl<'call> AudioHarnessContext<'call> {
                         out.as_mut_ptr(),
                         device,
                         config,
+                        options,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -1039,48 +1191,6 @@ impl<'call> AudioHarnessContext<'call> {
         }
     }
 
-    /// Read one stream negotiated configuration snapshot.
-    ///
-    /// Read one normalized snapshot of negotiated stream parameters and backend mode.
-    /// Values reflect backend negotiation outcomes and can differ from open-time requests.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available stream-parameter query operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `audio.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
-    pub(crate) fn destack_audio_stream_snapshot(
-        &mut self,
-        handle: resource::AudioStreamHandle,
-    ) -> RuntimeResult<HarnessValue<AudioStreamSnapshot, AudioStreamSnapshotVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out =
-                    audio_vm::destack_audio_stream_snapshot(self.call_context, context, handle)?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<AudioStreamSnapshot>::uninit();
-                unsafe {
-                    audio_native::destack_audio_stream_snapshot(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
     /// Start one audio stream.
     ///
     /// Transition one opened stream to running state and begin host DMA or scheduler processing.
@@ -1110,10 +1220,10 @@ impl<'call> AudioHarnessContext<'call> {
         }
     }
 
-    /// Read one stream state snapshot.
+    /// Read one stream state.
     ///
-    /// Read one point-in-time snapshot of stream run state and backend buffering metrics.
-    /// Snapshot values are advisory and can change immediately after read.
+    /// Read one point-in-time state sample of stream run state and backend buffering metrics.
+    /// State values are advisory and can change immediately after read.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -1180,9 +1290,65 @@ impl<'call> AudioHarnessContext<'call> {
         }
     }
 
-    /// Read one stream timing snapshot.
+    /// Check one audio stream configuration for backend support.
     ///
-    /// Read one timing snapshot that correlates stream position and host device time.
+    /// Check one stream configuration and return backend negotiation results without opening one long-lived stream handle.
+    /// Requirement flags are resolved into `satisfiedRequirements` and `unsatisfiedRequirements`.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Mirrors PortAudio `Pa_IsFormatSupported` intent and miniaudio native-format probing behavior.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.stream`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_audio_stream_support(
+        &mut self,
+        device: resource::AudioDeviceHandle,
+        config: HarnessValue<AudioStreamConfig, AudioStreamConfigVm>,
+        options: HarnessValue<AudioStreamOpenOptions, AudioStreamOpenOptionsVm>,
+    ) -> RuntimeResult<HarnessValue<AudioStreamSupport, AudioStreamSupportVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let config = config.into_vm("config")?;
+                let options = options.into_vm("options")?;
+                let out = audio_vm::destack_audio_stream_support(
+                    self.call_context,
+                    context,
+                    device,
+                    config,
+                    options,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let config = config.into_native("config")?;
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<AudioStreamSupport>::uninit();
+                unsafe {
+                    audio_native::destack_audio_stream_support(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        device,
+                        config,
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one stream timing sample.
+    ///
+    /// Read one full timing sample that correlates stream position and available backend clocks.
+    /// Missing optional lanes are reported through `has*` fields instead of `notSupported`.
     /// Timing values are intended for drift correction and synchronization.
     ///
     /// # Platform

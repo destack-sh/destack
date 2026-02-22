@@ -55,6 +55,26 @@ pub(super) unsafe fn imm_device_enumerator_get_device(
     }
 }
 
+pub(super) unsafe fn imm_device_enumerator_register_endpoint_notification_callback(
+    enumerator: IMMDeviceEnumerator,
+    callback: *mut c_void,
+) -> HRESULT {
+    unsafe {
+        let vtable = *(enumerator as *mut *mut IMMDeviceEnumeratorVTable);
+        ((*vtable).register_endpoint_notification_callback)(enumerator, callback)
+    }
+}
+
+pub(super) unsafe fn imm_device_enumerator_unregister_endpoint_notification_callback(
+    enumerator: IMMDeviceEnumerator,
+    callback: *mut c_void,
+) -> HRESULT {
+    unsafe {
+        let vtable = *(enumerator as *mut *mut IMMDeviceEnumeratorVTable);
+        ((*vtable).unregister_endpoint_notification_callback)(enumerator, callback)
+    }
+}
+
 pub(super) unsafe fn imm_device_collection_get_count(
     collection: IMMDeviceCollection,
     out_count: *mut u32,

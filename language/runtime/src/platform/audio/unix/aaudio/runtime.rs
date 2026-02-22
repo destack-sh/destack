@@ -564,8 +564,8 @@ fn spawn_worker(
                 runtime.sample_rate,
                 runtime.period_frames,
                 callback_mono_ns,
-                Some(callback_mono_ns),
-                Some(callback_mono_ns),
+                None,
+                None,
             );
             drop(state);
 

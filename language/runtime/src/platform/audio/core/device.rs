@@ -1,18 +1,8 @@
 use super::*;
 use crate::platform::audio::host;
 
-/// Mask for all recognized backend-open flags.
-const KNOWN_BACKEND_OPEN_FLAGS_MASK: u64 = BACKEND_OPEN_WASAPI_EVENT_CALLBACK.0
-    | BACKEND_OPEN_REQUIRE_EXCLUSIVE.0
-    | BACKEND_OPEN_REQUIRE_LOOPBACK.0
-    | BACKEND_OPEN_JACK_NO_AUTOCONNECT.0
-    | BACKEND_OPEN_ALSA_NO_RESAMPLE.0
-    | BACKEND_OPEN_COREAUDIO_HOG_MODE.0
-    | BACKEND_OPEN_REQUIRE_HARDWARE_TIMESTAMPS.0
-    | BACKEND_OPEN_REQUIRE_BIT_EXACT_PCM.0;
-
 /// Return whether one backend exposes loopback streams in the common surface.
-fn backend_supports_loopback(backend: AudioBackend) -> bool {
+pub(crate) fn backend_supports_loopback(backend: AudioBackend) -> bool {
     matches!(
         backend,
         AudioBackend::Null
@@ -23,12 +13,164 @@ fn backend_supports_loopback(backend: AudioBackend) -> bool {
     )
 }
 
+/// Return whether one backend exposes exclusive-mode endpoints.
+fn backend_supports_exclusive_mode(backend: AudioBackend) -> bool {
+    matches!(
+        backend,
+        AudioBackend::Wasapi
+            | AudioBackend::CoreAudio
+            | AudioBackend::Asio
+            | AudioBackend::Alsa
+            | AudioBackend::AAudio
+    )
+}
+
 /// Return whether one backend exposes device-clock or hardware timestamp support.
-fn backend_supports_device_clock(backend: AudioBackend) -> bool {
+pub(crate) fn backend_supports_device_clock(backend: AudioBackend) -> bool {
     matches!(
         backend,
         AudioBackend::Null | AudioBackend::Wasapi | AudioBackend::CoreAudio
     )
+}
+
+/// Return one stream-option support mask for one backend.
+pub(crate) fn supported_backend_stream_flags(backend: AudioBackend) -> AudioSupportedStreamFlags {
+    let mut flags = KNOWN_SUPPORTED_STREAM_FLAGS_MASK;
+    if backend != AudioBackend::Asio {
+        flags &= !SUPPORTED_STREAM_FLAG_NON_INTERLEAVED.0;
+    }
+
+    AudioSupportedStreamFlags(flags)
+}
+
+/// Return one stream-requirement support mask for one backend.
+pub(crate) fn supported_backend_stream_requirement_flags(
+    backend: AudioBackend,
+) -> AudioSupportedStreamRequirementFlags {
+    let mut flags = 0u32;
+    if backend == AudioBackend::Asio {
+        flags |= SUPPORTED_STREAM_REQUIREMENT_NON_INTERLEAVED.0;
+    }
+
+    if backend == AudioBackend::CoreAudio || backend == AudioBackend::Wasapi {
+        flags |= SUPPORTED_STREAM_REQUIREMENT_SCHEDULED_WRITE.0;
+        flags |= SUPPORTED_STREAM_REQUIREMENT_HARDWARE_TIMESTAMPS.0;
+    }
+
+    flags |= SUPPORTED_STREAM_REQUIREMENT_PAUSE.0;
+
+    if backend == AudioBackend::Asio {
+        flags |= SUPPORTED_STREAM_REQUIREMENT_BIT_EXACT_PCM.0;
+    }
+
+    AudioSupportedStreamRequirementFlags(flags)
+}
+
+/// Return one event-subscription support mask for one backend.
+pub(crate) fn supported_backend_event_subscription_flags(
+    backend: AudioBackend,
+) -> AudioSupportedEventSubscriptionFlags {
+    let mut flags = KNOWN_SUPPORTED_EVENT_SUBSCRIPTION_FLAGS_MASK;
+    if backend == AudioBackend::Null {
+        return AudioSupportedEventSubscriptionFlags(flags);
+    }
+
+    if backend == AudioBackend::Jack {
+        flags &= !SUPPORTED_EVENT_SUBSCRIPTION_DEFAULT_ROUTE.0;
+    }
+
+    AudioSupportedEventSubscriptionFlags(flags)
+}
+
+/// Return one stream-clock support mask for one device descriptor.
+fn supported_stream_clock_domains_for_device(
+    info: &HostDeviceDescriptor,
+) -> AudioSupportedStreamClockDomains {
+    let mut flags = SUPPORTED_STREAM_CLOCK_MONOTONIC.0
+        | SUPPORTED_STREAM_CLOCK_WALL.0
+        | SUPPORTED_STREAM_CLOCK_CALLBACK.0;
+
+    let supports_hardware_clock = backend_supports_device_clock(info.backend);
+    if supports_hardware_clock {
+        flags |= SUPPORTED_STREAM_CLOCK_DEVICE.0;
+    }
+
+    if supports_hardware_clock {
+        if matches!(
+            info.direction,
+            AudioDeviceDirection::Capture
+                | AudioDeviceDirection::Duplex
+                | AudioDeviceDirection::Loopback
+        ) {
+            flags |= SUPPORTED_STREAM_CLOCK_INPUT_ADC.0;
+        }
+
+        if matches!(
+            info.direction,
+            AudioDeviceDirection::Playback
+                | AudioDeviceDirection::Duplex
+                | AudioDeviceDirection::Loopback
+        ) {
+            flags |= SUPPORTED_STREAM_CLOCK_OUTPUT_DAC.0;
+        }
+    }
+
+    AudioSupportedStreamClockDomains(flags)
+}
+
+/// Return one device-open support mask for one device descriptor.
+pub(crate) fn supported_backend_device_open_flags(backend: AudioBackend) -> AudioDeviceOpenFlags {
+    let mut flags = DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE.0
+        | DEVICE_OPEN_LOW_LATENCY.0
+        | DEVICE_OPEN_REALTIME_THREAD.0;
+
+    if backend == AudioBackend::Wasapi {
+        flags |= DEVICE_OPEN_RAW.0;
+    }
+
+    AudioDeviceOpenFlags(flags)
+}
+
+/// Return one device-list support mask for one backend.
+pub(crate) fn supported_backend_device_list_flags(backend: AudioBackend) -> AudioDeviceListFlags {
+    let mut flags = DEVICE_LIST_INCLUDE_DISCONNECTED.0;
+
+    if backend_supports_loopback(backend) {
+        flags |= DEVICE_LIST_INCLUDE_LOOPBACK.0;
+    }
+
+    if backend == AudioBackend::Wasapi {
+        flags |= DEVICE_LIST_INCLUDE_RAW.0;
+    }
+
+    AudioDeviceListFlags(flags)
+}
+
+/// Return one stream-clock support mask for one backend.
+pub(crate) fn supported_backend_stream_clock_domains(
+    backend: AudioBackend,
+) -> AudioSupportedStreamClockDomains {
+    let mut flags = SUPPORTED_STREAM_CLOCK_MONOTONIC.0
+        | SUPPORTED_STREAM_CLOCK_WALL.0
+        | SUPPORTED_STREAM_CLOCK_CALLBACK.0;
+
+    if backend_supports_device_clock(backend) {
+        flags |= SUPPORTED_STREAM_CLOCK_DEVICE.0;
+        flags |= SUPPORTED_STREAM_CLOCK_INPUT_ADC.0;
+        flags |= SUPPORTED_STREAM_CLOCK_OUTPUT_DAC.0;
+    }
+
+    AudioSupportedStreamClockDomains(flags)
+}
+
+/// Return one device-open support mask for one device descriptor.
+fn supported_device_open_flags_for_device(info: &HostDeviceDescriptor) -> AudioDeviceOpenFlags {
+    let mut flags = supported_backend_device_open_flags(info.backend).0;
+    if !info.is_raw {
+        flags &= !DEVICE_OPEN_RAW.0;
+    }
+
+    AudioDeviceOpenFlags(flags)
 }
 
 /// Build one synthetic null device entry.
@@ -47,15 +189,19 @@ pub(crate) fn null_device(direction: AudioDeviceDirection) -> HostDeviceDescript
         | DEVICE_CAPABILITY_INTERRUPTION_EVENTS.0
         | DEVICE_CAPABILITY_REROUTE_EVENTS.0
         | DEVICE_CAPABILITY_BACKEND_DISCONNECT_EVENTS.0;
+
     if direction == AudioDeviceDirection::Playback || direction == AudioDeviceDirection::Duplex {
         capability_flags |= DEVICE_CAPABILITY_SCHEDULED_WRITE.0;
     }
+
     if direction == AudioDeviceDirection::Loopback {
         capability_flags |= DEVICE_CAPABILITY_LOOPBACK.0;
     }
+
     if direction == AudioDeviceDirection::Duplex {
         capability_flags |= DEVICE_CAPABILITY_FULL_DUPLEX.0;
     }
+
     let supported_directions = match direction {
         AudioDeviceDirection::Playback => DIRECTION_MASK_PLAYBACK,
         AudioDeviceDirection::Capture => DIRECTION_MASK_CAPTURE,
@@ -96,14 +242,9 @@ pub(crate) fn null_device(direction: AudioDeviceDirection) -> HostDeviceDescript
     }
 }
 
-/// Return whether one backend-open flag bit is enabled.
-fn backend_open_flag_enabled(flags: AudioBackendOpenFlags, flag: AudioBackendOpenFlags) -> bool {
-    (flags.0 & flag.0) != 0
-}
-
 /// Validate and normalize one device-open option payload for one backend.
 pub(crate) fn normalize_device_open_options(
-    mut options: AudioDeviceOpenOptions,
+    options: AudioDeviceOpenOptions,
     backend: AudioBackend,
     operation: &'static str,
 ) -> RuntimeResult<AudioDeviceOpenOptions> {
@@ -117,107 +258,50 @@ pub(crate) fn normalize_device_open_options(
         .boxed());
     }
 
-    // reject device-open flags that are not wired in host implementations yet
-    if options.flags.0 != 0 {
+    // gate raw mode to backends that expose raw endpoints
+    if (options.flags.0 & DEVICE_OPEN_RAW.0) != 0 && backend != AudioBackend::Wasapi {
         return Err(RuntimeError::from(PlatformError::not_supported(format!(
-            "{operation} device open flags are not implemented yet",
-        )))
-        .boxed());
-    }
-
-    // reject unknown backend flag bits
-    let unknown_flags = options.backend_flags.0 & !KNOWN_BACKEND_OPEN_FLAGS_MASK;
-    if unknown_flags != 0 {
-        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "options.backendFlags",
-            format!("options.backendFlags contains unknown bits: 0x{unknown_flags:016x}"),
-        ))
-        .boxed());
-    }
-
-    // gate backend-specific flags to the backends that implement them
-    if backend_open_flag_enabled(options.backend_flags, BACKEND_OPEN_WASAPI_EVENT_CALLBACK)
-        && backend != AudioBackend::Wasapi
-    {
-        return Err(RuntimeError::from(PlatformError::not_supported(format!(
-            "{operation} backend flag: wasapi event callback",
-        )))
-        .boxed());
-    }
-
-    // gate backend-specific flags to the backends that implement them
-    if backend_open_flag_enabled(options.backend_flags, BACKEND_OPEN_JACK_NO_AUTOCONNECT)
-        && backend != AudioBackend::Jack
-    {
-        return Err(RuntimeError::from(PlatformError::not_supported(format!(
-            "{operation} backend flag: jack no autoconnect",
-        )))
-        .boxed());
-    }
-
-    if backend_open_flag_enabled(options.backend_flags, BACKEND_OPEN_ALSA_NO_RESAMPLE)
-        && backend != AudioBackend::Alsa
-    {
-        return Err(RuntimeError::from(PlatformError::not_supported(format!(
-            "{operation} backend flag: alsa no resample",
-        )))
-        .boxed());
-    }
-
-    if backend_open_flag_enabled(options.backend_flags, BACKEND_OPEN_COREAUDIO_HOG_MODE)
-        && backend != AudioBackend::CoreAudio
-    {
-        return Err(RuntimeError::from(PlatformError::not_supported(format!(
-            "{operation} backend flag: coreaudio hog mode",
-        )))
-        .boxed());
-    }
-
-    if backend_open_flag_enabled(
-        options.backend_flags,
-        BACKEND_OPEN_REQUIRE_HARDWARE_TIMESTAMPS,
-    ) {
-        if !backend_supports_device_clock(backend) {
-            return Err(RuntimeError::from(PlatformError::not_supported(format!(
-                "{operation} backend flag: hardware timestamps",
-            )))
-            .boxed());
-        }
-    }
-
-    if backend_open_flag_enabled(options.backend_flags, BACKEND_OPEN_REQUIRE_BIT_EXACT_PCM) {
-        return Err(RuntimeError::from(PlatformError::not_supported(format!(
-            "{operation} backend flag: bit exact pcm",
+            "{operation} device open flag: raw",
         )))
         .boxed());
     }
 
     // require explicit loopback direction for loopback-only requests
-    if backend_open_flag_enabled(options.backend_flags, BACKEND_OPEN_REQUIRE_LOOPBACK) {
-        if options.direction != AudioDeviceDirection::Loopback {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options.direction",
-                "loopback backend flag requires options.direction loopback",
-            ))
-            .boxed());
-        }
-
-        if !backend_supports_loopback(backend) {
-            return Err(RuntimeError::from(PlatformError::not_supported(format!(
-                "{operation} backend flag: loopback",
-            )))
-            .boxed());
-        }
+    if options.direction == AudioDeviceDirection::Loopback && !backend_supports_loopback(backend) {
+        return Err(RuntimeError::from(PlatformError::not_supported(format!(
+            "{operation} loopback direction",
+        )))
+        .boxed());
     }
 
-    // force exclusive share mode for exclusive and hog-mode requests
-    if backend_open_flag_enabled(options.backend_flags, BACKEND_OPEN_REQUIRE_EXCLUSIVE)
-        || backend_open_flag_enabled(options.backend_flags, BACKEND_OPEN_COREAUDIO_HOG_MODE)
+    // gate exclusive mode to backends that expose it
+    if options.share_mode == AudioShareMode::Exclusive && !backend_supports_exclusive_mode(backend)
     {
-        options.share_mode = AudioShareMode::Exclusive;
+        return Err(RuntimeError::from(PlatformError::not_supported(format!(
+            "{operation} share mode: exclusive",
+        )))
+        .boxed());
     }
 
     Ok(options)
+}
+
+/// Validate that requested device-open flags are supported by the target device row.
+pub(crate) fn ensure_device_open_flags_supported(
+    options: AudioDeviceOpenOptions,
+    info: &HostDeviceDescriptor,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let supported_flags = supported_device_open_flags_for_device(info);
+    let unsupported_flags = options.flags.0 & !supported_flags.0;
+    if unsupported_flags != 0 {
+        return Err(RuntimeError::from(PlatformError::not_supported(format!(
+            "{operation} device open flags unsupported by device: 0x{unsupported_flags:08x}",
+        )))
+        .boxed());
+    }
+
+    Ok(())
 }
 
 /// Enumerate all devices visible to the request.
@@ -234,19 +318,22 @@ pub(crate) fn enumerate_devices_for_request(
         .boxed());
     }
 
-    // reject list flags that are not wired in host implementations yet
-    if request.flags.0 != 0 {
-        return Err(RuntimeError::from(PlatformError::not_supported(
-            "destack.audio.device.list flags",
-        ))
-        .boxed());
-    }
-
     let backend = host::resolve_requested_backend(
         request.backend,
         request.backend_policy,
         "destack.audio.device.list",
     )?;
+    let supported_list_flags = supported_backend_device_list_flags(backend);
+    let unsupported_list_flags = request.flags.0 & !supported_list_flags.0;
+    if unsupported_list_flags != 0 {
+        return Err(RuntimeError::from(PlatformError::not_supported(format!(
+            "destack.audio.device.list unsupported request flags: 0x{unsupported_list_flags:08x}",
+        )))
+        .boxed());
+    }
+    let include_disconnected = (request.flags.0 & DEVICE_LIST_INCLUDE_DISCONNECTED.0) != 0;
+    let include_raw = (request.flags.0 & DEVICE_LIST_INCLUDE_RAW.0) != 0;
+    let include_loopback = (request.flags.0 & DEVICE_LIST_INCLUDE_LOOPBACK.0) != 0;
 
     let mut devices = Vec::new();
 
@@ -260,11 +347,23 @@ pub(crate) fn enumerate_devices_for_request(
     }
 
     let include_direction = |device: &HostDeviceDescriptor| -> bool {
+        if !include_disconnected && !device.connected {
+            return false;
+        }
+
+        if !include_raw && device.is_raw {
+            return false;
+        }
+
         match request.direction {
             AudioDeviceDirection::Playback => {
                 supports_device_open_direction(device, AudioDeviceDirection::Playback)
             }
             AudioDeviceDirection::Capture => {
+                if device.direction == AudioDeviceDirection::Loopback && !include_loopback {
+                    return false;
+                }
+
                 supports_device_open_direction(device, AudioDeviceDirection::Capture)
             }
             AudioDeviceDirection::Duplex => {
@@ -326,6 +425,15 @@ pub(crate) fn descriptor_from_info(
         is_default_capture: info.is_default_capture,
         is_default_loopback: info.is_default_loopback,
         capability_flags: info.capability_flags,
+        supported_device_open_flags: supported_device_open_flags_for_device(info),
+        supported_stream_flags: supported_backend_stream_flags(info.backend),
+        supported_stream_requirement_flags: supported_backend_stream_requirement_flags(
+            info.backend,
+        ),
+        supported_event_subscription_flags: supported_backend_event_subscription_flags(
+            info.backend,
+        ),
+        supported_stream_clock_domains: supported_stream_clock_domains_for_device(info),
         preferred_sample_rate: info.preferred_sample_rate,
         min_sample_rate: info.min_sample_rate,
         max_sample_rate: info.max_sample_rate,
@@ -347,9 +455,9 @@ pub(crate) fn descriptor_from_binding(
     context: &BindingCallContext,
     binding: &AudioDeviceBinding,
 ) -> AudioDeviceDescriptor {
-    let mut descriptor = descriptor_from_info(context, &binding.info);
-    descriptor.direction = binding.opened_direction;
-    descriptor
+    let mut info = binding.info.clone();
+    info.direction = binding.opened_direction;
+    descriptor_from_info(context, &info)
 }
 
 /// Build one stream-device descriptor using the handle open direction.

@@ -1,5 +1,6 @@
 use super::*;
 use crate::platform::audio::host;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Mask for all recognized subscription flags.
 const KNOWN_EVENT_SUBSCRIPTION_FLAGS_MASK: u32 = EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0
@@ -13,6 +14,426 @@ const KNOWN_EVENT_SUBSCRIPTION_FLAGS_MASK: u32 = EVENT_SUBSCRIBE_DEVICE_HOTPLUG.
 /// Mask for flags that require stream tracking.
 const STREAM_EVENT_SUBSCRIPTION_FLAGS_MASK: u32 =
     EVENT_SUBSCRIBE_INTERRUPTION.0 | EVENT_SUBSCRIBE_BACKEND.0 | EVENT_SUBSCRIBE_STREAM.0;
+/// Mask for flags that request device-level event tracking.
+const DEVICE_EVENT_SUBSCRIPTION_FLAGS_MASK: u32 = EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0
+    | EVENT_SUBSCRIBE_DEFAULT_ROUTE.0
+    | EVENT_SUBSCRIBE_FORMAT_CHANGE.0
+    | EVENT_SUBSCRIBE_REROUTE.0;
+
+/// Shared registry for active event subscriptions used by native event delivery.
+static EVENT_BINDING_REGISTRY: OnceLock<Mutex<Vec<std::sync::Weak<Mutex<AudioEventBinding>>>>> =
+    OnceLock::new();
+
+/// Shared registry mapping stream bindings to stream handles for native event delivery.
+static STREAM_BINDING_REGISTRY: OnceLock<Mutex<HashMap<usize, resource::AudioStreamHandle>>> =
+    OnceLock::new();
+/// Shared registry for backend device-monitor worker threads.
+static DEVICE_MONITOR_REGISTRY: OnceLock<Mutex<HashMap<AudioBackend, DeviceMonitorWorker>>> =
+    OnceLock::new();
+
+/// One backend device-monitor worker payload.
+struct DeviceMonitorWorker {
+    /// Stop signal shared with the worker thread.
+    stop: Arc<AtomicBool>,
+    /// Running monitor thread handle.
+    handle: JoinHandle<()>,
+}
+
+/// Return one shared event-binding registry.
+fn event_binding_registry() -> &'static Mutex<Vec<std::sync::Weak<Mutex<AudioEventBinding>>>> {
+    EVENT_BINDING_REGISTRY.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+/// Return one shared stream-handle registry.
+fn stream_binding_registry() -> &'static Mutex<HashMap<usize, resource::AudioStreamHandle>> {
+    STREAM_BINDING_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Return one shared backend device-monitor registry.
+fn device_monitor_registry() -> &'static Mutex<HashMap<AudioBackend, DeviceMonitorWorker>> {
+    DEVICE_MONITOR_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Return one stable identity for one stream binding pointer.
+fn stream_binding_identity(binding: &AudioStreamBinding) -> usize {
+    binding as *const AudioStreamBinding as usize
+}
+
+/// Return one subscription flag selector for one stream event kind.
+fn subscription_flag_for_stream_event(kind: AudioEventKind) -> Option<AudioEventSubscriptionFlags> {
+    match kind {
+        AudioEventKind::StreamStateChanged
+        | AudioEventKind::StreamXRun
+        | AudioEventKind::StreamDeviceChanged => Some(EVENT_SUBSCRIBE_STREAM),
+        AudioEventKind::InterruptionBegan | AudioEventKind::InterruptionEnded => {
+            Some(EVENT_SUBSCRIBE_INTERRUPTION)
+        }
+        AudioEventKind::BackendDisconnected | AudioEventKind::BackendReset => {
+            Some(EVENT_SUBSCRIBE_BACKEND)
+        }
+        _ => None,
+    }
+}
+
+/// Return the native-only event-subscription support mask for one backend.
+fn native_only_supported_subscription_flags(backend: AudioBackend) -> u32 {
+    let mut flags = EVENT_SUBSCRIBE_STREAM.0;
+
+    if backend == AudioBackend::CoreAudio {
+        flags |= EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0;
+        flags |= EVENT_SUBSCRIBE_DEFAULT_ROUTE.0;
+        flags |= EVENT_SUBSCRIBE_FORMAT_CHANGE.0;
+        flags |= EVENT_SUBSCRIBE_REROUTE.0;
+    }
+
+    if backend == AudioBackend::Wasapi {
+        flags |= EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0;
+        flags |= EVENT_SUBSCRIBE_DEFAULT_ROUTE.0;
+        flags |= EVENT_SUBSCRIBE_FORMAT_CHANGE.0;
+        flags |= EVENT_SUBSCRIBE_REROUTE.0;
+    }
+
+    if backend == AudioBackend::Jack {
+        flags |= EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0;
+        flags |= EVENT_SUBSCRIBE_FORMAT_CHANGE.0;
+        flags |= EVENT_SUBSCRIBE_REROUTE.0;
+    }
+
+    if backend == AudioBackend::PulseAudio || backend == AudioBackend::PipeWire {
+        flags |= EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0;
+        flags |= EVENT_SUBSCRIBE_DEFAULT_ROUTE.0;
+        flags |= EVENT_SUBSCRIBE_FORMAT_CHANGE.0;
+        flags |= EVENT_SUBSCRIBE_REROUTE.0;
+    }
+
+    if backend == AudioBackend::Alsa || backend == AudioBackend::Asio {
+        flags |= EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0;
+    }
+
+    if backend == AudioBackend::AAudio || backend == AudioBackend::OpenSLES {
+        flags |= EVENT_SUBSCRIBE_BACKEND.0;
+    }
+
+    flags
+}
+
+/// Return whether one subscription tracks device-level events.
+fn tracks_device_events(binding: &AudioEventBinding) -> bool {
+    if binding.options.flags.0 == 0 {
+        return true;
+    }
+
+    (binding.options.flags.0 & DEVICE_EVENT_SUBSCRIPTION_FLAGS_MASK) != 0
+}
+
+/// Return active bindings that accept native device events for one backend.
+fn active_native_device_publish_bindings(
+    backend: AudioBackend,
+) -> Vec<Arc<Mutex<AudioEventBinding>>> {
+    let mut registry = event_binding_registry()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let mut bindings = Vec::new();
+    registry.retain(|value| {
+        let Some(binding) = value.upgrade() else {
+            return false;
+        };
+
+        let is_active = {
+            let binding_guard = binding.lock().unwrap_or_else(|error| error.into_inner());
+            binding_guard.options.backend == backend
+                && binding_guard.options.delivery_mode != AudioEventDeliveryMode::PollOnly
+                && tracks_device_events(&binding_guard)
+        };
+        if is_active {
+            bindings.push(binding);
+        }
+
+        true
+    });
+
+    bindings
+}
+
+/// Return whether one active native-only device subscription exists for one backend.
+fn has_native_device_subscription(backend: AudioBackend) -> bool {
+    let mut registry = event_binding_registry()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    registry.retain(|value| value.strong_count() > 0);
+
+    for value in registry.iter() {
+        let Some(binding) = value.upgrade() else {
+            continue;
+        };
+
+        let binding = binding.lock().unwrap_or_else(|error| error.into_inner());
+        if binding.options.backend != backend {
+            continue;
+        }
+
+        if binding.options.delivery_mode != AudioEventDeliveryMode::NativeOnly {
+            continue;
+        }
+
+        if !tracks_device_events(&binding) {
+            continue;
+        }
+
+        return true;
+    }
+
+    false
+}
+
+/// Return active native-only device subscription bindings for one backend.
+fn active_native_device_bindings(backend: AudioBackend) -> Vec<Arc<Mutex<AudioEventBinding>>> {
+    let mut registry = event_binding_registry()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let mut bindings = Vec::new();
+    registry.retain(|value| {
+        let Some(binding) = value.upgrade() else {
+            return false;
+        };
+
+        let is_active = {
+            let binding_guard = binding.lock().unwrap_or_else(|error| error.into_inner());
+            binding_guard.options.backend == backend
+                && binding_guard.options.delivery_mode == AudioEventDeliveryMode::NativeOnly
+                && tracks_device_events(&binding_guard)
+        };
+        if is_active {
+            bindings.push(binding);
+        }
+
+        true
+    });
+
+    bindings
+}
+
+/// Return whether one binding refresh interval has elapsed for one timestamp.
+fn refresh_due(binding: &AudioEventBinding, now: u64) -> bool {
+    let poll_interval = binding.options.poll_interval_ns.max(1);
+    now.saturating_sub(binding.last_refresh_ns) >= poll_interval
+}
+
+/// Run one native-only device-monitor worker loop.
+fn run_native_only_device_monitor(backend: AudioBackend, stop: Arc<AtomicBool>) {
+    let sleep_interval =
+        Duration::from_nanos(EVENT_POLL_INTERVAL_NS.max(MIN_EVENT_POLL_INTERVAL_NS));
+
+    loop {
+        if stop.load(Ordering::Relaxed) {
+            return;
+        }
+
+        let active_bindings = active_native_device_bindings(backend);
+        if active_bindings.is_empty() {
+            thread::sleep(sleep_interval);
+            continue;
+        }
+
+        let now = host_monotonic_nanos();
+        let snapshot = monitor_snapshot(backend);
+
+        if let Ok(snapshot) = snapshot {
+            for binding in active_bindings {
+                let mut binding_guard = binding.lock().unwrap_or_else(|error| error.into_inner());
+
+                if !refresh_due(&binding_guard, now) {
+                    continue;
+                }
+
+                refresh_device_events_from_snapshot(
+                    &mut binding_guard,
+                    &snapshot,
+                    now,
+                    AudioEventSource::SyntheticPoll,
+                );
+            }
+        }
+
+        thread::sleep(sleep_interval);
+    }
+}
+
+/// Refresh one backend device-monitor worker based on active native-only subscriptions.
+pub(crate) fn refresh_backend_device_monitor(backend: AudioBackend) -> RuntimeResult<()> {
+    if host::backend_native_device_events_supported(backend) {
+        let has_native_bindings = !active_native_device_publish_bindings(backend).is_empty();
+        if has_native_bindings {
+            host::start_backend_native_device_events(backend)?;
+        } else {
+            host::stop_backend_native_device_events(backend);
+        }
+    }
+
+    // null backend always uses runtime synthetic device rows and does not need one worker thread
+    if backend == AudioBackend::Null {
+        return Ok(());
+    }
+
+    let requires_worker = has_native_device_subscription(backend);
+    let mut registry = device_monitor_registry()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+
+    // start one worker when a native-only device subscription first appears
+    if requires_worker && !registry.contains_key(&backend) {
+        let stop = Arc::new(AtomicBool::new(false));
+        let stop_signal = Arc::clone(&stop);
+        let handle = thread::spawn(move || run_native_only_device_monitor(backend, stop_signal));
+        registry.insert(backend, DeviceMonitorWorker { stop, handle });
+        return Ok(());
+    }
+
+    // stop and remove the worker when no matching subscriptions remain
+    if !requires_worker && let Some(worker) = registry.remove(&backend) {
+        worker.stop.store(true, Ordering::Relaxed);
+        let _ = worker.handle.join();
+    }
+
+    Ok(())
+}
+
+/// Publish one backend-native device snapshot diff to active subscriptions.
+pub(crate) fn publish_device_snapshot_native(backend: AudioBackend) {
+    let now = host_monotonic_nanos();
+    let snapshot = match monitor_snapshot(backend) {
+        Ok(snapshot) => snapshot,
+        Err(_) => return,
+    };
+
+    for binding in active_native_device_publish_bindings(backend) {
+        let mut binding_guard = binding.lock().unwrap_or_else(|error| error.into_inner());
+        refresh_device_events_from_snapshot(
+            &mut binding_guard,
+            &snapshot,
+            now,
+            AudioEventSource::Native,
+        );
+    }
+}
+
+/// Register one opened event binding for native event delivery.
+pub(crate) fn register_event_binding(binding: &Arc<Mutex<AudioEventBinding>>) {
+    let mut registry = event_binding_registry()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    registry.push(Arc::downgrade(binding));
+}
+
+/// Unregister one closed event binding from native event delivery.
+pub(crate) fn unregister_event_binding(binding: &Arc<Mutex<AudioEventBinding>>) {
+    let binding_identity = Arc::as_ptr(binding) as usize;
+    let mut registry = event_binding_registry()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    registry.retain(|value| {
+        let Some(active_binding) = value.upgrade() else {
+            return false;
+        };
+
+        let active_identity = Arc::as_ptr(&active_binding) as usize;
+        active_identity != binding_identity
+    });
+}
+
+/// Register one opened stream binding for native event delivery.
+pub(crate) fn register_stream_binding_handle(
+    binding: &Arc<AudioStreamBinding>,
+    handle: resource::AudioStreamHandle,
+) {
+    let binding_identity = Arc::as_ptr(binding) as usize;
+    let mut registry = stream_binding_registry()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    registry.insert(binding_identity, handle);
+}
+
+/// Unregister one closed stream binding from native event delivery.
+pub(crate) fn unregister_stream_binding_handle(binding: &AudioStreamBinding) {
+    let binding_identity = stream_binding_identity(binding);
+    let mut registry = stream_binding_registry()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    registry.remove(&binding_identity);
+}
+
+/// Return one registered stream handle for one stream binding when present.
+pub(crate) fn stream_handle_for_binding(
+    binding: &AudioStreamBinding,
+) -> Option<resource::AudioStreamHandle> {
+    let binding_identity = stream_binding_identity(binding);
+    let registry = stream_binding_registry()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    registry.get(&binding_identity).copied()
+}
+
+/// Publish one native stream event to matching active subscriptions.
+pub(crate) fn publish_stream_event_native(
+    stream: resource::AudioStreamHandle,
+    stream_binding: &AudioStreamBinding,
+    kind: AudioEventKind,
+    status_flags: AudioStreamStatusFlags,
+    xrun_count_delta: u64,
+) {
+    let Some(subscription_flag) = subscription_flag_for_stream_event(kind) else {
+        return;
+    };
+
+    let timestamp_ns = host_monotonic_nanos();
+    let mut registry = event_binding_registry()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    registry.retain(|value| {
+        let Some(active_binding) = value.upgrade() else {
+            return false;
+        };
+
+        let mut active_binding = active_binding
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if active_binding.options.delivery_mode == AudioEventDeliveryMode::PollOnly {
+            return true;
+        }
+
+        if active_binding.options.backend != stream_binding.device.backend {
+            return true;
+        }
+
+        if !active_binding.options.has_stream || active_binding.options.stream != stream {
+            return true;
+        }
+
+        if !event_subscription_enabled(&active_binding, subscription_flag) {
+            return true;
+        }
+
+        push_event_record(
+            &mut active_binding,
+            AudioEventRecord {
+                kind,
+                timestamp_ns,
+                sequence: 0,
+                dropped_count: 0,
+                source: AudioEventSource::Native,
+                backend: stream_binding.device.backend,
+                device_id: stream_binding.device.id.clone(),
+                flags: 0,
+                status_flags,
+                xrun_count_delta,
+                has_stream: true,
+                stream,
+            },
+        );
+
+        true
+    });
+}
 
 /// One monitor snapshot used to compare event state.
 struct MonitorSnapshot {
@@ -126,6 +547,7 @@ pub(crate) fn normalize_event_subscription_options(
     let backend =
         host::resolve_requested_backend(options.backend, options.backend_policy, operation)?;
     options.backend = backend;
+    let supported_flags = supported_backend_event_subscription_flags(backend);
 
     // reject unknown subscription flags
     let unknown_flags = options.flags.0 & !KNOWN_EVENT_SUBSCRIPTION_FLAGS_MASK;
@@ -137,6 +559,15 @@ pub(crate) fn normalize_event_subscription_options(
         .boxed());
     }
 
+    // reject subscription flags that the selected backend does not advertise
+    let unsupported_flags = options.flags.0 & !supported_flags.0;
+    if unsupported_flags != 0 {
+        return Err(RuntimeError::from(PlatformError::not_supported(format!(
+            "{operation} unsupported subscription flags for backend {backend:?}: 0x{unsupported_flags:08x}",
+        )))
+        .boxed());
+    }
+
     // require explicit stream target when stream related flags are requested
     let stream_flags = options.flags.0 & STREAM_EVENT_SUBSCRIPTION_FLAGS_MASK;
     if stream_flags != 0 && !options.has_stream {
@@ -145,6 +576,23 @@ pub(crate) fn normalize_event_subscription_options(
             "stream subscription flags require options.hasStream true",
         ))
         .boxed());
+    }
+
+    // enforce native-only delivery contracts by backend capability
+    if options.delivery_mode == AudioEventDeliveryMode::NativeOnly {
+        let requested_flags = if options.flags.0 == 0 {
+            KNOWN_EVENT_SUBSCRIPTION_FLAGS_MASK
+        } else {
+            options.flags.0
+        };
+        let native_supported_flags = native_only_supported_subscription_flags(backend);
+        let unsupported_native_flags = requested_flags & !native_supported_flags;
+        if unsupported_native_flags != 0 {
+            return Err(RuntimeError::from(PlatformError::not_supported(format!(
+                "{operation} native-only delivery unsupported subscription flags for backend {backend:?}: 0x{unsupported_native_flags:08x}",
+            )))
+            .boxed());
+        }
     }
 
     // ensure the stream target exists and matches the selected backend
@@ -206,20 +654,55 @@ pub(crate) fn build_event_binding(
         previous_stream_device_id,
         previous_stream_xrun_count,
         last_refresh_ns: host_monotonic_nanos(),
+        next_sequence: 1,
+        dropped_count: 0,
+        overflow_error_pending: false,
         pending: VecDeque::new(),
     })
 }
 
 /// Push one device-level monitor event.
-fn push_event_record(binding: &mut AudioEventBinding, event: AudioEventRecord) {
+fn push_event_record(binding: &mut AudioEventBinding, mut event: AudioEventRecord) {
     let queue_capacity = binding.options.queue_capacity.max(1) as usize;
 
-    // keep one bounded queue by dropping the oldest events first
+    // enforce queue capacity according to overflow policy
     while binding.pending.len() >= queue_capacity {
-        let _ = binding.pending.pop_front();
+        match binding.options.overflow_policy {
+            AudioEventOverflowPolicy::DropOldest => {
+                let _ = binding.pending.pop_front();
+                binding.dropped_count = binding.dropped_count.saturating_add(1);
+            }
+            AudioEventOverflowPolicy::DropNewest | AudioEventOverflowPolicy::Error => {
+                binding.dropped_count = binding.dropped_count.saturating_add(1);
+                if binding.options.overflow_policy == AudioEventOverflowPolicy::Error {
+                    binding.overflow_error_pending = true;
+                }
+                return;
+            }
+        }
     }
 
+    event.sequence = binding.next_sequence;
+    binding.next_sequence = binding.next_sequence.saturating_add(1);
+    event.dropped_count = binding.dropped_count;
+
     binding.pending.push_back(event);
+}
+
+/// Return one pending queue-overflow error and clear the latched overflow state.
+pub(crate) fn take_event_overflow_error(
+    binding: &mut AudioEventBinding,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    if !binding.overflow_error_pending {
+        return Ok(());
+    }
+
+    binding.overflow_error_pending = false;
+    Err(audio_busy(
+        operation,
+        "event queue overflowed with overflow policy error",
+    ))
 }
 
 /// Push one device-level monitor event.
@@ -229,12 +712,16 @@ fn push_device_event(
     timestamp_ns: u64,
     backend: AudioBackend,
     device_id: String,
+    source: AudioEventSource,
 ) {
     push_event_record(
         binding,
         AudioEventRecord {
             kind,
             timestamp_ns,
+            sequence: 0,
+            dropped_count: 0,
+            source,
             backend,
             device_id,
             flags: 0,
@@ -262,6 +749,9 @@ fn push_stream_event(
         AudioEventRecord {
             kind,
             timestamp_ns,
+            sequence: 0,
+            dropped_count: 0,
+            source: AudioEventSource::SyntheticPoll,
             backend,
             device_id,
             flags: 0,
@@ -273,21 +763,14 @@ fn push_stream_event(
     );
 }
 
-/// Refresh pending events for one monitor binding.
-pub(crate) fn refresh_event_queue(
-    context: &BindingCallContext,
+/// Refresh one binding with one captured device snapshot.
+fn refresh_device_events_from_snapshot(
     binding: &mut AudioEventBinding,
-) -> RuntimeResult<()> {
-    let now = host_monotonic_nanos();
-    let poll_interval = binding.options.poll_interval_ns.max(1);
-
-    // refresh events only after one poll interval
-    if now.saturating_sub(binding.last_refresh_ns) < poll_interval {
-        return Ok(());
-    }
-
+    snapshot: &MonitorSnapshot,
+    now: u64,
+    source: AudioEventSource,
+) {
     let backend = binding.options.backend;
-    let snapshot = monitor_snapshot(backend)?;
 
     for id in &snapshot.ids {
         if !binding.previous_signatures.contains_key(id) {
@@ -298,6 +781,7 @@ pub(crate) fn refresh_event_queue(
                     now,
                     backend,
                     id.clone(),
+                    source,
                 );
             }
             continue;
@@ -311,6 +795,7 @@ pub(crate) fn refresh_event_queue(
                     now,
                     backend,
                     id.clone(),
+                    source,
                 );
             }
 
@@ -321,6 +806,7 @@ pub(crate) fn refresh_event_queue(
                     now,
                     backend,
                     id.clone(),
+                    source,
                 );
             }
         }
@@ -341,6 +827,7 @@ pub(crate) fn refresh_event_queue(
                 now,
                 backend,
                 id.clone(),
+                source,
             );
         }
     }
@@ -354,6 +841,7 @@ pub(crate) fn refresh_event_queue(
             now,
             backend,
             snapshot.default_playback.clone().unwrap_or_default(),
+            source,
         );
     }
 
@@ -366,6 +854,7 @@ pub(crate) fn refresh_event_queue(
             now,
             backend,
             snapshot.default_capture.clone().unwrap_or_default(),
+            source,
         );
     }
 
@@ -378,8 +867,30 @@ pub(crate) fn refresh_event_queue(
             now,
             backend,
             snapshot.default_loopback.clone().unwrap_or_default(),
+            source,
         );
     }
+
+    binding.previous_signatures = snapshot.signatures.clone();
+    binding.previous_default_playback = snapshot.default_playback.clone();
+    binding.previous_default_capture = snapshot.default_capture.clone();
+    binding.previous_default_loopback = snapshot.default_loopback.clone();
+    binding.last_refresh_ns = now;
+}
+
+/// Refresh pending events for one monitor binding.
+pub(crate) fn refresh_event_queue(
+    context: &BindingCallContext,
+    binding: &mut AudioEventBinding,
+) -> RuntimeResult<()> {
+    let now = host_monotonic_nanos();
+    if !refresh_due(binding, now) {
+        return Ok(());
+    }
+
+    let backend = binding.options.backend;
+    let snapshot = monitor_snapshot(backend)?;
+    refresh_device_events_from_snapshot(binding, &snapshot, now, AudioEventSource::SyntheticPoll);
 
     let should_track_stream = binding.options.has_stream
         && (event_subscription_enabled(binding, EVENT_SUBSCRIBE_STREAM)
@@ -518,11 +1029,54 @@ pub(crate) fn refresh_event_queue(
         }
     }
 
-    binding.previous_signatures = snapshot.signatures;
-    binding.previous_default_playback = snapshot.default_playback;
-    binding.previous_default_capture = snapshot.default_capture;
-    binding.previous_default_loopback = snapshot.default_loopback;
-    binding.last_refresh_ns = now;
+    Ok(())
+}
+
+/// Refresh one event queue according to selected delivery mode.
+pub(crate) fn refresh_event_queue_for_delivery_mode(
+    context: &BindingCallContext,
+    binding: &mut AudioEventBinding,
+) -> RuntimeResult<()> {
+    if binding.options.delivery_mode == AudioEventDeliveryMode::NativeOnly {
+        return Ok(());
+    }
+
+    refresh_event_queue(context, binding)
+}
+
+/// Force one immediate refresh pass for device subscriptions on one backend.
+pub(crate) fn refresh_device_subscriptions_for_rescan(
+    context: &BindingCallContext,
+    backend: AudioBackend,
+) -> RuntimeResult<()> {
+    let active_bindings = {
+        let mut registry = event_binding_registry()
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let mut active_bindings = Vec::new();
+        registry.retain(|value| {
+            let Some(active_binding) = value.upgrade() else {
+                return false;
+            };
+
+            active_bindings.push(active_binding);
+            true
+        });
+
+        active_bindings
+    };
+
+    for active_binding in active_bindings {
+        let mut active_binding = active_binding
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if active_binding.options.backend != backend || active_binding.options.has_stream {
+            continue;
+        }
+
+        active_binding.last_refresh_ns = 0;
+        refresh_event_queue(context, &mut active_binding)?;
+    }
 
     Ok(())
 }
@@ -544,6 +1098,9 @@ pub(crate) fn abi_event(context: &BindingCallContext, event: AudioEventRecord) -
     AudioEvent {
         kind: event.kind,
         timestamp_ns: event.timestamp_ns,
+        sequence: event.sequence,
+        dropped_count: event.dropped_count,
+        source: event.source,
         backend: event.backend,
         flags: event.flags,
         status_flags: event.status_flags,
@@ -552,5 +1109,224 @@ pub(crate) fn abi_event(context: &BindingCallContext, event: AudioEventRecord) -
         device_id: context.store_string(&event.device_id),
         has_stream: event.has_stream,
         stream: event.stream,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::platform::diagnostic::PlatformErrorCode;
+
+    /// Build one minimal event binding for queue-behavior tests.
+    fn test_binding(
+        overflow_policy: AudioEventOverflowPolicy,
+        queue_capacity: u32,
+    ) -> AudioEventBinding {
+        AudioEventBinding {
+            options: AudioEventSubscriptionOptions {
+                backend: AudioBackend::Null,
+                backend_policy: AudioBackendSelectionPolicy::Strict,
+                flags: AudioEventSubscriptionFlags(0),
+                delivery_mode: AudioEventDeliveryMode::PollOnly,
+                overflow_policy,
+                has_stream: false,
+                stream: resource::AudioStreamHandle(resource::ResourceId(0)),
+                queue_capacity,
+                poll_interval_ns: EVENT_POLL_INTERVAL_NS,
+            },
+            previous_signatures: HashMap::new(),
+            previous_default_playback: None,
+            previous_default_capture: None,
+            previous_default_loopback: None,
+            previous_stream_state: None,
+            previous_stream_device_id: None,
+            previous_stream_xrun_count: 0,
+            last_refresh_ns: 0,
+            next_sequence: 1,
+            dropped_count: 0,
+            overflow_error_pending: false,
+            pending: VecDeque::new(),
+        }
+    }
+
+    /// Build one synthetic stream event record for queue-behavior tests.
+    fn test_record() -> AudioEventRecord {
+        AudioEventRecord {
+            kind: AudioEventKind::StreamStateChanged,
+            timestamp_ns: 1,
+            sequence: 0,
+            dropped_count: 0,
+            source: AudioEventSource::SyntheticPoll,
+            backend: AudioBackend::Null,
+            device_id: "audio:null:duplex".to_string(),
+            flags: 0,
+            status_flags: AudioStreamStatusFlags(0),
+            xrun_count_delta: 0,
+            has_stream: false,
+            stream: resource::AudioStreamHandle(resource::ResourceId(0)),
+        }
+    }
+
+    #[test]
+    fn test_event_overflow_policy_error_reports_io_busy() {
+        let mut binding = test_binding(AudioEventOverflowPolicy::Error, 1);
+        push_event_record(&mut binding, test_record());
+        push_event_record(&mut binding, test_record());
+
+        let error = take_event_overflow_error(&mut binding, "destack.audio.event.tryRead")
+            .expect_err("overflow policy error should report queued overflow");
+        let code = error.platform_error().map(|platform| platform.code);
+        assert_eq!(code, Some(PlatformErrorCode::IoBusy));
+
+        take_event_overflow_error(&mut binding, "destack.audio.event.tryRead")
+            .expect("overflow error should be cleared after one report");
+    }
+
+    #[test]
+    fn test_event_overflow_drop_oldest_keeps_monotonic_sequence_and_drop_count() {
+        let mut binding = test_binding(AudioEventOverflowPolicy::DropOldest, 2);
+        for _ in 0..5 {
+            push_event_record(&mut binding, test_record());
+        }
+
+        assert_eq!(binding.pending.len(), 2);
+        assert_eq!(binding.dropped_count, 3);
+        assert!(!binding.overflow_error_pending);
+
+        let events = binding.pending.iter().collect::<Vec<_>>();
+        assert_eq!(events[0].sequence, 4);
+        assert_eq!(events[1].sequence, 5);
+        assert_eq!(events[0].dropped_count, 2);
+        assert_eq!(events[1].dropped_count, 3);
+        assert!(events[0].sequence < events[1].sequence);
+        assert!(events[0].dropped_count < events[1].dropped_count);
+    }
+
+    #[test]
+    fn test_event_overflow_drop_newest_preserves_existing_queue_order() {
+        let mut binding = test_binding(AudioEventOverflowPolicy::DropNewest, 2);
+        for _ in 0..5 {
+            push_event_record(&mut binding, test_record());
+        }
+
+        assert_eq!(binding.pending.len(), 2);
+        assert_eq!(binding.dropped_count, 3);
+        assert!(!binding.overflow_error_pending);
+        assert_eq!(binding.next_sequence, 3);
+
+        let events = binding.pending.iter().collect::<Vec<_>>();
+        assert_eq!(events[0].sequence, 1);
+        assert_eq!(events[1].sequence, 2);
+        assert_eq!(events[0].dropped_count, 0);
+        assert_eq!(events[1].dropped_count, 0);
+    }
+
+    #[test]
+    fn test_event_overflow_error_keeps_existing_queue_and_latches_once() {
+        let mut binding = test_binding(AudioEventOverflowPolicy::Error, 2);
+        for _ in 0..3 {
+            push_event_record(&mut binding, test_record());
+        }
+
+        assert_eq!(binding.pending.len(), 2);
+        assert_eq!(binding.dropped_count, 1);
+        assert!(binding.overflow_error_pending);
+
+        let events = binding.pending.iter().collect::<Vec<_>>();
+        assert_eq!(events[0].sequence, 1);
+        assert_eq!(events[1].sequence, 2);
+        assert_eq!(events[0].dropped_count, 0);
+        assert_eq!(events[1].dropped_count, 0);
+
+        let first_error = take_event_overflow_error(&mut binding, "destack.audio.event.tryRead");
+        let first_error = first_error.expect_err("overflow policy should latch one ioBusy report");
+        assert_eq!(
+            first_error.platform_error().map(|platform| platform.code),
+            Some(PlatformErrorCode::IoBusy),
+        );
+
+        take_event_overflow_error(&mut binding, "destack.audio.event.tryRead")
+            .expect("overflow latch should clear after one report");
+    }
+
+    #[test]
+    fn test_tracks_device_events_flag_mask() {
+        let mut all_events_binding = test_binding(AudioEventOverflowPolicy::DropOldest, 16);
+        all_events_binding.options.flags = AudioEventSubscriptionFlags(0);
+        assert!(tracks_device_events(&all_events_binding));
+
+        let mut stream_only_binding = test_binding(AudioEventOverflowPolicy::DropOldest, 16);
+        stream_only_binding.options.flags = EVENT_SUBSCRIBE_STREAM;
+        assert!(!tracks_device_events(&stream_only_binding));
+
+        let mut device_binding = test_binding(AudioEventOverflowPolicy::DropOldest, 16);
+        device_binding.options.flags = EVENT_SUBSCRIBE_DEVICE_HOTPLUG;
+        assert!(tracks_device_events(&device_binding));
+    }
+
+    #[test]
+    fn test_native_only_supported_subscription_flags_match_backend_matrix() {
+        let null_flags = native_only_supported_subscription_flags(AudioBackend::Null);
+        assert_eq!(null_flags, EVENT_SUBSCRIBE_STREAM.0);
+
+        let coreaudio_flags = native_only_supported_subscription_flags(AudioBackend::CoreAudio);
+        assert!((coreaudio_flags & EVENT_SUBSCRIBE_STREAM.0) != 0);
+        assert!((coreaudio_flags & EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0) != 0);
+        assert!((coreaudio_flags & EVENT_SUBSCRIBE_DEFAULT_ROUTE.0) != 0);
+        assert!((coreaudio_flags & EVENT_SUBSCRIBE_FORMAT_CHANGE.0) != 0);
+        assert!((coreaudio_flags & EVENT_SUBSCRIBE_REROUTE.0) != 0);
+        assert_eq!(coreaudio_flags & EVENT_SUBSCRIBE_INTERRUPTION.0, 0);
+
+        let wasapi_flags = native_only_supported_subscription_flags(AudioBackend::Wasapi);
+        assert!((wasapi_flags & EVENT_SUBSCRIBE_STREAM.0) != 0);
+        assert!((wasapi_flags & EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0) != 0);
+        assert!((wasapi_flags & EVENT_SUBSCRIBE_DEFAULT_ROUTE.0) != 0);
+        assert!((wasapi_flags & EVENT_SUBSCRIBE_FORMAT_CHANGE.0) != 0);
+        assert!((wasapi_flags & EVENT_SUBSCRIBE_REROUTE.0) != 0);
+        assert_eq!(wasapi_flags & EVENT_SUBSCRIBE_INTERRUPTION.0, 0);
+
+        let jack_flags = native_only_supported_subscription_flags(AudioBackend::Jack);
+        assert!((jack_flags & EVENT_SUBSCRIBE_STREAM.0) != 0);
+        assert!((jack_flags & EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0) != 0);
+        assert!((jack_flags & EVENT_SUBSCRIBE_FORMAT_CHANGE.0) != 0);
+        assert!((jack_flags & EVENT_SUBSCRIBE_REROUTE.0) != 0);
+        assert_eq!(jack_flags & EVENT_SUBSCRIBE_DEFAULT_ROUTE.0, 0);
+        assert_eq!(jack_flags & EVENT_SUBSCRIBE_INTERRUPTION.0, 0);
+
+        let pulse_flags = native_only_supported_subscription_flags(AudioBackend::PulseAudio);
+        assert!((pulse_flags & EVENT_SUBSCRIBE_STREAM.0) != 0);
+        assert!((pulse_flags & EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0) != 0);
+        assert!((pulse_flags & EVENT_SUBSCRIBE_DEFAULT_ROUTE.0) != 0);
+        assert!((pulse_flags & EVENT_SUBSCRIBE_FORMAT_CHANGE.0) != 0);
+        assert!((pulse_flags & EVENT_SUBSCRIBE_REROUTE.0) != 0);
+
+        let pipewire_flags = native_only_supported_subscription_flags(AudioBackend::PipeWire);
+        assert!((pipewire_flags & EVENT_SUBSCRIBE_STREAM.0) != 0);
+        assert!((pipewire_flags & EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0) != 0);
+        assert!((pipewire_flags & EVENT_SUBSCRIBE_DEFAULT_ROUTE.0) != 0);
+        assert!((pipewire_flags & EVENT_SUBSCRIBE_FORMAT_CHANGE.0) != 0);
+        assert!((pipewire_flags & EVENT_SUBSCRIBE_REROUTE.0) != 0);
+
+        let alsa_flags = native_only_supported_subscription_flags(AudioBackend::Alsa);
+        assert!((alsa_flags & EVENT_SUBSCRIBE_STREAM.0) != 0);
+        assert!((alsa_flags & EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0) != 0);
+        assert_eq!(alsa_flags & EVENT_SUBSCRIBE_DEFAULT_ROUTE.0, 0);
+        assert_eq!(alsa_flags & EVENT_SUBSCRIBE_FORMAT_CHANGE.0, 0);
+        assert_eq!(alsa_flags & EVENT_SUBSCRIBE_REROUTE.0, 0);
+
+        let asio_flags = native_only_supported_subscription_flags(AudioBackend::Asio);
+        assert!((asio_flags & EVENT_SUBSCRIBE_STREAM.0) != 0);
+        assert!((asio_flags & EVENT_SUBSCRIBE_DEVICE_HOTPLUG.0) != 0);
+        assert_eq!(asio_flags & EVENT_SUBSCRIBE_DEFAULT_ROUTE.0, 0);
+        assert_eq!(asio_flags & EVENT_SUBSCRIBE_FORMAT_CHANGE.0, 0);
+        assert_eq!(asio_flags & EVENT_SUBSCRIBE_REROUTE.0, 0);
+
+        let aaudio_flags = native_only_supported_subscription_flags(AudioBackend::AAudio);
+        assert!((aaudio_flags & EVENT_SUBSCRIBE_STREAM.0) != 0);
+        assert!((aaudio_flags & EVENT_SUBSCRIBE_BACKEND.0) != 0);
+
+        let opensles_flags = native_only_supported_subscription_flags(AudioBackend::OpenSLES);
+        assert!((opensles_flags & EVENT_SUBSCRIBE_STREAM.0) != 0);
+        assert!((opensles_flags & EVENT_SUBSCRIBE_BACKEND.0) != 0);
     }
 }

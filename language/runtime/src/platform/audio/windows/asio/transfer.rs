@@ -87,28 +87,11 @@ pub(super) extern "system" fn asio_message(
 
 /// Process one callback transfer cycle for one active ASIO runtime.
 fn process_callback_transfer(runtime: &Arc<AsioStreamRuntime>, buffer_index: usize) {
-    let binding = runtime
-        .binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .upgrade();
+    let binding = runtime.binding.get().and_then(std::sync::Weak::upgrade);
     let Some(binding) = binding else {
         mark_device_lost(runtime, "ASIO stream binding is no longer available");
         return;
     };
-
-    let output_lanes = runtime
-        .lanes
-        .iter()
-        .copied()
-        .filter(|lane| !lane.is_input)
-        .collect::<Vec<_>>();
-    let input_lanes = runtime
-        .lanes
-        .iter()
-        .copied()
-        .filter(|lane| lane.is_input)
-        .collect::<Vec<_>>();
 
     let mut state = binding
         .sync
@@ -124,12 +107,12 @@ fn process_callback_transfer(runtime: &Arc<AsioStreamRuntime>, buffer_index: usi
     };
 
     // process one playback transfer block when playback lanes exist
-    if !output_lanes.is_empty() {
+    if !runtime.output_lanes.is_empty() {
         if let Some(encoding) = runtime.output_encoding {
             transfer_playback_block(
                 runtime,
                 &mut state,
-                &output_lanes,
+                &runtime.output_lanes,
                 encoding,
                 buffer_index,
                 is_active,
@@ -142,12 +125,12 @@ fn process_callback_transfer(runtime: &Arc<AsioStreamRuntime>, buffer_index: usi
     }
 
     // process one capture transfer block when capture lanes exist
-    if !input_lanes.is_empty() {
+    if !runtime.input_lanes.is_empty() {
         if let Some(encoding) = runtime.input_encoding {
             transfer_capture_block(
                 runtime,
                 &mut state,
-                &input_lanes,
+                &runtime.input_lanes,
                 encoding,
                 buffer_index,
                 is_active,
@@ -161,23 +144,13 @@ fn process_callback_transfer(runtime: &Arc<AsioStreamRuntime>, buffer_index: usi
     // update one callback timing snapshot for this cycle
     if is_active {
         let callback_mono_ns = audio_core::host_monotonic_nanos();
-        let input_adc_ns = if !input_lanes.is_empty() {
-            Some(callback_mono_ns)
-        } else {
-            None
-        };
-        let output_dac_ns = if !output_lanes.is_empty() {
-            Some(callback_mono_ns)
-        } else {
-            None
-        };
         audio_core::record_stream_callback_timing(
             &mut state,
             runtime.sample_rate,
             runtime.period_frames,
             callback_mono_ns,
-            input_adc_ns,
-            output_dac_ns,
+            None,
+            None,
         );
     }
 
@@ -440,11 +413,7 @@ fn encode_asio_sample(encoding: AsioSampleEncoding, sample: f32, output: &mut [u
 
 /// Mark one stream binding as device-lost from callback paths.
 fn mark_device_lost(runtime: &Arc<AsioStreamRuntime>, message: &'static str) {
-    let binding = runtime
-        .binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .upgrade();
+    let binding = runtime.binding.get().and_then(std::sync::Weak::upgrade);
     let Some(binding) = binding else {
         return;
     };

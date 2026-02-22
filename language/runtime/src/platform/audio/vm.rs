@@ -5,8 +5,9 @@ use super::{
     AudioClockDomain, AudioClockSnapshotVm, AudioDeviceDescriptor, AudioDeviceDescriptorVm,
     AudioDeviceDirection, AudioDeviceListRequestVm, AudioDeviceOpenOptions,
     AudioDeviceOpenOptionsVm, AudioEvent, AudioEventSubscriptionOptionsVm, AudioEventVm,
-    AudioStreamAvailabilityVm, AudioStreamClockDomain, AudioStreamConfigVm, AudioStreamSnapshot,
-    AudioStreamSnapshotVm, AudioStreamStateVm, AudioStreamTimingVm, host as host_audio,
+    AudioStreamAvailabilityVm, AudioStreamClockDomain, AudioStreamConfigVm, AudioStreamDescriptor,
+    AudioStreamDescriptorVm, AudioStreamOpenOptionsVm, AudioStreamStateVm, AudioStreamSupportVm,
+    AudioStreamTimingVm, host as host_audio,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{NativeSlice, NativeStringRef, VmSlice, resource};
@@ -45,19 +46,14 @@ fn string_to_vm(
 
 /// Convert one VM device-open options payload into one native payload.
 fn device_open_options_from_vm(
-    runtime: &BindingCallContext,
-    context: &mut vm::ExternalCallContext<'_>,
     value: AudioDeviceOpenOptionsVm,
 ) -> RuntimeResult<AudioDeviceOpenOptions> {
-    let backend_hint = string_from_vm(runtime, context, value.backend_hint)?;
     Ok(AudioDeviceOpenOptions {
         direction: value.direction,
         backend: value.backend,
         backend_policy: value.backend_policy,
         share_mode: value.share_mode,
         flags: value.flags,
-        backend_flags: value.backend_flags,
-        backend_hint,
     })
 }
 
@@ -81,6 +77,11 @@ fn device_descriptor_to_vm(
         is_default_capture: value.is_default_capture,
         is_default_loopback: value.is_default_loopback,
         capability_flags: value.capability_flags,
+        supported_device_open_flags: value.supported_device_open_flags,
+        supported_stream_flags: value.supported_stream_flags,
+        supported_stream_requirement_flags: value.supported_stream_requirement_flags,
+        supported_event_subscription_flags: value.supported_event_subscription_flags,
+        supported_stream_clock_domains: value.supported_stream_clock_domains,
         preferred_sample_rate: value.preferred_sample_rate,
         min_sample_rate: value.min_sample_rate,
         max_sample_rate: value.max_sample_rate,
@@ -108,6 +109,12 @@ fn backend_descriptor_to_vm(
         available: value.available,
         priority: value.priority,
         capability_flags: value.capability_flags,
+        supported_device_list_flags: value.supported_device_list_flags,
+        supported_device_open_flags: value.supported_device_open_flags,
+        supported_stream_flags: value.supported_stream_flags,
+        supported_stream_requirement_flags: value.supported_stream_requirement_flags,
+        supported_event_subscription_flags: value.supported_event_subscription_flags,
+        supported_stream_clock_domains: value.supported_stream_clock_domains,
     })
 }
 
@@ -119,6 +126,9 @@ fn event_to_vm(
     Ok(AudioEventVm {
         kind: value.kind,
         timestamp_ns: value.timestamp_ns,
+        sequence: value.sequence,
+        dropped_count: value.dropped_count,
+        source: value.source,
         backend: value.backend,
         flags: value.flags,
         status_flags: value.status_flags,
@@ -133,11 +143,11 @@ fn event_to_vm(
 }
 
 /// Convert one native stream snapshot payload into one vm payload.
-fn stream_snapshot_to_vm(
+fn stream_descriptor_to_vm(
     context: &mut vm::ExternalCallContext<'_>,
-    value: AudioStreamSnapshot,
-) -> RuntimeResult<AudioStreamSnapshotVm> {
-    Ok(AudioStreamSnapshotVm {
+    value: AudioStreamDescriptor,
+) -> RuntimeResult<AudioStreamDescriptorVm> {
+    Ok(AudioStreamDescriptorVm {
         backend: value.backend,
         backend_id: vm::StringHandle::new(
             context.intern_string(unsafe { value.backend_id.as_str()? }),
@@ -153,6 +163,10 @@ fn stream_snapshot_to_vm(
         period_frames: value.period_frames,
         transfer_mode: value.transfer_mode,
         share_mode: value.share_mode,
+        requested_flags: value.requested_flags,
+        requested_requirements: value.requested_requirements,
+        effective_flags: value.effective_flags,
+        effective_requirements: value.effective_requirements,
         period_jitter_ns: value.period_jitter_ns,
         non_interleaved: value.non_interleaved,
         supports_write_at: value.supports_write_at,
@@ -187,6 +201,20 @@ fn backend_slice_to_vm(
     let mut vm_values = Vec::with_capacity(values.len());
     for value in values {
         vm_values.push(backend_descriptor_to_vm(context, *value)?);
+    }
+
+    VmSlice::from_values(context, &vm_values)
+}
+
+/// Convert one native event slice into one vm slice.
+fn event_slice_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    values: NativeSlice<AudioEvent>,
+) -> RuntimeResult<VmSlice<AudioEventVm>> {
+    let values = unsafe { values.as_slice()? };
+    let mut vm_values = Vec::with_capacity(values.len());
+    for value in values {
+        vm_values.push(event_to_vm(context, *value)?);
     }
 
     VmSlice::from_values(context, &vm_values)
@@ -270,14 +298,11 @@ fn copy_written_vectors_to_vm(
 
 /// Read one timestamp in one selected clock domain.
 ///
-/// Read one clock timestamp for the selected domain.
-/// Domain availability and precision follow host backend behavior.
-/// `AudioClockDomain.Device` requires one backend-wide device timeline and can return `notSupported` otherwise.
+/// Read one clock timestamp for one process-wide domain.
+/// Domain availability and precision follow host platform behavior.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Mirrors PortAudio `Pa_GetStreamTime` monotonic stream-time semantics.
-/// Mirrors cubeb stream and latency clock snapshot semantics.
 /// Mirrors host monotonic and wall clock query semantics.
 ///
 /// # Errors
@@ -323,8 +348,10 @@ pub(crate) fn destack_audio_backend_list(
 
 /// Read one stream clock snapshot.
 ///
-/// Read one synchronized stream-position and clock timestamp snapshot.
+/// Read one synchronized stream-position and selected clock-domain timestamp snapshot.
 /// Snapshot values are advisory and can change immediately after read.
+/// This is the strict lane-select API.
+/// For one full best-effort snapshot without lane-specific errors use `audio.stream.timing`.
 /// Domain-specific lanes like `InputAdc`, `OutputDac`, and `Device` can return `notSupported` when the opened stream does not expose them.
 ///
 /// # Platform
@@ -353,12 +380,19 @@ pub(crate) fn destack_audio_stream_clock(
     Ok(AudioClockSnapshotVm {
         stream_frames: value.stream_frames,
         clock_ns: value.clock_ns,
+        clock_quality: value.clock_quality,
         has_callback_ns: value.has_callback_ns,
         callback_ns: value.callback_ns,
+        callback_quality: value.callback_quality,
         has_input_adc_ns: value.has_input_adc_ns,
         input_adc_ns: value.input_adc_ns,
+        input_adc_quality: value.input_adc_quality,
         has_output_dac_ns: value.has_output_dac_ns,
         output_dac_ns: value.output_dac_ns,
+        output_dac_quality: value.output_dac_quality,
+        has_device_ns: value.has_device_ns,
+        device_ns: value.device_ns,
+        device_quality: value.device_quality,
         monotonic_ns: value.monotonic_ns,
     })
 }
@@ -525,7 +559,7 @@ pub(crate) fn destack_audio_device_open(
     options: AudioDeviceOpenOptionsVm,
 ) -> RuntimeResult<resource::AudioDeviceHandle> {
     let id = string_from_vm(runtime, context, id)?;
-    let options = device_open_options_from_vm(runtime, context, options)?;
+    let options = device_open_options_from_vm(options)?;
     call_out(|out| unsafe { host_audio::destack_audio_device_open(runtime, out, id, options) })
 }
 
@@ -611,6 +645,38 @@ pub(crate) fn destack_audio_event_read(
     event_to_vm(context, value)
 }
 
+/// Wait for one batch of audio events.
+///
+/// Wait for pending events from one subscription queue and return up to `maxEvents` events.
+/// Timeout uses nanoseconds in the runtime monotonic domain.
+/// Empty queue state is reported through ioWouldBlock.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO queue-drain operations where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.device.monitor`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_event_read_batch(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioEventHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeResult<VmSlice<AudioEventVm>> {
+    let values = call_out(|out| unsafe {
+        host_audio::destack_audio_event_read_batch(runtime, out, handle, maxevents, timeoutns)
+    })?;
+
+    event_slice_to_vm(context, values)
+}
+
 /// Poll one audio event without blocking.
 ///
 /// Poll one pending event from one subscription queue.
@@ -639,9 +705,39 @@ pub(crate) fn destack_audio_event_try_read(
     event_to_vm(context, value)
 }
 
-/// Read one stream immediate availability snapshot.
+/// Poll one batch of audio events without blocking.
 ///
-/// Read one point-in-time snapshot of immediately readable and writable frame counts.
+/// Poll pending events from one subscription queue and return up to `maxEvents` events.
+/// Empty queue state is reported through ioWouldBlock.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO nonblocking queue-drain operations where available.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.device.monitor`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_event_try_read_batch(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::AudioEventHandle,
+    maxevents: u32,
+) -> RuntimeResult<VmSlice<AudioEventVm>> {
+    let values = call_out(|out| unsafe {
+        host_audio::destack_audio_event_try_read_batch(runtime, out, handle, maxevents)
+    })?;
+
+    event_slice_to_vm(context, values)
+}
+
+/// Read one stream immediate availability sample.
+///
+/// Read one point-in-time sample of immediately readable and writable frame counts.
 /// Values are advisory and can change immediately after read.
 ///
 /// # Platform
@@ -740,9 +836,9 @@ pub(crate) fn destack_audio_stream_flush(
     unsafe { host_audio::destack_audio_stream_flush(runtime, handle) }
 }
 
-/// Read one stream negotiated configuration snapshot.
+/// Read one stream negotiated configuration descriptor.
 ///
-/// Read one normalized snapshot of negotiated stream parameters and backend mode.
+/// Read one normalized view of negotiated stream parameters and backend mode.
 /// Values reflect backend negotiation outcomes and can differ from open-time requests.
 ///
 /// # Platform
@@ -757,20 +853,23 @@ pub(crate) fn destack_audio_stream_flush(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_audio_stream_snapshot(
+pub(crate) fn destack_audio_stream_descriptor(
     runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     handle: resource::AudioStreamHandle,
-) -> RuntimeResult<AudioStreamSnapshotVm> {
-    let value =
-        call_out(|out| unsafe { host_audio::destack_audio_stream_snapshot(runtime, out, handle) })?;
+) -> RuntimeResult<AudioStreamDescriptorVm> {
+    let value = call_out(|out| unsafe {
+        host_audio::destack_audio_stream_descriptor(runtime, out, handle)
+    })?;
 
-    stream_snapshot_to_vm(context, value)
+    stream_descriptor_to_vm(context, value)
 }
 
 /// Open one audio stream on one device.
 ///
 /// Create one host audio stream with explicit sample format, channel, and period configuration.
+/// Open options carry optional tuning hints and strict requirement lanes.
+/// Any unsatisfied requirement must fail open with `notSupported`.
 /// Buffering and latency behavior follow host backend contracts.
 ///
 /// # Platform
@@ -790,8 +889,48 @@ pub(crate) fn destack_audio_stream_open(
     _context: &mut vm::ExternalCallContext<'_>,
     device: resource::AudioDeviceHandle,
     config: AudioStreamConfigVm,
+    options: AudioStreamOpenOptionsVm,
 ) -> RuntimeResult<resource::AudioStreamHandle> {
-    call_out(|out| unsafe { host_audio::destack_audio_stream_open(runtime, out, device, config) })
+    call_out(|out| unsafe {
+        host_audio::destack_audio_stream_open(runtime, out, device, config, options)
+    })
+}
+
+/// Check one audio stream configuration for backend support.
+///
+/// Check one stream configuration and return backend negotiation results without opening one long-lived stream handle.
+/// Requirement flags are resolved into `satisfiedRequirements` and `unsatisfiedRequirements`.
+///
+/// # Platform
+/// Unix and Windows.
+/// Mirrors PortAudio `Pa_IsFormatSupported` intent and miniaudio native-format probing behavior.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `audio.stream`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_audio_stream_support(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    device: resource::AudioDeviceHandle,
+    config: AudioStreamConfigVm,
+    options: AudioStreamOpenOptionsVm,
+) -> RuntimeResult<AudioStreamSupportVm> {
+    let value = call_out(|out| unsafe {
+        host_audio::destack_audio_stream_support(runtime, out, device, config, options)
+    })?;
+
+    let descriptor = stream_descriptor_to_vm(context, value.descriptor)?;
+    Ok(AudioStreamSupportVm {
+        supported: value.supported,
+        descriptor,
+        satisfied_requirements: value.satisfied_requirements,
+        unsatisfied_requirements: value.unsatisfied_requirements,
+    })
 }
 
 /// Read one packet of captured audio frames.
@@ -1010,10 +1149,10 @@ pub(crate) fn destack_audio_stream_abort(
     unsafe { host_audio::destack_audio_stream_abort(runtime, handle) }
 }
 
-/// Read one stream state snapshot.
+/// Read one stream state.
 ///
-/// Read one point-in-time snapshot of stream run state and backend buffering metrics.
-/// Snapshot values are advisory and can change immediately after read.
+/// Read one point-in-time state sample of stream run state and backend buffering metrics.
+/// State values are advisory and can change immediately after read.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -1060,9 +1199,10 @@ pub(crate) fn destack_audio_stream_stop(
     unsafe { host_audio::destack_audio_stream_stop(runtime, handle) }
 }
 
-/// Read one stream timing snapshot.
+/// Read one stream timing sample.
 ///
-/// Read one timing snapshot that correlates stream position and host device time.
+/// Read one full timing sample that correlates stream position and available backend clocks.
+/// Missing optional lanes are reported through `has*` fields instead of `notSupported`.
 /// Timing values are intended for drift correction and synchronization.
 ///
 /// # Platform

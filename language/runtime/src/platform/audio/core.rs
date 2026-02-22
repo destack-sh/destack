@@ -11,15 +11,21 @@ pub(crate) use crate::platform::{NativeStringRef, PlatformError, resource};
 pub(crate) use crate::runtime::BindingCallContext;
 
 pub(crate) use super::{
-    AudioBackend, AudioBackendCapabilityFlags, AudioBackendOpenFlags, AudioBackendSelectionPolicy,
-    AudioChannelLayout, AudioClockDomain, AudioClockSnapshot, AudioDeviceCapabilityFlags,
+    AudioBackend, AudioBackendCapabilityFlags, AudioBackendSelectionPolicy, AudioChannelLayout,
+    AudioClockDomain, AudioClockQuality, AudioClockSnapshot, AudioDeviceCapabilityFlags,
     AudioDeviceDescriptor, AudioDeviceDirection, AudioDeviceListFlags, AudioDeviceListRequest,
-    AudioDeviceOpenFlags, AudioDeviceOpenOptions, AudioEvent, AudioEventKind,
-    AudioEventSubscriptionFlags, AudioEventSubscriptionOptions, AudioSampleFormat, AudioShareMode,
-    AudioStreamAvailability, AudioStreamClockDomain, AudioStreamConfig, AudioStreamFlags,
-    AudioStreamSnapshot, AudioStreamState, AudioStreamStateKind, AudioStreamStatusFlags,
-    AudioStreamTiming, AudioStreamTransferMode,
+    AudioDeviceOpenFlags, AudioDeviceOpenOptions, AudioEvent, AudioEventDeliveryMode,
+    AudioEventKind, AudioEventOverflowPolicy, AudioEventSource, AudioEventSubscriptionFlags,
+    AudioEventSubscriptionOptions, AudioSampleFormat, AudioShareMode, AudioStreamAvailability,
+    AudioStreamClockDomain, AudioStreamConfig, AudioStreamDescriptor, AudioStreamFlags,
+    AudioStreamOpenOptions, AudioStreamRequirementFlags, AudioStreamState, AudioStreamStateKind,
+    AudioStreamStatusFlags, AudioStreamTiming, AudioStreamTransferMode,
+    AudioSupportedEventSubscriptionFlags, AudioSupportedStreamClockDomains,
+    AudioSupportedStreamFlags, AudioSupportedStreamRequirementFlags,
 };
+
+/// Compatibility alias for backend-specific stream open flags.
+pub(crate) type AudioBackendOpenFlags = AudioDeviceOpenFlags;
 
 mod clock;
 mod codec;

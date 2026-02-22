@@ -226,15 +226,6 @@ fn process_playback_transfer(
     let mut delay_frames = 0 as AlsaSignedFrames;
     let _ = unsafe { (library.api.snd_pcm_delay)(pcm, &mut delay_frames) };
 
-    let output_delay_ns = if delay_frames > 0 {
-        (delay_frames as u64)
-            .saturating_mul(1_000_000_000u64)
-            .checked_div(runtime.sample_rate.max(1) as u64)
-            .unwrap_or(0)
-    } else {
-        0
-    };
-
     let mut state = binding
         .sync
         .state
@@ -246,7 +237,7 @@ fn process_playback_transfer(
         written_frames as u32,
         now,
         None,
-        Some(now.saturating_add(output_delay_ns)),
+        None,
     );
 
     Ok(())
@@ -346,15 +337,6 @@ fn process_capture_transfer(
     let mut delay_frames = 0 as AlsaSignedFrames;
     let _ = unsafe { (library.api.snd_pcm_delay)(pcm, &mut delay_frames) };
 
-    let input_delay_ns = if delay_frames > 0 {
-        (delay_frames as u64)
-            .saturating_mul(1_000_000_000u64)
-            .checked_div(runtime.sample_rate.max(1) as u64)
-            .unwrap_or(0)
-    } else {
-        0
-    };
-
     let mut state = binding
         .sync
         .state
@@ -385,7 +367,7 @@ fn process_capture_transfer(
         runtime.sample_rate,
         read_frames as u32,
         now,
-        Some(now.saturating_sub(input_delay_ns)),
+        None,
         None,
     );
 

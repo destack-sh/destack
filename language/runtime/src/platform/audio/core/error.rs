@@ -32,6 +32,19 @@ pub(crate) fn audio_would_block(
     .boxed()
 }
 
+/// Build one ioBusy error.
+pub(crate) fn audio_busy(operation: &'static str, message: impl Into<String>) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoBusy),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        message.into(),
+    ))
+    .boxed()
+}
+
 /// Build one audio-broken-pipe error.
 pub(crate) fn audio_broken_pipe(
     operation: &'static str,
@@ -46,6 +59,23 @@ pub(crate) fn audio_broken_pipe(
         message.into(),
     ))
     .boxed()
+}
+
+/// Validate that requested stream requirements are fully satisfied.
+pub(crate) fn ensure_stream_requirements_satisfied(
+    requested: AudioStreamRequirementFlags,
+    satisfied: AudioStreamRequirementFlags,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let unsatisfied_requirements = requested.0 & !satisfied.0;
+    if unsatisfied_requirements != 0 {
+        return Err(RuntimeError::from(PlatformError::not_supported(format!(
+            "{operation} unsatisfied stream requirements: 0x{unsatisfied_requirements:08x}",
+        )))
+        .boxed());
+    }
+
+    Ok(())
 }
 
 /// Build one stream-shutdown error from one stream state payload.
@@ -185,7 +215,7 @@ pub(crate) fn read_utf8(value: NativeStringRef, field: &'static str) -> RuntimeR
     Ok(text.to_string())
 }
 
-/// Validate a stream config payload.
+/// Validate one stream config payload.
 pub(crate) fn validate_stream_config(config: AudioStreamConfig) -> RuntimeResult<()> {
     if config.sample_rate == 0 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -210,21 +240,30 @@ pub(crate) fn validate_stream_config(config: AudioStreamConfig) -> RuntimeResult
         .boxed());
     }
 
+    Ok(())
+}
+
+/// Validate one stream open-options payload.
+pub(crate) fn validate_stream_open_options(
+    options: AudioStreamOpenOptions,
+    _operation: &'static str,
+) -> RuntimeResult<()> {
     // reject unknown stream-option flag bits
-    let unknown_stream_flags = config.flags.0 & !KNOWN_STREAM_FLAGS_MASK;
+    let unknown_stream_flags = options.flags.0 & !KNOWN_STREAM_FLAGS_MASK;
     if unknown_stream_flags != 0 {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-            "config.flags",
-            format!("config.flags contains unknown bits: 0x{unknown_stream_flags:08x}"),
+            "options.flags",
+            format!("options.flags contains unknown bits: 0x{unknown_stream_flags:08x}"),
         ))
         .boxed());
     }
 
-    // reject stream flags that are not wired in host implementations yet
-    let unsupported_stream_flags = config.flags.0 & !STREAM_FLAG_NON_INTERLEAVED.0;
-    if unsupported_stream_flags != 0 {
-        return Err(RuntimeError::from(PlatformError::not_supported(
-            "destack.audio.stream.open stream flags",
+    // reject unknown stream-requirement flag bits
+    let unknown_requirements = options.requirements.0 & !KNOWN_STREAM_REQUIREMENT_FLAGS_MASK;
+    if unknown_requirements != 0 {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "options.requirements",
+            format!("options.requirements contains unknown bits: 0x{unknown_requirements:08x}"),
         ))
         .boxed());
     }
@@ -232,15 +271,15 @@ pub(crate) fn validate_stream_config(config: AudioStreamConfig) -> RuntimeResult
     Ok(())
 }
 
-/// Validate stream flags for one selected backend.
-pub(crate) fn validate_stream_config_for_backend(
-    config: AudioStreamConfig,
+/// Validate stream open options for one selected backend.
+pub(crate) fn validate_stream_open_options_for_backend(
+    options: AudioStreamOpenOptions,
     backend: AudioBackend,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    if (config.flags.0 & STREAM_FLAG_NON_INTERLEAVED.0) != 0 && backend != AudioBackend::Asio {
+    if (options.flags.0 & STREAM_FLAG_NON_INTERLEAVED.0) != 0 && backend != AudioBackend::Asio {
         return Err(RuntimeError::from(PlatformError::not_supported(format!(
-            "{operation} stream flag: non interleaved",
+            "{operation} stream flag: non interleaved"
         )))
         .boxed());
     }

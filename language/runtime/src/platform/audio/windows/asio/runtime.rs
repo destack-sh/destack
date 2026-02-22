@@ -1,5 +1,5 @@
+use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, Mutex, Weak};
 
 use super::abi::{
     AsioBufferInfo, AsioCallbacks, asio_driver_can_sample_rate, asio_driver_create_buffers,
@@ -59,10 +59,14 @@ pub(super) fn open_stream(
     });
 
     // install one weak binding pointer for callback-side queue access
-    *runtime
-        .binding
-        .lock()
-        .unwrap_or_else(|error| error.into_inner()) = Arc::downgrade(&binding);
+    let set_binding = runtime.binding.set(Arc::downgrade(&binding));
+    if set_binding.is_err() {
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "id",
+            "ASIO runtime binding was already initialized",
+        ))
+        .boxed());
+    }
 
     // publish one active ASIO runtime for callback dispatch
     install_active_runtime(&runtime)?;
@@ -299,15 +303,21 @@ fn open_runtime(
 
     session.buffers_created.store(true, Ordering::Release);
 
-    let mut lanes = Vec::with_capacity(buffer_infos.len());
+    let mut output_lanes = Vec::new();
+    let mut input_lanes = Vec::new();
 
     // capture one lane pointer table for callback transfer
     for info in &buffer_infos {
-        lanes.push(AsioBufferLane {
+        let lane = AsioBufferLane {
             is_input: info.is_input == ASIO_TRUE,
             buffer_a: info.buffers[0] as *mut u8,
             buffer_b: info.buffers[1] as *mut u8,
-        });
+        };
+        if lane.is_input {
+            input_lanes.push(lane);
+        } else {
+            output_lanes.push(lane);
+        }
     }
 
     // sample the initial latency tuple to warm driver side timing paths
@@ -323,9 +333,10 @@ fn open_runtime(
         channels: config.channels,
         output_encoding,
         input_encoding,
-        lanes,
+        output_lanes,
+        input_lanes,
         session,
-        binding: Mutex::new(Weak::new()),
+        binding: std::sync::OnceLock::new(),
     }))
 }
 

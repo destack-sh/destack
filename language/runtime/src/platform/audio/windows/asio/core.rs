@@ -232,12 +232,14 @@ pub(super) struct AsioStreamRuntime {
     pub(super) output_encoding: Option<AsioSampleEncoding>,
     /// Input lane encoding.
     pub(super) input_encoding: Option<AsioSampleEncoding>,
-    /// Opened ASIO callback lane pointers.
-    pub(super) lanes: Vec<AsioBufferLane>,
+    /// Playback lanes used in callback transfer.
+    pub(super) output_lanes: Vec<AsioBufferLane>,
+    /// Capture lanes used in callback transfer.
+    pub(super) input_lanes: Vec<AsioBufferLane>,
     /// Owned ASIO driver session.
     pub(super) session: Arc<AsioSession>,
     /// Weak link to the stream binding state.
-    pub(super) binding: Mutex<Weak<audio_core::AudioStreamBinding>>,
+    pub(super) binding: OnceLock<Weak<audio_core::AudioStreamBinding>>,
 }
 
 unsafe impl Send for AsioStreamRuntime {}
