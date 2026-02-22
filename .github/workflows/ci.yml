@@ -149,6 +149,14 @@ jobs:
       - name: Run language ci tests
         run: just language/test-ci
 
+  runtime-android:
+    name: Runtime Android
+    needs:
+      - repo-integrity
+    uses: ./.github/workflows/runtime-android.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
   library-format:
     name: Library Format
     runs-on: ubuntu-latest

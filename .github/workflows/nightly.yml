@@ -192,3 +192,11 @@ jobs:
 
       - name: Run nightly benchmark lane
         run: just bench-nightly
+
+  runtime-android:
+    name: Runtime Android
+    needs:
+      - nightly-core
+    uses: ./.github/workflows/runtime-android.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}

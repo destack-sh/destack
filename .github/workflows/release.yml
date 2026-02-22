@@ -128,12 +128,21 @@ jobs:
       - name: Run client release tests
         run: just client/test-release
 
+  runtime-android:
+    name: Runtime Android
+    needs:
+      - verify
+    uses: ./.github/workflows/runtime-android.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
   build-artifacts:
     name: Build Release Artifacts
     runs-on: ubuntu-latest
     timeout-minutes: 120
     needs:
       - verify
+      - runtime-android
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -174,6 +183,7 @@ jobs:
     timeout-minutes: 120
     needs:
       - verify
+      - runtime-android
     strategy:
       fail-fast: false
       matrix:
