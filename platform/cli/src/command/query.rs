@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use clap::Args;
 use destack_service::query::{
-    QueryMethod, QueryMethodId, QueryRequest, QueryRequestEnvelope, assist, navigation,
-    parse_query_request, query_method, query_methods, refactor,
+    QueryExecutionMode, QueryMethod, QueryMethodId, QueryRequest, QueryRequestEnvelope, assist,
+    navigation, parse_query_request, query_method, query_methods, refactor,
 };
 use destack_source::{DiagnosticOptions, Uri};
 use serde_json::Value;
@@ -64,10 +64,6 @@ pub struct QueryArgs {
     /// New name for rename when using position args.
     #[arg(long)]
     pub new_name: Option<String>,
-
-    /// Removed legacy flag, queries are always strict.
-    #[arg(long)]
-    pub allow_stale: bool,
 
     /// Pretty print the JSON response.
     #[arg(long)]
@@ -340,10 +336,9 @@ where
     let session = args.program.setup();
     let diagnostic_options = DiagnosticOptions::default();
     let roots = watch_roots(&args.program, &session);
-    let root = roots
-        .first()
-        .cloned()
-        .unwrap_or_else(|| session.cwd.clone());
+    let Some(root) = roots.first().cloned() else {
+        return Err("workspace roots are empty".to_string());
+    };
     let daemon_options = build_daemon_options(&args.program, diagnostic_options, None);
     let daemon = ProtocolDaemonClient::new(session, daemon_options, roots, &args.program)
         .map_err(|error| error.to_string())?;
@@ -361,9 +356,19 @@ where
 fn run_query_request(
     daemon: &ProtocolDaemonClient,
     root: &Path,
-    request: QueryRequestEnvelope,
+    mut request: QueryRequestEnvelope,
     pretty: bool,
 ) -> Result<String, String> {
+    // provide the current revision when write queries omit a precondition
+    if request.expected_revision.is_none()
+        && request.request.execution_mode() == QueryExecutionMode::Write
+    {
+        let revision = daemon
+            .run_workspace_revision(root)
+            .map_err(|error| error.to_string())?;
+        request.expected_revision = Some(revision);
+    }
+
     // send the query request
     let response = daemon
         .run_query(root, request)
@@ -373,13 +378,43 @@ fn run_query_request(
     encode_output(&response, pretty)
 }
 
+/// Collect query batch indices that need an implicit write revision precondition.
+fn missing_write_precondition_indices(requests: &[QueryRequestEnvelope]) -> Vec<usize> {
+    requests
+        .iter()
+        .enumerate()
+        .filter_map(|(index, request)| {
+            if request.expected_revision.is_none()
+                && request.request.execution_mode() == QueryExecutionMode::Write
+            {
+                return Some(index);
+            }
+
+            None
+        })
+        .collect()
+}
+
 /// Execute a batch of query requests.
 fn run_query_batch_request(
     daemon: &ProtocolDaemonClient,
     root: &Path,
-    requests: Vec<QueryRequestEnvelope>,
+    mut requests: Vec<QueryRequestEnvelope>,
     pretty: bool,
 ) -> Result<String, String> {
+    // collect write queries that are missing a revision precondition
+    let missing_write_indices = missing_write_precondition_indices(&requests);
+
+    // provide one shared revision precondition for implicit write requests
+    if !missing_write_indices.is_empty() {
+        let revision = daemon
+            .run_workspace_revision(root)
+            .map_err(|error| error.to_string())?;
+        for index in missing_write_indices {
+            requests[index].expected_revision = Some(revision);
+        }
+    }
+
     // send the query batch
     let response = daemon
         .run_query_batch(root, requests)
@@ -574,7 +609,7 @@ fn run_method_mode(
     };
     let envelope = QueryRequestEnvelope {
         request,
-        snapshot_id: None,
+        expected_revision: None,
     };
 
     // execute the query
@@ -632,12 +667,6 @@ fn finish_output(output: Result<String, String>) -> i32 {
 
 /// Execute workspace queries.
 pub fn run(args: &QueryArgs) -> i32 {
-    // reject removed stale mode flag
-    if args.allow_stale {
-        console::error("--allow-stale was removed, queries are always strict");
-        return 1;
-    }
-
     // resolve the command name
     let method_name = args.method.as_deref();
     let command_name = method_name.map(normalize_command_name);
@@ -649,7 +678,6 @@ pub fn run(args: &QueryArgs) -> i32 {
             || args.params.is_some()
             || args.method_arg.is_some()
             || args.input.is_some()
-            || args.allow_stale
             || args.file.is_some()
             || args.uri.is_some()
             || args.line.is_some()
@@ -673,7 +701,6 @@ pub fn run(args: &QueryArgs) -> i32 {
         let is_input_present = args.stdin
             || args.params.is_some()
             || args.input.is_some()
-            || args.allow_stale
             || args.file.is_some()
             || args.uri.is_some()
             || args.line.is_some()
@@ -703,7 +730,6 @@ pub fn run(args: &QueryArgs) -> i32 {
         let is_input_present = args.stdin
             || args.params.is_some()
             || args.input.is_some()
-            || args.allow_stale
             || args.file.is_some()
             || args.uri.is_some()
             || args.line.is_some()
@@ -812,7 +838,6 @@ mod tests {
             new_name: None,
             pretty: false,
             program: ProgramArgs::default(),
-            allow_stale: false,
         };
 
         // resolve the input path
@@ -841,7 +866,6 @@ mod tests {
             new_name: None,
             pretty: false,
             program: ProgramArgs::default(),
-            allow_stale: false,
         };
 
         // attempt to resolve raw input
@@ -864,5 +888,43 @@ mod tests {
 
         let offset = offset_from_line_column(content, 2, 3).expect("offset");
         assert_eq!(offset, 8);
+    }
+
+    /// Collects only write requests without explicit revisions.
+    #[test]
+    fn test_query_missing_write_precondition_indices() {
+        // build a mixed query batch
+        let requests = vec![
+            QueryRequestEnvelope {
+                expected_revision: None,
+                request: QueryRequest::Hover(assist::HoverRequest {
+                    uri: Uri::from_string("/workspace/main.ds"),
+                    offset: 1,
+                }),
+            },
+            QueryRequestEnvelope {
+                expected_revision: None,
+                request: QueryRequest::RenameFiles(refactor::RenameFilesRequest {
+                    renames: Vec::new(),
+                }),
+            },
+            QueryRequestEnvelope {
+                expected_revision: Some(9),
+                request: QueryRequest::RenameFiles(refactor::RenameFilesRequest {
+                    renames: Vec::new(),
+                }),
+            },
+            QueryRequestEnvelope {
+                expected_revision: None,
+                request: QueryRequest::Rename(refactor::RenameRequest {
+                    uri: Uri::from_string("/workspace/main.ds"),
+                    offset: 1,
+                    new_name: "next".to_string(),
+                }),
+            },
+        ];
+
+        // assert write requests without revisions are selected
+        assert_eq!(missing_write_precondition_indices(&requests), vec![1, 3]);
     }
 }

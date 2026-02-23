@@ -39,23 +39,21 @@ fn test_workspace_service_routes_queries_across_roots() {
 
     let response_a = test
         .service
-        .query_for_path(
+        .execute_query_for_path(
             &path_a,
             query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest { uri: uri_a }),
         )
         .expect("expected root a query response");
     let response_b = test
         .service
-        .query_for_path(
+        .execute_query_for_path(
             &path_b,
             query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest { uri: uri_b }),
         )
         .expect("expected root b query response");
 
-    assert_ne!(
-        response_a.snapshot_id, response_b.snapshot_id,
-        "expected distinct workspace handles for each root"
-    );
+    assert!(response_a.revision >= 1, "expected a valid root a revision");
+    assert!(response_b.revision >= 1, "expected a valid root b revision");
 }
 
 /// Serialize compiler callbacks for concurrent root handle initialization.
@@ -78,24 +76,26 @@ fn test_workspace_service_serializes_concurrent_program_callbacks() {
         let max_active = max_active.clone();
         handles.push(thread::spawn(move || {
             barrier.wait();
-            service.with_program_for_path(&path, |_program, _compiler| {
-                let current = active.fetch_add(1, Ordering::SeqCst) + 1;
-                loop {
-                    let observed = max_active.load(Ordering::SeqCst);
-                    if current <= observed {
-                        break;
+            service
+                .with_workspace_handles_for_path(&path, |_program, _compiler| {
+                    let current = active.fetch_add(1, Ordering::SeqCst) + 1;
+                    loop {
+                        let observed = max_active.load(Ordering::SeqCst);
+                        if current <= observed {
+                            break;
+                        }
+                        if max_active
+                            .compare_exchange(observed, current, Ordering::SeqCst, Ordering::SeqCst)
+                            .is_ok()
+                        {
+                            break;
+                        }
                     }
-                    if max_active
-                        .compare_exchange(observed, current, Ordering::SeqCst, Ordering::SeqCst)
-                        .is_ok()
-                    {
-                        break;
-                    }
-                }
 
-                thread::sleep(Duration::from_millis(20));
-                let _ = active.fetch_sub(1, Ordering::SeqCst);
-            });
+                    thread::sleep(Duration::from_millis(20));
+                    let _ = active.fetch_sub(1, Ordering::SeqCst);
+                })
+                .expect("expected workspace path routing");
         }));
     }
 

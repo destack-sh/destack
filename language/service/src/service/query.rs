@@ -1,8 +1,6 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::path::Path;
 
-use crate::query::{self, QueryResponseEnvelope};
+use crate::query::{self, QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_compiler::TaskOutcome;
 use destack_source::{FileId, Span, Uri};
 use destack_workspace::{ModuleContent, Program};
@@ -11,42 +9,83 @@ use super::{LanguageService, LanguageServiceError, WorkspaceHandleId};
 
 impl LanguageService {
     /// Execute a workspace query for the workspace that owns the path.
-    pub fn query_for_path(
+    pub fn execute_query_for_path(
         &self,
         path: &Path,
         request: query::QueryRequest,
     ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
+        // build the query envelope without a caller-provided precondition
+        let envelope = QueryRequestEnvelope {
+            expected_revision: None,
+            request,
+        };
+
+        // route to envelope-based query execution
+        self.execute_query_envelope_for_path(path, envelope)
+    }
+
+    /// Execute a workspace query envelope for the workspace that owns the path.
+    pub fn execute_query_envelope_for_path(
+        &self,
+        path: &Path,
+        envelope: QueryRequestEnvelope,
+    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
         // resolve the workspace handle for this path
-        let handle = self.handle_for_path(path)?;
+        let handle = self.workspace_handle_id_for_path(path)?;
 
         // route to handle based query execution
-        self.query_for_handle(handle, request)
+        self.execute_query_envelope_for_workspace_handle(handle, envelope)
     }
 
     /// Execute a workspace query for a specific workspace handle.
-    pub fn query_for_handle(
+    pub fn execute_query_for_workspace_handle(
         &self,
         handle: WorkspaceHandleId,
         request: query::QueryRequest,
     ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
-        // resolve the root and owning program
-        let root = self.root_for_handle(handle)?;
-        let program = self.program_for_root(&root);
+        // build the query envelope without a caller-provided precondition
+        let envelope = QueryRequestEnvelope {
+            expected_revision: None,
+            request,
+        };
+
+        // route to envelope-based query execution
+        self.execute_query_envelope_for_workspace_handle(handle, envelope)
+    }
+
+    /// Execute a workspace query envelope for a specific workspace handle.
+    pub fn execute_query_envelope_for_workspace_handle(
+        &self,
+        handle: WorkspaceHandleId,
+        envelope: QueryRequestEnvelope,
+    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
+        // resolve the owning workspace handle and program
+        let workspace = self.workspace_handle_for_id(handle)?;
+        let program = workspace.program.as_ref();
+        let current_revision = workspace.revision();
+
+        // require an explicit revision precondition for write requests
+        if envelope.request.execution_mode() == query::QueryExecutionMode::Write {
+            let expected_revision = envelope
+                .expected_revision
+                .ok_or(LanguageServiceError::MissingExpectedRevision)?;
+            if expected_revision != current_revision {
+                return Err(LanguageServiceError::StaleRevision {
+                    expected: expected_revision,
+                    current: current_revision,
+                });
+            }
+        }
 
         // dispatch query execution
-        let response = self.query_response_for_request(&program, request)?;
+        let response = self.execute_query_request(program, envelope.request)?;
+        let revision = workspace.revision();
 
-        // build a snapshot id from current module state
-        let snapshot_id = self.snapshot_id_for_program(handle, &program);
-
-        Ok(QueryResponseEnvelope {
-            snapshot_id,
-            response,
-        })
+        Ok(QueryResponseEnvelope { revision, response })
     }
 
     /// Build a query response for a request payload.
-    fn query_response_for_request(
+    fn execute_query_request(
         &self,
         program: &Program,
         request: query::QueryRequest,
@@ -515,7 +554,7 @@ impl LanguageService {
 
         // run cheap validation first
         let session = self.session_ref();
-        let validate_outcome = self.validate_semantic_query_module(program, file_id);
+        let validate_outcome = self.validate_semantic_query_module(program, file_id)?;
         if validate_outcome.is_some() {
             // check original file id after validation
             if self.semantic_query_ready(file_id) {
@@ -643,21 +682,5 @@ impl LanguageService {
             TaskOutcome::Skipped { .. } => "skipped",
             TaskOutcome::Complete => "complete",
         }
-    }
-
-    /// Build a snapshot id from current module state.
-    fn snapshot_id_for_program(&self, handle: WorkspaceHandleId, program: &Program) -> String {
-        let mut hasher = DefaultHasher::new();
-        handle.0.hash(&mut hasher);
-        program.modules.len().hash(&mut hasher);
-
-        for module in program.modules.iter() {
-            let module = module.read();
-            module.id.hash(&mut hasher);
-            module.version.hash(&mut hasher);
-            module.source_version.hash(&mut hasher);
-        }
-
-        format!("handle:{}:{:x}", handle.0, hasher.finish())
     }
 }

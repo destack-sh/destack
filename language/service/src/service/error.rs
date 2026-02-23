@@ -48,6 +48,25 @@ pub enum LanguageServiceError {
         /// The missing file id.
         file_id: FileId,
     },
+    /// The path is outside all opened workspace roots.
+    PathNotInWorkspace {
+        /// The path that failed workspace routing.
+        path: PathBuf,
+    },
+    /// The query expected revision is missing for mutating requests.
+    MissingExpectedRevision,
+    /// The query expected revision does not match the current workspace revision.
+    StaleRevision {
+        /// The caller expected revision.
+        expected: u64,
+        /// The current workspace revision.
+        current: u64,
+    },
+    /// The semantic revision entry is missing for a workspace root.
+    RevisionNotTracked {
+        /// The workspace root missing revision state.
+        root: PathBuf,
+    },
     /// Semantic query state is not ready.
     SemanticQueryNotReady {
         /// The failure detail.
@@ -100,6 +119,29 @@ impl std::fmt::Display for LanguageServiceError {
             }
             LanguageServiceError::FileIdNotTracked { file_id } => {
                 write!(formatter, "file id not tracked: {file_id:?}")
+            }
+            LanguageServiceError::PathNotInWorkspace { path } => {
+                write!(
+                    formatter,
+                    "path is not in a workspace root: {}",
+                    path.display()
+                )
+            }
+            LanguageServiceError::MissingExpectedRevision => {
+                write!(formatter, "missing expected revision for mutating query")
+            }
+            LanguageServiceError::StaleRevision { expected, current } => {
+                write!(
+                    formatter,
+                    "stale query revision: expected {expected}, current {current}"
+                )
+            }
+            LanguageServiceError::RevisionNotTracked { root } => {
+                write!(
+                    formatter,
+                    "revision is not tracked for root: {}",
+                    root.display()
+                )
             }
             LanguageServiceError::SemanticQueryNotReady { detail } => {
                 write!(formatter, "semantic query state is not ready: {detail}")

@@ -1,5 +1,5 @@
-use crate::query;
 use crate::tests::harness::TestLanguageService;
+use crate::{LanguageServiceError, query};
 
 /// Resolve document symbols through workspace queries.
 #[test]
@@ -24,7 +24,7 @@ fn test_workspace_service_query_document_symbols() {
 
     let response = test
         .service
-        .query_for_path(
+        .execute_query_for_path(
             &path,
             query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest { uri }),
         )
@@ -38,4 +38,103 @@ fn test_workspace_service_query_document_symbols() {
         !document_symbols.symbols.is_empty(),
         "expected at least one document symbol"
     );
+}
+
+/// Advance semantic revision after virtual file updates.
+#[test]
+fn test_workspace_service_revisions_advance_after_updates() {
+    let test = TestLanguageService::new("workspace_service_revision_updates");
+    let path = test.path_for("main.ds");
+    let source_a = "export const value = 1;\n";
+    let source_b = "export const value = 2;\n";
+
+    let _ = test
+        .fs
+        .write_text("main.ds", source_a)
+        .expect("expected source write");
+
+    let _ = test
+        .service
+        .update_virtual_file(&path, source_a.to_string())
+        .expect("expected first virtual update");
+    let revision_a = test
+        .service
+        .revision_for_path(&path)
+        .expect("expected first revision");
+
+    let _ = test
+        .service
+        .update_virtual_file(&path, source_b.to_string())
+        .expect("expected second virtual update");
+    let revision_b = test
+        .service
+        .revision_for_path(&path)
+        .expect("expected second revision");
+
+    assert!(revision_b > revision_a, "expected revision to increase");
+}
+
+/// Require revision preconditions for mutating queries.
+#[test]
+fn test_workspace_service_query_requires_revision_for_mutation() {
+    let test = TestLanguageService::new("workspace_service_mutation_revision");
+    let path = test.path_for("main.ds");
+    let source = "export const value = 1;\n";
+
+    let _ = test
+        .fs
+        .write_text("main.ds", source)
+        .expect("expected source write");
+    let _ = test
+        .service
+        .update_virtual_file(&path, source.to_string())
+        .expect("expected virtual update");
+
+    // reject mutating queries without an expected revision
+    let missing_revision = query::QueryRequestEnvelope {
+        expected_revision: None,
+        request: query::QueryRequest::RenameFiles(query::RenameFilesRequest {
+            renames: Vec::new(),
+        }),
+    };
+    let missing_error = test
+        .service
+        .execute_query_envelope_for_path(&path, missing_revision)
+        .expect_err("expected missing revision error");
+    assert!(matches!(
+        missing_error,
+        LanguageServiceError::MissingExpectedRevision
+    ));
+
+    // reject stale revision preconditions
+    let current_revision = test
+        .service
+        .revision_for_path(&path)
+        .expect("expected current revision");
+    let stale_revision = query::QueryRequestEnvelope {
+        expected_revision: Some(current_revision.saturating_sub(1)),
+        request: query::QueryRequest::RenameFiles(query::RenameFilesRequest {
+            renames: Vec::new(),
+        }),
+    };
+    let stale_error = test
+        .service
+        .execute_query_envelope_for_path(&path, stale_revision)
+        .expect_err("expected stale revision error");
+    assert!(matches!(
+        stale_error,
+        LanguageServiceError::StaleRevision { .. }
+    ));
+
+    // accept matching revision preconditions
+    let matching_revision = query::QueryRequestEnvelope {
+        expected_revision: Some(current_revision),
+        request: query::QueryRequest::RenameFiles(query::RenameFilesRequest {
+            renames: Vec::new(),
+        }),
+    };
+    let _ = test
+        .service
+        .execute_query_envelope_for_path(&path, matching_revision)
+        .expect("expected mutating query with matching revision");
 }

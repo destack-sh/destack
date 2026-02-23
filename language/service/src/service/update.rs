@@ -5,7 +5,7 @@ use destack_source::{FileType, FileWatchEvent, FileWatchEventKind};
 use destack_workspace::FileUpdate;
 
 use super::workspace::{
-    ProgramHandle, ServiceUpdate, build_update, warning_message, workspace_update_record,
+    ServiceUpdate, WorkspaceHandle, build_update, warning_message, workspace_update_record,
 };
 use super::{
     LanguageService, LanguageServiceError, LanguageServiceResult, RescanReason, WorkspaceMessage,
@@ -204,7 +204,7 @@ impl LanguageService {
     ) -> Result<LanguageServiceResult, LanguageServiceError> {
         // collect all opened root paths
         let roots: Vec<PathBuf> = self
-            .handles_by_root
+            .handle_ids_by_root
             .iter()
             .map(|entry| entry.key().clone())
             .collect();
@@ -223,11 +223,14 @@ impl LanguageService {
 
         // rescan each requested root with compile serialization
         for root in roots {
-            let handle = self.program_handle_for_root(root);
+            let handle = self.workspace_handle_for_root(root)?;
             let _compile_guard = handle.compile_lock.lock();
             let rescan = self.rescan_program(&handle, analyze)?;
             result.updates.extend(rescan.updates);
             result.messages.extend(rescan.messages);
+
+            // advance semantic revision for each successfully rescanned root
+            self.bump_revision_for_root(root)?;
         }
 
         Ok(result)
@@ -247,8 +250,8 @@ impl LanguageService {
         path: &Path,
         update: FileUpdate,
     ) -> Result<VirtualUpdateResult, LanguageServiceError> {
-        // resolve and lock the owning program handle
-        let handle = self.program_handle_for_path(path);
+        // resolve and lock the owning workspace handle
+        let handle = self.workspace_handle_for_path(path)?;
         let _compile_guard = handle.compile_lock.lock();
         let program = handle.program.clone();
         let compiler = handle.compiler.clone();
@@ -326,13 +329,16 @@ impl LanguageService {
         let mut updates = vec![build_update(&program, module_id, file_id, invalidation)?];
         self.analyze_updates(&program, &compiler, &mut updates)?;
 
+        // advance semantic revision after the update is fully applied
+        self.bump_revision_for_root(&program.cwd)?;
+
         Ok(VirtualUpdateResult { updates, messages })
     }
 
     /// Rescan tracked files for a single program.
     fn rescan_program(
         &self,
-        handle: &ProgramHandle,
+        handle: &WorkspaceHandle,
         analyze: bool,
     ) -> Result<LanguageServiceResult, LanguageServiceError> {
         let program = handle.program.as_ref();

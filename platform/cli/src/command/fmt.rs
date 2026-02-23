@@ -8,7 +8,9 @@ use crate::common::{
     DiagnosticArgs, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, parse_command_payload,
     print_report, report_error, report_from_payload,
 };
-use crate::pipeline::daemon::{CommandOptionsBuilder, emit_daemon_text_output, run_daemon_command};
+use crate::pipeline::daemon::{
+    CommandOptionsBuilder, emit_daemon_text_output, run_workspace_command_once,
+};
 
 /// Arguments for the format command.
 #[derive(Args, Debug, Clone)]
@@ -55,7 +57,7 @@ pub fn run(args: &FmtArgs) -> i32 {
     });
 
     // execute the daemon command
-    let result = match run_daemon_command(
+    let result = match run_workspace_command_once(
         &args.program,
         Some(diagnostic_options),
         common,

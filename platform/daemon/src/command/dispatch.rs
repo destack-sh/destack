@@ -6,7 +6,7 @@ use destack_source::{Diagnostic, DiagnosticCollection};
 
 use crate::Daemon;
 use crate::command::context::CommandContext;
-use crate::command::{CommandPayload, CommonCommandOptions};
+use crate::command::{CommandPayload, CommonCommandOptions, DaemonCommandError};
 
 /// Result of executing a daemon command.
 #[derive(Debug, Clone)]
@@ -179,14 +179,16 @@ impl CommandOutcome {
 
 impl Daemon {
     /// Execute a command request for the given workspace root.
-    pub fn run_command(
+    pub fn run_workspace_command(
         &self,
         root: &Path,
         common: &CommonCommandOptions,
         payload: &CommandPayload,
     ) -> super::CommandResult<DaemonCommandResult> {
-        self.workspace_service
-            .with_program_for_path(root, |program, compiler| {
+        // resolve workspace program and compiler handles before command execution
+        let outcome = self
+            .workspace_service
+            .with_workspace_handles_for_path(root, |program, compiler| {
                 // gather shared context
                 let start_time = Instant::now();
                 let mut output = CommandOutputBuffer::default();
@@ -203,7 +205,7 @@ impl Daemon {
                     CommandPayload::Check(options) => context.run_check_command(options)?,
                     CommandPayload::Lint(options) => context.run_lint_command(options)?,
                     CommandPayload::Build(options) => context.run_build_command(options)?,
-                    CommandPayload::Run(options) => context.run_run_command(options)?,
+                    CommandPayload::Run(options) => context.execute_run_command(options)?,
                     CommandPayload::Test(options) => context.run_test_command(options)?,
                     CommandPayload::Format(options) => context.run_format_command(root, options)?,
                     CommandPayload::Doc(options) => context.run_doc_command(options)?,
@@ -239,6 +241,11 @@ impl Daemon {
                     stats: stats_payload,
                 })
             })
+            .map_err(|error| {
+                DaemonCommandError::internal(format!("workspace program routing failed: {error}"))
+            })?;
+
+        outcome
     }
 }
 

@@ -28,8 +28,8 @@ impl LanguageService {
 
     /// Analyze a path and update diagnostics.
     pub fn analyze_path(&self, path: &Path) -> Result<AnalyzeOutcome, LanguageServiceError> {
-        // resolve and lock the owning program handle
-        let handle = self.program_handle_for_path(path);
+        // resolve and lock the owning workspace handle
+        let handle = self.workspace_handle_for_path(path)?;
         let _compile_guard = handle.compile_lock.lock();
         let program = handle.program.clone();
         let compiler = handle.compiler.clone();

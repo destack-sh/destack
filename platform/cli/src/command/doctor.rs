@@ -8,7 +8,9 @@ use crate::common::{
     print_report, report_error,
 };
 use crate::console;
-use crate::pipeline::daemon::{CommandOptionsBuilder, emit_daemon_text_output, run_daemon_command};
+use crate::pipeline::daemon::{
+    CommandOptionsBuilder, emit_daemon_text_output, run_workspace_command_once,
+};
 
 /// Arguments for the doctor command.
 #[derive(Args, Debug, Clone)]
@@ -37,7 +39,7 @@ pub fn run(args: &DoctorArgs) -> i32 {
     let payload = CommandPayload::Doctor(CommandDoctorOptions { full: args.full });
 
     // execute the daemon command
-    let result = match run_daemon_command(&args.program, None, common, payload, None) {
+    let result = match run_workspace_command_once(&args.program, None, common, payload, None) {
         Ok(result) => result,
         Err(error) => return report_error("doctor", &args.report, &error.to_string()),
     };

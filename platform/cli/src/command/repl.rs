@@ -7,7 +7,7 @@ use crate::common::{
     report_error,
 };
 use crate::pipeline::daemon::{
-    CommandOptionsBuilder, finish_daemon_message_command, run_daemon_command_with_session,
+    CommandOptionsBuilder, finish_daemon_message_command, run_workspace_command_with_session,
     target_overrides_from_args,
 };
 use crate::pipeline::target::target_name_from_args;
@@ -61,7 +61,7 @@ pub fn run(args: &ReplArgs) -> i32 {
     let payload = CommandPayload::Repl(CommandReplOptions::default());
 
     // execute the daemon command
-    let result = match run_daemon_command_with_session(
+    let result = match run_workspace_command_with_session(
         session,
         &args.program,
         diagnostic_options,

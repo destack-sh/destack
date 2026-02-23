@@ -175,7 +175,7 @@ pub fn build_watch_context(
     let root = roots
         .first()
         .cloned()
-        .unwrap_or_else(|| session.cwd.clone());
+        .expect("watch roots should always include a primary root");
 
     // initialize the reporter when json output is requested
     let mut reporter = if report.is_json() {
