@@ -3,18 +3,18 @@ use std::time::Duration;
 
 use destack_compiler::CompilerOptions;
 use destack_lsp_server::jsonrpc::{Request, Response};
-use destack_lsp_server::{ClientSocket, LspService, UriExt};
+use destack_lsp_server::{ClientSocket, LanguageServer, LspService, UriExt};
 use destack_lsp_types as lsp;
 use destack_source::TemporaryPhysicalFileSystem;
 use futures::{SinkExt, StreamExt};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use tokio::sync::mpsc;
+use tokio::sync::mpsc::{self, UnboundedReceiver};
 use tower::Service;
 
 use crate::DestackLanguageServer;
 
-const MAX_CLIENT_REQUESTS: usize = 16;
+const DEFAULT_CLIENT_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 const DEFAULT_DIAGNOSTICS_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Harness mode for workspace connectivity.
@@ -32,7 +32,7 @@ pub struct LspHarness {
     /// The LSP service under test.
     service: LspService<DestackLanguageServer>,
     /// Stream of client notifications from the server.
-    client_rx: mpsc::Receiver<Request>,
+    client_rx: UnboundedReceiver<Request>,
     /// Root directory for the test workspace.
     pub root: PathBuf,
     /// Request id counter for typed test requests.
@@ -116,15 +116,35 @@ impl LspHarness {
 
     /// Wait for a client request matching the method.
     pub async fn next_client_request_for(&mut self, method: &str) -> Request {
-        // drain client requests until a match is found
-        for _ in 0..MAX_CLIENT_REQUESTS {
-            let request = self.next_client_request().await;
+        self.next_client_request_for_timeout(method, DEFAULT_CLIENT_REQUEST_TIMEOUT)
+            .await
+    }
+
+    /// Wait for a client request matching the method within a timeout.
+    pub async fn next_client_request_for_timeout(
+        &mut self,
+        method: &str,
+        timeout: Duration,
+    ) -> Request {
+        // wait until the deadline expires
+        let deadline = tokio::time::Instant::now() + timeout;
+        loop {
+            let now = tokio::time::Instant::now();
+            let remaining = deadline.checked_duration_since(now).unwrap_or_default();
+            if remaining.is_zero() {
+                panic!("timeout waiting for client request method {method}");
+            }
+
+            // fetch the next request from the client stream
+            let request = tokio::time::timeout(remaining, self.next_client_request())
+                .await
+                .unwrap_or_else(|_| panic!("timeout waiting for client request method {method}"));
+
+            // return when the method matches
             if request.method() == method {
                 return request;
             }
         }
-
-        panic!("missing client request for method {method}");
     }
 
     /// Receive the next register capability request.
@@ -382,6 +402,34 @@ impl LspHarness {
         self.notify(notification).await;
     }
 
+    /// Execute workspace diagnostics while issuing repeated cancellation notifications.
+    pub async fn workspace_diagnostic_with_cancellation(
+        &self,
+        params: lsp::WorkspaceDiagnosticParams,
+        cancel_token: lsp::ProgressToken,
+        cancel_attempts: usize,
+        cancel_interval: Duration,
+    ) -> destack_lsp_server::jsonrpc::Result<lsp::WorkspaceDiagnosticReportResult> {
+        // resolve the server under test
+        let server = self.service.inner();
+
+        // run diagnostic request with repeated cancellation attempts
+        let diagnostic_future = server.workspace_diagnostic(params);
+        let cancel_future = async {
+            for _ in 0..cancel_attempts {
+                server
+                    .work_done_progress_cancel(lsp::WorkDoneProgressCancelParams {
+                        token: cancel_token.clone(),
+                    })
+                    .await;
+                tokio::time::sleep(cancel_interval).await;
+            }
+        };
+        let (result, _) = tokio::join!(diagnostic_future, cancel_future);
+
+        result
+    }
+
     /// Collect diagnostics notifications within the timeout window.
     pub async fn collect_diagnostics_for_timeout(
         &mut self,
@@ -407,17 +455,18 @@ impl LspHarness {
     }
 }
 
-/// Drain client notifications into a buffered channel for tests.
-fn spawn_client_drain(client: ClientSocket) -> mpsc::Receiver<Request> {
-    // create a buffered channel for client messages
-    let (tx, rx) = mpsc::channel(64);
+/// Drain client notifications into a queue for tests.
+fn spawn_client_drain(client: ClientSocket) -> UnboundedReceiver<Request> {
+    // create an unbounded channel for client messages
+    // this avoids deadlocks when tests intentionally trigger large notification bursts
+    let (tx, rx) = mpsc::unbounded_channel();
 
     // forward client notifications to the buffered channel
     tokio::spawn(async move {
         let (mut requests, mut responses) = client.split();
         while let Some(request) = requests.next().await {
             let id = request.id().cloned();
-            if tx.send(request).await.is_err() {
+            if tx.send(request).is_err() {
                 break;
             }
 

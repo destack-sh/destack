@@ -30,6 +30,11 @@ impl TestLsp {
         Self { fs, harness }
     }
 
+    /// Return the primary test root directory.
+    pub fn root(&self) -> &Path {
+        self.fs.root()
+    }
+
     /// Resolve a test file path.
     pub fn path_for(&self, path: &str) -> PathBuf {
         self.fs.path_for(path)
