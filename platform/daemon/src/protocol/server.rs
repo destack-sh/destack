@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use destack_source::{ModuleId, ProfileId};
 use parking_lot::Mutex;
 
-use destack_service::{WorkspaceHandleId as ServiceWorkspaceHandleId, query};
+use destack_service::WorkspaceHandleId as ServiceWorkspaceHandleId;
 use destack_workspace::{
     FileUpdate as WorkspaceFileUpdate, ModuleGraphKey, ModuleSignatureKey, Program,
 };
@@ -20,12 +20,12 @@ use super::{
     FileUpdateKind, FileUpdateRequest, FileUpdateResponse, HandshakeRequest, HandshakeResponse,
     PayloadBody, PayloadChunkNotification, PayloadFormat, PayloadId, ProtocolCodec,
     ProtocolCodecError, ProtocolError, ProtocolErrorCode, ProtocolLimits, ProtocolMessage,
-    ProtocolNotification, ProtocolRange, ProtocolRequest, ProtocolResponse, RescanWorkspaceRequest,
-    ServerInfo, SessionId, Transport, TransportError, WatchBatchRequest, WatchBatchResponse,
-    WorkspaceHandleId, WorkspaceOpenedResponse, WorkspaceRescanResponse,
-    command_output_to_protocol, command_stats_to_protocol, daemon_messages_to_records,
-    daemon_updates_to_records, diagnostics_to_batches, files_to_snapshots,
-    inline_payload_max_bytes, payload_chunk_bytes,
+    ProtocolNotification, ProtocolRange, ProtocolRequest, ProtocolResponse, QueryRequestPayload,
+    QueryResponsePayload, RescanWorkspaceRequest, ServerInfo, SessionId, Transport, TransportError,
+    WatchBatchRequest, WatchBatchResponse, WorkspaceHandleId, WorkspaceOpenedResponse,
+    WorkspaceRescanResponse, command_output_to_protocol, command_stats_to_protocol,
+    daemon_messages_to_records, daemon_updates_to_records, diagnostics_to_batches,
+    files_to_snapshots, inline_payload_max_bytes, payload_chunk_bytes,
 };
 
 /// Server side protocol handler for daemon requests.
@@ -736,9 +736,18 @@ impl ProtocolServer {
     fn execute_workspace_query(
         &self,
         handle: WorkspaceHandleId,
-        request: query::QueryRequestEnvelope,
-    ) -> Result<query::QueryResponseEnvelope, ProtocolError> {
+        request: QueryRequestPayload,
+    ) -> Result<QueryResponsePayload, ProtocolError> {
         let _ = self.root_for_handle(handle)?;
+
+        // decode the semantic query request payload
+        let request = request.decode_envelope().map_err(|error| {
+            self.protocol_error(
+                ProtocolErrorCode::InvalidPayload,
+                &format!("invalid query request payload: {error}"),
+            )
+        })?;
+
         let response = self
             .daemon
             .workspace_service
@@ -750,7 +759,13 @@ impl ProtocolServer {
                 )
             })?;
 
-        Ok(response)
+        // encode the semantic query response payload
+        QueryResponsePayload::from_envelope(response).map_err(|error| {
+            self.protocol_error(
+                ProtocolErrorCode::Internal,
+                &format!("failed to encode query response payload: {error}"),
+            )
+        })
     }
 
     /// Return a NotReady protocol error with message.

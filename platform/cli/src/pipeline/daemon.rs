@@ -9,8 +9,9 @@ use destack_daemon::protocol::{
     CommandRequest, CommandResponse, CommandStats, CommandTargetOverrides, CommonCommandOptions,
     ConfigOverride, DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonQuery,
     DaemonQueryResponse, DaemonRequest, DaemonResponse, DiagnosticBatch, FileSnapshot,
-    OpenWorkspaceRequest, OutputStream, ProtocolClient, WatchBatch as ProtocolWatchBatch,
-    WatchBatchRequest, WatchEvent, WatchStatus, WorkspaceHandleId, WorkspaceOpenOptions,
+    OpenWorkspaceRequest, OutputStream, ProtocolClient, QueryRequestPayload,
+    WatchBatch as ProtocolWatchBatch, WatchBatchRequest, WatchEvent, WatchStatus,
+    WorkspaceHandleId, WorkspaceOpenOptions,
 };
 use destack_daemon::{
     DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig,
@@ -371,6 +372,10 @@ impl ProtocolDaemonClient {
             CliError::message(format!("workspace root not opened: {}", root.display()))
         })?;
 
+        // encode the semantic query request envelope
+        let request = QueryRequestPayload::from_envelope(request)
+            .map_err(|error| CliError::message(format!("query request encode failed: {error}")))?;
+
         // send the request to the daemon
         let response = self
             .client
@@ -401,7 +406,10 @@ impl ProtocolDaemonClient {
             }
         };
 
-        Ok(response)
+        // decode the semantic query response envelope
+        response
+            .decode_envelope()
+            .map_err(|error| CliError::message(format!("query response decode failed: {error}")))
     }
 
     /// Run a batch of workspace queries for a root.
@@ -414,6 +422,13 @@ impl ProtocolDaemonClient {
         let handle = self.handle_for_root(root).ok_or_else(|| {
             CliError::message(format!("workspace root not opened: {}", root.display()))
         })?;
+
+        // encode semantic query request envelopes
+        let requests: Vec<QueryRequestPayload> = requests
+            .into_iter()
+            .map(QueryRequestPayload::from_envelope)
+            .collect::<Result<_, _>>()
+            .map_err(|error| CliError::message(format!("query request encode failed: {error}")))?;
 
         // send the request to the daemon
         let response = self
@@ -445,7 +460,12 @@ impl ProtocolDaemonClient {
             }
         };
 
-        Ok(response)
+        // decode semantic query response envelopes
+        response
+            .into_iter()
+            .map(|payload| payload.decode_envelope())
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| CliError::message(format!("query response decode failed: {error}")))
     }
 
     /// Release the daemon connection.

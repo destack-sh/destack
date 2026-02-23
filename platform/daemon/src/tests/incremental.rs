@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use destack_compiler::CompilerOptions;
 use destack_service::query;
 use destack_source::{FileContent, FileSystem, TemporaryPhysicalFileSystem};
 use destack_workspace::{MemoryCacheStore, ModuleGraphKey, Session};
@@ -107,7 +108,11 @@ fn test_daemon_virtual_update_emits_diagnostics_physical_fs() {
     let session =
         Arc::new(Session::new(root.clone()).with_cache_store(Arc::new(MemoryCacheStore::new())));
     session.add_root(root.clone());
-    let daemon = Daemon::new(session.clone());
+
+    // run compiler work in a single worker to avoid test contention
+    let mut compiler_options = CompilerOptions::default();
+    compiler_options.workers = 1;
+    let daemon = Daemon::with_options(session.clone(), compiler_options);
 
     // initial diagnostics are empty
     let path = root.join("main.ds");

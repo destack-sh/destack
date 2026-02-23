@@ -7,9 +7,9 @@ use crate::protocol::{
     OpenWorkspaceRequest, PROTOCOL_VERSION, PayloadBody, PayloadChunkNotification, PayloadFormat,
     PayloadId, ProtocolClientError, ProtocolClientOptions, ProtocolErrorCode, ProtocolLimits,
     ProtocolMessage, ProtocolNotification, ProtocolRange, ProtocolServerActivity,
-    ProtocolServerOptions, ProtocolVersion, RescanReason, RescanWorkspaceRequest, WatchBatch,
-    WatchBatchRequest, WatchEvent, WatchEventKind, WatchStatus, WorkspaceHandleId,
-    WorkspaceOpenOptions, inline_payload_max_bytes, payload_chunk_bytes,
+    ProtocolServerOptions, ProtocolVersion, QueryRequestPayload, RescanReason,
+    RescanWorkspaceRequest, WatchBatch, WatchBatchRequest, WatchEvent, WatchEventKind, WatchStatus,
+    WorkspaceHandleId, WorkspaceOpenOptions, inline_payload_max_bytes, payload_chunk_bytes,
 };
 use crate::tests::{RequestRetryPolicy, TestDaemon, TestProtocolHarness};
 use destack_service::query;
@@ -454,13 +454,14 @@ fn test_protocol_virtual_update_query_goto_definition() {
 
     let response = harness.send_request_with_retry(
         || {
-            let request = QueryRequestEnvelope {
+            let request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
                 snapshot_id: None,
                 request: QueryRequest::GotoDefinition(GotoDefinitionRequest {
                     uri: Uri::from_path(&path),
                     offset,
                 }),
-            };
+            })
+            .expect("query request encode");
 
             DaemonRequest::Query(DaemonQuery::WorkspaceQuery { handle, request })
         },
@@ -471,6 +472,7 @@ fn test_protocol_virtual_update_query_goto_definition() {
         DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQuery(envelope)) => envelope,
         other => panic!("unexpected response: {other:?}"),
     };
+    let envelope = envelope.decode_envelope().expect("query response decode");
 
     // assert goto definition response content
     match envelope.response {
@@ -586,11 +588,11 @@ fn test_protocol_workspace_query_hover() {
 
     // seed a source file
     let content = concat!(
-        "export function announce(name: string): string {\\n",
-        "    return \\\"Hello, \\\" + name;\\n",
-        "}\\n",
-        "\\n",
-        "const message = announce(\\\"World\\\");\\n"
+        "export function announce(name: string): string {\n",
+        "    return \"Hello, \" + name;\n",
+        "}\n",
+        "\n",
+        "const message = announce(\"World\");\n"
     );
     let file_path = harness.test.write_text("main.ds", content);
 
@@ -598,28 +600,29 @@ fn test_protocol_workspace_query_hover() {
     let _ = harness.handshake();
     let handle = harness.open_workspace();
 
-    // apply the file update
-    let update = FileUpdate {
-        path: file_path.clone(),
-        update: FileUpdateKind::Text {
-            content: content.to_string(),
-        },
-        write_to_disk: true,
-    };
-    let _ = harness.send_request(DaemonRequest::ApplyFileUpdate(FileUpdateRequest {
+    // ensure analysis is available before running queries
+    let response = harness.send_request(DaemonRequest::Analyze(AnalyzeRequest {
         handle,
-        update,
+        path: file_path.clone(),
     }));
+    match response {
+        DaemonResponse::Analyzed(response) => {
+            assert!(response.semantic_query_ready);
+            assert!(response.detail.is_none());
+        }
+        other => panic!("unexpected analyze response: {other:?}"),
+    }
 
     // build the hover query
     let offset = content.find("announce(name").unwrap_or(0) as u32 + 1;
-    let request = QueryRequestEnvelope {
+    let request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
         snapshot_id: Some("stale-snapshot".to_string()),
         request: QueryRequest::Hover(HoverRequest {
             uri: Uri::from_path(&file_path),
             offset,
         }),
-    };
+    })
+    .expect("query request encode");
 
     // execute the query
     let response = harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQuery {
@@ -631,6 +634,7 @@ fn test_protocol_workspace_query_hover() {
         DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQuery(envelope)) => envelope,
         other => panic!("unexpected response: {other:?}"),
     };
+    let envelope = envelope.decode_envelope().expect("query response decode");
 
     // assert hover response content
     assert!(!envelope.snapshot_id.is_empty());
@@ -655,30 +659,17 @@ fn test_protocol_workspace_query_batch() {
 
     // seed a source file
     let content = concat!(
-        "export function announce(name: string): string {\\n",
-        "    return \\\"Hello, \\\" + name;\\n",
-        "}\\n",
-        "\\n",
-        "const message = announce(\\\"World\\\");\\n"
+        "export function announce(name: string): string {\n",
+        "    return \"Hello, \" + name;\n",
+        "}\n",
+        "\n",
+        "const message = announce(\"World\");\n"
     );
     let file_path = harness.test.write_text("main.ds", content);
 
     // handshake and open the workspace
     let _ = harness.handshake();
     let handle = harness.open_workspace();
-
-    // apply the file update
-    let update = FileUpdate {
-        path: file_path.clone(),
-        update: FileUpdateKind::Text {
-            content: content.to_string(),
-        },
-        write_to_disk: true,
-    };
-    let _ = harness.send_request(DaemonRequest::ApplyFileUpdate(FileUpdateRequest {
-        handle,
-        update,
-    }));
 
     // ensure analysis is available before running queries
     let response = harness.send_request(DaemonRequest::Analyze(AnalyzeRequest {
@@ -699,20 +690,22 @@ fn test_protocol_workspace_query_batch() {
     // execute the batch query
     let response = harness.send_request_with_retry(
         || {
-            let hover_request = QueryRequestEnvelope {
+            let hover_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
                 snapshot_id: None,
                 request: QueryRequest::Hover(HoverRequest {
                     uri: Uri::from_path(&file_path),
                     offset,
                 }),
-            };
+            })
+            .expect("query request encode");
 
-            let symbols_request = QueryRequestEnvelope {
+            let symbols_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
                 snapshot_id: None,
                 request: QueryRequest::DocumentSymbols(DocumentSymbolsRequest {
                     uri: Uri::from_path(&file_path),
                 }),
-            };
+            })
+            .expect("query request encode");
 
             DaemonRequest::Query(DaemonQuery::WorkspaceQueryBatch {
                 handle,
@@ -728,6 +721,10 @@ fn test_protocol_workspace_query_batch() {
         }
         other => panic!("unexpected response: {other:?}"),
     };
+    let responses: Vec<_> = responses
+        .into_iter()
+        .map(|response| response.decode_envelope().expect("query response decode"))
+        .collect();
 
     // assert the batch responses
     assert_eq!(responses.len(), 2);
@@ -764,34 +761,21 @@ fn test_protocol_workspace_query_find_references_member_access() {
 
     // seed a source file
     let content = concat!(
-        "struct Point {\\n",
-        "    x: int32,\\n",
-        "    y: int32,\\n",
-        "}\\n",
-        "\\n",
-        "function main(p: Point) {\\n",
-        "    const a = p.x;\\n",
-        "    const b = p.x + p.x;\\n",
-        "}\\n"
+        "struct Point {\n",
+        "    x: int32,\n",
+        "    y: int32,\n",
+        "}\n",
+        "\n",
+        "function main(p: Point) {\n",
+        "    const a = p.x;\n",
+        "    const b = p.x + p.x;\n",
+        "}\n"
     );
     let file_path = harness.test.write_text("main.ds", content);
 
     // handshake and open the workspace
     let _ = harness.handshake();
     let handle = harness.open_workspace();
-
-    // apply the file update
-    let update = FileUpdate {
-        path: file_path.clone(),
-        update: FileUpdateKind::Text {
-            content: content.to_string(),
-        },
-        write_to_disk: true,
-    };
-    let _ = harness.send_request(DaemonRequest::ApplyFileUpdate(FileUpdateRequest {
-        handle,
-        update,
-    }));
 
     // ensure analysis is available before running queries
     let response = harness.send_request(DaemonRequest::Analyze(AnalyzeRequest {
@@ -812,14 +796,15 @@ fn test_protocol_workspace_query_find_references_member_access() {
     // execute the query
     let response = harness.send_request_with_retry(
         || {
-            let request = QueryRequestEnvelope {
+            let request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
                 snapshot_id: None,
                 request: QueryRequest::FindReferences(FindReferencesRequest {
                     uri: Uri::from_path(&file_path),
                     offset,
                     include_declaration: true,
                 }),
-            };
+            })
+            .expect("query request encode");
 
             DaemonRequest::Query(DaemonQuery::WorkspaceQuery { handle, request })
         },
@@ -830,6 +815,7 @@ fn test_protocol_workspace_query_find_references_member_access() {
         DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQuery(envelope)) => envelope,
         other => panic!("unexpected response: {other:?}"),
     };
+    let envelope = envelope.decode_envelope().expect("query response decode");
 
     // assert find references response content
     match envelope.response {
