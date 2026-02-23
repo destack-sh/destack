@@ -425,12 +425,6 @@ pub(crate) fn format_function_declaration<'ast>(
                 let body_break = format_with(|f| write!(f, [body]));
                 let inline_body_expression_id =
                     crate::format::expression::transparent_inner_expression(f.context(), *body);
-                let body_is_simple_inline_expression = !force_break
-                    && !f.context().has_annotation(inline_body_expression_id)
-                    && crate::format::expression::is_trivial_expression(
-                        f.context().tree,
-                        f.context().tree.get(inline_body_expression_id),
-                    );
 
                 if body_is_parenthesized_tree {
                     write!(
@@ -441,15 +435,6 @@ pub(crate) fn format_function_declaration<'ast>(
                             body_break
                         ])
                         .should_expand(force_break)]
-                    )?;
-                } else if body_is_simple_inline_expression {
-                    write!(
-                        f,
-                        [group(&format_args![
-                            format_with(|f| write_lambda_arrow_with_infix_annotations(f, node_id)),
-                            indent(&format_args![soft_line_break_or_space(), body_break])
-                        ])
-                        .should_expand(false)]
                     )?;
                 } else {
                     let body_is_lambda_with_block_prefix = matches!(

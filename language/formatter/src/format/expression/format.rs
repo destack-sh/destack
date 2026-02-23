@@ -14,9 +14,9 @@ use crate::format::expression::{
 use crate::format::operator::format_operator_expression;
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Argument, Declarator, Expression, IfCondition, IfKind, LocalNodeId,
-    NodeTree, NodeType, Pattern, Property, ScalarLiteral, TokenType, TypeBinaryOperator,
-    TypeUnaryOperator, UnaryOperator,
+    AnnotationPosition, Argument, BinaryOperator, Declarator, Expression, IfCondition, IfKind,
+    LocalNodeId, NodeTree, NodeType, Pattern, Property, ScalarLiteral, TokenType,
+    TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
 use destack_fir::format::{Buffer, FormatError, FormatResult, space, token};
 use destack_fir::write;
@@ -191,6 +191,29 @@ pub(crate) fn format_static_argument_list<'ast>(
         }
         write!(f, [token(">")])?;
         return Ok(());
+    }
+
+    if static_arguments.len() == 1 {
+        let argument_id = static_arguments[0];
+        let value_id = match f.context().tree.get(argument_id) {
+            Argument::Named { value, .. }
+            | Argument::Labeled { value, .. }
+            | Argument::Positional { value, .. }
+            | Argument::Spread { value, .. } => *value,
+        };
+        let value_id = transparent_inner_expression(f.context(), value_id);
+        let value_is_union_or_intersection = matches!(
+            f.context().tree.get(value_id),
+            Expression::Binary {
+                operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
+                ..
+            }
+        );
+
+        if value_is_union_or_intersection && !f.context().has_annotation(argument_id) {
+            write!(f, [token("<"), argument_id, token(">")])?;
+            return Ok(());
+        }
     }
 
     let should_expand = should_expand_static_argument_list(f.context(), static_arguments);
@@ -526,11 +549,18 @@ fn array_element_is_fill_candidate(tree: &NodeTree, element_id: LocalNodeId<Argu
     };
 
     match tree.get(value_id) {
-        Expression::ScalarLiteral(_) => true,
+        Expression::ScalarLiteral(
+            ScalarLiteral::Integer(_) | ScalarLiteral::Bigint(_) | ScalarLiteral::Float(_),
+        ) => true,
         Expression::Unary { operator, right } => {
+            let mut right_id = *right;
+            while let Expression::Parenthesized { expression } = tree.get(right_id) {
+                right_id = *expression;
+            }
+
             matches!(operator, UnaryOperator::Plus | UnaryOperator::Negate)
                 && matches!(
-                    tree.get(*right),
+                    tree.get(right_id),
                     Expression::ScalarLiteral(
                         ScalarLiteral::Integer(_)
                             | ScalarLiteral::Bigint(_)
@@ -594,28 +624,6 @@ pub(crate) fn expression_has_static_type_arguments(
         }
         _ => false,
     }
-}
-
-/// Return whether an expression has a non-doc multiline block prefix comment annotation.
-pub(crate) fn expression_has_non_doc_multiline_block_prefix_comment_annotation(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    context
-        .visit_annotations(expression_id, |annotations| {
-            annotations.iter().any(|annotation_id| {
-                let annotation = context.annotation(*annotation_id);
-                if !matches!(annotation.position(), AnnotationPosition::BlockPrefix)
-                    || !matches!(annotation, Annotation::Comment { .. })
-                {
-                    return false;
-                }
-
-                let annotation_span = context.annotation_span(*annotation_id);
-                context.has_newline(annotation_span)
-            })
-        })
-        .unwrap_or(false)
 }
 
 /// Return whether expression source is wrapped in a top-level parenthesis pair.

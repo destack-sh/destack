@@ -395,8 +395,7 @@ fn should_force_quote_keys_for_member<'ast>(
         return false;
     }
 
-    // class members follow identifier quoting rules even in quote-props consistent mode
-    false
+    true
 }
 
 /// Decide whether a field default should stay inline after `=`.
@@ -763,6 +762,28 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
                 Ok(())
             });
+        }
+
+        let directive = directive_for_node(f.context(), node_id);
+        if let Some(directive) = directive
+            && directive.kind == FormatterDirectiveKind::IgnoreFormat
+        {
+            write!(f, [f.context().any_prefix_annotations(node_id)])?;
+            write_ignored_node(f, node_id, directive)?;
+
+            if !matches!(
+                directive.position,
+                FormatterDirectivePosition::Postfix { .. }
+            ) {
+                write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+            }
+
+            // ignored class fields still get one formatter-owned terminator
+            if matches!(self, Member::Field { .. }) {
+                write!(f, [token(";")])?;
+            }
+
+            return Ok(());
         }
 
         format_node_with_directive(f, node_id, |f| {

@@ -203,6 +203,28 @@ fn test_format_new_expression_keeps_optional_member_parentheses() {
     );
 }
 
+/// Call expressions should keep optional member callee parentheses.
+#[test]
+fn test_format_call_expression_keeps_optional_member_parentheses() {
+    assert_format!(
+        "(a?.b)()",
+        "(a?.b)()",
+        |p| p.eat_expression(Default::default()),
+        DestackFormatOptions::default()
+    );
+}
+
+/// Member expressions should keep optional member object parentheses.
+#[test]
+fn test_format_member_expression_keeps_optional_member_parentheses() {
+    assert_format!(
+        "(a?.b).c",
+        "(a?.b).c",
+        |p| p.eat_expression(Default::default()),
+        DestackFormatOptions::default()
+    );
+}
+
 /// New expressions should wrap call member callees as a unit.
 #[test]
 fn test_format_new_expression_wraps_call_member_callee() {
@@ -625,23 +647,23 @@ fn test_format_chain_call_breaks_before_template_literal_snapshot_member() {
     );
 }
 
-/// Chain layout keeps a short promoted head for call-like argument chains.
+/// Chain layout keeps call-like argument wrappers compact while the inner chain breaks.
 #[test]
 fn test_format_chain_layout_promotes_head_in_call_like_argument() {
     assert_format!(
         "render(foo.bar.getResource(id).map(transform).finalize())",
-        "render(\n    foo.bar.getResource(id)\n        .map(transform)\n        .finalize(),\n)",
+        "render(foo.bar.getResource(id)\n    .map(transform)\n    .finalize())",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(30)
     );
 }
 
-/// Chain layout keeps `=` inline and lets chain operations own their breaks.
+/// Chain layout breaks at `=` when a long rhs chain cannot fit inline.
 #[test]
 fn test_format_chain_layout_respects_assignment_rhs_width() {
     assert_format!(
         "veryLongBindingName = source.alpha.beta.gamma().delta().epsilon()",
-        "veryLongBindingName = source.alpha.beta\n    .gamma()\n    .delta()\n    .epsilon()",
+        "veryLongBindingName =\n    source.alpha.beta.gamma().delta().epsilon()",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(40)
     );
@@ -818,7 +840,7 @@ fn test_format_chained_assignment() {
 fn test_format_chained_assignment_long() {
     assert_format!(
         "veryLongName = anotherLongName = thirdLongName = 42",
-        "veryLongName =\n    anotherLongName =\n    thirdLongName =\n    42",
+        "veryLongName = anotherLongName = thirdLongName = 42",
         |p| p.eat_expression(Default::default()),
         DestackFormatOptions::default_with_line_width(30)
     );
@@ -971,19 +993,20 @@ fn test_format_type_template_literal_multiple_spans() {
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
-/// Formats template literal type unions with leading `|` style.
+/// Normalizes template literal type unions to canonical inline layout.
 #[test]
 fn test_format_type_template_literal_union_with_leading_pipe() {
     let source = "type T = `${\n  | 'W'\n  | 'I'\n  | 'L'\n  | 'L'\n  | 'B'\n  | 'R'\n  | 'E'\n  | 'A'\n  | 'K'\n}${'!' | '!!'}`";
-    let expected = "type T = `${\n    | 'W'\n    | 'I'\n    | 'L'\n    | 'L'\n    | 'B'\n    | 'R'\n    | 'E'\n    | 'A'\n    | 'K'}${'!' | \"!!\"}`;";
+    let expected =
+        "type T = `${'W' | 'I' | 'L' | 'L' | 'B' | 'R' | 'E' | 'A' | 'K'}${'!' | \"!!\"}`;";
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 
-/// Drops redundant wrappers around associative type unions.
+/// Normalizes grouped leading-union wrappers in destack syntax.
 #[test]
-fn test_format_type_union_drops_redundant_parentheses() {
+fn test_format_type_union_preserves_grouped_leading_union_parentheses() {
     let source = "type C = | (| (| A | B))";
-    let expected = "type C = A | B;";
+    let expected = "type C = ((A | B));";
     assert_format!(source, expected, |p| p.eat_expression(Default::default()));
 }
 

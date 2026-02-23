@@ -11,11 +11,10 @@ use crate::format::comments::attachment::{
 };
 use crate::format::comments::boundary::{CommentSeamKeyword, comment_seam_keyword};
 use crate::format::comments::ownership::{
-    find_next_declaration_owner_from_token, find_next_member_owner_from_token,
-    find_smallest_owner_enclosing_range, find_smallest_owner_enclosing_token,
-    lowest_common_owner_ancestor, normalize_formatter_trivia_target_owner,
-    promote_owner_by_shared_start, promote_owner_to_declaration_ancestor,
-    promote_owner_to_node_type_ancestor,
+    find_owner_at_or_after_token_with_node_type, find_smallest_owner_enclosing_range,
+    find_smallest_owner_enclosing_token, lowest_common_owner_ancestor,
+    normalize_formatter_trivia_target_owner, promote_owner_by_shared_start,
+    promote_owner_to_declaration_ancestor, promote_owner_to_node_type_ancestor,
 };
 
 pub(crate) fn blank_trivia_attachment(
@@ -201,8 +200,20 @@ pub(crate) fn blank_trivia_attachment(
     if token_after_is_at {
         if token_before_span.is_some_and(|token| token.token.ty == TokenType::Semicolon)
             && let Some(token_after_index) = token_after
-            && let Some(target_node) =
-                find_next_member_owner_from_token(tree, owner_index, token_after_index)
+            && let Some(target_node) = find_owner_at_or_after_token_with_node_type(
+                tree,
+                owner_index,
+                token_after_index,
+                NodeType::Member,
+            )
+            .and_then(|owner| {
+                promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member)
+            })
+            && let Some(left_declaration) = left_owner
+                .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
+            && let Some(target_declaration) =
+                promote_owner_to_declaration_ancestor(tree, parents, target_node)
+            && left_declaration == target_declaration
         {
             let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
             return (Some(target_node), AnnotationPosition::BlockPrefix);
@@ -233,8 +244,14 @@ pub(crate) fn blank_trivia_attachment(
 
         let declaration_target = token_after
             .and_then(|token_after_index| {
-                find_next_declaration_owner_from_token(tree, owner_index, token_after_index)
+                find_owner_at_or_after_token_with_node_type(
+                    tree,
+                    owner_index,
+                    token_after_index,
+                    NodeType::Declaration,
+                )
             })
+            .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
             .or_else(|| {
                 right_owner
                     .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))

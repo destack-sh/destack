@@ -3,11 +3,13 @@ use crate::format::chain::{
     ChainExpressionBaseHead, DestackFormatContext, Expression, FormatError, FormatResult,
     LocalNodeId, NodeTree, NodeType, ParenthesizedUnwrapMode, PostfixPosition, SmallVec,
     analyze_chain_break, argument_is_template_literal, assignment_like_parent,
-    chain_expression_from_node, chain_has_nonhead_nonlambda_function_call_argument,
-    chain_node_has_breaking_annotation, chain_node_has_non_inline_annotation, chain_nodes,
-    expression_is_in_conditional_branch, is_call_like_argument,
-    path_postfix_annotations_emit_on_tail, should_split_chain_root_path_segments,
-    should_unwrap_parenthesized, split_chain_head_operations, transparent_inner_expression,
+    chain_expression_from_node, chain_has_intervening_comment,
+    chain_has_nonhead_nonlambda_function_call_argument, chain_has_optional_tail,
+    chain_member_has_promotable_boundary_comment, chain_node_has_breaking_annotation,
+    chain_node_has_non_inline_annotation, chain_nodes, expression_is_in_conditional_branch,
+    is_call_like_argument, path_postfix_annotations_emit_on_tail,
+    should_split_chain_root_path_segments, should_unwrap_parenthesized,
+    split_chain_head_operations, transparent_inner_expression,
 };
 use destack_ast::{Comment, CommentStyle, Doc, DocStyle};
 use smallvec::smallvec;
@@ -190,16 +192,19 @@ fn should_avoid_head_promotion_for_boundary_comment(
         expression_has_line_postfix_boundary_comment(context, root_id);
     let root_has_inline_prefix_comment_or_doc =
         chain_root_has_inline_prefix_comment_or_doc(context, root_id);
-    let first_member_has_line_postfix_boundary_comment = body.first().is_some_and(|operation| {
-        let ChainExpression::Member { node_id, .. } = operation else {
-            return false;
-        };
+    let first_member_has_unpromotable_line_postfix_boundary_comment =
+        body.first().is_some_and(|operation| {
+            let ChainExpression::Member { node_id, .. } = operation else {
+                return false;
+            };
 
-        expression_has_line_postfix_boundary_comment(context, *node_id)
-    });
+            expression_has_line_postfix_boundary_comment(context, *node_id)
+                && !chain_member_has_promotable_boundary_comment(context, *node_id)
+        });
     let starts_with_member_operation = matches!(body.first(), Some(ChainExpression::Member { .. }));
 
-    (first_member_has_line_postfix_boundary_comment && !root_has_inline_prefix_comment_or_doc)
+    (first_member_has_unpromotable_line_postfix_boundary_comment
+        && !root_has_inline_prefix_comment_or_doc)
         || (root_has_line_postfix_boundary_comment && starts_with_member_operation)
 }
 
@@ -245,11 +250,10 @@ fn chain_base_has_leading_call_like(
 /// Return whether non-head callback signals should block head promotion.
 fn should_avoid_head_promotion_for_nonhead_callbacks(
     has_nonhead_nonlambda_function_call_argument: bool,
-    has_multiline_nonhead_call: bool,
-    has_chain_intervening_trivia: bool,
+    _has_multiline_nonhead_call: bool,
+    _has_chain_intervening_trivia: bool,
 ) -> bool {
     has_nonhead_nonlambda_function_call_argument
-        || (has_multiline_nonhead_call && has_chain_intervening_trivia)
 }
 
 /// Promote head operations from body to base when head rules allows it.
@@ -699,6 +703,9 @@ pub(crate) fn chain_layout(
 
     // keep a leading call-like or static-instantiation member with the base
     if let Some(first_operation) = body.first() {
+        let body_has_optional_operation = body
+            .iter()
+            .any(|operation| matches!(operation, ChainExpression::Maybe { .. }));
         let should_promote_leading_operation =
             matches!(
                 first_operation,
@@ -708,8 +715,10 @@ pub(crate) fn chain_layout(
                 } | ChainExpression::Instantiation { .. }
             ) || chain_operation_is_static_instantiation_member(first_operation);
         if should_promote_leading_operation {
-            base.body.push(first_operation.clone());
-            body.remove(0);
+            if !body_has_optional_operation {
+                base.body.push(first_operation.clone());
+                body.remove(0);
+            }
         }
     }
 
@@ -734,7 +743,14 @@ pub(crate) fn chain_layout(
 
     let should_avoid_head_promotion_for_boundary_comment =
         should_avoid_head_promotion_for_boundary_comment(context, root_id, &body);
+    let should_avoid_head_promotion_for_optional_boundary_comment = break_analysis_should_break
+        && has_chain_intervening_trivia
+        && chain_has_optional_tail(context, &chain)
+        && chain_has_intervening_comment(context, &chain);
     if should_avoid_head_promotion_for_boundary_comment {
+        should_break = true;
+    }
+    if should_avoid_head_promotion_for_optional_boundary_comment {
         should_break = true;
     }
 
@@ -752,7 +768,8 @@ pub(crate) fn chain_layout(
         &mut base,
         &mut body,
         should_avoid_head_promotion_for_nonhead_callbacks,
-        should_avoid_head_promotion_for_boundary_comment,
+        should_avoid_head_promotion_for_boundary_comment
+            || should_avoid_head_promotion_for_optional_boundary_comment,
     );
 
     // group chain operations and then apply argument-chain compaction rules

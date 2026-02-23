@@ -387,8 +387,9 @@ pub(crate) fn format_struct_or_class_declaration<'ast>(
         write!(f, [space(), name])?;
     }
 
-    let is_assignment_rhs_anonymous_class = if is_class && descriptor.name.is_none() {
-        declaration_expression_id.is_some_and(|expression_id| {
+    let is_assignment_rhs_anonymous_class = is_class
+        && descriptor.name.is_none()
+        && declaration_expression_id.is_some_and(|expression_id| {
             let Some((parent_id, parent_type)) = f.context().parent(expression_id) else {
                 return false;
             };
@@ -401,10 +402,7 @@ pub(crate) fn format_struct_or_class_declaration<'ast>(
                 f.context().tree.get(parent_expression),
                 Expression::Assign { right, .. } if *right == expression_id
             )
-        })
-    } else {
-        false
-    };
+        });
     let has_generic_head_comment = f.context().has_declaration_generic_head_annotation(node_id);
     let has_body_head_comment = f.context().has_declaration_body_head_annotation(node_id);
 

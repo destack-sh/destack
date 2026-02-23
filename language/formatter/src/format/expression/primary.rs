@@ -7,23 +7,24 @@ use crate::format::directive::{
 use crate::format::expression::{
     Argument, BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     HugOptions, IfCondition, IfKind, Keyword, LocalNodeId, NodeType, ParenthesizedDropMode,
-    TypeModifier, TypePredicateSubject, array_elements_are_fill_candidates,
+    TypeModifier, TypePredicateSubject, argument_value_id, array_elements_are_fill_candidates,
     array_has_only_boundary_comments, block_indent,
     expression_is_in_template_literal_interpolation, format_boundary_comment_array,
-    format_expression, format_hugged, format_scalar_literal, format_static_argument_list,
-    format_struct_literal, format_template_literal, format_type_index_expression,
-    format_type_template_literal, format_with, group, hard_line_break, indent,
-    is_assignment_left_target, is_call_like_argument, is_complex_argument, is_expression_breakable,
-    is_expression_chain, is_simple_static_argument, is_trivial_argument, line_postfix_boundary,
-    list_like, parenthesized_boundary_comments, parenthesized_has_leading_inner_comments,
-    parenthesized_has_leading_inner_newline, parenthesized_has_leading_inner_trivia,
-    sequence_expression_needs_parens, should_drop_parenthesized,
-    should_force_multiline_mapped_type, should_hoist_parenthesized_inner_cast_prefix_comments,
-    soft_block_indent, soft_line_break, soft_line_break_or_space, space, token,
-    transparent_inner_expression, tree_literal_should_break,
+    format_expression, format_fill_array, format_hugged, format_scalar_literal,
+    format_static_argument_list, format_struct_literal, format_template_literal,
+    format_type_index_expression, format_type_template_literal, format_with, group,
+    hard_line_break, indent, is_assignment_left_target, is_call_like_argument, is_complex_argument,
+    is_expression_breakable, is_expression_chain, is_simple_static_argument, is_trivial_argument,
+    line_postfix_boundary, list_like, parenthesized_boundary_comments,
+    parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_newline,
+    parenthesized_has_leading_inner_trivia, sequence_expression_needs_parens,
+    should_drop_parenthesized, should_force_multiline_mapped_type,
+    should_hoist_parenthesized_inner_cast_prefix_comments, soft_block_indent, soft_line_break,
+    soft_line_break_or_space, space, span_has_comment, token, transparent_inner_expression,
+    tree_literal_should_break,
 };
 use crate::format::tree::format_tree_literal_expression;
-use destack_ast::AnnotationPosition;
+use destack_ast::{AnnotationPosition, NodeTree};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::{format_args, write};
 
@@ -37,83 +38,85 @@ pub(crate) fn format_primary_array_expression<'ast>(
         .context()
         .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_ARRAY);
 
-    // try hugged format for single object or array elements
-    if !format_hugged(f, elements_ids, HugOptions::ARRAY, None, false)? {
-        if array_has_sparse_holes(f.context(), elements_ids) {
-            let span = f.context().span(node_id);
-            let has_newline_in_source = f.context().has_newline(span);
-            let has_sparse_annotations = f.context().has_infix_annotation(node_id)
-                || collection_nodes_have_annotations(f.context(), elements_ids);
-
-            if has_newline_in_source || has_sparse_annotations {
-                write!(
-                    f,
-                    [list_like("[", "]", ",", elements_ids)
-                        .as_collection()
-                        .should_expand(has_newline_in_source)]
-                )?;
-            } else {
-                format_sparse_array_literal(f, elements_ids)?;
-            }
-
-            return Ok(());
-        }
-
+    if array_has_sparse_holes(f.context(), elements_ids) {
         let span = f.context().span(node_id);
         let has_newline_in_source = f.context().has_newline(span);
-        let has_annotations = f.context().has_infix_annotation(node_id)
+        let has_sparse_annotations = f.context().has_infix_annotation(node_id)
             || collection_nodes_have_annotations(f.context(), elements_ids);
 
-        let mut elements_are_inline_in_source = true;
-        if has_annotations || (has_newline_in_source && elements_ids.len() > 1) {
-            elements_are_inline_in_source = collection_range_is_inline(f.context(), elements_ids);
-        }
-
-        let mut should_expand_for_annotations = false;
-        let mut can_keep_inline_boundary_comment_array = false;
-
-        // annotation sensitive expansion checks
-        if has_annotations {
-            let has_line_comment_annotations = elements_ids.iter().copied().any(|element_id| {
-                let annotation_cache = f.context().argument_annotation_cache(element_id);
-                annotation_cache.has_line_comment
-            });
-
-            can_keep_inline_boundary_comment_array = elements_are_inline_in_source
-                && array_elements_are_fill_candidates(f.context().tree, elements_ids)
-                && array_has_only_boundary_comments(f.context(), span, elements_ids);
-            should_expand_for_annotations =
-                has_line_comment_annotations || !elements_are_inline_in_source;
-        }
-
-        let tree = f.context().tree;
-        let has_complex_elements = elements_ids.len() > 1
-            && elements_ids
-                .iter()
-                .copied()
-                .any(|element_id| is_complex_argument(tree, tree.get(element_id)));
-        let has_single_non_trivial_multiline_element = elements_ids.len() == 1
-            && has_newline_in_source
-            && !is_trivial_argument(tree, tree.get(elements_ids[0]));
-        let has_multiline_non_inline_multi_element =
-            has_newline_in_source && elements_ids.len() > 1 && !elements_are_inline_in_source;
-
-        let should_expand = (should_expand_for_annotations
-            && !can_keep_inline_boundary_comment_array)
-            || has_complex_elements
-            || has_single_non_trivial_multiline_element
-            || has_multiline_non_inline_multi_element;
-
-        if can_keep_inline_boundary_comment_array {
-            format_boundary_comment_array(f, elements_ids)?;
-        } else {
+        if has_newline_in_source || has_sparse_annotations {
             write!(
                 f,
                 [list_like("[", "]", ",", elements_ids)
                     .as_collection()
-                    .should_expand(should_expand)]
+                    .should_expand(has_newline_in_source)]
             )?;
+        } else {
+            format_sparse_array_literal(f, elements_ids)?;
         }
+
+        return Ok(());
+    }
+
+    let span = f.context().span(node_id);
+    let has_newline_in_source = f.context().has_newline(span);
+    let has_annotations = f.context().has_infix_annotation(node_id)
+        || collection_nodes_have_annotations(f.context(), elements_ids);
+
+    let mut elements_are_inline_in_source = true;
+    if has_annotations || (has_newline_in_source && elements_ids.len() > 1) {
+        elements_are_inline_in_source = collection_range_is_inline(f.context(), elements_ids);
+    }
+
+    let mut should_expand_for_annotations = false;
+    let mut can_keep_inline_boundary_comment_array = false;
+
+    // annotation sensitive expansion checks
+    if has_annotations {
+        let has_line_comment_annotations = elements_ids.iter().copied().any(|element_id| {
+            let annotation_cache = f.context().argument_annotation_cache(element_id);
+            annotation_cache.has_line_comment
+        });
+
+        can_keep_inline_boundary_comment_array = elements_are_inline_in_source
+            && array_elements_are_fill_candidates(f.context().tree, elements_ids)
+            && array_has_only_boundary_comments(f.context(), span, elements_ids);
+        should_expand_for_annotations =
+            has_line_comment_annotations || !elements_are_inline_in_source;
+    }
+
+    let tree = f.context().tree;
+    let has_complex_elements = elements_ids.len() > 1
+        && elements_ids
+            .iter()
+            .copied()
+            .any(|element_id| is_complex_argument(tree, tree.get(element_id)));
+    let has_single_non_trivial_multiline_element = elements_ids.len() == 1
+        && has_newline_in_source
+        && !is_trivial_argument(tree, tree.get(elements_ids[0]));
+    let has_multiline_non_inline_multi_element =
+        has_newline_in_source && elements_ids.len() > 1 && !elements_are_inline_in_source;
+
+    let should_expand_by_structure = array_should_expand_by_structure(tree, elements_ids);
+    let should_expand = (should_expand_for_annotations && !can_keep_inline_boundary_comment_array)
+        || has_complex_elements
+        || has_single_non_trivial_multiline_element
+        || has_multiline_non_inline_multi_element
+        || should_expand_by_structure;
+    let should_use_fill_layout =
+        !has_annotations && array_elements_are_fill_candidates(tree, elements_ids);
+
+    if can_keep_inline_boundary_comment_array {
+        format_boundary_comment_array(f, elements_ids)?;
+    } else if should_use_fill_layout {
+        format_fill_array(f, elements_ids)?;
+    } else {
+        write!(
+            f,
+            [list_like("[", "]", ",", elements_ids)
+                .as_collection()
+                .should_expand(should_expand)]
+        )?;
     }
 
     Ok(())
@@ -170,6 +173,72 @@ fn array_has_sparse_holes(
         .iter()
         .copied()
         .any(|argument_id| argument_is_sparse_hole(context, argument_id))
+}
+
+/// Return whether one array should expand for nested array or object structure.
+fn array_should_expand_by_structure(tree: &NodeTree, elements: &[LocalNodeId<Argument>]) -> bool {
+    if elements.len() < 2 {
+        return false;
+    }
+
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum ArrayChildKind {
+        Array,
+        Object,
+    }
+
+    let mut child_kind = None;
+    for element_id in elements {
+        let Argument::Positional { value, .. } = tree.get(*element_id) else {
+            return false;
+        };
+
+        let value_id = transparent_inner_expression_from_tree(tree, *value);
+        match tree.get(value_id) {
+            Expression::ArrayExpression {
+                elements: nested_elements,
+            } => {
+                if nested_elements.len() < 2 {
+                    return false;
+                }
+
+                if child_kind.is_some_and(|kind| kind != ArrayChildKind::Array) {
+                    return false;
+                }
+
+                child_kind = Some(ArrayChildKind::Array);
+            }
+            Expression::ObjectExpression { properties, .. } => {
+                if properties.len() < 2 {
+                    return false;
+                }
+
+                if child_kind.is_some_and(|kind| kind != ArrayChildKind::Object) {
+                    return false;
+                }
+
+                child_kind = Some(ArrayChildKind::Object);
+            }
+            _ => {
+                return false;
+            }
+        }
+    }
+
+    true
+}
+
+/// Return one expression id with transparent parenthesized wrappers removed.
+fn transparent_inner_expression_from_tree(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+) -> LocalNodeId<Expression> {
+    let mut expression_id = expression_id;
+    while let Expression::Parenthesized { expression } = tree.get(expression_id) {
+        expression_id = *expression;
+    }
+
+    expression_id
 }
 
 /// Return whether an array element argument is a sparse hole.
@@ -245,8 +314,17 @@ pub(crate) fn format_primary_expression<'ast>(
             if let Some(static_arguments) = static_arguments
                 && !static_arguments.is_empty()
             {
-                let is_single_simple = static_arguments.len() == 1
-                    && is_simple_static_argument(f.context(), static_arguments[0]);
+                let is_single_simple = static_arguments.len() == 1 && {
+                    let argument_id = static_arguments[0];
+                    let argument_value_id = argument_value_id(tree, argument_id);
+                    let argument_value_id =
+                        transparent_inner_expression(f.context(), argument_value_id);
+                    let is_index_like = matches!(
+                        tree.get(argument_value_id),
+                        Expression::Index { .. } | Expression::TypeIndex { .. }
+                    );
+                    !is_index_like && is_simple_static_argument(f.context(), argument_id)
+                };
                 if is_single_simple {
                     write!(f, [token("<"), static_arguments[0], token(">"),])?;
                 } else {
@@ -366,12 +444,9 @@ pub(crate) fn format_primary_expression<'ast>(
                 )
             });
             let should_double_indent_tail =
-                if expression_is_in_template_literal_interpolation(f.context(), node_id) {
-                    f.context()
-                        .expression_has_type_conditional_ancestor(node_id)
-                } else {
-                    false
-                };
+                expression_is_in_template_literal_interpolation(f.context(), node_id)
+                    && f.context()
+                        .expression_has_type_conditional_ancestor(node_id);
             if should_double_indent_tail {
                 write!(
                     f,
@@ -417,11 +492,7 @@ pub(crate) fn format_primary_expression<'ast>(
             } else {
                 soft_line_break()
             };
-            let field_terminator = if f.context().options.language_type.is_typescript() {
-                ";"
-            } else {
-                ","
-            };
+            let field_terminator = ";";
 
             let format_parameter_clause = |f: &mut DestackFormatter<'ast, '_>,
                                            break_between_name_and_in: bool|
@@ -451,9 +522,7 @@ pub(crate) fn format_primary_expression<'ast>(
 
             let inner_multiline = format_with(|f| {
                 match modifiers.readonly {
-                    TypeModifier::Add => {
-                        write!(f, [token("readonly"), space()])?;
-                    }
+                    TypeModifier::Add => write!(f, [token("readonly"), space()])?,
                     TypeModifier::Remove => {
                         write!(f, [token("-readonly"), space()])?;
                     }
@@ -463,9 +532,7 @@ pub(crate) fn format_primary_expression<'ast>(
                 format_parameter_clause(f, break_parameter_clause)?;
 
                 match modifiers.optional {
-                    TypeModifier::Add => {
-                        write!(f, [token("?")])?;
-                    }
+                    TypeModifier::Add => write!(f, [token("?")])?,
                     TypeModifier::Remove => {
                         write!(f, [token("-?")])?;
                     }
@@ -495,9 +562,7 @@ pub(crate) fn format_primary_expression<'ast>(
 
             let inner_flat = format_with(|f| {
                 match modifiers.readonly {
-                    TypeModifier::Add => {
-                        write!(f, [token("readonly"), space()])?;
-                    }
+                    TypeModifier::Add => write!(f, [token("readonly"), space()])?,
                     TypeModifier::Remove => {
                         write!(f, [token("-readonly"), space()])?;
                     }
@@ -507,9 +572,7 @@ pub(crate) fn format_primary_expression<'ast>(
                 format_parameter_clause(f, false)?;
 
                 match modifiers.optional {
-                    TypeModifier::Add => {
-                        write!(f, [token("?")])?;
-                    }
+                    TypeModifier::Add => write!(f, [token("?")])?,
                     TypeModifier::Remove => {
                         write!(f, [token("-?")])?;
                     }
@@ -835,7 +898,8 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                 ..
             }
         ) {
-            let should_keep_multiline = f.context().node_has_newline(expression_id);
+            let should_keep_multiline = f.context().has_annotation(*expression)
+                || span_has_comment(f.context(), f.context().span(*expression));
             if should_keep_multiline {
                 write!(
                     f,
@@ -856,12 +920,7 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                 ..
             }
         ) {
-            let should_keep_multiline_indent = f.context().node_has_newline(expression_id);
-            if should_keep_multiline_indent {
-                write!(f, [token("("), indent(&expression), token(")")])?;
-            } else {
-                write!(f, [token("("), expression, token(")")])?;
-            }
+            write!(f, [token("("), expression, token(")")])?;
         } else if has_parenthesized_leading_inner_trivia {
             if has_parenthesized_leading_inner_newline {
                 let should_keep_multiline = has_parenthesized_leading_inner_comments;
@@ -898,9 +957,12 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                 write!(f, [token("("), expression, token(")")])?;
             }
         } else {
-            let should_expand_parenthesized_await_postfix = parent_is_postfix_continuation
-                && await_like_expression_prefers_multiline_wrapper(f.context(), inner_expression);
-            if should_expand_parenthesized_await_postfix {
+            let should_expand_parenthesized_chain = parent_is_postfix_continuation
+                && is_expression_chain(tree, expression_id)
+                && (f.context().node_has_newline(node_id)
+                    || f.context().node_has_newline(expression_id));
+
+            if should_expand_parenthesized_chain {
                 write!(
                     f,
                     [
@@ -911,24 +973,7 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                     ]
                 )?;
             } else {
-                let should_expand_parenthesized_chain = parent_is_postfix_continuation
-                    && is_expression_chain(tree, expression_id)
-                    && (f.context().node_has_newline(node_id)
-                        || f.context().node_has_newline(expression_id));
-
-                if should_expand_parenthesized_chain {
-                    write!(
-                        f,
-                        [
-                            token("("),
-                            block_indent(&group(expression).should_expand(true)),
-                            hard_line_break(),
-                            token(")")
-                        ]
-                    )?;
-                } else {
-                    write!(f, [token("("), expression, token(")")])?;
-                }
+                write!(f, [token("("), expression, token(")")])?;
             }
         }
 

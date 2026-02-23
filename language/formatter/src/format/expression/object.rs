@@ -5,7 +5,8 @@ use crate::format::expression::{
     NodeType, Pattern, PatternField, Property, SmallVec, Span, TrailingComma, block_indent,
     format_block_of_properties, format_with, group, hard_line_break, if_group_breaks,
     is_tree_attribute_expression, list_like, property_has_complex_type_value,
-    property_has_complex_value, soft_block_indent, space, span_has_comment, token,
+    property_has_complex_value, soft_block_indent, soft_line_break_or_space, space,
+    span_has_comment, token,
 };
 use crate::format::operator::{
     is_parameter_type_annotation, is_static_type_argument_context, is_type_context,
@@ -30,13 +31,49 @@ pub(crate) fn format_boundary_comment_array<'ast>(
 
     let should_add_trailing_separator = f.context().options.trailing_comma != TrailingComma::None;
     let body = format_with(|f| {
+        for (index, element_id) in elements.iter().copied().enumerate() {
+            if index > 0 {
+                write!(f, [token(","), space()])?;
+            }
+            write!(f, [element_id])?;
+        }
+
+        if should_add_trailing_separator {
+            write!(f, [token(",")])?;
+        }
+
+        Ok(())
+    });
+
+    write!(
+        f,
+        [group(&format_args![
+            token("["),
+            soft_block_indent(&body),
+            token("]")
+        ])]
+    )
+}
+
+/// Format fill-candidate arrays with the shared fill layout.
+pub(crate) fn format_fill_array<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    elements: &[LocalNodeId<Argument>],
+) -> FormatResult<()> {
+    if elements.is_empty() {
+        write!(f, [token("[]")])?;
+        return Ok(());
+    }
+
+    let should_add_trailing_separator = f.context().options.trailing_comma != TrailingComma::None;
+    let body = format_with(|f| {
         let mut fill = f.fill();
         for (index, element_id) in elements.iter().copied().enumerate() {
             let separator = format_with(|f| {
                 if index == 0 {
                     return Ok(());
                 }
-                write!(f, [token(","), space()])
+                write!(f, [token(","), soft_line_break_or_space()])
             });
             fill.entry(&separator, &element_id);
         }
@@ -161,7 +198,6 @@ fn type_member_separator(
     ";"
 }
 
-/// Format a struct literal.
 /// Format a struct literal expression.
 #[inline]
 pub(crate) fn format_struct_literal<'ast>(
@@ -217,6 +253,10 @@ pub(crate) fn format_struct_literal<'ast>(
         .iter()
         .copied()
         .any(|property_id| property_has_complex_value(f.context(), property_id));
+    let keep_inline_short_annotated_object = has_annotations
+        && !has_newline_in_source
+        && !in_type_context
+        && properties_ids.len() <= INLINE_ASSIGNMENT_TARGET_MAX_PROPERTIES;
     let keep_complex_newline = f.context().has_newline(span) && has_complex_property;
     let expand_multiline_pattern_default =
         is_multiline_pattern_field_default_object(f.context(), expression_id);
@@ -240,8 +280,9 @@ pub(crate) fn format_struct_literal<'ast>(
         && properties_ids.len() <= INLINE_ASSIGNMENT_TARGET_MAX_PROPERTIES;
     let is_complex_assignment_target =
         properties_ids.len() >= COMPLEX_ASSIGNMENT_TARGET_MIN_PROPERTIES && is_assignment_target;
-    let must_expand = has_methods
+    let mut must_expand = has_methods
         || (has_annotations
+            && !keep_inline_short_annotated_object
             && !keep_single_inline_annotated_object
             && !keep_inline_assignment_target_annotated_object)
         || keep_newline
@@ -249,11 +290,15 @@ pub(crate) fn format_struct_literal<'ast>(
         || expand_multiline_pattern_default
         || property_has_newline
         || (has_comments
+            && has_newline_in_source
             && !keep_single_inline_comment_object
             && !keep_inline_assignment_target_commented_object)
         || has_complex_static_type_argument_property
         || should_preserve_tree_attribute_multiline
         || is_complex_assignment_target;
+    if keep_inline_short_annotated_object {
+        must_expand = false;
+    }
     let separator = if in_type_context {
         if f.context().options.language_type.is_destack() {
             type_member_separator(f.context(), properties_ids)

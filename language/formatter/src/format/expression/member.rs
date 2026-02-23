@@ -206,7 +206,14 @@ pub(crate) fn format_type_template_literal<'ast>(
     }
 
     for (span, segment) in spans.iter().zip(string_segments) {
-        let should_expand_span = span_has_comment(f.context(), f.context().span(*span));
+        let span_has_comment_annotation = span_has_comment(f.context(), f.context().span(*span));
+        let span_has_source_newline = f.context().node_has_newline(*span);
+        let span_is_type_conditional = matches!(
+            f.context().tree.get(*span),
+            Expression::TypeConditional { .. }
+        );
+        let should_expand_span =
+            span_has_comment_annotation || span_has_source_newline || span_is_type_conditional;
 
         write!(
             f,

@@ -702,9 +702,9 @@ fn normalize_int(input: &str, _is_bigint: bool) -> Cow<'_, str> {
 
     if is_hex {
         for (index, character) in characters {
-            if matches!(character, 'a'..='f') {
+            if matches!(character, 'A'..='F') {
                 output.push_str(&input[last_index..index]);
-                output.push(character.to_ascii_uppercase());
+                output.push(character.to_ascii_lowercase());
                 last_index = index + character.len_utf8();
             }
         }

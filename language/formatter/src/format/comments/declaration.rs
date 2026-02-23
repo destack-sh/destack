@@ -7,9 +7,9 @@ use crate::format::comments::boundary::{
     CommentSeamKeyword,
 };
 use crate::format::comments::ownership::{
-    find_next_declaration_owner_from_token, find_next_member_owner_from_token,
-    find_smallest_owner_enclosing_range, normalize_formatter_trivia_target_owner,
-    promote_owner_to_declaration_ancestor, promote_owner_to_node_type_ancestor,
+    find_owner_at_or_after_token_with_node_type, find_smallest_owner_enclosing_range,
+    normalize_formatter_trivia_target_owner, promote_owner_to_declaration_ancestor,
+    promote_owner_to_node_type_ancestor,
 };
 
 /// Return whether a declaration owner supports inline head comments before `{`.
@@ -191,7 +191,7 @@ pub(crate) fn try_attach_comment_declaration_head_open_brace_seam(
 /// Resolve declaration decorator-adjacent seam comments.
 pub(crate) fn try_attach_comment_declaration_decorator_seam(
     tree: &NodeTree,
-    owner_index: &FormatterTriviaOwnerIndex,
+    _owner_index: &FormatterTriviaOwnerIndex,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
@@ -201,17 +201,31 @@ pub(crate) fn try_attach_comment_declaration_decorator_seam(
         return None;
     }
 
-    let member_target_from_token = context.token_after.and_then(|token_after_index| {
-        find_next_member_owner_from_token(tree, owner_index, token_after_index)
+    let member_target_from_token = context.token_after.and_then(|token_index| {
+        find_owner_at_or_after_token_with_node_type(
+            tree,
+            _owner_index,
+            token_index,
+            NodeType::Member,
+        )
+        .and_then(|owner| {
+            promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member)
+        })
     });
     let member_target = owners.right.and_then(|owner| {
         promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member)
     });
     let declaration_target = context
         .token_after
-        .and_then(|token_after_index| {
-            find_next_declaration_owner_from_token(tree, owner_index, token_after_index)
+        .and_then(|token_index| {
+            find_owner_at_or_after_token_with_node_type(
+                tree,
+                _owner_index,
+                token_index,
+                NodeType::Declaration,
+            )
         })
+        .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
         .or_else(|| {
             owners
                 .right

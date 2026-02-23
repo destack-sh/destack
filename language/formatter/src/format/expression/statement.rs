@@ -1248,6 +1248,15 @@ pub(crate) fn format_statement_expression<'ast>(
                     write!(f, [space(), value])?;
                 }
             }
+
+            // block statement yields should terminate like return/throw in statement position
+            let yield_parent_is_block = f
+                .context()
+                .parent(node_id)
+                .is_some_and(|(_, parent_type)| parent_type == NodeType::Block);
+            if yield_parent_is_block {
+                write!(f, [token(";")])?;
+            }
         }
 
         // throw

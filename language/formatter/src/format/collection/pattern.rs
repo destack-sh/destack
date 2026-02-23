@@ -206,6 +206,20 @@ fn pattern_fields_disallow_trailing_separator(
         .is_some_and(|field_id| matches!(tree.get(*field_id), PatternField::Spread { .. }))
 }
 
+/// Return whether any pattern field has one default assignment.
+fn pattern_fields_have_default_assignments(
+    tree: &NodeTree,
+    fields: &[LocalNodeId<PatternField>],
+) -> bool {
+    fields.iter().any(|field_id| match tree.get(*field_id) {
+        PatternField::Named { default, .. }
+        | PatternField::Computed { default, .. }
+        | PatternField::Alias { default, .. }
+        | PatternField::Positional { default, .. } => default.is_some(),
+        PatternField::Spread { .. } | PatternField::Elision => false,
+    })
+}
+
 /// Format a prefix pattern like `&pattern` or `^pattern`.
 fn format_prefixed_pattern<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -343,6 +357,7 @@ fn object_pattern_should_expand(
         .iter()
         .copied()
         .any(|field_id| pattern_field_prefers_multiline(context.tree, field_id));
+    let has_default_assignments = pattern_fields_have_default_assignments(context.tree, fields);
     let has_field_annotations = pattern_fields_have_layout_forcing_annotations(context, fields);
     let should_expand_for_parameter =
         should_expand_parameter_object_pattern(context, node_id, fields);
@@ -353,7 +368,10 @@ fn object_pattern_should_expand(
     }
     .should_expand_multiline();
 
-    (has_newline && has_nested_fields) || should_expand_for_comments || should_expand_for_parameter
+    (has_newline && has_nested_fields)
+        || (has_nested_fields && fields.len() > 1 && !has_default_assignments)
+        || should_expand_for_comments
+        || should_expand_for_parameter
 }
 
 /// Return whether pattern fields carry annotations that should force multiline layout.

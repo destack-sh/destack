@@ -162,16 +162,6 @@ impl HugOptions {
         allow_multiline_collection: true,
     };
 
-    pub(crate) const ARRAY: Self = Self {
-        open: "[",
-        close: "]",
-        force_trailing: false,
-        trailing_if_breaks: false,
-        allow_arrow_functions: false,
-        handle_annotations: false,
-        allow_multiline_collection: false,
-    };
-
     pub(crate) const TUPLE: Self = Self {
         open: "(",
         close: ")",
