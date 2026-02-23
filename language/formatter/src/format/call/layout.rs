@@ -16,7 +16,7 @@ use crate::format::expression::{
     ScalarLiteral, TrailingComma, argument_is_array_literal, argument_is_block_callback,
     argument_is_function_expression, argument_is_lambda_expression, argument_is_object_literal,
     argument_is_template_literal, argument_value_id, is_block_lambda_argument, is_complex_argument,
-    is_expression_chain, is_trivial_argument, is_trivial_expression, transparent_inner_expression,
+    is_expression_chain, is_trivial_argument, transparent_inner_expression,
 };
 use crate::format::tree::has_multiline_jsx_argument;
 use crate::{CallArgumentExpansionCache, CallArgumentExpansionsCache, CallArgumentLayoutCache};
@@ -130,6 +130,24 @@ pub(crate) fn call_has_call_chain_parent(
         | Expression::Must { left, .. } => left.id == call_node_id.id,
         _ => false,
     }
+}
+
+/// Return whether one call expression is nested under an await expression.
+pub(crate) fn call_has_await_ancestor(
+    context: &DestackFormatContext<'_>,
+    call_node_id: LocalNodeId<Expression>,
+) -> bool {
+    context.any_ancestor(call_node_id, |parent_id, parent_type| {
+        if parent_type != NodeType::Expression {
+            return false;
+        }
+
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+        matches!(
+            context.tree.get(parent_expression_id),
+            Expression::Await { .. } | Expression::AwaitMaybe { .. }
+        )
+    })
 }
 
 /// Return whether one argument is compact, unannotated, and simple.
@@ -592,11 +610,8 @@ fn multi_argument_expansions(
         || force_expand_function_composition
         || has_call_infix_annotations;
 
-    let force_expand_complex = if has_non_complex_force_expand_signal {
-        false
-    } else {
-        layout_cache.has_complex_non_callback_argument
-    };
+    let force_expand_complex =
+        !has_non_complex_force_expand_signal && layout_cache.has_complex_non_callback_argument;
 
     let regular_force_expand = force_expand_jsx
         || force_expand_complex
@@ -830,50 +845,67 @@ pub(crate) fn call_argument_layout(
     let layout_cache = call_argument_layout_cache(context, call_node_id, dynamic_arguments);
     let has_call_infix_annotations = layout_cache.has_call_infix_annotations;
     let has_any_argument_annotation = layout_cache.has_any_argument_annotation;
+    // single function expression arguments can stay inline
+    let use_single_function_argument_inline = dynamic_arguments.len() == 1
+        && !has_call_infix_annotations
+        && !force_expand_single_multiline_with_static_arguments
+        && !force_expand_single_collection_for_type_binary_callee
+        && !has_boundary_comments
+        && {
+            let argument_id = dynamic_arguments[0];
+            let value_id = argument_value_id(context.tree, argument_id);
+            !argument_has_non_blank_annotation(context, argument_id)
+                && !context.has_non_blank_annotation(value_id)
+                && !argument_has_callback_blocking_comment_annotation(context, argument_id)
+                && !argument_has_leading_prefix_annotation_outside_span(context, argument_id)
+                && argument_is_function_expression(context, argument_id)
+        };
+    if use_single_function_argument_inline {
+        context.increment_counter("call.arguments.path.single_function_inline", 1);
+        return CallArgumentLayout::InlineSingle;
+    }
 
     // single callback arguments can stay inline
-    let use_single_callback_argument_inline = if dynamic_arguments.len() != 1
-        || has_call_infix_annotations
-        || force_expand_single_multiline_with_static_arguments
-        || force_expand_single_collection_for_type_binary_callee
-        || has_boundary_comments
-    {
-        false
-    } else {
-        let argument_id = dynamic_arguments[0];
-        let value_id = argument_value_id(context.tree, argument_id);
-        !argument_has_non_blank_annotation(context, argument_id)
-            && !context.has_non_blank_annotation(value_id)
-            && !argument_has_callback_blocking_comment_annotation(context, argument_id)
-            && !argument_has_leading_prefix_annotation_outside_span(context, argument_id)
-            && (argument_is_lambda_expression(context, argument_id)
-                || argument_is_function_expression(context, argument_id))
-    };
+    let use_single_callback_argument_inline = dynamic_arguments.len() == 1
+        && !has_call_infix_annotations
+        && !call_has_await_ancestor(context, call_node_id)
+        && !force_expand_single_multiline_with_static_arguments
+        && !force_expand_single_collection_for_type_binary_callee
+        && !has_boundary_comments
+        && {
+            let argument_id = dynamic_arguments[0];
+            let value_id = argument_value_id(context.tree, argument_id);
+            !argument_has_non_blank_annotation(context, argument_id)
+                && !context.has_non_blank_annotation(value_id)
+                && !argument_has_callback_blocking_comment_annotation(context, argument_id)
+                && !argument_has_leading_prefix_annotation_outside_span(context, argument_id)
+                && argument_is_lambda_expression(context, argument_id)
+        };
     if use_single_callback_argument_inline {
         context.increment_counter("call.arguments.path.single_callback_inline", 1);
         return CallArgumentLayout::InlineSingle;
     }
 
     // short single positional arguments can stay inline
-    let use_single_simple_argument = if dynamic_arguments.len() != 1
-        || force_expand_single_multiline_with_static_arguments
-        || force_expand_single_collection_for_type_binary_callee
-        || single_argument_force_expand
-        || has_any_argument_annotation
-    {
-        false
-    } else {
-        let argument_id = dynamic_arguments[0];
-        if argument_has_non_blank_annotation(context, argument_id) {
-            false
-        } else {
-            let value_id = argument_value_id(context.tree, argument_id);
-            let value_id = transparent_inner_expression(context, value_id);
-            let value = context.tree.get(value_id);
-
-            is_trivial_expression(context.tree, value)
-        }
-    };
+    let use_single_simple_argument = dynamic_arguments.len() == 1
+        && !force_expand_single_multiline_with_static_arguments
+        && !force_expand_single_collection_for_type_binary_callee
+        && !single_argument_force_expand
+        && !has_any_argument_annotation
+        && {
+            let argument_id = dynamic_arguments[0];
+            !argument_has_non_blank_annotation(context, argument_id)
+                && argument_is_simple_with_options(
+                    context,
+                    argument_id,
+                    ArgumentSimplicityOptions {
+                        reject_any_argument_annotation: true,
+                        reject_non_blank_argument_annotation: true,
+                        reject_value_annotation: true,
+                        reject_lambda_values: true,
+                    },
+                )
+        };
     if use_single_simple_argument {
         context.increment_counter("call.arguments.path.single_simple", 1);
         return CallArgumentLayout::InlineSingle;
@@ -926,13 +958,11 @@ pub(crate) fn call_argument_layout(
                 call_node_id,
                 dynamic_arguments,
             );
-        let use_single_plain_separator_comment_layout = if dynamic_arguments.len() == 1 {
+        let use_single_plain_separator_comment_layout = dynamic_arguments.len() == 1 && {
             let argument_id = dynamic_arguments[0];
             argument_is_plain_call_argument(context, argument_id)
                 && single_argument_separator_line_comment_source(context, call_node_id, argument_id)
                     .is_some()
-        } else {
-            false
         };
         let has_trailing_collection_comment_signal =
             trailing_collection_argument_has_comment_signal(context, dynamic_arguments);
@@ -973,28 +1003,24 @@ pub(crate) fn call_argument_layout(
         .iter()
         .copied()
         .any(|argument_id| argument_is_block_callback(context, argument_id));
-    let force_expand_for_structural_trailing_collection = if dynamic_arguments.len() < 3
-        || !expansion.trailing_collection_argument
-        || has_any_argument_annotation
-        || has_line_comment_annotations
-        || has_boundary_comments
-        || trailing_collection_argument_has_comment_signal(context, dynamic_arguments)
-    {
-        false
-    } else {
-        leading_arguments_are_compact_simple_unannotated(context, dynamic_arguments)
-    };
-    let trailing_collection_comment_force_expand =
-        if dynamic_arguments.len() <= 1 || !expansion.trailing_collection_argument {
-            false
-        } else if let Some(last_argument_id) = dynamic_arguments.last().copied() {
-            let has_last_line_comment_annotation = has_line_comment_annotations
-                && argument_has_line_comment_annotation(context, last_argument_id);
-            let has_last_source_comment = context.has_comment(context.span(last_argument_id));
-            has_last_line_comment_annotation || has_last_source_comment
-        } else {
-            false
-        };
+    let force_expand_for_structural_trailing_collection = dynamic_arguments.len() >= 3
+        && expansion.trailing_collection_argument
+        && !has_any_argument_annotation
+        && !has_line_comment_annotations
+        && !has_boundary_comments
+        && !trailing_collection_argument_has_comment_signal(context, dynamic_arguments)
+        && leading_arguments_are_compact_simple_unannotated(context, dynamic_arguments);
+    let trailing_collection_comment_force_expand = dynamic_arguments.len() > 1
+        && expansion.trailing_collection_argument
+        && dynamic_arguments
+            .last()
+            .copied()
+            .is_some_and(|last_argument_id| {
+                let has_last_line_comment_annotation = has_line_comment_annotations
+                    && argument_has_line_comment_annotation(context, last_argument_id);
+                let has_last_source_comment = context.has_comment(context.span(last_argument_id));
+                has_last_line_comment_annotation || has_last_source_comment
+            });
     let force_expand = expansion.force_expand
         || has_boundary_comments
         || force_expand_for_structural_trailing_collection
@@ -1012,39 +1038,38 @@ pub(crate) fn call_argument_layout(
         });
     if can_consider_hug_last_argument {
         let _timing = context.timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_HUG_LAST);
-        let use_hug_last_inline = if should_force_hug_last_inline(
+        let force_hug_last_inline = should_force_hug_last_inline(
             context,
             call_node_id,
             dynamic_arguments,
             expansion.trailing_collection_argument,
-        ) {
+        );
+        if force_hug_last_inline {
             context.increment_counter("call.arguments.path.hug_last_forced", 1);
-            true
-        } else {
-            let last_argument_is_callback_like =
-                dynamic_arguments
-                    .last()
-                    .copied()
-                    .is_some_and(|argument_id| {
-                        is_block_lambda_argument(context, argument_id)
-                            || argument_is_function_expression(context, argument_id)
-                    });
-            if !force_expand
-                && last_argument_is_callback_like
-                && leading_arguments_are_compact_callback_tail_candidates(
-                    context,
-                    dynamic_arguments,
-                )
-            {
-                context.increment_counter("call.arguments.hug_last.callback_tail_inline", 1);
-                true
-            } else if !force_expand && expansion.trailing_collection_argument {
-                context.increment_counter("call.arguments.hug_last.collection_tail_inline", 1);
-                true
-            } else {
-                false
-            }
-        };
+        }
+
+        let last_argument_is_callback_like =
+            dynamic_arguments
+                .last()
+                .copied()
+                .is_some_and(|argument_id| {
+                    is_block_lambda_argument(context, argument_id)
+                        || argument_is_function_expression(context, argument_id)
+                });
+        let use_callback_tail_inline = !force_expand
+            && last_argument_is_callback_like
+            && leading_arguments_are_compact_callback_tail_candidates(context, dynamic_arguments);
+        if use_callback_tail_inline {
+            context.increment_counter("call.arguments.hug_last.callback_tail_inline", 1);
+        }
+
+        let use_collection_tail_inline = !force_expand && expansion.trailing_collection_argument;
+        if !use_callback_tail_inline && use_collection_tail_inline {
+            context.increment_counter("call.arguments.hug_last.collection_tail_inline", 1);
+        }
+
+        let use_hug_last_inline =
+            force_hug_last_inline || use_callback_tail_inline || use_collection_tail_inline;
 
         if use_hug_last_inline {
             context.increment_counter("call.arguments.path.hug_last_inline", 1);

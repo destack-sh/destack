@@ -42,7 +42,6 @@ impl QuoteStyle {
             Self::Double => '"',
             Self::Single => '\'',
             Self::Semantic => {
-                // Single char (not empty) uses single quotes
                 if content.chars().count() == 1 {
                     '\''
                 } else {

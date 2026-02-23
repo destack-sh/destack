@@ -11,8 +11,8 @@ use crate::format::analysis::{
 use crate::format::call::layout::{
     CallArgumentLayout, argument_has_callback_blocking_comment_annotation, call_argument_layout,
     call_argument_layout_cache, call_force_expand_single_collection_for_type_binary_callee,
-    call_force_expand_single_multiline_with_static_arguments, chain_call_argument_force_expand,
-    single_argument_requires_expanded_list,
+    call_force_expand_single_multiline_with_static_arguments, call_has_await_ancestor,
+    chain_call_argument_force_expand, single_argument_requires_expanded_list,
 };
 use crate::format::collection::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
@@ -30,16 +30,6 @@ use crate::format::expression::{
 use destack_ast::{Comment, CommentStyle, PostfixPosition, TokenSpan};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::write;
-
-/// Write one single callback argument with a trailing separator wrap.
-pub(crate) fn write_single_callback_argument_wrapped_with_trailing_separator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    argument_id: LocalNodeId<Argument>,
-) -> FormatResult<()> {
-    write!(f, [token("(")])?;
-    write_plain_call_argument_or_node(f, argument_id)?;
-    write!(f, [token(","), hard_line_break(), token(")")])
-}
 
 /// Write an inline comma-separated call argument list.
 pub(crate) fn write_inline_call_argument_list<'ast>(
@@ -152,53 +142,6 @@ fn write_call_argument_for_list<'ast>(
     write_plain_call_argument_or_node(f, argument_id)
 }
 
-/// Return whether single callback rendering should keep hugging with a trailing separator wrap.
-fn callback_argument_has_call_chain_body(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let value_id = argument_value_id(context.tree, argument_id);
-    let value_id = transparent_inner_expression(context, value_id);
-
-    let Expression::Declaration(declaration_id) = context.tree.get(value_id) else {
-        return false;
-    };
-    let Declaration::Function {
-        signature,
-        body: Some(body_id),
-        ..
-    } = context.tree.get(*declaration_id)
-    else {
-        return false;
-    };
-    if signature.kind != FunctionKind::Lambda {
-        return false;
-    }
-
-    let mut expression_id = transparent_inner_expression(context, *body_id);
-    let mut saw_call_like = false;
-    let mut saw_chain_member = false;
-    loop {
-        match context.tree.get(expression_id) {
-            Expression::Call { left, .. } | Expression::Instantiation { left, .. } => {
-                saw_call_like = true;
-                expression_id = transparent_inner_expression(context, *left);
-            }
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Index { left, .. }
-            | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. } => {
-                saw_chain_member = true;
-                expression_id = transparent_inner_expression(context, *left);
-            }
-            _ => break,
-        }
-    }
-
-    saw_call_like && saw_chain_member
-}
-
 /// Return whether a call should expand its argument list when formatted in a chain.
 pub(crate) fn call_arguments_force_expand_for_chain(
     context: &DestackFormatContext<'_>,
@@ -284,20 +227,26 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
     }
 
     // simple short-circuit path
-    let use_single_simple_short_circuit = if has_boundary_comments
-        || call_has_static_arguments
-        || has_call_infix_annotations
-        || single_argument_force_expand
-        || layout_cache.is_multiline_in_source
-        || !layout_cache.all_single_line_and_unannotated
-    {
-        false
-    } else {
-        let value_id = argument_value_id(f.context().tree, argument_id);
-        let value_id = transparent_inner_expression(f.context(), value_id);
-        let value = f.context().tree.get(value_id);
-        is_trivial_expression(f.context().tree, value)
-    };
+    let use_single_simple_short_circuit = !has_boundary_comments
+        && !call_has_static_arguments
+        && !has_call_infix_annotations
+        && !single_argument_force_expand
+        && !layout_cache.is_multiline_in_source
+        && layout_cache.all_single_line_and_unannotated
+        && {
+            let value_id = argument_value_id(f.context().tree, argument_id);
+            let value_id = transparent_inner_expression(f.context(), value_id);
+            let value = f.context().tree.get(value_id);
+            let value_is_short_empty_call = matches!(
+                value,
+                Expression::Call {
+                    static_arguments: None,
+                    dynamic_arguments,
+                    ..
+                } if dynamic_arguments.is_empty()
+            ) && !f.context().has_annotation(value_id);
+            is_trivial_expression(f.context().tree, value) || value_is_short_empty_call
+        };
     if use_single_simple_short_circuit {
         f.context()
             .increment_counter("call.arguments.single_simple.short_circuit", 1);
@@ -315,36 +264,44 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
         return Ok(());
     }
 
+    // function inline path
+    let use_single_function_argument_inline = !has_call_infix_annotations
+        && !force_expand_single_multiline_with_static_arguments
+        && !force_expand_single_collection_for_type_binary_callee
+        && !has_boundary_comments
+        && {
+            let value_id = argument_value_id(f.context().tree, argument_id);
+            !argument_has_non_blank_annotation(f.context(), argument_id)
+                && !f.context().has_non_blank_annotation(value_id)
+                && !argument_has_callback_blocking_comment_annotation(f.context(), argument_id)
+                && !argument_has_leading_prefix_annotation_outside_span(f.context(), argument_id)
+                && argument_is_function_expression(f.context(), argument_id)
+        };
+    if use_single_function_argument_inline {
+        f.context()
+            .increment_counter("call.arguments.path.single_function_inline", 1);
+        write_single_call_argument_inline_wrapped(f, argument_id)?;
+        return Ok(());
+    }
+
     // callback inline path
-    let use_single_callback_argument_inline = if has_call_infix_annotations
-        || force_expand_single_multiline_with_static_arguments
-        || force_expand_single_collection_for_type_binary_callee
-        || has_boundary_comments
-    {
-        false
-    } else {
-        let value_id = argument_value_id(f.context().tree, argument_id);
-        !argument_has_non_blank_annotation(f.context(), argument_id)
-            && !f.context().has_non_blank_annotation(value_id)
-            && !argument_has_callback_blocking_comment_annotation(f.context(), argument_id)
-            && !argument_has_leading_prefix_annotation_outside_span(f.context(), argument_id)
-            && (argument_is_lambda_expression(f.context(), argument_id)
-                || argument_is_function_expression(f.context(), argument_id))
-    };
+    let use_single_callback_argument_inline = !has_call_infix_annotations
+        && !call_has_await_ancestor(f.context(), call_node_id)
+        && !force_expand_single_multiline_with_static_arguments
+        && !force_expand_single_collection_for_type_binary_callee
+        && !has_boundary_comments
+        && {
+            let value_id = argument_value_id(f.context().tree, argument_id);
+            !argument_has_non_blank_annotation(f.context(), argument_id)
+                && !f.context().has_non_blank_annotation(value_id)
+                && !argument_has_callback_blocking_comment_annotation(f.context(), argument_id)
+                && !argument_has_leading_prefix_annotation_outside_span(f.context(), argument_id)
+                && argument_is_lambda_expression(f.context(), argument_id)
+        };
     if use_single_callback_argument_inline {
         f.context()
             .increment_counter("call.arguments.path.single_callback_inline", 1);
-        let use_trailing_separator_wrap =
-            callback_argument_has_call_chain_body(f.context(), argument_id);
-        if use_trailing_separator_wrap {
-            f.context().increment_counter(
-                "call.arguments.path.single_callback_inline.trailing_wrap",
-                1,
-            );
-            write_single_callback_argument_wrapped_with_trailing_separator(f, argument_id)?;
-        } else {
-            write_single_call_argument_inline_wrapped(f, argument_id)?;
-        }
+        write_single_call_argument_inline_wrapped(f, argument_id)?;
         return Ok(());
     }
 
@@ -374,7 +331,7 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
         }
     }
 
-    // fallback to full single-argument layout selection and rendering
+    // use full single argument layout selection and rendering
     let _timing = f
         .context()
         .timing_scope(timing::FORMAT_EXPRESSION_CALL_ARGUMENTS_LAYOUT);

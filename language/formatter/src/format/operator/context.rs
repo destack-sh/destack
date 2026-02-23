@@ -1,7 +1,3 @@
-use crate::format::analysis::{
-    first_non_trivia_token_in_span, nth_non_trivia_token_in_span,
-    previous_non_whitespace_token_before_span,
-};
 use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
@@ -9,11 +5,9 @@ use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, AssignOperator, BinaryOperator, Declaration,
     Declarator, DependencyKind, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     IfKind, ImportAliasTarget, LocalNodeId, Member, NodeTree, NodeType, OperatorPrecedence,
-    Parameter, Property, ScalarLiteral, TokenType, TypeBinaryOperator, TypeLiteral,
-    TypeUnaryOperator, UnaryOperator, WhereClause, block_indent, format_expression,
-    hard_line_break, has_comment_between_expressions, is_trivial_expression,
-    parenthesized_has_leading_inner_trivia, parenthesized_leading_type_grouping_operator, token,
-    transparent_inner_expression,
+    Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
+    WhereClause, block_indent, format_expression, hard_line_break, is_trivial_expression,
+    parenthesized_has_leading_inner_trivia, token, transparent_inner_expression,
 };
 use destack_fir::format::{Buffer, Format};
 use destack_fir::write;
@@ -508,7 +502,7 @@ pub(crate) fn is_simple_type_binary_left_expression(
     }
 }
 
-/// Return the previous non whitespace character before a span.
+/// Return whether one type expression is object-like.
 pub(crate) fn is_object_like_type_expression(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
@@ -518,205 +512,6 @@ pub(crate) fn is_object_like_type_expression(
         context.tree.get(expression_id),
         Expression::ObjectExpression { .. } | Expression::TypeMapped { .. }
     )
-}
-
-/// Whether a type expression is nullable (null, undefined, or void).
-pub(crate) fn is_nullable_union_member(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let expression_id = transparent_inner_expression(context, expression_id);
-    matches!(
-        context.tree.get(expression_id),
-        Expression::TypeLiteral(TypeLiteral::Null | TypeLiteral::Undefined | TypeLiteral::Void)
-    )
-}
-
-/// Whether a type expression is a simple reference.
-pub(crate) fn is_type_reference_expression(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let expression_id = transparent_inner_expression(context, expression_id);
-    matches!(
-        context.tree.get(expression_id),
-        Expression::Path { .. } | Expression::Member { .. } | Expression::PrivateMember { .. }
-    )
-}
-
-/// Decide whether a nullable union type should stay inline with `|` separators.
-pub(crate) fn should_hug_nullable_union_type(
-    context: &DestackFormatContext<'_>,
-    operands: &[BinaryOperand],
-) -> bool {
-    if operands.len() < 2 {
-        return false;
-    }
-
-    if operands
-        .iter()
-        .any(|operand| context.has_annotation(operand.expression))
-    {
-        return false;
-    }
-
-    let mut nullable_count = 0;
-    let mut has_object_or_ref = false;
-    let mut non_nullable_count = 0;
-
-    for operand in operands {
-        let expression_id = operand.expression;
-        if is_nullable_union_member(context, expression_id) {
-            nullable_count += 1;
-            continue;
-        }
-
-        non_nullable_count += 1;
-        if is_object_like_type_expression(context, expression_id)
-            || is_type_reference_expression(context, expression_id)
-        {
-            has_object_or_ref = true;
-        } else {
-            return false;
-        }
-    }
-
-    has_object_or_ref && non_nullable_count == 1 && nullable_count == operands.len() - 1
-}
-
-/// Decide whether a union type in static arguments should stay inline.
-pub(crate) fn should_hug_static_argument_union_type(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    operands: &[BinaryOperand],
-) -> bool {
-    if !is_static_type_argument_context(context, node_id) || operands.len() < 2 {
-        return false;
-    }
-
-    if union_has_leading_pipe_token(context, node_id) {
-        return false;
-    }
-
-    if operands
-        .iter()
-        .any(|operand| context.has_annotation(operand.expression))
-    {
-        return false;
-    }
-
-    let mut previous_expression: Option<LocalNodeId<Expression>> = None;
-    for operand in operands {
-        if let Some(previous_expression) = previous_expression
-            && has_comment_between_expressions(context, previous_expression, operand.expression)
-        {
-            return false;
-        }
-
-        let span = context.span(operand.expression);
-        if context.has_newline(span) {
-            return false;
-        }
-
-        let operand_expression = transparent_inner_expression(context, operand.expression);
-        if matches!(
-            context.tree.get(operand_expression),
-            Expression::ObjectExpression { .. }
-                | Expression::ArrayExpression { .. }
-                | Expression::TypeMapped { .. }
-        ) {
-            return false;
-        }
-
-        previous_expression = Some(operand.expression);
-    }
-
-    true
-}
-
-/// Return whether a union expression source starts with a leading `|`.
-pub(crate) fn union_has_leading_pipe_token(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let span = context.span(node_id);
-    let leading_token_is_pipe = first_non_trivia_token_in_span(context, span)
-        .is_some_and(|token| token.token.ty == TokenType::ElementwiseOr);
-    let template_placeholder_has_leading_pipe =
-        first_non_trivia_token_in_span(context, span).is_some_and(|token| {
-            matches!(
-                token.token.ty,
-                TokenType::TemplateStringStart | TokenType::TemplateStringMiddle
-            )
-        }) && nth_non_trivia_token_in_span(context, span, 1)
-            .is_some_and(|token| token.token.ty == TokenType::ElementwiseOr);
-    let previous_token_is_pipe = previous_non_whitespace_token_before_span(context, span)
-        .is_some_and(|token| token.token.ty == TokenType::ElementwiseOr);
-    if leading_token_is_pipe || template_placeholder_has_leading_pipe || previous_token_is_pipe {
-        return true;
-    }
-
-    let first_union_operand_id = first_union_operand_expression_id(context.tree, node_id);
-    let first_union_operand_span = context.span(first_union_operand_id);
-    let token_before_first_union_operand =
-        previous_non_whitespace_token_before_span(context, first_union_operand_span)
-            .is_some_and(|token| token.token.ty == TokenType::ElementwiseOr);
-    if token_before_first_union_operand {
-        return true;
-    }
-
-    let mut current_id = node_id;
-    while let Some((parent_id, parent_type)) = context.parent(current_id) {
-        if parent_type != NodeType::Expression {
-            break;
-        }
-
-        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-        let Expression::Parenthesized { expression } = context.tree.get(parent_expression_id)
-        else {
-            break;
-        };
-        if *expression != current_id {
-            break;
-        }
-
-        let leading_operator =
-            parenthesized_leading_type_grouping_operator(context, parent_expression_id);
-        if leading_operator == Some(BinaryOperator::ElementwiseOr) {
-            return true;
-        }
-
-        current_id = parent_expression_id;
-    }
-
-    false
-}
-
-/// Return the leftmost operand expression id for a union-like binary chain.
-fn first_union_operand_expression_id(
-    tree: &NodeTree,
-    node_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
-    let mut current_id = node_id;
-
-    loop {
-        let next_id = match tree.get(current_id) {
-            Expression::Binary {
-                operator: BinaryOperator::ElementwiseOr,
-                left,
-                ..
-            } => Some(*left),
-            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
-                Some(*expression)
-            }
-            _ => None,
-        };
-
-        let Some(next_id) = next_id else {
-            return current_id;
-        };
-        current_id = next_id;
-    }
 }
 
 /// Return whether a binary operator participates in type union or intersection grouping.
@@ -857,76 +652,6 @@ fn format_expression_without_prefix_annotations<'ast>(
             f,
             [f.context().any_infix_or_postfix_annotations(expression_id)]
         )?;
-    }
-
-    Ok(())
-}
-
-/// Format a binary operand with grouping parentheses while omitting prefix annotations.
-pub(crate) fn format_binary_operand_without_prefix_annotations_with_grouping_parentheses<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    parent_operator: BinaryOperator,
-    operand_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let mut operand_id = operand_id;
-    if let Expression::Parenthesized {
-        expression: inner_expression_id,
-    } = f.context().tree.get(operand_id)
-    {
-        let can_drop_for_binary = redundant_parenthesized_binary_operand_can_drop(
-            f.context(),
-            parent_operator,
-            operand_id,
-            *inner_expression_id,
-        );
-        let can_drop_for_closure_cast = redundant_parenthesized_closure_cast_operand_can_drop(
-            f.context(),
-            operand_id,
-            *inner_expression_id,
-        );
-        if can_drop_for_binary || can_drop_for_closure_cast {
-            operand_id = *inner_expression_id;
-        }
-    }
-
-    let expression = f.context().tree.get(operand_id);
-    let needs_type_grouping_parentheses =
-        type_binary_operand_needs_grouping_parentheses(f.context(), parent_operator, operand_id);
-    let suppress_precedence_parentheses_for_type_binary = matches!(
-        (expression, parent_operator),
-        (
-            Expression::TypeBinary {
-                operator: TypeBinaryOperator::Is
-                    | TypeBinaryOperator::In
-                    | TypeBinaryOperator::InstanceOf,
-                ..
-            },
-            BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce,
-        )
-    );
-    let needs_mixed_logical_grouping_parentheses = matches!(
-        (parent_operator, expression),
-        (
-            BinaryOperator::Or | BinaryOperator::Coalesce,
-            Expression::Binary {
-                operator: BinaryOperator::And | BinaryOperator::Coalesce,
-                ..
-            },
-        )
-    );
-    let needs_precedence_parentheses = !matches!(expression, Expression::Parenthesized { .. })
-        && expression_precedence(expression) < parent_operator.precedence()
-        && !suppress_precedence_parentheses_for_type_binary;
-    let needs_grouping_parentheses = needs_type_grouping_parentheses
-        || needs_precedence_parentheses
-        || needs_mixed_logical_grouping_parentheses;
-
-    if needs_grouping_parentheses {
-        write!(f, [token("(")])?;
-        format_expression_without_prefix_annotations(f, operand_id)?;
-        write!(f, [token(")")])?;
-    } else {
-        format_expression_without_prefix_annotations(f, operand_id)?;
     }
 
     Ok(())

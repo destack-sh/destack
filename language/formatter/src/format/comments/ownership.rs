@@ -84,7 +84,7 @@ pub(crate) fn find_preferred_owner_starting_at(tree: &NodeTree, span: Span) -> O
                 0
             };
 
-            let should_replace = if let Some(current) = best_owner {
+            let should_replace = best_owner.map_or(true, |current| {
                 let current_kind_rank = if tree.get_node_type(current.idx) == NodeType::Expression {
                     1
                 } else {
@@ -96,9 +96,7 @@ pub(crate) fn find_preferred_owner_starting_at(tree: &NodeTree, span: Span) -> O
                     || (candidate.length == current.length
                         && candidate_kind_rank == current_kind_rank
                         && candidate.idx < current.idx)
-            } else {
-                true
-            };
+            });
 
             if should_replace {
                 best_owner = Some(candidate);
@@ -117,12 +115,10 @@ pub(crate) fn find_smallest_owner_enclosing_token(tree: &NodeTree, span: Span) -
                 return;
             }
 
-            let should_replace = if let Some(current) = best_owner {
+            let should_replace = best_owner.map_or(true, |current| {
                 candidate.length < current.length
                     || (candidate.length == current.length && candidate.idx < current.idx)
-            } else {
-                true
-            };
+            });
 
             if should_replace {
                 best_owner = Some(candidate);
@@ -149,12 +145,10 @@ pub(crate) fn find_smallest_owner_enclosing_range(
                 return;
             }
 
-            let should_replace = if let Some(current) = best_owner {
+            let should_replace = best_owner.map_or(true, |current| {
                 candidate.length < current.length
                     || (candidate.length == current.length && candidate.idx < current.idx)
-            } else {
-                true
-            };
+            });
 
             if should_replace {
                 best_owner = Some(candidate);
@@ -162,6 +156,46 @@ pub(crate) fn find_smallest_owner_enclosing_range(
         });
 
     best_owner.map(|owner| owner.idx)
+}
+
+/// Find one owner at or after one semantic token index.
+pub(crate) fn find_owner_at_or_after_token(
+    tree: &NodeTree,
+    semantic_tokens: &[ast::TokenSpan],
+    token_index: usize,
+) -> Option<u32> {
+    semantic_tokens
+        .iter()
+        .skip(token_index)
+        .find_map(|token| find_smallest_owner_enclosing_token(tree, token.span))
+}
+
+/// Find one owner of one node type at or after one semantic token index.
+pub(crate) fn find_owner_at_or_after_token_with_node_type(
+    tree: &NodeTree,
+    owner_index: &FormatterTriviaOwnerIndex,
+    token_index: usize,
+    node_type: NodeType,
+) -> Option<u32> {
+    let token_count = owner_index.owner_start_by_token.len();
+    if token_index >= token_count {
+        return None;
+    }
+
+    for current_index in token_index..token_count {
+        let candidate_owner = owner_index.owner_start_by_token[current_index]
+            .or(owner_index.nearest_owner_start_by_token[current_index]);
+        let Some(candidate_owner) = candidate_owner else {
+            continue;
+        };
+
+        let candidate_owner = normalize_formatter_trivia_target_owner(tree, candidate_owner);
+        if tree.get_node_type(candidate_owner) == node_type {
+            return Some(candidate_owner);
+        }
+    }
+
+    None
 }
 
 /// Promote one owner while ancestor spans share the same seam end.
@@ -347,61 +381,6 @@ pub(crate) fn promote_owner_to_parenthesized_expression_ancestor(
         }
 
         current_id = parents.get_by_id(node_id);
-    }
-
-    None
-}
-
-/// Find the next declaration owner at or after one semantic token index.
-pub(crate) fn find_next_declaration_owner_from_token(
-    tree: &NodeTree,
-    owner_index: &FormatterTriviaOwnerIndex,
-    token_index: usize,
-) -> Option<u32> {
-    let token_count = owner_index.owner_start_by_token.len();
-    if token_index >= token_count {
-        return None;
-    }
-
-    let search_end = (token_index + 96).min(token_count);
-    for current_index in token_index..search_end {
-        let candidate_owner = owner_index.owner_start_by_token[current_index]
-            .or(owner_index.nearest_owner_start_by_token[current_index]);
-        let Some(candidate_owner) = candidate_owner else {
-            continue;
-        };
-
-        let candidate_owner = normalize_formatter_trivia_target_owner(tree, candidate_owner);
-        if tree.get_node_type(candidate_owner) == NodeType::Declaration {
-            return Some(candidate_owner);
-        }
-    }
-
-    None
-}
-
-/// Find the next member owner at or after one semantic token index.
-pub(crate) fn find_next_member_owner_from_token(
-    tree: &NodeTree,
-    owner_index: &FormatterTriviaOwnerIndex,
-    token_index: usize,
-) -> Option<u32> {
-    let token_count = owner_index.owner_start_by_token.len();
-    if token_index >= token_count {
-        return None;
-    }
-
-    let search_end = (token_index + 96).min(token_count);
-    for current_index in token_index..search_end {
-        let candidate_owner = owner_index.owner_start_by_token[current_index]
-            .or(owner_index.nearest_owner_start_by_token[current_index]);
-        let Some(candidate_owner) = candidate_owner else {
-            continue;
-        };
-
-        if tree.get_node_type(candidate_owner) == NodeType::Member {
-            return Some(candidate_owner);
-        }
     }
 
     None

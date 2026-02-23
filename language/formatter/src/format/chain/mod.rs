@@ -10,7 +10,7 @@ pub(crate) use crate::format::expression::{
     argument_is_inline_closure_cast_object, argument_is_simple_with_options,
     argument_is_template_literal, format_call_expression, format_index_expression,
     format_instantiation_expression, format_member_expression, is_call_like_argument,
-    is_expression_breakable, is_trivial_expression, should_unwrap_parenthesized, span_has_comment,
+    is_expression_breakable, should_unwrap_parenthesized, span_has_comment,
     tree_literal_should_break,
 };
 pub(crate) use crate::format::operator::{

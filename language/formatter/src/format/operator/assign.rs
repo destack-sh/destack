@@ -2,7 +2,7 @@ use crate::format::analysis::{
     previous_non_whitespace_token_before_annotation, previous_non_whitespace_token_before_span,
 };
 use crate::format::chain::{
-    expression_chain_should_break, flattened_binary_operand_count, has_comment_between_expressions,
+    flattened_binary_operand_count, has_comment_between_expressions,
     is_assignment_chain_tail_lambda, is_chain_root, is_expression_chain,
 };
 use crate::format::expression::{
@@ -295,6 +295,18 @@ fn write_grouped_softline_assignment<'ast>(
         Ok(())
     });
 
+    let right_is_function_with_block = matches!(
+        f.context().tree.get(right),
+        Expression::Declaration(declaration_id)
+            if matches!(
+                f.context().tree.get(*declaration_id),
+                Declaration::Function { body: Some(body_id), .. }
+                    if matches!(f.context().tree.get(*body_id), Expression::Block(_))
+            )
+    );
+    let should_dedent_right = should_dedent_right
+        && !matches!(f.context().tree.get(right), Expression::Assign { .. })
+        && !right_is_function_with_block;
     if should_dedent_right {
         write!(
             f,
@@ -335,6 +347,18 @@ fn write_grouped_hardline_assignment<'ast>(
         Ok(())
     });
 
+    let right_is_function_with_block = matches!(
+        f.context().tree.get(right),
+        Expression::Declaration(declaration_id)
+            if matches!(
+                f.context().tree.get(*declaration_id),
+                Declaration::Function { body: Some(body_id), .. }
+                    if matches!(f.context().tree.get(*body_id), Expression::Block(_))
+            )
+    );
+    let should_dedent_right = should_dedent_right
+        && !matches!(f.context().tree.get(right), Expression::Assign { .. })
+        && !right_is_function_with_block;
     if should_dedent_right {
         write!(
             f,
@@ -466,7 +490,12 @@ pub(crate) fn format_assign_expression<'ast>(
         Expression::SequenceExpression { .. }
     );
     let right_is_assign = matches!(inner_right_expression, Expression::Assign { .. });
-    let right_is_chain = is_expression_chain(context.tree, inner_right_id)
+    let right_is_path_chain = matches!(
+        inner_right_expression,
+        Expression::Path { path, .. } if path.segments.len() > 1
+    );
+    let right_is_chain = right_is_path_chain
+        || is_expression_chain(context.tree, inner_right_id)
         || is_chain_root(context.tree, inner_right_id);
     let right_is_chain_tail_lambda =
         is_assignment_chain_tail_lambda(context, node_id, inner_right_id);
@@ -519,7 +548,7 @@ pub(crate) fn format_assign_expression<'ast>(
     };
 
     // rhs break path
-    let right_is_multiline_binary = if right_is_binary {
+    let right_is_multiline_binary = right_is_binary && {
         let binary_operand_count = match inner_right_expression {
             Expression::Binary { operator, .. } => {
                 flattened_binary_operand_count(context.tree, inner_right_id, *operator)
@@ -528,8 +557,6 @@ pub(crate) fn format_assign_expression<'ast>(
         };
         binary_operand_count > LONG_BINARY_OPERAND_COUNT_THRESHOLD
             && (right_has_between_comment || right_has_newline)
-    } else {
-        false
     };
     let node_is_call_argument =
         context.any_ancestor(node_id, |_, parent_type| parent_type == NodeType::Argument);
@@ -551,7 +578,7 @@ pub(crate) fn format_assign_expression<'ast>(
             )
     );
 
-    // fallback path
+    // default path
     let left_inner_id = transparent_inner_expression(context, left);
     let left_is_expanded_object_target = matches!(
         context.tree.get(left_inner_id),
@@ -612,7 +639,7 @@ pub(crate) fn format_assign_expression<'ast>(
         && !right_has_newline
         && !left_assignment_chain_is_multiline
     {
-        return write_grouped_softline_assignment(f, left, operator, right, has_left_postfix, true);
+        return write_grouped_inline_assignment(f, left, operator, right, has_left_postfix);
     }
 
     // expanded right-associative assignment chains should break on each seam
@@ -620,7 +647,14 @@ pub(crate) fn format_assign_expression<'ast>(
         && !right_has_prefix_annotation_that_forces_operator_break
         && !right_has_between_comment
     {
-        return write_grouped_hardline_assignment(f, left, operator, right, has_left_postfix, true);
+        return write_grouped_hardline_assignment(
+            f,
+            left,
+            operator,
+            right,
+            has_left_postfix,
+            false,
+        );
     }
 
     // break long binary rhs values after the operator
@@ -639,34 +673,34 @@ pub(crate) fn format_assign_expression<'ast>(
 
     // rhs-managed layout cases
     if right_is_self_breaking {
-        let should_break_after_operator = if right_is_assign {
-            right_has_prefix_annotation_that_forces_operator_break
-                || right_has_between_comment
-                || node_is_call_argument
-        } else if right_is_lambda {
-            right_has_prefix_annotation_that_forces_operator_break
-                || right_has_between_comment
-                || right_is_compact_multiline
-        } else if right_is_chain {
-            !right_is_lambda
-                && (right_is_chain_tail_lambda
-                    || expression_chain_should_break(context, inner_right_id)
-                    || right_has_prefix_annotation_that_forces_operator_break
-                    || right_has_between_comment)
-        } else if right_is_binary {
-            !right_is_lambda
-                && (right_is_chain_tail_lambda
-                    || right_has_prefix_annotation_that_forces_operator_break
-                    || right_has_between_comment
-                    || assignment_has_newline
-                    || right_is_compact_multiline)
-        } else {
-            !right_is_lambda
-                && (right_is_chain_tail_lambda
-                    || right_has_prefix_annotation_that_forces_operator_break
-                    || right_is_compact_multiline
-                    || right_has_between_comment)
-        };
+        let right_has_forced_break_trivia =
+            right_has_prefix_annotation_that_forces_operator_break || right_has_between_comment;
+        let should_break_after_operator =
+            // rhs assignment
+            (right_is_assign && (right_has_forced_break_trivia || node_is_call_argument))
+                // rhs lambda
+                || (right_is_lambda
+                    && (right_has_forced_break_trivia || right_is_compact_multiline))
+                // rhs chain
+                || (right_is_chain
+                    && !right_is_lambda
+                    && (right_is_chain_tail_lambda || right_has_forced_break_trivia))
+                // rhs binary
+                || (right_is_binary
+                    && !right_is_lambda
+                    && (right_is_chain_tail_lambda
+                        || right_has_forced_break_trivia
+                        || assignment_has_newline
+                        || right_is_compact_multiline))
+                // other rhs-managed forms
+                || (!right_is_assign
+                    && !right_is_lambda
+                    && !right_is_chain
+                    && !right_is_binary
+                    && (right_is_chain_tail_lambda
+                        || right_has_prefix_annotation_that_forces_operator_break
+                        || right_is_compact_multiline
+                        || right_has_between_comment));
 
         if should_break_after_operator {
             if right_has_prefix_annotation_that_forces_operator_break
@@ -689,18 +723,33 @@ pub(crate) fn format_assign_expression<'ast>(
                 operator,
                 right,
                 has_left_postfix,
-                true,
+                !right_is_lambda,
             );
         }
 
         if right_is_chain {
+            if right_has_newline {
+                return write_grouped_inline_assignment(f, left, operator, right, has_left_postfix);
+            }
+
+            return write_grouped_softline_assignment(
+                f,
+                left,
+                operator,
+                right,
+                has_left_postfix,
+                !right_is_lambda,
+            );
+        }
+
+        if right_is_assign {
             return write_grouped_inline_assignment(f, left, operator, right, has_left_postfix);
         }
 
         return write_grouped_softline_assignment(f, left, operator, right, has_left_postfix, true);
     }
 
-    // fallback expression layout cases
+    // default expression layout cases
     let should_force_break_for_multiline_left =
         left_has_newline && !right_is_short_object && !right_is_inline_atomic;
     if should_force_break_for_multiline_left {
@@ -711,6 +760,20 @@ pub(crate) fn format_assign_expression<'ast>(
         && (right_is_short_object || right_is_inline_atomic)
     {
         return write_inline_assignment(f, left, operator, right, has_left_postfix);
+    }
+
+    // keep simple atomic rhs values inline when there are no break signals
+    if right_is_inline_atomic
+        && !right_is_chain
+        && !left_has_newline
+        && !right_has_newline
+        && !left_has_annotation
+        && !right_has_annotation
+        && !node_has_annotation
+        && !right_has_prefix_annotation_that_forces_operator_break
+        && !right_has_between_comment
+    {
+        return write_grouped_inline_assignment(f, left, operator, right, has_left_postfix);
     }
 
     write_grouped_softline_assignment(f, left, operator, right, has_left_postfix, false)

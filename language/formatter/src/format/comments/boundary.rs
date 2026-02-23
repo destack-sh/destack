@@ -221,13 +221,11 @@ impl CommentSeamData {
         let comment_style = context.tree.get(context.trivia.comment).style;
         let comment_is_line = comment_style == ast::CommentStyle::Slash;
         let comment_is_star = comment_style == ast::CommentStyle::Star;
-        let comment_is_multiline_star = if comment_is_star {
+        let comment_is_multiline_star = comment_is_star && {
             let comment_end = context.trivia.span.end.saturating_sub(1);
             !context
                 .file
                 .is_same_line(context.trivia.span.start, comment_end)
-        } else {
-            false
         };
         let token_after_prefers_left =
             token_after_type.is_some_and(token_after_prefers_left_ownership);

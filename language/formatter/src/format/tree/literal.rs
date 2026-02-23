@@ -134,21 +134,24 @@ fn tree_children_layout(
     let has_multiple_expression_children = expression_child_count >= 2;
     let has_tree_and_expression_children = has_tree_child && expression_child_count > 0;
     let has_tree_and_text_children = has_tree_child && has_non_whitespace_text_child;
-    let force_break = if context.options.language_type.is_destack() {
-        force_break_attributes
-            || has_breaking_child
-            || has_tree_child
-            || has_multiple_expression_children
-            || has_newline_whitespace_text_child
-    } else {
-        force_break_attributes
-            || has_breaking_child
-            || has_multiple_tree_children
-            || has_multiple_expression_children
-            || has_tree_and_expression_children
-            || (has_tree_child && has_braced_whitespace_child)
-            || has_newline_whitespace_text_child
-    };
+    let is_destack = context.options.language_type.is_destack();
+    let force_break =
+        // destack: any tree child forces multiline tree layout
+        (is_destack
+            && (force_break_attributes
+                || has_breaking_child
+                || has_tree_child
+                || has_multiple_expression_children
+                || has_newline_whitespace_text_child))
+            // ts/js/tsx/jsx: tree children can still stay inline if trivial
+            || (!is_destack
+                && (force_break_attributes
+                    || has_breaking_child
+                    || has_multiple_tree_children
+                    || has_multiple_expression_children
+                    || has_tree_and_expression_children
+                    || (has_tree_child && has_braced_whitespace_child)
+                    || has_newline_whitespace_text_child));
     let force_break_with_fill = !context.options.language_type.is_destack()
         && force_break
         && has_tree_and_text_children
@@ -622,6 +625,8 @@ pub(crate) fn tree_literal_wraps_on_break(
                 } => false,
                 // standalone jsx statements stay unwrapped
                 Expression::Statement(_) => false,
+                // declaration expressions own their initializer grouping
+                Expression::Let { .. } => false,
                 // return handles jsx wrapping at the statement formatter level
                 Expression::Return { .. } => false,
                 _ => true,
@@ -649,6 +654,7 @@ pub(crate) fn tree_literal_wraps_on_break(
                     }
             )
         }
+        NodeType::Declarator => true,
         _ => true,
     }
 }

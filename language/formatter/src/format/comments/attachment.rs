@@ -17,11 +17,11 @@ use crate::format::comments::declaration::try_attach_comment_declaration;
 use crate::format::comments::expression::try_attach_comment_expression;
 use crate::format::comments::operator::try_attach_comment_assignment;
 use crate::format::comments::ownership::{
-    find_preferred_owner_starting_at, find_smallest_owner_enclosing_range,
-    find_smallest_owner_enclosing_token, is_block_like_owner, is_trivia_excluded_owner_node_id,
-    lowest_common_owner_ancestor, normalize_formatter_trivia_target_owner,
-    normalize_owner_with_shared_end, promote_owner_by_shared_start,
-    promote_owner_to_node_type_ancestor,
+    find_owner_at_or_after_token_with_node_type, find_preferred_owner_starting_at,
+    find_smallest_owner_enclosing_range, find_smallest_owner_enclosing_token, is_block_like_owner,
+    is_trivia_excluded_owner_node_id, lowest_common_owner_ancestor,
+    normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
+    promote_owner_by_shared_start, promote_owner_to_node_type_ancestor,
 };
 use crate::format::comments::statement::{
     try_attach_comment_block_body, try_attach_comment_statement_prefix,
@@ -558,6 +558,7 @@ pub(crate) fn formatter_annotation_projection(
     let mut entries = Vec::new();
     let mut by_node_id = vec![SmallVec::new(); node_count];
     let mut comment_targets = Vec::<(Span, u32)>::new();
+    let owner_index = formatter_trivia_owner_index(tree, tokens);
 
     // add parser semantic annotations first
     for (&target_id, annotation_ids) in tree.get_all_annotations() {
@@ -567,6 +568,34 @@ pub(crate) fn formatter_annotation_projection(
 
         for &annotation_id in annotation_ids {
             let ast_annotation = tree.get(annotation_id);
+            let mut target_node_id = target_id;
+
+            // doc comments that sit directly before decorators should bind to the decorated declaration
+            if matches!(ast_annotation, ast::Annotation::Doc { .. }) {
+                let annotation_span = tree.get_span(annotation_id);
+                let mut token_index =
+                    tokens.partition_point(|token| token.span.start < annotation_span.end);
+                while let Some(token) = tokens.get(token_index).copied() {
+                    if matches!(token.token.ty, TokenType::Whitespace | TokenType::Newline) {
+                        token_index += 1;
+                        continue;
+                    }
+
+                    if token.token.ty == TokenType::At
+                        && let Some(declaration_id) = find_owner_at_or_after_token_with_node_type(
+                            tree,
+                            &owner_index,
+                            token_index,
+                            NodeType::Declaration,
+                        )
+                    {
+                        target_node_id = declaration_id;
+                    }
+
+                    break;
+                }
+            }
+
             let annotation = match ast_annotation {
                 ast::Annotation::Doc { node, position } => Annotation::Doc {
                     node: *node,
@@ -583,12 +612,14 @@ pub(crate) fn formatter_annotation_projection(
                 annotation,
                 span: tree.get_span(annotation_id),
             });
-            by_node_id[target_id as usize].push(local_id);
+            if target_node_id as usize >= by_node_id.len() {
+                continue;
+            }
+            by_node_id[target_node_id as usize].push(local_id);
         }
     }
 
-    // build formatter-side owner indexes for trivia placement
-    let owner_index = formatter_trivia_owner_index(tree, tokens);
+    // build formatter-side seam indexes for trivia placement
     let seam_index = formatter_trivia_seam_index(tree);
 
     // add comment trivia with formatter-side placement resolution
@@ -660,7 +691,6 @@ pub(crate) fn formatter_annotation_projection(
         if target_id as usize >= by_node_id.len() {
             continue;
         }
-
         let local_id = LocalNodeId::new(entries.len() as u32);
         entries.push(FormatterAnnotationEntry {
             annotation: Annotation::Blank {

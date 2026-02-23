@@ -37,7 +37,7 @@ pub(crate) use crate::format::chain::{
     argument_value_id, chain_nodes, expression_is_in_template_literal_interpolation,
     has_comment_between_expressions, has_line_comment_between_expressions,
     is_block_lambda_argument, is_chain_root, is_expression_chain, is_lambda_expression,
-    is_poorly_breakable_chain, lambda_expression_should_break, member_has_intervening_comment,
+    lambda_expression_should_break, member_has_intervening_comment,
     should_force_multiline_mapped_type, should_parenthesize_index_expression,
     transparent_inner_expression,
 };

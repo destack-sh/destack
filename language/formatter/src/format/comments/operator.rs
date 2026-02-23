@@ -219,8 +219,10 @@ pub(crate) fn try_attach_comment_expression_operator(
     let token_before_is_elementwise_or =
         matches!(seam.token_before_type, Some(TokenType::ElementwiseOr));
     let seam_owner = comment_seam_owner(context, seam_owner_cache);
-    let starts_leading_type_grouping_operator =
-        token_before_is_open_parenthesis || token_before_is_assign || token_before_is_colon;
+    let starts_leading_type_grouping_operator = token_before_is_open_parenthesis
+        || token_before_is_assign
+        || token_before_is_colon
+        || left_owner.is_none();
 
     // leading type-grouping operator comments belong to the rhs type expression
     if token_after_is_elementwise_operator
@@ -243,7 +245,7 @@ pub(crate) fn try_attach_comment_expression_operator(
             promote_owner_to_elementwise_binary_expression_ancestor(tree, parents, target_node)
                 .unwrap_or(target_node);
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        let position = if has_leading_newline {
+        let position = if has_trailing_newline {
             AnnotationPosition::BlockPrefix
         } else {
             AnnotationPosition::LinePrefix
@@ -368,6 +370,23 @@ pub(crate) fn try_attach_comment_expression_operator(
     {
         let right_target = normalize_formatter_trivia_target_owner(tree, right_target);
         return Some((Some(right_target), AnnotationPosition::LinePrefix));
+    }
+
+    // line comments after type and bitwise operators should stay with the rhs operand
+    if token_before_is_elementwise_operator
+        && !has_trailing_newline
+        && comment_is_star
+        && left_owner.is_none()
+        && let Some(target_node) = right_owner
+    {
+        let target_node = context
+            .token_after_span
+            .map(|token| {
+                promote_owner_by_shared_start(tree, parents, target_node, token.span.start)
+            })
+            .unwrap_or(target_node);
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePrefix));
     }
 
     // line comments after type and bitwise operators should stay with the rhs operand

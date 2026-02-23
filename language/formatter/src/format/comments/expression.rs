@@ -16,7 +16,7 @@ use crate::format::comments::boundary::{
 };
 use crate::format::comments::operator::try_attach_comment_expression_operator;
 use crate::format::comments::ownership::{
-    find_next_declaration_owner_from_token, find_preferred_owner_starting_at,
+    find_owner_at_or_after_token, find_preferred_owner_starting_at,
     find_smallest_owner_enclosing_token, lowest_common_owner_ancestor,
     normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
     promote_owner_by_shared_start, promote_owner_to_declaration_ancestor,
@@ -117,7 +117,7 @@ fn owner_is_call_or_new_expression(tree: &NodeTree, owner_id: u32) -> bool {
 /// Resolve expression and type seam comment rules.
 pub(crate) fn try_attach_comment_expression(
     tree: &NodeTree,
-    owner_index: &FormatterTriviaOwnerIndex,
+    _owner_index: &FormatterTriviaOwnerIndex,
     parents: &NodeParentIndex,
     context: &CommentSeamContext<'_>,
     seam: &CommentSeamData,
@@ -126,7 +126,6 @@ pub(crate) fn try_attach_comment_expression(
 ) -> Option<CommentAttachment> {
     let left_owner = owners.left;
     let right_owner = owners.right;
-    let token_after = context.token_after;
     let token_before_span = context.token_before_span;
     let token_after_span = context.token_after_span;
     let token_before_source_span = token_before_span.map(|token| token.span);
@@ -383,10 +382,12 @@ pub(crate) fn try_attach_comment_expression(
 
     // declaration generic head seams should stay on the declaration head
     if !has_leading_newline && has_trailing_newline && token_after_is_less_than {
-        let declaration_target = token_after
+        let declaration_target = context
+            .token_after
             .and_then(|token_after_index| {
-                find_next_declaration_owner_from_token(tree, owner_index, token_after_index)
+                find_owner_at_or_after_token(tree, context.semantic_tokens, token_after_index)
             })
+            .and_then(|owner| promote_owner_to_declaration_ancestor(tree, parents, owner))
             .or_else(|| {
                 right_owner.and_then(|owner| {
                     promote_owner_to_declaration_ancestor(tree, parents, owner).or_else(|| {

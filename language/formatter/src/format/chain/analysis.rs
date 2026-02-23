@@ -4,8 +4,7 @@ use crate::format::chain::{
     ScalarLiteral, Span, TokenType, argument_has_non_blank_annotation,
     argument_is_simple_with_options, call_arguments_force_expand_for_chain,
     call_has_non_blank_infix_annotation, chain_node_has_non_inline_annotation, chain_node_left_id,
-    is_chain_expression, is_chain_root, is_expression_breakable, is_expression_chain,
-    is_trivial_expression, should_break_chain, span_has_comment, transparent_inner_expression,
+    is_chain_expression, is_expression_breakable, span_has_comment, transparent_inner_expression,
     tree_literal_should_break,
 };
 use crate::format::operator::expression_static_arguments;
@@ -226,28 +225,6 @@ pub(crate) fn chain_head_id(
     }
 }
 
-/// Check whether the chain head is simple and short.
-pub(crate) fn is_simple_chain_head(
-    context: &DestackFormatContext<'_>,
-    head_id: LocalNodeId<Expression>,
-) -> bool {
-    let expression = context.tree.get(head_id);
-
-    match expression {
-        // simple identifier style heads
-        Expression::Path {
-            path,
-            static_arguments,
-        } => {
-            static_arguments.is_none()
-                && !context.has_annotation(head_id)
-                && path.segments.len() <= 2
-        }
-        Expression::This => !context.has_annotation(head_id),
-        _ => false,
-    }
-}
-
 /// Check whether an expression is a numeric scalar literal.
 pub(crate) fn is_numeric_scalar_literal(expression: &Expression) -> bool {
     matches!(
@@ -360,80 +337,6 @@ pub(crate) fn lambda_body_forces_multiline(
     }
 }
 
-/// Compute the maximum nested callback depth inside an expression.
-pub(crate) fn expression_callback_depth(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> usize {
-    let tree = context.tree;
-    let expression_id = transparent_inner_expression(context, expression_id);
-
-    match tree.get(expression_id) {
-        Expression::Call {
-            dynamic_arguments, ..
-        } => {
-            let mut max_depth = 0usize;
-
-            for argument_id in dynamic_arguments {
-                let value_id = argument_value_id(tree, *argument_id);
-                let value_id = transparent_inner_expression(context, value_id);
-
-                let Expression::Declaration(declaration_id) = tree.get(value_id) else {
-                    continue;
-                };
-
-                let Declaration::Function {
-                    signature,
-                    body: Some(body_id),
-                    ..
-                } = tree.get(*declaration_id)
-                else {
-                    continue;
-                };
-
-                if signature.kind != FunctionKind::Lambda {
-                    continue;
-                }
-
-                let nested_depth = expression_callback_depth(context, *body_id);
-                max_depth = max_depth.max(1 + nested_depth);
-            }
-
-            max_depth
-        }
-        _ => 0,
-    }
-}
-
-/// Check whether a chain expression should break in its current context.
-pub(crate) fn expression_chain_should_break(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let tree = context.tree;
-
-    if !is_chain_expression(tree.get(expression_id)) {
-        return false;
-    }
-
-    let mut chain = Vec::new();
-    let mut current = expression_id;
-    loop {
-        chain.push(current);
-
-        let next = chain_node_left_id(tree, current);
-
-        match next {
-            Some(next_id) if is_chain_expression(tree.get(next_id)) => {
-                current = next_id;
-            }
-            Some(_) | None => break,
-        }
-    }
-
-    should_break_chain(context, &chain)
-}
-
 /// Check whether an expression is nested inside a tree literal argument.
 pub(crate) fn expression_is_in_tree_literal_child(
     context: &DestackFormatContext<'_>,
@@ -521,14 +424,6 @@ pub(crate) fn lambda_expression_should_break(
         }
     }
 
-    if expression_chain_should_break(context, body_expr_id) {
-        return true;
-    }
-
-    if expression_callback_depth(context, body_expr_id) >= 2 {
-        return true;
-    }
-
     false
 }
 
@@ -577,8 +472,8 @@ pub(crate) fn is_simple_chain_operation(
     }
 }
 
-/// Return whether a member has only one promotable slash boundary comment annotation.
-fn chain_member_has_promotable_boundary_comment(
+/// Return whether a member has only one promotable boundary comment annotation.
+pub(crate) fn chain_member_has_promotable_boundary_comment(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -595,8 +490,14 @@ fn chain_member_has_promotable_boundary_comment(
                 position: AnnotationPosition::LinePostfixBoundary,
             } => {
                 let comment = context.tree.get::<Comment>(node);
-                if comment.style != CommentStyle::Slash {
-                    return false;
+                match comment.style {
+                    CommentStyle::Slash => {}
+                    CommentStyle::Star => {
+                        let comment_span = context.span(node);
+                        if context.has_newline(comment_span) {
+                            return false;
+                        }
+                    }
                 }
                 found_promotable_boundary_comment = true;
             }
@@ -720,6 +621,50 @@ pub(crate) fn expression_trivia_anchor_end(
     }
 }
 
+/// Find the first non-trivia parent operator token after one chain node.
+pub(crate) fn chain_parent_operator_start(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    parent_id: LocalNodeId<Expression>,
+) -> Option<u32> {
+    let node_span = context.span(node_id);
+    let parent_span = context.span(parent_id);
+    if node_span.file != parent_span.file {
+        return None;
+    }
+
+    let node_anchor_end = expression_trivia_anchor_end(context, node_id);
+    if parent_span.end <= node_anchor_end {
+        return None;
+    }
+
+    let mut token_index = context
+        .tokens
+        .partition_point(|token| token.span.start < node_anchor_end);
+    while let Some(token) = context.tokens.get(token_index).copied() {
+        if token.span.start >= parent_span.end {
+            return None;
+        }
+
+        if matches!(
+            token.token.ty,
+            TokenType::Whitespace
+                | TokenType::Newline
+                | TokenType::LineComment
+                | TokenType::BlockComment
+                | TokenType::DocLineComment
+                | TokenType::DocBlockComment
+        ) {
+            token_index += 1;
+            continue;
+        }
+
+        return Some(token.span.start);
+    }
+
+    None
+}
+
 /// Check if a chain node has source breaks or comments before its parent operator.
 pub(crate) fn chain_has_parent_intervening_break_or_comment(
     context: &DestackFormatContext<'_>,
@@ -766,231 +711,16 @@ pub(crate) fn chain_has_parent_intervening_break_or_comment(
 
     let node_span = context.span(node_id);
     let node_anchor_end = expression_trivia_anchor_end(context, node_id);
-    let Some(parent_main_span) = context.tree.get_main_span(parent_id) else {
+    let Some(parent_operator_start) = chain_parent_operator_start(context, node_id, parent_id)
+    else {
         return false;
     };
-    if node_span.file != parent_main_span.file || parent_main_span.start <= node_anchor_end {
+    if parent_operator_start <= node_anchor_end {
         return false;
     }
-    let parent_gap_end = parent_main_span.start;
-
-    let between_span = Span::new(node_span.file, node_anchor_end, parent_gap_end);
+    let between_span = Span::new(node_span.file, node_anchor_end, parent_operator_start);
 
     context.has_newline(between_span) || span_has_comment(context, between_span)
-}
-
-/// Record stable signals for one poorly-breakable chain candidate.
-struct PoorChain {
-    has_chain_shape: bool,
-    has_simple_head: bool,
-}
-
-/// Build static signals for one poorly-breakable chain candidate.
-fn poor_chain(context: &DestackFormatContext<'_>, node_id: LocalNodeId<Expression>) -> PoorChain {
-    let tree = context.tree;
-    let has_chain_shape = is_chain_root(tree, node_id) || is_expression_chain(tree, node_id);
-
-    let has_simple_head = if has_chain_shape {
-        let head_id = chain_head_id(tree, node_id);
-        is_simple_chain_head(context, head_id)
-    } else {
-        false
-    };
-
-    PoorChain {
-        has_chain_shape,
-        has_simple_head,
-    }
-}
-
-/// Return whether one dynamic argument list makes a call breakable for poor-chain checks.
-fn dynamic_arguments_are_breakable(
-    context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    if call_arguments_force_expand_for_chain(context, call_node_id, dynamic_arguments) {
-        return true;
-    }
-
-    match dynamic_arguments.len() {
-        0 => false,
-        1 => !is_short_chain_argument(context, dynamic_arguments[0]),
-        _ => true,
-    }
-}
-
-/// Return whether one static argument is short enough for poor-chain checks.
-fn static_argument_is_short(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    if is_short_chain_argument(context, argument_id) {
-        return true;
-    }
-
-    let value_id = argument_value_id(context.tree, argument_id);
-    let value_id = transparent_inner_expression(context, value_id);
-    if context.has_annotation(value_id) {
-        return false;
-    }
-
-    !matches!(
-        context.tree.get(value_id),
-        Expression::ObjectExpression { .. } | Expression::TypeMapped { .. }
-    )
-}
-
-/// Return whether one static argument list makes a call breakable for poor-chain checks.
-fn static_arguments_are_breakable(
-    context: &DestackFormatContext<'_>,
-    static_arguments: &Option<Vec<LocalNodeId<Argument>>>,
-) -> bool {
-    match static_arguments {
-        None => false,
-        Some(arguments) => match arguments.len() {
-            0 => false,
-            1 => !static_argument_is_short(context, arguments[0]),
-            _ => true,
-        },
-    }
-}
-
-/// Return whether one chain index operation is breakable for poor-chain checks.
-fn index_operation_is_breakable(
-    context: &DestackFormatContext<'_>,
-    index: &Option<LocalNodeId<Expression>>,
-) -> bool {
-    let Some(index_id) = index else {
-        return false;
-    };
-
-    let index_expression = context.tree.get(*index_id);
-    !is_trivial_expression(context.tree, index_expression) || context.has_annotation(*index_id)
-}
-
-/// Return whether one chain operation is breakable for poor-chain checks.
-fn operation_is_breakable_for_poor_chain(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    if chain_node_has_non_inline_annotation(context, node_id) {
-        return true;
-    }
-
-    match context.tree.get(node_id) {
-        Expression::Call {
-            static_arguments,
-            dynamic_arguments,
-            ..
-        } => {
-            static_arguments_are_breakable(context, static_arguments)
-                || dynamic_arguments_are_breakable(context, node_id, dynamic_arguments)
-        }
-        Expression::Index { index, .. } => index_operation_is_breakable(context, index),
-        Expression::Member { .. }
-        | Expression::PrivateMember { .. }
-        | Expression::Maybe { .. }
-        | Expression::Must { .. } => false,
-        _ => true,
-    }
-}
-
-/// Return whether one argument is short enough for poorly breakable chains.
-fn is_short_chain_argument(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let is_simple = argument_is_simple_with_options(
-        context,
-        argument_id,
-        ArgumentSimplicityOptions {
-            reject_any_argument_annotation: true,
-            reject_non_blank_argument_annotation: false,
-            reject_value_annotation: true,
-            reject_lambda_values: false,
-        },
-    );
-    if is_simple {
-        return true;
-    }
-
-    let value_id = argument_value_id(context.tree, argument_id);
-    let value_id = transparent_inner_expression(context, value_id);
-    if context.has_annotation(value_id) {
-        return false;
-    }
-
-    match context.tree.get(value_id) {
-        Expression::Call {
-            static_arguments,
-            dynamic_arguments,
-            ..
-        }
-        | Expression::New {
-            static_arguments,
-            dynamic_arguments,
-            ..
-        } => {
-            !call_has_non_blank_infix_annotation(context, value_id)
-                && static_arguments
-                    .as_ref()
-                    .is_none_or(|arguments| arguments.is_empty())
-                && dynamic_arguments.is_empty()
-        }
-        Expression::Instantiation {
-            static_arguments, ..
-        } => static_arguments.is_empty(),
-        _ => false,
-    }
-}
-
-/// Return whether one chain is poorly breakable:
-/// either member-only or calls with only short arguments.
-pub(crate) fn is_poorly_breakable_chain(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let chain = poor_chain(context, node_id);
-    if !chain.has_chain_shape || !chain.has_simple_head {
-        return false;
-    }
-
-    let tree = context.tree;
-    let mut current = node_id;
-    let mut has_call = false;
-
-    loop {
-        if operation_is_breakable_for_poor_chain(context, current) {
-            if !matches!(
-                tree.get(current),
-                Expression::Member { .. }
-                    | Expression::PrivateMember { .. }
-                    | Expression::Maybe { .. }
-                    | Expression::Must { .. }
-                    | Expression::Call { .. }
-                    | Expression::Index { .. }
-            ) {
-                break;
-            }
-
-            return false;
-        }
-
-        if matches!(tree.get(current), Expression::Call { .. }) {
-            has_call = true;
-        }
-
-        let next = chain_node_left_id(tree, current);
-        match next {
-            Some(next_id) if is_chain_expression(tree.get(next_id)) => {
-                current = next_id;
-            }
-            Some(_) | None => break,
-        }
-    }
-
-    has_call || is_expression_chain(tree, node_id) || is_chain_root(tree, node_id)
 }
 
 /// Return the concrete span that corresponds to one annotation node.
@@ -1241,12 +971,8 @@ fn static_argument_expression_is_hug_safe(
                     static_argument_list_is_hug_safe(context, static_arguments)
                 })
         }
-        Expression::Index { left, index, .. } => {
-            static_argument_expression_is_hug_safe(context, *left)
-                && index.is_none_or(|index_id| {
-                    static_argument_expression_is_hug_safe(context, index_id)
-                })
-        }
+        // allow generic index arguments to break with line width
+        Expression::Index { .. } | Expression::TypeIndex { .. } => false,
         Expression::Parenthesized { expression } | Expression::Statement(expression) => {
             static_argument_expression_is_hug_safe(context, *expression)
         }
@@ -1276,9 +1002,33 @@ pub(crate) fn should_force_multiline_mapped_type(
     }
 
     let span = context.span(node_id);
-    if context.has_newline(span) {
+    if span_has_comment(context, span) {
+        return true;
+    }
+
+    if span_has_semicolon_token(context, span) {
         return true;
     }
 
     is_expression_breakable(context.tree, context.tree.get(value_id))
+}
+
+/// Return whether one span contains a semicolon token.
+fn span_has_semicolon_token(context: &DestackFormatContext<'_>, span: Span) -> bool {
+    let tokens = context.tokens;
+    let mut index = tokens.partition_point(|token| token.span.start < span.start);
+
+    while let Some(token) = tokens.get(index).copied() {
+        if token.span.start >= span.end {
+            break;
+        }
+
+        if token.token.ty == TokenType::Semicolon {
+            return true;
+        }
+
+        index += 1;
+    }
+
+    false
 }

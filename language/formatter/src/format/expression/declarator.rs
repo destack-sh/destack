@@ -7,10 +7,9 @@ use crate::format::expression::{
     expression_has_static_type_arguments, fits_expanded, flattened_binary_operand_count,
     format_call_expression, format_instantiation_expression, format_with, group,
     has_line_comment_between_expressions, indent, is_chain_root, is_expression_breakable,
-    is_expression_chain, is_pattern_breakable, is_poorly_breakable_chain, soft_line_break_or_space,
-    space, span_has_comment, token, transparent_inner_expression,
+    is_expression_chain, is_pattern_breakable, soft_line_break_or_space, space, span_has_comment,
+    token, transparent_inner_expression,
 };
-use crate::format::operator::{is_type_context, union_has_leading_pipe_token};
 use destack_ast::{Comment, CommentStyle};
 use destack_fir::format::{Buffer, Format};
 use destack_fir::{format_args, write};
@@ -74,6 +73,98 @@ fn pattern_field_has_default_assignment(
             .as_ref()
             .is_some_and(|pattern_id| pattern_has_default_assignment(tree, *pattern_id)),
         PatternField::Elision => false,
+    }
+}
+
+/// Return whether one pattern subtree contains one default assignment below top-level fields.
+fn pattern_has_nested_default_assignment(
+    tree: &NodeTree,
+    pattern_id: LocalNodeId<Pattern>,
+) -> bool {
+    pattern_has_nested_default_assignment_at_depth(tree, pattern_id, 0)
+}
+
+/// Return whether one pattern subtree contains one default assignment at depth greater than zero.
+fn pattern_has_nested_default_assignment_at_depth(
+    tree: &NodeTree,
+    pattern_id: LocalNodeId<Pattern>,
+    depth: usize,
+) -> bool {
+    match tree.get(pattern_id) {
+        Pattern::Wildcard | Pattern::Expression { .. } => false,
+        Pattern::Must(inner_pattern_id)
+        | Pattern::ReferenceOf {
+            right: inner_pattern_id,
+            ..
+        }
+        | Pattern::ValueOf {
+            right: inner_pattern_id,
+            ..
+        } => pattern_has_nested_default_assignment_at_depth(tree, *inner_pattern_id, depth),
+        Pattern::Binding { pattern, .. } => pattern.as_ref().is_some_and(|inner_pattern_id| {
+            pattern_has_nested_default_assignment_at_depth(tree, *inner_pattern_id, depth)
+        }),
+        Pattern::Tuple { fields }
+        | Pattern::TaggedTuple { fields, .. }
+        | Pattern::Array { fields }
+        | Pattern::Object { fields }
+        | Pattern::TaggedObject { fields, .. } => fields
+            .iter()
+            .copied()
+            .any(|field_id| pattern_field_has_nested_default_assignment(tree, field_id, depth + 1)),
+        Pattern::Union { patterns } => patterns.iter().copied().any(|inner_pattern_id| {
+            pattern_has_nested_default_assignment_at_depth(tree, inner_pattern_id, depth)
+        }),
+    }
+}
+
+/// Return whether one pattern field contains one nested default assignment.
+fn pattern_field_has_nested_default_assignment(
+    tree: &NodeTree,
+    pattern_field_id: LocalNodeId<PatternField>,
+    depth: usize,
+) -> bool {
+    match tree.get(pattern_field_id) {
+        PatternField::Named {
+            pattern, default, ..
+        }
+        | PatternField::Computed {
+            pattern, default, ..
+        } => {
+            (depth > 1 && default.is_some())
+                || pattern.as_ref().is_some_and(|pattern_id| {
+                    pattern_has_nested_default_assignment_at_depth(tree, *pattern_id, depth)
+                })
+        }
+        PatternField::Alias { default, .. } => depth > 1 && default.is_some(),
+        PatternField::Positional { pattern, default } => {
+            (depth > 1 && default.is_some())
+                || pattern_has_nested_default_assignment_at_depth(tree, *pattern, depth)
+        }
+        PatternField::Spread { pattern, .. } => pattern.as_ref().is_some_and(|pattern_id| {
+            pattern_has_nested_default_assignment_at_depth(tree, *pattern_id, depth)
+        }),
+        PatternField::Elision => false,
+    }
+}
+
+/// Return whether one pattern is array-like after transparent wrapper unwrapping.
+fn pattern_is_array_like(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> bool {
+    match tree.get(pattern_id) {
+        Pattern::Binding { pattern, .. } => pattern
+            .as_ref()
+            .is_some_and(|inner_pattern_id| pattern_is_array_like(tree, *inner_pattern_id)),
+        Pattern::Must(inner_pattern_id)
+        | Pattern::ReferenceOf {
+            right: inner_pattern_id,
+            ..
+        }
+        | Pattern::ValueOf {
+            right: inner_pattern_id,
+            ..
+        } => pattern_is_array_like(tree, *inner_pattern_id),
+        Pattern::Array { .. } | Pattern::Tuple { .. } | Pattern::TaggedTuple { .. } => true,
+        _ => false,
     }
 }
 
@@ -264,6 +355,7 @@ pub(crate) fn value_is_inline_closure_cast_type_binary(
 }
 
 const LONG_BINARY_OPERAND_COUNT_THRESHOLD: usize = 2;
+const ASSIGNMENT_CHAIN_EQUALS_BREAK_WIDTH: u16 = 80;
 
 /// Store base expression-shape signals for one declarator value.
 #[derive(Clone, Copy)]
@@ -274,7 +366,6 @@ struct DeclaratorShape {
     value_is_binary: bool,
     value_is_sequence: bool,
     value_is_chain: bool,
-    value_is_poor_chain: bool,
     value_is_call_like: bool,
     value_is_declaration: bool,
     value_handles_its_own_breaking: bool,
@@ -294,7 +385,6 @@ struct DeclaratorSource {
     value_is_long_binary: bool,
     value_is_string_literal: bool,
     value_is_template_expression: bool,
-    value_is_leading_pipe_type_union: bool,
     value_has_instantiation_prefix: bool,
     value_is_await_expression: bool,
     value_is_comptime_expression: bool,
@@ -489,6 +579,37 @@ fn expression_has_block_static_arguments(
     }
 }
 
+/// Return whether one expression is a single call-like value whose callee receiver is another member chain.
+fn expression_is_single_call_with_member_chain_callee(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    let callee_id = match context.tree.get(expression_id) {
+        Expression::Call { left, .. } | Expression::New { left, .. } => *left,
+        _ => return false,
+    };
+    let callee_id = transparent_inner_expression(context, callee_id);
+
+    let receiver_id = match context.tree.get(callee_id) {
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Index { left, .. } => *left,
+        _ => return false,
+    };
+    let receiver_id = transparent_inner_expression(context, receiver_id);
+
+    matches!(
+        context.tree.get(receiver_id),
+        Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::Index { .. }
+            | Expression::Maybe { .. }
+            | Expression::Must { .. }
+    )
+}
+
 /// Return whether one expression wraps a class declaration with heritage clauses.
 fn expression_has_class_heritage(
     context: &DestackFormatContext<'_>,
@@ -520,6 +641,31 @@ fn expression_has_class_heritage(
     }
 }
 
+/// Return whether one chain contains at least one private member hop.
+fn expression_chain_has_private_member(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_id = transparent_inner_expression(context, expression_id);
+    match context.tree.get(expression_id) {
+        Expression::PrivateMember { .. } => true,
+        Expression::Member { left, .. }
+        | Expression::Call { left, .. }
+        | Expression::Instantiation { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. }
+        | Expression::New { left, .. } => expression_chain_has_private_member(context, *left),
+        Expression::Parenthesized { expression }
+        | Expression::Statement(expression)
+        | Expression::Await { expression }
+        | Expression::AwaitMaybe { expression } => {
+            expression_chain_has_private_member(context, *expression)
+        }
+        _ => false,
+    }
+}
+
 /// Collect base shape signals for one declarator value.
 fn declarator_shape(
     context: &DestackFormatContext<'_>,
@@ -534,7 +680,6 @@ fn declarator_shape(
     let value_is_sequence = matches!(value_inner_expr, Expression::SequenceExpression { .. });
     let value_is_chain_root = is_chain_root(tree, value_inner_id);
     let value_is_chain = is_expression_chain(tree, value_inner_id) || value_is_chain_root;
-    let value_is_poor_chain = value_is_chain && is_poorly_breakable_chain(context, value_inner_id);
     let value_is_call_like = matches!(
         value_inner_expr,
         Expression::Call { .. } | Expression::New { .. } | Expression::Instantiation { .. }
@@ -553,7 +698,6 @@ fn declarator_shape(
         value_is_binary,
         value_is_sequence,
         value_is_chain,
-        value_is_poor_chain,
         value_is_call_like,
         value_is_declaration,
         value_handles_its_own_breaking,
@@ -619,8 +763,6 @@ fn declarator_source(
     );
     let value_is_template_expression =
         matches!(value_inner_expr, Expression::TemplateExpression { .. });
-    let value_is_leading_pipe_type_union = is_type_context(context, shape.value_inner_id)
-        && union_has_leading_pipe_token(context, shape.value_inner_id);
     let value_has_instantiation_prefix =
         shape.value_is_chain && value_chain_has_instantiation_prefix(context, shape.value_inner_id);
     let value_is_await_expression = matches!(
@@ -647,7 +789,6 @@ fn declarator_source(
         value_is_long_binary,
         value_is_string_literal,
         value_is_template_expression,
-        value_is_leading_pipe_type_union,
         value_has_instantiation_prefix,
         value_is_await_expression,
         value_is_comptime_expression,
@@ -706,8 +847,7 @@ pub(crate) fn format_declarator<'ast>(
     });
 
     // expand inline if value is breakable
-    let should_force_expand_value =
-        is_expression_breakable(tree, tree.get(*value_id)) && !shape.value_is_poor_chain;
+    let should_force_expand_value = is_expression_breakable(tree, tree.get(*value_id));
     let format_value_expanded = format_with(|f| {
         write!(
             f,
@@ -804,13 +944,6 @@ pub(crate) fn format_declarator<'ast>(
                 )
             }
         });
-    // keep leading pipe unions inline at the declarator level
-    let should_keep_inline_leading_pipe_union = source.value_is_leading_pipe_type_union;
-    if should_keep_inline_leading_pipe_union {
-        write!(f, [format_inline])?;
-        return Ok(());
-    }
-
     // keep closure cast type binaries inline in declarator rhs
     if value_is_inline_closure_cast_type_binary {
         write!(f, [format_inline])?;
@@ -901,17 +1034,31 @@ pub(crate) fn format_declarator<'ast>(
         // poor chains, generic argument calls, and sequence like rhs shapes prefer operator seams
         let value_is_simple_static_argument_call =
             source.value_has_static_arguments && !source.value_has_nested_call_chain;
-        let value_is_simple_poor_chain = shape.value_is_poor_chain
-            && !source.value_has_static_arguments
-            && !source.value_is_await_expression
-            && !source.value_is_parenthesized;
         let should_break_after_operator_for_rhs = source.value_has_line_comment_between_operands
             || shape.value_is_sequence
             || value_has_generic_class_heritage
             || source.value_has_instantiation_prefix
-            || value_is_simple_poor_chain
-            || value_is_simple_static_argument_call;
+            || value_is_simple_static_argument_call
+            || (shape.value_is_chain
+                && !shape.value_is_call_like
+                && !source.value_has_newline
+                && expression_chain_has_private_member(f.context(), shape.value_inner_id));
         if should_break_after_operator_for_rhs {
+            write!(f, [format_break_after_operator_for_binary])?;
+            return Ok(());
+        }
+
+        let line_width = f.context().options.line_width;
+        let should_break_after_operator_for_long_member_call = line_width
+            <= ASSIGNMENT_CHAIN_EQUALS_BREAK_WIDTH
+            && shape.value_is_chain
+            && shape.value_is_call_like
+            && !source.value_has_nested_call_chain
+            && expression_is_single_call_with_member_chain_callee(
+                f.context(),
+                shape.value_inner_id,
+            );
+        if should_break_after_operator_for_long_member_call {
             write!(f, [format_break_after_operator_for_binary])?;
             return Ok(());
         }
@@ -935,6 +1082,10 @@ pub(crate) fn format_declarator<'ast>(
         if source.pattern_has_newline {
             write!(f, [format_header_expanded])?;
         } else if source.pattern_has_comments_or_annotations {
+            write!(f, [format_break_after_operator_for_binary])?;
+        } else if pattern_has_nested_default_assignment(tree, *pattern)
+            || pattern_is_array_like(tree, *pattern)
+        {
             write!(f, [format_break_after_operator_for_binary])?;
         } else {
             write!(f, [format_inline])?;

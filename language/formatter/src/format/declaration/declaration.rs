@@ -6,7 +6,9 @@ use crate::format::declaration::statement::format_block_of_statements;
 use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
 };
-use crate::format::expression::{format_expression, is_expression_breakable};
+use crate::format::expression::{
+    ParenthesizedDropMode, format_expression, is_expression_breakable, should_drop_parenthesized,
+};
 use crate::format::operator::is_type_context;
 use crate::{
     Annotation, DestackFormatContext, DestackFormatter, FormatNode,
@@ -28,6 +30,8 @@ use crate::format::declaration::r#type::{
     EnumDeclarationFormatData, format_enum_declaration, format_interface_declaration,
     format_struct_or_class_declaration,
 };
+
+const TEMPLATE_LITERAL_TYPE_EQUALS_BREAK_WIDTH: u16 = 80;
 
 /// Format one declaration export modifier and export-head seam comments.
 pub(crate) fn format_declaration_export_modifier<'ast>(
@@ -424,16 +428,17 @@ fn single_line_type_grouping_prefix_comment_cluster(
             if context.has_newline(comment_span) {
                 return None;
             }
-
-            let has_newline_before = if let Some(previous_annotation_id) = cluster.last().copied() {
-                let previous_span = context.annotation_span(previous_annotation_id);
-                let current_span = context.annotation_span(annotation_id);
-                let between_span =
-                    Span::new(previous_span.file, previous_span.end, current_span.start);
-                context.has_newline(between_span)
-            } else {
-                false
-            };
+            let has_newline_before =
+                cluster
+                    .last()
+                    .copied()
+                    .is_some_and(|previous_annotation_id| {
+                        let previous_span = context.annotation_span(previous_annotation_id);
+                        let current_span = context.annotation_span(annotation_id);
+                        let between_span =
+                            Span::new(previous_span.file, previous_span.end, current_span.start);
+                        context.has_newline(between_span)
+                    });
 
             cluster.push(annotation_id);
             annotation_breaks_before.push(has_newline_before);
@@ -454,26 +459,6 @@ fn single_line_type_grouping_prefix_comment_cluster(
             annotation_breaks_before,
         });
     }
-}
-
-/// Return whether an expression has a doc-like block prefix annotation.
-fn expression_has_doc_like_block_prefix_annotation(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some(annotation_ids) = context.annotations(expression_id) else {
-        return false;
-    };
-
-    annotation_ids.into_iter().any(|annotation_id| {
-        matches!(
-            context.annotation(annotation_id),
-            Annotation::Doc {
-                position: AnnotationPosition::BlockPrefix,
-                ..
-            }
-        )
-    })
 }
 
 /// Return whether an expression or its transparent left spine has a prefix annotation.
@@ -577,6 +562,8 @@ pub(crate) fn format_type_alias_declaration<'ast>(
     let inline_prefix_comment_cluster =
         single_line_type_grouping_prefix_comment_cluster(f.context(), value_id);
 
+    let tree = f.context().tree;
+
     // prefer keeping the value on a single line
     let format_inline = format_with(|f| {
         write!(f, [header, space(), token("=")])?;
@@ -641,35 +628,28 @@ pub(crate) fn format_type_alias_declaration<'ast>(
 
     // expand inline if breakable (like let x = [\n ... ])
     let format_inline_expanded = format_with(|f| {
-        write!(
-            f,
-            [
-                header,
-                space(),
-                token("="),
-                space(),
-                fits_expanded(&group(&value_id).should_expand(true)),
-            ]
-        )
+        write!(f, [header, space(), token("=")])?;
+        write!(f, [space()])?;
+        write!(f, [fits_expanded(&group(&value_id).should_expand(true))])
     });
-
-    let tree = f.context().tree;
     let value_expression = tree.get(value_id);
     let value_has_prefix_annotation =
         expression_has_prefix_annotation_in_left_spine(f.context(), value_id);
-    let value_has_doc_like_block_prefix_annotation =
-        expression_has_doc_like_block_prefix_annotation(f.context(), value_id);
+    let line_width = f.context().options.line_width;
     let should_break_template_literal_type_after_equals = match value_expression {
-        Expression::TypeTemplateLiteral { spans, .. } => spans.iter().any(|span_id| {
-            matches!(
-                tree.get(*span_id),
-                Expression::TypeConditional { .. }
-                    | Expression::If {
-                        kind: IfKind::Ternary,
-                        ..
-                    }
-            )
-        }),
+        Expression::TypeTemplateLiteral { spans, .. } => {
+            line_width <= TEMPLATE_LITERAL_TYPE_EQUALS_BREAK_WIDTH
+                && spans.iter().any(|span_id| {
+                    matches!(
+                        tree.get(*span_id),
+                        Expression::TypeConditional { .. }
+                            | Expression::If {
+                                kind: IfKind::Ternary,
+                                ..
+                            }
+                    )
+                })
+        }
         _ => false,
     };
     let should_break_after_equals = match value_expression {
@@ -679,7 +659,12 @@ pub(crate) fn format_type_alias_declaration<'ast>(
         _ => false,
     };
     let value_prefers_inline_after_equals = match value_expression {
-        Expression::Parenthesized { .. } => true,
+        Expression::Parenthesized { expression } => !should_drop_parenthesized(
+            f.context(),
+            value_id,
+            *expression,
+            ParenthesizedDropMode::ExpressionWrapper,
+        ),
         Expression::Index { left, .. } | Expression::TypeIndex { left, .. } => {
             matches!(tree.get(*left), Expression::Parenthesized { .. })
         }
@@ -690,9 +675,7 @@ pub(crate) fn format_type_alias_declaration<'ast>(
     } else if should_break_after_equals || should_break_template_literal_type_after_equals {
         format_soft_break.format(f)?;
     } else if is_expression_breakable(tree, tree.get(value_id)) {
-        if value_has_prefix_annotation && value_has_doc_like_block_prefix_annotation {
-            format_inline.format(f)?;
-        } else if value_prefers_inline_after_equals {
+        if value_prefers_inline_after_equals {
             format_inline.format(f)?;
         } else {
             format_inline_expanded.format(f)?;
