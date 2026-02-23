@@ -114,12 +114,12 @@ mod tests {
 
     use super::{host_bridge_for_runtime, register_host_bridge};
     use crate::runtime::host::HostPlatform;
-    use crate::runtime::host::core::{HostBridge, HostServiceState};
+    use crate::runtime::host::core::{HostBridge, HostStateStore};
 
     #[test]
     fn test_register_host_bridge_resolves_by_runtime_id() {
-        let service_state = Arc::new(HostServiceState::new());
-        let bridge = Arc::new(HostBridge::new(service_state));
+        let state_store = Arc::new(HostStateStore::new());
+        let bridge = Arc::new(HostBridge::new(state_store));
         let registration = register_host_bridge(HostPlatform::Android, &bridge);
         let runtime_id = registration.runtime_id();
 
@@ -130,8 +130,8 @@ mod tests {
 
     #[test]
     fn test_drop_registration_unregisters_runtime_id() {
-        let service_state = Arc::new(HostServiceState::new());
-        let bridge = Arc::new(HostBridge::new(service_state));
+        let state_store = Arc::new(HostStateStore::new());
+        let bridge = Arc::new(HostBridge::new(state_store));
         let registration = register_host_bridge(HostPlatform::MacOS, &bridge);
         let runtime_id = registration.runtime_id();
 
@@ -143,8 +143,8 @@ mod tests {
 
     #[test]
     fn test_host_bridge_for_runtime_rejects_platform_mismatch() {
-        let service_state = Arc::new(HostServiceState::new());
-        let bridge = Arc::new(HostBridge::new(service_state));
+        let state_store = Arc::new(HostStateStore::new());
+        let bridge = Arc::new(HostBridge::new(state_store));
         let registration = register_host_bridge(HostPlatform::Windows, &bridge);
         let runtime_id = registration.runtime_id();
 

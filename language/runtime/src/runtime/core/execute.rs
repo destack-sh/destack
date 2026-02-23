@@ -247,7 +247,7 @@ impl Runtime {
                         let _ = self.event_loop.unwatch_timer(timer.handle);
                     }
                 }
-                Runnable::Event(event) => {
+                Runnable::PollerEvent(event) => {
                     // dispatch an external-event watch task when one is registered
                     if let Some(task) = self.event_loop.task_for_event(event) {
                         self.enqueue_prepared_task(task)?;

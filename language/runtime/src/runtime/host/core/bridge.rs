@@ -3,8 +3,10 @@ use std::sync::Arc;
 use destack_workspace::PlatformHostOptions;
 
 use super::{
-    HostEvent, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState, HostPermissionEvent,
-    HostServiceState, HostWindowEvent,
+    HostEvent, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
+    HostMemoryPressureEvent, HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode,
+    HostPowerModeEvent, HostStateStore, HostThermalEvent, HostThermalState, HostWallClockEvent,
+    HostWindowEvent, HostWindowFocusEvent,
 };
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::poller::HostPollerWakeHandle;
@@ -15,21 +17,21 @@ pub(crate) struct HostBridge {
     /// Shared host event queue.
     events: super::HostEventQueue,
     /// Shared mutable host service state.
-    service_state: Arc<HostServiceState>,
+    state_store: Arc<HostStateStore>,
 }
 
 impl HostBridge {
     /// Create one host bridge from one shared service state object.
-    pub(crate) fn new(service_state: Arc<HostServiceState>) -> Self {
+    pub(crate) fn new(state_store: Arc<HostStateStore>) -> Self {
         Self {
             events: super::HostEventQueue::new(),
-            service_state,
+            state_store,
         }
     }
 
     /// Return the shared host service state for this bridge.
-    pub(crate) fn service_state(&self) -> &Arc<HostServiceState> {
-        &self.service_state
+    pub(crate) fn state_store(&self) -> &Arc<HostStateStore> {
+        &self.state_store
     }
 
     /// Return one shared wake handle for this bridge.
@@ -54,7 +56,7 @@ impl HostBridge {
     pub(crate) fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<HostEvent>> {
         let events = self.events.poll_events(timeout_nanos)?;
         for event in &events {
-            self.service_state.apply_event(event);
+            self.state_store.apply_event(event);
         }
 
         Ok(events)
@@ -75,6 +77,11 @@ impl HostBridge {
         self.push_event(HostEvent::Window(event));
     }
 
+    /// Enqueue one window focus event.
+    pub(crate) fn push_window_focus(&self, is_focused: bool) {
+        self.push_event(HostEvent::WindowFocus(HostWindowFocusEvent { is_focused }));
+    }
+
     /// Enqueue one permission result event.
     pub(crate) fn push_permission_result(&self, permission: &str, granted: bool) {
         self.push_event(HostEvent::Permission(HostPermissionEvent {
@@ -88,5 +95,25 @@ impl HostBridge {
         self.push_event(HostEvent::Interruption(HostInterruptionEvent {
             interrupted,
         }));
+    }
+
+    /// Enqueue one memory pressure event.
+    pub(crate) fn push_memory_pressure(&self, level: HostMemoryPressureLevel) {
+        self.push_event(HostEvent::MemoryPressure(HostMemoryPressureEvent { level }));
+    }
+
+    /// Enqueue one thermal state event.
+    pub(crate) fn push_thermal_state(&self, state: HostThermalState) {
+        self.push_event(HostEvent::ThermalState(HostThermalEvent { state }));
+    }
+
+    /// Enqueue one power mode event.
+    pub(crate) fn push_power_mode(&self, mode: HostPowerMode) {
+        self.push_event(HostEvent::PowerMode(HostPowerModeEvent { mode }));
+    }
+
+    /// Enqueue one wall clock change event.
+    pub(crate) fn push_wall_clock_changed(&self) {
+        self.push_event(HostEvent::WallClock(HostWallClockEvent));
     }
 }

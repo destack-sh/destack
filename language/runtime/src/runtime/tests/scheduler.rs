@@ -9,6 +9,7 @@ use crate::platform::time::TimerClock;
 use crate::runtime::engine::{
     Engine, EngineContinuation, EngineOutcome, NativeContinuation, RuntimeOutput, RuntimeValue,
 };
+use crate::runtime::host::{HostEventKind, HostLifecycleState};
 use crate::runtime::scheduler::{
     EventLoop, Microtask, MicrotaskId, Runnable, Task, TaskId, TaskStatus, Timer,
 };
@@ -143,6 +144,24 @@ fn test_tick_once_dispatches_event_watch_task() {
     );
 }
 
+/// Dispatches registered host semantic events through the runtime tick path.
+#[test]
+fn test_tick_once_dispatches_host_event_watch_task() {
+    // create runtime state with one lifecycle host-event watch registration
+    let mut runtime = TestRuntime::new();
+    runtime.watch_host_event_native(HostEventKind::Lifecycle, 42, 0);
+    runtime.enqueue_lifecycle_host_event(HostLifecycleState::Running);
+
+    // execute one tick and verify one watched resume
+    let mut engine = TestEngine::default();
+    let progressed = runtime.tick_once(&mut engine);
+    assert!(progressed, "tick should report progress");
+    assert_eq!(
+        engine.resume_calls, 1,
+        "one host semantic event watch should run"
+    );
+}
+
 /// Routes event watches into the task queue and preserves priority ordering.
 #[test]
 fn test_tick_once_routes_event_watch_through_task_priority() {
@@ -182,9 +201,54 @@ fn test_tick_once_drops_event_without_watch() {
         "dropped events must not resume any continuation"
     );
     assert_eq!(
-        runtime.dropped_external_events(),
+        runtime.dropped_dispatch_events(),
         1,
         "dropped external events should be counted for observability"
+    );
+    assert_eq!(
+        runtime.dropped_unwatched_dispatch_events(),
+        1,
+        "unwatched dropped events should be tracked separately"
+    );
+    assert_eq!(
+        runtime.dropped_host_queue_events(),
+        0,
+        "host queue pressure should not be counted in this case"
+    );
+}
+
+/// Drops queued host semantic events that have no registered dispatch watch.
+#[test]
+fn test_tick_once_drops_host_event_without_watch() {
+    // create runtime state with one unregistered lifecycle host event
+    let mut runtime = TestRuntime::new();
+    runtime.enqueue_lifecycle_host_event(HostLifecycleState::Running);
+
+    // executing one tick should drop the stale event without crashing
+    let mut engine = CompleteEngine::default();
+    let progressed = runtime.tick_once(&mut engine);
+    assert!(
+        progressed,
+        "dropping one queued host event should count as progress"
+    );
+    assert_eq!(
+        engine.resume_calls, 0,
+        "dropped host events must not resume any continuation"
+    );
+    assert_eq!(
+        runtime.dropped_dispatch_events(),
+        1,
+        "dropped host events should be counted for observability"
+    );
+    assert_eq!(
+        runtime.dropped_unwatched_dispatch_events(),
+        1,
+        "unwatched dropped host events should be tracked separately"
+    );
+    assert_eq!(
+        runtime.dropped_host_queue_events(),
+        0,
+        "host queue pressure should not be counted in this case"
     );
 }
 

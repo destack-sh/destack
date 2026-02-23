@@ -85,6 +85,17 @@ This matrix defines what we expect each host adapter to provide for shared runti
 The matrix is about shared adapter services, not direct user-facing bindings.
 User-facing binding evolution still happens in `platform/*` and builtin `.ds` source of truth files.
 
+We ground host adapter semantics in existing cross-platform runtime prior art and platform lifecycle APIs.
+Primary references are listed below.
+
+| Reference | Why it matters |
+|-----------|--------|
+| `~/symbol/winit/winit-core/src/application/mod.rs` | Lifecycle and render-surface availability semantics (`resumed`, `suspended`, `can_create_surfaces`, `destroy_surfaces`). |
+| `~/symbol/winit/winit-android/src/event_loop.rs` | Concrete Android main-event routing (`InitWindow`, `TerminateWindow`, `Start`, `Stop`, `Pause`, `Resume`). |
+| `~/symbol/SDL/include/SDL3/SDL_events.h` | Stable taxonomy for app and window event families (`SDL_EVENT_*`). |
+| Android Activity lifecycle docs (`https://developer.android.com/guide/components/activities/activity-lifecycle`) | Canonical callback ordering and meaning (`onCreate`, `onStart`, `onResume`, `onPause`, `onStop`, `onDestroy`). |
+| Apple app lifecycle docs (`https://developer.apple.com/documentation/appkit/nsapplicationdelegate`) | Canonical application callback meanings (`applicationDidFinishLaunching`, `applicationDidBecomeActive`, `applicationWillResignActive`, `applicationWillTerminate`). |
+
 ## Modules
 
 Every platform module follows one canonical layout.

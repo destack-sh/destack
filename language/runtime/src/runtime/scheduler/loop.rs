@@ -153,7 +153,7 @@ impl EventLoop {
         // dispatch one poller event and reset host fairness streak
         if let Some(event) = self.events.pop_front() {
             self.host_events_since_poller = 0;
-            return Ok(Some(Runnable::Event(event)));
+            return Ok(Some(Runnable::PollerEvent(event)));
         }
 
         // dispatch remaining host semantic events when no poller event is pending
@@ -648,7 +648,7 @@ mod tests {
                 }
             )))
         ));
-        assert!(matches!(second, Some(Runnable::Event(_))));
+        assert!(matches!(second, Some(Runnable::PollerEvent(_))));
     }
 
     #[test]
@@ -676,7 +676,7 @@ mod tests {
         let third = event_loop.next_runnable(0, 0).unwrap();
 
         assert!(matches!(first, Some(Runnable::HostEvent(_))));
-        assert!(matches!(second, Some(Runnable::Event(_))));
+        assert!(matches!(second, Some(Runnable::PollerEvent(_))));
         assert!(matches!(third, Some(Runnable::HostEvent(_))));
     }
 

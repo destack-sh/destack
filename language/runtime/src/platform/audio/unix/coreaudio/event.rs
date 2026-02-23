@@ -17,6 +17,7 @@ use super::format::property_address;
 #[cfg(target_os = "macos")]
 use super::property::error;
 use crate::diagnostic::RuntimeResult;
+#[cfg(target_os = "macos")]
 use crate::platform::audio::core as audio_core;
 
 #[cfg(target_os = "macos")]

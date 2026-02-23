@@ -48,11 +48,19 @@ pub(crate) const DEVICE_OPEN_LOW_LATENCY: AudioDeviceOpenFlags = AudioDeviceOpen
 pub(crate) const DEVICE_OPEN_REALTIME_THREAD: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x4);
 /// Request raw endpoint mode where available.
 pub(crate) const DEVICE_OPEN_RAW: AudioDeviceOpenFlags = AudioDeviceOpenFlags(0x8);
+/// Request ALSA no-resample mode when the backend supports it.
+pub(crate) const BACKEND_OPEN_ALSA_NO_RESAMPLE: AudioBackendOpenFlags =
+    AudioDeviceOpenFlags(0x1_0000);
+/// Request JACK manual-connection mode when the backend supports it.
+pub(crate) const BACKEND_OPEN_JACK_NO_AUTOCONNECT: AudioBackendOpenFlags =
+    AudioDeviceOpenFlags(0x2_0000);
 /// Mask for all known device-open option bits.
 pub(crate) const KNOWN_DEVICE_OPEN_FLAGS_MASK: u32 = DEVICE_OPEN_FOLLOW_DEFAULT_ROUTE.0
     | DEVICE_OPEN_LOW_LATENCY.0
     | DEVICE_OPEN_REALTIME_THREAD.0
-    | DEVICE_OPEN_RAW.0;
+    | DEVICE_OPEN_RAW.0
+    | BACKEND_OPEN_ALSA_NO_RESAMPLE.0
+    | BACKEND_OPEN_JACK_NO_AUTOCONNECT.0;
 
 /// Backend supports hotplug notifications.
 pub(crate) const BACKEND_CAPABILITY_HOTPLUG_EVENTS: AudioBackendCapabilityFlags =

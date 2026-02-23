@@ -90,6 +90,8 @@ pub(crate) fn start_native_device_event_monitor(
 ) -> RuntimeResult<()> {
     #[cfg(target_os = "linux")]
     {
+        let _ = backend_name;
+
         let mut monitor_slot = monitor_slot()
             .lock()
             .unwrap_or_else(|error| error.into_inner());

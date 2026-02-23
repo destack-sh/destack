@@ -128,6 +128,14 @@ pub(crate) fn supported_backend_device_open_flags(backend: AudioBackend) -> Audi
         flags |= DEVICE_OPEN_RAW.0;
     }
 
+    if backend == AudioBackend::Alsa {
+        flags |= BACKEND_OPEN_ALSA_NO_RESAMPLE.0;
+    }
+
+    if backend == AudioBackend::Jack {
+        flags |= BACKEND_OPEN_JACK_NO_AUTOCONNECT.0;
+    }
+
     AudioDeviceOpenFlags(flags)
 }
 

@@ -1365,7 +1365,11 @@ fn sensor_axes_for_kind(kind: InputSensorKind) -> Option<(u16, u16, u16)> {
         | InputSensorKind::Gravity
         | InputSensorKind::LinearAcceleration => Some((ABS_X, ABS_Y, ABS_Z)),
         InputSensorKind::Gyroscope | InputSensorKind::Orientation => Some((ABS_RX, ABS_RY, ABS_RZ)),
-        InputSensorKind::Magnetometer => None,
+        InputSensorKind::Magnetometer
+        | InputSensorKind::Barometer
+        | InputSensorKind::AmbientLight
+        | InputSensorKind::Proximity
+        | InputSensorKind::StepCounter => None,
     }
 }
 

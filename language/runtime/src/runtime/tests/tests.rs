@@ -10,6 +10,7 @@ use crate::platform::{PlatformContext, ResourceId};
 use crate::runtime::engine::{
     Engine, EngineContinuation, EngineOutcome, NativeContinuation, RuntimeOutput, RuntimeValue,
 };
+use crate::runtime::host::{HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleState};
 use crate::runtime::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
     PollerToken,
@@ -250,6 +251,23 @@ impl TestRuntime {
             .expect("event watch should register");
     }
 
+    /// Register one native host-event watch.
+    pub(super) fn watch_host_event_native(
+        &mut self,
+        kind: HostEventKind,
+        continuation_id: u64,
+        priority: u8,
+    ) {
+        self.runtime
+            .watch_host_event(
+                kind,
+                EngineContinuation::Native(NativeContinuation::new(continuation_id)),
+                RuntimeValue::VOID,
+                priority,
+            )
+            .expect("host event watch should register");
+    }
+
     /// Enqueue one synthetic I/O event for dispatch tests.
     pub(super) fn enqueue_io_event(&mut self, resource_id: u64, token: u64, data: u64) {
         self.runtime.event_loop.enqueue_events(vec![PollerEvent {
@@ -260,6 +278,13 @@ impl TestRuntime {
             token: PollerToken(token),
             payload: PollerEventPayload::Io { data },
         }]);
+    }
+
+    /// Enqueue one synthetic lifecycle host event for dispatch tests.
+    pub(super) fn enqueue_lifecycle_host_event(&mut self, state: HostLifecycleState) {
+        self.runtime
+            .event_loop
+            .enqueue_host_events(vec![HostEvent::Lifecycle(HostLifecycleEvent { state })]);
     }
 
     /// Tick once and fail loudly on runtime errors.
@@ -320,9 +345,19 @@ impl TestRuntime {
         self.runtime.event_loop.has_microtasks()
     }
 
-    /// Return dropped external-event count.
-    pub(super) fn dropped_external_events(&self) -> u64 {
-        self.runtime.event_loop.dropped_external_events()
+    /// Return dropped dispatch-event count.
+    pub(super) fn dropped_dispatch_events(&self) -> u64 {
+        self.runtime.event_loop.dropped_dispatch_events()
+    }
+
+    /// Return dropped dispatch-event count for events without a watch.
+    pub(super) fn dropped_unwatched_dispatch_events(&self) -> u64 {
+        self.runtime.event_loop.dropped_unwatched_dispatch_events()
+    }
+
+    /// Return dropped dispatch-event count from host queue pressure.
+    pub(super) fn dropped_host_queue_events(&self) -> u64 {
+        self.runtime.event_loop.dropped_host_queue_events()
     }
 
     /// Return current runtime wall time in nanoseconds.
@@ -369,6 +404,12 @@ fn runtime_for_options_with_host_clock_source(
 
     // apply runtime options to binding policy state
     runtime.bindings.apply_runtime_options(options);
+
+    // drain initial host bootstrap events for deterministic scheduler tests
+    runtime
+        .host
+        .poll_events(Some(0))
+        .expect("host bootstrap events should drain");
 
     runtime
 }

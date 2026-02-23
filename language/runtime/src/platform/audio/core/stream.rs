@@ -279,8 +279,7 @@ pub(crate) fn build_null_worker(binding: Arc<AudioStreamBinding>) -> JoinHandle<
                 .state
                 .lock()
                 .unwrap_or_else(|error| error.into_inner());
-            let mut xrun_count_delta = 0u64;
-            let mut status_flags = AudioStreamStatusFlags(0);
+            let mut xrun_event = None;
 
             if state.shutdown {
                 break;
@@ -339,14 +338,16 @@ pub(crate) fn build_null_worker(binding: Arc<AudioStreamBinding>) -> JoinHandle<
                     Some(callback_mono_ns),
                 );
 
-                xrun_count_delta = state.xrun_count.saturating_sub(previous_xrun_count);
-                status_flags = state.status_flags;
+                let xrun_count_delta = state.xrun_count.saturating_sub(previous_xrun_count);
+                if xrun_count_delta > 0 {
+                    xrun_event = Some((state.status_flags, xrun_count_delta));
+                }
             }
 
             drop(state);
             binding.sync.wake.notify_all();
 
-            if xrun_count_delta > 0
+            if let Some((status_flags, xrun_count_delta)) = xrun_event
                 && let Some(stream_handle) = stream_handle_for_binding(&binding)
             {
                 publish_stream_event_native(
@@ -374,7 +375,6 @@ pub(crate) fn mark_stream_backend_disconnected(
     binding: &AudioStreamBinding,
     message: impl Into<String>,
 ) {
-    let mut status_flags = AudioStreamStatusFlags(0);
     let mut state = binding
         .sync
         .state
@@ -387,7 +387,7 @@ pub(crate) fn mark_stream_backend_disconnected(
     state.status_flags =
         AudioStreamStatusFlags(state.status_flags.0 | STREAM_STATUS_OUTPUT_UNDERFLOW.0);
     state.last_backend_message = Some(message.into());
-    status_flags = state.status_flags;
+    let status_flags = state.status_flags;
     drop(state);
     binding.sync.wake.notify_all();
 
