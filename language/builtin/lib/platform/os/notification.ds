@@ -1,3 +1,4 @@
+import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { NotificationEventHandle } from "../resource/index.ds";
 
@@ -31,22 +32,120 @@ export enum NotificationEventKind {
     Dismissed = 3,
 }
 
+/// Notification trigger kind.
+export enum NotificationTriggerKind {
+    /// Immediate notification delivery.
+    Immediate = 1,
+    /// Relative time-interval delivery.
+    TimeInterval = 2,
+    /// Calendar-date delivery.
+    CalendarDate = 3,
+}
+
+/// Notification action style.
+export enum NotificationActionStyle {
+    /// Default action style.
+    Default = 1,
+    /// Destructive action style.
+    Destructive = 2,
+    /// Text-input action style.
+    TextInput = 3,
+}
+
+/// Notification trigger calendar payload.
+export struct NotificationCalendarTrigger {
+    /// Trigger year.
+    year: uint16;
+    /// Trigger month, 1 to 12.
+    month: uint8;
+    /// Trigger day of month, 1 to 31.
+    day: uint8;
+    /// Trigger hour, 0 to 23.
+    hour: uint8;
+    /// Trigger minute, 0 to 59.
+    minute: uint8;
+    /// Trigger second, 0 to 59.
+    second: uint8;
+    /// Trigger timezone identifier when provided.
+    timeZone: string;
+    /// Whether this trigger repeats.
+    repeats: boolean;
+}
+
+/// Notification trigger payload.
+export struct NotificationTrigger {
+    /// Trigger kind selector.
+    kind: NotificationTriggerKind;
+    /// Time-interval trigger delay in nanoseconds.
+    intervalNs?: uint64;
+    /// Calendar trigger payload.
+    calendar?: NotificationCalendarTrigger;
+}
+
+/// Notification action descriptor.
+export struct NotificationAction {
+    /// Action identifier.
+    id: string;
+    /// Action display title.
+    title: string;
+    /// Action style selector.
+    style: NotificationActionStyle;
+    /// Whether the action should foreground the runtime.
+    foreground: boolean;
+    /// Whether action execution requires authentication.
+    authenticationRequired: boolean;
+    /// Text-input submit title for text-input actions.
+    textInputButtonTitle?: string;
+    /// Text-input placeholder text for text-input actions.
+    textInputPlaceholder?: string;
+}
+
+/// Notification category descriptor.
+export struct NotificationCategory {
+    /// Category identifier.
+    id: string;
+    /// Category actions.
+    actions: Array<NotificationAction>;
+}
+
 /// Notification request payload.
 export struct NotificationRequest {
     /// Notification title text.
     title: string;
+    /// Notification subtitle text when supported by host.
+    subtitle?: string;
     /// Notification body text.
     body: string;
     /// Notification tag for replacement semantics.
     tag: string;
     /// Notification channel identifier when required by host.
-    channelId: string;
+    channelId?: string;
     /// Priority class for host presentation policy.
     priority: NotificationPriority;
+    /// Badge count to apply when supported by host.
+    badgeCount?: uint32;
+    /// Sound identifier or channel sound name when provided.
+    sound?: string;
+    /// Notification category identifier for action routing.
+    categoryId?: string;
+    /// Notification thread or conversation identifier.
+    threadId?: string;
+    /// Delivery trigger selector.
+    trigger: NotificationTrigger;
     /// Optional host action identifier payload.
     actionId?: string;
     /// Optional JSON payload string.
     dataJson?: string;
+}
+
+/// Scheduled notification descriptor.
+export struct NotificationScheduledDescriptor {
+    /// Host notification identifier.
+    id: string;
+    /// Scheduled notification request payload.
+    request: NotificationRequest;
+    /// Earliest scheduled delivery timestamp in UTC nanoseconds when available.
+    scheduledUnixNs?: uint64;
 }
 
 /// Notification event stream open options.
@@ -69,6 +168,10 @@ export struct NotificationEvent {
     sequence: uint64;
     /// Host notification identifier.
     id: string;
+    /// Action identifier for interaction events when available.
+    actionId?: string;
+    /// Text-input response payload for text-input actions when available.
+    actionResponseText?: string;
     /// Notification request payload.
     request: NotificationRequest;
 }
@@ -152,6 +255,162 @@ declare namespace os {
         blocking: "sometimes",
     })
     export function notificationPost(request: NotificationRequest): Result<string, PlatformError>;
+
+    /// Schedule host notification.
+    ///
+    /// Schedule one host notification request for deferred delivery according to trigger policy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification scheduling APIs on each platform.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.notification.schedule", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.notification.post"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function notificationSchedule(request: NotificationRequest): Result<string, PlatformError>;
+
+    /// List pending scheduled notifications.
+    ///
+    /// Enumerate pending notification requests owned by this runtime context.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host pending-notification query APIs.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.notification.pendingList", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.notification.post"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function notificationPendingList(): Result<Array<NotificationScheduledDescriptor>, PlatformError>;
+
+    /// Cancel pending scheduled notification.
+    ///
+    /// Cancel one pending scheduled host notification by identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host scheduled-notification cancellation APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.notification.pendingCancel", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.notification.post"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function notificationPendingCancel(id: string): Result<void, PlatformError>;
+
+    /// Cancel all pending scheduled notifications.
+    ///
+    /// Cancel all pending scheduled notifications owned by this runtime context.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host scheduled-notification cancellation APIs.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.notification.pendingCancelAll", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.notification.post"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function notificationPendingCancelAll(): Result<void, PlatformError>;
+
+    /// Register notification categories.
+    ///
+    /// Register host notification categories and actions for this runtime context.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification category registration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.notification.categorySet", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.notification.post"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function notificationCategorySet(categories: Array<NotificationCategory>): Result<void, PlatformError>;
+
+    /// List notification categories.
+    ///
+    /// Enumerate registered host notification categories for this runtime context.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification category query APIs where available.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.notification.categoryList", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.notification.post"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function notificationCategoryList(): Result<Array<NotificationCategory>, PlatformError>;
 
     /// Cancel host notification.
     ///

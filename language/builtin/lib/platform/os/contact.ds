@@ -2,11 +2,11 @@ import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
 
 /// Contact query options.
-export struct OsContactQuery {
+export struct ContactQuery {
     /// Opaque page cursor from one prior list or search call.
-    cursor: string;
+    cursor?: string;
     /// Maximum returned contacts for this page.
-    limit: uint32;
+    limit?: uint32;
     /// Whether phone numbers should be returned.
     includePhones: boolean;
     /// Whether email addresses should be returned.
@@ -20,7 +20,7 @@ export struct OsContactQuery {
 }
 
 /// Contact name payload.
-export struct OsContactName {
+export struct ContactName {
     /// Given or first name.
     givenName: string;
     /// Middle name.
@@ -40,7 +40,7 @@ export struct OsContactName {
 }
 
 /// Contact phone payload.
-export struct OsContactPhone {
+export struct ContactPhone {
     /// Label for this phone value.
     label: string;
     /// Original phone number string.
@@ -52,7 +52,7 @@ export struct OsContactPhone {
 }
 
 /// Contact email payload.
-export struct OsContactEmail {
+export struct ContactEmail {
     /// Label for this email value.
     label: string;
     /// Email address.
@@ -62,7 +62,7 @@ export struct OsContactEmail {
 }
 
 /// Contact postal address payload.
-export struct OsContactAddress {
+export struct ContactAddress {
     /// Label for this address value.
     label: string;
     /// Street-line payload.
@@ -80,7 +80,7 @@ export struct OsContactAddress {
 }
 
 /// Contact organization payload.
-export struct OsContactOrganization {
+export struct ContactOrganization {
     /// Organization or company name.
     company: string;
     /// Department name.
@@ -90,43 +90,43 @@ export struct OsContactOrganization {
 }
 
 /// Contact payload.
-export struct OsContact {
+export struct Contact {
     /// Stable contact identifier.
     id: string;
     /// Structured name payload.
-    name: OsContactName;
+    name: ContactName;
     /// Phone values.
-    phones: Array<OsContactPhone>;
+    phones: Array<ContactPhone>;
     /// Email values.
-    emails: Array<OsContactEmail>;
+    emails: Array<ContactEmail>;
     /// Address values.
-    addresses: Array<OsContactAddress>;
+    addresses: Array<ContactAddress>;
     /// Organization metadata.
-    organization: OsContactOrganization;
+    organization: ContactOrganization;
     /// Contact note payload.
     note: string;
 }
 
 /// Contact draft payload for create and update operations.
-export struct OsContactDraft {
+export struct ContactDraft {
     /// Structured name payload.
-    name: OsContactName;
+    name: ContactName;
     /// Phone values.
-    phones: Array<OsContactPhone>;
+    phones: Array<ContactPhone>;
     /// Email values.
-    emails: Array<OsContactEmail>;
+    emails: Array<ContactEmail>;
     /// Address values.
-    addresses: Array<OsContactAddress>;
+    addresses: Array<ContactAddress>;
     /// Organization metadata.
-    organization: OsContactOrganization;
+    organization: ContactOrganization;
     /// Contact note payload.
     note: string;
 }
 
 /// Paged contact result payload.
-export struct OsContactPage {
+export struct ContactPage {
     /// Contact items for this page.
-    contacts: Array<OsContact>;
+    contacts: Array<Contact>;
     /// Opaque cursor for the next page, empty when unavailable.
     nextCursor: string;
     /// Whether more items are available.
@@ -159,7 +159,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function contactList(query: OsContactQuery): Result<OsContactPage, PlatformError>;
+    export function contactList(query: ContactQuery): Result<ContactPage, PlatformError>;
 
     /// Search contacts.
     ///
@@ -185,7 +185,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function contactSearch(queryText: string, query: OsContactQuery): Result<OsContactPage, PlatformError>;
+    export function contactSearch(queryText: string, query: ContactQuery): Result<ContactPage, PlatformError>;
 
     /// Read one contact by identifier.
     ///
@@ -211,7 +211,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function contactRead(id: string): Result<OsContact, PlatformError>;
+    export function contactRead(id: string): Result<Contact, PlatformError>;
 
     /// Create one contact.
     ///
@@ -237,7 +237,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function contactCreate(contact: OsContactDraft): Result<string, PlatformError>;
+    export function contactCreate(contact: ContactDraft): Result<string, PlatformError>;
 
     /// Update one contact.
     ///
@@ -263,7 +263,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function contactUpdate(id: string, contact: OsContactDraft): Result<void, PlatformError>;
+    export function contactUpdate(id: string, contact: ContactDraft): Result<void, PlatformError>;
 
     /// Delete one contact.
     ///

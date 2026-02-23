@@ -1,6 +1,6 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import { UsbDeviceHandle } from "../resource/index.ds";
+import { UsbDeviceHandle, UsbWatchHandle } from "../resource/index.ds";
 
 /// USB endpoint descriptor.
 export struct UsbEndpointDescriptor {
@@ -45,11 +45,11 @@ export struct UsbDeviceDescriptor {
     /// Device protocol code.
     protocolCode: uint8;
     /// Device manufacturer string when available.
-    manufacturer: string;
+    manufacturer?: string;
     /// Device product string when available.
-    product: string;
+    product?: string;
     /// Device serial-number string when available.
-    serialNumber: string;
+    serialNumber?: string;
 }
 
 /// USB setup packet for control transfers.
@@ -88,6 +88,38 @@ export struct UsbIsochronousTransferResult {
     packetStatuses: Slice<int32>;
 }
 
+/// USB hotplug event kind.
+export enum UsbHotplugEventKind {
+    /// USB device was attached.
+    Attached = 1,
+    /// USB device was detached.
+    Detached = 2,
+}
+
+/// USB hotplug event payload.
+export struct UsbHotplugEvent {
+    /// Event kind selector.
+    kind: UsbHotplugEventKind;
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this watch stream.
+    sequence: uint64;
+    /// Hotplug device descriptor payload.
+    device: UsbDeviceDescriptor;
+}
+
+/// USB string descriptor payload.
+export struct UsbStringDescriptor {
+    /// Language identifier used for string reads.
+    languageId: uint16;
+    /// Manufacturer string value when available.
+    manufacturer?: string;
+    /// Product string value when available.
+    product?: string;
+    /// Serial-number string value when available.
+    serialNumber?: string;
+}
+
 /// USB bindings.
 declare namespace device {
     /// List USB devices.
@@ -115,6 +147,110 @@ declare namespace device {
         blocking: "sometimes",
     })
     export function usbList(): Result<Slice<UsbDeviceDescriptor>, PlatformError>;
+
+    /// Open USB hotplug watch stream.
+    ///
+    /// Open one USB hotplug watch stream for attach and detach events.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB hotplug subscription APIs.
+    ///
+    /// # Errors
+    /// Returns ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.enumerate`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.watchOpen", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.enumerate"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbWatchOpen(): Result<UsbWatchHandle, PlatformError>;
+
+    /// Close USB hotplug watch stream.
+    ///
+    /// Close one USB hotplug watch stream and release host subscription resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB hotplug unsubscription APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.enumerate`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.watchClose", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.enumerate"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbWatchClose(handle: UsbWatchHandle): Result<void, PlatformError>;
+
+    /// Wait for one USB hotplug event.
+    ///
+    /// Wait for one queued USB hotplug event from one opened watch stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB hotplug event queues.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.enumerate`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.watchRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.enumerate"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbWatchRead(handle: UsbWatchHandle, timeoutNs: uint64): Result<UsbHotplugEvent, PlatformError>;
+
+    /// Poll one USB hotplug event without blocking.
+    ///
+    /// Poll one queued USB hotplug event from one opened watch stream without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host nonblocking USB hotplug event queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.enumerate`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.watchTryRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.enumerate"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "never",
+    })
+    export function usbWatchTryRead(handle: UsbWatchHandle): Result<UsbHotplugEvent, PlatformError>;
 
     /// Open USB device.
     ///
@@ -220,6 +356,36 @@ declare namespace device {
     })
     export function usbReleaseInterface(handle: UsbDeviceHandle, interfaceNumber: uint8): Result<void, PlatformError>;
 
+    /// Set USB interface alternate setting.
+    ///
+    /// Select one alternate setting for one claimed interface.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB alternate-setting APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.setInterfaceAlternateSetting", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbSetInterfaceAlternateSetting(
+        handle: UsbDeviceHandle,
+        interfaceNumber: uint8,
+        alternateSetting: uint8,
+    ): Result<void, PlatformError>;
+
     /// Read active USB device descriptor.
     ///
     /// Read descriptor metadata for one opened USB device.
@@ -245,6 +411,61 @@ declare namespace device {
         blocking: "sometimes",
     })
     export function usbDescriptor(handle: UsbDeviceHandle): Result<UsbDeviceDescriptor, PlatformError>;
+
+    /// List USB string-descriptor language identifiers.
+    ///
+    /// Enumerate string-descriptor language identifiers for one opened USB device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB string-descriptor language query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.enumerate`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.stringLanguageList", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.enumerate"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbStringLanguageList(handle: UsbDeviceHandle): Result<Slice<uint16>, PlatformError>;
+
+    /// Read USB string descriptors.
+    ///
+    /// Read manufacturer, product, and serial-number string descriptors for one language identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB string-descriptor read APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.enumerate`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.stringDescriptor", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.enumerate"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbStringDescriptor(
+        handle: UsbDeviceHandle,
+        languageId: uint16,
+    ): Result<UsbStringDescriptor, PlatformError>;
 
     /// List USB configurations.
     ///
@@ -571,4 +792,201 @@ declare namespace device {
         packetSizes: Slice<uint32>,
         timeoutNs: uint64,
     ): Result<UsbIsochronousTransferResult, PlatformError>;
+
+    /// Cancel pending transfers on one endpoint.
+    ///
+    /// Cancel pending USB transfers for one endpoint on one opened USB device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB transfer-cancellation APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.transfer`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.device.usb.transferCancel", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["device.usb.transfer"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbTransferCancel(
+        handle: UsbDeviceHandle,
+        endpointAddress: uint8,
+    ): Result<void, PlatformError>;
+
+    /// Cancel all pending transfers on one opened USB device.
+    ///
+    /// Cancel pending USB transfers on all endpoints for one opened USB device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB transfer-cancellation APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.transfer`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.device.usb.transferCancelAll", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["device.usb.transfer"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbTransferCancelAll(handle: UsbDeviceHandle): Result<void, PlatformError>;
+
+    /// Clear halt condition on one endpoint.
+    ///
+    /// Clear one endpoint STALL condition for one opened USB device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB clear-halt endpoint APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.clearHalt", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbClearHalt(
+        handle: UsbDeviceHandle,
+        endpointAddress: uint8,
+    ): Result<void, PlatformError>;
+
+    /// Reset one USB device.
+    ///
+    /// Request one bus-level reset for one opened USB device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB reset-device APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.device.usb.reset", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["device.usb.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbReset(handle: UsbDeviceHandle): Result<void, PlatformError>;
+
+    /// Query whether kernel driver is active on one interface.
+    ///
+    /// Query host kernel-driver attachment state for one interface.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB kernel-driver query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.kernelDriverActive", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbKernelDriverActive(
+        handle: UsbDeviceHandle,
+        interfaceNumber: uint8,
+    ): Result<boolean, PlatformError>;
+
+    /// Detach kernel driver from one interface.
+    ///
+    /// Detach one host kernel driver from one interface before userspace claiming where supported.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB kernel-driver detach APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.device.usb.kernelDriverDetach", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["device.usb.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbKernelDriverDetach(
+        handle: UsbDeviceHandle,
+        interfaceNumber: uint8,
+    ): Result<void, PlatformError>;
+
+    /// Attach kernel driver to one interface.
+    ///
+    /// Reattach one host kernel driver to one interface where supported.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB kernel-driver attach APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.device.usb.kernelDriverAttach", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["device.usb.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbKernelDriverAttach(
+        handle: UsbDeviceHandle,
+        interfaceNumber: uint8,
+    ): Result<void, PlatformError>;
 }

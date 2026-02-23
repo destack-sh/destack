@@ -58,9 +58,9 @@ export struct SerialPortDescriptor {
     /// Device path for the endpoint.
     path: OsPath;
     /// USB vendor identifier when the endpoint is USB backed.
-    usbVendorId: uint16;
+    usbVendorId?: uint16;
     /// USB product identifier when the endpoint is USB backed.
-    usbProductId: uint16;
+    usbProductId?: uint16;
     /// Whether the endpoint is USB backed.
     usbBacked: boolean;
 }
@@ -355,6 +355,58 @@ declare namespace device {
     })
     export function serialFlush(handle: SerialPortHandle): Result<void, PlatformError>;
 
+    /// Discard queued inbound serial bytes.
+    ///
+    /// Drop queued unread inbound bytes for one opened serial endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses termios and Win32 purge APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.serial.discardInput", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.serial.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function serialDiscardInput(handle: SerialPortHandle): Result<void, PlatformError>;
+
+    /// Discard queued outbound serial bytes.
+    ///
+    /// Drop queued unwritten outbound bytes for one opened serial endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses termios and Win32 purge APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.serial.discardOutput", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.serial.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function serialDiscardOutput(handle: SerialPortHandle): Result<void, PlatformError>;
+
     /// Read serial signal lines.
     ///
     /// Return current serial signal-line bitmask for one opened endpoint.
@@ -410,6 +462,61 @@ declare namespace device {
         dtr: boolean,
         rts: boolean,
     ): Result<void, PlatformError>;
+
+    /// Set serial break state.
+    ///
+    /// Apply break signaling state for one opened serial endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend serial break-control APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.serial.setBreak", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.serial.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function serialSetBreak(handle: SerialPortHandle, enabled: boolean): Result<void, PlatformError>;
+
+    /// Wait for one serial event.
+    ///
+    /// Wait for one pending serial event for one opened endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend serial event queues where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.serial.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.serial.readEvent", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.serial.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function serialReadEvent(
+        handle: SerialPortHandle,
+        timeoutNs: uint64,
+    ): Result<SerialEvent, PlatformError>;
 
     /// Poll one serial event without blocking.
     ///

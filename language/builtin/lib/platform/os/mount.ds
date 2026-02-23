@@ -74,7 +74,7 @@ declare namespace os {
         },
     )
     export function mountAdd(
-        source: OsPath,
+        source: string,
         target: OsPath,
         fileSystem: string,
         flags: uint64,
@@ -109,5 +109,5 @@ declare namespace os {
             blocking: "sometimes",
         },
     )
-    export function mountRemove(target: OsPath, flags: uint32): Result<void, PlatformError>;
+    export function mountRemove(target: OsPath, flags: uint64): Result<void, PlatformError>;
 }

@@ -9,7 +9,7 @@ export struct CameraDeviceDescriptor {
     /// Host-visible endpoint name.
     name: string;
     /// Host-visible endpoint manufacturer string when available.
-    manufacturer: string;
+    manufacturer?: string;
     /// Whether the endpoint is front-facing.
     frontFacing: boolean;
     /// Whether the endpoint is depth-capable.
@@ -54,6 +54,46 @@ export enum CameraColorSpace {
     Bt2020 = 5,
 }
 
+/// Camera dynamic-range mode.
+export enum CameraDynamicRange {
+    /// Standard dynamic range.
+    Standard = 1,
+    /// HDR10 dynamic range.
+    Hdr10 = 2,
+    /// Hybrid log-gamma dynamic range.
+    Hlg = 3,
+}
+
+/// Camera stabilization mode.
+export enum CameraStabilizationMode {
+    /// Stabilization disabled.
+    Off = 1,
+    /// Standard stabilization mode.
+    Standard = 2,
+    /// High quality stabilization mode.
+    HighQuality = 3,
+}
+
+/// Camera torch mode.
+export enum CameraTorchMode {
+    /// Torch disabled.
+    Off = 1,
+    /// Torch enabled.
+    On = 2,
+    /// Host auto torch policy.
+    Auto = 3,
+}
+
+/// Camera exposure mode.
+export enum CameraExposureMode {
+    /// Automatic exposure mode.
+    Auto = 1,
+    /// Continuous automatic exposure mode.
+    ContinuousAuto = 2,
+    /// Manual exposure mode.
+    Manual = 3,
+}
+
 /// Camera frame plane layout descriptor.
 export struct CameraPlaneLayout {
     /// Plane byte offset in `CameraFrame.bytes`.
@@ -64,6 +104,20 @@ export struct CameraPlaneLayout {
     rowStrideBytes: uint32;
     /// Plane pixel stride in bytes.
     pixelStrideBytes: uint32;
+}
+
+/// Camera frame metadata payload.
+export struct CameraFrameMetadata {
+    /// Exposure time in nanoseconds when available.
+    exposureTimeNs?: uint64;
+    /// Sensor sensitivity ISO value when available.
+    sensorIso?: uint32;
+    /// White-balance color temperature in kelvin when available.
+    whiteBalanceKelvin?: uint32;
+    /// Lens focus distance in diopters when available.
+    focusDistanceDiopters?: float64;
+    /// Applied zoom ratio when available.
+    zoomRatio?: float64;
 }
 
 /// Camera stream frame payload.
@@ -83,8 +137,24 @@ export struct CameraFrame {
     /// Plane layout descriptors for this frame.
     /// Packed formats use one plane.
     planes: Slice<CameraPlaneLayout>;
+    /// Frame metadata payload when available.
+    metadata: CameraFrameMetadata;
     /// Frame byte payload.
     bytes: Slice<uint8>;
+}
+
+/// Camera stream capability descriptor.
+export struct CameraStreamCapability {
+    /// Stream configuration payload.
+    config: CameraStreamConfig;
+    /// Minimum supported frame rate in milli-frames-per-second.
+    minimumFrameRateMilliHz: uint32;
+    /// Maximum supported frame rate in milli-frames-per-second.
+    maximumFrameRateMilliHz: uint32;
+    /// Dynamic-range mode bitmask.
+    dynamicRangeMask: uint32;
+    /// Stabilization-mode bitmask.
+    stabilizationModeMask: uint32;
 }
 
 /// Camera control selector.
@@ -97,6 +167,22 @@ export enum CameraControl {
     Focus = 3,
     /// Digital-zoom ratio control.
     Zoom = 4,
+}
+
+/// Camera control range descriptor.
+export struct CameraControlRange {
+    /// Control selector.
+    control: CameraControl;
+    /// Minimum normalized control value.
+    minimum: float64;
+    /// Maximum normalized control value.
+    maximum: float64;
+    /// Default normalized control value.
+    defaultValue: float64;
+    /// Step size for discrete controls, zero for continuous controls.
+    step: float64;
+    /// Whether host auto mode is supported for this control.
+    autoSupported: boolean;
 }
 
 /// Camera bindings.
@@ -152,6 +238,62 @@ declare namespace device {
         blocking: "sometimes",
     })
     export function cameraDeviceOpen(id: string): Result<CameraDeviceHandle, PlatformError>;
+
+    /// List supported stream configurations for one opened camera endpoint.
+    ///
+    /// Enumerate host camera stream configurations for one opened endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend camera format and frame-rate enumeration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.device.streamConfigList", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.device"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function cameraDeviceStreamConfigList(
+        handle: CameraDeviceHandle,
+    ): Result<Slice<CameraStreamConfig>, PlatformError>;
+
+    /// List supported stream capabilities for one opened camera endpoint.
+    ///
+    /// Enumerate host camera stream capability descriptors for one opened endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend camera capability enumeration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.device`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.device.streamCapabilityList", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.device"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function cameraDeviceStreamCapabilityList(
+        handle: CameraDeviceHandle,
+    ): Result<Slice<CameraStreamCapability>, PlatformError>;
 
     /// Close camera endpoint.
     ///
@@ -367,4 +509,229 @@ declare namespace device {
         control: CameraControl,
         value: float64,
     ): Result<void, PlatformError>;
+
+    /// Read one camera control value.
+    ///
+    /// Read one normalized camera control value from one running stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend camera control query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.getControl", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function cameraStreamGetControl(
+        handle: CameraStreamHandle,
+        control: CameraControl,
+    ): Result<float64, PlatformError>;
+
+    /// Read one camera control range.
+    ///
+    /// Read one normalized camera control range descriptor for one opened stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend camera control capability query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.controlRange", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function cameraStreamControlRange(
+        handle: CameraStreamHandle,
+        control: CameraControl,
+    ): Result<CameraControlRange, PlatformError>;
+
+    /// Set camera exposure mode.
+    ///
+    /// Apply one exposure mode on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend camera exposure mode APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.setExposureMode", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function cameraStreamSetExposureMode(
+        handle: CameraStreamHandle,
+        mode: CameraExposureMode,
+    ): Result<void, PlatformError>;
+
+    /// Read camera exposure mode.
+    ///
+    /// Read one exposure mode from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend camera exposure mode query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.exposureMode", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function cameraStreamExposureMode(handle: CameraStreamHandle): Result<CameraExposureMode, PlatformError>;
+
+    /// Set camera stabilization mode.
+    ///
+    /// Apply one stabilization mode on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend stabilization APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.setStabilizationMode", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function cameraStreamSetStabilizationMode(
+        handle: CameraStreamHandle,
+        mode: CameraStabilizationMode,
+    ): Result<void, PlatformError>;
+
+    /// Read camera stabilization mode.
+    ///
+    /// Read one stabilization mode from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend stabilization mode query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.stabilizationMode", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function cameraStreamStabilizationMode(
+        handle: CameraStreamHandle,
+    ): Result<CameraStabilizationMode, PlatformError>;
+
+    /// Set camera torch mode.
+    ///
+    /// Apply one torch mode on one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend torch APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.setTorchMode", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function cameraStreamSetTorchMode(
+        handle: CameraStreamHandle,
+        mode: CameraTorchMode,
+    ): Result<void, PlatformError>;
+
+    /// Read camera torch mode.
+    ///
+    /// Read one torch mode from one opened camera stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend torch mode query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.camera.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.camera.stream.torchMode", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.camera.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function cameraStreamTorchMode(handle: CameraStreamHandle): Result<CameraTorchMode, PlatformError>;
 }

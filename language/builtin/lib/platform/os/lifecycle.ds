@@ -2,7 +2,7 @@ import type { PlatformError } from "../error/index.ds";
 import { LifecycleEventHandle } from "../resource/index.ds";
 
 /// Runtime lifecycle state.
-export enum OsLifecycleState {
+export enum LifecycleState {
     /// Runtime is inactive and not rendering or processing foreground input.
     Inactive = 1,
     /// Runtime is active in the foreground.
@@ -14,7 +14,7 @@ export enum OsLifecycleState {
 }
 
 /// Runtime lifecycle event kind.
-export enum OsLifecycleEventKind {
+export enum LifecycleEventKind {
     /// Runtime launched.
     Launch = 1,
     /// Runtime entered active foreground execution.
@@ -34,34 +34,34 @@ export enum OsLifecycleEventKind {
 }
 
 /// Low-memory event payload.
-export struct OsLifecycleLowMemoryPayload {
+export struct LifecycleLowMemoryPayload {
     /// Backend-defined severity level.
     severity: uint32;
 }
 
 /// Low-power-mode event payload.
-export struct OsLifecycleLowPowerPayload {
+export struct LifecycleLowPowerPayload {
     /// Whether low-power mode is enabled.
     enabled: boolean;
 }
 
 /// Lifecycle event payload.
-/// Exactly one payload field should be set according to `OsLifecycleEvent.kind`.
-export newtype OsLifecycleEventPayload = {
-    lowMemory?: OsLifecycleLowMemoryPayload,
-    lowPower?: OsLifecycleLowPowerPayload,
+/// Exactly one payload field should be set according to `LifecycleEvent.kind`.
+export newtype LifecycleEventPayload = {
+    lowMemory?: LifecycleLowMemoryPayload,
+    lowPower?: LifecycleLowPowerPayload,
 };
 
 /// Runtime lifecycle event payload.
-export struct OsLifecycleEvent {
+export struct LifecycleEvent {
     /// Lifecycle event kind selector.
-    kind: OsLifecycleEventKind;
+    kind: LifecycleEventKind;
     /// Monotonic event timestamp in nanoseconds.
     timestampNs: uint64;
     /// Monotonic sequence number for this lifecycle stream.
     sequence: uint64;
     /// Optional typed payload for the event.
-    payload: OsLifecycleEventPayload;
+    payload: LifecycleEventPayload;
 }
 
 /// Lifecycle bindings.
@@ -90,7 +90,7 @@ declare namespace os {
         scope: "host",
         blocking: "never",
     })
-    export function lifecycleState(): Result<OsLifecycleState, PlatformError>;
+    export function lifecycleState(): Result<LifecycleState, PlatformError>;
 
     /// Open lifecycle event stream.
     ///
@@ -171,7 +171,7 @@ declare namespace os {
     export function lifecycleRead(
         handle: LifecycleEventHandle,
         timeoutNs: uint64,
-    ): Result<OsLifecycleEvent, PlatformError>;
+    ): Result<LifecycleEvent, PlatformError>;
 
     /// Poll one lifecycle event without blocking.
     ///
@@ -197,5 +197,5 @@ declare namespace os {
         scope: "host",
         blocking: "never",
     })
-    export function lifecycleTryRead(handle: LifecycleEventHandle): Result<OsLifecycleEvent, PlatformError>;
+    export function lifecycleTryRead(handle: LifecycleEventHandle): Result<LifecycleEvent, PlatformError>;
 }
