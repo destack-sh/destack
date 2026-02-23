@@ -8,10 +8,14 @@ use super::{Microtask, MicrotaskId, Runnable, Task, TaskId, Timer, TimerQueue};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::{PlatformError, ResourceId};
 use crate::runtime::engine::{EngineContinuation, RuntimeValue};
+use crate::runtime::host::{HostEvent, HostEventKind};
 use crate::runtime::poller::{
     HostPoller, PollerEvent, PollerEventPayload, PollerEventSource, PollerProcessStatus,
     PollerToken,
 };
+
+/// Default host semantic dispatch batch size before forcing one poller event.
+const DEFAULT_HOST_EVENT_BUDGET: u64 = 32;
 
 /// Watch payload that can be dispatched as one event loop task.
 #[derive(Debug)]
@@ -33,6 +37,8 @@ pub struct EventLoop {
     microtasks: VecDeque<Microtask>,
     /// Pending platform events.
     events: VecDeque<PollerEvent>,
+    /// Pending host semantic events.
+    host_events: VecDeque<HostEvent>,
     /// Ready timers waiting for dispatch.
     ready_timers: VecDeque<Timer>,
     /// Timer queue for scheduled timer fires.
@@ -43,6 +49,8 @@ pub struct EventLoop {
     timer_watches: FxHashMap<ResourceId, EventLoopWatch>,
     /// External event watch dispatch table keyed by poller token.
     event_watches: FxHashMap<PollerToken, EventLoopWatch>,
+    /// Host event watch dispatch table keyed by host event kind.
+    host_event_watches: FxHashMap<HostEventKind, EventLoopWatch>,
     /// Configured event loop options.
     options: SchedulerOptions,
 
@@ -52,8 +60,12 @@ pub struct EventLoop {
     next_microtask_id: u64,
     /// Next task queue sequence identifier to issue.
     next_sequence: u64,
-    /// Number of dropped external events with no registered watch.
-    dropped_external_events: u64,
+    /// Number of dropped events with no registered dispatch watch.
+    dropped_unwatched_dispatch_events: u64,
+    /// Number of dropped host queue events due to queue pressure policy.
+    dropped_host_queue_events: u64,
+    /// Number of host semantic events dispatched since the last poller event.
+    host_events_since_poller: u64,
 }
 
 impl EventLoop {
@@ -99,6 +111,11 @@ impl EventLoop {
         self.events.extend(events);
     }
 
+    /// Enqueue host semantic events.
+    pub fn enqueue_host_events(&mut self, events: Vec<HostEvent>) {
+        self.host_events.extend(events);
+    }
+
     /// Pop the next runnable item from the event loop.
     pub fn next_runnable(
         &mut self,
@@ -121,9 +138,28 @@ impl EventLoop {
             return Ok(Some(Runnable::Timer(timer)));
         }
 
-        // dispatch external events before regular tasks
+        // dispatch host semantic events first while under the fairness budget
+        if should_dispatch_host_event_first(
+            &self.host_events,
+            &self.events,
+            self.host_events_since_poller,
+            self.options.host_event_budget,
+        ) && let Some(host_event) = self.host_events.pop_front()
+        {
+            self.host_events_since_poller = self.host_events_since_poller.saturating_add(1);
+            return Ok(Some(Runnable::HostEvent(host_event)));
+        }
+
+        // dispatch one poller event and reset host fairness streak
         if let Some(event) = self.events.pop_front() {
+            self.host_events_since_poller = 0;
             return Ok(Some(Runnable::Event(event)));
+        }
+
+        // dispatch remaining host semantic events when no poller event is pending
+        if let Some(host_event) = self.host_events.pop_front() {
+            self.host_events_since_poller = self.host_events_since_poller.saturating_add(1);
+            return Ok(Some(Runnable::HostEvent(host_event)));
         }
 
         Ok(self.tasks.pop_front().map(Runnable::Task))
@@ -170,8 +206,10 @@ impl EventLoop {
         if !self.tasks.is_empty()
             || !self.microtasks.is_empty()
             || !self.events.is_empty()
+            || !self.host_events.is_empty()
             || !self.ready_timers.is_empty()
             || !self.event_watches.is_empty()
+            || !self.host_event_watches.is_empty()
         {
             return true;
         }
@@ -240,6 +278,24 @@ impl EventLoop {
         self.event_watches.remove(&token)
     }
 
+    /// Register one host semantic event watch.
+    pub fn watch_host_event(
+        &mut self,
+        kind: HostEventKind,
+        watch: EventLoopWatch,
+    ) -> RuntimeResult<()> {
+        // only native continuations can be cloned for repeated dispatch
+        validate_watch(&watch)?;
+        self.host_event_watches.insert(kind, watch);
+
+        Ok(())
+    }
+
+    /// Remove the host semantic event watch registered for one kind.
+    pub fn unwatch_host_event(&mut self, kind: HostEventKind) -> Option<EventLoopWatch> {
+        self.host_event_watches.remove(&kind)
+    }
+
     /// Build one task for a fired timer watch.
     pub fn task_for_timer(&mut self, timer: Timer) -> Option<Task> {
         let watch = self.timer_watches.get(&timer.handle)?;
@@ -258,6 +314,22 @@ impl EventLoop {
     /// Build one task for one external event watch.
     pub fn task_for_event(&mut self, event: PollerEvent) -> Option<Task> {
         let watch = self.event_watches.get(&event.token)?;
+        let EngineContinuation::Native(native) = watch.runnable else {
+            return None;
+        };
+        let watch = EventLoopWatch {
+            runnable: EngineContinuation::Native(native),
+            resume_value: watch.resume_value,
+            priority: watch.priority,
+        };
+
+        Some(self.task_for_watch(watch))
+    }
+
+    /// Build one task for one host semantic event watch.
+    pub fn task_for_host_event(&mut self, event: HostEvent) -> Option<Task> {
+        let kind = event.kind()?;
+        let watch = self.host_event_watches.get(&kind)?;
         let EngineContinuation::Native(native) = watch.runnable else {
             return None;
         };
@@ -335,19 +407,32 @@ impl EventLoop {
         }
     }
 
-    /// Record one dropped external event.
-    pub fn record_dropped_external_event(&mut self) {
-        self.dropped_external_events = self.dropped_external_events.saturating_add(1);
+    /// Record one dropped event with no registered dispatch watch.
+    pub fn record_dropped_unwatched_dispatch_event(&mut self) {
+        self.dropped_unwatched_dispatch_events =
+            self.dropped_unwatched_dispatch_events.saturating_add(1);
     }
 
-    /// Record multiple dropped external events.
-    pub fn record_dropped_external_events(&mut self, dropped_count: u64) {
-        self.dropped_external_events = self.dropped_external_events.saturating_add(dropped_count);
+    /// Record dropped host queue events reported by the host adapter.
+    pub fn record_dropped_host_queue_events(&mut self, dropped_count: u64) {
+        self.dropped_host_queue_events =
+            self.dropped_host_queue_events.saturating_add(dropped_count);
     }
 
-    /// Return the number of dropped external events.
-    pub const fn dropped_external_events(&self) -> u64 {
-        self.dropped_external_events
+    /// Return the number of dropped events with no registered dispatch watch.
+    pub const fn dropped_unwatched_dispatch_events(&self) -> u64 {
+        self.dropped_unwatched_dispatch_events
+    }
+
+    /// Return the number of dropped host queue events due to queue pressure.
+    pub const fn dropped_host_queue_events(&self) -> u64 {
+        self.dropped_host_queue_events
+    }
+
+    /// Return the total number of dropped dispatch-visible events.
+    pub const fn dropped_dispatch_events(&self) -> u64 {
+        self.dropped_unwatched_dispatch_events
+            .saturating_add(self.dropped_host_queue_events)
     }
 
     /// Build one task from one watch payload.
@@ -429,6 +514,7 @@ fn validate_scheduler_options(options: &SchedulerOptions) -> RuntimeResult<()> {
     // reject invalid budget and timing values
     if matches!(options.tick_budget_ns, Some(0))
         || matches!(options.microtask_budget, Some(0))
+        || matches!(options.host_event_budget, Some(0))
         || matches!(options.max_microtask_depth, Some(0))
         || matches!(options.timer_resolution_ns, Some(0))
         || matches!(options.max_timer_coalesce_ns, Some(0))
@@ -499,5 +585,110 @@ fn payload_sort_key(payload: PollerEventPayload) -> u64 {
             ((pid as u64) << 32) | (status_key.0 << 16) | status_key.1
         }
         PollerEventPayload::Timer { deadline_nanos } => deadline_nanos,
+    }
+}
+
+/// Return whether host semantic events should dispatch before poller events.
+fn should_dispatch_host_event_first(
+    host_events: &VecDeque<HostEvent>,
+    poller_events: &VecDeque<PollerEvent>,
+    host_events_since_poller: u64,
+    host_event_budget: Option<u64>,
+) -> bool {
+    if host_events.is_empty() {
+        return false;
+    }
+
+    if poller_events.is_empty() {
+        return true;
+    }
+
+    host_events_since_poller < host_event_budget.unwrap_or(DEFAULT_HOST_EVENT_BUDGET)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::EventLoop;
+    use crate::platform::ResourceId;
+    use crate::runtime::host::{HostEvent, HostLifecycleEvent, HostLifecycleState};
+    use crate::runtime::poller::{
+        PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
+        PollerToken,
+    };
+    use crate::runtime::scheduler::Runnable;
+
+    fn io_poller_event(token: u64) -> PollerEvent {
+        PollerEvent {
+            resource_id: ResourceId(1),
+            source: PollerEventSource::Io,
+            mask: PollerEventMask::READABLE,
+            flags: PollerEventFlags::NONE,
+            token: PollerToken(token),
+            payload: PollerEventPayload::Io { data: 0 },
+        }
+    }
+
+    #[test]
+    fn test_next_runnable_dequeues_host_event_before_poller_event() {
+        let mut event_loop = EventLoop::default();
+
+        event_loop.enqueue_events(vec![io_poller_event(8)]);
+        event_loop.enqueue_host_events(vec![HostEvent::Lifecycle(HostLifecycleEvent {
+            state: HostLifecycleState::Running,
+        })]);
+
+        let first = event_loop.next_runnable(0, 0).unwrap();
+        let second = event_loop.next_runnable(0, 0).unwrap();
+
+        assert!(matches!(
+            first,
+            Some(Runnable::HostEvent(HostEvent::Lifecycle(
+                HostLifecycleEvent {
+                    state: HostLifecycleState::Running
+                }
+            )))
+        ));
+        assert!(matches!(second, Some(Runnable::Event(_))));
+    }
+
+    #[test]
+    fn test_next_runnable_interleaves_after_host_event_budget() {
+        let mut event_loop = EventLoop::default();
+        event_loop
+            .configure(destack_workspace::SchedulerOptions {
+                host_event_budget: Some(1),
+                ..destack_workspace::SchedulerOptions::default()
+            })
+            .unwrap();
+
+        event_loop.enqueue_host_events(vec![
+            HostEvent::Lifecycle(HostLifecycleEvent {
+                state: HostLifecycleState::Running,
+            }),
+            HostEvent::Lifecycle(HostLifecycleEvent {
+                state: HostLifecycleState::Stopped,
+            }),
+        ]);
+        event_loop.enqueue_events(vec![io_poller_event(9)]);
+
+        let first = event_loop.next_runnable(0, 0).unwrap();
+        let second = event_loop.next_runnable(0, 0).unwrap();
+        let third = event_loop.next_runnable(0, 0).unwrap();
+
+        assert!(matches!(first, Some(Runnable::HostEvent(_))));
+        assert!(matches!(second, Some(Runnable::Event(_))));
+        assert!(matches!(third, Some(Runnable::HostEvent(_))));
+    }
+
+    #[test]
+    fn test_dropped_dispatch_counters_track_sources_separately() {
+        let mut event_loop = EventLoop::default();
+
+        event_loop.record_dropped_unwatched_dispatch_event();
+        event_loop.record_dropped_host_queue_events(3);
+
+        assert_eq!(event_loop.dropped_unwatched_dispatch_events(), 1);
+        assert_eq!(event_loop.dropped_host_queue_events(), 3);
+        assert_eq!(event_loop.dropped_dispatch_events(), 4);
     }
 }
