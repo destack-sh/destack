@@ -1,4 +1,5 @@
 use super::{Microtask, Task, Timer};
+use crate::runtime::host::HostEvent;
 use crate::runtime::poller::PollerEvent;
 
 /// Runnable item returned by the event loop.
@@ -11,5 +12,7 @@ pub enum Runnable {
     /// A timer ready to fire.
     Timer(Timer),
     /// An external platform event.
-    Event(PollerEvent),
+    PollerEvent(PollerEvent),
+    /// A host semantic event.
+    HostEvent(HostEvent),
 }
