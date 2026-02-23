@@ -18,7 +18,7 @@ pub(crate) use smallvec::SmallVec;
 pub(crate) use self::control::*;
 use self::declarator::format_declarator;
 pub(crate) use self::format::{
-    array_elements_are_fill_candidates, array_has_only_boundary_comments, span_has_comment,
+    array_elements_are_fill_candidates, array_has_only_boundary_comments,
 };
 pub(crate) use self::member::*;
 pub(crate) use self::object::*;
@@ -27,19 +27,17 @@ use self::primary::format_primary_expression;
 use self::statement::format_statement_expression;
 pub(crate) use self::ternary::*;
 pub(crate) use crate::format::analysis::{
-    ArgumentSimplicityOptions, argument_has_non_blank_annotation,
-    argument_is_inline_closure_cast_object, argument_is_simple_with_options,
-    call_arguments_are_multiline_span, is_call_like_argument, is_simple_static_argument,
-    is_tree_attribute_expression,
+    ArgumentSimplicityOptions, argument_is_inline_closure_cast_object,
+    argument_is_simple_with_options, call_arguments_are_multiline_span, is_call_like_argument,
+    is_simple_static_argument, is_tree_attribute_expression,
 };
 pub(crate) use crate::format::call::{format_call_expression, format_instantiation_expression};
 pub(crate) use crate::format::chain::{
-    argument_value_id, chain_nodes, expression_is_in_template_literal_interpolation,
-    has_comment_between_expressions, has_line_comment_between_expressions,
-    is_block_lambda_argument, is_chain_root, is_expression_chain, is_lambda_expression,
-    lambda_expression_should_break, member_has_intervening_comment,
-    should_force_multiline_mapped_type, should_parenthesize_index_expression,
-    transparent_inner_expression,
+    argument_value_id, chain_nodes, has_comment_between_expressions,
+    has_line_comment_between_expressions, is_block_lambda_argument, is_chain_root,
+    is_expression_chain, is_lambda_expression, lambda_expression_should_break,
+    member_has_intervening_comment, should_force_multiline_mapped_type,
+    should_parenthesize_index_expression, transparent_inner_expression,
 };
 pub(crate) use crate::format::collection::list_like;
 pub(crate) use crate::format::collection::literal::{

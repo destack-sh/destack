@@ -5,8 +5,7 @@ use crate::format::expression::{
     NodeType, Pattern, PatternField, Property, SmallVec, Span, TrailingComma, block_indent,
     format_block_of_properties, format_with, group, hard_line_break, if_group_breaks,
     is_tree_attribute_expression, list_like, property_has_complex_type_value,
-    property_has_complex_value, soft_block_indent, soft_line_break_or_space, space,
-    span_has_comment, token,
+    property_has_complex_value, soft_block_indent, soft_line_break_or_space, space, token,
 };
 use crate::format::operator::{
     is_parameter_type_annotation, is_static_type_argument_context, is_type_context,
@@ -244,7 +243,7 @@ pub(crate) fn format_struct_literal<'ast>(
     // otherwise let best_fitting decide based on line width
     let has_comments = properties_ids
         .iter()
-        .any(|property_id| span_has_comment(f.context(), f.context().span(*property_id)));
+        .any(|property_id| f.context().has_comment(f.context().span(*property_id)));
     let keep_single_inline_comment_object =
         has_comments && properties_ids.len() == SINGLE_PROPERTY_COUNT && !has_newline_in_source;
     let keep_single_inline_annotated_object =

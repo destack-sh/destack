@@ -13,9 +13,9 @@ use crate::format::expression::{
     Argument, BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     LocalNodeId, ParenthesizedDropMode, TokenType, TypeBinaryOperator,
     expression_has_leading_prefix_comment, format_expression, format_with, group, hard_line_break,
-    if_group_breaks, indent, should_drop_parenthesized, soft_line_break_or_space, space,
-    span_has_comment, token, type_binary_is_parenthesized_new_callee,
-    type_binary_is_parenthesized_statement_expression, type_binary_is_statement_expression,
+    if_group_breaks, indent, should_drop_parenthesized, soft_line_break_or_space, space, token,
+    type_binary_is_parenthesized_new_callee, type_binary_is_parenthesized_statement_expression,
+    type_binary_is_statement_expression,
 };
 use crate::format::operator::{
     AnnotationPosition, NodeType, expression_is_trivial_inline_without_annotations,
@@ -358,7 +358,7 @@ pub(crate) fn try_format_mixed_logical_precedence<'ast>(
     }
 
     let right_span = f.context().span(right);
-    let should_preserve_grouping_for_comments = span_has_comment(f.context(), right_span)
+    let should_preserve_grouping_for_comments = f.context().has_comment(right_span)
         || has_comment_between_expressions(f.context(), left, right);
     if !should_preserve_grouping_for_comments {
         return Ok(false);
@@ -745,7 +745,7 @@ fn try_write_inline_object_left_for_satisfies_seam_comment<'ast>(
     let property_id = properties[0];
     if f.context().has_annotation(property_id)
         || f.context().node_has_newline(property_id)
-        || span_has_comment(f.context(), f.context().span(property_id))
+        || f.context().has_comment(f.context().span(property_id))
     {
         return Ok(false);
     }

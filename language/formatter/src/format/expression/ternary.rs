@@ -1,6 +1,5 @@
 use crate::Annotation;
 use crate::format::analysis::next_non_whitespace_token_after_span;
-use crate::format::chain::expression_is_in_template_literal_interpolation;
 use crate::format::expression::{
     AnnotationPosition, Argument, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     IfCondition, IfKind, LocalNodeId, NodeTree, NodeType, TypeLiteral, format_with, group,
@@ -466,7 +465,7 @@ fn template_interpolation_has_boundary_newline(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    if !expression_is_in_template_literal_interpolation(context, node_id) {
+    if !context.expression_is_in_template_literal_interpolation(node_id) {
         return false;
     }
 
@@ -493,7 +492,8 @@ pub(crate) fn format_ternary(
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let keep_inline_template_ternary = ternary_parts(f.context().tree, node_id).is_some()
-        && expression_is_in_template_literal_interpolation(f.context(), node_id)
+        && f.context()
+            .expression_is_in_template_literal_interpolation(node_id)
         && !f.context().node_has_newline(node_id)
         && !template_interpolation_has_boundary_newline(f.context(), node_id);
 

@@ -8,8 +8,8 @@ use crate::format::expression::{
     TokenType, argument_value, block_indent, chain_nodes, format_with, group, hard_line_break,
     has_comment_between_expressions, if_group_breaks, is_complex_expression,
     is_expression_breakable, is_trivial_expression, lambda_expression_should_break,
-    member_has_intervening_comment, soft_block_indent, soft_line_break_or_space, space,
-    span_has_comment, token, transparent_inner_expression,
+    member_has_intervening_comment, soft_block_indent, soft_line_break_or_space, space, token,
+    transparent_inner_expression,
 };
 use destack_ast::{Property, ScalarLiteral};
 use destack_fir::format::{Buffer, Format, GroupId};
@@ -1270,19 +1270,21 @@ pub(crate) fn tree_child_should_inline_braced_expression(
 
     if argument_span.file == value_span.file {
         if argument_span.start < value_span.start
-            && span_has_comment(
-                context,
-                Span::new(argument_span.file, argument_span.start, value_span.start),
-            )
+            && context.has_comment(Span::new(
+                argument_span.file,
+                argument_span.start,
+                value_span.start,
+            ))
         {
             return false;
         }
 
         if value_span.end < argument_span.end
-            && span_has_comment(
-                context,
-                Span::new(argument_span.file, value_span.end, argument_span.end),
-            )
+            && context.has_comment(Span::new(
+                argument_span.file,
+                value_span.end,
+                argument_span.end,
+            ))
         {
             return false;
         }

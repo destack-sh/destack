@@ -7,8 +7,8 @@ use crate::format::expression::{
     expression_has_static_type_arguments, fits_expanded, flattened_binary_operand_count,
     format_call_expression, format_instantiation_expression, format_with, group,
     has_line_comment_between_expressions, indent, is_chain_root, is_expression_breakable,
-    is_expression_chain, is_pattern_breakable, soft_line_break_or_space, space, span_has_comment,
-    token, transparent_inner_expression,
+    is_expression_chain, is_pattern_breakable, soft_line_break_or_space, space, token,
+    transparent_inner_expression,
 };
 use destack_ast::{Comment, CommentStyle};
 use destack_fir::format::{Buffer, Format};
@@ -739,10 +739,9 @@ fn declarator_source(
     let pattern_has_newline = context.has_newline(pattern_span);
     let pattern_has_default_assignment = pattern_has_default_assignment(tree, pattern_id);
     let pattern_has_comments_or_annotations =
-        context.has_annotation(pattern_id) || span_has_comment(context, pattern_span);
+        context.has_annotation(pattern_id) || context.has_comment(pattern_span);
     let value_is_parenthesized = matches!(value_expr, Expression::Parenthesized { .. });
-    let value_has_between_comment =
-        between_span.is_some_and(|span| span_has_comment(context, span));
+    let value_has_between_comment = between_span.is_some_and(|span| context.has_comment(span));
     let value_has_line_comment_between_operands = match value_inner_expr {
         Expression::Binary { left, right, .. } => {
             has_line_comment_between_expressions(context, *left, *right)

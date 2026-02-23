@@ -1,10 +1,9 @@
 use crate::format::analysis::{
     ArgumentSimplicityOptions, argument_has_leading_prefix_annotation_outside_span,
-    argument_has_line_comment_annotation, argument_has_non_blank_annotation,
-    argument_has_separator_line_comment_annotation, argument_is_collection_literal,
-    argument_is_interpolated_template_literal, argument_is_simple_with_options,
-    call_arguments_are_multiline_span, call_has_leading_block_callback_with_simple_tail,
-    call_has_non_blank_infix_annotation, call_has_static_arguments, timing,
+    argument_has_line_comment_annotation, argument_has_separator_line_comment_annotation,
+    argument_is_collection_literal, argument_is_interpolated_template_literal,
+    argument_is_simple_with_options, call_arguments_are_multiline_span,
+    call_has_leading_block_callback_with_simple_tail, call_has_static_arguments, timing,
 };
 use crate::format::call::arguments::{
     argument_is_plain_call_argument,
@@ -78,7 +77,7 @@ pub(crate) fn call_argument_layout_cache(
 
     context.increment_counter("call.arguments.layout_cache.cache.misses", 1);
     context.increment_counter("call.arguments.layout_cache.builds", 1);
-    let has_call_infix_annotations = call_has_non_blank_infix_annotation(context, call_node_id);
+    let has_call_infix_annotations = context.has_non_blank_infix_annotation(call_node_id);
     let has_call_chain_parent = call_has_call_chain_parent(context, call_node_id);
 
     let layout_cache = if dynamic_arguments.is_empty() {
@@ -505,7 +504,7 @@ fn call_argument_expansions(
 ) -> CallArgumentExpansionsCache {
     context.increment_counter("call.arguments.layout.builds", 1);
 
-    let has_call_infix_annotations = call_has_non_blank_infix_annotation(context, call_node_id);
+    let has_call_infix_annotations = context.has_non_blank_infix_annotation(call_node_id);
 
     if dynamic_arguments.is_empty() {
         return CallArgumentExpansionsCache {
@@ -645,7 +644,7 @@ pub(crate) fn call_force_expand_single_multiline_with_static_arguments(
 ) -> bool {
     if dynamic_arguments.len() != 1
         || !call_has_static_arguments(context, call_node_id)
-        || argument_has_non_blank_annotation(context, dynamic_arguments[0])
+        || context.has_non_blank_annotation(dynamic_arguments[0])
     {
         return false;
     }
@@ -854,7 +853,7 @@ pub(crate) fn call_argument_layout(
         && {
             let argument_id = dynamic_arguments[0];
             let value_id = argument_value_id(context.tree, argument_id);
-            !argument_has_non_blank_annotation(context, argument_id)
+            !context.has_non_blank_annotation(argument_id)
                 && !context.has_non_blank_annotation(value_id)
                 && !argument_has_callback_blocking_comment_annotation(context, argument_id)
                 && !argument_has_leading_prefix_annotation_outside_span(context, argument_id)
@@ -875,7 +874,7 @@ pub(crate) fn call_argument_layout(
         && {
             let argument_id = dynamic_arguments[0];
             let value_id = argument_value_id(context.tree, argument_id);
-            !argument_has_non_blank_annotation(context, argument_id)
+            !context.has_non_blank_annotation(argument_id)
                 && !context.has_non_blank_annotation(value_id)
                 && !argument_has_callback_blocking_comment_annotation(context, argument_id)
                 && !argument_has_leading_prefix_annotation_outside_span(context, argument_id)
@@ -894,7 +893,7 @@ pub(crate) fn call_argument_layout(
         && !has_any_argument_annotation
         && {
             let argument_id = dynamic_arguments[0];
-            !argument_has_non_blank_annotation(context, argument_id)
+            !context.has_non_blank_annotation(argument_id)
                 && argument_is_simple_with_options(
                     context,
                     argument_id,

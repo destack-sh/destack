@@ -44,8 +44,7 @@ pub(crate) fn argument_is_simple_with_options(
     if options.reject_any_argument_annotation && context.has_annotation(argument_id) {
         return false;
     }
-    if options.reject_non_blank_argument_annotation
-        && argument_has_non_blank_annotation(context, argument_id)
+    if options.reject_non_blank_argument_annotation && context.has_non_blank_annotation(argument_id)
     {
         return false;
     }
@@ -534,22 +533,6 @@ pub(crate) fn call_arguments_preserve_blank_line_between(
     context
         .annotations(right_value_id)
         .is_some_and(|annotations| annotations.iter().copied().any(has_blank_prefix_between))
-}
-
-/// Return whether a call has a non-blank block infix annotation.
-pub(crate) fn call_has_non_blank_infix_annotation(
-    context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-) -> bool {
-    context.has_non_blank_infix_annotation(call_node_id)
-}
-
-/// Return whether an argument has a non-blank annotation.
-pub(crate) fn argument_has_non_blank_annotation(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    context.has_non_blank_annotation(argument_id)
 }
 
 /// Return whether an argument has multiline non-blank prefix annotations.

@@ -7,7 +7,7 @@ use crate::format::chain::{
     expression_trivia_anchor_end, has_comment_between_expressions, has_newline_between_expressions,
     is_call_like_argument, is_chain_expression, is_nested_lambda_expression, is_numeric_index,
     is_simple_chain_argument, is_simple_chain_operation, is_simple_chain_static_arguments,
-    member_has_intervening_break_or_comment, member_has_intervening_comment, span_has_comment,
+    member_has_intervening_break_or_comment, member_has_intervening_comment,
 };
 use crate::format::expression::TypeBinaryOperator;
 use destack_ast::{Comment, CommentStyle, Doc, DocStyle};
@@ -1056,7 +1056,7 @@ fn chain_has_parent_intervening_comment(
     }
 
     let between_span = Span::new(node_span.file, node_anchor_end, parent_operator_start);
-    span_has_comment(context, between_span)
+    context.has_comment(between_span)
 }
 
 /// Return whether one expression is await-like.
@@ -1195,14 +1195,6 @@ pub(crate) fn chain_overflows_in_type_binary_left(
     }
 
     context.has_non_blank_annotation(great_grandparent_expression_id)
-}
-
-/// Return whether an expression appears inside a template literal interpolation.
-pub(crate) fn expression_is_in_template_literal_interpolation(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    context.expression_is_in_template_literal_interpolation(expression_id)
 }
 
 /// Return whether a path root should be split into synthetic chain segments.
