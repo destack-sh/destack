@@ -4,7 +4,7 @@ import { OsPath } from "../fs/path.ds";
 import { DocumentHandle } from "../resource/index.ds";
 
 /// Document-provider access mode.
-export enum OsDocumentAccess {
+export enum DocumentAccess {
     /// Read access only.
     Read = 1,
     /// Write access only.
@@ -14,7 +14,7 @@ export enum OsDocumentAccess {
 }
 
 /// Document picker options.
-export struct OsDocumentPickOptions {
+export struct DocumentPickOptions {
     /// MIME-type filters, empty means any type.
     mimeTypes: Array<string>;
     /// File-extension filters without the leading dot.
@@ -28,7 +28,7 @@ export struct OsDocumentPickOptions {
 }
 
 /// Document descriptor.
-export struct OsDocumentDescriptor {
+export struct DocumentDescriptor {
     /// Host document URI.
     uri: string;
     /// Host-visible document name.
@@ -71,7 +71,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function documentPick(options: OsDocumentPickOptions): Result<Array<OsDocumentDescriptor>, PlatformError>;
+    export function documentPick(options: DocumentPickOptions): Result<Array<DocumentDescriptor>, PlatformError>;
 
     /// Open one document URI.
     ///
@@ -97,7 +97,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function documentOpen(uri: string, access: OsDocumentAccess): Result<DocumentHandle, PlatformError>;
+    export function documentOpen(uri: string, access: DocumentAccess): Result<DocumentHandle, PlatformError>;
 
     /// Close one opened document handle.
     ///

@@ -3,7 +3,7 @@ import type { PlatformError } from "../error/index.ds";
 import { OsPath } from "../fs/path.ds";
 
 /// Media asset class.
-export enum OsMediaAssetKind {
+export enum MediaAssetKind {
     /// Image asset.
     Image = 1,
     /// Video asset.
@@ -15,19 +15,19 @@ export enum OsMediaAssetKind {
 }
 
 /// Media query options.
-export struct OsMediaQuery {
+export struct MediaQuery {
     /// Opaque page cursor from one prior mediaList call.
-    cursor: string;
+    cursor?: string;
     /// Maximum returned assets for this page.
-    limit: uint32;
+    limit?: uint32;
     /// Included asset classes, empty means all classes.
-    kinds: Array<OsMediaAssetKind>;
+    kinds: Array<MediaAssetKind>;
     /// Whether hidden assets should be included.
     includeHidden: boolean;
 }
 
 /// Media asset descriptor.
-export struct OsMediaAssetDescriptor {
+export struct MediaAssetDescriptor {
     /// Stable asset identifier.
     id: string;
     /// Host URI for this asset.
@@ -37,7 +37,7 @@ export struct OsMediaAssetDescriptor {
     /// Asset MIME type payload when available.
     mimeType: string;
     /// Asset class.
-    kind: OsMediaAssetKind;
+    kind: MediaAssetKind;
     /// Asset width in pixels when available.
     width: uint32;
     /// Asset height in pixels when available.
@@ -53,9 +53,9 @@ export struct OsMediaAssetDescriptor {
 }
 
 /// Paged media result payload.
-export struct OsMediaPage {
+export struct MediaPage {
     /// Asset items for this page.
-    assets: Array<OsMediaAssetDescriptor>;
+    assets: Array<MediaAssetDescriptor>;
     /// Opaque cursor for the next page, empty when unavailable.
     nextCursor: string;
     /// Whether more assets are available.
@@ -88,7 +88,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function mediaList(query: OsMediaQuery): Result<OsMediaPage, PlatformError>;
+    export function mediaList(query: MediaQuery): Result<MediaPage, PlatformError>;
 
     /// Read one media asset descriptor.
     ///
@@ -114,7 +114,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function mediaRead(id: string): Result<OsMediaAssetDescriptor, PlatformError>;
+    export function mediaRead(id: string): Result<MediaAssetDescriptor, PlatformError>;
 
     /// Import one file path into host media library.
     ///
@@ -140,7 +140,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function mediaImportPath(path: OsPath, kind: OsMediaAssetKind): Result<string, PlatformError>;
+    export function mediaImportPath(path: OsPath, kind: MediaAssetKind): Result<string, PlatformError>;
 
     /// Delete media assets by identifier.
     ///

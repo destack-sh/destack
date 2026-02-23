@@ -237,6 +237,9 @@ export newtype SerialPortHandle = ResourceId;
 /// Handle for one USB device endpoint.
 export newtype UsbDeviceHandle = ResourceId;
 
+/// Handle for one USB hotplug watch stream.
+export newtype UsbWatchHandle = ResourceId;
+
 /// Handle for one Bluetooth scan session.
 export newtype BluetoothScanHandle = ResourceId;
 

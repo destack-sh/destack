@@ -49,6 +49,32 @@ export struct LocationSample {
 
 /// Location bindings.
 declare namespace os {
+    /// Read whether host location services are enabled.
+    ///
+    /// Read global host location-service availability before per-runtime authorization checks.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host location service-status APIs.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.location.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.location.servicesEnabled", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.location.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "never",
+    })
+    export function locationServicesEnabled(): Result<boolean, PlatformError>;
+
     /// Read last known location sample.
     ///
     /// Read one cached location sample from the host location service.

@@ -14,6 +14,78 @@ export struct BluetoothAdapterDescriptor {
     lowEnergy: boolean;
 }
 
+/// Bluetooth scan mode.
+export enum BluetoothScanMode {
+    /// Passive scan mode.
+    Passive = 1,
+    /// Active scan mode.
+    Active = 2,
+}
+
+/// Bluetooth transport selector.
+export enum BluetoothTransport {
+    /// LE transport only.
+    LowEnergy = 1,
+    /// Classic transport only.
+    Classic = 2,
+    /// Dual-mode transport selection.
+    Dual = 3,
+}
+
+/// Bluetooth LE PHY selector.
+export enum BluetoothPhy {
+    /// LE 1M PHY.
+    Le1M = 1,
+    /// LE 2M PHY.
+    Le2M = 2,
+    /// LE coded PHY.
+    LeCoded = 3,
+    /// Host default PHY policy.
+    Any = 4,
+}
+
+/// Bluetooth advertisement manufacturer payload.
+export struct BluetoothAdvertisementManufacturerData {
+    /// Bluetooth company identifier.
+    companyId: uint16;
+    /// Manufacturer payload bytes.
+    data: Slice<uint8>;
+}
+
+/// Bluetooth advertisement service payload.
+export struct BluetoothAdvertisementServiceData {
+    /// Service UUID.
+    serviceUuid: string;
+    /// Service payload bytes.
+    data: Slice<uint8>;
+}
+
+/// Bluetooth advertisement payload.
+export struct BluetoothAdvertisementData {
+    /// Advertised local name when available.
+    localName?: string;
+    /// Advertised transmit power in dBm when available.
+    txPower?: int16;
+    /// Service UUID list.
+    serviceUuids: Array<string>;
+    /// Manufacturer payload entries.
+    manufacturerData: Array<BluetoothAdvertisementManufacturerData>;
+    /// Service payload entries.
+    serviceData: Array<BluetoothAdvertisementServiceData>;
+}
+
+/// Bluetooth pairing state.
+export enum BluetoothPairState {
+    /// Pairing state is unknown.
+    Unknown = 1,
+    /// Device is not paired.
+    Unpaired = 2,
+    /// Pairing is in progress.
+    Pairing = 3,
+    /// Device is paired.
+    Paired = 4,
+}
+
 /// Bluetooth device descriptor.
 export struct BluetoothDeviceDescriptor {
     /// Stable device identifier.
@@ -21,13 +93,19 @@ export struct BluetoothDeviceDescriptor {
     /// Device address string.
     address: string;
     /// Host-visible device name when available.
-    name: string;
+    name?: string;
     /// Signal strength in dBm when available.
-    rssi: int32;
+    rssi?: int32;
     /// Whether the device is currently paired.
     paired: boolean;
+    /// Pairing state when reported by host.
+    pairState: BluetoothPairState;
     /// Whether the device is currently connected.
     connected: boolean;
+    /// Whether this advertisement indicates connectable state.
+    connectable: boolean;
+    /// Advertisement payload.
+    advertisement: BluetoothAdvertisementData;
 }
 
 /// Bluetooth scan filter.
@@ -35,9 +113,19 @@ export struct BluetoothScanFilter {
     /// Service UUID filters.
     serviceUuids: Array<string>;
     /// Device name prefix filter.
-    namePrefix: string;
+    namePrefix?: string;
     /// Whether to include duplicate advertisements.
     allowDuplicates: boolean;
+    /// Minimum RSSI filter in dBm.
+    minimumRssi?: int32;
+    /// Transport selector.
+    transport?: BluetoothTransport;
+    /// Scan mode selector.
+    scanMode?: BluetoothScanMode;
+    /// Preferred primary PHY.
+    primaryPhy?: BluetoothPhy;
+    /// Preferred secondary PHY.
+    secondaryPhy?: BluetoothPhy;
 }
 
 /// GATT value notification event.
@@ -269,6 +357,90 @@ declare namespace device {
         blocking: "sometimes",
     })
     export function bluetoothClose(handle: BluetoothDeviceHandle): Result<void, PlatformError>;
+
+    /// Pair one Bluetooth device.
+    ///
+    /// Pair one opened Bluetooth device session with host bonding APIs.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host pairing and bonding APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.connect`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.device.bluetooth.session.pair", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["device.bluetooth.connect"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function bluetoothPair(
+        handle: BluetoothDeviceHandle,
+        timeoutNs: uint64,
+    ): Result<void, PlatformError>;
+
+    /// Remove one Bluetooth device bond.
+    ///
+    /// Remove host bond state for one Bluetooth device on one adapter.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host unpair or remove-device APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.connect`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.device.bluetooth.session.unpair", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["device.bluetooth.connect"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function bluetoothUnpair(adapterId: string, deviceId: string): Result<void, PlatformError>;
+
+    /// Read link RSSI for one Bluetooth device session.
+    ///
+    /// Read current received signal strength indicator for one connected device session.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host Bluetooth RSSI query APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.bluetooth.connect`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.bluetooth.session.rssi", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.bluetooth.connect"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function bluetoothReadRssi(
+        handle: BluetoothDeviceHandle,
+        timeoutNs: uint64,
+    ): Result<int32, PlatformError>;
 
     /// List discovered GATT services.
     ///

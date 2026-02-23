@@ -4,7 +4,7 @@ import { OsPath } from "../fs/path.ds";
 import { IntentHandle } from "../resource/index.ds";
 
 /// Host intent event kind.
-export enum OsIntentKind {
+export enum IntentKind {
     /// Runtime was activated with one URL target.
     OpenUrl = 1,
     /// Runtime was activated with one file target.
@@ -18,7 +18,7 @@ export enum OsIntentKind {
 }
 
 /// Inbound intent payload.
-export struct OsIntentPayload {
+export struct IntentPayload {
     /// URL payload when kind is `OpenUrl`.
     url: string;
     /// File payloads when kind is `OpenFile` or `ShareFiles`.
@@ -32,9 +32,9 @@ export struct OsIntentPayload {
 }
 
 /// Inbound intent event.
-export struct OsIntentEvent {
+export struct IntentEvent {
     /// Event kind selector.
-    kind: OsIntentKind;
+    kind: IntentKind;
     /// Event timestamp in nanoseconds.
     timestampNs: uint64;
     /// Monotonic sequence number for this stream.
@@ -42,11 +42,11 @@ export struct OsIntentEvent {
     /// Host source package or process identifier when available.
     source: string;
     /// Typed payload for the event.
-    payload: OsIntentPayload;
+    payload: IntentPayload;
 }
 
 /// Intent stream open options.
-export struct OsIntentOpenOptions {
+export struct IntentOpenOptions {
     /// Whether to include URL activation events.
     includeOpenUrl: boolean;
     /// Whether to include file activation events.
@@ -83,7 +83,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function intentOpen(options: OsIntentOpenOptions): Result<IntentHandle, PlatformError>;
+    export function intentOpen(options: IntentOpenOptions): Result<IntentHandle, PlatformError>;
 
     /// Close one host intent stream.
     ///
@@ -135,7 +135,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function intentRead(handle: IntentHandle, timeoutNs: uint64): Result<OsIntentEvent, PlatformError>;
+    export function intentRead(handle: IntentHandle, timeoutNs: uint64): Result<IntentEvent, PlatformError>;
 
     /// Poll one inbound intent event without blocking.
     ///
@@ -161,7 +161,33 @@ declare namespace os {
         scope: "host",
         blocking: "never",
     })
-    export function intentTryRead(handle: IntentHandle): Result<OsIntentEvent, PlatformError>;
+    export function intentTryRead(handle: IntentHandle): Result<IntentEvent, PlatformError>;
+
+    /// Query whether host can route one URL target.
+    ///
+    /// Ask host routing policy whether one URL target can be opened.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses `canOpenURL` or `resolveActivity` style APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.intent.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.intent.canOpenUrl", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.intent.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function intentCanOpenUrl(url: string): Result<boolean, PlatformError>;
 
     /// Request host to open one URL target.
     ///

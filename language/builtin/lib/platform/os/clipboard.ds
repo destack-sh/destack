@@ -13,6 +13,32 @@ export enum ClipboardBinaryFormat {
 
 /// Clipboard bindings.
 declare namespace os {
+    /// Query whether text clipboard payload exists.
+    ///
+    /// Return whether one text payload is currently available on the host clipboard.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard query APIs and selection ownership checks.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.clipboard.hasText", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.clipboard.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function clipboardHasText(): Result<boolean, PlatformError>;
+
     /// Read text clipboard payload.
     ///
     /// Read one text payload from the host clipboard.
@@ -143,4 +169,30 @@ declare namespace os {
         blocking: "never",
     })
     export function clipboardSequence(): Result<uint64, PlatformError>;
+
+    /// Clear clipboard payload.
+    ///
+    /// Clear current host clipboard ownership or payload contents.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard clear and owner-reset APIs.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.clipboard.clear", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.clipboard.write"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function clipboardClear(): Result<void, PlatformError>;
 }

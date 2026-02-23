@@ -3,7 +3,7 @@ import type { PlatformError } from "../error/index.ds";
 import { BackgroundEventHandle } from "../resource/index.ds";
 
 /// Background-task scheduler status.
-export enum OsBackgroundStatus {
+export enum BackgroundStatus {
     /// Background scheduling is unavailable on this host.
     Unavailable = 1,
     /// Background scheduling is available but currently restricted by host policy.
@@ -13,7 +13,7 @@ export enum OsBackgroundStatus {
 }
 
 /// Background-task trigger class.
-export enum OsBackgroundTriggerKind {
+export enum BackgroundTriggerKind {
     /// Opportunistic short refresh task.
     AppRefresh = 1,
     /// Longer processing task.
@@ -21,7 +21,7 @@ export enum OsBackgroundTriggerKind {
 }
 
 /// Background-task completion class.
-export enum OsBackgroundTaskResult {
+export enum BackgroundTaskResult {
     /// Task completed successfully.
     Success = 1,
     /// Task should be retried later.
@@ -31,7 +31,7 @@ export enum OsBackgroundTaskResult {
 }
 
 /// Background-task event kind.
-export enum OsBackgroundEventKind {
+export enum BackgroundEventKind {
     /// Host scheduled one task execution.
     TaskReady = 1,
     /// Host signaled one running task expiration.
@@ -39,13 +39,15 @@ export enum OsBackgroundEventKind {
 }
 
 /// Background-task scheduling options.
-export struct OsBackgroundTaskOptions {
+export struct BackgroundTaskOptions {
     /// Stable task identifier.
     identifier: string;
     /// Trigger class.
-    trigger: OsBackgroundTriggerKind;
+    trigger: BackgroundTriggerKind;
     /// Requested minimum repeat interval in nanoseconds.
     minimumIntervalNs: uint64;
+    /// Earliest target execution timestamp in UTC nanoseconds.
+    earliestBeginUnixNs: uint64;
     /// Whether one network route is required.
     requiresNetwork: boolean;
     /// Whether one unmetered network route is required.
@@ -59,13 +61,15 @@ export struct OsBackgroundTaskOptions {
 }
 
 /// Background-task descriptor payload.
-export struct OsBackgroundTaskDescriptor {
+export struct BackgroundTaskDescriptor {
     /// Stable task identifier.
     identifier: string;
     /// Trigger class.
-    trigger: OsBackgroundTriggerKind;
+    trigger: BackgroundTriggerKind;
     /// Effective minimum repeat interval in nanoseconds.
     minimumIntervalNs: uint64;
+    /// Earliest target execution timestamp in UTC nanoseconds.
+    earliestBeginUnixNs: uint64;
     /// Whether one network route is required.
     requiresNetwork: boolean;
     /// Whether one unmetered network route is required.
@@ -79,7 +83,7 @@ export struct OsBackgroundTaskDescriptor {
 }
 
 /// Background-task event stream open options.
-export struct OsBackgroundEventOpenOptions {
+export struct BackgroundEventOpenOptions {
     /// Whether task-ready events should be included.
     includeTaskReady: boolean;
     /// Whether task-expired events should be included.
@@ -87,9 +91,9 @@ export struct OsBackgroundEventOpenOptions {
 }
 
 /// Background-task event payload.
-export struct OsBackgroundEvent {
+export struct BackgroundEvent {
     /// Event kind selector.
-    kind: OsBackgroundEventKind;
+    kind: BackgroundEventKind;
     /// Monotonic event timestamp in nanoseconds.
     timestampNs: uint64;
     /// Monotonic sequence number for this event stream.
@@ -128,7 +132,7 @@ declare namespace os {
         scope: "host",
         blocking: "never",
     })
-    export function backgroundStatus(): Result<OsBackgroundStatus, PlatformError>;
+    export function backgroundStatus(): Result<BackgroundStatus, PlatformError>;
 
     /// List background-task registrations.
     ///
@@ -154,7 +158,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function backgroundList(): Result<Array<OsBackgroundTaskDescriptor>, PlatformError>;
+    export function backgroundList(): Result<Array<BackgroundTaskDescriptor>, PlatformError>;
 
     /// Register one background task.
     ///
@@ -180,7 +184,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function backgroundRegister(options: OsBackgroundTaskOptions): Result<void, PlatformError>;
+    export function backgroundRegister(options: BackgroundTaskOptions): Result<void, PlatformError>;
 
     /// Unregister one background task.
     ///
@@ -258,7 +262,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function backgroundComplete(executionId: string, result: OsBackgroundTaskResult): Result<void, PlatformError>;
+    export function backgroundComplete(executionId: string, result: BackgroundTaskResult): Result<void, PlatformError>;
 
     /// Open one background-task event stream.
     ///
@@ -284,7 +288,7 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function backgroundEventOpen(options: OsBackgroundEventOpenOptions): Result<BackgroundEventHandle, PlatformError>;
+    export function backgroundEventOpen(options: BackgroundEventOpenOptions): Result<BackgroundEventHandle, PlatformError>;
 
     /// Close one background-task event stream.
     ///
@@ -339,7 +343,7 @@ declare namespace os {
     export function backgroundEventRead(
         handle: BackgroundEventHandle,
         timeoutNs: uint64,
-    ): Result<OsBackgroundEvent, PlatformError>;
+    ): Result<BackgroundEvent, PlatformError>;
 
     /// Poll one background-task event without blocking.
     ///
@@ -365,5 +369,5 @@ declare namespace os {
         scope: "host",
         blocking: "never",
     })
-    export function backgroundEventTryRead(handle: BackgroundEventHandle): Result<OsBackgroundEvent, PlatformError>;
+    export function backgroundEventTryRead(handle: BackgroundEventHandle): Result<BackgroundEvent, PlatformError>;
 }

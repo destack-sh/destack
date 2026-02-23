@@ -1,7 +1,8 @@
+import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
 
 /// Permission state.
-export enum OsPermissionState {
+export enum PermissionState {
     /// Access is granted.
     Granted = 1,
     /// Access is denied.
@@ -15,7 +16,7 @@ export enum OsPermissionState {
 }
 
 /// Permission selector.
-export enum OsPermission {
+export enum Permission {
     /// Foreground location access.
     Location = 1,
     /// Background location access.
@@ -46,6 +47,14 @@ export enum OsPermission {
     CalendarWrite = 14,
 }
 
+/// Permission-state entry.
+export struct PermissionEntry {
+    /// Permission selector.
+    permission: Permission;
+    /// Permission state for this selector.
+    state: PermissionState;
+}
+
 /// Permission bindings.
 declare namespace os {
     /// Read one permission state.
@@ -72,7 +81,33 @@ declare namespace os {
         scope: "host",
         blocking: "never",
     })
-    export function permissionState(permission: OsPermission): Result<OsPermissionState, PlatformError>;
+    export function permissionState(permission: Permission): Result<PermissionState, PlatformError>;
+
+    /// Read permission states.
+    ///
+    /// Read current host permission states for one selector list.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host permission-state APIs and policy bridges.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.permission.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.permission.stateMany", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.permission.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function permissionStateMany(permissions: Array<Permission>): Result<Array<PermissionEntry>, PlatformError>;
 
     /// Request one permission.
     ///
@@ -98,7 +133,35 @@ declare namespace os {
         scope: "host",
         blocking: "sometimes",
     })
-    export function permissionRequest(permission: OsPermission): Result<OsPermissionState, PlatformError>;
+    export function permissionRequest(permission: Permission): Result<PermissionState, PlatformError>;
+
+    /// Request multiple permissions.
+    ///
+    /// Request host authorization for one selector list and return resulting states.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses batched host permission request APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.permission.request`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.permission.requestMany", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.permission.request"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function permissionRequestMany(
+        permissions: Array<Permission>,
+    ): Result<Array<PermissionEntry>, PlatformError>;
 
     /// Open host settings for runtime permissions.
     ///
