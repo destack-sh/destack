@@ -2,6 +2,7 @@ mod tests;
 
 pub use tests::{
     RequestRetryPolicy, TestDaemon, TestProtocolHarness, TestWatchBatch, TestWatchHarness,
+    wait_for_condition,
 };
 
 pub mod incremental;
