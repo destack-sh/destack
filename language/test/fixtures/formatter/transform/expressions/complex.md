@@ -87,10 +87,8 @@ outer.map((x) => x.items.filter((y) => y.ok).map((y) => y.value))
 
 ```ds expected
 outer.map((x) =>
-    x.items
-        .filter((y) => y.ok)
-        .map((y) => y.value),
-);
+    x.items.filter((y) => y.ok).map((y) =>
+        y.value));
 ```
 
 ## Assignments and Chains
@@ -286,11 +284,7 @@ const { user: { profile: { name, avatar } } } = data
 ```
 
 ```ds expected
-const {
-    user: {
-        profile: { name, avatar },
-    },
-} = data;
+const { user: { profile: { name, avatar } } } = data;
 ```
 
 ### mixed destructuring with defaults
@@ -443,19 +437,16 @@ a = b = c = 1
 a = b = c = 1;
 ```
 
-### long chained assignment breaks
+### long chained assignment stays inline
 
-When chained assignments exceed line width, each breaks at same indent level.
+Chained assignments stay inline as a single right-associative expression.
 
 ```ds line-width=30
 veryLongName = anotherLongName = thirdLongName = 42
 ```
 
 ```ds expected
-veryLongName =
-    anotherLongName =
-    thirdLongName =
-        42;
+veryLongName = anotherLongName = thirdLongName = 42;
 ```
 
 ## Deeply Nested Callbacks
@@ -497,8 +488,7 @@ a((x) => b((y) => c((z) => d(x, y, z))))
 
 ```ds expected
 a((x) =>
-    b((y) => c((z) => d(x, y, z))),
-);
+    b((y) => c((z) => d(x, y, z))));
 ```
 
 ## Async/Await Patterns
@@ -603,8 +593,7 @@ const x = veryLongA + veryLongB * veryLongC
 ```
 
 ```ds expected
-const x =
-    veryLongA +
+const x = veryLongA +
     veryLongB * veryLongC;
 ```
 
@@ -738,9 +727,9 @@ data.filter((x) => isValid ? x.active : x.pending).map((x) => x.id)
 ```
 
 ```ds expected
-data.filter((x) =>
-    isValid ? x.active : x.pending,
-).map((x) => x.id);
+data
+    .filter((x) => isValid ? x.active : x.pending)
+    .map((x) => x.id);
 ```
 
 ### chain with array index
@@ -758,7 +747,7 @@ users[0].profile.settings.theme;
 ### complex chain with index and call
 
 Mix of property access, indexing, and method calls.
-Chains keep a short head group with the receiver.
+Chains break at member seams under narrow width.
 
 ```ds line-width=35
 obj.items[0].getValue().transform()
@@ -784,7 +773,7 @@ curry(a)(b)(c)
 curry(a)(b)(c);
 ```
 
-### long curried call breaks
+### long curried call stays inline
 
 Long curried calls keep direct tail calls together when possible.
 
@@ -793,9 +782,7 @@ curriedFunction(firstArg)(secondArg)(thirdArg)
 ```
 
 ```ds expected
-curriedFunction(firstArg)(
-    secondArg,
-)(thirdArg);
+curriedFunction(firstArg)(secondArg)(thirdArg);
 ```
 
 ### curried call with objects
@@ -885,11 +872,7 @@ const { user: { profile: { settings: { theme, language } } } } = config
 
 ```ds expected
 const {
-    user: {
-        profile: {
-            settings: { theme, language },
-        },
-    },
+    user: { profile: { settings: { theme, language } } },
 } = config;
 ```
 

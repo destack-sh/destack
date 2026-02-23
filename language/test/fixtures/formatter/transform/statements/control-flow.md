@@ -89,11 +89,7 @@ const result = if (x > 0) { "positive" } else { "negative" }
 ```
 
 ```ds expected
-const result = if (x > 0) {
-    "positive";
-} else {
-    "negative";
-};
+const result = if (x > 0) { "positive" } else { "negative" };
 ```
 
 ### nested if

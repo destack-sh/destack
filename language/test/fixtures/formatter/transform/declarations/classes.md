@@ -342,9 +342,9 @@ class Options { normal = 1; "data-id" = 2; "default"() { } }
 
 ```ts expected
 class Options {
-    normal = 1;
+    "normal" = 1;
     "data-id" = 2;
-    default() {}
+    "default"() {}
 }
 ```
 
@@ -817,10 +817,9 @@ class MyClass implements FirstInterface, SecondInterface, ThirdInterface { }
 
 ```ds expected
 class MyClass
-    implements
-        FirstInterface,
-        SecondInterface,
-        ThirdInterface {}
+    implements FirstInterface,
+    SecondInterface,
+    ThirdInterface {}
 ```
 
 ## Complex Classes

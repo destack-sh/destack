@@ -25,7 +25,7 @@ const x = 'a'
 ```
 
 ```ds expected
-const x = "a";
+const x = 'a';
 ```
 
 ### empty string
@@ -99,7 +99,7 @@ const x = "say \"hello\""
 ```
 
 ```ds expected
-const x = 'say "hello"';
+const x = "say \"hello\"";
 ```
 
 ## Template Literals
@@ -285,7 +285,7 @@ String concatenation uses `+` operator.
 ```
 
 ```ds expected
-"hello" + " " + "world";
+"hello" + ' ' + "world";
 ```
 
 ### string concat with variables
@@ -323,7 +323,7 @@ Strings can be array elements.
 ```
 
 ```ds expected
-["a", "b", "c"];
+['a', 'b', 'c'];
 ```
 
 ### string in object

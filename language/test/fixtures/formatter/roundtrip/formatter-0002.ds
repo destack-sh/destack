@@ -5,13 +5,10 @@ export enum MeetupStatus {
     @default
     @description("The Meetup is a draft.")
     Draft,
-
     @description("The Meetup is upcoming.")
     Upcoming,
-
     @description("The Meetup is cancelled.")
     Cancelled,
-
     @description("The Meetup is past.")
     Past,
 }

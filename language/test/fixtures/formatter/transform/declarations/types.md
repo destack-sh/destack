@@ -128,9 +128,9 @@ type MaybeUser = { name: string, email: string } | null | undefined
 ```ds expected
 type MaybeUser =
     | {
-            name: string;
-            email: string;
-        }
+        name: string;
+        email: string;
+    }
     | null
     | undefined;
 ```
@@ -146,9 +146,9 @@ type MaybeUser = { name: string, email: string } /* note */ | null | undefined
 ```ds expected
 type MaybeUser =
     | {
-            name: string;
-            email: string;
-        } /* note */
+        name: string;
+        email: string;
+    } /* note */
     | null
     | undefined;
 ```
@@ -205,7 +205,7 @@ type Explicit<T> = { +readonly [K in keyof T]+?: T[K] }
 ```
 
 ```ds expected
-type Explicit<T> = { +readonly [K in keyof T]+?: T[K] };
+type Explicit<T> = { readonly [K in keyof T]?: T[K] };
 ```
 
 ### mapped type with optional modifier
@@ -242,9 +242,7 @@ type DeepReadonly<T> = { readonly [K in keyof T]: DeepReadonly<T[K]> }
 
 ```ds expected
 type DeepReadonly<T> = {
-    readonly [K in keyof T]: DeepReadonly<
-        T[K]
-    >;
+    readonly [K in keyof T]: DeepReadonly<T[K]>;
 };
 ```
 

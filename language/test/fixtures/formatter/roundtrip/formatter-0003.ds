@@ -4,7 +4,7 @@ import { createServer, Router, Response } from "destack/http";
 import { Database, Query } from "destack/db";
 
 type UserId = string;
-type Result<T> = { ok: true, value: T } | { ok: false, error: Error };
+type Result<T> = { ok: true; value: T } | { ok: false; error: Error };
 
 interface UserService {
     findById(id: UserId): Promise<User | undefined>;
@@ -26,13 +26,13 @@ export class User {
     passwordHash: string;
 
     profile: {
-        firstName: string,
-        lastName: string,
-        avatar?: string,
+        firstName: string;
+        lastName: string;
+        avatar?: string;
         settings: {
-            theme: "light" | "dark",
-            notifications: boolean,
-        },
+            theme: "light" | "dark";
+            notifications: boolean;
+        };
     };
 
     @timestamps

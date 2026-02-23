@@ -242,14 +242,17 @@ Entity {
 
 ### array of structs
 
-Arrays of structs stay on one line if short.
+Arrays of structs break one per line for stable readability.
 
 ```ds
 [Point { x: 1, y: 1 }, Point { x: 2, y: 2 }]
 ```
 
 ```ds expected
-[Point { x: 1, y: 1 }, Point { x: 2, y: 2 }];
+[
+    Point { x: 1, y: 1 },
+    Point { x: 2, y: 2 },
+];
 ```
 
 ### array of structs breaks

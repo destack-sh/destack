@@ -149,17 +149,16 @@ const result = id === null
 ```
 
 ```ts expected
-const result =
-    id === null
-        ? null
-        : internal.getSuspenseCache(client).getFragmentRef(
-              [id, options.fragment, cache.canonicalStringify(variables)],
-              client,
-              tslib.__assign(tslib.__assign({}, options), {
-                  variables: variables,
-                  from: id,
-              }),
-          );
+const result = id === null
+    ? null
+    : internal.getSuspenseCache(client).getFragmentRef(
+            [id, options.fragment, cache.canonicalStringify(variables)],
+            client,
+            tslib.__assign(tslib.__assign({}, options), {
+                variables: variables,
+                from: id,
+            }),
+        );
 ```
 
 ### ternary with object literals

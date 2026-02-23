@@ -261,7 +261,8 @@ expect(genCode(createVNodeCall(null, "`div`", mockProps)))
 ```
 
 ```ts expected
-expect(genCode(createVNodeCall(null, "`div`", mockProps))).toMatchInlineSnapshot(`
+expect(genCode(createVNodeCall(null, "`div`", mockProps)))
+    .toMatchInlineSnapshot(`
   `);
 ```
 
