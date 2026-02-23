@@ -141,5 +141,5 @@ declare const sample: ByteSensorWindows.Sample;
 sample satisfies uint8;
 
 declare const window: ByteSensorWindows.Window;
-window satisfies uint8[][4];
+window satisfies uint8[][4 as comptime];
 ```

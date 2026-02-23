@@ -236,17 +236,20 @@ Destack supports dynamic arrays, of course, but also statically-sized arrays:
 int32[]                    // dynamic array
 readonly int32[]           // readonly dynamic array
 int32[N]                   // fixed-size array
-readonly int32[]           // readonly fixed-size array
+readonly int32[N]          // readonly fixed-size array
 ```
 
 Supporting fixed sized arrays with this clean syntax is very nice, but unfortunately overloads T[N] with TypeScript's type indexing.
-So, `T[N]` has two meanings in Destack: indexed access and fixed-size arrays.
-This can get annoying, but, fortunately, it is _usually_ unambiguous:
+So, `T[N]` has two meanings in Destack: indexed access and fixed-size arrays:
 - In `.ts` and `.d.ts`, `T[N]` always uses TypeScript indexed-access semantics.
+- The builtin alias `FixedArray<T, comptime N>` is exactly `T[N as comptime]`.
 - In `.ds`, `T[N as comptime]` always means fixed-size array construction.
 - In `.ds`, if `N` is type-space, `T[N]` is indexed access.
 - In `.ds`, otherwise we check indexed-access admissibility for `T[N]` using normal type-index rules.
-- If indexed access is admissible, `T[N]` is indexed access, else `N` resolves to a static integer value, `T[N]` is fixed-size array.
+- If indexed access is admissible, `T[N]` is indexed access.
+- This includes numeric literals and concrete comptime values, for example `string[4]`.
+- If indexed access is inadmissible and `N` resolves to a static integer value, `T[N]` is fixed-size array.
+- In ambiguous value-space cases where fixed-size semantics are intended, use `N as comptime`.
 
 Destack's rules for arrays (and tuples) center around correctness and performance.
 As with most other design decisions, if you're writing modern TypeScript, this will work fine.

@@ -335,7 +335,7 @@ declare const sample: ByteWindowLayout.Sample;
 sample satisfies uint8;
 
 declare const window: ByteWindowLayout.Window;
-window satisfies uint8[][4];
+window satisfies uint8[][4 as comptime];
 ```
 
 ### namespace imports preserve fixed-array disambiguation with as comptime

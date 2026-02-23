@@ -528,10 +528,10 @@ import { PublicCriticalProfile } from "./index";
 declare const envelope: PublicCriticalProfile.Envelope;
 
 declare const critical: PublicCriticalProfile.Envelope["critical"];
-critical satisfies [true, uint8[10]];
+critical satisfies [true, uint8[10 as comptime]];
 
 declare const enabled: PublicCriticalProfile.Envelope["enabled"];
-enabled satisfies [boolean, uint8[10]];
+enabled satisfies [boolean, uint8[10 as comptime]];
 ```
 
 ### multi-hop re-exports preserve contract comptime alias chains

@@ -127,8 +127,8 @@ class TextPacket implements PacketShape<string> {}
 declare const packet: TextPacket.Packet;
 
 declare const head: TextPacket.Packet["head"];
-head satisfies string[4];
+head satisfies string[4 as comptime];
 
 declare const tail: TextPacket.Packet["tail"];
-tail satisfies string[4];
+tail satisfies string[4 as comptime];
 ```

@@ -90,7 +90,9 @@ const (x, _) = getPoint();
 Arrays are dense and bounds checked by default.
 Readonly arrays use `readonly T[]`, and tuples use explicit `()` syntax.
 Fixed-size arrays use `T[N]` and are distinct from dynamic `T[]`.
-(Because TS supports generic `T[x]` for indexing, sometimes we require `x as comptime` to force fixed-size array construction regardless of index admissibility.)
+Because TypeScript uses `T[N]` for indexed access, Destack keeps that behavior when indexed access is admissible.
+Use `N as comptime` to force fixed-size array construction in ambiguous cases, including numeric literals like `string[4 as comptime]`.
+(We also provide a `FixedArray<T, comptime N>` as an explicit alias for `T[N as comptime]`.)
 
 ### Patterns
 

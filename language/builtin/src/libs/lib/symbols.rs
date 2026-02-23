@@ -317,12 +317,13 @@ pub(crate) const ES5_DECLARED_SYMBOLS: &[&str] = &[
     "TemplateStringsArray",
 ];
 
-pub(crate) const JS_DECLARED_SYMBOLS: &[&str] = &["Slice", "Vector"];
+pub(crate) const JS_DECLARED_SYMBOLS: &[&str] = &["Slice", "FixedArray", "Vector"];
 
 pub(crate) const NATIVE_DECLARED_SYMBOLS: &[&str] = &[
     "String",
     "Array",
     "ReadonlyArray",
+    "FixedArray",
     "arrayOf",
     "arrayFill",
     "Slice",
