@@ -1,0 +1,228 @@
+import { Array, Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { MidiPortHandle } from "../resource/index.ds";
+
+/// MIDI endpoint direction.
+export enum MidiPortDirection {
+    /// Endpoint receives MIDI messages from one host source.
+    Input = 1,
+    /// Endpoint sends MIDI messages to one host sink.
+    Output = 2,
+}
+
+/// MIDI endpoint descriptor.
+export struct MidiPortDescriptor {
+    /// Stable endpoint identifier.
+    id: string;
+    /// Host-visible endpoint name.
+    name: string;
+    /// Host-visible endpoint manufacturer name when available.
+    manufacturer: string;
+    /// Host-visible endpoint version string when available.
+    version: string;
+    /// Endpoint direction.
+    direction: MidiPortDirection;
+    /// Whether the endpoint is virtual.
+    isVirtual: boolean;
+}
+
+/// Timestamped MIDI message payload.
+export struct MidiMessage {
+    /// Message timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Source endpoint identifier.
+    sourceId: string;
+    /// Raw MIDI bytes.
+    data: Slice<uint8>;
+}
+
+/// MIDI endpoint bindings.
+declare namespace audio {
+    /// List available MIDI endpoints.
+    ///
+    /// Enumerate host MIDI endpoints for one selected direction.
+    /// Endpoint visibility and ordering follow host MIDI subsystem behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses CoreMIDI or ALSA sequencer or WinMM or UWP MIDI APIs depending on backend availability.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.midi`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.midi.portList", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.midi"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function midiPortList(direction: MidiPortDirection): Result<Slice<MidiPortDescriptor>, PlatformError>;
+
+    /// Open one MIDI endpoint.
+    ///
+    /// Open one host MIDI endpoint for input or output operations.
+    /// Endpoint open behavior follows host MIDI session policy and sharing semantics.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific MIDI endpoint open operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.midi`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.midi.portOpen", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.midi"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function midiPortOpen(id: string, direction: MidiPortDirection): Result<MidiPortHandle, PlatformError>;
+
+    /// Close one MIDI endpoint.
+    ///
+    /// Close one opened MIDI endpoint and release host resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific MIDI close operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.midi`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.midi.portClose", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.midi"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function midiPortClose(handle: MidiPortHandle): Result<void, PlatformError>;
+
+    /// Read MIDI messages.
+    ///
+    /// Read up to `maxMessages` queued MIDI messages from one opened input endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend MIDI queue receive operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.midi`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.midi.read", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.midi"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function midiRead(
+        handle: MidiPortHandle,
+        maxMessages: uint32,
+        timeoutNs: uint64,
+    ): Result<Array<MidiMessage>, PlatformError>;
+
+    /// Poll MIDI messages without blocking.
+    ///
+    /// Read up to `maxMessages` queued MIDI messages from one opened input endpoint without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend nonblocking MIDI queue receive operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.midi`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.midi.tryRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.midi"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "never",
+    })
+    export function midiTryRead(handle: MidiPortHandle, maxMessages: uint32): Result<Array<MidiMessage>, PlatformError>;
+
+    /// Write MIDI messages.
+    ///
+    /// Submit one batch of MIDI messages to one opened output endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend MIDI queue send operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.midi`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.midi.write", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.midi"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function midiWrite(handle: MidiPortHandle, messages: Array<MidiMessage>): Result<uint32, PlatformError>;
+
+    /// Flush queued MIDI output.
+    ///
+    /// Request immediate flush of queued outbound MIDI messages for one opened output endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific MIDI flush operations where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `audio.midi`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.audio.midi.flush", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["audio.midi"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function midiFlush(handle: MidiPortHandle): Result<void, PlatformError>;
+}

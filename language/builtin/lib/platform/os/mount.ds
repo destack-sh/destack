@@ -43,7 +43,7 @@ declare namespace os {
             blocking: "sometimes",
         },
     )
-    export function list(): Result<Array<MountEntry>, PlatformError>;
+    export function mountList(): Result<Array<MountEntry>, PlatformError>;
 
     /// Mount one filesystem target.
     ///
@@ -73,7 +73,7 @@ declare namespace os {
             blocking: "sometimes",
         },
     )
-    export function add(
+    export function mountAdd(
         source: OsPath,
         target: OsPath,
         fileSystem: string,
@@ -109,5 +109,5 @@ declare namespace os {
             blocking: "sometimes",
         },
     )
-    export function remove(target: OsPath, flags: uint32): Result<void, PlatformError>;
+    export function mountRemove(target: OsPath, flags: uint32): Result<void, PlatformError>;
 }

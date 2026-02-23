@@ -60,7 +60,7 @@ declare namespace fs {
     /// Event ordering and coalescing behavior are backend defined.
     ///
     /// # Platform
-    /// Linux, BSD, macOS, and Windows.
+    /// Unix and Windows.
     /// Uses inotify on Linux, kqueue on BSD, FSEvents on macOS, and ReadDirectoryChangesW on Windows.
     ///
     /// # Errors
@@ -71,7 +71,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.watch.open", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "macos", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.watch.open", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function watch(path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>;
 
     /// Start watching a path relative to a directory handle.
@@ -80,7 +80,7 @@ declare namespace fs {
     /// Event ordering and coalescing behavior are backend defined.
     ///
     /// # Platform
-    /// Linux, BSD, macOS, and Windows.
+    /// Unix and Windows.
     /// Uses inotify on Linux, kqueue on BSD, FSEvents on macOS, and ReadDirectoryChangesW on Windows.
     ///
     /// # Errors
@@ -91,7 +91,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.watch.openat", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "macos", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.watch.openat", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function watchat(
         directory: DirectoryHandle,
         path: OsPath,
@@ -104,7 +104,7 @@ declare namespace fs {
     /// Callers should treat `overflowed` as a signal to resynchronize state.
     ///
     /// # Platform
-    /// Linux, BSD, macOS, and Windows.
+    /// Unix and Windows.
     /// Uses inotify event reads on Linux, kevent on BSD, FSEvents stream reads on macOS, and ReadDirectoryChangesW reads on Windows.
     ///
     /// # Errors
@@ -115,7 +115,7 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.watch.openRead", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "macos", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.watch.openRead", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function watchRead(handle: WatchHandle): Result<WatchBatch, PlatformError>;
 
     /// Close a watch handle.
@@ -124,7 +124,7 @@ declare namespace fs {
     /// No further events are delivered after close succeeds.
     ///
     /// # Platform
-    /// Linux, BSD, macOS, and Windows.
+    /// Unix and Windows.
     /// Uses backend specific handle close and unregister operations.
     ///
     /// # Errors
@@ -135,6 +135,6 @@ declare namespace fs {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.fs.watch.openClose", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "macos", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.fs.watch.openClose", { effect: "external", replay: "recordable", capabilities: ["fs.watch"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function watchClose(handle: WatchHandle): Result<void, PlatformError>;
 }

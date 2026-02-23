@@ -1,0 +1,128 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Permission state.
+export enum OsPermissionState {
+    /// Access is granted.
+    Granted = 1,
+    /// Access is denied.
+    Denied = 2,
+    /// Access can be requested.
+    Prompt = 3,
+    /// Access is restricted by host policy.
+    Restricted = 4,
+    /// Access is granted with limited scope.
+    Limited = 5,
+}
+
+/// Permission selector.
+export enum OsPermission {
+    /// Foreground location access.
+    Location = 1,
+    /// Background location access.
+    LocationBackground = 2,
+    /// Camera access.
+    Camera = 3,
+    /// Microphone access.
+    Microphone = 4,
+    /// Bluetooth access.
+    Bluetooth = 5,
+    /// Notification delivery permission.
+    Notifications = 6,
+    /// Contacts read access.
+    ContactsRead = 7,
+    /// Contacts write access.
+    ContactsWrite = 8,
+    /// Media-library read access.
+    MediaRead = 9,
+    /// Media-library write access.
+    MediaWrite = 10,
+    /// Motion or activity sensor access.
+    Motion = 11,
+    /// Clipboard read access.
+    ClipboardRead = 12,
+    /// Calendar read access.
+    CalendarRead = 13,
+    /// Calendar write access.
+    CalendarWrite = 14,
+}
+
+/// Permission bindings.
+declare namespace os {
+    /// Read one permission state.
+    ///
+    /// Read the current host permission state for one permission selector.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host permission-state APIs on Android and Apple platforms, and host policy bridges on desktop platforms.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.permission.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.permission.state", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.permission.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "never",
+    })
+    export function permissionState(permission: OsPermission): Result<OsPermissionState, PlatformError>;
+
+    /// Request one permission.
+    ///
+    /// Request host authorization for one permission selector.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host permission-request dialogs and policy APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.permission.request`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.permission.request", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.permission.request"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function permissionRequest(permission: OsPermission): Result<OsPermissionState, PlatformError>;
+
+    /// Open host settings for runtime permissions.
+    ///
+    /// Request host navigation to the runtime permission settings page.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host settings-intent APIs when available.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.permission.request`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.permission.openSettings", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.permission.request"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function permissionOpenSettings(): Result<void, PlatformError>;
+}

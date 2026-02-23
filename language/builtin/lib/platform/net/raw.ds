@@ -135,7 +135,7 @@ declare namespace net {
     /// Host privilege checks and backend-specific limits are enforced by the kernel or driver.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses AF_PACKET on Linux, BPF devices on BSD, and packet capture drivers on Windows.
     ///
     /// # Errors
@@ -146,7 +146,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetOpen", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.raw.packetOpen", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function packetOpen(options: PacketCaptureOptions): Result<SocketHandle, PlatformError>;
 
     /// Receive one packet from a packet endpoint.
@@ -155,7 +155,7 @@ declare namespace net {
     /// Truncation is reported explicitly when the payload buffer is smaller than the captured frame.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses AF_PACKET or BPF packet reads on Unix and packet capture driver reads on Windows.
     ///
     /// # Errors
@@ -166,7 +166,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetReceive", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.raw.packetReceive", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function packetReceive(
         handle: SocketHandle,
         payload: Slice<uint8>,
@@ -178,7 +178,7 @@ declare namespace net {
     /// Partial sends are reported through the returned byte count.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses AF_PACKET or BPF packet writes on Unix and packet injection driver writes on Windows.
     ///
     /// # Errors
@@ -189,7 +189,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetSend", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.raw.packetSend", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function packetSend(
         handle: SocketHandle,
         payload: Slice<uint8>,
@@ -201,7 +201,7 @@ declare namespace net {
     /// Unsupported timestamp modes return notSupported.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses SO_TIMESTAMP families on Unix and socket timestamp controls on Windows where available.
     ///
     /// # Errors
@@ -212,7 +212,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetSetTimestampMode", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.raw.packetSetTimestampMode", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function packetSetTimestampMode(
         handle: SocketHandle,
         mode: PacketTimestampMode,
@@ -224,7 +224,7 @@ declare namespace net {
     /// Filter verification and accepted instruction sets are host defined.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses SO_ATTACH_FILTER or BPF attach APIs on Unix and equivalent packet filter APIs on Windows.
     ///
     /// # Errors
@@ -235,7 +235,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetSetFilter", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.raw.packetSetFilter", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function packetSetFilter(
         handle: SocketHandle,
         filterProgram: Slice<uint8>,
@@ -247,7 +247,7 @@ declare namespace net {
     /// Filter teardown semantics are host defined.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses SO_DETACH_FILTER or BPF detach APIs on Unix and equivalent packet filter APIs on Windows.
     ///
     /// # Errors
@@ -258,7 +258,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetClearFilter", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.raw.packetClearFilter", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function packetClearFilter(handle: SocketHandle): Result<void, PlatformError>;
 
     /// Set packet fanout on a packet endpoint.
@@ -267,7 +267,7 @@ declare namespace net {
     /// Fanout group behavior and mode-specific flags follow host packet socket semantics.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses PACKET_FANOUT on Linux and returns notSupported where fanout groups are unavailable.
     ///
     /// # Errors
@@ -278,7 +278,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetSetFanout", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.raw.packetSetFanout", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function packetSetFanout(
         handle: SocketHandle,
         options: PacketFanoutOptions,
@@ -290,7 +290,7 @@ declare namespace net {
     /// Group teardown behavior and packet redistribution follow host kernel semantics.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses PACKET_FANOUT reset on Linux and returns notSupported where fanout groups are unavailable.
     ///
     /// # Errors
@@ -301,7 +301,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetClearFanout", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.raw.packetClearFanout", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function packetClearFanout(handle: SocketHandle): Result<void, PlatformError>;
 
     /// Configure one packet rx ring for zero-copy capture.
@@ -310,7 +310,7 @@ declare namespace net {
     /// Ring geometry is validated by the host kernel and may be clamped or rejected.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses PACKET_RX_RING on Linux and returns notSupported where packet rings are unavailable.
     ///
     /// # Errors
@@ -321,7 +321,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetSetRxRing", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.raw.packetSetRxRing", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function packetSetRxRing(
         handle: SocketHandle,
         options: PacketRingOptions,
@@ -333,7 +333,7 @@ declare namespace net {
     /// Ring geometry is validated by the host kernel and may be clamped or rejected.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses PACKET_TX_RING on Linux and returns notSupported where packet rings are unavailable.
     ///
     /// # Errors
@@ -344,7 +344,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetSetTxRing", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.raw.packetSetTxRing", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function packetSetTxRing(
         handle: SocketHandle,
         options: PacketRingOptions,
@@ -356,7 +356,7 @@ declare namespace net {
     /// Pending ring buffers are released according to host packet socket semantics.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses PACKET_RX_RING and PACKET_TX_RING reset on Linux and returns notSupported elsewhere.
     ///
     /// # Errors
@@ -367,7 +367,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetClearRing", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.raw.packetClearRing", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function packetClearRing(handle: SocketHandle): Result<void, PlatformError>;
 
     /// Read packet capture statistics from one endpoint.
@@ -376,7 +376,7 @@ declare namespace net {
     /// Counter units and reset behavior follow host backend semantics.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses packet socket stats on Linux, BPF stats on BSD, and equivalent packet backend stats on Windows.
     ///
     /// # Errors
@@ -387,7 +387,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.raw.packetStats", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.raw.packetStats", { effect: "external", replay: "recordable", capabilities: ["net.raw"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function packetStats(
         handle: SocketHandle,
     ): Result<PacketCaptureStats, PlatformError>;

@@ -42,7 +42,7 @@ declare namespace net {
     /// Results are snapshots and may become stale immediately after the call.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses netlink or routing sockets on Unix and iphlpapi route tables on Windows.
     ///
     /// # Errors
@@ -53,7 +53,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.route.routeList", { effect: "external", replay: "recordable", capabilities: ["net.route.read"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.route.routeList", { effect: "external", replay: "recordable", capabilities: ["net.route.read"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function routeList(family: SocketFamily): Result<Array<RouteEntry>, PlatformError>;
 
     /// Add a route table entry.
@@ -62,7 +62,7 @@ declare namespace net {
     /// Host privilege and policy checks are enforced by the kernel.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
     ///
     /// # Errors
@@ -73,7 +73,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.route.routeAdd", { effect: "external", replay: "recordable", capabilities: ["net.route.write"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.route.routeAdd", { effect: "external", replay: "recordable", capabilities: ["net.route.write"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function routeAdd(route: RouteEntry): Result<void, PlatformError>;
 
     /// Remove a route table entry.
@@ -82,7 +82,7 @@ declare namespace net {
     /// Host privilege and policy checks are enforced by the kernel.
     ///
     /// # Platform
-    /// Linux, BSD, and Windows.
+    /// Unix and Windows.
     /// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
     ///
     /// # Errors
@@ -93,7 +93,7 @@ declare namespace net {
     ///
     /// # Replay
     /// External, recordable.
-    @binding("destack.net.route.routeDelete", { effect: "external", replay: "recordable", capabilities: ["net.route.write"], platforms: ["windows", "linux", "bsd"], scope: "host", blocking: "sometimes" })
+    @binding("destack.net.route.routeDelete", { effect: "external", replay: "recordable", capabilities: ["net.route.write"], platforms: ["windows", "unix"], scope: "host", blocking: "sometimes" })
     export function routeDelete(route: RouteEntry): Result<void, PlatformError>;
 
 }

@@ -44,6 +44,12 @@ builtin_lib_sources_targeted!(
             "index.ds"
         ),
         (
+            LIB_PLATFORM_AUDIO_MIDI_DS,
+            "lib",
+            "platform/audio",
+            "midi.ds"
+        ),
+        (
             LIB_PLATFORM_AUDIO_STREAM_DS,
             "lib",
             "platform/audio",
@@ -102,6 +108,36 @@ builtin_lib_sources_targeted!(
             "lib",
             "platform/debug",
             "trace.ds"
+        ),
+        (
+            LIB_PLATFORM_DEVICE_BLUETOOTH_DS,
+            "lib",
+            "platform/device",
+            "bluetooth.ds"
+        ),
+        (
+            LIB_PLATFORM_DEVICE_CAMERA_DS,
+            "lib",
+            "platform/device",
+            "camera.ds"
+        ),
+        (
+            LIB_PLATFORM_DEVICE_INDEX_DS,
+            "lib",
+            "platform/device",
+            "index.ds"
+        ),
+        (
+            LIB_PLATFORM_DEVICE_SERIAL_DS,
+            "lib",
+            "platform/device",
+            "serial.ds"
+        ),
+        (
+            LIB_PLATFORM_DEVICE_USB_DS,
+            "lib",
+            "platform/device",
+            "usb.ds"
         ),
         (
             LIB_PLATFORM_DISPLAY_INDEX_DS,
@@ -291,13 +327,13 @@ builtin_lib_sources_targeted!(
         (LIB_PLATFORM_IO_DEVICE_DS, "lib", "platform/io", "device.ds"),
         (LIB_PLATFORM_IO_EVENT_DS, "lib", "platform/io", "event.ds"),
         (LIB_PLATFORM_IO_INDEX_DS, "lib", "platform/io", "index.ds"),
+        (LIB_PLATFORM_IO_POLL_DS, "lib", "platform/io", "poll.ds"),
         (
             LIB_PLATFORM_IO_TIMERFD_DS,
             "lib",
             "platform/io",
             "timerfd.ds"
         ),
-        (LIB_PLATFORM_IO_POLL_DS, "lib", "platform/io", "poll.ds"),
         (LIB_PLATFORM_IO_URING_DS, "lib", "platform/io", "uring.ds"),
         (LIB_PLATFORM_IPC_INDEX_DS, "lib", "platform/ipc", "index.ds"),
         (
@@ -388,10 +424,78 @@ builtin_lib_sources_targeted!(
         (LIB_PLATFORM_NET_TCP_DS, "lib", "platform/net", "tcp.ds"),
         (LIB_PLATFORM_NET_UDP_DS, "lib", "platform/net", "udp.ds"),
         (LIB_PLATFORM_NET_UDS_DS, "lib", "platform/net", "uds.ds"),
+        (
+            LIB_PLATFORM_OS_BACKGROUND_DS,
+            "lib",
+            "platform/os",
+            "background.ds"
+        ),
+        (
+            LIB_PLATFORM_OS_CALENDAR_DS,
+            "lib",
+            "platform/os",
+            "calendar.ds"
+        ),
+        (
+            LIB_PLATFORM_OS_CLIPBOARD_DS,
+            "lib",
+            "platform/os",
+            "clipboard.ds"
+        ),
+        (
+            LIB_PLATFORM_OS_CONTACT_DS,
+            "lib",
+            "platform/os",
+            "contact.ds"
+        ),
+        (
+            LIB_PLATFORM_OS_CREDENTIALS_DS,
+            "lib",
+            "platform/os",
+            "credentials.ds"
+        ),
+        (
+            LIB_PLATFORM_OS_DOCUMENT_DS,
+            "lib",
+            "platform/os",
+            "document.ds"
+        ),
         (LIB_PLATFORM_OS_HOST_DS, "lib", "platform/os", "host.ds"),
         (LIB_PLATFORM_OS_INDEX_DS, "lib", "platform/os", "index.ds"),
         (LIB_PLATFORM_OS_INFO_DS, "lib", "platform/os", "info.ds"),
+        (LIB_PLATFORM_OS_INTENT_DS, "lib", "platform/os", "intent.ds"),
+        (
+            LIB_PLATFORM_OS_LIFECYCLE_DS,
+            "lib",
+            "platform/os",
+            "lifecycle.ds"
+        ),
+        (
+            LIB_PLATFORM_OS_LOCATION_DS,
+            "lib",
+            "platform/os",
+            "location.ds"
+        ),
+        (LIB_PLATFORM_OS_MEDIA_DS, "lib", "platform/os", "media.ds"),
         (LIB_PLATFORM_OS_MOUNT_DS, "lib", "platform/os", "mount.ds"),
+        (
+            LIB_PLATFORM_OS_NETWORK_DS,
+            "lib",
+            "platform/os",
+            "network.ds"
+        ),
+        (
+            LIB_PLATFORM_OS_NOTIFICATION_DS,
+            "lib",
+            "platform/os",
+            "notification.ds"
+        ),
+        (
+            LIB_PLATFORM_OS_PERMISSION_DS,
+            "lib",
+            "platform/os",
+            "permission.ds"
+        ),
         (LIB_PLATFORM_OS_POWER_DS, "lib", "platform/os", "power.ds"),
         (
             LIB_PLATFORM_PROCESS_ARGS_DS,
@@ -643,6 +747,7 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_AUDIO_DEVICE_DS,
         LIB_PLATFORM_AUDIO_EVENT_DS,
         LIB_PLATFORM_AUDIO_INDEX_DS,
+        LIB_PLATFORM_AUDIO_MIDI_DS,
         LIB_PLATFORM_AUDIO_STREAM_DS,
         LIB_PLATFORM_CRYPTO_CERTIFICATE_DS,
         LIB_PLATFORM_CRYPTO_INDEX_DS,
@@ -653,6 +758,11 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_DEBUG_INSPECTOR_DS,
         LIB_PLATFORM_DEBUG_PROFILE_DS,
         LIB_PLATFORM_DEBUG_TRACE_DS,
+        LIB_PLATFORM_DEVICE_BLUETOOTH_DS,
+        LIB_PLATFORM_DEVICE_CAMERA_DS,
+        LIB_PLATFORM_DEVICE_INDEX_DS,
+        LIB_PLATFORM_DEVICE_SERIAL_DS,
+        LIB_PLATFORM_DEVICE_USB_DS,
         LIB_PLATFORM_DISPLAY_INDEX_DS,
         LIB_PLATFORM_DISPLAY_MONITOR_DS,
         LIB_PLATFORM_DISPLAY_WINDOW_DS,
@@ -701,8 +811,8 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_IO_DEVICE_DS,
         LIB_PLATFORM_IO_EVENT_DS,
         LIB_PLATFORM_IO_INDEX_DS,
-        LIB_PLATFORM_IO_TIMERFD_DS,
         LIB_PLATFORM_IO_POLL_DS,
+        LIB_PLATFORM_IO_TIMERFD_DS,
         LIB_PLATFORM_IO_URING_DS,
         LIB_PLATFORM_IPC_INDEX_DS,
         LIB_PLATFORM_IPC_MESSAGE_DS,
@@ -728,10 +838,23 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_NET_TCP_DS,
         LIB_PLATFORM_NET_UDP_DS,
         LIB_PLATFORM_NET_UDS_DS,
+        LIB_PLATFORM_OS_BACKGROUND_DS,
+        LIB_PLATFORM_OS_CALENDAR_DS,
+        LIB_PLATFORM_OS_CLIPBOARD_DS,
+        LIB_PLATFORM_OS_CONTACT_DS,
+        LIB_PLATFORM_OS_CREDENTIALS_DS,
+        LIB_PLATFORM_OS_DOCUMENT_DS,
         LIB_PLATFORM_OS_HOST_DS,
         LIB_PLATFORM_OS_INDEX_DS,
         LIB_PLATFORM_OS_INFO_DS,
+        LIB_PLATFORM_OS_INTENT_DS,
+        LIB_PLATFORM_OS_LIFECYCLE_DS,
+        LIB_PLATFORM_OS_LOCATION_DS,
+        LIB_PLATFORM_OS_MEDIA_DS,
         LIB_PLATFORM_OS_MOUNT_DS,
+        LIB_PLATFORM_OS_NETWORK_DS,
+        LIB_PLATFORM_OS_NOTIFICATION_DS,
+        LIB_PLATFORM_OS_PERMISSION_DS,
         LIB_PLATFORM_OS_POWER_DS,
         LIB_PLATFORM_PROCESS_ARGS_DS,
         LIB_PLATFORM_PROCESS_CWD_DS,

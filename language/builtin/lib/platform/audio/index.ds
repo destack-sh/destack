@@ -3,4 +3,5 @@ export declare namespace audio {}
 export * from "./clock.ds";
 export * from "./device.ds";
 export * from "./event.ds";
+export * from "./midi.ds";
 export * from "./stream.ds";

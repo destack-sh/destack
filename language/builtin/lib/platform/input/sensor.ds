@@ -16,6 +16,14 @@ export enum InputSensorKind {
     LinearAcceleration = 5,
     /// Orientation quaternion.
     Orientation = 6,
+    /// Barometric pressure in hectopascal.
+    Barometer = 7,
+    /// Ambient light level in lux.
+    AmbientLight = 8,
+    /// Proximity distance in centimeters.
+    Proximity = 9,
+    /// Step count since backend-defined epoch.
+    StepCounter = 10,
 }
 
 /// Sensor capability metadata.

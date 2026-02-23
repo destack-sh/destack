@@ -129,11 +129,38 @@ export newtype AudioStreamHandle = ResourceId;
 /// Handle for one audio event subscription endpoint.
 export newtype AudioEventHandle = ResourceId;
 
+/// Handle for one MIDI endpoint.
+export newtype MidiPortHandle = ResourceId;
+
 /// Handle for one display device endpoint.
 export newtype DisplayHandle = ResourceId;
 
 /// Handle for one window or surface host object.
 export newtype WindowHandle = ResourceId;
+
+/// Handle for one display window-event stream.
+export newtype WindowEventHandle = ResourceId;
+
+/// Handle for one inbound intent event stream.
+export newtype IntentHandle = ResourceId;
+
+/// Handle for one lifecycle event stream.
+export newtype LifecycleEventHandle = ResourceId;
+
+/// Handle for one location watch stream.
+export newtype LocationWatchHandle = ResourceId;
+
+/// Handle for one network watch stream.
+export newtype NetworkWatchHandle = ResourceId;
+
+/// Handle for one background-task event stream.
+export newtype BackgroundEventHandle = ResourceId;
+
+/// Handle for one notification event stream.
+export newtype NotificationEventHandle = ResourceId;
+
+/// Handle for one opened document-provider endpoint.
+export newtype DocumentHandle = ResourceId;
 
 /// Handle for one input device endpoint.
 export newtype InputDeviceHandle = ResourceId;
@@ -203,3 +230,24 @@ export newtype GpuShaderHandle = ResourceId;
 
 /// Handle for one GPU pipeline endpoint.
 export newtype GpuPipelineHandle = ResourceId;
+
+/// Handle for one serial-port endpoint.
+export newtype SerialPortHandle = ResourceId;
+
+/// Handle for one USB device endpoint.
+export newtype UsbDeviceHandle = ResourceId;
+
+/// Handle for one Bluetooth scan session.
+export newtype BluetoothScanHandle = ResourceId;
+
+/// Handle for one Bluetooth device session.
+export newtype BluetoothDeviceHandle = ResourceId;
+
+/// Handle for one Bluetooth GATT subscription.
+export newtype BluetoothSubscriptionHandle = ResourceId;
+
+/// Handle for one camera device endpoint.
+export newtype CameraDeviceHandle = ResourceId;
+
+/// Handle for one camera stream endpoint.
+export newtype CameraStreamHandle = ResourceId;

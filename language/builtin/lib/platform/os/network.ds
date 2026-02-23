@@ -1,0 +1,204 @@
+import type { PlatformError } from "../error/index.ds";
+import { NetworkWatchHandle } from "../resource/index.ds";
+
+/// Host network connection class.
+export enum OsNetworkConnectionType {
+    /// No active network route.
+    None = 1,
+    /// Unknown or backend-specific route class.
+    Unknown = 2,
+    /// Wi-Fi route.
+    Wifi = 3,
+    /// Cellular route.
+    Cellular = 4,
+    /// Ethernet route.
+    Ethernet = 5,
+    /// Bluetooth PAN route.
+    Bluetooth = 6,
+    /// VPN tunnel route.
+    Vpn = 7,
+    /// Other route class.
+    Other = 8,
+}
+
+/// Cellular radio generation class.
+export enum OsNetworkCellularGeneration {
+    /// Generation is unknown.
+    Unknown = 1,
+    /// Second-generation cellular network.
+    G2 = 2,
+    /// Third-generation cellular network.
+    G3 = 3,
+    /// Fourth-generation cellular network.
+    G4 = 4,
+    /// Fifth-generation cellular network.
+    G5 = 5,
+}
+
+/// Host network state snapshot.
+export struct OsNetworkState {
+    /// Route connection class.
+    connectionType: OsNetworkConnectionType;
+    /// Whether one route to a local network is available.
+    connected: boolean;
+    /// Whether one route to the public internet is available.
+    internetReachable: boolean;
+    /// Whether the route is metered or expensive.
+    expensive: boolean;
+    /// Whether the route is constrained by low-data mode.
+    constrained: boolean;
+    /// Whether the active route is roaming.
+    roaming: boolean;
+    /// Cellular generation when `connectionType` is `Cellular`.
+    cellularGeneration: OsNetworkCellularGeneration;
+    /// Estimated downstream bandwidth in megabits per second when available.
+    downlinkMbps: float64;
+    /// Estimated upstream bandwidth in megabits per second when available.
+    uplinkMbps: float64;
+}
+
+/// Host network event payload.
+export struct OsNetworkEvent {
+    /// Monotonic event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this watch stream.
+    sequence: uint64;
+    /// Network state snapshot.
+    state: OsNetworkState;
+}
+
+/// Network bindings.
+declare namespace os {
+    /// Read host network state.
+    ///
+    /// Read one point-in-time host network state snapshot.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Network.framework path monitoring on Apple platforms, ConnectivityManager on Android, and NetworkInformation APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.network.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.network.state", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.network.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "never",
+    })
+    export function networkState(): Result<OsNetworkState, PlatformError>;
+
+    /// Open host network watch stream.
+    ///
+    /// Open one host network watch stream for connectivity state transitions.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host network callback subscription APIs.
+    ///
+    /// # Errors
+    /// Returns ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.network.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.network.watchOpen", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.network.watch"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function networkWatchOpen(): Result<NetworkWatchHandle, PlatformError>;
+
+    /// Close host network watch stream.
+    ///
+    /// Close one host network watch stream and release host subscription resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host network callback unsubscription APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.network.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.network.watchClose", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.network.watch"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function networkWatchClose(handle: NetworkWatchHandle): Result<void, PlatformError>;
+
+    /// Wait for one host network event.
+    ///
+    /// Wait for one queued host network event from one opened watch stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host network event queues.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.network.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.network.watchRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.network.watch"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function networkWatchRead(
+        handle: NetworkWatchHandle,
+        timeoutNs: uint64,
+    ): Result<OsNetworkEvent, PlatformError>;
+
+    /// Poll one host network event without blocking.
+    ///
+    /// Poll one queued host network event from one opened watch stream without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host nonblocking network event queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.network.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.network.watchTryRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.network.watch"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "never",
+    })
+    export function networkWatchTryRead(handle: NetworkWatchHandle): Result<OsNetworkEvent, PlatformError>;
+}

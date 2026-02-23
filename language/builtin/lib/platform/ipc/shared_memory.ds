@@ -24,7 +24,7 @@ declare namespace ipc {
     /// Returns invalidArgument, ioPermissionDenied, ioAlreadyExists, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
@@ -33,7 +33,7 @@ declare namespace ipc {
         {
             effect: "external",
             replay: "recordable",
-            capabilities: ["ipc.sharedMemory"],
+            capabilities: ["ipc.shared.memory"],
             platforms: ["windows", "unix"],
             scope: "host",
             blocking: "sometimes",
@@ -54,7 +54,7 @@ declare namespace ipc {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
@@ -63,7 +63,7 @@ declare namespace ipc {
         {
             effect: "external",
             replay: "recordable",
-            capabilities: ["ipc.sharedMemory"],
+            capabilities: ["ipc.shared.memory"],
             platforms: ["windows", "unix"],
             scope: "host",
             blocking: "sometimes",
@@ -84,7 +84,7 @@ declare namespace ipc {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
@@ -93,7 +93,7 @@ declare namespace ipc {
         {
             effect: "external",
             replay: "recordable",
-            capabilities: ["ipc.sharedMemory"],
+            capabilities: ["ipc.shared.memory"],
             platforms: ["windows", "unix"],
             scope: "host",
             blocking: "sometimes",
@@ -114,7 +114,7 @@ declare namespace ipc {
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
@@ -123,7 +123,7 @@ declare namespace ipc {
         {
             effect: "external",
             replay: "recordable",
-            capabilities: ["ipc.sharedMemory"],
+            capabilities: ["ipc.shared.memory"],
             platforms: ["windows", "unix"],
             scope: "host",
             blocking: "sometimes",
@@ -149,7 +149,7 @@ declare namespace ipc {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
@@ -158,7 +158,7 @@ declare namespace ipc {
         {
             effect: "external",
             replay: "recordable",
-            capabilities: ["ipc.sharedMemory"],
+            capabilities: ["ipc.shared.memory"],
             platforms: ["windows", "unix"],
             scope: "host",
             blocking: "sometimes",

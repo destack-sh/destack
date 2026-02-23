@@ -37,7 +37,7 @@ declare namespace ipc {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.unix`, `ipc.fdPass`.
+    /// Requires `ipc.unix`, `ipc.fd.pass`.
     ///
     /// # Replay
     /// External, recordable.
@@ -46,7 +46,7 @@ declare namespace ipc {
         {
             effect: "external",
             replay: "recordable",
-            capabilities: ["ipc.unix", "ipc.fdPass"],
+            capabilities: ["ipc.unix", "ipc.fd.pass"],
             platforms: ["unix"],
             scope: "host",
             blocking: "sometimes",
@@ -71,7 +71,7 @@ declare namespace ipc {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.unix`, `ipc.fdPass`.
+    /// Requires `ipc.unix`, `ipc.fd.pass`.
     ///
     /// # Replay
     /// External, recordable.
@@ -80,7 +80,7 @@ declare namespace ipc {
         {
             effect: "external",
             replay: "recordable",
-            capabilities: ["ipc.unix", "ipc.fdPass"],
+            capabilities: ["ipc.unix", "ipc.fd.pass"],
             platforms: ["unix"],
             scope: "host",
             blocking: "sometimes",
