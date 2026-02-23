@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
+use destack_compiler::CompilerOptions;
 use destack_fir::format as fir_format;
 use destack_formatter::{
     DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list,
@@ -164,8 +165,9 @@ pub(super) fn tracked_file_globs() -> Vec<&'static str> {
 pub(super) fn create_workspace_service(
     session: Arc<Session>,
     root: PathBuf,
+    compiler_options: CompilerOptions,
 ) -> Result<LspLanguageService, LanguageServiceError> {
-    LspLanguageService::new(session, vec![root])
+    LspLanguageService::with_options(session, vec![root], compiler_options)
 }
 
 /// Convert completion kind to LSP completion item kind.

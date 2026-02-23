@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use destack_compiler::CompilerOptions;
 use destack_lsp_server::jsonrpc::Response;
 use destack_lsp_server::{LanguageServer, LspService};
 use destack_lsp_types as lsp;
@@ -51,8 +52,14 @@ fn test_lsp_workspace_service_virtual_update_emits_diagnostics() {
     let session = Arc::new(session.with_workspace(workspace));
     session.add_root(root.clone());
 
-    let workspace_service = LspLanguageService::new(session.clone(), vec![root.clone()])
-        .expect("expected workspace service");
+    // keep lsp workspace-service test deterministic: use a single compiler worker
+    let compiler_options = CompilerOptions {
+        workers: 1,
+        ..CompilerOptions::default()
+    };
+    let workspace_service =
+        LspLanguageService::with_options(session.clone(), vec![root.clone()], compiler_options)
+            .expect("expected workspace service");
 
     let path = root.join("main.ds");
     let _ = fs.write_text("main.ds", "export const x: number = 1;\n");
