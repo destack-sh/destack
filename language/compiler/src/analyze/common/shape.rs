@@ -3,8 +3,8 @@ use crate::analyze::module::GlobalMergeCategory;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
     Asynchrony, Declaration, Expression, FunctionCardinality, GlobalSymbolId, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LocalTypeId, NodeTree, StaticKey, SymbolSpace, SymbolTable,
-    SymbolType, Type, TypeField, TypeIndexSignature, TypeTable, are_types_equal,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, NodeTree, StaticKey, Symbol, SymbolSpace,
+    SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeTable, are_types_equal,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -198,81 +198,67 @@ impl Compiler {
         kind: RemoteMergeShapeKind,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<ObjectShape>> {
-        self.with_module_tree_symbols_at_stage(
+        let remote_shape_type = self.with_module_tree_symbols_at_stage(
             module,
             profile,
             global_symbol.module_id,
             AnalyzeDependencyStage::Declare,
-            |remote_module, remote_tree, remote_symbols| {
+            |remote_module, _remote_tree, _remote_symbols| {
                 let remote_dir = remote_module.dir(profile);
-                let mut remote_types = remote_dir.types.write();
+                let remote_types = remote_dir.types.read();
 
                 // pick the remote shape source type
                 let remote_type_id = match kind {
                     RemoteMergeShapeKind::Instance => {
-                        let Some(remote_type_id) = remote_types.get_instance_type_id(global_symbol)
-                        else {
-                            return Ok(None);
-                        };
-                        remote_type_id
+                        remote_types.get_instance_type_id(global_symbol)?
                     }
-                    RemoteMergeShapeKind::Value => {
-                        let Some(remote_type_id) = remote_types.get_value_type_id(global_symbol)
-                        else {
-                            return Ok(None);
-                        };
-                        remote_type_id
-                    }
+                    RemoteMergeShapeKind::Value => remote_types.get_value_type_id(global_symbol)?,
                 };
 
-                // materialize the remote type before importing shape members
-                self.materialize_imported_type(
-                    remote_module,
-                    profile,
-                    remote_type_id,
-                    remote_tree,
-                    remote_symbols,
-                    &mut remote_types,
-                )?;
-
-                // import the remote type for local shape extraction
                 let remote_type = remote_types.get_type(remote_type_id).clone();
-                let local_type_id = self.import_type_from_remote_for_node(
-                    declaration_id.into_any(),
-                    &remote_type,
-                    &remote_types,
-                    global_symbol,
-                    types,
-                );
-
-                // extract the imported shape by mode
-                let mut shape = ObjectShape::default();
-                match kind {
-                    RemoteMergeShapeKind::Instance => {
-                        let local_type = types.get_type(local_type_id);
-                        if !shape.extend_from_object(local_type) {
-                            return Ok(None);
-                        }
-                    }
-                    RemoteMergeShapeKind::Value => {
-                        let mut extras = Vec::new();
-                        let mut visited = Vec::new();
-                        self.collect_value_shape_from_type(
-                            local_type_id,
-                            types,
-                            &mut shape,
-                            &mut extras,
-                            &mut visited,
-                        );
-                        if shape.is_empty() {
-                            return Ok(None);
-                        }
-                    }
-                }
-
-                Ok(Some(shape))
+                let remote_snapshot = remote_types.clone();
+                Some((remote_type, remote_snapshot))
             },
-        )?
+        )?;
+        let Some((remote_type, remote_snapshot)) = remote_shape_type else {
+            return Ok(None);
+        };
+
+        // import the remote type after dropping remote locks
+        let local_type_id = self.import_type_from_remote_for_node(
+            declaration_id.into_any(),
+            &remote_type,
+            &remote_snapshot,
+            global_symbol,
+            types,
+        );
+
+        // extract the imported shape by mode
+        let mut shape = ObjectShape::default();
+        match kind {
+            RemoteMergeShapeKind::Instance => {
+                let local_type = types.get_type(local_type_id);
+                if !shape.extend_from_object(local_type) {
+                    return Ok(None);
+                }
+            }
+            RemoteMergeShapeKind::Value => {
+                let mut extras = Vec::new();
+                let mut visited = Vec::new();
+                self.collect_value_shape_from_type(
+                    local_type_id,
+                    types,
+                    &mut shape,
+                    &mut extras,
+                    &mut visited,
+                );
+                if shape.is_empty() {
+                    return Ok(None);
+                }
+            }
+        }
+
+        Ok(Some(shape))
     }
 
     // build a value type from a merged shape and extras
@@ -331,7 +317,7 @@ impl Compiler {
     }
 
     /// Check whether a symbol should receive merged instance members.
-    fn symbol_supports_instance_merge(&self, symbol: &destack_dir::Symbol) -> bool {
+    fn symbol_supports_instance_merge(&self, symbol: &Symbol) -> bool {
         // only structured nominal symbols support instance merging
         matches!(
             symbol.ty,

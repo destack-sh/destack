@@ -7,7 +7,7 @@ use destack_workspace::ModuleGraphStamp;
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
 #[phase(Analyze)]
 pub enum AnalyzeTask {
-    /// Analyze a module completely (declare, interface, infer, capture, validate).
+    /// Analyze a module completely (declare, interface, infer, solve, commit, capture, validate).
     #[task(code = 1, trace = "module={module} profile={profile}")]
     AnalyzeModule {
         module: ModuleStamp,
@@ -29,7 +29,7 @@ pub enum AnalyzeTask {
     },
 
     /// Infer one strongly connected interface component.
-    #[task(code = 7, trace = "module={module} profile={profile} graph={graph}")]
+    #[task(code = 4, trace = "module={module} profile={profile} graph={graph}")]
     AnalyzeInterfaceComponent {
         module: ModuleStamp,
         profile: ProfileStamp,
@@ -37,21 +37,35 @@ pub enum AnalyzeTask {
     },
 
     /// Infer expression types.
-    #[task(code = 4, trace = "module={module} profile={profile}")]
+    #[task(code = 5, trace = "module={module} profile={profile}")]
     AnalyzeModuleInfer {
         module: ModuleStamp,
         profile: ProfileStamp,
     },
 
+    /// Solve infer constraints and substitutions.
+    #[task(code = 6, trace = "module={module} profile={profile}")]
+    AnalyzeModuleSolve {
+        module: ModuleStamp,
+        profile: ProfileStamp,
+    },
+
+    /// Commit solved infer records into shared tables.
+    #[task(code = 7, trace = "module={module} profile={profile}")]
+    AnalyzeModuleCommit {
+        module: ModuleStamp,
+        profile: ProfileStamp,
+    },
+
     /// Resolve closure captures.
-    #[task(code = 5, trace = "module={module} profile={profile}")]
+    #[task(code = 8, trace = "module={module} profile={profile}")]
     AnalyzeModuleCapture {
         module: ModuleStamp,
         profile: ProfileStamp,
     },
 
     /// Final validation pass.
-    #[task(code = 6, trace = "module={module} profile={profile}")]
+    #[task(code = 9, trace = "module={module} profile={profile}")]
     AnalyzeModuleValidate {
         module: ModuleStamp,
         profile: ProfileStamp,
@@ -130,6 +144,24 @@ impl Compiler {
                     profile.version,
                 )?;
                 self.analyze_module_infer(module.id, profile.id, module.version, profile.version)?;
+            }
+            AnalyzeTask::AnalyzeModuleSolve { module, profile } => {
+                self.ensure_module_profile_matches::<AnalyzeError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
+                self.analyze_module_solve(module.id, profile.id, module.version, profile.version)?;
+            }
+            AnalyzeTask::AnalyzeModuleCommit { module, profile } => {
+                self.ensure_module_profile_matches::<AnalyzeError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
+                self.analyze_module_commit(module.id, profile.id, module.version, profile.version)?;
             }
             AnalyzeTask::AnalyzeModuleCapture { module, profile } => {
                 self.ensure_module_profile_matches::<AnalyzeError>(

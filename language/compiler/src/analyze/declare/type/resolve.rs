@@ -8,6 +8,7 @@ use destack_dir::{
     StaticExpression, StaticKey, StaticParameterKind, SymbolKind, SymbolSpace, SymbolSpaceOrder,
     SymbolTable, Type, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
+use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 use std::collections::HashSet;
 
@@ -47,7 +48,7 @@ enum TypeIndexReceiverState {
 impl Compiler {
     pub(crate) fn set_integer_literal_type(
         &self,
-        module_id: destack_source::ModuleId,
+        module_id: ModuleId,
         expression_id: LocalNodeId<Expression>,
         value: i64,
         types: &mut TypeTable,
@@ -63,7 +64,7 @@ impl Compiler {
 
     pub(crate) fn array_sized_count_type_id_for_expression(
         &self,
-        module_id: destack_source::ModuleId,
+        module_id: ModuleId,
         expression_id: LocalNodeId<Expression>,
         types: &mut TypeTable,
     ) -> LocalTypeId {
@@ -1434,7 +1435,7 @@ impl Compiler {
         );
         if symbol_space == Some(SymbolSpace::Value) {
             let mut visited = HashSet::new();
-            if let Some(static_value) = self.static_expression_from_constant_reference_parametric(
+            if let Some(static_value) = self.resolve_static_constant_reference_parametric(
                 module,
                 profile,
                 target_symbol,
@@ -1492,7 +1493,7 @@ impl Compiler {
         Ok(ty)
     }
 
-    /// Resolve symbol space for one type-reference target when declare facts are available.
+    /// Resolve symbol space for one type-reference target when declare commitments are available.
     pub(crate) fn query_symbol_space_for_reference_if_declared(
         &self,
         module: &Module,

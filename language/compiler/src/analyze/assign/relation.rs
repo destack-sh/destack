@@ -200,6 +200,16 @@ impl Compiler {
         let target = types.get_type(target_id).clone();
         let source = types.get_type(source_id).clone();
 
+        // newtypes are nominal: only the same newtype symbol is assignable
+        if let Some(target_symbol) = self.unwrap_type_value_symbol(types, target_id)
+            && target_symbol.ty() == SymbolType::Newtype
+        {
+            let source_symbol = self.unwrap_type_value_symbol(types, source_id);
+            if source_symbol != Some(target_symbol) {
+                return Assignability::NotAssignable;
+            }
+        }
+
         // prevent implicit enum backing coercions
         if self.blocks_enum_backing_assignability(&source, &target, types) {
             return Assignability::NotAssignable;
@@ -1864,6 +1874,13 @@ impl Compiler {
                 return Some(Assignability::Assignable);
             }
 
+            return Some(Assignability::NotAssignable);
+        }
+
+        // newtypes are nominal: never allow implicit cross symbol assignability
+        if matches!(target_symbol.ty(), SymbolType::Newtype)
+            || matches!(source_symbol.ty(), SymbolType::Newtype)
+        {
             return Some(Assignability::NotAssignable);
         }
 

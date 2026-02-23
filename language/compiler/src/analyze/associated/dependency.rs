@@ -58,7 +58,7 @@ impl NodeVisitor for ProjectionDependencyExpressionVisitor {
 }
 
 impl Compiler {
-    /// Collect projection-dependency facts for associated comptime members.
+    /// Collect projection dependencies for associated comptime members.
     pub(crate) fn collect_associated_comptime_member_projection_dependencies(
         &self,
         module: &Module,

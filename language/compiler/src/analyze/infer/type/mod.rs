@@ -11,13 +11,13 @@ use crate::analyze::common::{
 };
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Asynchrony, BinaryOperator, Declaration, Expression, Extension, ExtensionKind, FloatType,
-    FunctionCardinality, GlobalSymbolId, InferTable, IntType, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, Mutability, NodeTree, NormalizationMode, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, StaticProperty, StringId, SymbolTable, SymbolType,
-    Type, TypeBinaryOperator, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
-    TypeMappedParameter, TypeRewriter, TypeRewriterOptions, TypeTable, TypeUnaryOperator,
-    UnaryOperator, VarianceBound,
+    Asynchrony, BinaryOperator, Declaration, Declarator, Expression, Extension, ExtensionKind,
+    FloatType, FunctionCardinality, GlobalSymbolId, InferTable, IntType, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NormalizationMode, PrimitiveType,
+    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticProperty, StringId,
+    SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement, TypeField, TypeIndexSignature,
+    TypeLiteral, TypeMappedParameter, TypeRewriter, TypeRewriterOptions, TypeTable,
+    TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 

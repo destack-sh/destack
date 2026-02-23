@@ -11,8 +11,8 @@ use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 use super::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, NormalizationMode, RelationMode, TypeCollector,
-    TypeWalkContext, TypeWalkKey,
+    AnalyzeDependencyStage, CanonicalSymbolMode, NormalizationMode, RelationMode, TypeWalkContext,
+    TypeWalkKey,
 };
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, ElaborateError, ElaborateResult,
@@ -1230,8 +1230,8 @@ impl Compiler {
         Ok(type_id)
     }
 
-    /// Materialize an imported type by evaluating unevaluated components when needed.
-    pub(crate) fn materialize_imported_type(
+    /// Ensure one unwrapped value type id is evaluated before runtime and member reads.
+    pub(crate) fn ensure_unwrapped_value_type_evaluated(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1239,39 +1239,44 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) -> AnalyzeResult<()> {
-        if !module.language_type.is_declaration() {
-            self.ensure_type_evaluated(module, profile, type_id, tree, symbols, types)?;
-            return Ok(());
+    ) -> AnalyzeResult<LocalTypeId> {
+        let unwrapped_type_id = types.unwrap_value_type_id(type_id);
+        self.ensure_type_evaluated(module, profile, unwrapped_type_id, tree, symbols, types)
+    }
+
+    /// Return true when one unwrapped value type id remains unevaluated.
+    pub(crate) fn unwrapped_value_type_is_unevaluated(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        let unwrapped_type_id = types.unwrap_value_type_id(type_id);
+        matches!(types.get_type(unwrapped_type_id), Type::Unevaluated(_))
+    }
+
+    /// Return true when one unwrapped value type id is indeterminate for concrete runtime checks.
+    pub(crate) fn unwrapped_value_type_is_indeterminate(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        let unwrapped_type_id = types.unwrap_value_type_id(type_id);
+        if matches!(types.get_type(unwrapped_type_id), Type::Unevaluated(_)) {
+            return true;
+        }
+        if matches!(
+            types.get_type(unwrapped_type_id),
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            }
+        ) {
+            return true;
+        }
+        if matches!(types.get_type(unwrapped_type_id), Type::Error) {
+            return true;
         }
 
-        // walk the type graph and evaluate unevaluated nodes before import
-        let mut pending = Vec::new();
-        let mut visited = HashSet::new();
-        let mut discovered = Vec::new();
-        pending.push(type_id);
-        while let Some(current_id) = pending.pop() {
-            if !visited.insert(current_id) {
-                continue;
-            }
-
-            // evaluate unevaluated types before walking children
-            if matches!(types.get_type(current_id), Type::Unevaluated(_)) {
-                self.resolve_declared_type(module, profile, current_id, tree, symbols, types)?;
-            }
-
-            // keep walking the type graph to discover unevaluated types
-            let ty = types.get_type(current_id).clone();
-            {
-                let mut visitor = TypeCollector::new(&mut discovered, base_visitor_options());
-                walk_type(&mut visitor, types, current_id, &ty);
-            }
-            if !discovered.is_empty() {
-                pending.append(&mut discovered);
-            }
-        }
-
-        Ok(())
+        self.type_is_solver_placeholder(unwrapped_type_id, types)
     }
 
     /// Resolve a type symbol from a type reference or type-as-value.
@@ -1440,96 +1445,89 @@ impl Compiler {
             }
 
             // import the alias target when the symbol is remote
-            let (resolved, next) = match self.with_module_tree_symbols_at_stage(
-                module,
-                profile,
-                current.module_id,
-                AnalyzeDependencyStage::Declare,
-                |owner_module, owner_tree, owner_symbols| {
-                    let symbol_entry = owner_symbols.get_symbol(current.local_id);
-                    if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
-                        let target_symbol =
-                            symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
-                        return (None, target_symbol);
-                    }
-
-                    let typed_symbol = GlobalSymbolId::new(
-                        current.module_id,
-                        current.local_id.with_type(symbol_entry.ty),
-                    );
-                    types.record_normalization_symbol_dependency(typed_symbol);
-
-                    // resolve the remote alias target id without holding a write lock
-                    let remote_target_id = {
-                        let owner_types = owner_module.dir(profile).types.read();
-                        match owner_types.get_alias_target_type_id(typed_symbol) {
-                            Some(id) => id,
-                            None => {
-                                let target_symbol =
-                                    symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
-                                return (None, target_symbol);
-                            }
+            let (dependency_symbol, remote_alias_target, next) = match self
+                .with_module_tree_symbols_at_stage(
+                    module,
+                    profile,
+                    current.module_id,
+                    AnalyzeDependencyStage::Declare,
+                    |owner_module, owner_tree, owner_symbols| {
+                        let symbol_entry = owner_symbols.get_symbol(current.local_id);
+                        if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
+                            let target_symbol =
+                                symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
+                            return (None, None, target_symbol);
                         }
-                    };
 
-                    // evaluate the remote alias target when needed
-                    let needs_evaluation = {
+                        let typed_symbol = GlobalSymbolId::new(
+                            current.module_id,
+                            current.local_id.with_type(symbol_entry.ty),
+                        );
+
+                        // resolve the remote alias target id without holding a write lock
+                        let remote_target_id = {
+                            let owner_types = owner_module.dir(profile).types.read();
+                            match owner_types.get_alias_target_type_id(typed_symbol) {
+                                Some(id) => id,
+                                None => {
+                                    let target_symbol = symbol_entry
+                                        .target_symbol
+                                        .or(symbol_entry.canonical_symbol);
+                                    return (Some(typed_symbol), None, target_symbol);
+                                }
+                            }
+                        };
+
+                        // remote modules are read-only here: consume only published alias targets
                         let owner_types = owner_module.dir(profile).types.read();
-                        matches!(owner_types.get_type(remote_target_id), Type::Unevaluated(_))
-                    };
-                    if needs_evaluation {
-                        let mut owner_types = owner_module.dir(profile).types.write();
-                        if matches!(owner_types.get_type(remote_target_id), Type::Unevaluated(_))
-                            && let Err(error) = self.resolve_declared_type(
+                        if matches!(owner_types.get_type(remote_target_id), Type::Unevaluated(_)) {
+                            let target_symbol =
+                                symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
+                            return (Some(typed_symbol), None, target_symbol);
+                        }
+
+                        let needs_materialization = self
+                            .type_contains_unevaluated_value_static_arguments(
                                 owner_module,
                                 profile,
                                 remote_target_id,
                                 owner_tree,
                                 owner_symbols,
-                                &mut owner_types,
-                            )
-                        {
-                            self.error(error);
-                            return (None, None);
+                                &owner_types,
+                                &mut HashSet::new(),
+                            );
+                        if needs_materialization {
+                            return (Some(typed_symbol), None, None);
                         }
-                    }
 
-                    // read the evaluated remote alias target and import it locally
-                    let owner_types = owner_module.dir(profile).types.read();
-                    let needs_materialization = self
-                        .type_contains_unevaluated_value_static_arguments(
-                            owner_module,
-                            profile,
-                            remote_target_id,
-                            owner_tree,
-                            owner_symbols,
-                            &owner_types,
-                            &mut HashSet::new(),
-                        );
-                    if needs_materialization {
-                        return (None, None);
-                    }
-
-                    let remote_target_ty = owner_types.get_type(remote_target_id);
-                    let local_alias_target_id = self.import_type_from_remote_for_node(
-                        source_id,
-                        remote_target_ty,
-                        &owner_types,
-                        typed_symbol,
-                        types,
-                    );
-                    types.set_alias_target_type_id(typed_symbol, local_alias_target_id);
-                    (Some(local_alias_target_id), None)
-                },
-            ) {
+                        let remote_target_ty = owner_types.get_type(remote_target_id).clone();
+                        let remote_snapshot = owner_types.clone();
+                        (
+                            Some(typed_symbol),
+                            Some((typed_symbol, remote_target_ty, remote_snapshot)),
+                            None,
+                        )
+                    },
+                ) {
                 Ok(value) => value,
                 Err(error) => {
                     let _ = error;
                     return None;
                 }
             };
-            if let Some(resolved) = resolved {
-                return Some(resolved);
+            if let Some(dependency_symbol) = dependency_symbol {
+                types.record_normalization_symbol_dependency(dependency_symbol);
+            }
+            if let Some((typed_symbol, remote_target_ty, remote_snapshot)) = remote_alias_target {
+                let local_alias_target_id = self.import_type_from_remote_for_node(
+                    source_id,
+                    &remote_target_ty,
+                    &remote_snapshot,
+                    typed_symbol,
+                    types,
+                );
+                types.set_alias_target_type_id(typed_symbol, local_alias_target_id);
+                return Some(local_alias_target_id);
             }
             current = next?;
         }

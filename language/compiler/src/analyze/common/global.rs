@@ -70,23 +70,13 @@ impl Compiler {
                 let value_ty_id = if let Some(value_ty_id) = types.get_value_type_id(*symbol_id) {
                     value_ty_id
                 } else if symbol_id.module_id != module.id {
-                    if ctx.is_surface_inference {
-                        self.resolve_remote_symbol_value_type_for_surface(
-                            module,
-                            ctx.profile,
-                            expression_id.into_any(),
-                            *symbol_id,
-                            types,
-                        )?
-                    } else {
-                        self.resolve_remote_symbol_value_type_for_interface(
-                            module,
-                            ctx.profile,
-                            expression_id.into_any(),
-                            *symbol_id,
-                            types,
-                        )?
-                    }
+                    self.resolve_remote_symbol_value_type_for_context(
+                        module,
+                        ctx,
+                        expression_id.into_any(),
+                        *symbol_id,
+                        types,
+                    )?
                 } else if let Some(inferred_ty_id) = self.infer_direct_binding_value_type(
                     module,
                     ctx.profile,

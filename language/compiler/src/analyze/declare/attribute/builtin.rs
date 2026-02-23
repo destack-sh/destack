@@ -1,4 +1,4 @@
-use destack_dir::{AnchoredGlobalNodeId, SymbolType};
+use destack_dir::{AnchoredGlobalNodeId, Symbol, SymbolType};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, WellKnownIntrinsics};
 
@@ -144,10 +144,7 @@ impl Compiler {
 }
 
 /// Resolve the declaration-backed diagnostic anchor for an intrinsic binding symbol.
-fn intrinsic_binding_anchor(
-    symbol: &destack_dir::Symbol,
-    profile: ProfileId,
-) -> Option<AnchoredGlobalNodeId> {
+fn intrinsic_binding_anchor(symbol: &Symbol, profile: ProfileId) -> Option<AnchoredGlobalNodeId> {
     // prefer the primary declaration when available
     if let Some(node_id) = symbol.primary_declaration {
         return Some(node_id.into_anchored(Some(profile)));

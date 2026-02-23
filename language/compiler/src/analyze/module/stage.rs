@@ -13,6 +13,10 @@ pub(crate) enum AnalyzeDependencyStage {
     Interface,
     /// Read data owned by infer.
     Infer,
+    /// Read data owned by solve.
+    Solve,
+    /// Read data owned by commit.
+    Commit,
     /// Read data owned by validate.
     Validate,
 }
@@ -50,6 +54,10 @@ impl Compiler {
                 self.require_analyze_module_interface(module_id, profile)
             }
             AnalyzeDependencyStage::Infer => self.require_analyze_module_infer(module_id, profile),
+            AnalyzeDependencyStage::Solve => self.require_analyze_module_solve(module_id, profile),
+            AnalyzeDependencyStage::Commit => {
+                self.require_analyze_module_commit(module_id, profile)
+            }
             AnalyzeDependencyStage::Validate => {
                 self.require_analyze_module_validate(module_id, profile)
             }

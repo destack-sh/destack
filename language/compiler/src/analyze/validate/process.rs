@@ -29,7 +29,7 @@ impl Compiler {
         self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleValidate { module, profile })
     }
 
-    /// Phase 3: Final validation checks.
+    /// Final pass: run validation checks over committed semantics.
     pub(crate) fn analyze_module_validate(
         &self,
         module_id: ModuleId,

@@ -26,7 +26,7 @@ impl Compiler {
         });
     }
 
-    /// Query one declare-published static-parameter constraint fact.
+    /// Query one declare-published static-parameter constraint entry.
     pub(crate) fn query_declared_static_parameter_constraint(
         &self,
         module: &Module,
@@ -39,29 +39,34 @@ impl Compiler {
             return types.query_published_static_parameter_constraint_type(symbol);
         }
 
-        self.with_module_types_at_stage(
-            module,
-            profile,
-            symbol.module_id,
-            AnalyzeDependencyStage::Declare,
-            |_owner_module, owner_types| {
-                let owner_constraint_type_id =
-                    owner_types.query_published_static_parameter_constraint_type(symbol)?;
-                let owner_constraint_type = owner_types.get_type(owner_constraint_type_id);
-                Some(self.import_type_from_remote_for_node(
-                    source_id,
-                    owner_constraint_type,
-                    owner_types,
-                    symbol,
-                    types,
-                ))
-            },
-        )
-        .ok()
-        .flatten()
+        let remote_constraint = self
+            .with_module_types_at_stage(
+                module,
+                profile,
+                symbol.module_id,
+                AnalyzeDependencyStage::Declare,
+                |_owner_module, owner_types| {
+                    let owner_constraint_type_id =
+                        owner_types.query_published_static_parameter_constraint_type(symbol)?;
+                    let owner_constraint_type = owner_types.get_type(owner_constraint_type_id);
+                    let owner_snapshot = owner_types.clone();
+                    Some((owner_constraint_type.clone(), owner_snapshot))
+                },
+            )
+            .ok()
+            .flatten()?;
+
+        let (owner_constraint_type, owner_snapshot) = remote_constraint;
+        Some(self.import_type_from_remote_for_node(
+            source_id,
+            &owner_constraint_type,
+            &owner_snapshot,
+            symbol,
+            types,
+        ))
     }
 
-    /// Query one declare-published static-parameter kind fact.
+    /// Query one declare-published static-parameter kind entry.
     fn query_declared_static_parameter_kind(
         &self,
         module: &Module,
@@ -81,7 +86,7 @@ impl Compiler {
         .flatten()
     }
 
-    /// Query one declare-published static-parameter variance fact.
+    /// Query one declare-published static-parameter variance entry.
     fn query_declared_static_parameter_variance(
         &self,
         module: &Module,
@@ -143,7 +148,7 @@ impl Compiler {
             return kind;
         }
 
-        // resolve from published declare facts first
+        // resolve from published declare entries first
         if let Some(kind) =
             self.query_declared_static_parameter_kind(module, profile, symbol, types)
         {
@@ -151,7 +156,7 @@ impl Compiler {
             return kind;
         }
 
-        // remote symbols consume only published declare facts
+        // remote symbols consume only published declare entries
         if symbol.module_id != module.id || types.module_id != module.id {
             return StaticParameterKind::Type;
         }
@@ -223,7 +228,7 @@ impl Compiler {
             return variance;
         }
 
-        // resolve from published declare facts first
+        // resolve from published declare entries first
         if let Some(variance) =
             self.query_declared_static_parameter_variance(module, profile, symbol, types)
         {
@@ -231,7 +236,7 @@ impl Compiler {
             return Some(variance);
         }
 
-        // remote symbols consume only published declare facts
+        // remote symbols consume only published declare entries
         if symbol.module_id != module.id || types.module_id != module.id {
             return None;
         }
@@ -331,8 +336,8 @@ impl Compiler {
         }
     }
 
-    /// Publish declared static parameter constraint facts for one module.
-    pub(crate) fn publish_declared_static_parameter_constraint_facts_for_module(
+    /// Publish declared static parameter constraints for one module.
+    pub(crate) fn publish_declared_static_parameter_constraints_for_module(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -372,7 +377,9 @@ impl Compiler {
                     declared_type_id
                 }
             } else {
-                self.synthesize_semantic_unknown_type_for_source(source_id, types)
+                self.synthesize_implicit_static_parameter_constraint_type_for_source(
+                    source_id, types,
+                )
             };
             types.publish_static_parameter_constraint_type(symbol, published_constraint_type_id);
         }
@@ -624,36 +631,35 @@ impl Compiler {
             .ok()
             .flatten();
 
-        // report invariant violations and continue with unknown metadata
+        // recover with error metadata when declaration lookup does not resolve
         parameter.unwrap_or_else(|| {
-            self.report_missing_declared_static_parameter_metadata(module, symbol_id, "definition");
             let kind = self
                 .static_parameter_kind_for_symbol(module, profile, symbol_id, tree, symbols, types);
-            self.synthesize_unknown_static_parameter(symbol_id, kind, source_id, types)
+            self.synthesize_error_static_parameter(symbol_id, kind, source_id, types)
         })
     }
 
-    /// Synthesize an unknown static parameter when metadata cannot be resolved.
-    pub(crate) fn synthesize_unknown_static_parameter(
+    /// Synthesize an error static parameter when internal metadata resolution fails.
+    pub(crate) fn synthesize_error_static_parameter(
         &self,
         symbol: GlobalSymbolId,
         kind: StaticParameterKind,
         source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> StaticParameter {
-        let unknown_ty_id = self.synthesize_semantic_unknown_type_for_source(source_id, types);
+        let error_ty_id = self.synthesize_semantic_error_type_for_source(source_id, types);
 
         StaticParameter {
             symbol,
             name: None,
-            declared_type_id: unknown_ty_id,
+            declared_type_id: error_ty_id,
             default_expression: None,
             kind,
         }
     }
 
-    /// Synthesize the semantic `unknown` type id for one source node.
-    fn synthesize_semantic_unknown_type_for_source(
+    /// Synthesize the implicit unconstrained static-parameter bound (`unknown`) for one source.
+    fn synthesize_implicit_static_parameter_constraint_type_for_source(
         &self,
         source_id: LocalNodeIdAny,
         types: &mut TypeTable,
@@ -664,6 +670,15 @@ impl Compiler {
             },
             source_id,
         )
+    }
+
+    /// Synthesize the semantic `error` type id for one source node.
+    fn synthesize_semantic_error_type_for_source(
+        &self,
+        source_id: LocalNodeIdAny,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        types.insert_type_from_any(Type::Error, source_id)
     }
 
     /// Evaluate a static parameter constraint while preserving symbolic bounds.
@@ -757,31 +772,31 @@ impl Compiler {
             let local_resolved = {
                 let symbol_entry = symbols.get_symbol(symbol.local_id);
                 if !symbol_entry.is_static_parameter() {
-                    types
-                        .get_static_parameter_constraint_type(symbol)
-                        .or_else(|| {
-                            Some(self.synthesize_semantic_unknown_type_for_source(source_id, types))
-                        })
+                    Some(self.synthesize_semantic_error_type_for_source(source_id, types))
                 } else if let Some(primary_declaration) = symbol_entry.primary_declaration {
-                    let declared_type_id = types
-                        .get_declared_type_id(primary_declaration)
-                        .unwrap_or_else(|| {
-                            self.synthesize_semantic_unknown_type_for_source(source_id, types)
-                        });
+                    let declared_type_id = if let Some(declared_type_id) =
+                        types.get_declared_type_id(primary_declaration)
+                    {
+                        declared_type_id
+                    } else {
+                        self.synthesize_implicit_static_parameter_constraint_type_for_source(
+                            source_id, types,
+                        )
+                    };
                     if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
                         let tree = module.dir(profile).tree.read();
-                        if self
-                            .evaluate_static_parameter_constraint_type(
-                                module,
-                                profile,
-                                declared_type_id,
-                                &tree,
-                                symbols,
-                                types,
-                            )
-                            .is_err()
-                        {
-                            Some(self.synthesize_semantic_unknown_type_for_source(source_id, types))
+                        if let Err(error) = self.evaluate_static_parameter_constraint_type(
+                            module,
+                            profile,
+                            declared_type_id,
+                            &tree,
+                            symbols,
+                            types,
+                        ) {
+                            self.error(error);
+                            Some(self.synthesize_semantic_error_type_for_source(source_id, types))
+                        } else if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
+                            Some(self.synthesize_semantic_error_type_for_source(source_id, types))
                         } else {
                             Some(declared_type_id)
                         }
@@ -789,12 +804,12 @@ impl Compiler {
                         Some(declared_type_id)
                     }
                 } else {
-                    Some(self.synthesize_semantic_unknown_type_for_source(source_id, types))
+                    Some(self.synthesize_semantic_error_type_for_source(source_id, types))
                 }
             };
             types.clear_static_parameter_constraint_in_progress(symbol);
 
-            // preserve cycle-error facts emitted during recursive evaluation
+            // preserve cycle-error diagnostics emitted during recursive evaluation
             if let Some(cached_type_id) = types.get_static_parameter_constraint_type(symbol)
                 && matches!(types.get_type(cached_type_id), Type::Error)
             {
@@ -812,9 +827,9 @@ impl Compiler {
             return Some(resolved_constraint_type_id);
         }
 
-        let unknown_type_id = self.synthesize_semantic_unknown_type_for_source(source_id, types);
-        types.set_static_parameter_constraint_type(symbol, unknown_type_id);
-        Some(unknown_type_id)
+        let error_type_id = self.synthesize_semantic_error_type_for_source(source_id, types);
+        types.set_static_parameter_constraint_type(symbol, error_type_id);
+        Some(error_type_id)
     }
 
     /// Resolve static parameter metadata from a module.
@@ -841,42 +856,48 @@ impl Compiler {
             types
                 .get_declared_type_id(primary_declaration)
                 .unwrap_or_else(|| {
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
-                    types.insert_type_from_any(ty, parameter_id.into_any())
+                    self.synthesize_implicit_static_parameter_constraint_type_for_source(
+                        parameter_id.into_any(),
+                        types,
+                    )
                 })
         } else {
             // import the declared type for remote parameters when possible
-            let remote_dir = module.dir(profile);
-            let mut remote_types = remote_dir.types.write();
-            let remote_declared_type_id = remote_types.get_declared_type_id(primary_declaration);
-
-            if let Some(remote_declared_type_id) = remote_declared_type_id {
-                if matches!(
-                    remote_types.get_type(remote_declared_type_id),
-                    Type::Unevaluated(_)
-                ) {
-                    let _ = self.resolve_declared_type(
-                        module,
-                        profile,
-                        remote_declared_type_id,
-                        tree,
-                        symbols,
-                        &mut remote_types,
-                    );
+            // remote modules are read-only here: do not force declaration evaluation
+            let remote_declared = {
+                let remote_dir = module.dir(profile);
+                let remote_types = remote_dir.types.read();
+                match remote_types.get_declared_type_id(primary_declaration) {
+                    Some(remote_declared_type_id) => Some(
+                        if matches!(
+                            remote_types.get_type(remote_declared_type_id),
+                            Type::Unevaluated(_)
+                        ) {
+                            None
+                        } else {
+                            let remote_declared_type =
+                                remote_types.get_type(remote_declared_type_id).clone();
+                            let remote_snapshot = remote_types.clone();
+                            Some((remote_declared_type, remote_snapshot))
+                        },
+                    ),
+                    None => None,
                 }
+            };
 
-                let remote_declared_type = remote_types.get_type(remote_declared_type_id);
-                self.import_type_from_remote_for_node(
-                    source_id,
-                    remote_declared_type,
-                    &remote_types,
-                    symbol_id,
-                    types,
-                )
-            } else {
-                self.synthesize_semantic_unknown_type_for_source(source_id, types)
+            match remote_declared {
+                Some(Some((remote_declared_type, remote_snapshot))) => self
+                    .import_type_from_remote_for_node(
+                        source_id,
+                        &remote_declared_type,
+                        &remote_snapshot,
+                        symbol_id,
+                        types,
+                    ),
+                Some(None) => self.synthesize_semantic_error_type_for_source(source_id, types),
+                None => self.synthesize_implicit_static_parameter_constraint_type_for_source(
+                    source_id, types,
+                ),
             }
         };
 

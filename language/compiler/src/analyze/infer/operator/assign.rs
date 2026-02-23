@@ -59,6 +59,7 @@ impl Compiler {
             left_id,
             tree,
             symbols,
+            infer,
             types,
         )? {
             self.error(AnalyzeError::InvalidAssignmentTarget {
@@ -194,6 +195,7 @@ impl Compiler {
             left_id,
             tree,
             symbols,
+            infer,
             types,
         )? {
             self.error(AnalyzeError::InvalidAssignmentTarget {
@@ -458,6 +460,7 @@ impl Compiler {
         target_id: LocalNodeId<Expression>,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        infer: &InferTable,
         types: &TypeTable,
     ) -> AnalyzeResult<bool> {
         let target_id = self.unwrap_parenthesized_expression(target_id, tree);
@@ -466,10 +469,9 @@ impl Compiler {
         }
 
         let node_id = target_id.into_global_any(module.id);
-        let Some(resolution_id) = types.get_resolution_for_node(node_id) else {
+        let Some(resolution) = self.query_resolution_for_node_infer(node_id, infer, types) else {
             return Ok(false);
         };
-        let resolution = types.get_resolution(resolution_id);
         let target_symbol = match resolution {
             Resolution::Static { candidate, .. } => candidate.target_symbol,
             _ => return Ok(false),

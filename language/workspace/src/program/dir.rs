@@ -2,7 +2,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir};
 use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
 use crate::{ImportEdgeKind, ImportMeta, Loader, ProfileId};
@@ -62,6 +62,8 @@ pub struct ModuleDir {
     >,
     /// Exported symbols by key (space, name).
     pub exported_symbols: RwLock<IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>>,
+    /// Runtime infer table handoff between analyze infer, solve, and commit.
+    pub analyze_infer_table: Mutex<Option<dir::InferTable>>,
 }
 
 /// Serializable snapshot of ModuleDir data.
@@ -198,6 +200,7 @@ impl ModuleDir {
             module_binding_exports: RwLock::new(IndexMap::new()),
             imported_modules: RwLock::new(IndexMap::new()),
             exported_symbols: RwLock::new(IndexMap::new()),
+            analyze_infer_table: Mutex::new(None),
         }
     }
 
@@ -279,6 +282,7 @@ impl ModuleDir {
             module_binding_exports: RwLock::new(IndexMap::new()),
             imported_modules: RwLock::new(IndexMap::new()),
             exported_symbols: RwLock::new(IndexMap::new()),
+            analyze_infer_table: Mutex::new(None),
         }
     }
 
@@ -309,6 +313,7 @@ impl ModuleDir {
             module_binding_exports: RwLock::new(base.module_binding_exports.read().clone()),
             imported_modules: RwLock::new(base.imported_modules.read().clone()),
             exported_symbols: RwLock::new(base.exported_symbols.read().clone()),
+            analyze_infer_table: Mutex::new(None),
         }
     }
 
@@ -365,7 +370,38 @@ impl ModuleDir {
             module_binding_exports: RwLock::new(data.module_binding_exports),
             imported_modules: RwLock::new(data.imported_modules),
             exported_symbols: RwLock::new(data.exported_symbols),
+            analyze_infer_table: Mutex::new(None),
         }
+    }
+
+    /// Publish one infer table for analyze solve and commit.
+    pub fn publish_analyze_infer_table(&self, infer: dir::InferTable) {
+        *self.analyze_infer_table.lock() = Some(infer);
+    }
+
+    /// Read the published infer table for this profile.
+    pub fn with_analyze_infer_table<R>(
+        &self,
+        handle: impl FnOnce(&dir::InferTable) -> R,
+    ) -> Option<R> {
+        let infer = self.analyze_infer_table.lock();
+        let infer = infer.as_ref()?;
+        Some(handle(infer))
+    }
+
+    /// Mutate the published infer table for this profile.
+    pub fn with_analyze_infer_table_mut<R>(
+        &self,
+        handle: impl FnOnce(&mut dir::InferTable) -> R,
+    ) -> Option<R> {
+        let mut infer = self.analyze_infer_table.lock();
+        let infer = infer.as_mut()?;
+        Some(handle(infer))
+    }
+
+    /// Clear the published infer table for this profile.
+    pub fn clear_analyze_infer_table(&self) {
+        self.analyze_infer_table.lock().take();
     }
 }
 

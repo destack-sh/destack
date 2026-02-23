@@ -1,4 +1,5 @@
 use super::*;
+use destack_dir::FunctionMode;
 
 impl Compiler {
     /// Check visibility constraints for a resolved member access.
@@ -335,7 +336,7 @@ impl Compiler {
                             else {
                                 continue;
                             };
-                            if signature.mode != Some(destack_dir::FunctionMode::Constructor) {
+                            if signature.mode != Some(FunctionMode::Constructor) {
                                 continue;
                             }
                             if modifiers.as_ref().is_some_and(|modifier| {

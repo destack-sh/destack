@@ -1,10 +1,11 @@
 use destack_dir::{
-    Asynchrony, BindingAnchor, BindingKind, BindingModifier, Block, Declaration, DynamicKey,
-    Expression, Extension, ExtensionKind, FunctionCardinality, FunctionMode, Generics,
-    GlobalSymbolId, Heritage, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
-    Member, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Parameter, StaticArgument,
-    StaticExpression, StaticKey, SymbolTable, Timing, Type, TypeField, TypeIndexSignature,
-    TypeKind, TypeLiteral, TypeTable, walk_block, walk_declaration, walk_expression,
+    Asynchrony, BindingAnchor, BindingKind, BindingModifier, Block, Declaration,
+    DeclarationAbstraction, DynamicKey, Expression, Extension, ExtensionKind, FunctionCardinality,
+    FunctionMode, FunctionSignature, Generics, GlobalSymbolId, Heritage, Lineage, LocalNodeId,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member, Mutability, NodeTree, NodeVisitor,
+    NodeVisitorOptions, Parameter, StaticArgument, StaticExpression, StaticKey, SymbolTable,
+    Timing, Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral, TypeTable, walk_block,
+    walk_declaration, walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::HashMap;
@@ -533,7 +534,7 @@ impl Compiler {
                 )?;
                 let declaration_symbol = descriptor.symbol.into_global(module.id);
                 let allows_deferred_associated =
-                    descriptor.abstraction == destack_dir::DeclarationAbstraction::Abstract;
+                    descriptor.abstraction == DeclarationAbstraction::Abstract;
                 self.report_missing_declared_associated_type_requirements(
                     module,
                     profile,
@@ -1282,7 +1283,7 @@ impl Compiler {
     /// Add constructor parameter property fields to an instance shape.
     fn add_constructor_parameter_property_fields(
         &self,
-        signature: &destack_dir::FunctionSignature,
+        signature: &FunctionSignature,
         signature_ty_id: LocalTypeId,
         shape: &mut ObjectShape,
         tree: &NodeTree,
@@ -2121,28 +2122,30 @@ impl Compiler {
             return Ok(types.get_value_type_id(symbol));
         }
 
-        self.with_module_types_at_stage(
-            module,
-            profile,
-            symbol.module_id,
-            AnalyzeDependencyStage::Declare,
-            |_, remote_types| {
-                let Some(remote_value_id) = remote_types.get_value_type_id(symbol) else {
-                    return Ok(None);
-                };
-                let remote_value_ty = remote_types.get_type(remote_value_id);
-                let local_value_id = self.import_type_from_remote_for_node(
-                    declaration_id.into_any(),
-                    remote_value_ty,
-                    remote_types,
-                    symbol,
-                    types,
-                );
+        let remote_value = self
+            .with_module_types_at_stage(
+                module,
+                profile,
+                symbol.module_id,
+                AnalyzeDependencyStage::Declare,
+                |_, remote_types| {
+                    let remote_value_id = remote_types.get_value_type_id(symbol)?;
+                    let remote_value_ty = remote_types.get_type(remote_value_id).clone();
+                    let remote_snapshot = remote_types.clone();
+                    Some((remote_value_ty, remote_snapshot))
+                },
+            )
+            .map_err(AnalyzeError::from)?;
 
-                Ok(Some(local_value_id))
-            },
-        )
-        .map_err(AnalyzeError::from)?
+        Ok(remote_value.map(|(remote_value_ty, remote_snapshot)| {
+            self.import_type_from_remote_for_node(
+                declaration_id.into_any(),
+                &remote_value_ty,
+                &remote_snapshot,
+                symbol,
+                types,
+            )
+        }))
     }
 
     /// Collect constructor signatures from a symbol value type.

@@ -1,6 +1,8 @@
 use destack_dir::SymbolDecorators;
 use destack_source::{File, FileType, ModuleId, TargetId, Uri};
-use destack_workspace::{DiagnosticPolicy, DsConfigCompilerOptions, Module, TsCompilerOptions};
+use destack_workspace::{
+    DiagnosticPolicy, DsConfigCompilerOptions, Module, Program, TsCompilerOptions,
+};
 
 use std::sync::Arc;
 
@@ -347,7 +349,7 @@ impl Compiler {
         };
 
         let is_native_output = target.output.is_wasm() || target.output.is_native();
-        let options = destack_workspace::Program::compiler_options_for_target(&target, &options);
+        let options = Program::compiler_options_for_target(&target, &options);
 
         (options, is_native_output)
     }
@@ -507,10 +509,7 @@ impl Compiler {
     }
 
     /// Load module checks from a dsconfig.json alongside the module path.
-    fn module_check_options_from_path(
-        &self,
-        module: &destack_workspace::Module,
-    ) -> Option<ModuleCheckOptions> {
+    fn module_check_options_from_path(&self, module: &Module) -> Option<ModuleCheckOptions> {
         let path = module.path.as_ref()?;
 
         // locate dsconfig.json in the module directory

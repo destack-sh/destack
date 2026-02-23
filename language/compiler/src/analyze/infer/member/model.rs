@@ -104,7 +104,7 @@ pub(crate) struct ResolvedMemberAccessType {
 pub(crate) struct MemberAccessReceiver {
     /// The effective receiver expression after optional-chain normalization.
     pub(crate) receiver_id: LocalNodeId<Expression>,
-    /// The inferred receiver type after materialization and apparent normalization.
+    /// The inferred receiver type after materialization and normalization.
     pub(crate) receiver_ty_id: LocalTypeId,
     /// The resolved receiver type.
     pub(crate) receiver_ty: Type,

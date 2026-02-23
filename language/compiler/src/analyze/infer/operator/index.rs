@@ -1,4 +1,5 @@
 use super::*;
+use destack_dir::TypeIndexSignature;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -156,9 +157,10 @@ impl Compiler {
             options.no_unchecked_indexed_access,
         );
         if let Some(builtin_ty_id) = builtin_ty_id {
-            self.commit_builtin_resolution(
+            self.record_provisional_builtin_resolution(
                 expression_id.into_global_any(module.id),
                 Some(receiver_ty_id),
+                infer,
                 types,
             );
             return Ok(finish_result(builtin_ty_id, types));
@@ -236,7 +238,7 @@ impl Compiler {
 
         // handle missing member
         if !resolved.has_member {
-            self.commit_member_call_resolution(
+            self.record_member_call_resolution(
                 module,
                 ctx.profile,
                 expression_id,
@@ -296,7 +298,7 @@ impl Compiler {
         }
 
         // finalize resolution and instance registration
-        self.commit_member_call_resolution(
+        self.record_member_call_resolution(
             module,
             ctx.profile,
             expression_id,
@@ -495,9 +497,10 @@ impl Compiler {
                 UnassignableRelationFailureMode::PropagateError,
             )?;
 
-            self.commit_builtin_resolution(
+            self.record_provisional_builtin_resolution(
                 expression_id.into_global_any(module.id),
                 Some(receiver_ty_id),
+                infer,
                 types,
             );
 
@@ -559,7 +562,7 @@ impl Compiler {
 
         // handle missing member
         if !resolved.has_member {
-            self.commit_member_call_resolution(
+            self.record_member_call_resolution(
                 module,
                 ctx.profile,
                 expression_id,
@@ -654,7 +657,7 @@ impl Compiler {
         }
 
         // finalize resolution and instance registration
-        self.commit_member_call_resolution(
+        self.record_member_call_resolution(
             module,
             ctx.profile,
             expression_id,
@@ -807,7 +810,7 @@ impl Compiler {
 
     fn infer_index_signature_access(
         &self,
-        index_signatures: &[destack_dir::TypeIndexSignature],
+        index_signatures: &[TypeIndexSignature],
         index_ty_id: LocalTypeId,
         literal_string: Option<&str>,
         types: &mut TypeTable,

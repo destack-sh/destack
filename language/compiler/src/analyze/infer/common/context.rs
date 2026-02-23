@@ -298,6 +298,14 @@ impl InferContext {
         }
     }
 
+    /// Apply binding initializer defaults from optional mutability.
+    pub fn with_binding_initializer(self, mutability: Option<Mutability>) -> Self {
+        match mutability {
+            Some(mutability) => self.with_binding_mutability(mutability),
+            None => self.with_binding_initializer_defaults(),
+        }
+    }
+
     /// Clear any const context while preserving other inference modes.
     pub fn without_const_context(mut self) -> Self {
         self.const_context = ConstContext::None;

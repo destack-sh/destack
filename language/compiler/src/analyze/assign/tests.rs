@@ -572,8 +572,8 @@ fn test_analyze_assignability_object_structural() {
         },
     );
 
-    let key_a = destack_dir::StaticKey::Name(strings.intern("a"));
-    let key_b = destack_dir::StaticKey::Name(strings.intern("b"));
+    let key_a = StaticKey::Name(strings.intern("a"));
+    let key_b = StaticKey::Name(strings.intern("b"));
 
     let obj_small = insert_test_type(
         &mut types,

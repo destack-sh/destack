@@ -221,10 +221,7 @@ function make() {
     test.analyze_module_and_check_clean(module_id);
 
     let capture_set = test.capture_set_for_function_name("test.ds", "inner");
-    assert_eq!(
-        capture_set.directive.policy,
-        destack_dir::CapturePolicy::ByValue
-    );
+    assert_eq!(capture_set.directive.policy, CapturePolicy::ByValue);
     let capture_names = test.capture_names_and_kinds(module_id, &capture_set);
     assert_eq!(
         capture_names,
@@ -258,10 +255,7 @@ function make() {
     test.analyze_module_and_check_clean(module_id);
 
     let capture_set = test.capture_set_for_function_name("test.ds", "inner");
-    assert_eq!(
-        capture_set.directive.policy,
-        destack_dir::CapturePolicy::ByMove
-    );
+    assert_eq!(capture_set.directive.policy, CapturePolicy::ByMove);
 
     let capture_names = test.capture_names_and_kinds(module_id, &capture_set);
     assert_eq!(
@@ -296,10 +290,7 @@ function make() {
     test.analyze_module_and_check_clean(module_id);
 
     let capture_set = test.capture_set_for_function_name("test.ds", "inner");
-    assert_eq!(
-        capture_set.directive.policy,
-        destack_dir::CapturePolicy::ByReference
-    );
+    assert_eq!(capture_set.directive.policy, CapturePolicy::ByReference);
 
     let capture_names = test.capture_names_and_kinds(module_id, &capture_set);
     assert_eq!(

@@ -626,7 +626,7 @@ declare let value: Buffer<SIZE>;
             .expect("expected imported SIZE symbol");
 
         let mut expression_id = None;
-        for argument_id in tree.iter_node_ids_of_type::<destack_dir::Argument>() {
+        for argument_id in tree.iter_node_ids_of_type::<Argument>() {
             let argument = tree.get(argument_id);
             let value_id = argument.value();
             let value_expression = tree.get(value_id);

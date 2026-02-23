@@ -98,6 +98,7 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        infer: &mut InferTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // select the enum symbol for the receiver
@@ -125,13 +126,14 @@ impl Compiler {
         let resolution = MemberResolution::Static {
             symbol: enum_field_symbol,
         };
-        self.commit_member_resolution(
+        self.record_provisional_member_resolution(
             expression_id.into_global_any(module.id),
             Some(left_ty_id),
             &resolution,
             None,
             None,
             true,
+            infer,
             types,
         );
 

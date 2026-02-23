@@ -446,9 +446,9 @@ declare const segment: AuditStore.Segment;
     );
 }
 
-/// Publish declared projection dependency facts for associated comptime members.
+/// Publish declared projection dependencies for associated comptime members.
 #[test]
-fn test_collect_associated_comptime_projection_dependency_facts() {
+fn test_collect_associated_comptime_projection_dependencies() {
     let test = TestProgram::memory_sequential();
     let module_id = test.analyze_declare_module_with_source(
         "test.ds",
@@ -705,12 +705,12 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
         .primary_declaration
         .expect("expected primary declaration for logSegment")
         .local_id
-        .try_into_typed::<destack_dir::Pattern>()
+        .try_into_typed::<Pattern>()
         .expect("expected pattern declaration for logSegment");
     let log_declarator_id = tree
         .get_parent(log_pattern_id.id)
         .expect("expected parent declarator for logSegment pattern")
-        .into_typed::<destack_dir::Declarator>();
+        .into_typed::<Declarator>();
     let log_declarator = tree.get(log_declarator_id);
     let log_member_expression_id = log_declarator
         .ty
@@ -777,7 +777,7 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     let mut visited = std::collections::HashSet::new();
     let direct_projection = test
         .compiler
-        .static_expression_from_constant_reference_instantiated(
+        .resolve_static_constant_reference_instantiated(
             &module,
             profile,
             segment_bytes_symbol,

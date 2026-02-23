@@ -8,7 +8,7 @@ use crossbeam_deque::{Injector, Steal};
 use dashmap::DashMap;
 use parking_lot::{Condvar, Mutex};
 
-use crate::{Task, TaskHandle, TaskId, TaskOutcome, TaskStatus};
+use crate::{Task, TaskDependency, TaskHandle, TaskId, TaskOutcome, TaskStatus};
 
 #[derive(Debug, Default)]
 struct TaskIndex {
@@ -245,6 +245,25 @@ impl TaskQueue {
     /// Check if all work is done (no ready tasks and no active workers).
     pub(super) fn is_done(&self) -> bool {
         self.is_ready_empty() && self.active_count.load(Ordering::SeqCst) == 0
+    }
+
+    /// Return true when any tracked task is not in a final state.
+    pub(super) fn has_pending_non_final_tasks(&self) -> bool {
+        let tasks = self.tasks.lock();
+        tasks.handles.iter().any(|handle| !handle.status.is_final())
+    }
+
+    /// Snapshot all yielded tasks with their current dependencies.
+    pub(super) fn yielded_tasks_with_dependencies(&self) -> Vec<(TaskId, TaskDependency)> {
+        let tasks = self.tasks.lock();
+        tasks
+            .handles
+            .iter()
+            .filter_map(|handle| match &handle.status {
+                TaskStatus::Yielded { dependency } => Some((handle.id, dependency.clone())),
+                _ => None,
+            })
+            .collect()
     }
 
     /// Wait for work to become available or for all work to be done.

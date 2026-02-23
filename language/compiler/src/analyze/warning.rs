@@ -1,6 +1,6 @@
 use crate::{DiagnosticAnchor, DiagnosticDefinition, TaskWarning};
 use destack_compiler_macros::DefineWarning;
-use destack_dir::AnchoredGlobalNodeId;
+use destack_dir::{AnchoredGlobalNodeId, GlobalTypeId};
 use destack_workspace::Program;
 
 /// Warnings during the analyze phase.
@@ -77,7 +77,7 @@ pub enum AnalyzeWarning {
     )]
     TryErrorNotError {
         node: AnchoredGlobalNodeId,
-        ty: destack_dir::GlobalTypeId,
+        ty: GlobalTypeId,
     },
 
     /// Implicit collection conversion.

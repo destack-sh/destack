@@ -322,7 +322,7 @@ impl Compiler {
         if !has_usable_reference_arguments(&reference)
             && let Some(receiver_ty_id) = receiver_ty_id
             && let Some(source_reference) =
-                self.receiver_reference_for_type_source(module, receiver_ty_id, types)
+                self.receiver_reference_for_type_source(module, receiver_ty_id, infer, types)
         {
             reference = Some(source_reference);
         }
@@ -734,11 +734,14 @@ impl Compiler {
         &self,
         module: &Module,
         receiver_ty_id: LocalTypeId,
+        infer: &InferTable,
         types: &TypeTable,
     ) -> Option<(GlobalSymbolId, Option<Vec<StaticArgument>>)> {
         let source_id = types.get_type_source(receiver_ty_id);
-        let source_ty_id =
-            types.get_declared_or_inferred_type_id(source_id.into_global(module.id))?;
+        let source_global_id = source_id.into_global(module.id);
+        let source_ty_id = infer
+            .inferred_type_for_node(source_global_id)
+            .or_else(|| types.get_declared_or_inferred_type_id(source_global_id))?;
         let source_ty = types.get_type(source_ty_id);
 
         self.receiver_reference_for_inherited_arguments(source_ty, types)
@@ -1301,25 +1304,20 @@ impl Compiler {
             let _ = self.enum_backing_type_for_symbol(module, profile, enum_symbol, types)?;
             self.enum_literal_matches_symbol(enum_symbol, literal, tree, symbols, types)
         } else {
-            self.with_module_tree_symbols_at_stage(
-                module,
+            self.with_module_tree_symbols_types_by_id_at_stage(
                 profile,
                 enum_symbol.module_id,
+                tree,
+                symbols,
+                types,
                 AnalyzeDependencyStage::Declare,
-                |owner_module, owner_tree, owner_symbols| {
-                    let mut owner_types = owner_module.dir(profile).types.write();
-                    let _ = self.enum_backing_type_for_symbol_in_tables(
-                        owner_module,
-                        profile,
-                        enum_symbol,
-                        &mut owner_types,
-                    );
+                |owner_tree, owner_symbols, owner_types| {
                     self.enum_literal_matches_symbol(
                         enum_symbol,
                         literal,
                         owner_tree,
                         owner_symbols,
-                        &owner_types,
+                        owner_types,
                     )
                 },
             )
@@ -2332,7 +2330,7 @@ impl Compiler {
                 tree,
                 symbols,
             );
-            // resolve arguments with defaults and unknown synthesis
+            // resolve arguments with defaults and error-type recovery
             let mut resolved_arguments = Vec::with_capacity(static_parameters.len());
             let mut resolved_argument_map = HashMap::new();
             for (index, static_parameter) in static_parameters.iter().enumerate() {
@@ -2352,7 +2350,7 @@ impl Compiler {
                     node_id.into_global(module.id)
                 };
 
-                // resolve the argument value or synthesize unknown when unresolved
+                // resolve the argument value or synthesize error recovery when unresolved
                 let mut resolved_argument = self
                     .resolve_static_argument(
                         module,
@@ -2365,25 +2363,16 @@ impl Compiler {
                         types,
                     )?
                     .unwrap_or_else(|| {
-                        // unresolved type references synthesize unknown or error by kind
+                        // unresolved references synthesize error recovery values by parameter kind
+                        let error_ty_id = types.insert_type_from_any(Type::Error, node_id);
                         let synthesized_value = match static_parameter.kind {
-                            StaticParameterKind::Type => {
-                                let unknown_ty_id = types.insert_type_from_any(
-                                    Type::TypeLiteral {
-                                        value: TypeLiteral::Unknown,
-                                    },
-                                    node_id,
-                                );
-                                StaticExpression::Type { ty: unknown_ty_id }
-                            }
+                            StaticParameterKind::Type => StaticExpression::Type { ty: error_ty_id },
                             StaticParameterKind::Value => node_id
                                 .try_into_typed::<Expression>()
                                 .map(|expression_id| StaticExpression::Unevaluated {
                                     node: expression_id,
                                 })
-                                .unwrap_or(StaticExpression::TypeLiteral {
-                                    value: TypeLiteral::Unknown,
-                                }),
+                                .unwrap_or(StaticExpression::Type { ty: error_ty_id }),
                         };
                         StaticArgument::Evaluated {
                             name: static_parameter.name,
@@ -3049,6 +3038,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &InferTable,
     ) -> AnalyzeResult<Option<StaticArgument>> {
         // infer direct type-parameter arguments from positional dynamic arguments
         if static_parameter.kind == StaticParameterKind::Type {
@@ -3074,6 +3064,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                 ) else {
                     continue;
                 };
@@ -3203,6 +3194,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                infer,
             ) else {
                 continue;
             };
@@ -3348,11 +3340,12 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
+        infer: &InferTable,
     ) -> Option<LocalTypeId> {
         // prefer stable inferred types from this call site
         let argument = tree.get(argument_id);
         let value_id = argument.value();
-        if let Some(type_id) = types.get_inferred_type_id(value_id.into_global_any(module.id))
+        if let Some(type_id) = infer.inferred_type_for_node(value_id.into_global_any(module.id))
             && self.inferred_type_argument_is_committable(module, profile, symbols, type_id, types)
         {
             return Some(type_id);
@@ -3371,7 +3364,9 @@ impl Compiler {
         {
             let symbol_entry = symbols.get_symbol(symbol.local_id);
             if let Some(primary_declaration) = symbol_entry.primary_declaration
-                && let Some(type_id) = types.get_declared_or_inferred_type_id(primary_declaration)
+                && let Some(type_id) = infer
+                    .inferred_type_for_node(primary_declaration)
+                    .or_else(|| types.get_declared_or_inferred_type_id(primary_declaration))
             {
                 return Some(type_id);
             }

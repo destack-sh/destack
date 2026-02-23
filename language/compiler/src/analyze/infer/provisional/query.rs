@@ -1,5 +1,8 @@
 use crate::Compiler;
-use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, InferTable, StaticArgument, TypeTable};
+use destack_dir::{
+    GlobalNodeIdAny, GlobalSymbolId, InferTable, LocalInstanceId, Resolution, StaticArgument,
+    TypeTable,
+};
 
 impl Compiler {
     /// Look up an existing instance id attached to a node.
@@ -7,7 +10,7 @@ impl Compiler {
         &self,
         node_id: GlobalNodeIdAny,
         types: &TypeTable,
-    ) -> Option<destack_dir::LocalInstanceId> {
+    ) -> Option<LocalInstanceId> {
         types.get_instance_for_node(node_id)
     }
 
@@ -47,6 +50,20 @@ impl Compiler {
             return Some(arguments);
         }
 
+        if let Some(instance_id) = infer.provisional_instance_for_node(node_id) {
+            let instance = types.get_instance(instance_id);
+            if let Some(symbol_id) = symbol_id
+                && instance.symbol_id != symbol_id
+            {
+                return None;
+            }
+            if instance.static_arguments.is_empty() {
+                return None;
+            }
+
+            return Some(instance.static_arguments.clone());
+        }
+
         self.query_instance_arguments_for_node(node_id, symbol_id, types)
     }
 
@@ -77,7 +94,31 @@ impl Compiler {
             return Some(instance);
         }
 
+        if let Some(instance_id) = infer.provisional_instance_for_node(node_id) {
+            let instance = types.get_instance(instance_id);
+            if instance.static_arguments.is_empty() {
+                return None;
+            }
+
+            return Some((instance.symbol_id, instance.static_arguments.clone()));
+        }
+
         self.query_instance_symbol_arguments_for_node(node_id, types)
+    }
+
+    /// Look up one resolution attached to a node in infer state.
+    pub(crate) fn query_resolution_for_node_infer<'a>(
+        &self,
+        node_id: GlobalNodeIdAny,
+        infer: &'a InferTable,
+        types: &'a TypeTable,
+    ) -> Option<&'a Resolution> {
+        if let Some(resolution) = infer.provisional_resolution_for_node(node_id) {
+            return Some(resolution);
+        }
+
+        let resolution_id = types.get_resolution_for_node(node_id)?;
+        Some(types.get_resolution(resolution_id))
     }
 
     /// Look up one instance-commit obligation attached to a node for an optional symbol.

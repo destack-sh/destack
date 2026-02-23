@@ -7,8 +7,9 @@ use crate::analyze::common::{
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, Expression, GlobalNodeId, GlobalSymbolId, Heritage, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, Member, NodeTree, NodeType, NormalizationMode, StaticArgument, StaticExpression,
-    StaticKey, SymbolTable, SymbolType, Type, TypeLiteral, TypeRewriter, TypeTable,
+    LocalTypeId, Member, NodeTree, NodeType, NormalizationMode, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, SymbolTable, SymbolType, Type, TypeLiteral, TypeRewriter,
+    TypeTable, TypeUnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -99,7 +100,7 @@ impl Compiler {
     }
 
     /// Resolve one static-parameter constraint for projection traversal.
-    /// remote constraints must come from declare-published facts
+    /// remote constraints must come from declare-published commitments
     /// local constraints may use local infer-owned cache/evaluation
     pub(super) fn projection_static_parameter_constraint_type_for_traversal(
         &self,
@@ -805,7 +806,6 @@ impl Compiler {
                 owner_symbols,
                 types,
             );
-
             // apply receiver substitutions to inherited interface arguments
             if !receiver_substitutions.is_empty() {
                 let mut cache = HashMap::new();
@@ -1178,17 +1178,16 @@ impl Compiler {
             }
 
             let mut visited_symbols = static_eval_visited_symbols.cloned().unwrap_or_default();
-            let Some(value) = self
-                .static_expression_from_constant_reference_instantiated_declared(
-                    module,
-                    profile,
-                    resolved_member_symbol,
-                    tree,
-                    symbols,
-                    types,
-                    receiver_substitutions,
-                    &mut visited_symbols,
-                )?
+            let Some(value) = self.resolve_static_constant_reference_instantiated_declared(
+                module,
+                profile,
+                resolved_member_symbol,
+                tree,
+                symbols,
+                types,
+                receiver_substitutions,
+                &mut visited_symbols,
+            )?
             else {
                 let should_report_missing =
                     requires_implementation && canonical_receiver_symbol != owner_symbol;
@@ -1287,31 +1286,36 @@ impl Compiler {
                 .or_else(|| types.get_alias_target_type_id(symbol));
         }
 
-        self.with_module_tree_symbols_or_local_at_stage(
-            module,
-            profile,
-            typed_symbol.module_id,
-            tree,
-            symbols,
-            AnalyzeDependencyStage::Declare,
-            |owner_module, _owner_tree, _owner_symbols| {
-                let owner_types = owner_module.dir(profile).types.read();
-                let remote_target_id = owner_types.get_alias_target_type_id(typed_symbol)?;
-                let remote_target_ty = owner_types.get_type(remote_target_id);
-                let local_target_id = self.import_type_from_remote_for_node(
-                    source_id,
-                    remote_target_ty,
-                    &owner_types,
-                    typed_symbol,
-                    types,
-                );
-                types.record_normalization_symbol_dependency(typed_symbol);
-                types.set_alias_target_type_id(typed_symbol, local_target_id);
-                Some(local_target_id)
-            },
-        )
-        .map_err(AnalyzeError::from)
-        .ok()?
+        let remote_alias_target = self
+            .with_module_tree_symbols_or_local_at_stage(
+                module,
+                profile,
+                typed_symbol.module_id,
+                tree,
+                symbols,
+                AnalyzeDependencyStage::Declare,
+                |owner_module, _owner_tree, _owner_symbols| {
+                    let owner_types = owner_module.dir(profile).types.read();
+                    let remote_target_id = owner_types.get_alias_target_type_id(typed_symbol)?;
+                    let remote_target_ty = owner_types.get_type(remote_target_id).clone();
+                    let remote_snapshot = owner_types.clone();
+                    Some((remote_target_ty, remote_snapshot))
+                },
+            )
+            .map_err(AnalyzeError::from)
+            .ok()??;
+
+        let (remote_target_ty, remote_snapshot) = remote_alias_target;
+        let local_target_id = self.import_type_from_remote_for_node(
+            source_id,
+            &remote_target_ty,
+            &remote_snapshot,
+            typed_symbol,
+            types,
+        );
+        types.record_normalization_symbol_dependency(typed_symbol);
+        types.set_alias_target_type_id(typed_symbol, local_target_id);
+        Some(local_target_id)
     }
 
     /// Find one projection substitution for a symbol, tolerating placeholder symbol types.
@@ -1382,7 +1386,7 @@ impl Compiler {
                     expression_id = *expression;
                 }
                 Expression::TypeUnary {
-                    operator: destack_dir::TypeUnaryOperator::AsComptime,
+                    operator: TypeUnaryOperator::AsComptime,
                     right,
                 } => {
                     expression_id = *right;
@@ -1487,7 +1491,7 @@ impl Compiler {
                 );
             }
             Expression::TypeUnary {
-                operator: destack_dir::TypeUnaryOperator::AsComptime,
+                operator: TypeUnaryOperator::AsComptime,
                 right,
             } => {
                 return self.apply_projection_substitutions_from_expression(
@@ -1633,7 +1637,7 @@ impl Compiler {
         }
 
         let mut visited_symbols = HashSet::new();
-        let Ok(Some(value)) = self.static_expression_from_constant_reference_instantiated(
+        let Ok(Some(value)) = self.resolve_static_constant_reference_instantiated(
             module,
             profile,
             target_symbol,
@@ -1740,7 +1744,7 @@ impl Compiler {
         // materialize remaining comptime references using projection substitutions
         if let Type::Reference { symbol, .. } = types.get_type(mapped_count).clone() {
             let mut visited_symbols = HashSet::new();
-            if let Ok(Some(value)) = self.static_expression_from_constant_reference_instantiated(
+            if let Ok(Some(value)) = self.resolve_static_constant_reference_instantiated(
                 module,
                 profile,
                 symbol,
@@ -1796,9 +1800,7 @@ impl Compiler {
             types.get_type(mapped_count),
             Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(
-                    destack_dir::ScalarLiteral::Integer(_)
-                        | destack_dir::ScalarLiteral::Float(_)
-                        | destack_dir::ScalarLiteral::Bigint(_)
+                    ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) | ScalarLiteral::Bigint(_)
                 ),
             }
         );
@@ -1863,7 +1865,7 @@ impl Compiler {
         }
 
         let mut visited_symbols = HashSet::new();
-        if let Ok(Some(value)) = self.static_expression_from_constant_reference_instantiated(
+        if let Ok(Some(value)) = self.resolve_static_constant_reference_instantiated(
             module,
             profile,
             symbol,

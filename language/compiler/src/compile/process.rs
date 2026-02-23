@@ -106,6 +106,11 @@ impl Compiler {
             let Some(task_id) = self.queue.pop_ready() else {
                 // no task available, wait for work or completion
                 if !self.queue.wait_for_work() {
+                    // if tasks are still pending, fail stalled yields instead of exiting silently
+                    if self.queue.has_pending_non_final_tasks() {
+                        self.fail_stalled_yielded_tasks();
+                        continue;
+                    }
                     break;
                 }
                 continue;
@@ -113,6 +118,22 @@ impl Compiler {
             self.step_task(task_id);
         }
         IN_WORKER_LOOP.set(false);
+    }
+
+    /// Fail yielded tasks when the scheduler has no ready work but tasks are still pending.
+    fn fail_stalled_yielded_tasks(&self) {
+        let yielded_tasks = self.queue.yielded_tasks_with_dependencies();
+        for (task_id, dependency) in yielded_tasks {
+            let error = self.get_yield_failed_error(task_id, &dependency);
+            self.queue.set_status(
+                task_id,
+                TaskStatus::Failed {
+                    error: error.clone(),
+                },
+            );
+            self.error(error);
+            self.fail_waiters(task_id);
+        }
     }
 
     /// Run a task and its dependencies until it is final (Complete, Skipped, or Error).

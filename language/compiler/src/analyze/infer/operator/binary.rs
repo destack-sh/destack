@@ -179,9 +179,10 @@ impl Compiler {
         // handle logical operators with operand unions
         if matches!(operator, BinaryOperator::And | BinaryOperator::Or) {
             let result_ty_id = self.union_type(left_ty_id, right_ty_id, types);
-            self.commit_builtin_resolution(
+            self.record_provisional_builtin_resolution(
                 expression_id.into_global_any(module.id),
                 Some(left_ty_id),
+                infer,
                 types,
             );
             return Ok(result_ty_id);
@@ -216,9 +217,10 @@ impl Compiler {
         {
             let ty =
                 self.infer_binary_operation(operator, &left_operator_ty, &right_operator_ty, types);
-            self.commit_builtin_resolution(
+            self.record_provisional_builtin_resolution(
                 expression_id.into_global_any(module.id),
                 Some(left_ty_id),
+                infer,
                 types,
             );
             return Ok(types.insert_type_from(ty, expression_id));
@@ -245,10 +247,7 @@ impl Compiler {
                 left_ty_id,
                 types,
             );
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            return Ok(types.insert_type_from(ty, expression_id));
+            return Ok(self.binary_overload_failure_result_type(operator, expression_id, types));
         }
 
         // resolve the operator member function
@@ -275,15 +274,12 @@ impl Compiler {
                 left_ty_id,
                 types,
             );
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            return Ok(types.insert_type_from(ty, expression_id));
+            return Ok(self.binary_overload_failure_result_type(operator, expression_id, types));
         };
 
         // handle missing member
         if !resolved.has_member {
-            self.commit_member_call_resolution(
+            self.record_member_call_resolution(
                 module,
                 ctx.profile,
                 expression_id,
@@ -301,10 +297,7 @@ impl Compiler {
                 left_ty_id,
                 types,
             );
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            return Ok(types.insert_type_from(ty, expression_id));
+            return Ok(self.binary_overload_failure_result_type(operator, expression_id, types));
         }
 
         // binary operators expect one dynamic parameter
@@ -342,7 +335,7 @@ impl Compiler {
         }
 
         // finalize resolution and instance registration
-        self.commit_member_call_resolution(
+        self.record_member_call_resolution(
             module,
             ctx.profile,
             expression_id,
@@ -381,6 +374,36 @@ impl Compiler {
     }
 
     /// Infer an assignment expression.
+
+    /// Return one result type for operator overload resolution failures.
+    fn binary_overload_failure_result_type(
+        &self,
+        operator: &BinaryOperator,
+        expression_id: LocalNodeId<Expression>,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let result_type = if matches!(
+            operator,
+            BinaryOperator::Equal
+                | BinaryOperator::NotEqual
+                | BinaryOperator::EqualStrict
+                | BinaryOperator::NotEqualStrict
+                | BinaryOperator::LessThan
+                | BinaryOperator::LessThanOrEqual
+                | BinaryOperator::GreaterThan
+                | BinaryOperator::GreaterThanOrEqual
+        ) {
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            }
+        } else {
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            }
+        };
+
+        types.insert_type_from(result_type, expression_id)
+    }
 
     fn should_use_builtin_binary_operator(
         &self,

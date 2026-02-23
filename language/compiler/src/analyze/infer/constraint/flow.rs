@@ -8,8 +8,9 @@ use destack_dir::{
     FlowEdgeKind, FlowEnvironment, FlowGraph, FlowGuard, FlowTable, FunctionSignature,
     GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType,
     NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, RuntimeCheckKind,
-    ScalarLiteral, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeField, TypeLiteral,
-    TypePredicateSubject, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
+    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolTable, Type,
+    TypeBinaryOperator, TypeField, TypeLiteral, TypePredicateSubject, TypeTable, TypeUnaryOperator,
+    UnaryOperator, walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -1845,8 +1846,8 @@ impl Compiler {
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
-        // resolve the comptime relation fact from the guard syntax
-        let Some(relation) = self.comptime_extends_relation_fact_for_guard(
+        // resolve the comptime relation observation from the guard syntax
+        let Some(relation) = self.comptime_extends_relation_observation_for_guard(
             module, left_id, right_id, tree, symbols, types, context,
         )?
         else {
@@ -1914,8 +1915,8 @@ impl Compiler {
         Ok(Some((true_environment, false_environment)))
     }
 
-    /// Resolve one comptime extends relation fact from guard syntax.
-    fn comptime_extends_relation_fact_for_guard(
+    /// Resolve one comptime extends relation observation from guard syntax.
+    fn comptime_extends_relation_observation_for_guard(
         &self,
         module: &Module,
         left_id: LocalNodeId<Expression>,
@@ -1924,7 +1925,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         context: &InferContext,
-    ) -> AnalyzeResult<Option<ComptimeExtendsRelationFact>> {
+    ) -> AnalyzeResult<Option<ComptimeExtendsRelationObservation>> {
         // unwrap comptime wrappers around the relation operand
         let mut relation_expression_id = self.unwrap_parenthesized_expression(left_id, tree);
         while let Expression::Comptime { body } = tree.get(relation_expression_id) {
@@ -1965,7 +1966,7 @@ impl Compiler {
         )?;
         let target_type_id = self.unwrap_type_value(target_type_id, types);
 
-        Ok(Some(ComptimeExtendsRelationFact {
+        Ok(Some(ComptimeExtendsRelationObservation {
             relation_symbol,
             target_type_id,
         }))
@@ -2659,7 +2660,7 @@ impl Compiler {
     ) -> bool {
         let mut visited = Vec::new();
         let type_value = types.get_type(type_id).clone();
-        let Some(type_id) = self.infer_index_signature_value_type_for_key(
+        let Some(type_id) = self.resolve_index_signature_value_type_for_key(
             module,
             profile,
             anchor_node,
@@ -3076,8 +3077,8 @@ impl Compiler {
                     static_arguments.as_deref().is_some_and(|arguments| {
                         arguments.iter().any(|argument| {
                             let maybe_type_id = match argument {
-                                destack_dir::StaticArgument::Evaluated {
-                                    value: destack_dir::StaticExpression::Type { ty },
+                                StaticArgument::Evaluated {
+                                    value: StaticExpression::Type { ty },
                                     ..
                                 } => Some(*ty),
                                 _ => None,
@@ -3172,8 +3173,8 @@ impl Compiler {
             } => static_arguments.as_deref().is_some_and(|arguments| {
                 arguments.iter().any(|argument| {
                     let maybe_type_id = match argument {
-                        destack_dir::StaticArgument::Evaluated {
-                            value: destack_dir::StaticExpression::Type { ty },
+                        StaticArgument::Evaluated {
+                            value: StaticExpression::Type { ty },
                             ..
                         } => Some(*ty),
                         _ => None,
@@ -3208,9 +3209,9 @@ impl Compiler {
     }
 }
 
-/// Describe one `comptime T extends U` relation fact.
+/// Describe one `comptime T extends U` relation observation.
 #[derive(Debug, Clone, Copy)]
-struct ComptimeExtendsRelationFact {
+struct ComptimeExtendsRelationObservation {
     /// The relation parameter symbol on the left side.
     relation_symbol: GlobalSymbolId,
     /// The target type on the right side.

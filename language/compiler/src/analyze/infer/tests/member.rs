@@ -45,6 +45,56 @@ let c = obj.z;
     test.check_clean();
 }
 
+/// Preserve annotated interface receiver types for index signature member lookups.
+#[test]
+fn test_analyze_index_signature_member_preserves_annotated_receiver_type() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Bag {
+    [key: string]: int32
+}
+
+const bag: Bag = { a: 1 };
+const value = bag.missing;
+"#,
+    );
+
+    // run analyze pipeline without requiring clean diagnostics
+    test.analyze_module(module_id);
+    test.compile();
+
+    // load typed module data
+    let view = test.view(module_id);
+
+    // resolve the binding and expression ids
+    let bag_name = test.program.strings.intern("bag");
+    let value_name = test.program.strings.intern("value");
+    let bag_symbol = view.expect_binding_symbol(bag_name);
+    let value_initializer_id = view.expect_initializer(value_name);
+    let (receiver_id, _) = view.expect_member_expression(value_initializer_id);
+    let receiver_symbol = view.expect_reference_symbol(receiver_id);
+    assert_eq!(receiver_symbol, bag_symbol);
+
+    // preserve the Bag annotation on the direct binding
+    let bag_value_type_id = view.expect_value_type_id(bag_symbol);
+    let bag_annotation_type_id = match view.types().get_type(bag_value_type_id) {
+        Type::Value { value } => *value,
+        _ => bag_value_type_id,
+    };
+    assert_type!(view.types(), bag_annotation_type_id, Type::Reference { .. });
+
+    // preserve the receiver type used for member lookup
+    let receiver_type_id = view.expect_inferred_type_id(receiver_id);
+    let receiver_value_type_id = match view.types().get_type(receiver_type_id) {
+        Type::Value { value } => *value,
+        _ => receiver_type_id,
+    };
+    assert_type!(view.types(), receiver_value_type_id, Type::Reference { .. });
+}
+
 /// Resolve chained member access on nested objects.
 #[test]
 fn test_analyze_member_access_chained() {

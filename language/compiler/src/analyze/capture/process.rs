@@ -17,7 +17,7 @@ impl Compiler {
         self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleCapture { module, profile })
     }
 
-    /// Phase 4: Resolve captures for closures and nested functions.
+    /// Post-commit pass: resolve captures for closures and nested functions.
     pub(crate) fn analyze_module_capture(
         &self,
         module_id: ModuleId,
@@ -35,7 +35,7 @@ impl Compiler {
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_CAPTURE);
 
         // ensure dependencies are ready
-        self.require_analyze_module_infer(module_id, profile)?;
+        self.require_analyze_module_commit(module_id, profile)?;
 
         // skip non code modules
         if !self.is_code_module(module_id) {

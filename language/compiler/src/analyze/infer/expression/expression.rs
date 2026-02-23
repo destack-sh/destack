@@ -17,14 +17,14 @@ use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Addressability, Argument, BindingKind, BindingOperator, Block, CastOperator, CastSource,
     Constraint, Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource,
-    DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, FunctionCardinality, FunctionKind,
-    FunctionMode, GlobalNodeIdAny, GlobalSymbolId, IfCondition, InferOrigin, InferScope,
-    InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, LoopKind, MatchCase,
-    MatchKind, MatchSelector, MatchSource, Member, Mutability, NodeTree, NodeType,
-    NormalizationMode, Pattern, PrimitiveType, Property, Resolution, ScalarLiteral, StaticKey,
-    StringId, SymbolDecorators, SymbolSpace, SymbolTable, Type, TypeBinaryOperator, TypeElement,
-    TypeField, TypeLiteral, TypeRelationObligationDiagnostic, TypeTable, TypeUnaryOperator,
-    WellKnownSymbol, YieldCardinality,
+    DirectBindingValueCommitIntent, DynamicKey, Expression, FlowGraphBuilder, ForEachBinding,
+    FunctionCardinality, FunctionKind, FunctionMode, GlobalNodeIdAny, GlobalSymbolId, IfCondition,
+    ImportTarget, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
+    LocalTypeId, LoopKind, MatchCase, MatchKind, MatchSelector, MatchSource, Member, Mutability,
+    NodeTree, NodeType, NormalizationMode, Pattern, PrimitiveType, Property, Resolution,
+    ScalarLiteral, StaticKey, StringId, SymbolDecorators, SymbolSpace, SymbolTable, Type,
+    TypeBinaryOperator, TypeElement, TypeField, TypeLiteral, TypeRelationObligationDiagnostic,
+    TypeTable, TypeUnaryOperator, WellKnownSymbol, YieldCardinality,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ImportEdgeKind, Module, ModuleSource, ProfileId};
@@ -555,7 +555,8 @@ impl Compiler {
         };
 
         // allow the contextual type only when all candidates satisfy it
-        let expected_type = ctx.expected_type.filter(|expected_ty_id| {
+        let contextual_expected_type = self.expected_value_type(ctx.expected_type, types);
+        let expected_type = contextual_expected_type.filter(|expected_ty_id| {
             candidates.iter().all(|candidate| {
                 self.is_type_assignable(
                     module,
@@ -604,6 +605,8 @@ impl Compiler {
             return types.insert_type_from_any(ty, source_id);
         };
 
+        // use contextual expected types only when they are concrete
+        let expected_type = self.expected_value_type(expected_type, types);
         let allow_widening = expected_type.is_none();
         rest.iter().fold(first, |current, next| {
             self.best_common_type_for_pair(
@@ -740,8 +743,17 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &InferContext,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        // only infer local bindings without cached value types
-        if symbol.module_id != module.id || types.get_value_type_id(symbol).is_some() {
+        // only infer local bindings
+        if symbol.module_id != module.id {
+            return Ok(None);
+        }
+
+        // keep concrete cached value types and only refine infer placeholders
+        let existing_value_type_id = types.get_value_type_id(symbol);
+        if existing_value_type_id.is_some_and(|value_type_id| {
+            !self.is_infer_var_type(value_type_id, types)
+                && !self.unwrapped_value_type_is_unevaluated(value_type_id, types)
+        }) {
             return Ok(None);
         }
 
@@ -766,9 +778,6 @@ impl Compiler {
             return Ok(None);
         };
 
-        // preserve literal types when the initializer uses satisfies
-        let preserve_literals = self.expression_is_satisfies(tree, value_id);
-
         // seed a placeholder to avoid recursion through self references
         let scope = InferScope {
             owner: symbol,
@@ -776,14 +785,20 @@ impl Compiler {
                 .in_function
                 .map(|function_id| function_id.into_global(module.id)),
         };
-        let placeholder_ty_id = self.infer_var_type_for_symbol(
-            infer,
-            types,
-            symbol,
-            value_id.into_any(),
-            InferOrigin::Expression(value_id.into_global_any(module.id)),
-            scope,
-        );
+        let placeholder_ty_id = if let Some(existing_value_type_id) = existing_value_type_id
+            && self.is_infer_var_type(existing_value_type_id, types)
+        {
+            existing_value_type_id
+        } else {
+            self.infer_var_type_for_symbol(
+                infer,
+                types,
+                symbol,
+                value_id.into_any(),
+                InferOrigin::Expression(value_id.into_global_any(module.id)),
+                scope,
+            )
+        };
         types.set_value_type(symbol, placeholder_ty_id);
 
         // infer the initializer with binding defaults
@@ -792,11 +807,7 @@ impl Compiler {
             .with_expected_type(None)
             .with_contextual_typing_mode(ContextualTypingMode::Default);
         let binding_mutability = symbols.get_symbol(symbol.local_id).binding_mutability;
-        if let Some(mutability) = binding_mutability {
-            value_ctx = value_ctx.with_binding_mutability(mutability);
-        } else {
-            value_ctx = value_ctx.with_binding_initializer_defaults();
-        }
+        value_ctx = self.binding_initializer_context(&value_ctx, binding_mutability);
         let inferred_ty_id = self.infer_expression(
             module,
             value_id,
@@ -808,22 +819,87 @@ impl Compiler {
         )?;
 
         // commit the binding type before caching it
-        let is_const_asserted = self.declarator_is_const_assertion(declarator_id, tree);
-        let commit_ctx = if preserve_literals {
-            value_ctx.fork().with_preserve_literals()
-        } else {
-            value_ctx.fork()
-        };
-        let committed_ty_id = self.commit_binding_type(
+        let committed_ty_id = self.materialize_declarator_initializer_type(
             module,
-            &commit_ctx,
+            declarator_id,
+            value_id,
             inferred_ty_id,
+            tree,
+            &value_ctx,
             types,
-            is_const_asserted,
         );
         types.set_value_type(symbol, committed_ty_id);
+        infer.upsert_direct_binding_value_commit_intent(DirectBindingValueCommitIntent {
+            symbol_id: symbol,
+            declarator_id,
+            value_id,
+        });
 
         Ok(Some(committed_ty_id))
+    }
+
+    /// Resolve a flow-narrowed symbol type when it is concrete enough for value inference.
+    fn resolved_narrowed_type_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        ctx: &InferContext,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // skip when no narrowing is available
+        let Some(narrowed_ty_id) = ctx.get_narrowed(symbol) else {
+            return Ok(None);
+        };
+
+        // resolve the narrowed unwrapped value type before using it
+        let narrowed_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
+            module,
+            profile,
+            narrowed_ty_id,
+            tree,
+            symbols,
+            types,
+        )?;
+
+        // ignore stale or indeterminate narrowings and fall back to stable symbol commitments
+        if self.unwrapped_value_type_is_indeterminate(narrowed_unwrapped_ty_id, types) {
+            return Ok(None);
+        }
+
+        Ok(Some(narrowed_ty_id))
+    }
+
+    /// Resolve one cached inferred type id when it is ready for runtime use.
+    fn inferred_type_id_for_node_if_ready(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: GlobalNodeIdAny,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        infer: &InferTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        let Some(inferred_type_id) = infer.inferred_type_for_node(node_id) else {
+            return Ok(None);
+        };
+
+        let inferred_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
+            module,
+            profile,
+            inferred_type_id,
+            tree,
+            symbols,
+            types,
+        )?;
+        if self.unwrapped_value_type_is_unevaluated(inferred_unwrapped_ty_id, types) {
+            return Ok(None);
+        }
+
+        Ok(Some(inferred_type_id))
     }
 
     /// Return true when the expression is a satisfies type binary expression.
@@ -999,6 +1075,7 @@ impl Compiler {
                     *statement,
                     tree,
                     symbols,
+                    infer,
                     types,
                 );
 
@@ -1092,7 +1169,7 @@ impl Compiler {
                     });
                 }
 
-                if let destack_dir::ImportTarget::Expression { target } = target {
+                if let ImportTarget::Expression { target } = target {
                     self.infer_expression(module, *target, tree, symbols, types, infer, ctx)?;
                 }
 
@@ -1312,7 +1389,10 @@ impl Compiler {
                             infer,
                             ctx,
                         )?;
-                        types.set_inferred_type(right.into_global_any(module.id), right_ty_id);
+                        infer.set_inferred_type_for_node(
+                            right.into_global_any(module.id),
+                            right_ty_id,
+                        );
                         let mut left_ctx = ctx
                             .fork()
                             .with_expected_type(Some(right_ty_id))
@@ -1595,46 +1675,74 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let ty_id = match expression {
-            // unresolved references default to unknown
+            // unresolved references use error recovery
             Expression::UnresolvedPath {
                 path: _,
                 static_arguments: _,
                 space_order: _,
-            } => {
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
-                types.insert_type_from(ty, expression_id)
-            }
+            } => types.insert_type_from(Type::Error, expression_id),
 
             // private identifiers only appear in brand checks
             Expression::PrivateIdentifier { name: _ } => {
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
-                types.insert_type_from(ty, expression_id)
+                types.insert_type_from(Type::Error, expression_id)
             }
 
             // import meta: statically known type
             Expression::ImportMeta => {
-                // resolve the import.meta interface
+                // resolve the import.meta interface symbol
                 let Some(import_meta_symbol) =
                     self.get_language_symbol(ctx.profile, LanguageSymbol::ImportMeta)
                 else {
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
-                    return Ok(types.insert_type_from(ty, expression_id));
+                    self.error(AnalyzeError::Internal {
+                        message: format!(
+                            "missing language symbol for import.meta: module={}, profile={:?}",
+                            module.id, ctx.profile,
+                        ),
+                    });
+                    return Ok(types.insert_type_from(Type::Error, expression_id));
                 };
 
-                let ty = Type::Reference {
-                    symbol: import_meta_symbol,
-                    static_arguments: None,
-                };
-                types.insert_type_from(ty, expression_id)
+                // prefer one apparent or imported instance type so member lookup sees object fields eagerly
+                if let Some(import_meta_instance_ty_id) = self
+                    .apparent_instance_type(
+                        module,
+                        ctx.profile,
+                        expression_id.into_any(),
+                        import_meta_symbol,
+                        symbols,
+                        types,
+                    )
+                    .or(self.import_instance_type_for_symbol(
+                        ctx.profile,
+                        expression_id.into_any(),
+                        import_meta_symbol,
+                        types,
+                    )?)
+                {
+                    import_meta_instance_ty_id
+                } else if import_meta_symbol.module_id != module.id {
+                    // resolve import.meta through the remote value boundary before using a raw reference
+                    self.resolve_remote_symbol_value_type_for_context(
+                        module,
+                        ctx,
+                        expression_id.into_any(),
+                        import_meta_symbol,
+                        types,
+                    )?
+                } else {
+                    // fall back to a direct reference when no instance record is published yet
+                    types.insert_type_from(
+                        Type::Reference {
+                            symbol: import_meta_symbol,
+                            static_arguments: None,
+                        },
+                        expression_id,
+                    )
+                }
             }
 
             // this: reference to the current instance item context
@@ -1680,14 +1788,11 @@ impl Compiler {
             // super: reference to the base nominal type when available
             Expression::Super => {
                 if let Some(super_ty_id) =
-                    self.super_type_for_context(module, expression_id, tree, ctx, types)
+                    self.super_type_for_context(module, expression_id, tree, ctx, infer, types)
                 {
                     super_ty_id
                 } else {
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
-                    types.insert_type_from(ty, expression_id)
+                    types.insert_type_from(Type::Error, expression_id)
                 }
             }
 
@@ -1756,8 +1861,7 @@ impl Compiler {
 
         if owner_symbol.is_none() {
             let node_id = left.into_global_any(module.id);
-            if let Some(resolution_id) = types.get_resolution_for_node(node_id) {
-                let resolution = types.get_resolution(resolution_id);
+            if let Some(resolution) = self.query_resolution_for_node_infer(node_id, infer, types) {
                 if let Resolution::Static { candidate, .. } = resolution {
                     owner_symbol = Some(candidate.target_symbol);
                 }
@@ -1839,7 +1943,7 @@ impl Compiler {
                 )
             });
             if let Some(environment) = environment {
-                self.commit_instance_for_node_maybe(
+                self.record_provisional_instance_for_node_maybe(
                     expression_id.into_global_any(module.id),
                     owner_symbol,
                     environment,
@@ -2166,9 +2270,7 @@ impl Compiler {
                     }
                 }
 
-                // unwrap Type::Value to get the actual instance type
-                self.expected_value_type(Some(ty_id), types)
-                    .unwrap_or(ty_id)
+                ty_id
             }
 
             _ => unreachable!("tagged helper called with non tagged expression"),
@@ -2318,7 +2420,7 @@ impl Compiler {
                     let argument = tree.get(*element_id);
                     let value_id = argument.value();
                     let ty_id = if let Some(ty_id) =
-                        types.get_inferred_type_id(value_id.into_global_any(module.id))
+                        infer.inferred_type_for_node(value_id.into_global_any(module.id))
                     {
                         ty_id
                     } else {
@@ -2446,7 +2548,7 @@ impl Compiler {
                     let element = tree.get(*element_id);
                     let value_id = element.value();
                     let ty_id = if let Some(ty_id) =
-                        types.get_inferred_type_id(value_id.into_global_any(module.id))
+                        infer.inferred_type_for_node(value_id.into_global_any(module.id))
                     {
                         ty_id
                     } else {
@@ -2481,12 +2583,12 @@ impl Compiler {
                         } else if ctx.expected_type.is_some() || is_as_const {
                             ty_id
                         } else {
-                            let commit_ctx = ctx.for_widening_commit();
+                            let materialize_ctx = ctx.for_widening_commit();
                             self.widen_scalar_literal_type_if_needed(
                                 module,
                                 types,
                                 ty_id,
-                                &commit_ctx,
+                                &materialize_ctx,
                                 value_id.into_any(),
                             )
                         };
@@ -2624,11 +2726,26 @@ impl Compiler {
         // reuse an inferred result when caching is enabled
         let has_flow = ctx.flow.is_some();
         let node_id = expression_id.into_global_any(module.id);
-        if !ctx.is_surface_inference
+        let expression = tree.get(expression_id);
+        let cache_eligible_expression = !matches!(
+            expression,
+            Expression::Member { .. } | Expression::PrivateMember { .. }
+        );
+        if cache_eligible_expression
+            && !ctx.is_surface_inference
             && !has_flow
-            && let Some(ty_id) = types.get_inferred_type_id(node_id)
+            && let Some(ty_id) = self.inferred_type_id_for_node_if_ready(
+                module,
+                ctx.profile,
+                node_id,
+                tree,
+                symbols,
+                infer,
+                types,
+            )?
+            && infer.addressability_for_node(node_id).is_some()
         {
-            self.ensure_expression_addressability(module, expression_id, tree, types);
+            self.ensure_expression_addressability(module, expression_id, tree, infer);
             return Ok(ty_id);
         }
 
@@ -2654,7 +2771,6 @@ impl Compiler {
             self.apply_flow_environment_to_context(&environment, ctx);
         }
 
-        let expression = tree.get(expression_id);
         let ty_id: LocalTypeId = match expression {
             Expression::Declaration { .. }
             | Expression::Block { .. }
@@ -2803,6 +2919,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                infer,
                 ctx,
             )?,
 
@@ -3130,10 +3247,10 @@ impl Compiler {
         };
 
         // determine addressability for the expression
-        self.ensure_expression_addressability(module, expression_id, tree, types);
+        self.ensure_expression_addressability(module, expression_id, tree, infer);
 
         if !ctx.is_surface_inference {
-            types.set_inferred_type(node_id, ty_id);
+            infer.set_inferred_type_for_node(node_id, ty_id);
         }
 
         Ok(ty_id)
@@ -3980,10 +4097,10 @@ impl Compiler {
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         tree: &NodeTree,
-        types: &mut TypeTable,
+        infer: &mut InferTable,
     ) -> Addressability {
         let node_id = expression_id.into_global_any(module.id);
-        if let Some(addressability) = types.get_addressability_for_node(node_id) {
+        if let Some(addressability) = infer.addressability_for_node(node_id) {
             return addressability;
         }
 
@@ -3991,7 +4108,7 @@ impl Compiler {
         let expression = tree.get(expression_id);
         let addressability = match expression {
             Expression::Parenthesized { expression } => {
-                self.ensure_expression_addressability(module, *expression, tree, types)
+                self.ensure_expression_addressability(module, *expression, tree, infer)
             }
             Expression::LocalReference { .. }
             | Expression::ModuleReference { .. }
@@ -4014,7 +4131,7 @@ impl Compiler {
             _ => Addressability::Value,
         };
 
-        types.set_addressability_for_node(node_id, addressability);
+        infer.set_addressability_for_node(node_id, addressability);
         addressability
     }
 
@@ -4030,7 +4147,15 @@ impl Compiler {
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         if !ctx.is_surface_inference
-            && let Some(ty_id) = types.get_inferred_type_id(block_id.into_global_any(module.id))
+            && let Some(ty_id) = self.inferred_type_id_for_node_if_ready(
+                module,
+                ctx.profile,
+                block_id.into_global_any(module.id),
+                tree,
+                symbols,
+                infer,
+                types,
+            )?
         {
             return Ok(ty_id);
         }
@@ -4080,7 +4205,7 @@ impl Compiler {
         };
 
         if !ctx.is_surface_inference {
-            types.set_inferred_type(block_id.into_global_any(module.id), ty_id);
+            infer.set_inferred_type_for_node(block_id.into_global_any(module.id), ty_id);
         }
 
         Ok(ty_id)
@@ -4148,6 +4273,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         tree: &NodeTree,
         ctx: &InferContext,
+        infer: &InferTable,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         // super references require a valid lexical home object
@@ -4178,8 +4304,9 @@ impl Compiler {
 
                 // prefer the declared or inferred base type
                 let extends_global_id = extends_type_id.into_global_any(module.id);
-                if let Some(extends_ty_id) =
-                    types.get_declared_or_inferred_type_id(extends_global_id)
+                if let Some(extends_ty_id) = infer
+                    .inferred_type_for_node(extends_global_id)
+                    .or_else(|| types.get_declared_or_inferred_type_id(extends_global_id))
                 {
                     return Some(extends_ty_id);
                 }
@@ -4251,7 +4378,16 @@ impl Compiler {
         );
 
         // reuse a narrowed or declared value type when possible
-        let base_ty_id = if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
+        let narrowed_ty_id = self.resolved_narrowed_type_for_symbol(
+            module,
+            ctx.profile,
+            canonical_symbol,
+            tree,
+            symbols,
+            types,
+            ctx,
+        )?;
+        let base_ty_id = if let Some(narrowed_ty_id) = narrowed_ty_id {
             narrowed_ty_id
         } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
             value_ty_id
@@ -4267,23 +4403,13 @@ impl Compiler {
         )? {
             inferred_ty_id
         } else if canonical_symbol.module_id != module.id {
-            if ctx.is_surface_inference {
-                self.resolve_remote_symbol_value_type_for_surface(
-                    module,
-                    ctx.profile,
-                    property_id.into_any(),
-                    canonical_symbol,
-                    types,
-                )?
-            } else {
-                self.resolve_remote_symbol_value_type_for_interface(
-                    module,
-                    ctx.profile,
-                    property_id.into_any(),
-                    canonical_symbol,
-                    types,
-                )?
-            }
+            self.resolve_remote_symbol_value_type_for_context(
+                module,
+                ctx,
+                property_id.into_any(),
+                canonical_symbol,
+                types,
+            )?
         } else {
             let scope = InferScope {
                 owner: canonical_symbol,
@@ -4298,6 +4424,16 @@ impl Compiler {
                 scope,
             )
         };
+
+        // resolve wrapped unevaluated receiver types before using the receiver type
+        let _base_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
+            module,
+            ctx.profile,
+            base_ty_id,
+            tree,
+            symbols,
+            types,
+        )?;
 
         // ensure instance types for referenced symbols
         self.ensure_reference_instance_types_for_type(
@@ -4379,11 +4515,14 @@ impl Compiler {
                         ctx,
                     )?
                 } else {
-                    // no value, return unknown type
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
-                    types.insert_type_from_any(ty, property_id.into_any())
+                    // no value and no shorthand binding: recover with an error type
+                    self.error(AnalyzeError::Internal {
+                        message: format!(
+                            "object property missing value and shorthand binding: module={}, property={property_id:?}",
+                            module.id,
+                        ),
+                    });
+                    types.insert_type_from_any(Type::Error, property_id.into_any())
                 };
 
                 // infer default with the same expected type
@@ -4947,7 +5086,16 @@ impl Compiler {
             == Some(global_this_name);
 
         // pick the base type for the symbol by applying narrowing and inference
-        let base_ty_id = if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
+        let narrowed_ty_id = self.resolved_narrowed_type_for_symbol(
+            module,
+            ctx.profile,
+            canonical_symbol,
+            tree,
+            symbols,
+            types,
+            ctx,
+        )?;
+        let base_ty_id = if let Some(narrowed_ty_id) = narrowed_ty_id {
             narrowed_ty_id
         } else if is_global_this
             && let Some(global_this_ty_id) = self.infer_global_this_value_type(
@@ -4962,8 +5110,37 @@ impl Compiler {
             )?
         {
             global_this_ty_id
+        } else if canonical_symbol.module_id != module.id {
+            if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol)
+                && !self.unwrapped_value_type_is_unevaluated(value_ty_id, types)
+            {
+                value_ty_id
+            } else {
+                self.resolve_remote_symbol_value_type_for_context(
+                    module,
+                    ctx,
+                    expression_id.into_any(),
+                    canonical_symbol,
+                    types,
+                )?
+            }
         } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
-            value_ty_id
+            if !self.unwrapped_value_type_is_unevaluated(value_ty_id, types) {
+                value_ty_id
+            } else if let Some(inferred_ty_id) = self.infer_direct_binding_value_type(
+                module,
+                ctx.profile,
+                canonical_symbol,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )? {
+                inferred_ty_id
+            } else {
+                value_ty_id
+            }
         } else if let Some(inferred_ty_id) = self.infer_direct_binding_value_type(
             module,
             ctx.profile,
@@ -4975,24 +5152,6 @@ impl Compiler {
             ctx,
         )? {
             inferred_ty_id
-        } else if canonical_symbol.module_id != module.id {
-            if ctx.is_surface_inference {
-                self.resolve_remote_symbol_value_type_for_surface(
-                    module,
-                    ctx.profile,
-                    expression_id.into_any(),
-                    canonical_symbol,
-                    types,
-                )?
-            } else {
-                self.resolve_remote_symbol_value_type_for_interface(
-                    module,
-                    ctx.profile,
-                    expression_id.into_any(),
-                    canonical_symbol,
-                    types,
-                )?
-            }
         } else {
             // local symbol without type: use InferVar for forward references
             let scope = InferScope {
@@ -5010,10 +5169,18 @@ impl Compiler {
         };
 
         // evaluate local unevaluated types before use
-        if canonical_symbol.module_id == module.id
-            && matches!(types.get_type(base_ty_id), Type::Unevaluated(_))
-        {
-            self.resolve_declared_type(module, ctx.profile, base_ty_id, tree, symbols, types)?;
+        if canonical_symbol.module_id == module.id {
+            let base_value_ty_id = types.unwrap_value_type_id(base_ty_id);
+            if matches!(types.get_type(base_value_ty_id), Type::Unevaluated(_)) {
+                self.resolve_declared_type(
+                    module,
+                    ctx.profile,
+                    base_value_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+            }
         }
 
         // ensure instance types for referenced symbols
@@ -5131,7 +5298,7 @@ impl Compiler {
             )
         });
         if let Some(environment) = environment {
-            self.commit_instance_for_node_maybe(
+            self.record_provisional_instance_for_node_maybe(
                 expression_id.into_global_any(module.id),
                 canonical_symbol,
                 environment,
@@ -5615,6 +5782,7 @@ impl Compiler {
         statement_id: LocalNodeId<Expression>,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        infer: &InferTable,
         types: &TypeTable,
     ) {
         // only warn for call like statements
@@ -5625,10 +5793,9 @@ impl Compiler {
 
         // look up the resolution for the statement
         let node_id = statement_id.into_global_any(module.id);
-        let Some(resolution_id) = types.get_resolution_for_node(node_id) else {
+        let Some(resolution) = self.query_resolution_for_node_infer(node_id, infer, types) else {
             return;
         };
-        let resolution = types.get_resolution(resolution_id);
 
         // check for mustUse targets
         let mut should_warn = false;

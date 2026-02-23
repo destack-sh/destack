@@ -684,7 +684,7 @@ impl Compiler {
         &self,
         constraint_ty_id: Option<LocalTypeId>,
         value: &str,
-        source_id: destack_dir::LocalNodeIdAny,
+        source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         // resolve the constraint type
@@ -1595,6 +1595,7 @@ impl Compiler {
             Type::Union { elements } => elements.iter().any(|element_id| {
                 self.span_is_string_supertype(module, profile, *element_id, symbols, types, visited)
             }),
+            _ if span_ty.is_infer() => true,
             _ => false,
         };
 

@@ -14,7 +14,7 @@ pub(super) use destack_dir::{
     Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 pub(super) use destack_source::ModuleId;
-pub(super) use destack_workspace::DsConfigCompilerOptions;
+pub(super) use destack_workspace::{DsConfigCompilerOptions, ProfileId};
 pub(super) use std::collections::{HashMap, HashSet};
 
 /// Cached view of module tables for tests.
@@ -115,7 +115,7 @@ impl<'a> TestModuleView<'a> {
     }
 
     /// Resolve the default profile id for this module.
-    pub(crate) fn profile_id(&self) -> destack_workspace::ProfileId {
+    pub(crate) fn profile_id(&self) -> ProfileId {
         self.test.default_profile_id(self.module_id)
     }
 
