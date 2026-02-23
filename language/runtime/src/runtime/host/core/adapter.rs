@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_workspace::Platform;
+use destack_workspace::{Platform, PlatformHostOptions};
 
 use super::{HostEvent, HostServices};
 use crate::diagnostic::RuntimeResult;
@@ -21,8 +21,21 @@ pub trait HostAdapter: std::fmt::Debug + Send + Sync {
     /// Return one shared wake handle for out-of-band host wakeups.
     fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>>;
 
-    /// Return the active host capability set.
-    fn capabilities(&self) -> PlatformCapabilitySet {
+    /// Configure host integration options on this adapter.
+    fn configure_host_options(&self, _host_options: &PlatformHostOptions) {}
+
+    /// Return the callback runtime id used by native host callback routing.
+    fn callback_runtime_id(&self) -> Option<u64> {
+        None
+    }
+
+    /// Take the number of dropped host events observed by this adapter.
+    fn take_dropped_event_count(&self) -> u64 {
+        0
+    }
+
+    /// Return host platform capabilities for this adapter target.
+    fn host_capabilities(&self) -> PlatformCapabilitySet {
         PlatformCapabilitySet::new()
     }
 

@@ -254,7 +254,17 @@ impl Runtime {
                     }
                     // drop stale and unregistered events without crashing the loop
                     else {
-                        self.event_loop.record_dropped_external_event();
+                        self.event_loop.record_dropped_unwatched_dispatch_event();
+                    }
+                }
+                Runnable::HostEvent(event) => {
+                    // dispatch one host-event watch task when one is registered
+                    if let Some(task) = self.event_loop.task_for_host_event(event) {
+                        self.enqueue_prepared_task(task)?;
+                    }
+                    // account for unconsumed host semantic events
+                    else {
+                        self.event_loop.record_dropped_unwatched_dispatch_event();
                     }
                 }
             }
@@ -549,46 +559,41 @@ impl Runtime {
     fn poll_host_events(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<usize> {
         // drain host adapter events for this tick
         let events = self.host.poll_events(timeout_nanos)?;
-        if events.is_empty() {
-            return Ok(0);
-        }
-
-        // route host events into supported event-loop lanes
         let mut poller_events = Vec::new();
+        let mut host_events = Vec::new();
         for event in events {
             // route poller-compatible host events into the scheduler queue
-            if let HostEvent::Poller(event) = event {
-                poller_events.push(event);
+            match event {
+                HostEvent::Poller(event) => {
+                    poller_events.push(event);
+                }
+                event => {
+                    host_events.push(event);
+                }
             }
-            // keep non-poller host events internal until dedicated watch lanes are added
         }
 
-        // cap poller host event intake when configured
-        let mut dropped_poller_events = 0usize;
-        if let Some(event_queue_capacity) = self.host.event_queue_capacity()
-            && poller_events.len() > event_queue_capacity
-        {
-            dropped_poller_events = poller_events.len().saturating_sub(event_queue_capacity);
-            poller_events.truncate(event_queue_capacity);
-        }
-
-        // account for dropped poller host events
-        if dropped_poller_events > 0 {
-            let dropped_poller_events_u64 = if dropped_poller_events > u64::MAX as usize {
-                u64::MAX
-            } else {
-                dropped_poller_events as u64
-            };
+        // record dropped host queue events from adapter-side queue policy
+        let dropped_host_events = self.host.take_dropped_event_count();
+        if dropped_host_events > 0 {
             self.event_loop
-                .record_dropped_external_events(dropped_poller_events_u64);
+                .record_dropped_host_queue_events(dropped_host_events);
         }
 
-        let event_count = poller_events.len();
-        if event_count > 0 {
+        let host_event_count = host_events.len();
+        let poller_event_count = poller_events.len();
+
+        // enqueue host semantic events for watch-based dispatch
+        if !host_events.is_empty() {
+            self.event_loop.enqueue_host_events(host_events);
+        }
+
+        // enqueue poller events for token-based dispatch
+        if !poller_events.is_empty() {
             self.event_loop.enqueue_events(poller_events);
         }
 
-        Ok(event_count)
+        Ok(host_event_count.saturating_add(poller_event_count))
     }
 
     /// Return whether the current tick exhausted the configured budget.

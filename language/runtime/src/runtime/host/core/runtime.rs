@@ -4,10 +4,10 @@ use destack_workspace::{PlatformHostOptions, RuntimeOptions};
 
 use super::adapter::{HostAdapter, HostPlatform};
 use super::event::HostEvent;
-use super::select::default_host_adapter;
+use super::select::{compile_target_host_platform, default_host_adapter};
 use super::service::HostServices;
 use crate::diagnostic::RuntimeResult;
-use crate::runtime::capability::PlatformCapabilitySet;
+use crate::runtime::capability::{PlatformCapability, PlatformCapabilityId, PlatformCapabilitySet};
 use crate::runtime::poller::HostPollerWakeHandle;
 
 /// Runtime host adapter container.
@@ -15,8 +15,8 @@ use crate::runtime::poller::HostPollerWakeHandle;
 pub struct HostRuntime {
     /// Active host adapter for this runtime instance.
     adapter: Arc<dyn HostAdapter>,
-    /// Active capability set reported by the host adapter.
-    capabilities: PlatformCapabilitySet,
+    /// Host capability set reported by the host adapter.
+    host_capabilities: PlatformCapabilitySet,
     /// Resolved host integration options for this runtime target.
     host_options: PlatformHostOptions,
     /// Filtered service surfaces enabled for this runtime target.
@@ -27,7 +27,7 @@ impl std::fmt::Debug for HostRuntime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("HostRuntime")
             .field("platform", &self.platform())
-            .field("capability_count", &self.capabilities.len())
+            .field("host_capability_count", &self.host_capabilities.len())
             .field(
                 "enable_lifecycle_events",
                 &self.host_options.enable_lifecycle_events,
@@ -48,6 +48,7 @@ impl std::fmt::Debug for HostRuntime {
                 "event_queue_capacity",
                 &self.host_options.event_queue_capacity,
             )
+            .field("callback_runtime_id", &self.callback_runtime_id())
             .finish()
     }
 }
@@ -63,12 +64,13 @@ impl HostRuntime {
         adapter: Arc<dyn HostAdapter>,
         host_options: PlatformHostOptions,
     ) -> Self {
-        let capabilities = adapter.capabilities();
+        adapter.configure_host_options(&host_options);
+        let host_capabilities = adapter.host_capabilities();
         let services = filtered_services(&adapter, &host_options);
 
         Self {
             adapter,
-            capabilities,
+            host_capabilities,
             host_options,
             services,
         }
@@ -93,9 +95,9 @@ impl HostRuntime {
         &self.adapter
     }
 
-    /// Return the active host capability set.
-    pub fn capabilities(&self) -> &PlatformCapabilitySet {
-        &self.capabilities
+    /// Return host platform capabilities reported by this runtime target.
+    pub fn host_capabilities(&self) -> &PlatformCapabilitySet {
+        &self.host_capabilities
     }
 
     /// Return the resolved host options for this runtime target.
@@ -104,15 +106,20 @@ impl HostRuntime {
     }
 
     /// Return the configured host event queue capacity for this target.
-    pub fn event_queue_capacity(&self) -> Option<usize> {
+    pub fn host_event_queue_capacity(&self) -> Option<usize> {
         self.host_options
             .event_queue_capacity
             .and_then(|capacity| usize::try_from(capacity).ok())
     }
 
-    /// Return whether the active host reports one capability name.
-    pub fn has_capability(&self, capability_name: &str) -> bool {
-        self.capabilities.contains_name(capability_name)
+    /// Return whether this runtime target reports one host capability id.
+    pub fn has_host_capability_id(&self, capability_id: PlatformCapabilityId) -> bool {
+        self.host_capabilities.contains_id(capability_id)
+    }
+
+    /// Return whether this runtime target reports one host capability.
+    pub fn has_host_capability(&self, capability: PlatformCapability) -> bool {
+        self.host_capabilities.contains_capability(capability)
     }
 
     /// Return the service surfaces exposed by this host.
@@ -131,6 +138,16 @@ impl HostRuntime {
     pub fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
         self.adapter.wake_handle()
     }
+
+    /// Return the callback runtime id for native host callback routing.
+    pub fn callback_runtime_id(&self) -> Option<u64> {
+        self.adapter.callback_runtime_id()
+    }
+
+    /// Take the number of dropped host events observed by this adapter.
+    pub fn take_dropped_event_count(&self) -> u64 {
+        self.adapter.take_dropped_event_count()
+    }
 }
 
 impl Default for HostRuntime {
@@ -141,82 +158,20 @@ impl Default for HostRuntime {
 
 /// Return host integration options for the current compile target.
 fn host_options_for_target(options: &RuntimeOptions) -> PlatformHostOptions {
-    #[cfg(target_os = "android")]
-    {
-        options.platform.android.host.clone()
-    }
-
-    #[cfg(target_os = "dragonfly")]
-    {
-        options.platform.dragonfly.host.clone()
-    }
-
-    #[cfg(target_os = "freebsd")]
-    {
-        options.platform.freebsd.host.clone()
-    }
-
-    #[cfg(target_os = "haiku")]
-    {
-        options.platform.haiku.host.clone()
-    }
-
-    #[cfg(target_os = "illumos")]
-    {
-        options.platform.illumos.host.clone()
-    }
-
-    #[cfg(target_os = "ios")]
-    {
-        options.platform.ios.host.clone()
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        options.platform.linux.host.clone()
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        options.platform.macos.host.clone()
-    }
-
-    #[cfg(target_os = "netbsd")]
-    {
-        options.platform.netbsd.host.clone()
-    }
-
-    #[cfg(target_os = "openbsd")]
-    {
-        options.platform.openbsd.host.clone()
-    }
-
-    #[cfg(target_os = "solaris")]
-    {
-        options.platform.solaris.host.clone()
-    }
-
-    #[cfg(windows)]
-    {
-        options.platform.windows.host.clone()
-    }
-
-    #[cfg(not(any(
-        target_os = "android",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "haiku",
-        target_os = "illumos",
-        target_os = "ios",
-        target_os = "linux",
-        target_os = "macos",
-        target_os = "netbsd",
-        target_os = "openbsd",
-        target_os = "solaris",
-        windows,
-    )))]
-    {
-        PlatformHostOptions::default()
+    match compile_target_host_platform() {
+        HostPlatform::Android => options.platform.android.host.clone(),
+        HostPlatform::DragonFly => options.platform.dragonfly.host.clone(),
+        HostPlatform::FreeBsd => options.platform.freebsd.host.clone(),
+        HostPlatform::Haiku => options.platform.haiku.host.clone(),
+        HostPlatform::Illumos => options.platform.illumos.host.clone(),
+        HostPlatform::IOS => options.platform.ios.host.clone(),
+        HostPlatform::Linux => options.platform.linux.host.clone(),
+        HostPlatform::MacOS => options.platform.macos.host.clone(),
+        HostPlatform::NetBsd => options.platform.netbsd.host.clone(),
+        HostPlatform::OpenBsd => options.platform.openbsd.host.clone(),
+        HostPlatform::Solaris => options.platform.solaris.host.clone(),
+        HostPlatform::Windows => options.platform.windows.host.clone(),
+        _ => PlatformHostOptions::default(),
     }
 }
 
@@ -228,54 +183,32 @@ fn filtered_services(
     let adapter_services = adapter.services();
     let mut services = HostServices::default();
 
-    // lifecycle service lane
+    // lifecycle service kind
     if host_options.enable_lifecycle_events
         && let Some(service) = adapter_services.lifecycle()
     {
         services = services.with_lifecycle(Arc::clone(service));
     }
 
-    // window service lane
+    // window service kind
     if host_options.enable_window_events
         && let Some(service) = adapter_services.window()
     {
         services = services.with_window(Arc::clone(service));
     }
 
-    // permission service lane
+    // permission service kind
     if host_options.enable_permission_events
         && let Some(service) = adapter_services.permission()
     {
         services = services.with_permission(Arc::clone(service));
     }
 
-    // interruption service lane
+    // interruption service kind
     if host_options.enable_interruption_events
         && let Some(service) = adapter_services.interruption()
     {
         services = services.with_interruption(Arc::clone(service));
-    }
-
-    // host core services
-    if let Some(service) = adapter_services.asset() {
-        services = services.with_asset(Arc::clone(service));
-    }
-    if let Some(service) = adapter_services.jni() {
-        services = services.with_jni(Arc::clone(service));
-    }
-
-    // host integration surfaces
-    if let Some(service) = adapter_services.display() {
-        services = services.with_display(Arc::clone(service));
-    }
-    if let Some(service) = adapter_services.power() {
-        services = services.with_power(Arc::clone(service));
-    }
-    if let Some(service) = adapter_services.text_input() {
-        services = services.with_text_input(Arc::clone(service));
-    }
-    if let Some(service) = adapter_services.haptics() {
-        services = services.with_haptics(Arc::clone(service));
     }
 
     services

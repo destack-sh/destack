@@ -1,67 +1,68 @@
 use std::sync::Arc;
 
+use super::HostPlatform;
 use super::adapter::HostAdapter;
 
-/// Return one default host adapter for the active compile target.
-pub fn default_host_adapter() -> Arc<dyn HostAdapter> {
+/// Return the host platform for the active compile target.
+pub(super) const fn compile_target_host_platform() -> HostPlatform {
     #[cfg(target_os = "android")]
     {
-        Arc::new(crate::runtime::host::android::AndroidHostAdapter::new())
+        HostPlatform::Android
     }
 
     #[cfg(target_os = "dragonfly")]
     {
-        Arc::new(crate::runtime::host::dragonfly::DragonflyHostAdapter::new())
+        HostPlatform::DragonFly
     }
 
     #[cfg(target_os = "freebsd")]
     {
-        Arc::new(crate::runtime::host::freebsd::FreeBsdHostAdapter::new())
+        HostPlatform::FreeBsd
     }
 
     #[cfg(target_os = "haiku")]
     {
-        Arc::new(crate::runtime::host::haiku::HaikuHostAdapter::new())
+        HostPlatform::Haiku
     }
 
     #[cfg(target_os = "illumos")]
     {
-        Arc::new(crate::runtime::host::illumos::IllumosHostAdapter::new())
+        HostPlatform::Illumos
     }
 
     #[cfg(target_os = "ios")]
     {
-        Arc::new(crate::runtime::host::ios::IosHostAdapter::new())
+        HostPlatform::IOS
     }
 
     #[cfg(target_os = "linux")]
     {
-        Arc::new(crate::runtime::host::linux::LinuxHostAdapter::new())
+        HostPlatform::Linux
     }
 
     #[cfg(target_os = "macos")]
     {
-        Arc::new(crate::runtime::host::macos::MacosHostAdapter::new())
+        HostPlatform::MacOS
     }
 
     #[cfg(target_os = "netbsd")]
     {
-        Arc::new(crate::runtime::host::netbsd::NetBsdHostAdapter::new())
+        HostPlatform::NetBsd
     }
 
     #[cfg(target_os = "openbsd")]
     {
-        Arc::new(crate::runtime::host::openbsd::OpenBsdHostAdapter::new())
+        HostPlatform::OpenBsd
     }
 
     #[cfg(target_os = "solaris")]
     {
-        Arc::new(crate::runtime::host::solaris::SolarisHostAdapter::new())
+        HostPlatform::Solaris
     }
 
     #[cfg(windows)]
     {
-        Arc::new(crate::runtime::host::windows::WindowsHostAdapter::new())
+        HostPlatform::Windows
     }
 
     #[cfg(not(any(
@@ -79,6 +80,61 @@ pub fn default_host_adapter() -> Arc<dyn HostAdapter> {
         windows,
     )))]
     {
-        Arc::new(crate::runtime::host::unsupported::UnsupportedHostAdapter::new())
+        HostPlatform::Universal
     }
+}
+
+/// Return one default host adapter for the active compile target.
+pub fn default_host_adapter() -> Arc<dyn HostAdapter> {
+    #[cfg(target_os = "android")]
+    return Arc::new(crate::runtime::host::android::AndroidHostAdapter::new());
+
+    #[cfg(target_os = "dragonfly")]
+    return Arc::new(crate::runtime::host::dragonfly::DragonflyHostAdapter::new());
+
+    #[cfg(target_os = "freebsd")]
+    return Arc::new(crate::runtime::host::freebsd::FreeBsdHostAdapter::new());
+
+    #[cfg(target_os = "haiku")]
+    return Arc::new(crate::runtime::host::haiku::HaikuHostAdapter::new());
+
+    #[cfg(target_os = "illumos")]
+    return Arc::new(crate::runtime::host::illumos::IllumosHostAdapter::new());
+
+    #[cfg(target_os = "ios")]
+    return Arc::new(crate::runtime::host::ios::IosHostAdapter::new());
+
+    #[cfg(target_os = "linux")]
+    return Arc::new(crate::runtime::host::linux::LinuxHostAdapter::new());
+
+    #[cfg(target_os = "macos")]
+    return Arc::new(crate::runtime::host::macos::MacosHostAdapter::new());
+
+    #[cfg(target_os = "netbsd")]
+    return Arc::new(crate::runtime::host::netbsd::NetBsdHostAdapter::new());
+
+    #[cfg(target_os = "openbsd")]
+    return Arc::new(crate::runtime::host::openbsd::OpenBsdHostAdapter::new());
+
+    #[cfg(target_os = "solaris")]
+    return Arc::new(crate::runtime::host::solaris::SolarisHostAdapter::new());
+
+    #[cfg(windows)]
+    return Arc::new(crate::runtime::host::windows::WindowsHostAdapter::new());
+
+    #[cfg(not(any(
+        target_os = "android",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "haiku",
+        target_os = "illumos",
+        target_os = "ios",
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "solaris",
+        windows,
+    )))]
+    return Arc::new(crate::runtime::host::unsupported::UnsupportedHostAdapter::new());
 }
