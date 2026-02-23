@@ -112,6 +112,12 @@ impl TestDaemon {
                 .with_fs(fs.clone())
                 .with_cache_store(Arc::new(MemoryCacheStore::new())),
         );
+
+        // materialize root directories for canonicalization
+        for root_path in &roots {
+            let _ = fs.create_dir_all(root_path);
+        }
+
         for root_path in &roots {
             session.add_root(root_path.clone());
         }

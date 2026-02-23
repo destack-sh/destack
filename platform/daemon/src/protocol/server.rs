@@ -7,7 +7,10 @@ use std::time::{Duration, Instant};
 use destack_source::{ModuleId, ProfileId};
 use parking_lot::Mutex;
 
-use destack_service::WorkspaceHandleId as ServiceWorkspaceHandleId;
+use destack_service::{
+    LanguageServiceError as ServiceLanguageServiceError,
+    WorkspaceHandleId as ServiceWorkspaceHandleId,
+};
 use destack_workspace::{
     FileUpdate as WorkspaceFileUpdate, ModuleGraphKey, ModuleSignatureKey, Program,
 };
@@ -318,15 +321,26 @@ impl ProtocolServer {
 
         // serve requests until shutdown
         let result = loop {
-            let message = self.recv_message(transport)?;
-            let Some(response) = self.handle_message(message)? else {
+            let message = match self.recv_message(transport) {
+                Ok(message) => message,
+                Err(error) => break Err(error),
+            };
+            let response = match self.handle_message(message) {
+                Ok(response) => response,
+                Err(error) => break Err(error),
+            };
+            let Some(response) = response else {
                 if self.is_shutting_down() {
                     break Ok(());
                 }
                 continue;
             };
-            self.send_message(transport, &response)?;
-            self.flush_pending_payloads(transport)?;
+            if let Err(error) = self.send_message(transport, &response) {
+                break Err(error);
+            }
+            if let Err(error) = self.flush_pending_payloads(transport) {
+                break Err(error);
+            }
             if self.is_shutting_down() {
                 break Ok(());
             }
@@ -479,7 +493,7 @@ impl ProtocolServer {
     ) -> Result<DaemonResponse, ProtocolError> {
         self.require_session()?;
 
-        let root = self.normalize_root(&request.root);
+        let root = self.normalize_root(&request.root)?;
         // open or reuse the workspace handle
         let (handle, inserted) = self.open_workspace_handle(&root)?;
         if inserted {
@@ -643,7 +657,7 @@ impl ProtocolServer {
 
         let result = self
             .daemon
-            .run_command(&root, &request.common, &request.payload)
+            .run_workspace_command(&root, &request.common, &request.payload)
             .map_err(|error| {
                 self.protocol_error(ProtocolErrorCode::Internal, &error.to_string())
             })?;
@@ -714,6 +728,16 @@ impl ProtocolServer {
                 let stats = self.cache_stats_for_root(&root)?;
                 DaemonQueryResponse::CacheStats(stats)
             }
+            DaemonQuery::WorkspaceRevision { handle } => {
+                let revision = self
+                    .daemon
+                    .workspace_service
+                    .revision_for_handle(self.service_handle_id(handle))
+                    .map_err(|error| {
+                        self.protocol_error_from_service("workspace revision", error)
+                    })?;
+                DaemonQueryResponse::WorkspaceRevision(revision)
+            }
             DaemonQuery::WorkspaceQuery { handle, request } => {
                 let _ = self.root_for_handle(handle)?;
                 let response = self.execute_workspace_query(handle, request)?;
@@ -748,24 +772,39 @@ impl ProtocolServer {
             )
         })?;
 
+        // capture request kind before dispatch
+        let request_method_id = request.request.method_id();
+
+        // execute the semantic query through the workspace service
         let response = self
             .daemon
             .workspace_service
-            .query_for_handle(ServiceWorkspaceHandleId(handle.0), request.request)
-            .map_err(|error| {
-                self.protocol_error(
-                    ProtocolErrorCode::Internal,
-                    &format!("workspace query failed: {error}"),
-                )
-            })?;
+            .execute_query_envelope_for_workspace_handle(self.service_handle_id(handle), request)
+            .map_err(|error| self.protocol_error_from_service("workspace query", error))?;
+
+        // keep query response variants aligned with query request variants
+        if response.response.method_id() != request_method_id {
+            return Err(self.protocol_error(
+                ProtocolErrorCode::Internal,
+                &format!(
+                    "workspace query response kind mismatch: request={request_method_id:?} response={:?}",
+                    response.response.method_id(),
+                ),
+            ));
+        }
 
         // encode the semantic query response payload
-        QueryResponsePayload::from_envelope(response).map_err(|error| {
+        let mut response = QueryResponsePayload::from_envelope(response).map_err(|error| {
             self.protocol_error(
                 ProtocolErrorCode::Internal,
                 &format!("failed to encode query response payload: {error}"),
             )
-        })
+        })?;
+
+        // route large query responses through deferred payload streaming
+        response.payload = self.prepare_payload(response.payload)?;
+
+        Ok(response)
     }
 
     /// Return a NotReady protocol error with message.
@@ -781,13 +820,17 @@ impl ProtocolServer {
             .ok_or_else(|| self.protocol_error(ProtocolErrorCode::NotReady, "handshake required"))
     }
 
-    /// Normalize workspace roots when possible.
-    fn normalize_root(&self, root: &Path) -> PathBuf {
-        self.daemon
-            .session
-            .fs
-            .canonicalize(root)
-            .unwrap_or_else(|_| root.to_path_buf())
+    /// Normalize workspace roots.
+    fn normalize_root(&self, root: &Path) -> Result<PathBuf, ProtocolError> {
+        self.daemon.session.fs.canonicalize(root).map_err(|error| {
+            self.protocol_error(
+                ProtocolErrorCode::InvalidRequest,
+                &format!(
+                    "workspace root canonicalization failed for {}: {error}",
+                    root.display()
+                ),
+            )
+        })
     }
 
     /// Check whether a path is within a workspace root.
@@ -828,7 +871,7 @@ impl ProtocolServer {
             .daemon
             .acquire_workspace_root(root)
             .map_err(|error| self.protocol_error_from_daemon(error))?;
-        let handle = WorkspaceHandleId::new(service_handle.0);
+        let handle = self.protocol_handle_id(service_handle);
         state.workspace_handles.insert(root.to_path_buf(), handle);
         state.workspace_roots.insert(handle, root.to_path_buf());
         Ok((handle, true))
@@ -864,6 +907,16 @@ impl ProtocolServer {
             .ok_or_else(|| self.missing_workspace(handle))
     }
 
+    /// Convert a protocol workspace handle id into a service workspace handle id.
+    fn service_handle_id(&self, handle: WorkspaceHandleId) -> ServiceWorkspaceHandleId {
+        ServiceWorkspaceHandleId(handle.0)
+    }
+
+    /// Convert a service workspace handle id into a protocol workspace handle id.
+    fn protocol_handle_id(&self, handle: ServiceWorkspaceHandleId) -> WorkspaceHandleId {
+        WorkspaceHandleId::new(handle.0)
+    }
+
     /// Convert a daemon error to a protocol error.
     fn protocol_error_from_daemon(&self, error: DaemonError) -> ProtocolError {
         match error {
@@ -872,6 +925,35 @@ impl ProtocolServer {
             }
             _ => self.protocol_error(ProtocolErrorCode::Internal, &error.to_string()),
         }
+    }
+
+    /// Convert a workspace service error to a protocol error.
+    fn protocol_error_from_service(
+        &self,
+        context: &str,
+        error: ServiceLanguageServiceError,
+    ) -> ProtocolError {
+        // map workspace service errors into protocol domain errors
+        let code = match error {
+            ServiceLanguageServiceError::UnknownWorkspaceHandle { .. }
+            | ServiceLanguageServiceError::WorkspaceHandleMissingAfterOpen { .. }
+            | ServiceLanguageServiceError::FileNotTracked { .. }
+            | ServiceLanguageServiceError::FileIdNotTracked { .. }
+            | ServiceLanguageServiceError::PathNotInWorkspace { .. }
+            | ServiceLanguageServiceError::RevisionNotTracked { .. } => ProtocolErrorCode::NotFound,
+            ServiceLanguageServiceError::MissingExpectedRevision => {
+                ProtocolErrorCode::InvalidRequest
+            }
+            ServiceLanguageServiceError::StaleRevision { .. } => ProtocolErrorCode::Conflict,
+            ServiceLanguageServiceError::SemanticQueryNotReady { .. }
+            | ServiceLanguageServiceError::AnalyzeFailed { .. } => ProtocolErrorCode::NotReady,
+            ServiceLanguageServiceError::CacheClearFailed { .. }
+            | ServiceLanguageServiceError::ResolvePathFailed { .. }
+            | ServiceLanguageServiceError::InvalidatePathFailed { .. }
+            | ServiceLanguageServiceError::Internal { .. } => ProtocolErrorCode::Internal,
+        };
+
+        self.protocol_error(code, &format!("{context} failed: {error}"))
     }
 
     /// Create a protocol error for missing workspace handles.
@@ -1119,7 +1201,12 @@ impl ProtocolServer {
 
     /// Return cache stats for the workspace root.
     fn cache_stats_for_root(&self, root: &Path) -> Result<CacheStatsPayload, ProtocolError> {
-        let compiler = self.daemon.compiler_for_root(root);
+        let compiler = self
+            .daemon
+            .compiler_for_workspace_root(root)
+            .map_err(|error| {
+                self.protocol_error(ProtocolErrorCode::Internal, &error.to_string())
+            })?;
         let snapshot = compiler
             .stats
             .snapshot_with_program(compiler.program.modules.len(), Some(&compiler.program));

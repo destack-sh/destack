@@ -15,7 +15,7 @@ use crate::tests::{RequestRetryPolicy, TestDaemon, TestProtocolHarness};
 use destack_service::query;
 use destack_service::query::{
     DocumentSymbolsRequest, FindReferencesRequest, GotoDefinitionRequest, HoverRequest,
-    QueryRequest, QueryRequestEnvelope, QueryResponse,
+    QueryRequest, QueryRequestEnvelope, QueryResponse, RenameFilesRequest, SemanticTokensRequest,
 };
 use destack_source::Uri;
 use destack_workspace::{CacheValidate, WorkspaceIndexHeader, WorkspaceIndexSnapshot};
@@ -194,6 +194,85 @@ fn test_protocol_deferred_payload_roundtrip() {
         "expected deferred payload, got {len} bytes",
         len = bytes.len()
     );
+
+    harness.shutdown();
+}
+
+/// Streams large workspace query responses through deferred payload chunks.
+#[test]
+fn test_protocol_workspace_query_deferred_payload_roundtrip() {
+    // configure small payload limits to force deferred query responses
+    let limits = ProtocolLimits::new(4096, 4096, 8, 16);
+    let server_options = ProtocolServerOptions {
+        limits,
+        ..Default::default()
+    };
+    let harness = TestDaemon::new().protocol_with_options(server_options);
+
+    // perform handshake with matching limits
+    let client_options = ProtocolClientOptions {
+        limits,
+        ..Default::default()
+    };
+    let _ = harness.handshake_with(client_options);
+
+    // build a large semantic tokens response surface
+    let mut content = String::new();
+    for index in 0..2000 {
+        content.push_str(&format!("export const symbol_{index} = {index};\n"));
+    }
+    let file_path = harness.test.write_text("symbols.ds", &content);
+
+    // open the workspace and ensure query analysis readiness
+    let handle = harness.open_workspace();
+    let response = harness.send_request(DaemonRequest::Analyze(AnalyzeRequest {
+        handle,
+        path: file_path.clone(),
+    }));
+    match response {
+        DaemonResponse::Analyzed(response) => {
+            assert!(response.semantic_query_ready);
+            assert!(response.detail.is_none());
+        }
+        other => panic!("unexpected analyze response: {other:?}"),
+    }
+
+    // execute a large semantic tokens query
+    let request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
+        expected_revision: None,
+        request: QueryRequest::SemanticTokens(SemanticTokensRequest {
+            uri: Uri::from_path(&file_path),
+        }),
+    })
+    .expect("query request encode");
+    let response = harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQuery {
+        handle,
+        request,
+    }));
+
+    // assert that the client reconstructed a deferred payload
+    let payload = match response {
+        DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQuery(payload)) => payload,
+        other => panic!("unexpected response: {other:?}"),
+    };
+    let inline_limit = inline_payload_max_bytes(limits);
+    let PayloadBody::Inline { bytes } = &payload.payload.body else {
+        panic!("expected inline payload after streaming");
+    };
+    assert!(
+        bytes.len() > inline_limit,
+        "expected deferred payload, got {len} bytes",
+        len = bytes.len()
+    );
+
+    // assert the decoded query response content
+    let envelope = payload.decode_envelope().expect("query response decode");
+    match envelope.response {
+        QueryResponse::SemanticTokens(response) => {
+            assert!(!response.tokens.is_empty());
+        }
+        other => panic!("unexpected query response: {other:?}"),
+    }
 
     harness.shutdown();
 }
@@ -455,7 +534,7 @@ fn test_protocol_virtual_update_query_goto_definition() {
     let response = harness.send_request_with_retry(
         || {
             let request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
-                snapshot_id: None,
+                expected_revision: None,
                 request: QueryRequest::GotoDefinition(GotoDefinitionRequest {
                     uri: Uri::from_path(&path),
                     offset,
@@ -616,7 +695,7 @@ fn test_protocol_workspace_query_hover() {
     // build the hover query
     let offset = content.find("announce(name").unwrap_or(0) as u32 + 1;
     let request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
-        snapshot_id: Some("stale-snapshot".to_string()),
+        expected_revision: Some(0),
         request: QueryRequest::Hover(HoverRequest {
             uri: Uri::from_path(&file_path),
             offset,
@@ -637,14 +716,97 @@ fn test_protocol_workspace_query_hover() {
     let envelope = envelope.decode_envelope().expect("query response decode");
 
     // assert hover response content
-    assert!(!envelope.snapshot_id.is_empty());
-    assert_ne!(envelope.snapshot_id, "stale-snapshot");
+    assert!(envelope.revision > 0);
     match envelope.response {
         QueryResponse::Hover(payload) => {
             if let Some(hover) = payload.hover {
                 assert!(hover.signature.contains("function announce"));
             }
         }
+        other => panic!("unexpected query response: {other:?}"),
+    }
+
+    harness.shutdown();
+}
+
+/// Requires revision preconditions for mutating workspace queries.
+#[test]
+fn test_protocol_workspace_query_requires_revision_for_mutation() {
+    // build the protocol harness
+    let harness = TestProtocolHarness::new();
+    let _ = harness.handshake();
+    let handle = harness.open_workspace();
+
+    // reject mutating queries without an expected revision
+    let missing_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
+        expected_revision: None,
+        request: QueryRequest::RenameFiles(RenameFilesRequest {
+            renames: Vec::new(),
+        }),
+    })
+    .expect("query request encode");
+    let missing_response =
+        harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQuery {
+            handle,
+            request: missing_request,
+        }));
+    match missing_response {
+        DaemonResponse::Error(error) => {
+            assert_eq!(error.code, ProtocolErrorCode::InvalidRequest);
+        }
+        other => panic!("unexpected response: {other:?}"),
+    }
+
+    // reject stale revision preconditions
+    let stale_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
+        expected_revision: Some(0),
+        request: QueryRequest::RenameFiles(RenameFilesRequest {
+            renames: Vec::new(),
+        }),
+    })
+    .expect("query request encode");
+    let stale_response = harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQuery {
+        handle,
+        request: stale_request,
+    }));
+    match stale_response {
+        DaemonResponse::Error(error) => {
+            assert_eq!(error.code, ProtocolErrorCode::Conflict);
+        }
+        other => panic!("unexpected response: {other:?}"),
+    }
+
+    // resolve the current workspace revision
+    let revision_response =
+        harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceRevision {
+            handle,
+        }));
+    let revision = match revision_response {
+        DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceRevision(revision)) => revision,
+        other => panic!("unexpected response: {other:?}"),
+    };
+
+    // accept mutating queries with a matching revision precondition
+    let matching_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
+        expected_revision: Some(revision),
+        request: QueryRequest::RenameFiles(RenameFilesRequest {
+            renames: Vec::new(),
+        }),
+    })
+    .expect("query request encode");
+    let matching_response =
+        harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQuery {
+            handle,
+            request: matching_request,
+        }));
+    let envelope = match matching_response {
+        DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQuery(envelope)) => envelope,
+        other => panic!("unexpected response: {other:?}"),
+    };
+    let envelope = envelope.decode_envelope().expect("query response decode");
+    assert_eq!(envelope.revision, revision);
+    match envelope.response {
+        QueryResponse::RenameFiles(_) => {}
         other => panic!("unexpected query response: {other:?}"),
     }
 
@@ -691,7 +853,7 @@ fn test_protocol_workspace_query_batch() {
     let response = harness.send_request_with_retry(
         || {
             let hover_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
-                snapshot_id: None,
+                expected_revision: None,
                 request: QueryRequest::Hover(HoverRequest {
                     uri: Uri::from_path(&file_path),
                     offset,
@@ -700,7 +862,7 @@ fn test_protocol_workspace_query_batch() {
             .expect("query request encode");
 
             let symbols_request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
-                snapshot_id: None,
+                expected_revision: None,
                 request: QueryRequest::DocumentSymbols(DocumentSymbolsRequest {
                     uri: Uri::from_path(&file_path),
                 }),
@@ -797,7 +959,7 @@ fn test_protocol_workspace_query_find_references_member_access() {
     let response = harness.send_request_with_retry(
         || {
             let request = QueryRequestPayload::from_envelope(QueryRequestEnvelope {
-                snapshot_id: None,
+                expected_revision: None,
                 request: QueryRequest::FindReferences(FindReferencesRequest {
                     uri: Uri::from_path(&file_path),
                     offset,

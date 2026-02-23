@@ -3,7 +3,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-/// Binary payload wrapper for query responses.
+/// Binary payload wrapper for protocol message bodies.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BinaryPayload {
     /// Payload format.
