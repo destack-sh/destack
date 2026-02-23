@@ -1,8 +1,6 @@
-pub mod codec;
 pub mod registry;
 pub mod request;
 
-pub use codec::*;
 pub use registry::*;
 pub use request::*;
 

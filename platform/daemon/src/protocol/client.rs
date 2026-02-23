@@ -317,6 +317,20 @@ impl PayloadInbox {
             DaemonQueryResponse::WorkspaceIndex(payload)
             | DaemonQueryResponse::ModuleGraph(payload)
             | DaemonQueryResponse::ModuleSignature(payload) => self.resolve_payload(payload),
+            DaemonQueryResponse::WorkspaceQuery(payload) => {
+                self.resolve_payload(&mut payload.payload)
+            }
+            DaemonQueryResponse::WorkspaceQueryBatch(payloads) => {
+                // resolve each payload and return early when any stream is incomplete
+                for payload in payloads {
+                    let resolved = self.resolve_payload(&mut payload.payload)?;
+                    if !resolved {
+                        return Ok(false);
+                    }
+                }
+
+                Ok(true)
+            }
             _ => Ok(true),
         }
     }
