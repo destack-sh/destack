@@ -1,4 +1,6 @@
+use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_compiler::Compiler;
 use destack_source::{Diagnostic, File, FileContent, FileId, ModuleId};
@@ -6,19 +8,54 @@ use destack_workspace::{InvalidationPlan, Program};
 use parking_lot::Mutex;
 
 use super::{
-    FileSnapshot, LanguageServiceError, WorkspaceMessage, WorkspaceMessageKind,
+    FileSnapshot, LanguageServiceError, WorkspaceHandleId, WorkspaceMessage, WorkspaceMessageKind,
     WorkspaceUpdateRecord,
 };
 
-/// Per program workspace handle.
+/// Per workspace root handle state.
 #[derive(Debug)]
-pub(super) struct ProgramHandle {
+pub(super) struct WorkspaceHandle {
+    /// Stable workspace handle id.
+    pub(super) id: WorkspaceHandleId,
+    /// Root path for this workspace handle.
+    pub(super) root: PathBuf,
+    /// Semantic revision for this workspace handle.
+    revision: AtomicU64,
     /// Program for this root.
     pub(super) program: Arc<Program>,
     /// Compiler for this root.
     pub(super) compiler: Arc<Compiler>,
     /// Serialize compilation per root.
     pub(super) compile_lock: Mutex<()>,
+}
+
+impl WorkspaceHandle {
+    /// Create a new workspace handle for a root.
+    pub(super) fn new(
+        id: WorkspaceHandleId,
+        root: PathBuf,
+        program: Arc<Program>,
+        compiler: Arc<Compiler>,
+    ) -> Self {
+        Self {
+            id,
+            root,
+            revision: AtomicU64::new(1),
+            program,
+            compiler,
+            compile_lock: Mutex::new(()),
+        }
+    }
+
+    /// Return the current semantic revision.
+    pub(super) fn revision(&self) -> u64 {
+        self.revision.load(Ordering::Relaxed)
+    }
+
+    /// Increment and return the semantic revision.
+    pub(super) fn bump_revision(&self) -> u64 {
+        self.revision.fetch_add(1, Ordering::Relaxed) + 1
+    }
 }
 
 /// Internal update with invalidation metadata.

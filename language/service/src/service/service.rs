@@ -6,7 +6,7 @@ use dashmap::DashMap;
 use destack_compiler::CompilerOptions;
 use destack_workspace::Session;
 
-use super::workspace::ProgramHandle;
+use super::workspace::WorkspaceHandle;
 use super::{LanguageServiceError, WorkspaceHandleId};
 
 /// Local workspace backed service used by tooling integrations.
@@ -14,14 +14,12 @@ use super::{LanguageServiceError, WorkspaceHandleId};
 pub struct LanguageService {
     /// Session for workspace resolution.
     pub(super) session: Arc<Session>,
-    /// Compiler options for local analysis.
-    pub(super) compiler_options: CompilerOptions,
-    /// Program handles keyed by root path.
-    pub(super) program_handles: DashMap<PathBuf, Arc<ProgramHandle>>,
-    /// Handle ids keyed by root path.
-    pub(super) handles_by_root: DashMap<PathBuf, WorkspaceHandleId>,
-    /// Root paths keyed by handle id.
-    pub(super) roots_by_handle: DashMap<WorkspaceHandleId, PathBuf>,
+    /// Compiler execution options for local analysis work.
+    pub(super) compiler_execution_options: CompilerOptions,
+    /// Workspace handles keyed by stable handle id.
+    pub(super) handles_by_id: DashMap<WorkspaceHandleId, Arc<WorkspaceHandle>>,
+    /// Workspace handle ids keyed by root path.
+    pub(super) handle_ids_by_root: DashMap<PathBuf, WorkspaceHandleId>,
     /// Next handle id.
     pub(super) next_handle_id: AtomicU64,
 }

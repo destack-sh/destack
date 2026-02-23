@@ -2,9 +2,9 @@ use std::path::PathBuf;
 
 use crate::tests::TestDaemon;
 
-/// Tracks program handles per workspace root.
+/// Tracks workspace handles per workspace root.
 #[test]
-fn test_daemon_tracks_program_handles_per_root() {
+fn test_daemon_tracks_workspace_handles_per_root() {
     let root_a = PathBuf::from("/workspace/a");
     let root_b = PathBuf::from("/workspace/b");
     let test = TestDaemon::new_with_roots(vec![root_a.clone(), root_b.clone()]);
@@ -15,7 +15,7 @@ fn test_daemon_tracks_program_handles_per_root() {
     test.update_file(&file_b, "export const b = 2;");
 
     // check that each root has its own handle
-    assert_eq!(test.daemon.program_handle_count(), 2);
+    assert_eq!(test.daemon.workspace_handle_count(), 2);
 }
 
 /// Keeps updates isolated to the root that changed.

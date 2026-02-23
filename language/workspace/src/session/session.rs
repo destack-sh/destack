@@ -228,13 +228,34 @@ impl Session {
     }
 
     /// Find the program that contains the given path.
+    pub fn find_program_for_path_maybe(&self, path: &Path) -> Option<Arc<Program>> {
+        // track the best matching root by depth
+        let mut best_match: Option<(usize, Arc<Program>)> = None;
+        for entry in self.programs.iter() {
+            if !path.starts_with(entry.key()) {
+                continue;
+            }
+
+            let depth = entry.key().components().count();
+            let replace = best_match
+                .as_ref()
+                .map(|(best_depth, _)| depth > *best_depth)
+                .unwrap_or(true);
+            if replace {
+                best_match = Some((depth, entry.value().clone()));
+            }
+        }
+
+        // return the deepest matching root
+        best_match.map(|(_, program)| program)
+    }
+
+    /// Find the program that contains the given path.
     /// Falls back to the cwd-based program if no match is found.
     pub fn find_program_for_path(&self, path: &Path) -> Arc<Program> {
-        // look for a program whose root is a prefix of the path
-        for entry in self.programs.iter() {
-            if path.starts_with(entry.key()) {
-                return entry.value().clone();
-            }
+        // return the best matching program when available
+        if let Some(program) = self.find_program_for_path_maybe(path) {
+            return program;
         }
 
         // fallback: create/get a program for the cwd
@@ -292,5 +313,27 @@ mod tests {
 
         let missing = session.remove_root(PathBuf::from("/missing").as_path());
         assert!(missing.is_none());
+    }
+
+    /// Selects the deepest matching program root for path routing.
+    #[test]
+    fn test_session_find_program_for_path_prefers_deepest_root() {
+        let fs = Arc::new(MemoryFileSystem::new());
+        let workspace_root = PathBuf::from("/workspace");
+        let package_root = PathBuf::from("/workspace/packages/app");
+        let session = Session::new(workspace_root.clone())
+            .with_fs(fs)
+            .with_cache_store(Arc::new(MemoryCacheStore::new()));
+
+        let workspace_program = session.add_root(workspace_root.clone());
+        let package_program = session.add_root(package_root.clone());
+
+        let path = package_root.join("src/main.ds");
+        let resolved = session
+            .find_program_for_path_maybe(path.as_path())
+            .expect("expected matching root");
+
+        assert!(!Arc::ptr_eq(&resolved, &workspace_program));
+        assert!(Arc::ptr_eq(&resolved, &package_program));
     }
 }

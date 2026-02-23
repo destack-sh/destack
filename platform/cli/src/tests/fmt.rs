@@ -1,7 +1,7 @@
 use crate::command::fmt::{FmtArgs, run};
 use crate::common::program::QuoteStyleArg;
 use crate::common::{DiagnosticArgs, ReportArgs};
-use crate::pipeline::daemon::{CommandOptionsBuilder, run_daemon_command};
+use crate::pipeline::daemon::{CommandOptionsBuilder, run_workspace_command_once};
 
 use destack_daemon::protocol::{CommandFormatOptions, CommandFormatPayload, CommandPayload};
 use destack_source::FileSystem;
@@ -292,7 +292,7 @@ fn test_fmt_payload_includes_changed_and_error_files() {
     });
 
     // run the daemon command directly so we can inspect payload data
-    let result = run_daemon_command(&program.program_args(), None, common, payload, None)
+    let result = run_workspace_command_once(&program.program_args(), None, common, payload, None)
         .expect("format command should return a response");
 
     // parse and decode the format payload

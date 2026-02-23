@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use destack_compiler::CompilerOptions;
 use destack_daemon::{Daemon, WatchPolicy};
 use destack_source::{File, FileType, FileWatchEvent, FileWatchEventKind, MemoryFileWatcher, Uri};
 use destack_workspace::Program;
@@ -36,6 +37,17 @@ fn register_file(program: &Program, path: &Path, contents: &str, ty: FileType) {
         contents.to_string(),
     );
     program.files.insert(file);
+}
+
+/// Build a daemon configured for deterministic test execution.
+fn daemon_with_single_worker(session: Arc<destack_workspace::Session>) -> Daemon {
+    // keep non compiler tests deterministic and deadlock free
+    let compiler_options = CompilerOptions {
+        workers: 1,
+        ..CompilerOptions::default()
+    };
+
+    Daemon::with_options(session, compiler_options)
 }
 
 /// State captured by watch loop callbacks.
@@ -78,7 +90,7 @@ impl WatchLoopHarness {
         };
 
         // create the daemon used for updates
-        let daemon = Daemon::new(session);
+        let daemon = daemon_with_single_worker(session);
 
         Self {
             daemon,
@@ -167,7 +179,7 @@ fn test_apply_watch_event_updates_file() {
         FileType::Destack,
     );
 
-    let daemon = Daemon::new(test.session.clone());
+    let daemon = daemon_with_single_worker(test.session.clone());
     let event = FileWatchEvent {
         path: path.clone(),
         previous_path: None,
@@ -194,7 +206,7 @@ fn test_apply_watch_event_deletes_file() {
         FileType::Destack,
     );
 
-    let daemon = Daemon::new(test.session.clone());
+    let daemon = daemon_with_single_worker(test.session.clone());
     let event = FileWatchEvent {
         path: path.clone(),
         previous_path: None,
@@ -234,7 +246,7 @@ fn test_apply_watch_event_renames_file() {
         FileType::Destack,
     );
 
-    let daemon = Daemon::new(test.session.clone());
+    let daemon = daemon_with_single_worker(test.session.clone());
     let event = FileWatchEvent {
         path: new_path.clone(),
         previous_path: Some(old_path.clone()),
@@ -271,7 +283,7 @@ fn test_apply_watch_event_requests_rescan_for_config() {
         FileType::Json,
     );
 
-    let daemon = Daemon::new(test.session.clone());
+    let daemon = daemon_with_single_worker(test.session.clone());
     let event = FileWatchEvent {
         path: path.clone(),
         previous_path: None,

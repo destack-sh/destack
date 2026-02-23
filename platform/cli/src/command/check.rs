@@ -8,7 +8,7 @@ use crate::console;
 use crate::error::CliResult;
 use crate::pipeline::daemon::{
     CommandOptionsBuilder, ProtocolDaemonClient, command_inputs_from_sources,
-    command_stats_from_protocol, emit_daemon_text_output, run_daemon_command,
+    command_stats_from_protocol, emit_daemon_text_output, run_workspace_command_once,
 };
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
 use crate::pipeline::watch::{
@@ -260,7 +260,7 @@ fn run_check_via_daemon(
     });
 
     // execute the daemon command
-    let result = match run_daemon_command(
+    let result = match run_workspace_command_once(
         &args.program,
         Some(diagnostic_options),
         common,
@@ -485,7 +485,7 @@ where
 
     // compile the initial state
     let mut exit_code = match build_options(&watch_state.sources) {
-        Ok((common, payload)) => match daemon.run_command(&root, common, payload) {
+        Ok((common, payload)) => match daemon.run_workspace_command(&root, common, payload) {
             Ok(result) => {
                 emit_daemon_text_output(
                     &args.report,
@@ -573,7 +573,7 @@ where
             };
 
             // run the daemon check command
-            let result = match daemon.run_command(&root, common, payload) {
+            let result = match daemon.run_workspace_command(&root, common, payload) {
                 Ok(result) => result,
                 Err(message) => {
                     let message = watch_error(&message.to_string());

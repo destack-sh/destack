@@ -10,7 +10,7 @@ use crate::common::{
 use crate::error::CliResult;
 use crate::pipeline::daemon::{
     CommandOptionsBuilder, ProtocolDaemonClient, command_inputs_from_sources,
-    command_stats_from_protocol, emit_daemon_text_output, run_daemon_command,
+    command_stats_from_protocol, emit_daemon_text_output, run_workspace_command_once,
     target_overrides_from_args,
 };
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
@@ -120,7 +120,7 @@ fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
     let payload = CommandPayload::Build(CommandBuildOptions::default());
 
     // execute the daemon command
-    let result = match run_daemon_command(
+    let result = match run_workspace_command_once(
         &args.program,
         Some(diagnostic_options),
         options,
@@ -310,7 +310,7 @@ where
     // compile the initial state
     let format_options = FormatOptions::default();
     let mut exit_code = match build_options(&watch_state.sources) {
-        Ok(options) => match daemon.run_command(
+        Ok(options) => match daemon.run_workspace_command(
             &root,
             options,
             CommandPayload::Build(CommandBuildOptions::default()),
@@ -405,7 +405,7 @@ where
             };
 
             // run the daemon build command
-            let result = match daemon.run_command(
+            let result = match daemon.run_workspace_command(
                 &root,
                 options,
                 CommandPayload::Build(CommandBuildOptions::default()),

@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_compiler::CompilerOptions;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{
     FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri,
@@ -52,8 +53,15 @@ impl TestLanguageService {
         for root in &roots {
             session.add_root(root.clone());
         }
-        let service = LanguageService::new(session.clone(), roots.clone())
-            .expect("expected workspace service");
+
+        // keep compiler execution deterministic for service tests
+        let compiler_options = CompilerOptions {
+            workers: 1,
+            ..CompilerOptions::default()
+        };
+        let service =
+            LanguageService::with_options(session.clone(), roots.clone(), compiler_options)
+                .expect("expected workspace service");
 
         Self { fs, service, roots }
     }

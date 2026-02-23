@@ -3,7 +3,7 @@ use std::fmt;
 
 use serde_json::Value;
 
-use super::request::QueryRequest;
+use super::request::{QueryExecutionMode, QueryRequest};
 
 /// Category for query methods.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -30,40 +30,89 @@ impl QueryCategory {
 /// Unique identifiers for query methods.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum QueryMethodId {
+    /// Completion query.
     Completion,
+    /// Hover query.
     Hover,
+    /// Signature help query.
     SignatureHelp,
+    /// Inlay hints query.
     InlayHints,
+    /// Code lenses query.
     CodeLenses,
+    /// Code lens resolve query.
     ResolveCodeLens,
+    /// Folding ranges query.
     FoldingRanges,
+    /// Full-document semantic tokens query.
     SemanticTokens,
+    /// Range semantic tokens query.
     SemanticTokensRange,
+    /// Document symbols query.
     DocumentSymbols,
+    /// Workspace symbols query.
     WorkspaceSymbols,
+    /// Document links query.
     DocumentLinks,
+    /// Document link resolve query.
     ResolveDocumentLink,
+    /// Document highlight query.
     DocumentHighlight,
+    /// Selection ranges query.
     SelectionRanges,
+    /// Goto definition query.
     GotoDefinition,
+    /// Goto declaration query.
     GotoDeclaration,
+    /// Goto type definition query.
     GotoTypeDefinition,
+    /// Goto implementation query.
     GotoImplementation,
+    /// Find references query.
     FindReferences,
+    /// Call hierarchy prepare query.
     PrepareCallHierarchy,
+    /// Incoming call hierarchy query.
     CallHierarchyIncoming,
+    /// Outgoing call hierarchy query.
     CallHierarchyOutgoing,
+    /// Type hierarchy prepare query.
     PrepareTypeHierarchy,
+    /// Type hierarchy supertypes query.
     TypeHierarchySupertypes,
+    /// Type hierarchy subtypes query.
     TypeHierarchySubtypes,
+    /// Prepare rename query.
     PrepareRename,
+    /// Rename query.
     Rename,
+    /// Rename files query.
     RenameFiles,
+    /// Extract function query.
     ExtractFunction,
+    /// Extract variable query.
     ExtractVariable,
+    /// Inline query.
     Inline,
+    /// Change signature query.
     ChangeSignature,
+    /// Code actions query.
     CodeActions,
+}
+
+impl QueryMethodId {
+    /// Return the execution mode for this query method.
+    pub fn execution_mode(self) -> QueryExecutionMode {
+        match self {
+            Self::Rename
+            | Self::RenameFiles
+            | Self::ExtractFunction
+            | Self::ExtractVariable
+            | Self::Inline
+            | Self::ChangeSignature => QueryExecutionMode::Write,
+            _ => QueryExecutionMode::Read,
+        }
+    }
 }
 
 /// Metadata for a query method.
@@ -83,6 +132,13 @@ pub struct QueryMethod {
     pub params_type: &'static str,
     /// Result type name for help output.
     pub result_type: &'static str,
+}
+
+impl QueryMethod {
+    /// Return the execution mode for this method.
+    pub fn execution_mode(self) -> QueryExecutionMode {
+        self.id.execution_mode()
+    }
 }
 
 /// Query request parse error.
@@ -552,13 +608,18 @@ pub fn parse_query_request(
         QueryMethodId::CodeActions => QueryRequest::CodeActions(parse_params(method, params)?),
     };
 
+    // keep method id mappings synchronized across query surfaces
+    debug_assert_eq!(request.method_id(), method.id);
+
     Ok(request)
 }
 
+/// Normalize query method names for lookup.
 fn normalize_method_name(name: &str) -> String {
     name.trim().to_ascii_lowercase()
 }
 
+/// Parse typed params for a query method.
 fn parse_params<T: serde::de::DeserializeOwned>(
     method: &QueryMethod,
     params: Value,

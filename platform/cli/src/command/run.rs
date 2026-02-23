@@ -9,7 +9,7 @@ use crate::common::{
 use crate::console;
 use crate::pipeline::daemon::{
     CommandOptionsBuilder, ProtocolDaemonClient, command_inputs_from_sources,
-    command_stats_from_protocol, emit_daemon_text_output, run_daemon_command_with_session,
+    command_stats_from_protocol, emit_daemon_text_output, run_workspace_command_with_session,
     target_overrides_from_args,
 };
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
@@ -202,7 +202,7 @@ fn run_via_daemon(request: &RunRequest) -> i32 {
     });
 
     // execute the daemon command
-    let result = match run_daemon_command_with_session(
+    let result = match run_workspace_command_with_session(
         session.clone(),
         &request.program,
         diagnostic_options.clone(),
@@ -629,7 +629,7 @@ fn compile_and_run_daemon(
     });
 
     // execute the daemon command
-    let result = match daemon.run_command(root, common, payload) {
+    let result = match daemon.run_workspace_command(root, common, payload) {
         Ok(result) => result,
         Err(error) => {
             let message = watch_error(&error.to_string());

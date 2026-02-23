@@ -69,10 +69,10 @@ impl DaemonLaunchContext {
     /// Build a launch context from program arguments.
     pub(crate) fn from_program(program: &ProgramArgs) -> Self {
         // resolve the cwd for the daemon
-        let cwd = program
-            .cwd
-            .clone()
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+        let cwd = program.cwd.clone().unwrap_or_else(|| {
+            std::env::current_dir()
+                .unwrap_or_else(|error| panic!("failed to resolve current directory: {error}"))
+        });
 
         // resolve cache dir relative to the cwd
         let cache_dir = program.cache_dir.as_ref().map(|cache_dir| {
@@ -324,15 +324,15 @@ impl ProtocolDaemonClient {
         })
     }
 
-    /// Run a command for a workspace root.
-    pub fn run_command(
+    /// Run a workspace command for a root.
+    pub fn run_workspace_command(
         &self,
         root: &Path,
         common: CommonCommandOptions,
         payload: CommandPayload,
     ) -> CliResult<DaemonCommandResult> {
         // resolve the workspace handle
-        let handle = self.handle_for_root(root).ok_or_else(|| {
+        let handle = self.workspace_handle_for_root(root).ok_or_else(|| {
             CliError::message(format!("workspace root not opened: {}", root.display()))
         })?;
 
@@ -368,7 +368,7 @@ impl ProtocolDaemonClient {
         request: QueryRequestEnvelope,
     ) -> CliResult<QueryResponseEnvelope> {
         // resolve the workspace handle
-        let handle = self.handle_for_root(root).ok_or_else(|| {
+        let handle = self.workspace_handle_for_root(root).ok_or_else(|| {
             CliError::message(format!("workspace root not opened: {}", root.display()))
         })?;
 
@@ -412,6 +412,45 @@ impl ProtocolDaemonClient {
             .map_err(|error| CliError::message(format!("query response decode failed: {error}")))
     }
 
+    /// Resolve the current semantic revision for a root.
+    pub fn run_workspace_revision(&self, root: &Path) -> CliResult<u64> {
+        // resolve the workspace handle
+        let handle = self.workspace_handle_for_root(root).ok_or_else(|| {
+            CliError::message(format!("workspace root not opened: {}", root.display()))
+        })?;
+
+        // send the revision request to the daemon
+        let response = self
+            .client
+            .send_request(DaemonRequest::Query(DaemonQuery::WorkspaceRevision {
+                handle: handle.handle,
+            }))
+            .map_err(|error| {
+                CliError::message(format!("workspace revision request failed: {error}"))
+            })?;
+
+        // unwrap the protocol response
+        let response = match response {
+            DaemonResponse::QueryResult(response) => response,
+            DaemonResponse::Error(error) => {
+                return Err(CliError::message(format!(
+                    "workspace revision failed: {error}"
+                )));
+            }
+            other => {
+                return Err(CliError::message(format!("unexpected response: {other:?}")));
+            }
+        };
+
+        // unwrap the revision payload
+        match response {
+            DaemonQueryResponse::WorkspaceRevision(revision) => Ok(revision),
+            other => Err(CliError::message(format!(
+                "unexpected query response: {other:?}"
+            ))),
+        }
+    }
+
     /// Run a batch of workspace queries for a root.
     pub fn run_query_batch(
         &self,
@@ -419,7 +458,7 @@ impl ProtocolDaemonClient {
         requests: Vec<QueryRequestEnvelope>,
     ) -> CliResult<Vec<QueryResponseEnvelope>> {
         // resolve the workspace handle
-        let handle = self.handle_for_root(root).ok_or_else(|| {
+        let handle = self.workspace_handle_for_root(root).ok_or_else(|| {
             CliError::message(format!("workspace root not opened: {}", root.display()))
         })?;
 
@@ -473,8 +512,8 @@ impl ProtocolDaemonClient {
         let _ = self.connection.take();
     }
 
-    /// Resolve the handle for a root, if known.
-    fn handle_for_root(&self, root: &Path) -> Option<&WorkspaceHandle> {
+    /// Resolve the workspace handle for a root, if known.
+    fn workspace_handle_for_root(&self, root: &Path) -> Option<&WorkspaceHandle> {
         self.handles.iter().find(|handle| handle.root == root)
     }
 
@@ -686,7 +725,7 @@ pub fn command_stats_from_protocol(stats: &CommandStats, include_timings: bool) 
 }
 
 /// Run a daemon command with a one-shot client.
-pub fn run_daemon_command(
+pub fn run_workspace_command_once(
     program: &ProgramArgs,
     diagnostic: Option<DiagnosticOptions>,
     common: CommonCommandOptions,
@@ -698,11 +737,11 @@ pub fn run_daemon_command(
 
     let diagnostic = diagnostic.unwrap_or_default();
 
-    run_daemon_command_with_session(session, program, diagnostic, common, payload, event_handler)
+    run_workspace_command_with_session(session, program, diagnostic, common, payload, event_handler)
 }
 
 /// Run a daemon command using an existing session.
-pub fn run_daemon_command_with_session(
+pub fn run_workspace_command_with_session(
     session: Arc<Session>,
     program: &ProgramArgs,
     diagnostic: DiagnosticOptions,
@@ -712,17 +751,16 @@ pub fn run_daemon_command_with_session(
 ) -> CliResult<DaemonCommandResult> {
     // resolve workspace roots for the daemon session
     let roots = watch_roots(program, &session);
-    let root = roots
-        .first()
-        .cloned()
-        .unwrap_or_else(|| session.cwd.clone());
+    let Some(root) = roots.first().cloned() else {
+        return Err(CliError::message("workspace roots are empty"));
+    };
 
     // build compiler options for the daemon
     let daemon_options = build_daemon_options(program, diagnostic, event_handler);
     let daemon = ProtocolDaemonClient::new(session.clone(), daemon_options, roots, program)?;
 
     // execute the command and shutdown
-    let result = daemon.run_command(&root, common, payload)?;
+    let result = daemon.run_workspace_command(&root, common, payload)?;
     daemon.shutdown();
     Ok(result)
 }

@@ -55,10 +55,10 @@ impl Daemon {
         }
     }
 
-    /// Return the number of tracked program handles.
+    /// Return the number of tracked workspace handles.
     #[cfg(test)]
-    pub(crate) fn program_handle_count(&self) -> usize {
-        self.workspace_service.program_handle_count()
+    pub(crate) fn workspace_handle_count(&self) -> usize {
+        self.workspace_service.workspace_handle_count()
     }
 
     /// Acquire a workspace root lease and return its stable handle.
@@ -68,7 +68,7 @@ impl Daemon {
     ) -> Result<WorkspaceHandleId, DaemonError> {
         self.workspace_service
             .open_workspace_root(root.to_path_buf())?;
-        let handle = self.workspace_service.handle_for_root(root)?;
+        let handle = self.workspace_service.workspace_handle_id_for_root(root)?;
 
         let mut leases = self.workspace_leases.lock();
         let lease_count = leases.entry(root.to_path_buf()).or_default();
@@ -103,8 +103,13 @@ impl Daemon {
     }
 
     /// Return the compiler for a workspace root.
-    pub(crate) fn compiler_for_root(&self, root: &Path) -> Arc<Compiler> {
-        self.workspace_service.compiler_for_root(root)
+    pub(crate) fn compiler_for_workspace_root(
+        &self,
+        root: &Path,
+    ) -> Result<Arc<Compiler>, DaemonError> {
+        self.workspace_service
+            .compiler_for_workspace_root(root)
+            .map_err(Into::into)
     }
 
     /// Ensure a module for the given path is analyzed.

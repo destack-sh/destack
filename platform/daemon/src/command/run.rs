@@ -54,7 +54,7 @@ pub enum CommandRunPayload {
 
 impl CommandContext<'_> {
     /// Execute a run command.
-    pub(super) fn run_run_command(
+    pub(super) fn execute_run_command(
         &mut self,
         options: &CommandRunOptions,
     ) -> super::CommandResult<CommandOutcome> {
