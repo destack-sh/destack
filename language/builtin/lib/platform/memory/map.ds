@@ -136,8 +136,8 @@ declare namespace memory {
     /// Node masks and policy modes are interpreted by host NUMA APIs.
     ///
     /// # Platform
-    /// Linux and Windows.
-    /// Uses mbind or set_mempolicy on Linux and VirtualAllocExNuma-style APIs on Windows.
+    /// Unix and Windows.
+    /// Uses mbind or set_mempolicy on Linux and VirtualAllocExNuma-style APIs on Windows where supported.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -153,7 +153,7 @@ declare namespace memory {
             effect: "external",
             replay: "recordable",
             capabilities: ["memory.numa"],
-            platforms: ["windows", "linux"],
+            platforms: ["windows", "unix"],
             scope: "host",
             blocking: "sometimes",
         },

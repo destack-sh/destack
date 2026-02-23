@@ -75,7 +75,7 @@ declare namespace memory {
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `memory.hugePage`.
+    /// Requires `memory.huge.page`.
     ///
     /// # Replay
     /// External, recordable.
@@ -84,7 +84,7 @@ declare namespace memory {
         {
             effect: "external",
             replay: "recordable",
-            capabilities: ["memory.hugePage"],
+            capabilities: ["memory.huge.page"],
             platforms: ["windows", "unix"],
             scope: "host",
             blocking: "sometimes",

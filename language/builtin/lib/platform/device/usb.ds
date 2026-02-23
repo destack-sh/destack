@@ -1,0 +1,574 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { UsbDeviceHandle } from "../resource/index.ds";
+
+/// USB endpoint descriptor.
+export struct UsbEndpointDescriptor {
+    /// Endpoint address.
+    address: uint8;
+    /// Endpoint transfer type code.
+    transferType: uint8;
+    /// Endpoint max-packet size in bytes.
+    maxPacketSize: uint16;
+    /// Endpoint polling interval.
+    interval: uint8;
+}
+
+/// USB interface descriptor.
+export struct UsbInterfaceDescriptor {
+    /// Interface number.
+    number: uint8;
+    /// Alternate setting number.
+    alternateSetting: uint8;
+    /// Interface class code.
+    classCode: uint8;
+    /// Interface subclass code.
+    subclassCode: uint8;
+    /// Interface protocol code.
+    protocolCode: uint8;
+    /// Endpoints for this interface.
+    endpoints: Slice<UsbEndpointDescriptor>;
+}
+
+/// USB device descriptor.
+export struct UsbDeviceDescriptor {
+    /// Stable USB device identifier.
+    id: string;
+    /// USB vendor identifier.
+    vendorId: uint16;
+    /// USB product identifier.
+    productId: uint16;
+    /// Device class code.
+    classCode: uint8;
+    /// Device subclass code.
+    subclassCode: uint8;
+    /// Device protocol code.
+    protocolCode: uint8;
+    /// Device manufacturer string when available.
+    manufacturer: string;
+    /// Device product string when available.
+    product: string;
+    /// Device serial-number string when available.
+    serialNumber: string;
+}
+
+/// USB setup packet for control transfers.
+export struct UsbControlSetup {
+    /// bmRequestType field.
+    requestType: uint8;
+    /// bRequest field.
+    request: uint8;
+    /// wValue field.
+    value: uint16;
+    /// wIndex field.
+    index: uint16;
+    /// wLength field.
+    length: uint16;
+}
+
+/// USB configuration descriptor.
+export struct UsbConfigurationDescriptor {
+    /// Configuration value.
+    value: uint8;
+    /// Configuration attributes bitmask.
+    attributes: uint8;
+    /// Maximum bus power in milliamps.
+    maxPowerMilliAmps: uint16;
+    /// Interface descriptors for this configuration.
+    interfaces: Slice<UsbInterfaceDescriptor>;
+}
+
+/// USB isochronous transfer result.
+export struct UsbIsochronousTransferResult {
+    /// Flattened transfer bytes for all packets.
+    bytes: Slice<uint8>;
+    /// Per-packet actual transfer lengths.
+    packetActualLengths: Slice<uint32>;
+    /// Per-packet backend status codes.
+    packetStatuses: Slice<int32>;
+}
+
+/// USB bindings.
+declare namespace device {
+    /// List USB devices.
+    ///
+    /// Enumerate attached USB devices and return stable descriptors.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses libusb-family enumeration or host USB APIs.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.enumerate`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.list", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.enumerate"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbList(): Result<Slice<UsbDeviceDescriptor>, PlatformError>;
+
+    /// Open USB device.
+    ///
+    /// Open one USB device for control and data transfers.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB open APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbOpen(id: string): Result<UsbDeviceHandle, PlatformError>;
+
+    /// Close USB device.
+    ///
+    /// Close one opened USB device and release host resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB close APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbClose(handle: UsbDeviceHandle): Result<void, PlatformError>;
+
+    /// Claim USB interface.
+    ///
+    /// Claim one interface on one opened USB device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB interface-claim APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.claimInterface", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbClaimInterface(handle: UsbDeviceHandle, interfaceNumber: uint8): Result<void, PlatformError>;
+
+    /// Release USB interface.
+    ///
+    /// Release one interface previously claimed on one opened USB device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB interface-release APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.releaseInterface", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbReleaseInterface(handle: UsbDeviceHandle, interfaceNumber: uint8): Result<void, PlatformError>;
+
+    /// Read active USB device descriptor.
+    ///
+    /// Read descriptor metadata for one opened USB device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB descriptor-query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.enumerate`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.descriptor", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.enumerate"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbDescriptor(handle: UsbDeviceHandle): Result<UsbDeviceDescriptor, PlatformError>;
+
+    /// List USB configurations.
+    ///
+    /// Enumerate USB configurations and nested interface descriptors for one opened device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB configuration-descriptor query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.enumerate`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.configurationList", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.enumerate"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbConfigurationList(handle: UsbDeviceHandle): Result<Slice<UsbConfigurationDescriptor>, PlatformError>;
+
+    /// Read active USB configuration value.
+    ///
+    /// Read active configuration value for one opened USB device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB configuration-state APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.configurationGet", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbConfigurationGet(handle: UsbDeviceHandle): Result<uint8, PlatformError>;
+
+    /// Set active USB configuration value.
+    ///
+    /// Apply active configuration value for one opened USB device.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB set-configuration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.control`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.configurationSet", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.control"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbConfigurationSet(handle: UsbDeviceHandle, configurationValue: uint8): Result<void, PlatformError>;
+
+    /// Read control-transfer response bytes.
+    ///
+    /// Execute one control-transfer read and return response bytes.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB control-transfer APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.transfer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.controlRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.transfer"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbControlRead(
+        handle: UsbDeviceHandle,
+        setup: UsbControlSetup,
+        timeoutNs: uint64,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Write control-transfer request bytes.
+    ///
+    /// Execute one control-transfer write and return transferred byte count.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB control-transfer APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.transfer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.controlWrite", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.transfer"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbControlWrite(
+        handle: UsbDeviceHandle,
+        setup: UsbControlSetup,
+        bytes: Slice<uint8>,
+        timeoutNs: uint64,
+    ): Result<uint32, PlatformError>;
+
+    /// Read bulk endpoint bytes.
+    ///
+    /// Read up to `maxBytes` from one bulk IN endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB bulk-transfer APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.transfer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.bulkRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.transfer"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbBulkRead(
+        handle: UsbDeviceHandle,
+        endpointAddress: uint8,
+        maxBytes: uint32,
+        timeoutNs: uint64,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Write bulk endpoint bytes.
+    ///
+    /// Write bytes to one bulk OUT endpoint and return transferred byte count.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB bulk-transfer APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.transfer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.bulkWrite", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.transfer"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbBulkWrite(
+        handle: UsbDeviceHandle,
+        endpointAddress: uint8,
+        bytes: Slice<uint8>,
+        timeoutNs: uint64,
+    ): Result<uint32, PlatformError>;
+
+    /// Read interrupt endpoint bytes.
+    ///
+    /// Read up to `maxBytes` from one interrupt IN endpoint.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB interrupt-transfer APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.transfer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.interruptRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.transfer"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbInterruptRead(
+        handle: UsbDeviceHandle,
+        endpointAddress: uint8,
+        maxBytes: uint32,
+        timeoutNs: uint64,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Write interrupt endpoint bytes.
+    ///
+    /// Write bytes to one interrupt OUT endpoint and return transferred byte count.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB interrupt-transfer APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.transfer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.interruptWrite", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.transfer"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbInterruptWrite(
+        handle: UsbDeviceHandle,
+        endpointAddress: uint8,
+        bytes: Slice<uint8>,
+        timeoutNs: uint64,
+    ): Result<uint32, PlatformError>;
+
+    /// Read one isochronous transfer.
+    ///
+    /// Read one isochronous transfer and return flattened bytes with per-packet status and length metadata.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB isochronous transfer APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.transfer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.isochronousRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.transfer"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbIsochronousRead(
+        handle: UsbDeviceHandle,
+        endpointAddress: uint8,
+        packetSizes: Slice<uint32>,
+        timeoutNs: uint64,
+    ): Result<UsbIsochronousTransferResult, PlatformError>;
+
+    /// Write one isochronous transfer.
+    ///
+    /// Write one flattened isochronous transfer and return per-packet status and length metadata.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host USB isochronous transfer APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `device.usb.transfer`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.device.usb.isochronousWrite", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["device.usb.transfer"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function usbIsochronousWrite(
+        handle: UsbDeviceHandle,
+        endpointAddress: uint8,
+        bytes: Slice<uint8>,
+        packetSizes: Slice<uint32>,
+        timeoutNs: uint64,
+    ): Result<UsbIsochronousTransferResult, PlatformError>;
+}

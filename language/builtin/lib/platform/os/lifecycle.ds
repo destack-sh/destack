@@ -1,0 +1,201 @@
+import type { PlatformError } from "../error/index.ds";
+import { LifecycleEventHandle } from "../resource/index.ds";
+
+/// Runtime lifecycle state.
+export enum OsLifecycleState {
+    /// Runtime is inactive and not rendering or processing foreground input.
+    Inactive = 1,
+    /// Runtime is active in the foreground.
+    Active = 2,
+    /// Runtime is in background execution.
+    Background = 3,
+    /// Runtime is terminating.
+    Terminating = 4,
+}
+
+/// Runtime lifecycle event kind.
+export enum OsLifecycleEventKind {
+    /// Runtime launched.
+    Launch = 1,
+    /// Runtime entered active foreground execution.
+    Resume = 2,
+    /// Runtime is pausing foreground execution.
+    Pause = 3,
+    /// Runtime entered background execution.
+    Background = 4,
+    /// Runtime returned to foreground execution.
+    Foreground = 5,
+    /// Host reported low-memory pressure.
+    LowMemory = 6,
+    /// Host low-power mode changed.
+    LowPowerModeChanged = 7,
+    /// Host requested termination.
+    Terminate = 8,
+}
+
+/// Low-memory event payload.
+export struct OsLifecycleLowMemoryPayload {
+    /// Backend-defined severity level.
+    severity: uint32;
+}
+
+/// Low-power-mode event payload.
+export struct OsLifecycleLowPowerPayload {
+    /// Whether low-power mode is enabled.
+    enabled: boolean;
+}
+
+/// Lifecycle event payload.
+/// Exactly one payload field should be set according to `OsLifecycleEvent.kind`.
+export newtype OsLifecycleEventPayload = {
+    lowMemory?: OsLifecycleLowMemoryPayload,
+    lowPower?: OsLifecycleLowPowerPayload,
+};
+
+/// Runtime lifecycle event payload.
+export struct OsLifecycleEvent {
+    /// Lifecycle event kind selector.
+    kind: OsLifecycleEventKind;
+    /// Monotonic event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Monotonic sequence number for this lifecycle stream.
+    sequence: uint64;
+    /// Optional typed payload for the event.
+    payload: OsLifecycleEventPayload;
+}
+
+/// Lifecycle bindings.
+declare namespace os {
+    /// Read current lifecycle state.
+    ///
+    /// Return the current runtime lifecycle state from the host integration layer.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host application lifecycle bridges on desktop and mobile platforms.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.lifecycle.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.lifecycle.state", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.lifecycle.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "never",
+    })
+    export function lifecycleState(): Result<OsLifecycleState, PlatformError>;
+
+    /// Open lifecycle event stream.
+    ///
+    /// Open one lifecycle event stream for runtime lifecycle transitions.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host application lifecycle callback bridges.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.lifecycle.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.lifecycle.open", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.lifecycle.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function lifecycleOpen(): Result<LifecycleEventHandle, PlatformError>;
+
+    /// Close lifecycle event stream.
+    ///
+    /// Close one lifecycle event stream and release host callback routing resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host callback unregistration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.lifecycle.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.lifecycle.close", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.lifecycle.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function lifecycleClose(handle: LifecycleEventHandle): Result<void, PlatformError>;
+
+    /// Wait for one lifecycle event.
+    ///
+    /// Wait for one lifecycle event from one opened stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host lifecycle event queues.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.lifecycle.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.lifecycle.read", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.lifecycle.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function lifecycleRead(
+        handle: LifecycleEventHandle,
+        timeoutNs: uint64,
+    ): Result<OsLifecycleEvent, PlatformError>;
+
+    /// Poll one lifecycle event without blocking.
+    ///
+    /// Poll one lifecycle event from one opened stream without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host lifecycle event queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.lifecycle.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.lifecycle.tryRead", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.lifecycle.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "never",
+    })
+    export function lifecycleTryRead(handle: LifecycleEventHandle): Result<OsLifecycleEvent, PlatformError>;
+}

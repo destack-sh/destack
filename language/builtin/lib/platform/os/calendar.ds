@@ -1,0 +1,237 @@
+import { Array } from "native";
+import type { PlatformError } from "../error/index.ds";
+
+/// Calendar access level.
+export enum OsCalendarAccess {
+    /// Read-only access.
+    Read = 1,
+    /// Read and write access.
+    Write = 2,
+}
+
+/// Calendar availability class.
+export enum OsCalendarAvailability {
+    /// Busy slot.
+    Busy = 1,
+    /// Free slot.
+    Free = 2,
+    /// Tentative slot.
+    Tentative = 3,
+    /// Out-of-office slot.
+    OutOfOffice = 4,
+}
+
+/// Calendar descriptor payload.
+export struct OsCalendarDescriptor {
+    /// Stable calendar identifier.
+    id: string;
+    /// Host-visible calendar title.
+    title: string;
+    /// Host-visible source or account label.
+    source: string;
+    /// Host-visible owner account label when available.
+    owner: string;
+    /// ARGB color value for this calendar.
+    colorArgb: uint32;
+    /// Whether this calendar is the default write target.
+    primary: boolean;
+    /// Access mode for this calendar.
+    access: OsCalendarAccess;
+}
+
+/// Calendar event payload.
+export struct OsCalendarEvent {
+    /// Stable event identifier.
+    id: string;
+    /// Calendar identifier.
+    calendarId: string;
+    /// Event title.
+    title: string;
+    /// Event description or notes.
+    notes: string;
+    /// Event location text.
+    location: string;
+    /// Event start timestamp in UTC nanoseconds.
+    startUnixNs: uint64;
+    /// Event end timestamp in UTC nanoseconds.
+    endUnixNs: uint64;
+    /// Whether this event is all-day.
+    allDay: boolean;
+    /// Event timezone identifier when available.
+    timeZone: string;
+    /// Event availability class.
+    availability: OsCalendarAvailability;
+    /// Event URL or deep link when available.
+    url: string;
+}
+
+/// Calendar event draft payload.
+export struct OsCalendarEventDraft {
+    /// Calendar identifier.
+    calendarId: string;
+    /// Event title.
+    title: string;
+    /// Event description or notes.
+    notes: string;
+    /// Event location text.
+    location: string;
+    /// Event start timestamp in UTC nanoseconds.
+    startUnixNs: uint64;
+    /// Event end timestamp in UTC nanoseconds.
+    endUnixNs: uint64;
+    /// Whether this event is all-day.
+    allDay: boolean;
+    /// Event timezone identifier.
+    timeZone: string;
+    /// Event availability class.
+    availability: OsCalendarAvailability;
+    /// Event URL or deep link.
+    url: string;
+}
+
+/// Calendar event query options.
+export struct OsCalendarEventQuery {
+    /// Calendar identifiers to query, empty means all readable calendars.
+    calendarIds: Array<string>;
+    /// Query start timestamp in UTC nanoseconds.
+    startUnixNs: uint64;
+    /// Query end timestamp in UTC nanoseconds.
+    endUnixNs: uint64;
+    /// Whether canceled events should be included.
+    includeCanceled: boolean;
+    /// Whether declined events should be included when provided by host.
+    includeDeclined: boolean;
+}
+
+/// Calendar bindings.
+declare namespace os {
+    /// List host calendars.
+    ///
+    /// Enumerate readable host calendars and return descriptor metadata.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses EventKit on Apple platforms, CalendarContract on Android, and calendar provider APIs on desktop hosts.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.calendar.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.calendar.list", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.calendar.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function calendarList(): Result<Array<OsCalendarDescriptor>, PlatformError>;
+
+    /// List host calendar events.
+    ///
+    /// Enumerate host calendar events over one selected UTC time range.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host calendar query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.calendar.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.calendar.eventList", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.calendar.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function calendarEventList(query: OsCalendarEventQuery): Result<Array<OsCalendarEvent>, PlatformError>;
+
+    /// Create one calendar event.
+    ///
+    /// Create one host calendar event and return its stable identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host calendar-write APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.calendar.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.calendar.eventCreate", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.calendar.write"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function calendarEventCreate(event: OsCalendarEventDraft): Result<string, PlatformError>;
+
+    /// Update one calendar event.
+    ///
+    /// Update one existing host calendar event by identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host calendar-write APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.calendar.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.calendar.eventUpdate", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.calendar.write"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function calendarEventUpdate(id: string, event: OsCalendarEventDraft): Result<void, PlatformError>;
+
+    /// Delete one calendar event.
+    ///
+    /// Delete one existing host calendar event by identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host calendar-delete APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.calendar.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.calendar.eventDelete", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.calendar.write"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function calendarEventDelete(id: string): Result<void, PlatformError>;
+}

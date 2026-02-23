@@ -1,6 +1,7 @@
 export type { PlatformError } from "./error/index.ds";
 export { audio } from "./audio/index.ds";
 export { debug } from "./debug/index.ds";
+export { device } from "./device/index.ds";
 export { display } from "./display/index.ds";
 export { ffi } from "./ffi/index.ds";
 export { fs } from "./fs/index.ds";

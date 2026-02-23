@@ -448,14 +448,14 @@ declare namespace gpu {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.sync.pipelineStatistics`.
+    /// Requires `gpu.sync.pipeline.statistics`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["gpu.sync.pipelineStatistics"],
+        capabilities: ["gpu.sync.pipeline.statistics"],
         platforms: ["windows", "unix"],
         scope: "host",
         blocking: "never",
@@ -479,14 +479,14 @@ declare namespace gpu {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.sync.pipelineStatistics`.
+    /// Requires `gpu.sync.pipeline.statistics`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.gpu.sync.commandEndRenderPipelineStatisticsQuery", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["gpu.sync.pipelineStatistics"],
+        capabilities: ["gpu.sync.pipeline.statistics"],
         platforms: ["windows", "unix"],
         scope: "host",
         blocking: "never",
@@ -508,14 +508,14 @@ declare namespace gpu {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.sync.pipelineStatistics`.
+    /// Requires `gpu.sync.pipeline.statistics`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.gpu.sync.commandBeginComputePipelineStatisticsQuery", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["gpu.sync.pipelineStatistics"],
+        capabilities: ["gpu.sync.pipeline.statistics"],
         platforms: ["windows", "unix"],
         scope: "host",
         blocking: "never",
@@ -539,14 +539,14 @@ declare namespace gpu {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.sync.pipelineStatistics`.
+    /// Requires `gpu.sync.pipeline.statistics`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.gpu.sync.commandEndComputePipelineStatisticsQuery", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["gpu.sync.pipelineStatistics"],
+        capabilities: ["gpu.sync.pipeline.statistics"],
         platforms: ["windows", "unix"],
         scope: "host",
         blocking: "never",

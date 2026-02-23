@@ -1691,14 +1691,14 @@ declare namespace gpu {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.render.multiDraw`.
+    /// Requires `gpu.render.multi.draw`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.gpu.command.multiDrawIndirect", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["gpu.render.multiDraw"],
+        capabilities: ["gpu.render.multi.draw"],
         platforms: ["windows", "unix"],
         scope: "host",
         blocking: "never",
@@ -1725,14 +1725,14 @@ declare namespace gpu {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.render.multiDraw`.
+    /// Requires `gpu.render.multi.draw`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.gpu.command.multiDrawIndexedIndirect", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["gpu.render.multiDraw"],
+        capabilities: ["gpu.render.multi.draw"],
         platforms: ["windows", "unix"],
         scope: "host",
         blocking: "never",
@@ -1758,14 +1758,14 @@ declare namespace gpu {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.render.multiDrawCount`.
+    /// Requires `gpu.render.multi.draw.count`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.gpu.command.multiDrawIndirectCount", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["gpu.render.multiDrawCount"],
+        capabilities: ["gpu.render.multi.draw.count"],
         platforms: ["windows", "unix"],
         scope: "host",
         blocking: "never",
@@ -1793,14 +1793,14 @@ declare namespace gpu {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.render.multiDrawCount`.
+    /// Requires `gpu.render.multi.draw.count`.
     ///
     /// # Replay
     /// External, recordable.
     @binding("destack.gpu.command.multiDrawIndexedIndirectCount", {
         effect: "external",
         replay: "recordable",
-        capabilities: ["gpu.render.multiDrawCount"],
+        capabilities: ["gpu.render.multi.draw.count"],
         platforms: ["windows", "unix"],
         scope: "host",
         blocking: "never",

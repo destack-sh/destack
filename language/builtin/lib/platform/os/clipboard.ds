@@ -1,0 +1,146 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+
+/// Clipboard binary format tag.
+export enum ClipboardBinaryFormat {
+    /// Plain UTF-8 text bytes.
+    TextUtf8 = 1,
+    /// HTML fragment bytes.
+    Html = 2,
+    /// Application-specific binary bytes.
+    Binary = 3,
+}
+
+/// Clipboard bindings.
+declare namespace os {
+    /// Read text clipboard payload.
+    ///
+    /// Read one text payload from the host clipboard.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard APIs such as X11 or Wayland selection protocols and Win32 clipboard APIs.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.clipboard.readText", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.clipboard.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function clipboardReadText(): Result<string, PlatformError>;
+
+    /// Write text clipboard payload.
+    ///
+    /// Write one text payload into the host clipboard.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard write APIs and ownership semantics.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.clipboard.writeText", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.clipboard.write"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function clipboardWriteText(text: string): Result<void, PlatformError>;
+
+    /// Read binary clipboard payload.
+    ///
+    /// Read one binary payload in one selected clipboard format.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard APIs for binary format extraction.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.clipboard.readBytes", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.clipboard.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function clipboardReadBytes(format: ClipboardBinaryFormat): Result<Slice<uint8>, PlatformError>;
+
+    /// Write binary clipboard payload.
+    ///
+    /// Write one binary payload in one selected clipboard format.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard APIs for binary format insertion.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding("destack.os.clipboard.writeBytes", {
+        effect: "external",
+        replay: "nonrecordable",
+        capabilities: ["os.clipboard.write"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "sometimes",
+    })
+    export function clipboardWriteBytes(format: ClipboardBinaryFormat, bytes: Slice<uint8>): Result<void, PlatformError>;
+
+    /// Read clipboard sequence number.
+    ///
+    /// Read one monotonic sequence marker for host clipboard contents.
+    /// Sequence semantics are host defined but monotonic within one host clipboard service lifetime.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard sequence APIs where available.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding("destack.os.clipboard.sequence", {
+        effect: "external",
+        replay: "recordable",
+        capabilities: ["os.clipboard.read"],
+        platforms: ["windows", "unix"],
+        scope: "host",
+        blocking: "never",
+    })
+    export function clipboardSequence(): Result<uint64, PlatformError>;
+}
