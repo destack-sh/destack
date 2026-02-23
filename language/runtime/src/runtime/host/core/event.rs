@@ -1,4 +1,6 @@
-use super::service::HostLifecycleState;
+use super::service::{
+    HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState,
+};
 use crate::runtime::poller::PollerEvent;
 
 /// Host semantic event kind key for scheduler watches.
@@ -8,10 +10,20 @@ pub enum HostEventKind {
     Lifecycle,
     /// Window and surface events.
     Window,
+    /// Window focus events.
+    WindowFocus,
     /// Permission result events.
     Permission,
     /// Interruption events.
     Interruption,
+    /// Memory pressure state events.
+    MemoryPressure,
+    /// Thermal state events.
+    ThermalState,
+    /// Power mode events.
+    PowerMode,
+    /// Wall clock change events.
+    WallClock,
 }
 
 /// Runtime-visible host event payload.
@@ -23,10 +35,20 @@ pub enum HostEvent {
     Lifecycle(HostLifecycleEvent),
     /// Host window and surface event.
     Window(HostWindowEvent),
+    /// Host window focus event.
+    WindowFocus(HostWindowFocusEvent),
     /// Host permission flow result event.
     Permission(HostPermissionEvent),
     /// Host interruption event.
     Interruption(HostInterruptionEvent),
+    /// Host memory pressure state event.
+    MemoryPressure(HostMemoryPressureEvent),
+    /// Host thermal state event.
+    ThermalState(HostThermalEvent),
+    /// Host power mode event.
+    PowerMode(HostPowerModeEvent),
+    /// Host wall clock change event.
+    WallClock(HostWallClockEvent),
 }
 
 impl HostEvent {
@@ -36,8 +58,13 @@ impl HostEvent {
             HostEvent::Poller(_) => None,
             HostEvent::Lifecycle(_) => Some(HostEventKind::Lifecycle),
             HostEvent::Window(_) => Some(HostEventKind::Window),
+            HostEvent::WindowFocus(_) => Some(HostEventKind::WindowFocus),
             HostEvent::Permission(_) => Some(HostEventKind::Permission),
             HostEvent::Interruption(_) => Some(HostEventKind::Interruption),
+            HostEvent::MemoryPressure(_) => Some(HostEventKind::MemoryPressure),
+            HostEvent::ThermalState(_) => Some(HostEventKind::ThermalState),
+            HostEvent::PowerMode(_) => Some(HostEventKind::PowerMode),
+            HostEvent::WallClock(_) => Some(HostEventKind::WallClock),
         }
     }
 
@@ -50,7 +77,16 @@ impl HostEvent {
     pub const fn is_coalescing(&self) -> bool {
         matches!(
             self.kind(),
-            Some(HostEventKind::Lifecycle | HostEventKind::Window | HostEventKind::Interruption)
+            Some(
+                HostEventKind::Lifecycle
+                    | HostEventKind::Window
+                    | HostEventKind::WindowFocus
+                    | HostEventKind::Interruption
+                    | HostEventKind::MemoryPressure
+                    | HostEventKind::ThermalState
+                    | HostEventKind::PowerMode
+                    | HostEventKind::WallClock
+            )
         )
     }
 }
@@ -81,6 +117,13 @@ pub enum HostWindowEvent {
     },
 }
 
+/// Host window focus payload.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HostWindowFocusEvent {
+    /// Whether one host window is focused.
+    pub is_focused: bool,
+}
+
 /// Host permission flow payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HostPermissionEvent {
@@ -96,3 +139,28 @@ pub struct HostInterruptionEvent {
     /// Whether the host is currently interrupted.
     pub interrupted: bool,
 }
+
+/// Host memory pressure payload.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HostMemoryPressureEvent {
+    /// Memory pressure level reported by the host.
+    pub level: HostMemoryPressureLevel,
+}
+
+/// Host thermal payload.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HostThermalEvent {
+    /// Thermal state reported by the host.
+    pub state: HostThermalState,
+}
+
+/// Host power mode payload.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HostPowerModeEvent {
+    /// Power mode reported by the host.
+    pub mode: HostPowerMode,
+}
+
+/// Host wall clock payload.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HostWallClockEvent;

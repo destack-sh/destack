@@ -183,32 +183,19 @@ fn filtered_services(
     let adapter_services = adapter.services();
     let mut services = HostServices::default();
 
-    // lifecycle service kind
-    if host_options.enable_lifecycle_events
-        && let Some(service) = adapter_services.lifecycle()
-    {
-        services = services.with_lifecycle(Arc::clone(service));
+    // enable host state reads when any host state events are enabled
+    let enable_state_service = host_options.enable_lifecycle_events
+        || host_options.enable_window_events
+        || host_options.enable_interruption_events;
+    if enable_state_service && let Some(service) = adapter_services.state() {
+        services = services.with_state(Arc::clone(service));
     }
 
-    // window service kind
-    if host_options.enable_window_events
-        && let Some(service) = adapter_services.window()
-    {
-        services = services.with_window(Arc::clone(service));
-    }
-
-    // permission service kind
+    // enable permission reads when permission events are enabled
     if host_options.enable_permission_events
         && let Some(service) = adapter_services.permission()
     {
         services = services.with_permission(Arc::clone(service));
-    }
-
-    // interruption service kind
-    if host_options.enable_interruption_events
-        && let Some(service) = adapter_services.interruption()
-    {
-        services = services.with_interruption(Arc::clone(service));
     }
 
     services
@@ -223,8 +210,13 @@ fn filter_events(events: Vec<HostEvent>, host_options: &PlatformHostOptions) -> 
             HostEvent::Poller(_) => true,
             HostEvent::Lifecycle(_) => host_options.enable_lifecycle_events,
             HostEvent::Window(_) => host_options.enable_window_events,
+            HostEvent::WindowFocus(_) => host_options.enable_window_events,
             HostEvent::Permission(_) => host_options.enable_permission_events,
             HostEvent::Interruption(_) => host_options.enable_interruption_events,
+            HostEvent::MemoryPressure(_) => host_options.enable_interruption_events,
+            HostEvent::ThermalState(_) => host_options.enable_interruption_events,
+            HostEvent::PowerMode(_) => host_options.enable_interruption_events,
+            HostEvent::WallClock(_) => host_options.enable_lifecycle_events,
         };
 
         if is_enabled {

@@ -238,6 +238,15 @@ check-runtime-android:
     CXX_aarch64_linux_android="${linker}" \
     cargo clippy -p destack_runtime --target aarch64-linux-android -- -D warnings
 
+    CARGO_INCREMENTAL=0 \
+    CRATE_CC_NO_DEFAULTS=1 \
+    CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${linker}" \
+    CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${ar}" \
+    CC_aarch64_linux_android="${linker}" \
+    AR_aarch64_linux_android="${ar}" \
+    CXX_aarch64_linux_android="${linker}" \
+    cargo test -p destack_runtime --target aarch64-linux-android --no-run runtime::host::android::
+
 # build
 build:
     cargo build --release {{ packages }}

@@ -4,11 +4,11 @@ use destack_workspace::PlatformHostOptions;
 
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::host::core::{
-    HostBridge, HostBridgeRegistration, HostServiceState, register_host_bridge,
+    HostBridge, HostBridgeRegistration, HostStateStore, register_host_bridge,
 };
 use crate::runtime::host::{
-    HostAdapter, HostEvent, HostInterruptionService, HostLifecycleService, HostLifecycleState,
-    HostPermissionService, HostPlatform, HostServices, HostWindowService,
+    HostAdapter, HostEvent, HostLifecycleState, HostPermissionService, HostPlatform, HostServices,
+    HostStateReader,
 };
 use crate::runtime::poller::HostPollerWakeHandle;
 
@@ -26,11 +26,11 @@ pub(crate) struct UnsupportedHostAdapter {
 impl UnsupportedHostAdapter {
     /// Create one unsupported host adapter.
     pub(crate) fn new() -> Self {
-        let service_state = Arc::new(HostServiceState::new());
-        let bridge = Arc::new(HostBridge::new(service_state));
+        let state_store = Arc::new(HostStateStore::new());
+        let bridge = Arc::new(HostBridge::new(state_store));
         bridge.push_lifecycle(HostLifecycleState::Initializing);
         let registration = register_host_bridge(HostPlatform::Universal, &bridge);
-        let services = build_unsupported_services(bridge.service_state());
+        let services = build_unsupported_services(bridge.state_store());
 
         Self {
             bridge,
@@ -71,15 +71,11 @@ impl HostAdapter for UnsupportedHostAdapter {
 }
 
 /// Build unsupported host service trait surfaces from one shared state object.
-fn build_unsupported_services(service_state: &Arc<HostServiceState>) -> HostServices {
-    let lifecycle_service: Arc<dyn HostLifecycleService> = service_state.clone();
-    let window_service: Arc<dyn HostWindowService> = service_state.clone();
-    let permission_service: Arc<dyn HostPermissionService> = service_state.clone();
-    let interruption_service: Arc<dyn HostInterruptionService> = service_state.clone();
+fn build_unsupported_services(state_store: &Arc<HostStateStore>) -> HostServices {
+    let state_service: Arc<dyn HostStateReader> = state_store.clone();
+    let permission_service: Arc<dyn HostPermissionService> = state_store.clone();
 
     HostServices::default()
-        .with_lifecycle(lifecycle_service)
-        .with_window(window_service)
+        .with_state(state_service)
         .with_permission(permission_service)
-        .with_interruption(interruption_service)
 }
