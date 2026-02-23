@@ -97,7 +97,7 @@ type Value =
 
 ### union arm doc block comment
 
-Doc block comments between union arms are preserved as arm leaders.
+Doc block comments in union expressions are preserved on the same type side.
 
 ```ts:main.ts line-width=80
 export type Value = /** keep-doc

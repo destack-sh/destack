@@ -42,21 +42,18 @@ const x = /* pre-A */ A /* A comment */ && B; /* B comment */
 
 ## Comments Causing Expansion
 
-### comment in object causes expansion
+### comment in object stays inline when short
 
-Objects with internal comments expand to multiple lines.
+Short objects with internal comments stay inline.
 
 ```ts:main.ts
 ({ /* key */ a: 1, /* another */ b: 2 })
 ```
 
-The formatter expands the object when it contains comments.
+The formatter keeps this object inline when it fits.
 
 ```ts expected
-({
-    /* key */ a: 1,
-    /* another */ b: 2,
-});
+({ /* key */ a: 1, /* another */ b: 2 });
 ```
 
 ### comment in computed object key
