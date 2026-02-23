@@ -27,6 +27,7 @@ use crate::binding::{
     runtime_domain_unix_mod_path, runtime_domain_unsupported_path, runtime_domain_vm_path,
     runtime_domain_windows_mod_path, runtime_platform_generated_path, write_domain_bindings,
 };
+use crate::capability::generate_platform_capability_kind;
 use crate::catalog::collect_platform_bindings;
 use crate::model::{BindingEntry, CatalogBindingScope};
 use crate::option::parse_generator_options;
@@ -111,6 +112,9 @@ pub(crate) fn run() {
         options.domains.is_none(),
         options.refresh_stubs,
     );
+
+    // regenerate runtime capability kinds from intrinsic capability source of truth
+    generate_platform_capability_kind();
 }
 
 /// Filter platform modules by selected domains.

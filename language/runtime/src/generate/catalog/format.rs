@@ -575,9 +575,16 @@ fn binding_type_from_symbol(
         .try_into_typed::<Declaration>()
         .unwrap_or_else(|error| unsupported_binding_type(&name, &error));
     let declaration = tree.get::<Declaration>(declaration_id);
-    let domain = platform_domain_for_module(modules, symbol_id.module_id).unwrap_or_else(|| {
-        unsupported_binding_type(&name, "binding type must live under platform")
-    });
+    let domain = if let Some(domain) = platform_domain_for_module(modules, symbol_id.module_id) {
+        domain
+    } else {
+        // allow the intrinsic capability alias used by platform security bindings
+        if name == "PlatformCapability" {
+            return BindingType::String;
+        }
+
+        unsupported_binding_type(&name, "binding type must live under platform");
+    };
 
     match declaration {
         Declaration::Struct { members, .. } => binding_type_from_struct(
