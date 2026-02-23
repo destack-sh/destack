@@ -55,6 +55,16 @@ impl TestProgram {
         }
     }
 
+    /// Return the primary test root directory.
+    pub(super) fn root(&self) -> &Path {
+        &self.root
+    }
+
+    /// Resolve a file path relative to the test root.
+    pub(super) fn path_for(&self, relative: &str) -> PathBuf {
+        self.root.join(relative)
+    }
+
     /// Build program arguments rooted at this test directory.
     pub(super) fn program_args(&self) -> ProgramArgs {
         // build program args with the in memory file system
@@ -68,20 +78,18 @@ impl TestProgram {
 
     /// Write a file relative to the test root.
     pub(super) fn write_file(&self, relative: &str, contents: &str) {
+        let _ = self.write_text(relative, contents);
+    }
+
+    /// Write text and return the absolute path.
+    pub(super) fn write_text(&self, relative: &str, contents: &str) -> PathBuf {
         // resolve the absolute path
-        let path = self.root.join(relative);
+        let path = self.path_for(relative);
 
         // write the file contents
         write_file(self.fs.as_ref(), &path, contents);
-    }
 
-    /// Write a file and return its absolute path.
-    pub(super) fn write_source(&self, relative: &str, contents: &str) -> PathBuf {
-        // write the file to the test file system
-        self.write_file(relative, contents);
-
-        // return the resolved path
-        self.root.join(relative)
+        path
     }
 
     /// Write a json file relative to the test root.

@@ -171,7 +171,7 @@ fn test_apply_watch_event_updates_file() {
     let test = TestProgram::new("watch_update");
     let program = test.session.get_or_create_program(test.root.clone());
 
-    let path = test.write_source("src/main.ds", "export const value = 1;\n");
+    let path = test.write_text("src/main.ds", "export const value = 1;\n");
     register_file(
         &program,
         &path,
@@ -198,7 +198,7 @@ fn test_apply_watch_event_deletes_file() {
     let test = TestProgram::new("watch_delete");
     let program = test.session.get_or_create_program(test.root.clone());
 
-    let path = test.write_source("src/main.ds", "export const value = 1;\n");
+    let path = test.write_text("src/main.ds", "export const value = 1;\n");
     register_file(
         &program,
         &path,
@@ -230,7 +230,7 @@ fn test_apply_watch_event_renames_file() {
     let test = TestProgram::new("watch_rename");
     let program = test.session.get_or_create_program(test.root.clone());
 
-    let old_path = test.write_source("src/old.ds", "export const value = 1;\n");
+    let old_path = test.write_text("src/old.ds", "export const value = 1;\n");
     register_file(
         &program,
         &old_path,
@@ -238,7 +238,7 @@ fn test_apply_watch_event_renames_file() {
         FileType::Destack,
     );
 
-    let new_path = test.write_source("src/new.ds", "export const value = 1;\n");
+    let new_path = test.write_text("src/new.ds", "export const value = 1;\n");
     register_file(
         &program,
         &new_path,
@@ -275,7 +275,7 @@ fn test_apply_watch_event_requests_rescan_for_config() {
     let test = TestProgram::new("watch_config");
     let program = test.session.get_or_create_program(test.root.clone());
 
-    let path = test.write_source("dsconfig.json", "{ \"compilerOptions\": {} }\n");
+    let path = test.write_text("dsconfig.json", "{ \"compilerOptions\": {} }\n");
     register_file(
         &program,
         &path,
@@ -302,7 +302,7 @@ fn test_run_watch_loop_handles_config_update() {
     let test = TestProgram::new("watch_loop_config");
     let program = test.session.get_or_create_program(test.root.clone());
 
-    let path = test.write_source("dsconfig.json", "{ \"compilerOptions\": {} }\n");
+    let path = test.write_text("dsconfig.json", "{ \"compilerOptions\": {} }\n");
     register_file(
         &program,
         &path,
@@ -335,7 +335,7 @@ fn test_run_watch_loop_handles_source_update() {
     let test = TestProgram::new("watch_loop_source");
     let program = test.session.get_or_create_program(test.root.clone());
 
-    let path = test.write_source("src/main.ds", "export const value = 1;\n");
+    let path = test.write_text("src/main.ds", "export const value = 1;\n");
     register_file(
         &program,
         &path,
