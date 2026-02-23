@@ -14,7 +14,7 @@ use super::tests::{TestProgram, assert_exit, assert_success};
 fn test_fmt_formats_json_file() {
     // set up a json file with minimal spacing
     let program = TestProgram::new("fmt_json");
-    let path = program.write_source("config.json", r#"{"a":1}"#);
+    let path = program.write_text("config.json", r#"{"a":1}"#);
 
     // build formatter args
     let args = FmtArgs {
@@ -47,7 +47,7 @@ fn test_fmt_formats_json_file() {
 fn test_fmt_formats_destack_file() {
     // set up a source file with minimal spacing
     let program = TestProgram::new("fmt_destack");
-    let path = program.write_source("main.ds", "const answer=42");
+    let path = program.write_text("main.ds", "const answer=42");
 
     // build formatter args
     let args = FmtArgs {
@@ -76,7 +76,7 @@ fn test_fmt_formats_destack_file() {
 fn test_fmt_default_scan_includes_typescript() {
     // set up a typescript file in the workspace root
     let program = TestProgram::new("fmt_scan_ts");
-    let path = program.write_source("main.ts", "const answer=42");
+    let path = program.write_text("main.ts", "const answer=42");
 
     // build formatter args with default scan behavior
     let args = FmtArgs {
@@ -105,8 +105,8 @@ fn test_fmt_default_scan_includes_typescript() {
 fn test_fmt_default_scan_skips_node_modules() {
     // set up a regular source and a node_modules source
     let program = TestProgram::new("fmt_scan_ignore");
-    let src_path = program.write_source("src/main.ts", "const answer=42");
-    let dependency_path = program.write_source("node_modules/pkg/index.ts", "const dep=1");
+    let src_path = program.write_text("src/main.ts", "const answer=42");
+    let dependency_path = program.write_text("node_modules/pkg/index.ts", "const dep=1");
 
     // build formatter args with default scan behavior
     let args = FmtArgs {
@@ -142,7 +142,7 @@ fn test_fmt_default_scan_skips_node_modules() {
 fn test_fmt_check_mode_returns_nonzero_on_change() {
     // set up an unformatted source file
     let program = TestProgram::new("fmt_check");
-    let path = program.write_source("main.ds", "const answer=42");
+    let path = program.write_text("main.ds", "const answer=42");
 
     // build formatter args in check mode
     let args = FmtArgs {
@@ -171,8 +171,8 @@ fn test_fmt_check_mode_returns_nonzero_on_change() {
 fn test_fmt_formats_valid_files_when_other_files_error() {
     // set up one valid file and one invalid file
     let program = TestProgram::new("fmt_mixed_errors");
-    let good_path = program.write_source("good.ds", "const answer=42");
-    let bad_path = program.write_source("bad.ds", "const broken =");
+    let good_path = program.write_text("good.ds", "const answer=42");
+    let bad_path = program.write_text("bad.ds", "const broken =");
 
     // build formatter args for explicit files
     let args = FmtArgs {
@@ -215,7 +215,7 @@ fn test_fmt_applies_dsconfig_formatter_options() {
             "singleQuote": true
         }
     }));
-    let path = program.write_source("main.ts", "const message=\"hello\"");
+    let path = program.write_text("main.ts", "const message=\"hello\"");
 
     // build formatter args
     let args = FmtArgs {
@@ -249,7 +249,7 @@ fn test_fmt_cli_formatter_overrides_dsconfig() {
             "singleQuote": true
         }
     }));
-    let path = program.write_source("main.ts", "const message=\"hello\"");
+    let path = program.write_text("main.ts", "const message=\"hello\"");
 
     // build formatter args with an explicit cli formatter override
     let mut program_args = program.program_args();
@@ -280,8 +280,8 @@ fn test_fmt_cli_formatter_overrides_dsconfig() {
 fn test_fmt_payload_includes_changed_and_error_files() {
     // set up one valid and one invalid source file
     let program = TestProgram::new("fmt_payload_lists");
-    let good_path = program.write_source("good.ds", "const answer=42");
-    let bad_path = program.write_source("bad.ds", "const broken =");
+    let good_path = program.write_text("good.ds", "const answer=42");
+    let bad_path = program.write_text("bad.ds", "const broken =");
 
     // build daemon command options
     let common = CommandOptionsBuilder::new(&program.program_args(), None).build();

@@ -14,7 +14,7 @@ use super::tests::{
 fn test_build_dry_run_single_file() {
     // set up a minimal source file
     let program = TestProgram::new("build_dry_run");
-    let path = program.write_source("main.ds", "export const answer = 42;\n");
+    let path = program.write_text("main.ds", "export const answer = 42;\n");
 
     // build args with dry run enabled
     let args = BuildArgs {
@@ -38,7 +38,7 @@ fn test_build_dry_run_single_file() {
 fn test_build_watch_handles_update() {
     // set up a minimal source file
     let program = TestProgram::new("build_watch_update");
-    let path = program.write_source("main.ds", "export const answer = 42;\n");
+    let path = program.write_text("main.ds", "export const answer = 42;\n");
 
     // build args with watch enabled
     let mut args = BuildArgs {

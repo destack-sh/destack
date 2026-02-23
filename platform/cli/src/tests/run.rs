@@ -36,7 +36,7 @@ fn test_run_requires_input() {
 fn test_run_watch_handles_update() {
     // set up a minimal source file
     let program = TestProgram::new("run_watch_update");
-    let path = program.write_source("main.ds", "export function main(): number { return 0; }\n");
+    let path = program.write_text("main.ds", "export function main(): number { return 0; }\n");
 
     // build a run request with watch enabled
     let mut request = RunRequest {
@@ -68,8 +68,7 @@ fn test_run_watch_handles_update() {
         watch_options,
         || {
             // update the source file to trigger a watch event
-            let _ =
-                program.write_source("main.ds", "export function main(): number { return 1; }\n");
+            let _ = program.write_text("main.ds", "export function main(): number { return 1; }\n");
             watcher.emit(FileWatchEvent {
                 path: path.clone(),
                 previous_path: None,

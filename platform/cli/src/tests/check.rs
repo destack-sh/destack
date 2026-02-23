@@ -15,7 +15,7 @@ use super::tests::{
 fn test_check_compiles_single_file() {
     // set up a minimal source file
     let program = TestProgram::new("check_single");
-    let path = program.write_source("main.ds", "export const answer = 42;\n");
+    let path = program.write_text("main.ds", "export const answer = 42;\n");
 
     // build check args
     let args = CheckArgs {
@@ -47,7 +47,7 @@ fn test_check_compiles_single_file() {
 fn test_check_watch_handles_update() {
     // set up a minimal source file
     let program = TestProgram::new("check_watch_update");
-    let path = program.write_source("main.ds", "export const answer = 42;\n");
+    let path = program.write_text("main.ds", "export const answer = 42;\n");
 
     // build check args with watch enabled
     let mut args = CheckArgs {
@@ -120,7 +120,7 @@ fn test_check_watch_handles_update() {
 fn test_check_watch_handles_config_rescan() {
     // set up a minimal source file
     let program = TestProgram::new("check_watch_config");
-    let path = program.write_source("main.ds", "export const answer = 42;\n");
+    let path = program.write_text("main.ds", "export const answer = 42;\n");
 
     // build check args with watch enabled
     let mut args = CheckArgs {
