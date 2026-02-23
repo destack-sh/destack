@@ -3,7 +3,6 @@ use std::time::Duration;
 
 use destack_compiler::CompilerOptions;
 use destack_lsp_server::jsonrpc::Response;
-use destack_lsp_server::{LanguageServer, LspService};
 use destack_lsp_types as lsp;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_service::LanguageService as LspLanguageService;
@@ -11,14 +10,9 @@ use destack_source::{
     FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem,
 };
 use destack_workspace::{MemoryCacheStore, Session, Workspace};
-use futures::{SinkExt, StreamExt};
-use tower::Service;
 
 use super::fixture::TestLsp;
-use super::harness::{
-    LspHarness, harness_for_fs, notification_with_params, request_with_params, test_fs,
-    uri_for_path,
-};
+use super::harness::{LspHarness, harness_for_fs, request_with_params, test_fs, uri_for_path};
 /// LSP didOpen publishes diagnostics for the document.
 #[tokio::test]
 async fn test_lsp_did_open_publishes_diagnostics() {
@@ -607,55 +601,17 @@ async fn test_lsp_selection_range_streams_partial_results() {
 /// Workspace diagnostics honor cancel requests.
 #[tokio::test]
 async fn test_lsp_workspace_diagnostic_cancels() {
-    let fs = test_fs("workspace_cancel");
-    let mut file_paths = Vec::new();
+    let mut test = TestLsp::new("workspace_cancel").await;
+
+    // open many invalid files to keep workspace diagnostics work in flight
     for index in 0..256 {
         let name = format!("file_{index}.ds");
-        let path = fs
-            .write_text(&name, "export const x = ;\n")
-            .expect("write module");
-        file_paths.push(path);
+        let path = test.write_text(&name, "export const x = ;\n");
+        let uri = uri_for_path(&path);
+        test.harness.did_open(uri, "export const x = ;\n").await;
     }
 
-    let (mut service, client) = LspService::new(crate::DestackLanguageServer::new);
-    let (mut requests, mut responses) = client.split();
-    let client_task = tokio::spawn(async move {
-        while let Some(request) = requests.next().await {
-            if let Some(id) = request.id().cloned() {
-                let response = Response::from_ok(id, serde_json::Value::Null);
-                let _ = responses.send(response).await;
-            }
-        }
-    });
-
-    #[allow(deprecated)]
-    let params = lsp::InitializeParams {
-        root_uri: Some(uri_for_path(fs.root())),
-        ..Default::default()
-    };
-    let request = request_with_params("initialize", 1, params);
-    let response = service.call(request).await.expect("initialize response");
-    let response = response.expect("initialize response missing");
-    assert!(response.is_ok());
-    let initialized = notification_with_params("initialized", lsp::InitializedParams {});
-    let _ = service.call(initialized).await;
-
-    let server = service.inner();
-
-    for path in file_paths.iter() {
-        let uri = uri_for_path(path);
-        server
-            .did_open(lsp::DidOpenTextDocumentParams {
-                text_document: lsp::TextDocumentItem::new(
-                    uri,
-                    "destack".to_string(),
-                    1,
-                    "export const x = ;\n".to_string(),
-                ),
-            })
-            .await;
-    }
-
+    // request workspace diagnostics with work done cancellation
     let work_done_token = lsp::ProgressToken::Number(2);
     let diag_params = lsp::WorkspaceDiagnosticParams {
         identifier: None,
@@ -668,20 +624,16 @@ async fn test_lsp_workspace_diagnostic_cancels() {
         },
     };
 
-    let diagnostic_future = server.workspace_diagnostic(diag_params);
-    let cancel_future = async {
-        for _ in 0..32 {
-            server
-                .work_done_progress_cancel(lsp::WorkDoneProgressCancelParams {
-                    token: work_done_token.clone(),
-                })
-                .await;
-            tokio::time::sleep(Duration::from_millis(1)).await;
-        }
-    };
+    let result = test
+        .harness
+        .workspace_diagnostic_with_cancellation(
+            diag_params,
+            work_done_token,
+            32,
+            Duration::from_millis(1),
+        )
+        .await;
 
-    let (result, _) = tokio::join!(diagnostic_future, cancel_future);
-    client_task.abort();
     assert_eq!(
         result.unwrap_err(),
         destack_lsp_server::jsonrpc::Error::request_cancelled()
