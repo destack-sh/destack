@@ -1,9 +1,11 @@
 use std::collections::HashSet;
 
+use indexmap::IndexMap;
+
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, Export, Expression, LocalNodeId,
     LocalNodeIdAny, LocalScopeId, LocalTypeId, ModuleTarget, NamespaceExport, NodeTree, StaticKey,
-    SymbolSpace, TypeField, TypeTable,
+    SymbolSpace, Type, TypeField, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -18,7 +20,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        exported_symbols: &indexmap::IndexMap<(SymbolSpace, StaticKey), Export>,
+        exported_symbols: &IndexMap<(SymbolSpace, StaticKey), Export>,
         tree: &NodeTree,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
@@ -85,7 +87,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        exports: &indexmap::IndexMap<(SymbolSpace, StaticKey), Export>,
+        exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         namespace_exports: &[NamespaceExport],
         source_id: LocalNodeIdAny,
         types: &mut TypeTable,
@@ -121,18 +123,24 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        exports: &indexmap::IndexMap<(SymbolSpace, StaticKey), Export>,
+        exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         source_id: LocalNodeIdAny,
         types: &mut TypeTable,
         shape: &mut ObjectShape,
     ) -> AnalyzeResult<()> {
+        let mut unknown_value_type_id = None;
+
         // collect exported value fields into a namespace shape
         for export in exports.values() {
             if export.space != SymbolSpace::Value {
                 continue;
             }
 
-            let Some(target_symbol) = export.target.resolved() else {
+            let target_symbol = export
+                .target
+                .resolved()
+                .or_else(|| export.symbol.map(|symbol| symbol.into_global(module.id)));
+            let Some(target_symbol) = target_symbol else {
                 continue;
             };
 
@@ -149,7 +157,15 @@ impl Compiler {
                     types,
                 )?
             } else {
-                continue;
+                let unknown_type_id = *unknown_value_type_id.get_or_insert_with(|| {
+                    types.insert_type_from_any(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        },
+                        source_id,
+                    )
+                });
+                unknown_type_id
             };
 
             shape.fields.push(TypeField {

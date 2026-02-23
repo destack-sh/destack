@@ -538,37 +538,32 @@ impl Compiler {
         symbol: GlobalSymbolId,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        self.with_module_tree_symbols_by_id_at_stage(
-            profile,
-            symbol.module_id,
-            AnalyzeDependencyStage::Declare,
-            |remote_module, remote_tree, remote_symbols| {
-                let remote_dir = remote_module.dir(profile);
-                let mut remote_types = remote_dir.types.write();
-                let Some(remote_instance_id) = remote_types.get_instance_type_id(symbol) else {
-                    return Ok(None);
-                };
+        let remote_instance = self
+            .with_module_tree_symbols_by_id_at_stage(
+                profile,
+                symbol.module_id,
+                AnalyzeDependencyStage::Declare,
+                |remote_module, _remote_tree, _remote_symbols| {
+                    let remote_dir = remote_module.dir(profile);
+                    let remote_types = remote_dir.types.read();
+                    let remote_instance_id = remote_types.get_instance_type_id(symbol)?;
+                    let remote_instance_ty = remote_types.get_type(remote_instance_id).clone();
+                    let remote_snapshot = remote_types.clone();
+                    Some((remote_instance_ty, remote_snapshot))
+                },
+            )
+            .map_err(AnalyzeError::from)?;
 
-                // materialize and import the remote type
-                self.materialize_imported_type(
-                    remote_module,
-                    profile,
-                    remote_instance_id,
-                    remote_tree,
-                    remote_symbols,
-                    &mut remote_types,
-                )?;
-                let remote_instance_ty = remote_types.get_type(remote_instance_id);
-                let local_instance_id = self.import_type_from_remote_for_node(
+        Ok(
+            remote_instance.map(|(remote_instance_ty, remote_snapshot)| {
+                self.import_type_from_remote_for_node(
                     node_id,
-                    remote_instance_ty,
-                    &remote_types,
+                    &remote_instance_ty,
+                    &remote_snapshot,
                     symbol,
                     types,
-                );
-                Ok(Some(local_instance_id))
-            },
+                )
+            }),
         )
-        .map_err(AnalyzeError::from)?
     }
 }

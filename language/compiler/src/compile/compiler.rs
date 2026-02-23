@@ -3,9 +3,10 @@ use std::sync::Arc;
 use dashmap::DashMap;
 
 use destack_base::ImmutableStringPool;
+use destack_dir::InferTable;
 use destack_resolver::Resolver;
 use destack_source::{DiagnosticCollector, DiagnosticOptions, DiagnosticSeverity, ModuleId, Uri};
-use destack_workspace::{Builtins, Program, Session, Target};
+use destack_workspace::{Builtins, ProfileId, Program, Session, Target};
 use parking_lot::Mutex;
 
 use crate::{
@@ -330,6 +331,57 @@ impl Compiler {
             .entry(key)
             .or_insert_with(|| Arc::new(Mutex::new(None)))
             .clone()
+    }
+
+    /// Publish one infer table for follow-up solve and commit tasks.
+    pub(crate) fn publish_infer_table_for_module(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        infer: InferTable,
+    ) {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let Some(dir) = module.dir_maybe(profile) else {
+            return;
+        };
+        dir.publish_analyze_infer_table(infer);
+    }
+
+    /// Read one published infer table for a module and profile.
+    pub(crate) fn with_infer_table_for_module<R>(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        handle: impl FnOnce(&InferTable) -> R,
+    ) -> Option<R> {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir_maybe(profile)?;
+        dir.with_analyze_infer_table(handle)
+    }
+
+    /// Mutate one published infer table for a module and profile.
+    pub(crate) fn with_infer_table_for_module_mut<R>(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        handle: impl FnOnce(&mut InferTable) -> R,
+    ) -> Option<R> {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir_maybe(profile)?;
+        dir.with_analyze_infer_table_mut(handle)
+    }
+
+    /// Clear one published infer table for a module and profile.
+    pub(crate) fn clear_infer_table_for_module(&self, module_id: ModuleId, profile: ProfileId) {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let Some(dir) = module.dir_maybe(profile) else {
+            return;
+        };
+        dir.clear_analyze_infer_table();
     }
 
     /// Add an error to the compiler (deduplicated).

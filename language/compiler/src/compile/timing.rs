@@ -191,8 +191,7 @@ pub mod tags {
         TimingTag::new("analyze.infer.expression.reference");
     pub const ANALYZE_INFER_REGISTER_INSTANCES: TimingTag =
         TimingTag::new("analyze.infer.instances.register");
-    pub const ANALYZE_INFER_SOLVE_CONSTRAINTS: TimingTag =
-        TimingTag::new("analyze.infer.constraints.solve");
+    pub const ANALYZE_SOLVE_CONSTRAINTS: TimingTag = TimingTag::new("analyze.solve.constraints");
     pub const ANALYZE_INFER_ASSIGN_CHECK: TimingTag = TimingTag::new("analyze.infer.assign.check");
     pub const ANALYZE_INFER_TYPE_NORMALIZE: TimingTag =
         TimingTag::new("analyze.infer.type.normalize");
@@ -210,6 +209,8 @@ pub mod tags {
         TimingTag::new("analyze.infer.static.materialize");
     pub const ANALYZE_INFER_OVERLOAD_RESOLVE: TimingTag =
         TimingTag::new("analyze.infer.overload.resolve");
+    pub const ANALYZE_MODULE_SOLVE: TimingTag = TimingTag::new("analyze.module.solve");
+    pub const ANALYZE_MODULE_COMMIT: TimingTag = TimingTag::new("analyze.module.commit");
     pub const ANALYZE_MODULE_CAPTURE: TimingTag = TimingTag::new("analyze.module.capture");
     pub const ANALYZE_MODULE_VALIDATE: TimingTag = TimingTag::new("analyze.module.validate");
 

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::NormalizationMode;
 use crate::timing::tags;
 use crate::{
@@ -8,7 +7,7 @@ use crate::{
     TaskResultCollector,
 };
 use destack_dir::{
-    Declaration, Declarator, Expression, FlowGraphBuilder, IntType, LocalNodeId, NodeTree, Pattern,
+    Declaration, Declarator, Expression, FlowGraphBuilder, IntType, LocalNodeId, NodeTree,
     PrimitiveType, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
@@ -30,7 +29,7 @@ impl Compiler {
         self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleInfer { module, profile })
     }
 
-    /// Phase 2: Infer expression types.
+    /// Phase 3: Infer expression types.
     pub(crate) fn analyze_module_infer(
         &self,
         module_id: ModuleId,
@@ -46,6 +45,7 @@ impl Compiler {
             profile_version,
         )?;
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_INFER);
+        self.clear_infer_table_for_module(module_id, profile);
 
         // analyze data modules specially
         if !self.is_code_module(module_id) {
@@ -118,7 +118,6 @@ impl Compiler {
         self.require_analyze_module_interface(module_id, profile)?;
         self.require_declare_dependencies_for_infer(module_id, profile)?;
         self.require_interface_dependencies_for_infer(module_id, profile)?;
-        self.require_declare_inference_for_builtin_modules(module_id, profile)?;
         self.require_interface_inference_for_ambient_libs(profile)?;
 
         let dir = module.dir(profile);
@@ -216,101 +215,10 @@ impl Compiler {
             return Err(AnalyzeError::Yield { dependency });
         }
 
-        // solve constraints (and commit inferred types)
-        if !session.table().vars.is_empty() || !session.table().constraints.is_empty() {
-            let _timing = self.timing_scope(tags::ANALYZE_INFER_SOLVE_CONSTRAINTS);
-            self.solve_infer_table(
-                &module,
-                profile,
-                &symbols,
-                session.table(),
-                &mut types,
-                &session.context().options,
-            );
-        }
-
-        // replay all post-solve infer obligations in deterministic order
-        self.replay_post_solve_obligations(
-            &module,
-            profile,
-            &tree,
-            &symbols,
-            &mut types,
-            session.table_mut(),
-            &options,
-        )?;
-
-        // refresh declaration commits after final infer obligations settled
-        self.refresh_direct_binding_value_types_from_inferred_initializers(
-            &module, profile, &tree, &symbols, &mut types,
-        );
+        // publish infer-table state for solve and commit stages
+        self.publish_infer_table_for_module(module.id, profile, session.into_table());
 
         Ok(())
-    }
-
-    /// Refresh direct binding value types from converged initializer inference.
-    fn refresh_direct_binding_value_types_from_inferred_initializers(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) {
-        // update direct unannotated declarators to the final initializer inferred type
-        for declarator_id in tree.iter_node_ids_of_type::<Declarator>() {
-            let declarator_node_id = declarator_id.into_global_any(module.id);
-            if types.get_declared_type_id(declarator_node_id).is_some() {
-                continue;
-            }
-
-            let declarator = tree.get(declarator_id);
-            let Some(value_id) = declarator.value else {
-                continue;
-            };
-            let Some(inferred_type_id) =
-                types.get_inferred_type_id(value_id.into_global_any(module.id))
-            else {
-                continue;
-            };
-
-            let Pattern::Binding {
-                symbol,
-                pattern: None,
-                ..
-            } = tree.get(declarator.pattern)
-            else {
-                continue;
-            };
-            let binding_symbol = symbol.into_global(module.id);
-            let Some(current_value_type_id) = types.get_value_type_id(binding_symbol) else {
-                continue;
-            };
-            if current_value_type_id == inferred_type_id {
-                continue;
-            }
-
-            let current_requires_refresh = match types.get_type(current_value_type_id) {
-                Type::Unevaluated(_) => true,
-                Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                } => true,
-                Type::Reference { symbol, .. } => {
-                    matches!(
-                        self.query_static_member_symbol_kind_for_symbol(
-                            module, profile, *symbol, tree, symbols
-                        ),
-                        Ok(Some(StaticMemberSymbolKind::AssociatedType))
-                    )
-                }
-                _ => false,
-            };
-            if !current_requires_refresh {
-                continue;
-            }
-
-            types.set_value_type(binding_symbol, inferred_type_id);
-        }
     }
 
     /// Collect root expressions that can produce runtime behavior.
@@ -343,20 +251,35 @@ impl Compiler {
             if !self.is_node_active(tree, symbols, declarator_id.into_any()) {
                 continue;
             }
-            if declarator.ty.is_none() {
+            let Some(annotation_id) = declarator.ty else {
                 continue;
-            }
+            };
+            let declarator_node_id = declarator_id.into_global_any(module.id);
+
+            // register one declared type id for all annotated declarators
+            let annotation_ty_id =
+                if let Some(annotation_ty_id) = types.get_declared_type_id(declarator_node_id) {
+                    annotation_ty_id
+                } else {
+                    let annotation_ty_id = self.resolve_declared_type_expression(
+                        module,
+                        profile,
+                        annotation_id,
+                        tree,
+                        symbols,
+                        types,
+                        true,
+                        true,
+                    )?;
+                    types.set_declared_type(declarator_node_id, annotation_ty_id);
+                    annotation_ty_id
+                };
+
+            self.resolve_declared_type(module, profile, annotation_ty_id, tree, symbols, types)?;
+
             if declarator.value.is_some() {
                 continue;
             }
-
-            let Some(annotation_ty_id) =
-                types.get_declared_type_id(declarator_id.into_global(module.id).into())
-            else {
-                continue;
-            };
-
-            self.resolve_declared_type(module, profile, annotation_ty_id, tree, symbols, types)?;
 
             if self.type_contains_static_parameters(
                 module,

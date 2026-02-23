@@ -1,6 +1,6 @@
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 use destack_dir::{
-    AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, Declaration,
+    AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, BindingModifier, Declaration,
     DeclarationAbstraction, DeclarationKind, DynamicKey, FunctionAbstraction, FunctionCardinality,
     FunctionMode, FunctionSignature, LocalNodeId, LocalNodeIdAny, Member, Mutability, NodeTree,
     NodeType, Parameter, StringId,
@@ -584,7 +584,7 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
         id: LocalNodeId<Member>,
-        modifiers: Option<&destack_dir::BindingModifier>,
+        modifiers: Option<&BindingModifier>,
         signature: &FunctionSignature,
     ) {
         // reject invalid interface modifiers

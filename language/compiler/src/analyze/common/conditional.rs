@@ -1335,7 +1335,7 @@ impl Compiler {
                         | TypeLiteral::ScalarLiteral(ScalarLiteral::Float(_)),
                 },
                 Type::TypeLiteral {
-                    value: TypeLiteral::Primitive(destack_dir::PrimitiveType::Number),
+                    value: TypeLiteral::Primitive(PrimitiveType::Number),
                 },
             )
             | (
@@ -1343,7 +1343,7 @@ impl Compiler {
                     value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_)),
                 },
                 Type::TypeLiteral {
-                    value: TypeLiteral::Primitive(destack_dir::PrimitiveType::String),
+                    value: TypeLiteral::Primitive(PrimitiveType::String),
                 },
             ) => Some(InferSubstitutions::empty()),
             (
@@ -1351,7 +1351,7 @@ impl Compiler {
                     value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(_)),
                 },
                 Type::TypeLiteral {
-                    value: TypeLiteral::Primitive(destack_dir::PrimitiveType::Boolean),
+                    value: TypeLiteral::Primitive(PrimitiveType::Boolean),
                 },
             ) => Some(InferSubstitutions::empty()),
             (Type::TypeLiteral { value }, Type::TypeLiteral { value: right_value }) => {

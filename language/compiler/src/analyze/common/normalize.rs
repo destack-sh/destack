@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
     GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, StaticArgument,
-    StaticParameterKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement, TypeField,
-    TypeIndexSignature, TypeLiteral, TypeTable, TypeUnaryOperator, WellKnownSymbol,
+    StaticParameterKind, Symbol, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement,
+    TypeField, TypeIndexSignature, TypeLiteral, TypeTable, TypeUnaryOperator, WellKnownSymbol,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -48,7 +48,7 @@ impl Compiler {
         owner_module: &Module,
         symbol: GlobalSymbolId,
         symbols: &SymbolTable,
-        symbol_entry: destack_dir::Symbol,
+        symbol_entry: Symbol,
     ) -> GlobalSymbolId {
         // normalize to the declared symbol type
         let normalized =

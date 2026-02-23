@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use super::SignatureResolutionMode;
 use crate::{AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Argument, Constraint, Expression, InferOrigin, InferScope, InferTable, LocalNodeId,
+    Argument, Constraint, Expression, InferOrigin, InferScope, InferTable, InferVarId, LocalNodeId,
     LocalNodeIdAny, LocalTypeId, NodeTree, PrimitiveType, ResolvedSignature, ScalarLiteral,
     StringId, SymbolSpaceOrder, SymbolTable, TemplateLiteral, Type, TypeLiteral, TypeTable,
 };
@@ -156,6 +156,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    infer,
                     &ctx.options,
                 )? {
                     continue;
@@ -782,6 +783,23 @@ impl Compiler {
                         infer,
                     );
                 }
+                Type::Union { elements } => {
+                    self.infer_template_literal_from_union_string_argument(
+                        module,
+                        profile,
+                        *argument_id,
+                        *argument_ty_id,
+                        *param_ty_id,
+                        &strings,
+                        &spans,
+                        &elements,
+                        span_node,
+                        source_node,
+                        symbols,
+                        types,
+                        infer,
+                    );
+                }
                 Type::TemplateLiteral {
                     strings: argument_strings,
                     spans: argument_spans,
@@ -806,6 +824,118 @@ impl Compiler {
                 }
                 _ => {}
             }
+        }
+    }
+
+    /// Infer template spans from a union of string literal arguments.
+    fn infer_template_literal_from_union_string_argument(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        argument_id: LocalNodeId<Argument>,
+        argument_ty_id: LocalTypeId,
+        param_ty_id: LocalTypeId,
+        strings: &[StringId],
+        spans: &[LocalTypeId],
+        elements: &[LocalTypeId],
+        span_node: LocalNodeIdAny,
+        source_node: LocalNodeIdAny,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+    ) {
+        // collect span values for each union member when all members are string literals
+        let mut union_span_values = Vec::with_capacity(elements.len());
+        for element_ty_id in elements {
+            let Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(string_id)),
+            } = types.get_type(*element_ty_id)
+            else {
+                return;
+            };
+
+            let value = self.program.strings.get(*string_id).to_string();
+            let Some(span_values) = self.match_template_literal_to_string(strings, &value) else {
+                return;
+            };
+            if span_values.len() != spans.len() {
+                return;
+            }
+
+            union_span_values.push(span_values);
+        }
+
+        // infer each parameter span from the union member span values
+        for (span_index, span_ty_id) in spans.iter().enumerate() {
+            let Some(target) = self.template_span_inference_target(
+                module,
+                profile,
+                *span_ty_id,
+                span_node,
+                source_node,
+                symbols,
+                types,
+                infer,
+            ) else {
+                continue;
+            };
+
+            let mut inferred_span_types = Vec::new();
+            for span_values in &union_span_values {
+                let span_value = &span_values[span_index];
+
+                if let Some(constraint_id) = target.constraint_id {
+                    let mut visited = HashSet::new();
+                    if !self.template_span_matches_string(
+                        module,
+                        profile,
+                        constraint_id,
+                        span_value,
+                        symbols,
+                        types,
+                        &mut visited,
+                    ) {
+                        self.report_template_inference_unassignable(
+                            module,
+                            profile,
+                            argument_id,
+                            param_ty_id,
+                            argument_ty_id,
+                            types,
+                        );
+                        return;
+                    }
+                }
+
+                if let Some(inferred_ty) = self.template_infer_literal_type(
+                    target.constraint_id,
+                    span_value,
+                    source_node,
+                    types,
+                ) {
+                    inferred_span_types.push(inferred_ty);
+                }
+            }
+
+            if inferred_span_types.is_empty() {
+                continue;
+            }
+
+            // bind one union candidate per span so solve keeps literal union precision
+            let inferred_span_ty_id = if inferred_span_types.len() == 1 {
+                inferred_span_types[0]
+            } else {
+                types.insert_type_from_any(
+                    Type::Union {
+                        elements: inferred_span_types,
+                    },
+                    source_node,
+                )
+            };
+            infer.push_constraint(Constraint::Equal {
+                left: target.infer_ty_id,
+                right: inferred_span_ty_id,
+            });
         }
     }
 
@@ -850,7 +980,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
-    ) -> Option<(destack_dir::InferVarId, LocalTypeId)> {
+    ) -> Option<(InferVarId, LocalTypeId)> {
         let span_ty = types.get_type(span_ty_id).clone();
         match span_ty {
             Type::InferVar { id } => Some((id, span_ty_id)),
@@ -889,7 +1019,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        id: destack_dir::InferVarId,
+        id: InferVarId,
         source_id: LocalNodeIdAny,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -911,7 +1041,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        infer_var_id: destack_dir::InferVarId,
+        infer_var_id: InferVarId,
         source_id: LocalNodeIdAny,
         symbols: &SymbolTable,
         types: &mut TypeTable,

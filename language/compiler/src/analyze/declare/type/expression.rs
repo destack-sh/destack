@@ -5,10 +5,11 @@ use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DependencyItem, DynamicKey, Expression,
     FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, Mutability, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, Path,
-    PrimitiveType, Property, ScalarLiteral, StaticKey, StaticParameterKind, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
-    TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
+    LocalTypeId, Mutability, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions,
+    NormalizationMode, Parameter, Path, PrimitiveType, Property, ScalarLiteral, StaticKey,
+    StaticParameterKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, Type, TypeElement, TypeField,
+    TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
+    UnaryOperator, walk_expression,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 use std::collections::HashSet;
@@ -1075,7 +1076,7 @@ impl Compiler {
                 index_id,
                 symbols,
                 types,
-                destack_dir::NormalizationMode::Flow,
+                NormalizationMode::Flow,
                 crate::analyze::common::RelationMode::INDEX_ACCESS,
                 &mut visited,
             );

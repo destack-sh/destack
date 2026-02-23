@@ -1,4 +1,3 @@
-mod commit;
 mod common;
 mod constraint;
 mod declaration;
@@ -8,6 +7,7 @@ pub(crate) mod member;
 mod obligation;
 mod operator;
 mod process;
+pub(crate) mod provisional;
 mod r#type;
 
 pub(crate) use expression::{argument, call};
@@ -22,7 +22,6 @@ pub(crate) enum SignatureResolutionMode {
 }
 
 pub use common::*;
-pub use constraint::*;
 
 #[cfg(test)]
 mod tests;

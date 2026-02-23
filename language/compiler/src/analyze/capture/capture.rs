@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use destack_dir::{
     CaptureDirective, CaptureKind, CapturePolicy, CaptureSet, CaptureTable, CapturedBinding,
     Declaration, Expression, FunctionKind, FunctionSignature, GlobalSymbolId, LocalNodeId,
-    LocalScopeId, Member, Mutability, NodeTree, NodeType, Scope, StaticKey, SymbolSpace,
+    LocalScopeId, Member, Mutability, NodeTree, NodeType, Scope, StaticKey, Symbol, SymbolSpace,
     SymbolTable,
 };
 use destack_source::ModuleId;
@@ -413,7 +413,7 @@ impl Compiler {
     }
 
     /// Check whether a symbol represents a function declaration or method.
-    fn symbol_is_function(&self, tree: &NodeTree, symbol: &destack_dir::Symbol) -> bool {
+    fn symbol_is_function(&self, tree: &NodeTree, symbol: &Symbol) -> bool {
         let Some(primary) = symbol.primary_declaration else {
             return false;
         };

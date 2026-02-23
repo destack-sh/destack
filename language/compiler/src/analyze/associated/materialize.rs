@@ -97,17 +97,16 @@ impl Compiler {
             Some(StaticMemberSymbolKind::AssociatedComptimeConst)
         ) {
             let mut visited_symbols = HashSet::new();
-            let static_value = match self
-                .static_expression_from_constant_reference_instantiated_declared(
-                    module,
-                    profile,
-                    target_symbol,
-                    tree,
-                    symbols,
-                    types,
-                    &substitutions,
-                    &mut visited_symbols,
-                ) {
+            let static_value = match self.resolve_static_constant_reference_instantiated_declared(
+                module,
+                profile,
+                target_symbol,
+                tree,
+                symbols,
+                types,
+                &substitutions,
+                &mut visited_symbols,
+            ) {
                 Ok(value) => value,
                 Err(AnalyzeError::Yield { .. }) => None,
                 Err(error) => return Err(error),

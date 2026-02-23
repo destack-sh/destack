@@ -3,18 +3,23 @@ use std::collections::{HashMap, HashSet};
 use super::expression::has_implicit_return;
 use crate::analyze::common::{AnalyzeDependencyStage, TypeRewriteCache};
 use crate::analyze::{AssociatedComptimeRequirement, AssociatedTypeRequirement};
-use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
+use crate::{
+    AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, CanonicalSymbolMode, Compiler,
+    InferContext,
+};
 use destack_base::StringId;
 use destack_dir::{
     AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration,
     DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem,
-    DependencyKind, DynamicKey, EnumField, Expression, FunctionCardinality, FunctionKind,
-    FunctionMode, FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope,
-    InferTable, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, Mutability, NodeTree,
-    NodeType, Parameter, Pattern, PrimitiveType, StaticArgument, StaticExpression, StaticKey,
-    SymbolSpace, SymbolTable, SymbolType, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
+    DependencyKind, DirectBindingValueCommitIntent, DynamicKey, EnumField, Expression,
+    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, GlobalNodeIdAny,
+    GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId, LocalNodeIdAny,
+    LocalTypeId, Member, Mutability, NodeTree, NodeType, Parameter, Pattern, PrimitiveType,
+    StaticArgument, StaticExpression, StaticKey, SymbolSpace, SymbolTable, SymbolType, Type,
+    TypeField, TypeLiteral, TypeTable, WhereClause,
 };
-use destack_workspace::{Module, ModuleSource, ProfileId};
+use destack_source::ModuleId;
+use destack_workspace::{Module, ModuleContent, ModuleSource, ProfileId};
 
 /// Describe how a declarator constrains its value type.
 pub(crate) enum DeclaratorConstraint {
@@ -96,7 +101,7 @@ impl Compiler {
     }
 
     /// Commit inferred return types at function boundaries.
-    fn commit_inferred_return_type(
+    fn materialize_inferred_return_type(
         &self,
         module: &Module,
         ctx: &InferContext,
@@ -113,8 +118,8 @@ impl Compiler {
                 return body_ty_id;
             }
 
-            let commit_ctx = ctx.for_widening_commit();
-            self.commit_binding_type(module, &commit_ctx, body_ty_id, types, false)
+            let materialize_ctx = ctx.for_widening_commit();
+            self.materialize_binding_type(module, &materialize_ctx, body_ty_id, types, false)
         } else {
             body_ty_id
         }
@@ -746,24 +751,30 @@ impl Compiler {
         }
 
         // import declared types from remote modules
-        self.with_module_types_at_stage(
-            module,
-            profile,
-            node_id.module_id,
-            AnalyzeDependencyStage::Declare,
-            |_, remote_types| {
-                let remote_ty_id = remote_types.get_declared_type_id(node_id)?;
-                let remote_ty = remote_types.get_type(remote_ty_id);
-                Some(self.import_type_from_remote_for_node(
-                    node_id.local_id,
-                    remote_ty,
-                    remote_types,
-                    owner_symbol,
-                    types,
-                ))
-            },
-        )
-        .map_err(AnalyzeError::from)
+        let remote_declared = self
+            .with_module_types_at_stage(
+                module,
+                profile,
+                node_id.module_id,
+                AnalyzeDependencyStage::Declare,
+                |_, remote_types| {
+                    let remote_ty_id = remote_types.get_declared_type_id(node_id)?;
+                    let remote_ty = remote_types.get_type(remote_ty_id).clone();
+                    let remote_snapshot = remote_types.clone();
+                    Some((remote_ty, remote_snapshot))
+                },
+            )
+            .map_err(AnalyzeError::from)?;
+
+        Ok(remote_declared.map(|(remote_ty, remote_snapshot)| {
+            self.import_type_from_remote_for_node(
+                node_id.local_id,
+                &remote_ty,
+                &remote_snapshot,
+                owner_symbol,
+                types,
+            )
+        }))
     }
 
     /// Infer associated type contracts for declarations implementing interfaces.
@@ -811,7 +822,7 @@ impl Compiler {
     /// Collect associated type members for one declaration.
     fn collect_declaration_associated_type_members<'a>(
         &self,
-        module_id: destack_source::ModuleId,
+        module_id: ModuleId,
         members: &'a [LocalNodeId<Member>],
         tree: &'a NodeTree,
     ) -> HashMap<StringId, DeclarationAssociatedTypeMember<'a>> {
@@ -1061,7 +1072,7 @@ impl Compiler {
 
         // resolve and substitute the inherited default value
         let mut visited_symbols = HashSet::new();
-        let Some(default_value) = self.static_expression_from_constant_reference_instantiated(
+        let Some(default_value) = self.resolve_static_constant_reference_instantiated(
             module,
             profile,
             requirement.symbol,
@@ -1887,7 +1898,7 @@ impl Compiler {
                 self.infer_body(module, body, tree, symbols, types, infer, &mut ctx)?;
 
             // commit inferred return types for widening
-            let committed_body_ty_id = self.commit_inferred_return_type(
+            let committed_body_ty_id = self.materialize_inferred_return_type(
                 module,
                 &ctx,
                 context_return_type,
@@ -2600,7 +2611,7 @@ impl Compiler {
                         .infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
 
                     // commit inferred return types for widening
-                    let committed_body_ty_id = self.commit_inferred_return_type(
+                    let committed_body_ty_id = self.materialize_inferred_return_type(
                         module,
                         &ctx,
                         context_return_type,
@@ -2948,6 +2959,7 @@ impl Compiler {
 
         // record signature type for lowering
         if !ctx.is_surface_inference {
+            infer.set_inferred_type_for_node(node_id.into_global(module.id), ty_id);
             types.set_inferred_type(node_id.into_global(module.id), ty_id);
         }
 
@@ -3048,6 +3060,10 @@ impl Compiler {
 
         // record signature type for lowering
         if !ctx.is_surface_inference {
+            infer.set_inferred_type_for_node(
+                node_id.into_global(module.id),
+                declared_signature_ty_id,
+            );
             types.set_inferred_type(node_id.into_global(module.id), declared_signature_ty_id);
         }
 
@@ -3255,7 +3271,7 @@ impl Compiler {
                         && self.is_infer_var_type(binding_ty_id, types)
                     {
                         let committed_ty_id =
-                            self.commit_binding_type(module, ctx, default_ty_id, types, false);
+                            self.materialize_binding_type(module, ctx, default_ty_id, types, false);
                         types.set_value_type(symbol.into_global(module.id), committed_ty_id);
                         Some(committed_ty_id)
                     } else {
@@ -3293,7 +3309,7 @@ impl Compiler {
                     && self.is_infer_var_type(binding_ty_id, types)
                 {
                     let committed_ty_id =
-                        self.commit_binding_type(module, ctx, default_ty_id, types, false);
+                        self.materialize_binding_type(module, ctx, default_ty_id, types, false);
                     types.set_value_type(symbol.into_global(module.id), committed_ty_id);
                     Some(committed_ty_id)
                 } else {
@@ -3407,7 +3423,6 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         use crate::analyze::common::json_value_to_type;
-        use destack_workspace::ModuleContent;
 
         match &target_module.content {
             ModuleContent::Data { value, .. } => {
@@ -3649,7 +3664,7 @@ impl Compiler {
                 self.unwrap_type_symbol(types, initial_declared_ty_id)
             {
                 let source_node_id = source_id.into_global(module.id);
-                let _ = self.commit_instance_for_reference_type_maybe(
+                let _ = self.record_provisional_instance_for_reference_type_maybe(
                     module,
                     ctx.profile,
                     source_node_id,
@@ -3686,27 +3701,78 @@ impl Compiler {
             None
         };
 
+        // newtype annotations require explicit construction from the same nominal symbol
+        if let (Some(declared_ty_id), Some(value_id)) = (declared_annotation_ty_id, value) {
+            // resolve the declared nominal symbol
+            let declared_symbol =
+                self.unwrap_type_symbol(types, declared_ty_id)
+                    .map(|(symbol, _, _)| {
+                        self.canonical_symbol_id(
+                            module,
+                            symbols,
+                            ctx.profile,
+                            symbol,
+                            CanonicalSymbolMode::FollowAliases,
+                        )
+                    });
+
+            // enforce explicit construction only for declared newtypes
+            if let Some(declared_symbol) = declared_symbol
+                && declared_symbol.ty() == SymbolType::Newtype
+                && let Some((tagged_symbol, tagged_type_id)) = self.tagged_initializer_type_symbol(
+                    module,
+                    ctx.profile,
+                    *value_id,
+                    tree,
+                    symbols,
+                    types,
+                )?
+            {
+                // resolve the tagged constructor symbol for nominal comparison
+                let tagged_canonical_symbol = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    ctx.profile,
+                    tagged_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+                let same_nominal_symbol = tagged_canonical_symbol == declared_symbol;
+                let actual_initializer_ty_id = inferred_ty_id
+                    .filter(|ty_id| !self.type_blocks_cascading_diagnostic(*ty_id, types))
+                    .unwrap_or(tagged_type_id);
+
+                // reject implicit wrapping through constructors outside the declared nominal symbol
+                if !same_nominal_symbol
+                    && let Some(error) = self.unassignable_type_error_for_types(
+                        module,
+                        ctx.profile,
+                        declarator_id.into_any(),
+                        declared_ty_id,
+                        actual_initializer_ty_id,
+                        types,
+                    )
+                {
+                    return Err(error);
+                }
+            }
+        }
+
         // commit binding types for inferred values without annotations
         let binding_ty_id = declared_annotation_ty_id.or(inferred_ty_id);
         let committed_binding_ty_id = if declared_annotation_ty_id.is_none() {
-            // preserve literal types when the initializer uses satisfies
-            let preserve_literals =
-                value.is_some_and(|value_id| self.expression_is_satisfies(tree, value_id));
-            let is_const_asserted = self.declarator_is_const_assertion(declarator_id, tree);
-            let commit_ctx = if preserve_literals {
-                ctx.fork().with_preserve_literals()
-            } else {
-                ctx.fork()
-            };
-            binding_ty_id.map(|binding_ty_id| {
-                self.commit_binding_type(
+            if let (Some(binding_ty_id), Some(value_id)) = (binding_ty_id, value) {
+                Some(self.materialize_declarator_initializer_type(
                     module,
-                    &commit_ctx,
+                    declarator_id,
+                    *value_id,
                     binding_ty_id,
+                    tree,
+                    ctx,
                     types,
-                    is_const_asserted,
-                )
-            })
+                ))
+            } else {
+                binding_ty_id
+            }
         } else {
             binding_ty_id
         };
@@ -3718,7 +3784,18 @@ impl Compiler {
             && pattern.is_none()
             && let Some(binding_ty_id) = committed_binding_ty_id
         {
-            types.set_value_type(symbol.into_global(module.id), binding_ty_id);
+            let binding_symbol = symbol.into_global(module.id);
+            types.set_value_type(binding_symbol, binding_ty_id);
+
+            if declared_annotation_ty_id.is_none()
+                && let Some(value_id) = value
+            {
+                infer.upsert_direct_binding_value_commit_intent(DirectBindingValueCommitIntent {
+                    symbol_id: binding_symbol,
+                    declarator_id,
+                    value_id: *value_id,
+                });
+            }
         }
 
         // enforce explicit ownership when implicit managed values are disabled
@@ -3853,6 +3930,56 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Resolve one tagged initializer symbol and type id from one value expression.
+    fn tagged_initializer_type_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        value_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<(GlobalSymbolId, LocalTypeId)>> {
+        let tag_expression_id = match tree.get(value_id) {
+            Expression::TaggedScalarExpression { ty, .. }
+            | Expression::TaggedTupleExpression { ty, .. }
+            | Expression::TaggedObjectExpression { ty, .. } => *ty,
+            _ => return Ok(None),
+        };
+
+        // prefer syntax-resolved constructor identity for nominal checks
+        let syntax_symbol = tree.get(tag_expression_id).target_symbol().map(|symbol| {
+            self.resolve_type_reference_symbol(module, profile, symbol, tree, symbols)
+        });
+        let declared_tag_type_id = self.resolve_declared_type_expression(
+            module,
+            profile,
+            tag_expression_id,
+            tree,
+            symbols,
+            types,
+            true,
+            true,
+        )?;
+        let declared_tag_symbol = self
+            .unwrap_type_symbol(types, declared_tag_type_id)
+            .map(|(symbol, _, _)| symbol);
+        let Some(tag_symbol) = syntax_symbol.or(declared_tag_symbol) else {
+            return Ok(None);
+        };
+
+        // keep diagnostics independent of transient error sentinels
+        let tag_type_id = types.insert_type_from(
+            Type::Reference {
+                symbol: tag_symbol,
+                static_arguments: None,
+            },
+            tag_expression_id,
+        );
+
+        Ok(Some((tag_symbol, tag_type_id)))
     }
 
     /// Resolve the exposed property type for an accessor method signature.

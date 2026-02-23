@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use destack_base::StringId;
 use destack_dir::{
-    DynamicKey, Expression, GlobalSymbolId, LocalTypeId, NodeTree, NodeType, PrimitiveType,
-    ScalarLiteral, StaticKey, SymbolKey, SymbolTable, Type, TypeLiteral, TypeTable,
+    DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, NodeType,
+    PrimitiveType, ScalarLiteral, StaticKey, SymbolKey, SymbolTable, Type, TypeLiteral, TypeTable,
     WellKnownSymbol,
 };
 use destack_workspace::{ProfileId, WellKnownSymbols};
@@ -123,7 +123,7 @@ impl Compiler {
     fn static_key_from_expression(
         &self,
         profile: ProfileId,
-        expression_id: destack_dir::LocalNodeId<Expression>,
+        expression_id: LocalNodeId<Expression>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,

@@ -237,18 +237,50 @@ impl Compiler {
             target_symbol.module_id,
             AnalyzeDependencyStage::Declare,
             |owner_module, owner_symbols| {
-                let mut owner_types = owner_module.dir(profile).types.write();
-                self.enum_field_value_for_symbol_reference_in_tables(
+                let owner_types = owner_module.dir(profile).types.read();
+                self.enum_field_value_for_symbol_reference_in_read_tables(
                     owner_module,
-                    profile,
                     enum_symbol,
                     target_symbol,
                     owner_symbols,
-                    &mut owner_types,
+                    &owner_types,
                 )
             },
         )
         .map_err(AnalyzeError::from)
+    }
+
+    /// Resolve an enum field value from symbol tables and immutable type tables.
+    fn enum_field_value_for_symbol_reference_in_read_tables(
+        &self,
+        module: &Module,
+        enum_symbol: GlobalSymbolId,
+        target_symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> Option<EnumFieldValue> {
+        // validate module ownership for symbol table lookups
+        debug_assert_eq!(target_symbol.module_id, module.id);
+
+        // ensure the target is an enum field on this enum
+        let target_entry = symbols.get_symbol(target_symbol.local_id);
+        let primary = target_entry.primary_declaration?;
+        if primary.local_id.ty != NodeType::EnumField {
+            return None;
+        }
+
+        // confirm the field is owned by the enum or merge group
+        let scope = symbols.get_scope_by_symbol(target_symbol.local_id);
+        let scope_owner = scope.owner_id?;
+        let scope_owner = scope_owner.into_global(module.id);
+        if scope_owner != enum_symbol
+            && !self.symbols_share_merge_group(enum_symbol, scope_owner, symbols)
+        {
+            return None;
+        }
+
+        // remote reads are publish-only: consume existing declared enum field values
+        types.get_enum_field_value(target_symbol)
     }
 
     /// Resolve an enum field value from symbol tables and type tables.
@@ -292,7 +324,10 @@ impl Compiler {
         types.get_enum_field_value(target_symbol)
     }
 
-    /// Resolve the enum backing type for a symbol, loading remote data when needed.
+    /// Resolve the enum backing type for a symbol.
+    ///
+    /// Local modules may lazily infer and cache backing types.
+    /// Remote modules are read-only and must expose already-published backing types.
     pub(crate) fn enum_backing_type_for_symbol(
         &self,
         module: &Module,
@@ -310,19 +345,12 @@ impl Compiler {
             ));
         }
 
-        self.with_module_types_mut_at_stage(
+        self.with_module_types_at_stage(
             module,
             profile,
             enum_symbol.module_id,
             AnalyzeDependencyStage::Declare,
-            |owner_module, owner_types| {
-                self.enum_backing_type_for_symbol_in_tables(
-                    owner_module,
-                    profile,
-                    enum_symbol,
-                    owner_types,
-                )
-            },
+            |_owner_module, owner_types| owner_types.get_enum_backing_type(enum_symbol),
         )
         .map_err(AnalyzeError::from)
     }
@@ -401,28 +429,17 @@ impl Compiler {
             return Ok(Some(backing));
         }
 
-        // resolve backing types in remote modules when needed
+        // remote modules are read-only here: consume already-published values only
         if enum_symbol.module_id != module.id {
-            return self
-                .with_module_types_mut_at_stage(
+            return Ok(self
+                .with_module_types_at_stage(
                     module,
                     profile,
                     enum_symbol.module_id,
                     AnalyzeDependencyStage::Declare,
-                    |owner_module, owner_types| {
-                        if let Some(backing) = owner_types.get_enum_backing_type(enum_symbol) {
-                            return Ok(Some(backing));
-                        }
-
-                        self.ensure_enum_backing_type_for_symbol(
-                            owner_module,
-                            profile,
-                            enum_symbol,
-                            owner_types,
-                        )
-                    },
+                    |_owner_module, owner_types| owner_types.get_enum_backing_type(enum_symbol),
                 )
-                .map_err(AnalyzeError::from)?;
+                .map_err(AnalyzeError::from)?);
         }
 
         // resolve backing types in local modules

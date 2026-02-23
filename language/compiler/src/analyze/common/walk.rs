@@ -1,39 +1,10 @@
 use std::collections::HashMap;
 
 use destack_dir::{
-    LocalTypeId, Type, TypeRewriter, TypeRewriterOptions, TypeTable, TypeVisitor,
-    TypeVisitorOptions,
+    LocalTypeId, Type, TypeRewriter, TypeRewriterOptions, TypeTable, TypeVisitorOptions,
 };
 
 use super::MaterializationMode;
-
-/// Collect referenced type ids while walking a type graph.
-pub(crate) struct TypeCollector<'a> {
-    /// The types collected during the walk.
-    collected: &'a mut Vec<LocalTypeId>,
-    /// The visitor options.
-    options: TypeVisitorOptions,
-}
-
-impl<'a> TypeCollector<'a> {
-    /// Create a visitor that records referenced type ids.
-    pub(crate) fn new(pending: &'a mut Vec<LocalTypeId>, options: TypeVisitorOptions) -> Self {
-        Self {
-            collected: pending,
-            options,
-        }
-    }
-}
-
-impl TypeVisitor for TypeCollector<'_> {
-    fn options(&self) -> &TypeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_type_id(&mut self, _types: &TypeTable, id: LocalTypeId) {
-        self.collected.push(id);
-    }
-}
 
 /// A cache key for type walking and rewriting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

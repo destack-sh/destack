@@ -4,12 +4,13 @@ use destack_ast::Keyword;
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, BindingKind, Declaration, DeclarationKind, Declarator,
     DependencyItem, DependencyKind, DependencyMode, DependencySource, DynamicKey, Expression,
-    ForEachBinding, ForEachKind, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalTypeId, MatchCase, MatchKind, MatchSelector, Member, Mutability, NodeTree, NodeType,
-    Parameter, Path, Pattern, PatternField, Property, RuntimeCheckKind, ScalarLiteral, ScopeKind,
-    StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral, Timing, Type,
+    ForEachBinding, ForEachKind, GlobalSymbolId, Heritage, LocalNodeId, LocalNodeIdAny,
+    LocalScopeId, LocalTypeId, MatchCase, MatchKind, MatchSelector, Member, Mutability, NodeTree,
+    NodeType, Parameter, Path, Pattern, PatternField, Property, RuntimeCheckKind, ScalarLiteral,
+    ScopeKind, StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral, Timing, Type,
     TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator, WhereClause,
 };
+use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 use std::str::FromStr;
 
@@ -1049,7 +1050,7 @@ impl Compiler {
     /// Return true when a declaration heritage type slot contains this expression.
     fn declaration_heritage_expression_is_type_position(
         &self,
-        heritage: &destack_dir::Heritage,
+        heritage: &Heritage,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
         heritage
@@ -3103,10 +3104,10 @@ impl Compiler {
         false
     }
 
-    /// Read one expression type from existing analyze facts.
+    /// Read one expression type from existing analyze commitments.
     fn expression_type_id_for_validate(
         &self,
-        module_id: destack_source::ModuleId,
+        module_id: ModuleId,
         expression_id: LocalNodeId<Expression>,
         types: &TypeTable,
     ) -> Option<LocalTypeId> {
@@ -3116,7 +3117,7 @@ impl Compiler {
     /// Select a stable receiver type id for validate diagnostics.
     fn diagnostic_receiver_type_id_for_validate(
         &self,
-        module_id: destack_source::ModuleId,
+        module_id: ModuleId,
         expression_id: LocalNodeId<Expression>,
         types: &TypeTable,
     ) -> Option<LocalTypeId> {
@@ -3156,7 +3157,7 @@ impl Compiler {
             return;
         };
 
-        // read operand types from existing declare or infer facts
+        // read operand types from existing declare or infer commitments
         let Some(left_ty_id) = self.expression_type_id_for_validate(module.id, *left, types) else {
             return;
         };
@@ -3513,8 +3514,8 @@ impl Compiler {
 
 #[cfg(test)]
 mod tests {
+    use super::Expression;
     use crate::tests::TestProgram;
-    use destack_dir::Expression;
 
     /// Allow exhaustive matches over fixed arrays with repeated element types.
     #[test]

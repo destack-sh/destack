@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Addressability, EnumBackingType, EnumFieldValue, GlobalNodeIdAny, GlobalSymbolId, LocalTypeId,
-    SymbolTable, Type,
+    StaticExpression, SymbolTable, Type,
 };
 
 use super::TypeTable;
@@ -39,6 +39,9 @@ pub struct AttributionTable {
     pub(crate) instance_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
     /// The value type by symbol id (the type when used as a value).
     pub(crate) value_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
+    /// Declare-published static constant values by symbol id.
+    pub(crate) published_static_constant_value_by_symbol_id:
+        IndexMap<GlobalSymbolId, StaticExpression>,
     /// The target type id for alias symbols (the declared alias value type).
     pub(crate) alias_target_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
     /// The backing type of enum symbols.
@@ -64,6 +67,7 @@ impl AttributionTable {
             runtime_check_kind_by_node_id: IndexMap::new(),
             instance_type_by_symbol_id: IndexMap::new(),
             value_type_by_symbol_id: IndexMap::new(),
+            published_static_constant_value_by_symbol_id: IndexMap::new(),
             alias_target_type_by_symbol_id: IndexMap::new(),
             enum_backing_type_by_symbol_id: IndexMap::new(),
             enum_field_value_by_symbol_id: IndexMap::new(),
@@ -138,6 +142,11 @@ impl TypeTable {
     /// Clear all cached inferred types.
     pub fn clear_inferred_types(&mut self) {
         self.attribution.inferred_type_by_node_id.clear();
+    }
+
+    /// Clear cached expression addressability metadata.
+    pub fn clear_addressability(&mut self) {
+        self.attribution.addressability_by_node_id.clear();
     }
 
     /// Get the inferred type for a node.
@@ -348,6 +357,28 @@ impl TypeTable {
             .value_type_by_symbol_id
             .get(&symbol_id)
             .copied()
+    }
+
+    /// Publish one declared static constant value for one symbol.
+    pub fn publish_static_constant_value(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+        value: StaticExpression,
+    ) {
+        self.attribution
+            .published_static_constant_value_by_symbol_id
+            .insert(symbol_id, value);
+    }
+
+    /// Query one declare-published static constant value for one symbol.
+    pub fn query_published_static_constant_value(
+        &self,
+        symbol_id: GlobalSymbolId,
+    ) -> Option<StaticExpression> {
+        self.attribution
+            .published_static_constant_value_by_symbol_id
+            .get(&symbol_id)
+            .cloned()
     }
 
     /// Mark one symbol as having unresolved associated implementation requirements.

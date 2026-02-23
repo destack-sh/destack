@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use indexmap::IndexMap;
+
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, ModuleCheckOptions, Task,
@@ -11,7 +13,7 @@ use destack_dir::{
     Type, TypeTable,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleSource, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 
 impl Compiler {
     /// Ensure a module's types have been declared (evaluated).
@@ -132,23 +134,32 @@ impl Compiler {
             }
         }
 
-        // publish declared static parameter constraint facts
+        // publish declared static parameter constraints
         let mut publish_collector = TaskResultCollector::new();
         self.collect(
             &mut publish_collector,
-            self.publish_declared_static_parameter_constraint_facts_for_module(
+            self.publish_declared_static_parameter_constraints_for_module(
                 &module, profile, &tree, &symbols, &mut types,
             ),
         );
+
+        // publish declare-owned static constant values for cross-module static evaluation
+        self.collect(
+            &mut publish_collector,
+            self.publish_declared_static_constant_values_for_module(
+                &module, profile, &tree, &symbols, &mut types,
+            ),
+        );
+
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_ALIASES);
 
-            // publish exported alias targets from declared type facts
+            // publish exported alias targets from declared type metadata
             let exported_symbols = dir.exported_symbols.read();
             let binding_exports = dir.module_binding_exports.read();
             self.collect(
                 &mut publish_collector,
-                self.publish_declared_alias_target_facts_for_exports(
+                self.publish_declared_alias_targets_for_exports(
                     &module,
                     profile,
                     &exported_symbols,
@@ -160,7 +171,7 @@ impl Compiler {
             for binding in binding_exports.values() {
                 self.collect(
                     &mut publish_collector,
-                    self.publish_declared_alias_target_facts_for_exports(
+                    self.publish_declared_alias_targets_for_exports(
                         &module,
                         profile,
                         &binding.exports,
@@ -172,7 +183,7 @@ impl Compiler {
             }
         }
 
-        // yield after static-constraint fact publication
+        // yield after static-constraint publication
         if let Some(dependency) = publish_collector.try_into_yield_any() {
             return Err(AnalyzeError::Yield { dependency });
         }
@@ -219,7 +230,7 @@ impl Compiler {
     /// Ensure ambient libs are declared before analyzing a user module.
     fn ensure_ambient_libs_declared(
         &self,
-        module: &destack_workspace::Module,
+        module: &Module,
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
         // collect dependency yields
@@ -261,16 +272,11 @@ impl Compiler {
     /// Decide whether declared types should be eagerly evaluated for a module.
     fn should_eager_evaluate_declared_types(
         &self,
-        module: &destack_workspace::Module,
-        module_checks: ModuleCheckOptions,
+        _module: &Module,
+        _module_checks: ModuleCheckOptions,
     ) -> bool {
-        // eager evaluation is required for non-declaration modules
-        if !module.language_type.is_declaration() {
-            return true;
-        }
-
-        // eager evaluation is only required when lib checks are enabled
-        !(module_checks.skip_lib_check || matches!(module.source, ModuleSource::Builtin(_)))
+        // declared type commitments are stage-owned outputs for cross-module reads
+        true
     }
 
     /// Evaluate unevaluated types to a fixed point.
@@ -278,7 +284,7 @@ impl Compiler {
     /// Returns true if evaluation yielded dependencies.
     fn evaluate_unevaluated_types_to_fixpoint(
         &self,
-        module: &destack_workspace::Module,
+        module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -336,12 +342,12 @@ impl Compiler {
         false
     }
 
-    /// Publish exported alias target facts from declared local type metadata.
-    fn publish_declared_alias_target_facts_for_exports(
+    /// Publish exported alias targets from declared local type metadata.
+    fn publish_declared_alias_targets_for_exports(
         &self,
-        module: &destack_workspace::Module,
+        module: &Module,
         profile: ProfileId,
-        exports: &indexmap::IndexMap<(SymbolSpace, StaticKey), Export>,
+        exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,

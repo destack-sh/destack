@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, GlobalNodeIdAny, GlobalSymbolId, InferVarId, LocalNodeId, LocalResolutionId,
-    LocalTypeId, StaticArgument, StaticKey, VarianceBound,
+    Addressability, Declarator, Expression, GlobalNodeIdAny, GlobalSymbolId, InferVarId,
+    LocalInstanceId, LocalNodeId, LocalTypeId, Resolution, StaticArgument, StaticKey,
+    VarianceBound,
 };
 
 /// Represent a single inference variable with bounds and defaults.
@@ -145,7 +146,7 @@ pub enum Constraint {
 }
 
 /// Store inference variables and constraints for a module.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct InferTable {
     /// All inference variables allocated in this module.
     pub vars: Vec<InferVar>,
@@ -159,29 +160,39 @@ pub struct InferTable {
     pub var_by_type_parameter: IndexMap<GlobalSymbolId, InferVarId>,
     /// Types that wrap inference variables by id.
     pub type_by_var_id: Vec<Option<LocalTypeId>>,
+
     /// Stable cache key base for this table.
-    cache_key_base: u64,
+    pub cache_key_base: u64,
     /// Mutation generation for this table.
-    cache_generation: u64,
+    pub cache_generation: u64,
+
     /// Associated comptime projection obligations collected during infer.
-    #[serde(skip)]
-    pub associated_comptime_projection_obligations: Vec<AssociatedComptimeProjectionObligation>,
+    associated_comptime_projection_obligations: Vec<AssociatedComptimeProjectionObligation>,
     /// Type relation obligations collected during infer.
-    #[serde(skip)]
-    pub type_relation_obligations: Vec<TypeRelationObligation>,
+    type_relation_obligations: IndexSet<TypeRelationObligation>,
     /// Missing-member obligations collected during infer.
-    #[serde(skip)]
-    pub missing_member_obligations: Vec<MissingMemberObligation>,
+    missing_member_obligations: IndexSet<MissingMemberObligation>,
+    /// Direct-binding commit intents collected during infer.
+    direct_binding_value_commit_intent_by_symbol:
+        IndexMap<GlobalSymbolId, DirectBindingValueCommitIntent>,
+    /// Provisional resolutions recorded during infer by node id.
+    pub provisional_resolution_by_node_id: IndexMap<GlobalNodeIdAny, Resolution>,
+    /// Provisional instance attachments recorded during infer by node id.
+    pub provisional_instance_by_node_id: IndexMap<GlobalNodeIdAny, LocalInstanceId>,
+    /// Infer-owned expression type cache by node id.
+    pub inferred_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
+    /// Infer-owned expression addressability cache by node id.
+    pub addressability_by_node_id: IndexMap<GlobalNodeIdAny, Addressability>,
+
     /// Instance-commit obligations collected during infer.
-    #[serde(skip)]
-    pub instance_commit_obligations: Vec<InstanceCommitObligation>,
+    instance_commit_obligations: Vec<InstanceCommitObligation>,
+    /// Instance-commit obligation ids indexed by symbol.
+    instance_commit_obligation_ids_by_symbol:
+        IndexMap<GlobalSymbolId, Vec<InstanceCommitObligationId>>,
     /// Instance-commit obligations attached to node ids.
-    #[serde(skip)]
-    pub instance_commit_obligation_by_node_id:
-        IndexMap<GlobalNodeIdAny, InstanceCommitObligationId>,
+    instance_commit_obligation_by_node_id: IndexMap<GlobalNodeIdAny, InstanceCommitObligationId>,
     /// Instance-commit obligations attached to dynamic resolution candidate slots.
-    #[serde(skip)]
-    pub instance_commit_obligation_by_resolution_candidate:
+    instance_commit_obligation_by_resolution_candidate:
         Vec<InstanceCommitResolutionCandidateAttachment>,
 }
 
@@ -252,6 +263,17 @@ pub struct MissingMemberObligation {
     pub member_key: StaticKey,
 }
 
+/// Direct-binding commit intent collected during infer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DirectBindingValueCommitIntent {
+    /// The direct binding symbol to commit.
+    pub symbol_id: GlobalSymbolId,
+    /// The declarator that owns the binding.
+    pub declarator_id: LocalNodeId<Declarator>,
+    /// The initializer expression for the binding.
+    pub value_id: LocalNodeId<Expression>,
+}
+
 /// Infer-local identifier for one instance-commit obligation.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -267,7 +289,7 @@ impl InstanceCommitObligationId {
     }
 }
 
-/// Instance-commit fact collected during infer.
+/// Instance-commit record collected during infer.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InstanceCommitObligation {
     /// The target symbol for the instance.
@@ -283,8 +305,8 @@ pub struct InstanceCommitObligation {
 /// Instance-commit obligation attachment for one resolution candidate slot.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InstanceCommitResolutionCandidateAttachment {
-    /// The resolution carrying the candidate list.
-    pub resolution_id: LocalResolutionId,
+    /// The node carrying the resolution candidate list.
+    pub node_id: GlobalNodeIdAny,
     /// The dynamic candidate slot id within the resolution candidate list.
     pub candidate_slot: DynamicResolutionCandidateSlotId,
     /// The obligation that should attach to this candidate.
@@ -318,9 +340,15 @@ impl Default for InferTable {
             cache_key_base: infer_table_cache_key_base_default(),
             cache_generation: 0,
             associated_comptime_projection_obligations: Vec::new(),
-            type_relation_obligations: Vec::new(),
-            missing_member_obligations: Vec::new(),
+            type_relation_obligations: IndexSet::new(),
+            missing_member_obligations: IndexSet::new(),
+            direct_binding_value_commit_intent_by_symbol: IndexMap::new(),
+            provisional_resolution_by_node_id: IndexMap::new(),
+            provisional_instance_by_node_id: IndexMap::new(),
+            inferred_type_by_node_id: IndexMap::new(),
+            addressability_by_node_id: IndexMap::new(),
             instance_commit_obligations: Vec::new(),
+            instance_commit_obligation_ids_by_symbol: IndexMap::new(),
             instance_commit_obligation_by_node_id: IndexMap::new(),
             instance_commit_obligation_by_resolution_candidate: Vec::new(),
         }
@@ -387,38 +415,136 @@ impl InferTable {
 
     /// Record one type relation obligation.
     pub fn push_type_relation_obligation(&mut self, obligation: TypeRelationObligation) {
-        if self
-            .type_relation_obligations
-            .iter()
-            .any(|existing| existing == &obligation)
-        {
-            return;
-        }
-
-        self.type_relation_obligations.push(obligation);
+        self.type_relation_obligations.insert(obligation);
     }
 
     /// Take type relation obligations.
     pub fn take_type_relation_obligations(&mut self) -> Vec<TypeRelationObligation> {
         std::mem::take(&mut self.type_relation_obligations)
+            .into_iter()
+            .collect()
     }
 
     /// Record one missing-member obligation.
     pub fn push_missing_member_obligation(&mut self, obligation: MissingMemberObligation) {
-        if self
-            .missing_member_obligations
-            .iter()
-            .any(|existing| existing == &obligation)
-        {
-            return;
-        }
-
-        self.missing_member_obligations.push(obligation);
+        self.missing_member_obligations.insert(obligation);
     }
 
     /// Take missing-member obligations.
     pub fn take_missing_member_obligations(&mut self) -> Vec<MissingMemberObligation> {
         std::mem::take(&mut self.missing_member_obligations)
+            .into_iter()
+            .collect()
+    }
+
+    /// Upsert one direct-binding commit intent by symbol.
+    pub fn upsert_direct_binding_value_commit_intent(
+        &mut self,
+        intent: DirectBindingValueCommitIntent,
+    ) {
+        self.direct_binding_value_commit_intent_by_symbol
+            .insert(intent.symbol_id, intent);
+    }
+
+    /// Iterate direct-binding commit intents.
+    pub fn iter_direct_binding_value_commit_intents(
+        &self,
+    ) -> impl Iterator<Item = &DirectBindingValueCommitIntent> {
+        self.direct_binding_value_commit_intent_by_symbol.values()
+    }
+
+    /// Record one provisional resolution for one node.
+    pub fn set_provisional_resolution_for_node(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        resolution: Resolution,
+    ) {
+        self.provisional_resolution_by_node_id
+            .insert(node_id, resolution);
+    }
+
+    /// Return one provisional resolution for one node.
+    pub fn provisional_resolution_for_node(&self, node_id: GlobalNodeIdAny) -> Option<&Resolution> {
+        self.provisional_resolution_by_node_id.get(&node_id)
+    }
+
+    /// Iterate provisional resolutions by node.
+    pub fn iter_provisional_resolution_nodes(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &Resolution)> {
+        self.provisional_resolution_by_node_id
+            .iter()
+            .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
+    /// Record one provisional instance attachment for one node.
+    pub fn set_provisional_instance_for_node(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        instance_id: LocalInstanceId,
+    ) {
+        self.provisional_instance_by_node_id
+            .insert(node_id, instance_id);
+    }
+
+    /// Return one provisional instance attachment for one node.
+    pub fn provisional_instance_for_node(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> Option<LocalInstanceId> {
+        self.provisional_instance_by_node_id.get(&node_id).copied()
+    }
+
+    /// Iterate provisional instance attachments by node.
+    pub fn iter_provisional_instance_nodes(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalInstanceId)> + '_ {
+        self.provisional_instance_by_node_id
+            .iter()
+            .map(|(node_id, instance_id)| (*node_id, *instance_id))
+    }
+
+    /// Record one infer-owned expression type for one node.
+    pub fn set_inferred_type_for_node(&mut self, node_id: GlobalNodeIdAny, type_id: LocalTypeId) {
+        self.inferred_type_by_node_id.insert(node_id, type_id);
+    }
+
+    /// Return one infer-owned expression type for one node.
+    pub fn inferred_type_for_node(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+        self.inferred_type_by_node_id.get(&node_id).copied()
+    }
+
+    /// Iterate infer-owned expression types by node.
+    pub fn iter_inferred_type_nodes(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalTypeId)> + '_ {
+        self.inferred_type_by_node_id
+            .iter()
+            .map(|(node_id, type_id)| (*node_id, *type_id))
+    }
+
+    /// Record one infer-owned expression addressability for one node.
+    pub fn set_addressability_for_node(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        addressability: Addressability,
+    ) {
+        self.addressability_by_node_id
+            .insert(node_id, addressability);
+    }
+
+    /// Return one infer-owned expression addressability for one node.
+    pub fn addressability_for_node(&self, node_id: GlobalNodeIdAny) -> Option<Addressability> {
+        self.addressability_by_node_id.get(&node_id).copied()
+    }
+
+    /// Iterate infer-owned expression addressability by node.
+    pub fn iter_addressability_nodes(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, Addressability)> + '_ {
+        self.addressability_by_node_id
+            .iter()
+            .map(|(node_id, addressability)| (*node_id, *addressability))
     }
 
     /// Upsert one instance-commit obligation and return its infer-local id.
@@ -426,16 +552,35 @@ impl InferTable {
         &mut self,
         obligation: InstanceCommitObligation,
     ) -> InstanceCommitObligationId {
-        for (index, existing) in self.instance_commit_obligations.iter().enumerate() {
-            if existing == &obligation {
-                return InstanceCommitObligationId::new(index as u32);
+        let symbol_id = obligation.symbol_id;
+        let symbol_obligation_ids = self
+            .instance_commit_obligation_ids_by_symbol
+            .get(&symbol_id);
+        if let Some(symbol_obligation_ids) = symbol_obligation_ids {
+            for obligation_id in symbol_obligation_ids {
+                if let Some(existing) = self
+                    .instance_commit_obligations
+                    .get(obligation_id.0 as usize)
+                    && existing == &obligation
+                {
+                    return *obligation_id;
+                }
             }
         }
 
         let obligation_id =
             InstanceCommitObligationId::new(self.instance_commit_obligations.len() as u32);
         self.instance_commit_obligations.push(obligation);
+        self.instance_commit_obligation_ids_by_symbol
+            .entry(symbol_id)
+            .or_default()
+            .push(obligation_id);
         obligation_id
+    }
+
+    /// Return the number of instance-commit obligations.
+    pub fn instance_commit_obligation_count(&self) -> usize {
+        self.instance_commit_obligations.len()
     }
 
     /// Attach one instance-commit obligation to a node id.
@@ -489,13 +634,13 @@ impl InferTable {
     /// Attach one instance-commit obligation to one dynamic resolution candidate slot.
     pub fn push_instance_commit_obligation_for_resolution_candidate(
         &mut self,
-        resolution_id: LocalResolutionId,
+        node_id: GlobalNodeIdAny,
         candidate_slot: DynamicResolutionCandidateSlotId,
         obligation_id: InstanceCommitObligationId,
     ) {
         self.instance_commit_obligation_by_resolution_candidate
             .push(InstanceCommitResolutionCandidateAttachment {
-                resolution_id,
+                node_id,
                 candidate_slot,
                 obligation_id,
             });

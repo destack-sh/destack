@@ -207,6 +207,8 @@ impl Compiler {
         types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> InferSolution {
+        let _timing = self.timing_scope(tags::ANALYZE_SOLVE_CONSTRAINTS);
+
         // initialize solution slots
         let mut solution = InferSolution {
             resolved: vec![None; infer.vars.len()],
@@ -266,7 +268,7 @@ impl Compiler {
         types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Option<LocalTypeId> {
-        // NOTE #Performance: recomputes bounds and normalization cache per query
+        // TODO #Performance: recomputes bounds and normalization cache per query
         // return early when the type is not an inference variable
         let Type::InferVar { id } = types.get_type(ty_id) else {
             return Some(ty_id);
@@ -545,10 +547,12 @@ impl Compiler {
             }
         }
 
+        // just take first if only one
         if elements.len() == 1 {
             return elements[0];
         }
 
+        // turn into union / intersection
         let source_type_id = elements[0];
         let ty = match kind {
             JoinKind::Union => Type::Union { elements },

@@ -2,7 +2,7 @@ use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, Generics, GlobalSymbolId, Heritage, LocalNodeId, Member, NodeTree, Parameter,
-    StringId, SymbolTable, TypeTable,
+    StringId, SymbolTable, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 use std::collections::HashSet;
@@ -354,7 +354,7 @@ impl Compiler {
         profile: ProfileId,
         member_id: LocalNodeId<Member>,
         static_parameters: Option<&[LocalNodeId<Parameter>]>,
-        where_clauses: Option<&[LocalNodeId<destack_dir::WhereClause>]>,
+        where_clauses: Option<&[LocalNodeId<WhereClause>]>,
         ty: Option<LocalNodeId<Expression>>,
         value: Option<LocalNodeId<Expression>>,
         tree: &NodeTree,

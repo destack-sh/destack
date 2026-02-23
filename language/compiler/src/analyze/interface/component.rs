@@ -1,9 +1,13 @@
 use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeTask, AnalyzeWarning, Compiler, TaskDependencyError,
 };
-use destack_dir::{Export, GlobalSymbolId, StaticKey, SymbolSpace, Type, TypeLiteral};
+use destack_dir::{
+    Export, GlobalSymbolId, NodeTree, StaticKey, SymbolSpace, SymbolTable, Type, TypeLiteral,
+    TypeTable,
+};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleGraphVersion, ProfileId};
+use destack_workspace::{Module, ModuleGraphVersion, ProfileId};
+use indexmap::IndexMap;
 use rustc_hash::FxHashSet;
 
 /// One classified interface value state for convergence checks.
@@ -206,9 +210,9 @@ impl Compiler {
     fn interface_value_snapshot_for_exports(
         &self,
         module_id: ModuleId,
-        symbols: &destack_dir::SymbolTable,
-        types: &destack_dir::TypeTable,
-        exports: &indexmap::IndexMap<(SymbolSpace, StaticKey), Export>,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         snapshot: &mut Vec<InterfaceValueSnapshot>,
     ) {
         for export in exports.values() {
@@ -229,7 +233,7 @@ impl Compiler {
     /// Classify one export symbol value state.
     fn classify_interface_value_state(
         &self,
-        types: &destack_dir::TypeTable,
+        types: &TypeTable,
         symbol_id: GlobalSymbolId,
     ) -> InterfaceValueState {
         let Some(type_id) = types.get_value_type_id(symbol_id) else {
@@ -288,12 +292,12 @@ impl Compiler {
     /// Report unresolved interface cycles for one export table.
     fn report_unresolved_interface_cycle_exports_for_table(
         &self,
-        module: &destack_workspace::Module,
+        module: &Module,
         profile: ProfileId,
-        tree: &destack_dir::NodeTree,
-        symbols: &destack_dir::SymbolTable,
-        types: &mut destack_dir::TypeTable,
-        exports: &indexmap::IndexMap<(SymbolSpace, StaticKey), Export>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         component_set: &FxHashSet<ModuleId>,
     ) -> AnalyzeResult<()> {
         for export in exports.values() {
@@ -380,12 +384,12 @@ impl Compiler {
     /// Report semantic-unknown interface exports for one export table.
     fn report_semantic_unknown_interface_exports_for_table(
         &self,
-        module: &destack_workspace::Module,
+        module: &Module,
         profile: ProfileId,
-        tree: &destack_dir::NodeTree,
-        symbols: &destack_dir::SymbolTable,
-        types: &destack_dir::TypeTable,
-        exports: &indexmap::IndexMap<(SymbolSpace, StaticKey), Export>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         warned_symbols: &mut FxHashSet<GlobalSymbolId>,
     ) -> AnalyzeResult<()> {
         for export in exports.values() {
@@ -423,9 +427,9 @@ impl Compiler {
     /// Visit each interface export table for a module.
     fn for_each_interface_export_table(
         &self,
-        module: &destack_workspace::Module,
+        module: &Module,
         profile: ProfileId,
-        mut callback: impl FnMut(&indexmap::IndexMap<(SymbolSpace, StaticKey), Export>),
+        mut callback: impl FnMut(&IndexMap<(SymbolSpace, StaticKey), Export>),
     ) {
         let dir = module.dir(profile);
         let exported_symbols = dir.exported_symbols.read();
@@ -440,11 +444,9 @@ impl Compiler {
     /// Visit each interface export table for a module and stop on first error.
     fn try_for_each_interface_export_table(
         &self,
-        module: &destack_workspace::Module,
+        module: &Module,
         profile: ProfileId,
-        mut callback: impl FnMut(
-            &indexmap::IndexMap<(SymbolSpace, StaticKey), Export>,
-        ) -> AnalyzeResult<()>,
+        mut callback: impl FnMut(&IndexMap<(SymbolSpace, StaticKey), Export>) -> AnalyzeResult<()>,
     ) -> AnalyzeResult<()> {
         let mut first_error = None;
         self.for_each_interface_export_table(module, profile, |exports| {

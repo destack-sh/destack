@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::common::CanonicalSymbolMode;
 use destack_dir::{FunctionKind, Property};
 
 #[allow(clippy::too_many_arguments)]
@@ -67,6 +68,7 @@ impl Compiler {
             ctx.profile,
             tree,
             symbols,
+            infer,
             types,
         )? {
             return Ok(finish_result(enum_reference_id, types));
@@ -137,6 +139,134 @@ impl Compiler {
         }
     }
 
+    /// Resolve one canonical infer-time receiver type for `import.meta`.
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_import_meta_receiver_type_for_infer(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        receiver_id: LocalNodeId<Expression>,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        ctx: &InferContext,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        let Some(import_meta_symbol) =
+            self.get_language_symbol(profile, LanguageSymbol::ImportMeta)
+        else {
+            return Ok(None);
+        };
+
+        if let Some(import_meta_instance_ty_id) = self
+            .apparent_instance_type(
+                module,
+                profile,
+                receiver_id.into_any(),
+                import_meta_symbol,
+                symbols,
+                types,
+            )
+            .or(self.import_instance_type_for_symbol(
+                profile,
+                receiver_id.into_any(),
+                import_meta_symbol,
+                types,
+            )?)
+        {
+            return Ok(Some(import_meta_instance_ty_id));
+        }
+
+        if import_meta_symbol.module_id != module.id {
+            let receiver_ty_id = self.resolve_remote_symbol_value_type_for_context(
+                module,
+                ctx,
+                receiver_id.into_any(),
+                import_meta_symbol,
+                types,
+            )?;
+            return Ok(Some(receiver_ty_id));
+        }
+
+        Ok(Some(types.insert_type_from(
+            Type::Reference {
+                symbol: import_meta_symbol,
+                static_arguments: None,
+            },
+            receiver_id,
+        )))
+    }
+
+    /// Recompute one receiver type from syntax without reusing inferred-expression cache.
+    #[allow(clippy::too_many_arguments)]
+    fn infer_member_receiver_type_without_cache(
+        &self,
+        module: &Module,
+        receiver_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        let receiver_expression = tree.get(receiver_id);
+        let receiver_ty_id = match receiver_expression {
+            Expression::LocalReference {
+                target_symbol,
+                static_arguments,
+                ..
+            }
+            | Expression::ModuleReference {
+                target_symbol,
+                static_arguments,
+                ..
+            }
+            | Expression::GlobalReference {
+                target_symbol,
+                static_arguments,
+                ..
+            } => Some(self.infer_reference_expression(
+                module,
+                receiver_id,
+                *target_symbol,
+                static_arguments.as_deref(),
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?),
+
+            Expression::ImportMeta => {
+                if let Some(receiver_ty_id) = self.resolve_import_meta_receiver_type_for_infer(
+                    module,
+                    ctx.profile,
+                    receiver_id,
+                    symbols,
+                    types,
+                    ctx,
+                )? {
+                    Some(receiver_ty_id)
+                } else {
+                    self.error(AnalyzeError::Internal {
+                        message: format!(
+                            "missing language symbol for import.meta: module={}, profile={:?}",
+                            module.id, ctx.profile,
+                        ),
+                    });
+                    Some(types.insert_type_from(Type::Error, receiver_id))
+                }
+            }
+
+            Expression::UnresolvedPath { .. }
+            | Expression::PrivateIdentifier { .. }
+            | Expression::This
+            | Expression::Super => None,
+
+            _ => None,
+        };
+
+        Ok(receiver_ty_id)
+    }
+
     /// Query and normalize the receiver state for member access.
     #[allow(clippy::too_many_arguments)]
     fn query_member_access_receiver(
@@ -191,9 +321,25 @@ impl Compiler {
                 };
                 (left_id, receiver_ty_id, false)
             };
+        let mut receiver_ty_id = receiver_ty_id;
+
+        // keep import.meta receivers anchored on the language import-meta type
+        if matches!(tree.get(receiver_id), Expression::ImportMeta)
+            && let Some(import_meta_receiver_ty_id) = self
+                .resolve_import_meta_receiver_type_for_infer(
+                    module,
+                    ctx.profile,
+                    receiver_id,
+                    symbols,
+                    types,
+                    ctx,
+                )?
+        {
+            receiver_ty_id = import_meta_receiver_ty_id;
+        }
 
         // materialize and normalize the receiver before lookup
-        let receiver_ty_id = self.materialize_infer_type_for_check(
+        receiver_ty_id = self.materialize_infer_type_for_check(
             module,
             ctx.profile,
             symbols,
@@ -202,7 +348,7 @@ impl Compiler {
             types,
             &ctx.options,
         );
-        let receiver_ty_id = self.normalize_apparent_type(
+        receiver_ty_id = self.normalize_type_with_relation(
             module,
             ctx.profile,
             receiver_ty_id,
@@ -211,8 +357,223 @@ impl Compiler {
             NormalizationMode::Assign,
             RelationMode::ASSIGN,
         );
-        let receiver_ty = types.get_type(receiver_ty_id).clone();
+        receiver_ty_id = self.ensure_unwrapped_value_type_evaluated(
+            module,
+            ctx.profile,
+            receiver_ty_id,
+            tree,
+            symbols,
+            types,
+        )?;
+        receiver_ty_id = self.normalize_type_with_relation(
+            module,
+            ctx.profile,
+            receiver_ty_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::ASSIGN,
+        );
 
+        // recompute direct receiver references when cached receiver typing stayed unevaluated
+        if matches!(types.get_type(receiver_ty_id), Type::Unevaluated(_))
+            && let Some(recomputed_receiver_ty_id) = self.infer_member_receiver_type_without_cache(
+                module,
+                receiver_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?
+        {
+            receiver_ty_id = self.materialize_infer_type_for_check(
+                module,
+                ctx.profile,
+                symbols,
+                recomputed_receiver_ty_id,
+                infer,
+                types,
+                &ctx.options,
+            );
+            receiver_ty_id = self.normalize_type_with_relation(
+                module,
+                ctx.profile,
+                receiver_ty_id,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+                RelationMode::ASSIGN,
+            );
+            receiver_ty_id = self.ensure_unwrapped_value_type_evaluated(
+                module,
+                ctx.profile,
+                receiver_ty_id,
+                tree,
+                symbols,
+                types,
+            )?;
+            receiver_ty_id = self.normalize_type_with_relation(
+                module,
+                ctx.profile,
+                receiver_ty_id,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+                RelationMode::ASSIGN,
+            );
+        }
+
+        // re-resolve receiver type expressions when receiver typing is still unevaluated
+        if matches!(types.get_type(receiver_ty_id), Type::Unevaluated(_))
+            && let Ok(resolved_receiver_ty_id) = self.resolve_declared_type_expression(
+                module,
+                ctx.profile,
+                receiver_id,
+                tree,
+                symbols,
+                types,
+                true,
+                true,
+            )
+        {
+            receiver_ty_id = self.normalize_type_with_relation(
+                module,
+                ctx.profile,
+                resolved_receiver_ty_id,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+                RelationMode::ASSIGN,
+            );
+        }
+
+        // resolve unevaluated receivers through canonical reference symbols
+        if matches!(types.get_type(receiver_ty_id), Type::Unevaluated(_))
+            && let Some(fallback_receiver_ty_id) = self
+                .resolve_unevaluated_member_receiver_type_from_symbol(
+                    module,
+                    receiver_id,
+                    tree,
+                    symbols,
+                    types,
+                    ctx,
+                )?
+        {
+            receiver_ty_id = self.materialize_infer_type_for_check(
+                module,
+                ctx.profile,
+                symbols,
+                fallback_receiver_ty_id,
+                infer,
+                types,
+                &ctx.options,
+            );
+            receiver_ty_id = self.normalize_type_with_relation(
+                module,
+                ctx.profile,
+                receiver_ty_id,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+                RelationMode::ASSIGN,
+            );
+            receiver_ty_id = self.ensure_unwrapped_value_type_evaluated(
+                module,
+                ctx.profile,
+                receiver_ty_id,
+                tree,
+                symbols,
+                types,
+            )?;
+            receiver_ty_id = self.normalize_type_with_relation(
+                module,
+                ctx.profile,
+                receiver_ty_id,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+                RelationMode::ASSIGN,
+            );
+        }
+
+        // keep import.meta receivers anchored on the language import-meta instance
+        if matches!(types.get_type(receiver_ty_id), Type::Unevaluated(_))
+            && matches!(tree.get(receiver_id), Expression::ImportMeta)
+            && let Some(import_meta_symbol) =
+                self.get_language_symbol(ctx.profile, LanguageSymbol::ImportMeta)
+            && let Some(import_meta_instance_ty_id) = self
+                .apparent_instance_type(
+                    module,
+                    ctx.profile,
+                    receiver_id.into_any(),
+                    import_meta_symbol,
+                    symbols,
+                    types,
+                )
+                .or(self.import_instance_type_for_symbol(
+                    ctx.profile,
+                    receiver_id.into_any(),
+                    import_meta_symbol,
+                    types,
+                )?)
+        {
+            receiver_ty_id = self.normalize_type_with_relation(
+                module,
+                ctx.profile,
+                import_meta_instance_ty_id,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+                RelationMode::ASSIGN,
+            );
+        }
+
+        // re-anchor local references through declared or inferred node commitments
+        if matches!(types.get_type(receiver_ty_id), Type::Unevaluated(_))
+            && let Some(receiver_symbol) = self.reference_symbol_for_expression(
+                module,
+                receiver_id,
+                ctx.profile,
+                tree,
+                symbols,
+            )
+        {
+            let receiver_symbol = self.canonical_symbol_id(
+                module,
+                symbols,
+                ctx.profile,
+                receiver_symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
+            if receiver_symbol.module_id == module.id
+                && let Some(primary_declaration) = symbols
+                    .get_symbol(receiver_symbol.local_id)
+                    .primary_declaration
+                && let Some(declared_or_inferred_ty_id) =
+                    types.get_declared_or_inferred_type_id(primary_declaration)
+            {
+                let declared_or_inferred_ty_id = self.ensure_unwrapped_value_type_evaluated(
+                    module,
+                    ctx.profile,
+                    declared_or_inferred_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                receiver_ty_id = self.normalize_type_with_relation(
+                    module,
+                    ctx.profile,
+                    declared_or_inferred_ty_id,
+                    symbols,
+                    types,
+                    NormalizationMode::Assign,
+                    RelationMode::ASSIGN,
+                );
+            }
+        }
+
+        let receiver_ty = types.get_type(receiver_ty_id).clone();
         // classify receiver semantics once for member lookup and diagnostic deferral
         let receiver_context = self.query_member_receiver_context_for_expression(
             module,
@@ -246,6 +607,92 @@ impl Compiler {
             allow_missing_member_deferral,
             has_optional_nullish,
         }))
+    }
+
+    /// Resolve one unevaluated member receiver type through canonical symbol ownership.
+    fn resolve_unevaluated_member_receiver_type_from_symbol(
+        &self,
+        module: &Module,
+        receiver_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        ctx: &InferContext,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // import.meta receivers resolve through the language import-meta symbol
+        if matches!(tree.get(receiver_id), Expression::ImportMeta)
+            && let Some(import_meta_symbol) =
+                self.get_language_symbol(ctx.profile, LanguageSymbol::ImportMeta)
+            && let Some(import_meta_receiver_ty_id) = self
+                .apparent_instance_type(
+                    module,
+                    ctx.profile,
+                    receiver_id.into_any(),
+                    import_meta_symbol,
+                    symbols,
+                    types,
+                )
+                .or(self.import_instance_type_for_symbol(
+                    ctx.profile,
+                    receiver_id.into_any(),
+                    import_meta_symbol,
+                    types,
+                )?)
+        {
+            return Ok(Some(import_meta_receiver_ty_id));
+        }
+
+        if matches!(tree.get(receiver_id), Expression::ImportMeta)
+            && let Some(import_meta_symbol) =
+                self.get_language_symbol(ctx.profile, LanguageSymbol::ImportMeta)
+            && import_meta_symbol.module_id != module.id
+        {
+            let import_meta_receiver_ty_id = self.resolve_remote_symbol_value_type_for_context(
+                module,
+                ctx,
+                receiver_id.into_any(),
+                import_meta_symbol,
+                types,
+            )?;
+            return Ok(Some(import_meta_receiver_ty_id));
+        }
+
+        // resolve direct reference receivers through canonical symbols
+        let Some(receiver_symbol) =
+            self.reference_symbol_for_expression(module, receiver_id, ctx.profile, tree, symbols)
+        else {
+            return Ok(None);
+        };
+        let receiver_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            ctx.profile,
+            receiver_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+
+        // remote symbols use remote interface or surface value commitments
+        if receiver_symbol.module_id != module.id {
+            let receiver_type_id = self.resolve_remote_symbol_value_type_for_context(
+                module,
+                ctx,
+                receiver_id.into_any(),
+                receiver_symbol,
+                types,
+            )?;
+            return Ok(Some(receiver_type_id));
+        }
+
+        // local symbols prefer committed value types then declared or inferred node commitments
+        if let Some(value_type_id) = types.get_value_type_id(receiver_symbol) {
+            return Ok(Some(value_type_id));
+        }
+
+        let symbol_entry = symbols.get_symbol(receiver_symbol.local_id);
+        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+            return Ok(None);
+        };
+        Ok(types.get_declared_or_inferred_type_id(primary_declaration))
     }
 
     /// Resolve member lookup state for a prepared receiver.
@@ -291,6 +738,7 @@ impl Compiler {
         // resolve member dispatch for the receiver type
         let resolution = self.resolve_member_symbol_for_receiver(
             module,
+            expression_id,
             receiver.receiver_id,
             &receiver.receiver_ty,
             &receiver_context,
@@ -432,6 +880,8 @@ impl Compiler {
             lookup.member_symbol,
             member_ty_id,
             ctx.profile,
+            tree,
+            symbols,
             types,
         )?;
 
@@ -456,7 +906,7 @@ impl Compiler {
                 )?;
                 let member_instance_id = if static_arguments.is_some() {
                     if let Some(member_symbol) = lookup.member_symbol {
-                        self.commit_member_instance_for_arguments(
+                        self.record_member_instance_for_arguments(
                             module,
                             ctx.profile,
                             expression_id,
@@ -478,13 +928,14 @@ impl Compiler {
                 };
 
                 // record resolved member access for downstream passes
-                self.commit_member_resolution(
+                self.record_provisional_member_resolution(
                     expression_id.into_global_any(module.id),
                     Some(receiver.receiver_ty_id),
                     &lookup.resolution,
                     member_instance_id,
                     None,
                     true,
+                    infer,
                     types,
                 );
                 resolved_member.type_id

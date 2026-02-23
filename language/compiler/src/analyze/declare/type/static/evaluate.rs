@@ -1,4 +1,5 @@
 use super::StaticEvaluationMode;
+use super::constant::StaticCycleDiagnosticMode;
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
     AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode, TypeRewriteCache,
@@ -305,7 +306,7 @@ impl Compiler {
                     }
                 }
 
-                if let Some(value) = self.static_expression_from_constant_reference_inner(
+                if let Some(value) = self.resolve_static_constant_reference(
                     module,
                     profile,
                     lookup_symbol,
@@ -315,6 +316,11 @@ impl Compiler {
                     mode,
                     substitutions,
                     remote_dependency_stage,
+                    if mode == StaticEvaluationMode::Instantiated {
+                        StaticCycleDiagnosticMode::Report
+                    } else {
+                        StaticCycleDiagnosticMode::Suppress
+                    },
                     visited,
                 )? {
                     return Ok(Some(value));
@@ -432,7 +438,7 @@ impl Compiler {
                         Some(merged_substitutions)
                     };
 
-                    if let Some(value) = self.static_expression_from_constant_reference_inner(
+                    if let Some(value) = self.resolve_static_constant_reference(
                         module,
                         profile,
                         selection.target_symbol,
@@ -442,6 +448,11 @@ impl Compiler {
                         projected_mode,
                         merged_substitutions.as_ref(),
                         remote_dependency_stage,
+                        if projected_mode == StaticEvaluationMode::Instantiated {
+                            StaticCycleDiagnosticMode::Report
+                        } else {
+                            StaticCycleDiagnosticMode::Suppress
+                        },
                         visited,
                     )? {
                         return Ok(Some(value));
@@ -452,7 +463,7 @@ impl Compiler {
                 if let Some(resolution_id) = types.get_resolution_for_node(node_id) {
                     let resolution = types.get_resolution(resolution_id);
                     if let Resolution::Static { candidate, .. } = resolution
-                        && let Some(value) = self.static_expression_from_constant_reference_inner(
+                        && let Some(value) = self.resolve_static_constant_reference(
                             module,
                             profile,
                             candidate.target_symbol,
@@ -462,6 +473,11 @@ impl Compiler {
                             mode,
                             substitutions,
                             remote_dependency_stage,
+                            if mode == StaticEvaluationMode::Instantiated {
+                                StaticCycleDiagnosticMode::Report
+                            } else {
+                                StaticCycleDiagnosticMode::Suppress
+                            },
                             visited,
                         )?
                     {

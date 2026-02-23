@@ -4,7 +4,7 @@ use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Annotation, Argument, Binding, CaptureTable, Declaration, DeprecatedNotice, ExperimentalNotice,
     Expression, ExternBinding, GlobalSymbolId, IntrinsicBinding, LanguageItemBinding, LocalNodeId,
-    LocalNodeIdAny, NodeTree, SanitizerMarker, SinkMarker, SymbolDecorators, SymbolTable,
+    LocalNodeIdAny, NodeTree, SanitizerMarker, SinkMarker, Symbol, SymbolDecorators, SymbolTable,
     TagMarker, TaintMarker, UnrollHint, WellKnownDecorator,
 };
 use destack_workspace::{Module, ProfileId};
@@ -211,7 +211,7 @@ impl Compiler {
     fn collect_symbol_declaration_nodes(
         &self,
         tree: &NodeTree,
-        symbol: &destack_dir::Symbol,
+        symbol: &Symbol,
         declaration_wrappers: &HashMap<LocalNodeIdAny, Vec<LocalNodeId<Expression>>>,
     ) -> Vec<LocalNodeIdAny> {
         // collect primary and secondary declarations

@@ -1,6 +1,7 @@
 mod assign;
 mod associated;
 mod capture;
+mod commit;
 mod common;
 mod declare;
 mod error;
@@ -9,6 +10,7 @@ mod interface;
 mod module;
 mod options;
 mod process;
+mod solve;
 mod r#static;
 mod r#type;
 mod validate;

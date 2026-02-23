@@ -15,15 +15,10 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
     ) -> AnalyzeResult<()> {
-        let required =
+        // collect and require interface dependencies in deterministic module order
+        let required_modules =
             self.collect_type_import_interface_dependency_modules_for_infer(module, profile, tree)?;
-        for required_module_id in required {
-            if let Err(error) = self.require_analyze_module_interface(required_module_id, profile) {
-                return Err(AnalyzeError::from(error));
-            }
-        }
-
-        Ok(())
+        self.require_interface_modules_for_infer(profile, required_modules)
     }
 
     /// Collect interface dependency modules for type-import expressions used during infer.
@@ -114,7 +109,6 @@ impl Compiler {
         // this prevents late declare-stage yields during remote alias or template evaluation
         let mut pending = graph.dependencies_for(module_id);
         let mut visited = HashSet::new();
-        let mut first_error = None;
         while let Some(dependency) = pending.pop() {
             if !visited.insert(dependency) || dependency == module_id {
                 continue;
@@ -124,67 +118,12 @@ impl Compiler {
                 continue;
             }
 
-            if let Err(error) = self.require_analyze_module_declare(dependency, profile)
-                && first_error.is_none()
-            {
-                first_error = Some(error);
-            }
-
             for nested in graph.dependencies_for(dependency) {
                 pending.push(nested);
             }
         }
 
-        if let Some(error) = first_error {
-            return Err(AnalyzeError::from(error));
-        }
-
-        Ok(())
-    }
-
-    /// Ensure declare analysis is complete for builtin modules used during infer.
-    pub(super) fn require_declare_inference_for_builtin_modules(
-        &self,
-        module_id: ModuleId,
-        profile: ProfileId,
-    ) -> AnalyzeResult<()> {
-        // skip when builtins are not loaded
-        let Some(builtins) = self.builtins() else {
-            return Ok(());
-        };
-
-        // resolve the profile key for ambient lib lookup
-        let profile_entry = self
-            .program
-            .profiles
-            .get(profile)
-            .ok_or(AnalyzeError::Internal {
-                message: format!(
-                    "missing profile data for infer declare builtin deps: {profile:?}"
-                ),
-            })?;
-
-        // require declare analysis for core builtin modules
-        let core_modules = builtins
-            .core_module_by_path
-            .values()
-            .copied()
-            .filter(|candidate_module_id| *candidate_module_id != module_id);
-        self.require_declared_modules_for_infer(profile, core_modules)?;
-
-        // require declare analysis for ambient lib modules when libs are enabled
-        if !self.options.load_libs {
-            return Ok(());
-        }
-        let Some(lib_modules) = builtins.ambient_libs(&profile_entry.key) else {
-            return Ok(());
-        };
-        let ambient_modules = lib_modules
-            .into_iter()
-            .filter(|candidate_module_id| *candidate_module_id != module_id);
-        self.require_declared_modules_for_infer(profile, ambient_modules)?;
-
-        Ok(())
+        self.require_declared_modules_for_infer(profile, visited)
     }
 
     /// Ensure interface analysis is complete for infer dependency modules.
@@ -265,8 +204,10 @@ impl Compiler {
         profile: ProfileId,
         modules: impl IntoIterator<Item = ModuleId>,
     ) -> AnalyzeResult<()> {
+        // require declare tasks in deterministic order and return the first dependency
+        let module_ids = self.sorted_unique_module_ids(modules);
         let mut first_error = None;
-        for module_id in modules {
+        for module_id in module_ids {
             if let Err(error) = self.require_analyze_module_declare(module_id, profile)
                 && first_error.is_none()
             {
@@ -287,8 +228,10 @@ impl Compiler {
         profile: ProfileId,
         modules: impl IntoIterator<Item = ModuleId>,
     ) -> AnalyzeResult<()> {
+        // require interface tasks in deterministic order and return the first dependency
+        let module_ids = self.sorted_unique_module_ids(modules);
         let mut first_error = None;
-        for module_id in modules {
+        for module_id in module_ids {
             if let Err(error) = self.require_analyze_module_interface(module_id, profile)
                 && first_error.is_none()
             {
@@ -301,5 +244,16 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Return one deterministic, deduplicated module id vector.
+    fn sorted_unique_module_ids(
+        &self,
+        modules: impl IntoIterator<Item = ModuleId>,
+    ) -> Vec<ModuleId> {
+        let mut module_ids = modules.into_iter().collect::<Vec<_>>();
+        module_ids.sort_unstable();
+        module_ids.dedup();
+        module_ids
     }
 }

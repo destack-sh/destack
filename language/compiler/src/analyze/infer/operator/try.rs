@@ -21,9 +21,10 @@ impl Compiler {
         // strip nullish before Try evaluation
         let (non_nullish_ty_id, has_nullish) = self.strip_nullish_from_union(left_ty_id, types);
         let Some(non_nullish_ty_id) = non_nullish_ty_id else {
-            self.commit_builtin_resolution(
+            self.record_provisional_builtin_resolution(
                 expression_id.into_global_any(module.id),
                 Some(left_ty_id),
+                infer,
                 types,
             );
             return Ok(right_ty_id);
@@ -41,9 +42,10 @@ impl Compiler {
                 left_ty_id
             };
 
-            self.commit_builtin_resolution(
+            self.record_provisional_builtin_resolution(
                 expression_id.into_global_any(module.id),
                 Some(left_ty_id),
+                infer,
                 types,
             );
 
@@ -90,7 +92,7 @@ impl Compiler {
                     types,
                 );
             } else {
-                let payloads = self.resolve_try_payloads(
+                let value_and_error_types = self.resolve_try_value_and_error_types(
                     module,
                     expression_id,
                     left_id.into_any(),
@@ -105,18 +107,19 @@ impl Compiler {
                     &ctx.options,
                 )?;
 
-                if payloads.is_none() {
+                if value_and_error_types.is_none() {
                     self.error(AnalyzeError::InvalidTryBranch {
                         node: expression_id
                             .into_global_any(module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                 } else {
-                    self.commit_try_branch_resolution(
+                    self.record_try_branch_resolution(
                         module,
                         expression_id,
                         non_nullish_ty_id,
                         &branch,
+                        infer,
                         types,
                     );
                 }
@@ -144,9 +147,10 @@ impl Compiler {
             }
         };
 
-        self.commit_builtin_resolution(
+        self.record_provisional_builtin_resolution(
             expression_id.into_global_any(module.id),
             Some(left_ty_id),
+            infer,
             types,
         );
 
@@ -171,12 +175,12 @@ impl Compiler {
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
         let left_ty = types.get_type(left_ty_id).clone();
 
-        // handle Try unions by aggregating payload types
+        // handle Try unions by aggregating value and error types
         if let Type::Union { elements } = &left_ty {
             let mut value_types = Vec::new();
             let mut error_types = Vec::new();
 
-            // validate each Try union element and collect payload types
+            // validate each Try union element and collect value and error types
             for element_id in elements {
                 // require Try on each union element
                 let element_ty = types.get_type(*element_id).clone();
@@ -226,8 +230,8 @@ impl Compiler {
                     return Ok(types.insert_type_from(ty, expression_id));
                 }
 
-                // resolve payload types for the receiver and branch
-                let payloads = self.resolve_try_payloads(
+                // resolve value and error types for the receiver and branch
+                let value_and_error_types = self.resolve_try_value_and_error_types(
                     module,
                     expression_id,
                     left_id.into_any(),
@@ -241,7 +245,7 @@ impl Compiler {
                     infer,
                     &ctx.options,
                 )?;
-                let Some((value_ty_id, error_ty_id)) = payloads else {
+                let Some((value_ty_id, error_ty_id)) = value_and_error_types else {
                     self.error(AnalyzeError::InvalidTryBranch {
                         node: expression_id
                             .into_global_any(module.id)
@@ -255,7 +259,7 @@ impl Compiler {
                 error_types.push(error_ty_id);
             }
 
-            // build union types for the merged branch payloads
+            // build union types for merged branch value and error types
             let unknown_placeholder_type = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
@@ -338,8 +342,8 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
-        // resolve payload types for the receiver and branch
-        let payloads = self.resolve_try_payloads(
+        // resolve value and error types for the receiver and branch
+        let value_and_error_types = self.resolve_try_value_and_error_types(
             module,
             expression_id,
             left_id.into_any(),
@@ -353,7 +357,7 @@ impl Compiler {
             infer,
             &ctx.options,
         )?;
-        let Some((value_ty_id, error_ty_id)) = payloads else {
+        let Some((value_ty_id, error_ty_id)) = value_and_error_types else {
             self.error(AnalyzeError::InvalidTryBranch {
                 node: expression_id
                     .into_global_any(module.id)
@@ -394,13 +398,13 @@ impl Compiler {
         self.warn_try_error_type(module, expression_id, error_ty_id, symbols, types, ctx);
 
         // record the branch resolution for later phases
-        self.commit_try_branch_resolution(module, expression_id, left_ty_id, &branch, types);
+        self.record_try_branch_resolution(module, expression_id, left_ty_id, &branch, infer, types);
 
         Ok(value_ty_id)
     }
 
-    /// Resolve Try payloads from receiver static arguments.
-    fn try_payloads_from_receiver(
+    /// Resolve Try value and error types from receiver static arguments.
+    fn try_value_and_error_types_from_receiver(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -427,7 +431,7 @@ impl Compiler {
             types,
         )?;
 
-        // require at least two static arguments for Try payloads
+        // require at least two static arguments for Try value and error types
         let Some(value_argument) = inherited.arguments.first() else {
             return Ok(None);
         };
@@ -435,15 +439,15 @@ impl Compiler {
             return Ok(None);
         };
 
-        // convert the static arguments into payload types
+        // convert static arguments into value and error types
         let value_ty_id = self.convert_static_argument_type(value_argument, receiver_id, types);
         let error_ty_id = self.convert_static_argument_type(error_argument, receiver_id, types);
 
         Ok(Some((value_ty_id, error_ty_id)))
     }
 
-    /// Resolve Try payloads from the branch return shape.
-    fn try_branch_payloads_from_return(
+    /// Resolve Try value and error types from the branch return shape.
+    fn try_branch_value_and_error_types_from_return(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -615,7 +619,7 @@ impl Compiler {
         let ok_id = self.program.strings.intern("ok");
         let err_id = self.program.strings.intern("err");
 
-        // collect ok/error payload types from union members
+        // collect ok/error value types from union members
         let mut ok_types = Vec::new();
         let mut err_types = Vec::new();
 
@@ -675,8 +679,8 @@ impl Compiler {
         Ok(Some((value_ty_id, error_ty_id)))
     }
 
-    /// Resolve Try payloads while validating branch assignability.
-    fn resolve_try_payloads(
+    /// Resolve Try value and error types while validating branch assignability.
+    fn resolve_try_value_and_error_types(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -691,8 +695,8 @@ impl Compiler {
         infer: &InferTable,
         options: &AnalyzeOptions,
     ) -> AnalyzeResult<Option<(LocalTypeId, LocalTypeId)>> {
-        // resolve payloads from receiver static arguments when available
-        let receiver_payloads = self.try_payloads_from_receiver(
+        // resolve value and error types from receiver static arguments when available
+        let receiver_value_and_error_types = self.try_value_and_error_types_from_receiver(
             module,
             profile,
             receiver_id,
@@ -705,9 +709,10 @@ impl Compiler {
             types,
         )?;
 
-        // resolve payloads from the branch return shape
-        let branch_payloads = if let Some(return_ty_id) = branch.signature.return_type {
-            self.try_branch_payloads_from_return(
+        // resolve value and error types from the branch return shape
+        let branch_value_and_error_types = if let Some(return_ty_id) = branch.signature.return_type
+        {
+            self.try_branch_value_and_error_types_from_return(
                 module,
                 expression_id,
                 return_ty_id,
@@ -720,30 +725,30 @@ impl Compiler {
             None
         };
 
-        // prefer receiver payloads when they are concrete
-        let mut payloads = receiver_payloads;
-        if let Some(receiver_payloads) = receiver_payloads
-            && self.try_payloads_need_branch(receiver_payloads, types)
+        // prefer receiver value and error types when they are concrete
+        let mut value_and_error_types = receiver_value_and_error_types;
+        if let Some(receiver_value_and_error_types) = receiver_value_and_error_types
+            && self.try_value_and_error_types_need_branch(receiver_value_and_error_types, types)
         {
-            payloads = branch_payloads;
-        } else if payloads.is_none() {
-            payloads = branch_payloads;
+            value_and_error_types = branch_value_and_error_types;
+        } else if value_and_error_types.is_none() {
+            value_and_error_types = branch_value_and_error_types;
         }
 
-        let Some((value_ty_id, error_ty_id)) = payloads else {
+        let Some((value_ty_id, error_ty_id)) = value_and_error_types else {
             return Ok(None);
         };
 
-        // validate branch return types when the receiver payloads are authoritative
-        if let Some(receiver_payloads) = receiver_payloads
-            && !self.try_payloads_need_branch(receiver_payloads, types)
+        // validate branch return types when receiver value and error types are authoritative
+        if let Some(receiver_value_and_error_types) = receiver_value_and_error_types
+            && !self.try_value_and_error_types_need_branch(receiver_value_and_error_types, types)
         {
             let is_valid = self.check_try_branch_return_type_assignable(
                 module,
                 expression_id,
                 branch,
-                receiver_payloads.0,
-                receiver_payloads.1,
+                receiver_value_and_error_types.0,
+                receiver_value_and_error_types.1,
                 profile,
                 tree,
                 symbols,
@@ -758,27 +763,29 @@ impl Compiler {
         Ok(Some((value_ty_id, error_ty_id)))
     }
 
-    /// Decide whether receiver payloads should be replaced by branch payloads.
-    fn try_payloads_need_branch(
+    /// Decide whether receiver value and error types should be replaced by branch types.
+    fn try_value_and_error_types_need_branch(
         &self,
-        payloads: (LocalTypeId, LocalTypeId),
+        value_and_error_types: (LocalTypeId, LocalTypeId),
         types: &TypeTable,
     ) -> bool {
-        // prefer branch payloads when receiver payloads are unknown
-        [payloads.0, payloads.1].iter().any(|ty_id| {
-            matches!(
-                types.get_type(*ty_id),
-                Type::InferVar { .. }
-                    | Type::TypeLiteral {
-                        value: TypeLiteral::Unknown | TypeLiteral::Any
-                    }
-                    | Type::Error
-            )
-        })
+        // prefer branch types when receiver value and error types are unknown
+        [value_and_error_types.0, value_and_error_types.1]
+            .iter()
+            .any(|ty_id| {
+                matches!(
+                    types.get_type(*ty_id),
+                    Type::InferVar { .. }
+                        | Type::TypeLiteral {
+                            value: TypeLiteral::Unknown | TypeLiteral::Any
+                        }
+                        | Type::Error
+                )
+            })
     }
 
-    /// Decide whether a Try payload type should be validated for assignability.
-    fn should_check_try_payload_assignability(
+    /// Decide whether one Try value or error type should be validated for assignability.
+    fn should_check_try_value_error_assignability(
         &self,
         ty_id: LocalTypeId,
         types: &TypeTable,
@@ -863,7 +870,7 @@ impl Compiler {
         }
 
         // register instance if needed
-        let member_instance_id = self.commit_member_call_instance_id(
+        let member_instance_id = self.record_member_call_instance_id(
             module,
             profile,
             expression_id,
@@ -880,7 +887,7 @@ impl Compiler {
         })
     }
 
-    /// Validate the Try branch return type against receiver payloads.
+    /// Validate the Try branch return type against receiver value and error types.
     fn check_try_branch_return_type_assignable(
         &self,
         module: &Module,
@@ -909,16 +916,17 @@ impl Compiler {
             return Ok(true);
         }
 
-        // extract payload types from the branch return shape
-        let Some((branch_value_ty_id, branch_error_ty_id)) = self.try_branch_payloads_from_return(
-            module,
-            expression_id,
-            return_ty_id,
-            profile,
-            tree,
-            symbols,
-            types,
-        )?
+        // extract value and error types from the branch return shape
+        let Some((branch_value_ty_id, branch_error_ty_id)) = self
+            .try_branch_value_and_error_types_from_return(
+                module,
+                expression_id,
+                return_ty_id,
+                profile,
+                tree,
+                symbols,
+                types,
+            )?
         else {
             let is_try_branch = matches!(types.get_type(return_ty_id), Type::Reference { symbol, .. } if {
                 let canonical = self.canonical_symbol_id(
@@ -933,7 +941,7 @@ impl Compiler {
             return Ok(is_try_branch);
         };
 
-        // compare payloads to the expected Try arguments when they are concrete
+        // compare value and error types to the expected Try arguments when they are concrete
         let branch_value_is_parameter = matches!(
             types.get_type(branch_value_ty_id),
             Type::Reference { symbol, .. }
@@ -945,7 +953,7 @@ impl Compiler {
                 if self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
         );
 
-        if self.should_check_try_payload_assignability(value_ty_id, types)
+        if self.should_check_try_value_error_assignability(value_ty_id, types)
             && !branch_value_is_parameter
             && self.is_type_assignable(
                 module,
@@ -960,7 +968,7 @@ impl Compiler {
             return Ok(false);
         }
 
-        if self.should_check_try_payload_assignability(error_ty_id, types)
+        if self.should_check_try_value_error_assignability(error_ty_id, types)
             && !branch_error_is_parameter
             && self.is_type_assignable(
                 module,
@@ -978,22 +986,24 @@ impl Compiler {
         Ok(true)
     }
 
-    /// Commit resolution for a Try branch lookup.
-    fn commit_try_branch_resolution(
+    /// Record resolution for a Try branch lookup.
+    fn record_try_branch_resolution(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         receiver_ty_id: LocalTypeId,
         branch: &TryBranchMember,
+        infer: &mut InferTable,
         types: &mut TypeTable,
     ) {
-        self.commit_member_resolution(
+        self.record_provisional_member_resolution(
             expression_id.into_global_any(module.id),
             Some(receiver_ty_id),
             &branch.resolved.member_resolution,
             branch.member_instance_id,
             None,
             branch.resolved.has_member,
+            infer,
             types,
         );
     }
@@ -1115,8 +1125,8 @@ impl Compiler {
             return;
         }
 
-        // resolve payload types from the return type
-        let payloads = match self.try_payloads_from_receiver(
+        // resolve value and error types from the return type
+        let value_and_error_types = match self.try_value_and_error_types_from_receiver(
             module,
             ctx.profile,
             expression_id.into_any(),
@@ -1128,14 +1138,14 @@ impl Compiler {
             symbols,
             types,
         ) {
-            Ok(payloads) => payloads,
+            Ok(value_and_error_types) => value_and_error_types,
             Err(error) => {
                 self.error(error);
                 return;
             }
         };
 
-        let Some((value_ty_id, return_error_ty_id)) = payloads else {
+        let Some((value_ty_id, return_error_ty_id)) = value_and_error_types else {
             self.error(AnalyzeError::InvalidTryBranch {
                 node: expression_id
                     .into_global_any(module.id)
@@ -1175,7 +1185,7 @@ impl Compiler {
             return;
         }
 
-        // validate the branch return type against the return payload types
+        // validate the branch return type against the return value and error types
         let is_valid = match self.check_try_branch_return_type_assignable(
             module,
             expression_id,
@@ -1385,8 +1395,8 @@ impl Compiler {
                 continue;
             }
 
-            // resolve payload types for the receiver and branch
-            let payloads = self.resolve_try_payloads(
+            // resolve value and error types for the receiver and branch
+            let value_and_error_types = self.resolve_try_value_and_error_types(
                 module,
                 expression_id,
                 receiver_expression_id.into_any(),
@@ -1400,7 +1410,7 @@ impl Compiler {
                 infer,
                 &ctx.options,
             )?;
-            let Some((value_ty_id, _error_ty_id)) = payloads else {
+            let Some((value_ty_id, _error_ty_id)) = value_and_error_types else {
                 self.error(AnalyzeError::InvalidTryBranch {
                     node: expression_id
                         .into_global_any(module.id)

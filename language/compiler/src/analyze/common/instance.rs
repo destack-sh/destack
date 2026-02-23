@@ -5,69 +5,44 @@ use destack_dir::{
     TypeTable, are_types_equal,
 };
 
-/// The lookup result for one `(symbol, static_arguments)` key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum InstanceMatch {
-    /// An exact environment match exists.
-    Exact(LocalInstanceId),
-    /// At least one conflicting environment exists for the same key.
-    Conflict,
-}
-
 /// One normalized and committable instance environment key.
 #[derive(Debug, Clone)]
-pub(super) struct NormalizedInstanceEnvironment {
+pub(crate) struct NormalizedInstanceEnvironment {
     /// Canonical static arguments for keying and commitment.
-    pub(super) arguments: Vec<StaticArgument>,
+    pub(crate) arguments: Vec<StaticArgument>,
     /// Canonical static parameter symbols for keying and commitment.
-    pub(super) parameter_symbols: Vec<GlobalSymbolId>,
+    pub(crate) parameter_symbols: Vec<GlobalSymbolId>,
     /// Number of inherited static arguments at the front of `arguments`.
-    pub(super) inherited_arity: usize,
+    pub(crate) inherited_arity: usize,
 }
 
 impl Compiler {
     /// Build one internal analyze error.
-    pub(super) fn internal_analyze_error(&self, message: impl Into<String>) -> AnalyzeError {
+    pub(crate) fn internal_analyze_error(&self, message: impl Into<String>) -> AnalyzeError {
         AnalyzeError::Internal {
             message: message.into(),
         }
     }
 
-    /// Build one scoped internal analyze error.
-    pub(super) fn internal_analyze_error_for_scope(
-        &self,
-        scope: &'static str,
-        message: impl Into<String>,
-    ) -> AnalyzeError {
-        self.internal_analyze_error(format!("{scope}: {}", message.into()))
-    }
-
     /// Normalize one environment for committable instance keying and commitment.
-    pub(super) fn normalize_instance_environment_for_commit(
+    pub(crate) fn normalize_instance_environment_for_commit(
         &self,
-        scope: &'static str,
         symbol_id: GlobalSymbolId,
         environment: StaticSubstitutionEnvironment,
     ) -> AnalyzeResult<NormalizedInstanceEnvironment> {
         let environment = self
             .canonicalize_instance_environment_for_commit_key(environment)
             .ok_or_else(|| {
-                self.internal_analyze_error_for_scope(
-                    scope,
-                    format!(
-                        "failed to canonicalize committable instance environment for symbol {symbol_id:?}",
-                    ),
-                )
+                self.internal_analyze_error(format!(
+                    "normalize_instance_environment_for_commit: failed to canonicalize committable instance environment for symbol {symbol_id:?}",
+                ))
             })?;
         let arguments = environment.arguments().to_vec();
         let parameter_symbols = environment.complete_parameter_symbols().ok_or_else(|| {
-            self.internal_analyze_error_for_scope(
-                scope,
-                format!(
-                    "missing complete static parameter symbols for symbol {symbol_id:?} with {} static arguments",
-                    arguments.len()
-                ),
-            )
+            self.internal_analyze_error(format!(
+                "normalize_instance_environment_for_commit: missing complete static parameter symbols for symbol {symbol_id:?} with {} static arguments",
+                arguments.len()
+            ))
         })?;
 
         Ok(NormalizedInstanceEnvironment {
@@ -302,15 +277,14 @@ impl Compiler {
     }
 
     /// Look up an existing instance id for one full canonical environment.
-    pub(super) fn query_instance_for_symbol_environment(
+    pub(crate) fn query_instance_for_symbol_environment(
         &self,
         symbol_id: GlobalSymbolId,
         static_arguments: &[StaticArgument],
         parameter_symbols: &[GlobalSymbolId],
         inherited_arity: usize,
         types: &TypeTable,
-    ) -> Option<InstanceMatch> {
-        let mut saw_conflict = false;
+    ) -> AnalyzeResult<Option<LocalInstanceId>> {
         let candidate_ids =
             types.query_instance_interner_candidates(symbol_id, static_arguments.len());
 
@@ -327,21 +301,19 @@ impl Compiler {
             if instance.static_parameter_symbols == parameter_symbols
                 && instance.inherited_static_argument_count == inherited_arity
             {
-                return Some(InstanceMatch::Exact(instance_id));
+                return Ok(Some(instance_id));
             }
 
-            saw_conflict = true;
+            return Err(self.internal_analyze_error(format!(
+                "query_instance_for_symbol_environment: conflicting canonical instance environment for symbol {symbol_id:?}: arguments={static_arguments:?}, parameters={parameter_symbols:?}, inherited_arity={inherited_arity}"
+            )));
         }
 
-        if saw_conflict {
-            Some(InstanceMatch::Conflict)
-        } else {
-            None
-        }
+        Ok(None)
     }
 
     /// Normalize one static argument for canonical instance-key usage.
-    pub(super) fn canonicalize_instance_argument_for_key(
+    pub(crate) fn canonicalize_instance_argument_for_key(
         &self,
         argument: &StaticArgument,
     ) -> StaticArgument {

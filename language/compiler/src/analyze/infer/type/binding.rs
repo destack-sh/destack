@@ -82,7 +82,16 @@ pub(crate) enum TypeGuardTarget {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    pub(crate) fn commit_binding_type(
+    /// Build the initializer inference context for one binding.
+    pub(crate) fn binding_initializer_context(
+        &self,
+        ctx: &InferContext,
+        mutability: Option<Mutability>,
+    ) -> InferContext {
+        ctx.fork().with_binding_initializer(mutability)
+    }
+
+    pub(crate) fn materialize_binding_type(
         &self,
         module: &Module,
         ctx: &InferContext,
@@ -118,6 +127,36 @@ impl Compiler {
         let mut cache = TypeRewriteCache::new();
         let mut rewriter = LiteralWideningRewriter::new(self, module, &regularized_ctx, options);
         rewrite_type_with_cache(&mut rewriter, types, &mut cache, cache_key, binding_ty_id)
+    }
+
+    /// Commit one declarator initializer type using binding commitment rules.
+    pub(crate) fn materialize_declarator_initializer_type(
+        &self,
+        module: &Module,
+        declarator_id: LocalNodeId<Declarator>,
+        initializer_id: LocalNodeId<Expression>,
+        initializer_ty_id: LocalTypeId,
+        tree: &NodeTree,
+        ctx: &InferContext,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // preserve literal precision when the initializer is a satisfies expression
+        let preserve_literals = self.expression_is_satisfies(tree, initializer_id);
+        let materialize_ctx = if preserve_literals {
+            ctx.fork().with_preserve_literals()
+        } else {
+            ctx.fork()
+        };
+
+        // preserve literal precision when the declarator uses const assertion
+        let is_const_asserted = self.declarator_is_const_assertion(declarator_id, tree);
+        self.materialize_binding_type(
+            module,
+            &materialize_ctx,
+            initializer_ty_id,
+            types,
+            is_const_asserted,
+        )
     }
 
     /// Resolve a typeof guard target for a string literal.

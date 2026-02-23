@@ -577,7 +577,7 @@ impl Compiler {
     }
 
     /// Infer the index signature value type for a member key.
-    pub(crate) fn infer_index_signature_value_type_for_key(
+    pub(crate) fn resolve_index_signature_value_type_for_key(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -594,11 +594,11 @@ impl Compiler {
             } => self.index_signature_value_type_for_key(index_signatures, member_key, types),
             Type::Value { value } => {
                 let value_ty = types.get_type(*value).clone();
-                self.infer_index_signature_value_type_for_key(
+                self.resolve_index_signature_value_type_for_key(
                     module, profile, node_id, symbols, &value_ty, member_key, types, visited,
                 )
             }
-            Type::Reference { symbol, .. } => self.infer_index_signature_value_type_for_symbol(
+            Type::Reference { symbol, .. } => self.resolve_index_signature_value_type_for_symbol(
                 module, profile, node_id, symbols, *symbol, member_key, types, visited,
             ),
             Type::Unary { right, .. }
@@ -606,7 +606,7 @@ impl Compiler {
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => {
                 let inner_ty = types.get_type(*right).clone();
-                self.infer_index_signature_value_type_for_key(
+                self.resolve_index_signature_value_type_for_key(
                     module, profile, node_id, symbols, &inner_ty, member_key, types, visited,
                 )
             }
@@ -614,7 +614,7 @@ impl Compiler {
                 let mut value_types = Vec::new();
                 for element_id in elements.clone() {
                     let element_ty = types.get_type(element_id).clone();
-                    if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
+                    if let Some(value_ty) = self.resolve_index_signature_value_type_for_key(
                         module,
                         profile,
                         node_id,
@@ -641,7 +641,7 @@ impl Compiler {
             Type::Intersection { elements } => {
                 for element_id in elements.clone() {
                     let element_ty = types.get_type(element_id).clone();
-                    if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
+                    if let Some(value_ty) = self.resolve_index_signature_value_type_for_key(
                         module,
                         profile,
                         node_id,
@@ -794,7 +794,7 @@ impl Compiler {
     }
 
     /// Infer the index signature value type for a symbol.
-    fn infer_index_signature_value_type_for_symbol(
+    fn resolve_index_signature_value_type_for_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -815,7 +815,7 @@ impl Compiler {
             self.apparent_instance_type(module, profile, node_id, symbol, symbols, types)
         {
             let ty = types.get_type(ty_id).clone();
-            if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
+            if let Some(value_ty) = self.resolve_index_signature_value_type_for_key(
                 module, profile, node_id, symbols, &ty, member_key, types, visited,
             ) {
                 return Some(value_ty);
@@ -825,7 +825,7 @@ impl Compiler {
         // step 2: traverse lineage (extends, implements, embedded)
         if let Some(lineage) = types.get_lineage_for_symbol(symbol).cloned() {
             if let Some(extends) = lineage.extends
-                && let Some(value_ty) = self.infer_index_signature_value_type_for_symbol(
+                && let Some(value_ty) = self.resolve_index_signature_value_type_for_symbol(
                     module, profile, node_id, symbols, extends, member_key, types, visited,
                 )
             {
@@ -833,7 +833,7 @@ impl Compiler {
             }
 
             for implements in &lineage.implements {
-                if let Some(value_ty) = self.infer_index_signature_value_type_for_symbol(
+                if let Some(value_ty) = self.resolve_index_signature_value_type_for_symbol(
                     module,
                     profile,
                     node_id,
@@ -848,7 +848,7 @@ impl Compiler {
             }
 
             for embedded in &lineage.embedded {
-                if let Some(value_ty) = self.infer_index_signature_value_type_for_symbol(
+                if let Some(value_ty) = self.resolve_index_signature_value_type_for_symbol(
                     module, profile, node_id, symbols, *embedded, member_key, types, visited,
                 ) {
                     return Some(value_ty);
@@ -893,7 +893,7 @@ impl Compiler {
                 types,
             ) {
                 let ty = types.get_type(ty_id).clone();
-                if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
+                if let Some(value_ty) = self.resolve_index_signature_value_type_for_key(
                     module, profile, node_id, symbols, &ty, member_key, types, visited,
                 ) {
                     return Some(value_ty);

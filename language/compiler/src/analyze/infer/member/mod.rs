@@ -7,5 +7,6 @@ mod shared;
 mod signature;
 mod visibility;
 
+pub(crate) use model::MemberResolution;
 pub(super) use model::*;
 pub(super) use shared::*;

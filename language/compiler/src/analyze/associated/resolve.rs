@@ -259,6 +259,8 @@ pub(crate) struct ProjectionEnvironment {
 pub(crate) enum MissingMemberDiagnosticBlocker {
     /// Receiver type already failed earlier analysis.
     ReceiverTypeError,
+    /// Receiver type is still indeterminate for stable member diagnostics.
+    ReceiverTypeIndeterminate,
     /// Receiver declaration is missing required associated implementations.
     UnsatisfiedAssociatedContractRequirements,
 }
@@ -343,6 +345,28 @@ impl Compiler {
     ) -> AnalyzeResult<Option<MissingMemberDiagnosticBlocker>> {
         if self.type_blocks_cascading_diagnostic(receiver_ty_id, types) {
             return Ok(Some(MissingMemberDiagnosticBlocker::ReceiverTypeError));
+        }
+
+        let receiver_unwrapped_ty_id = types.unwrap_value_type_id(receiver_ty_id);
+        if self.type_is_solver_placeholder(receiver_unwrapped_ty_id, types)
+            || self.unwrapped_value_type_is_unevaluated(receiver_unwrapped_ty_id, types)
+        {
+            return Ok(Some(
+                MissingMemberDiagnosticBlocker::ReceiverTypeIndeterminate,
+            ));
+        }
+
+        if let Type::Reference { symbol, .. } = types.get_type(receiver_unwrapped_ty_id) {
+            let symbol_value_type_id = types.get_value_type_id(*symbol);
+            if symbol_value_type_id.is_some_and(|symbol_value_type_id| {
+                let symbol_unwrapped_ty_id = types.unwrap_value_type_id(symbol_value_type_id);
+                self.type_is_solver_placeholder(symbol_unwrapped_ty_id, types)
+                    || self.unwrapped_value_type_is_unevaluated(symbol_unwrapped_ty_id, types)
+            }) {
+                return Ok(Some(
+                    MissingMemberDiagnosticBlocker::ReceiverTypeIndeterminate,
+                ));
+            }
         }
 
         if allow_associated_contract_blocker

@@ -36,18 +36,20 @@ impl Compiler {
             if matches!(operator, UnaryOperator::Dereference)
                 && let Type::PointerOf { right, .. } = &right_ty
             {
-                self.commit_builtin_resolution(
+                self.record_provisional_builtin_resolution(
                     expression_id.into_global_any(module.id),
                     Some(right_ty_id),
+                    infer,
                     types,
                 );
                 return Ok(*right);
             }
 
             let ty = self.infer_unary_operation(operator, &right_ty);
-            self.commit_builtin_resolution(
+            self.record_provisional_builtin_resolution(
                 expression_id.into_global_any(module.id),
                 Some(right_ty_id),
+                infer,
                 types,
             );
             return Ok(types.insert_type_from(ty, expression_id));
@@ -113,7 +115,7 @@ impl Compiler {
 
         // handle missing member
         if !resolved.has_member {
-            self.commit_member_call_resolution(
+            self.record_member_call_resolution(
                 module,
                 ctx.profile,
                 expression_id,
@@ -149,7 +151,7 @@ impl Compiler {
         }
 
         // finalize resolution and instance registration
-        self.commit_member_call_resolution(
+        self.record_member_call_resolution(
             module,
             ctx.profile,
             expression_id,

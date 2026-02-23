@@ -41,7 +41,7 @@ impl TestModuleView<'_> {
         panic!("expected member symbol");
     }
 
-    /// Resolve one instance fact attached to one expression node.
+    /// Resolve one instance attached to one expression node.
     fn expect_instance_for_expression(
         &self,
         expression_id: LocalNodeId<Expression>,
@@ -186,7 +186,7 @@ impl TestModuleView<'_> {
         }
     }
 
-    /// Assert one node has no committed instance fact.
+    /// Assert one node has no committed instance.
     fn expect_no_instance_for_node(&self, node_id: GlobalNodeIdAny) {
         assert!(
             self.types().get_instance_for_node(node_id).is_none(),

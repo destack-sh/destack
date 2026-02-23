@@ -8,6 +8,7 @@ use destack_dir::{
     LocalTypeId, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, Type, TypeLiteral,
     TypeTable,
 };
+use destack_source::ModuleId;
 
 /// Cache context for expression type evaluation.
 #[derive(Clone, Copy, Debug)]
@@ -50,7 +51,7 @@ impl Compiler {
     /// Cache an expression type id and optional value for a cache context (if possible).
     pub(crate) fn cache_expression_type_maybe(
         &self,
-        module_id: destack_source::ModuleId,
+        module_id: ModuleId,
         expression_id: LocalNodeId<Expression>,
         cache_context: DeclaredTypeResolutionContext,
         cache_type_id: Option<LocalTypeId>,

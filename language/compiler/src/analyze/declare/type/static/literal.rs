@@ -16,7 +16,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<i64>> {
-        // prefer existing type facts before re-evaluating the expression tree
+        // prefer existing type commitments before re-evaluating the expression tree
         let expression_global = expression_id.into_global_any(module.id);
         if let Some(type_id) = types
             .get_inferred_type_id(expression_global)

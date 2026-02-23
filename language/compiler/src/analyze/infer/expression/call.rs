@@ -547,6 +547,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                infer,
                 options,
             )? {
                 continue;
@@ -704,9 +705,29 @@ impl Compiler {
             // resolve inferred argument type
             let argument_value_id = tree.get(*argument_id).value();
             let argument_ty_id = if let Some(argument_ty_id) =
-                types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
+                infer.inferred_type_for_node(argument_value_id.into_global_any(module.id))
             {
-                argument_ty_id
+                let argument_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
+                    module,
+                    profile,
+                    argument_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                if self.unwrapped_value_type_is_unevaluated(argument_unwrapped_ty_id, types) {
+                    self.infer_expression(
+                        module,
+                        argument_value_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?
+                } else {
+                    argument_ty_id
+                }
             } else {
                 self.infer_expression(module, argument_value_id, tree, symbols, types, infer, ctx)?
             };
@@ -978,6 +999,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &InferTable,
         options: &AnalyzeOptions,
     ) -> AnalyzeResult<bool> {
         if dynamic_arguments.len() > resolved.dynamic_parameters.len() {
@@ -997,6 +1019,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                infer,
                 options,
             )? {
                 return Ok(false);
@@ -1017,6 +1040,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &InferTable,
         options: &AnalyzeOptions,
     ) -> AnalyzeResult<bool> {
         let argument = tree.get(argument_id);
@@ -1068,7 +1092,7 @@ impl Compiler {
             return Ok(false);
         }
 
-        Ok(self.is_signature_known_argument_type_applicable(
+        self.is_signature_known_argument_type_applicable(
             module,
             profile,
             param_ty_id,
@@ -1076,8 +1100,9 @@ impl Compiler {
             tree,
             symbols,
             types,
+            infer,
             options,
-        ))
+        )
     }
 
     /// Check lambda argument shape compatibility with a function parameter.
@@ -1208,21 +1233,33 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &InferTable,
         options: &AnalyzeOptions,
-    ) -> bool {
+    ) -> AnalyzeResult<bool> {
         let argument_value = tree.get(argument_value_id);
-        let argument_ty_id = types
-            .get_inferred_type_id(argument_value_id.into_global_any(module.id))
+        let argument_ty_id = infer
+            .inferred_type_for_node(argument_value_id.into_global_any(module.id))
             .or_else(|| {
                 argument_value
                     .target_symbol()
                     .and_then(|symbol| types.get_type_id_for_symbol(symbols, symbol))
             });
         let Some(argument_ty_id) = argument_ty_id else {
-            return true;
+            return Ok(true);
         };
+        let argument_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
+            module,
+            profile,
+            argument_ty_id,
+            tree,
+            symbols,
+            types,
+        )?;
+        if self.unwrapped_value_type_is_unevaluated(argument_unwrapped_ty_id, types) {
+            return Ok(true);
+        }
 
-        self.is_signature_candidate_argument_assignable(
+        Ok(self.is_signature_candidate_argument_assignable(
             module,
             profile,
             symbols,
@@ -1230,7 +1267,7 @@ impl Compiler {
             argument_ty_id,
             types,
             options,
-        )
+        ))
     }
 
     /// Resolve a scalar literal type for static argument expressions when possible.
@@ -1807,6 +1844,7 @@ impl Compiler {
             self.infer_non_callable_call_expression(
                 module,
                 expression_id,
+                left_id,
                 callee.callee_ty_id,
                 &call,
                 dynamic_arguments,
@@ -1883,7 +1921,7 @@ impl Compiler {
         self.call_signatures_for_type(callee_ty_id, types)
     }
 
-    /// Resolve one signature for a call expression or default to unknown.
+    /// Resolve one signature for a call expression or recover with an error type.
     #[allow(clippy::too_many_arguments)]
     fn resolve_call_expression_signature(
         &self,
@@ -1924,7 +1962,7 @@ impl Compiler {
         )
     }
 
-    /// Infer argument constraints, commit call resolution facts, and return the call result type.
+    /// Infer argument constraints, record call resolutions, and return the call result type.
     #[allow(clippy::too_many_arguments)]
     fn infer_resolved_call_expression(
         &self,
@@ -1985,7 +2023,7 @@ impl Compiler {
         let resolved_return_type = resolved_signature.return_type;
 
         // commit static or member resolution for downstream lowering
-        self.commit_call_expression_resolution(
+        self.record_call_expression_resolution(
             module,
             ctx.profile,
             expression_id,
@@ -2069,8 +2107,8 @@ impl Compiler {
         }
     }
 
-    /// Commit call-resolution facts after successful signature inference.
-    fn commit_call_expression_resolution(
+    /// Record call-resolution entries after successful signature inference.
+    fn record_call_expression_resolution(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -2106,7 +2144,7 @@ impl Compiler {
                     )
                 });
                 if let Some(environment) = environment {
-                    self.commit_instance_for_node_maybe(
+                    self.record_provisional_instance_for_node_maybe(
                         expression_id.into_global_any(module.id),
                         callee_symbol,
                         environment,
@@ -2137,7 +2175,7 @@ impl Compiler {
                     types,
                 );
                 if let Some(environment) = environment {
-                    self.commit_instance_for_node_maybe(
+                    self.record_provisional_instance_for_node_maybe(
                         expression_id.into_global_any(module.id),
                         callee_symbol,
                         environment,
@@ -2155,23 +2193,25 @@ impl Compiler {
         // commit member or static resolution metadata
         match (&call.call_member_resolution, call.callee_symbol) {
             (Some(member_resolution), _) => {
-                self.commit_member_resolution(
+                self.record_provisional_member_resolution(
                     expression_id.into_global_any(module.id),
                     call.call_receiver_ty_id,
                     member_resolution,
                     call_instance_id,
                     Some(resolved_signature),
                     true,
+                    infer,
                     types,
                 );
             }
             (None, Some(callee_symbol)) => {
-                self.commit_static_resolution(
+                self.record_provisional_static_resolution(
                     expression_id.into_global_any(module.id),
                     call.call_receiver_ty_id,
                     callee_symbol,
                     call_instance_id,
                     Some(resolved_signature),
+                    infer,
                     types,
                 );
             }
@@ -2181,12 +2221,13 @@ impl Compiler {
         Ok(())
     }
 
-    /// Infer a non-callable call expression and default to unknown.
+    /// Infer a non-callable call expression and recover with an error type.
     #[allow(clippy::too_many_arguments)]
     fn infer_non_callable_call_expression(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
+        call_target_id: LocalNodeId<Expression>,
         callee_ty_id: LocalTypeId,
         call: &CallExpressionResolution,
         dynamic_arguments: &[LocalNodeId<Argument>],
@@ -2201,11 +2242,15 @@ impl Compiler {
             call.call_member_resolution,
             Some(MemberResolution::None | MemberResolution::Unresolved)
         );
+        let is_super_call = self.expression_is_super_reference_for_call(
+            tree,
+            self.unwrap_parenthesized_expression(call_target_id, tree),
+        );
         let callee_has_primary_error = self.type_blocks_cascading_diagnostic(callee_ty_id, types);
 
         // report non-callable callee types unless they are dynamic placeholders
         let is_dynamic_callee = has_missing_member
-            || callee_has_primary_error
+            || (callee_has_primary_error && !is_super_call)
             || matches!(
                 types.get_type(callee_ty_id),
                 Type::TypeLiteral {
@@ -2214,13 +2259,21 @@ impl Compiler {
             )
             || types.get_type(callee_ty_id).is_infer();
         if !is_dynamic_callee {
-            self.emit_non_callable_for_callee_type(
-                module,
-                ctx.profile,
-                expression_id.into_any(),
-                callee_ty_id,
-                types,
-            );
+            if is_super_call {
+                self.error(AnalyzeError::NonCallable {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            } else {
+                self.emit_non_callable_for_callee_type(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    callee_ty_id,
+                    types,
+                );
+            }
         }
 
         // infer dynamic arguments without expected types
@@ -2238,7 +2291,7 @@ impl Compiler {
             return Ok(types.insert_type_from(Type::Error, expression_id));
         }
 
-        Ok(self.synthesize_indeterminate_call_result_type(expression_id, types))
+        Ok(self.synthesize_call_error_result_type(expression_id, types))
     }
 
     /// Infer call arguments without contextual parameter types.
@@ -2260,17 +2313,13 @@ impl Compiler {
         Ok(())
     }
 
-    /// Synthesize an indeterminate semantic result type for one call expression.
-    fn synthesize_indeterminate_call_result_type(
+    /// Synthesize the call-expression error recovery type for one expression.
+    fn synthesize_call_error_result_type(
         &self,
         expression_id: LocalNodeId<Expression>,
         types: &mut TypeTable,
     ) -> LocalTypeId {
-        let ty = Type::TypeLiteral {
-            value: TypeLiteral::Unknown,
-        };
-
-        types.insert_type_from(ty, expression_id)
+        types.insert_type_from(Type::Error, expression_id)
     }
 
     /// Infer and normalize the callee state for call-expression inference.
@@ -2581,6 +2630,7 @@ impl Compiler {
         let member_resolution = self.resolve_member_symbol_for_receiver(
             module,
             receiver_id,
+            receiver_id,
             receiver_ty,
             receiver_context,
             member_key,
@@ -2746,9 +2796,19 @@ impl Compiler {
         }
 
         if let Some(receiver_ty_id) =
-            types.get_inferred_type_id(receiver_id.into_global_any(module.id))
+            infer.inferred_type_for_node(receiver_id.into_global_any(module.id))
         {
-            return Ok(receiver_ty_id);
+            let receiver_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
+                module,
+                ctx.profile,
+                receiver_ty_id,
+                tree,
+                symbols,
+                types,
+            )?;
+            if !self.unwrapped_value_type_is_unevaluated(receiver_unwrapped_ty_id, types) {
+                return Ok(receiver_ty_id);
+            }
         }
 
         self.infer_expression(module, receiver_id, tree, symbols, types, infer, ctx)
@@ -2892,7 +2952,7 @@ impl Compiler {
             );
 
             return Ok(Some(
-                self.synthesize_indeterminate_call_result_type(expression_id, types),
+                self.synthesize_call_error_result_type(expression_id, types),
             ));
         }
 
@@ -2902,7 +2962,7 @@ impl Compiler {
             &candidates,
             types,
         );
-        self.commit_union_member_call_resolution(
+        self.record_union_member_call_resolution(
             module,
             expression_id,
             context.receiver_ty_id,
@@ -2951,18 +3011,18 @@ impl Compiler {
             ctx,
         )?;
 
-        self.commit_unresolved_resolution(
+        self.record_provisional_unresolved_resolution(
             expression_id.into_global_any(module.id),
             Some(receiver_ty_id),
             Vec::new(),
             Vec::new(),
+            infer,
             types,
         );
 
-        Ok(Some(self.synthesize_indeterminate_call_result_type(
-            expression_id,
-            types,
-        )))
+        Ok(Some(
+            self.synthesize_call_error_result_type(expression_id, types),
+        ))
     }
 
     /// Query uniform expected argument types across union-call candidates.
@@ -3029,9 +3089,29 @@ impl Compiler {
             let argument = tree.get(*argument_id);
             let argument_value_id = argument.value();
             let argument_ty_id = if let Some(ty_id) =
-                types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
+                infer.inferred_type_for_node(argument_value_id.into_global_any(module.id))
             {
-                ty_id
+                let argument_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
+                    module,
+                    ctx.profile,
+                    ty_id,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                if self.unwrapped_value_type_is_unevaluated(argument_unwrapped_ty_id, types) {
+                    self.infer_expression(
+                        module,
+                        argument_value_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?
+                } else {
+                    ty_id
+                }
             } else {
                 self.infer_expression(module, argument_value_id, tree, symbols, types, infer, ctx)?
             };
@@ -3167,8 +3247,8 @@ impl Compiler {
         }
     }
 
-    /// Commit dynamic resolution candidates for union member-call dispatch.
-    fn commit_union_member_call_resolution(
+    /// Record dynamic resolution candidates for union member-call dispatch.
+    fn record_union_member_call_resolution(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -3183,7 +3263,7 @@ impl Compiler {
         for (candidate_index, candidate) in candidates.into_iter().enumerate() {
             let instance_id = if let Some(environment) = candidate.instance_environment {
                 let (instance_id, obligation_id) = self
-                    .commit_instance_for_symbol_maybe_with_obligation(
+                    .record_provisional_instance_for_symbol_maybe_with_obligation(
                         candidate.symbol,
                         environment,
                         infer,
@@ -3205,16 +3285,17 @@ impl Compiler {
             });
         }
 
-        let resolution_id = self.commit_dynamic_resolution(
+        self.record_provisional_dynamic_resolution(
             source_node_id,
             Some(receiver_ty_id),
             resolution_candidates,
+            infer,
             types,
         );
         for (candidate_index, obligation_id) in deferred_candidate_attachments {
             let candidate_slot = DynamicResolutionCandidateSlotId::new(candidate_index as u32);
             infer.push_instance_commit_obligation_for_resolution_candidate(
-                resolution_id,
+                source_node_id,
                 candidate_slot,
                 obligation_id,
             );
@@ -3515,7 +3596,7 @@ impl Compiler {
         })
     }
 
-    /// Resolve one constructor signature for a new expression or default to unknown.
+    /// Resolve one constructor signature for a new expression or recover with an error type.
     #[allow(clippy::too_many_arguments)]
     fn resolve_new_expression_signature(
         &self,
@@ -3621,7 +3702,7 @@ impl Compiler {
             )?;
 
             return Ok(CallExpressionSignatureResolution::IndeterminateType(
-                self.synthesize_indeterminate_call_result_type(expression_id, types),
+                self.synthesize_call_error_result_type(expression_id, types),
             ));
         }
 
@@ -3654,7 +3735,7 @@ impl Compiler {
             })
         } else {
             Ok(CallExpressionSignatureResolution::IndeterminateType(
-                self.synthesize_indeterminate_call_result_type(expression_id, types),
+                self.synthesize_call_error_result_type(expression_id, types),
             ))
         }
     }
@@ -3698,7 +3779,7 @@ impl Compiler {
                 ctx,
             )?;
 
-            return Ok(self.synthesize_indeterminate_call_result_type(expression_id, types));
+            return Ok(self.synthesize_call_error_result_type(expression_id, types));
         }
 
         // infer argument types and constraints
@@ -3745,7 +3826,7 @@ impl Compiler {
                 types,
             );
             if let Some(environment) = environment {
-                self.commit_instance_for_node_maybe(
+                self.record_provisional_instance_for_node_maybe(
                     expression_id.into_global_any(module.id),
                     callee_symbol,
                     environment,
@@ -3761,19 +3842,19 @@ impl Compiler {
 
         // commit constructor resolution when possible
         if let Some(callee_symbol) = target.callee_symbol {
-            self.commit_static_resolution(
+            self.record_provisional_static_resolution(
                 expression_id.into_global_any(module.id),
                 None,
                 callee_symbol,
                 constructor_instance_id,
                 Some(resolved_signature),
+                infer,
                 types,
             );
         }
 
-        Ok(resolved_return_type.unwrap_or_else(|| {
-            self.synthesize_indeterminate_call_result_type(expression_id, types)
-        }))
+        Ok(resolved_return_type
+            .unwrap_or_else(|| self.synthesize_call_error_result_type(expression_id, types)))
     }
 
     /// Infer behavior for non-constructable new-expression targets.
@@ -3808,7 +3889,7 @@ impl Compiler {
             return Ok(instance_type_id);
         }
 
-        // infer arguments and return unknown when no constructor target is available
+        // infer arguments and return an error type when no constructor target is available
         self.infer_call_arguments_without_context(
             module,
             dynamic_arguments,
@@ -3819,7 +3900,7 @@ impl Compiler {
             ctx,
         )?;
 
-        Ok(self.synthesize_indeterminate_call_result_type(expression_id, types))
+        Ok(self.synthesize_call_error_result_type(expression_id, types))
     }
 
     /// Resolve a function type for a call, substituting static parameters when provided.
@@ -4151,6 +4232,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                infer,
             )?;
 
             // query expected argument backfill from return type compatibility
@@ -4195,7 +4277,7 @@ impl Compiler {
                 Some(&resolved_argument),
             );
 
-            // validate and collect substitution facts for this argument
+            // validate and collect substitutions for this argument
             let substitution = self.resolve_signature_static_argument_substitution(
                 module,
                 profile,
@@ -4290,6 +4372,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &InferTable,
     ) -> AnalyzeResult<Option<StaticArgument>> {
         // explicit static arguments always win over inferred ones
         if assigned_argument.is_some() {
@@ -4308,6 +4391,7 @@ impl Compiler {
             tree,
             symbols,
             types,
+            infer,
         )
     }
 
@@ -4744,8 +4828,8 @@ impl Compiler {
         }))
     }
 
-    /// Commit the member-call instance id for a resolved member invocation.
-    pub(crate) fn commit_member_call_instance_id(
+    /// Record the member-call instance id for a resolved member invocation.
+    pub(crate) fn record_member_call_instance_id(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -4776,7 +4860,7 @@ impl Compiler {
             return Ok(None);
         };
 
-        self.commit_instance_for_node_maybe(
+        self.record_provisional_instance_for_node_maybe(
             expression_id.into_global_any(module.id),
             member_symbol,
             environment,
@@ -4785,10 +4869,10 @@ impl Compiler {
         )
     }
 
-    /// Commit resolution facts for a member function invocation.
+    /// Record resolution entries for a member function invocation.
     ///
     /// Returns the instance ID if one was committed.
-    pub(crate) fn commit_member_call_resolution(
+    pub(crate) fn record_member_call_resolution(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -4800,7 +4884,7 @@ impl Compiler {
         infer: &mut InferTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalInstanceId>> {
-        let instance_id = self.commit_member_call_instance_id(
+        let instance_id = self.record_member_call_instance_id(
             module,
             profile,
             expression_id,
@@ -4812,13 +4896,14 @@ impl Compiler {
         )?;
 
         // record member resolution
-        self.commit_member_resolution(
+        self.record_provisional_member_resolution(
             expression_id.into_global_any(module.id),
             Some(receiver_ty_id),
             &resolved.member_resolution,
             instance_id,
             Some(resolved.signature.clone()),
             resolved.has_member,
+            infer,
             types,
         );
 

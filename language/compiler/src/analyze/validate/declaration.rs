@@ -4,11 +4,11 @@ use crate::{AnalyzeError, Compiler};
 use destack_ast::Keyword;
 use destack_base::StringId;
 use destack_dir::{
-    Asynchrony, BindingAnchor, BindingOperator, Declaration, DeclarationAbstraction,
-    DeclarationDescriptor, DeclarationKind, DependencyKind, DependencyMode, DynamicKey, Expression,
-    FunctionCardinality, FunctionKind, FunctionMode, ImportAliasTarget, LocalNodeId,
-    LocalNodeIdAny, Member, Name, NodeTree, NodeType, Parameter, Path, ScalarLiteral, SymbolTable,
-    TypeTable,
+    Asynchrony, BindingAnchor, BindingModifier, BindingOperator, Declaration,
+    DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, DependencyKind, DependencyMode,
+    DynamicKey, Expression, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
+    ImportAliasTarget, LocalNodeId, LocalNodeIdAny, Member, Name, NodeTree, NodeType, Parameter,
+    Path, ScalarLiteral, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -382,9 +382,9 @@ impl Compiler {
     /// Return true when a class method is a constructor definition.
     fn class_member_is_constructor_definition(
         &self,
-        modifiers: Option<&destack_dir::BindingModifier>,
+        modifiers: Option<&BindingModifier>,
         key: Option<&DynamicKey>,
-        signature: &destack_dir::FunctionSignature,
+        signature: &FunctionSignature,
     ) -> bool {
         // static methods are never constructors
         let is_static =

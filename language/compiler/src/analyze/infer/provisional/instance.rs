@@ -1,14 +1,12 @@
 use crate::analyze::StaticSubstitutionEnvironment;
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
-    Expression, GlobalNodeIdAny, GlobalSymbolId, InferTable, Instance, InstanceCommitObligation,
+    Expression, GlobalNodeIdAny, GlobalSymbolId, InferTable, InstanceCommitObligation,
     InstanceCommitObligationId, LocalInstanceId, LocalNodeId, LocalTypeId, NodeTree,
     StaticArgument, StaticExpression, SymbolTable, SymbolType, Type, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::HashMap;
-
-use super::key::InstanceMatch;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -26,8 +24,8 @@ impl Compiler {
         )
     }
 
-    /// Commit one node instance for one resolved reference type when arguments are present.
-    pub(crate) fn commit_instance_for_reference_type_maybe(
+    /// Record one node instance for one resolved reference type when arguments are present.
+    pub(crate) fn record_provisional_instance_for_reference_type_maybe(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -66,7 +64,7 @@ impl Compiler {
             return Ok(None);
         };
 
-        self.commit_instance_for_node_maybe(node_id, symbol, environment, infer, types)
+        self.record_provisional_instance_for_node_maybe(node_id, symbol, environment, infer, types)
     }
 
     /// Infer base instance arguments for member resolution from inherited or extension context.
@@ -140,7 +138,7 @@ impl Compiler {
         )
     }
 
-    /// Compose one member-instance substitution environment from owner and signature facts.
+    /// Compose one member-instance substitution environment from owner and signature metadata.
     pub(crate) fn compose_member_instance_environment(
         &self,
         module: &Module,
@@ -254,57 +252,8 @@ impl Compiler {
         )
     }
 
-    /// Commit one instance fact for one symbol and one substitution environment.
-    pub(crate) fn commit_instance_for_symbol_environment(
-        &self,
-        symbol_id: GlobalSymbolId,
-        environment: StaticSubstitutionEnvironment,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<LocalInstanceId> {
-        let scope = "commit_instance_for_symbol_environment";
-        let environment =
-            self.normalize_instance_environment_for_commit(scope, symbol_id, environment)?;
-
-        match self.query_instance_for_symbol_environment(
-            symbol_id,
-            &environment.arguments,
-            &environment.parameter_symbols,
-            environment.inherited_arity,
-            types,
-        ) {
-            Some(InstanceMatch::Exact(existing)) => return Ok(existing),
-            Some(InstanceMatch::Conflict) => {
-                return Err(self.internal_analyze_error_for_scope(
-                    scope,
-                    format!(
-                        "conflicting canonical instance environment for symbol {symbol_id:?}: arguments={:?}, parameters={:?}, inherited_arity={}",
-                        environment.arguments,
-                        environment.parameter_symbols,
-                        environment.inherited_arity,
-                    ),
-                ));
-            }
-            None => {}
-        }
-
-        let arguments = environment.arguments;
-        let parameter_symbols = environment.parameter_symbols;
-        let inherited_arity = environment.inherited_arity;
-        let instance =
-            Instance::with_environment(symbol_id, arguments, parameter_symbols, inherited_arity)
-                .map_err(|error| {
-                    self.internal_analyze_error_for_scope(
-                scope,
-                format!(
-                    "invalid committed instance environment for symbol {symbol_id:?}: {error:?}"
-                ),
-            )
-                })?;
-        Ok(types.insert_instance(instance))
-    }
-
-    /// Commit one instance fact for one symbol and return an obligation when needed.
-    pub(crate) fn commit_instance_for_symbol_maybe_with_obligation(
+    /// Record one instance for one symbol and return an obligation when needed.
+    pub(crate) fn record_provisional_instance_for_symbol_maybe_with_obligation(
         &self,
         symbol_id: GlobalSymbolId,
         environment: StaticSubstitutionEnvironment,
@@ -318,42 +267,30 @@ impl Compiler {
             return Ok((None, None));
         }
 
-        let scope = "commit_instance_for_symbol_maybe_with_obligation";
-        let environment =
-            self.normalize_instance_environment_for_commit(scope, symbol_id, environment)?;
-
-        match self.query_instance_for_symbol_environment(
+        let environment = self.normalize_instance_environment_for_commit(symbol_id, environment)?;
+        let existing_instance = self.query_instance_for_symbol_environment(
             symbol_id,
             &environment.arguments,
             &environment.parameter_symbols,
             environment.inherited_arity,
             types,
-        ) {
-            Some(InstanceMatch::Exact(existing)) => Ok((Some(existing), None)),
-            Some(InstanceMatch::Conflict) => Err(self.internal_analyze_error_for_scope(
-                scope,
-                format!(
-                    "conflicting canonical instance environment for symbol {symbol_id:?}: arguments={:?}, parameters={:?}, inherited_arity={}",
-                    environment.arguments,
-                    environment.parameter_symbols,
-                    environment.inherited_arity,
-                ),
-            )),
-            None => {
-                let obligation = InstanceCommitObligation {
-                    symbol_id,
-                    static_arguments: environment.arguments.clone(),
-                    static_parameter_symbols: environment.parameter_symbols.clone(),
-                    inherited_static_argument_count: environment.inherited_arity,
-                };
-                let obligation_id = infer.upsert_instance_commit_obligation(obligation);
-                Ok((None, Some(obligation_id)))
-            }
+        )?;
+        if let Some(existing_instance) = existing_instance {
+            return Ok((Some(existing_instance), None));
         }
+
+        let obligation = InstanceCommitObligation {
+            symbol_id,
+            static_arguments: environment.arguments.clone(),
+            static_parameter_symbols: environment.parameter_symbols.clone(),
+            inherited_static_argument_count: environment.inherited_arity,
+        };
+        let obligation_id = infer.upsert_instance_commit_obligation(obligation);
+        Ok((None, Some(obligation_id)))
     }
 
-    /// Commit one instance fact for one node.
-    pub(crate) fn commit_instance_for_node(
+    /// Record one instance for one node.
+    pub(crate) fn record_provisional_instance_for_node(
         &self,
         node_id: GlobalNodeIdAny,
         symbol_id: GlobalSymbolId,
@@ -361,46 +298,32 @@ impl Compiler {
         infer: &mut InferTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalInstanceId>> {
-        let scope = "commit_instance_for_node";
-        let environment =
-            self.normalize_instance_environment_for_commit(scope, symbol_id, environment)?;
-
-        match self.query_instance_for_symbol_environment(
+        let environment = self.normalize_instance_environment_for_commit(symbol_id, environment)?;
+        let existing_instance = self.query_instance_for_symbol_environment(
             symbol_id,
             &environment.arguments,
             &environment.parameter_symbols,
             environment.inherited_arity,
             types,
-        ) {
-            Some(InstanceMatch::Exact(existing)) => {
-                types.set_instance_for_node(node_id, existing);
-                Ok(Some(existing))
-            }
-            Some(InstanceMatch::Conflict) => Err(self.internal_analyze_error_for_scope(
-                scope,
-                format!(
-                    "conflicting canonical instance environment for symbol {symbol_id:?}: arguments={:?}, parameters={:?}, inherited_arity={}",
-                    environment.arguments,
-                    environment.parameter_symbols,
-                    environment.inherited_arity,
-                ),
-            )),
-            None => {
-                let obligation = InstanceCommitObligation {
-                    symbol_id,
-                    static_arguments: environment.arguments.clone(),
-                    static_parameter_symbols: environment.parameter_symbols.clone(),
-                    inherited_static_argument_count: environment.inherited_arity,
-                };
-                let obligation_id = infer.upsert_instance_commit_obligation(obligation);
-                infer.set_instance_commit_obligation_for_node(node_id, obligation_id);
-                Ok(None)
-            }
+        )?;
+        if let Some(existing_instance) = existing_instance {
+            infer.set_provisional_instance_for_node(node_id, existing_instance);
+            return Ok(Some(existing_instance));
         }
+
+        let obligation = InstanceCommitObligation {
+            symbol_id,
+            static_arguments: environment.arguments.clone(),
+            static_parameter_symbols: environment.parameter_symbols.clone(),
+            inherited_static_argument_count: environment.inherited_arity,
+        };
+        let obligation_id = infer.upsert_instance_commit_obligation(obligation);
+        infer.set_instance_commit_obligation_for_node(node_id, obligation_id);
+        Ok(None)
     }
 
-    /// Commit one instance fact for one node when arguments are non-empty.
-    pub(crate) fn commit_instance_for_node_maybe(
+    /// Record one instance for one node when arguments are non-empty.
+    pub(crate) fn record_provisional_instance_for_node_maybe(
         &self,
         node_id: GlobalNodeIdAny,
         symbol_id: GlobalSymbolId,
@@ -415,7 +338,7 @@ impl Compiler {
             return Ok(None);
         }
 
-        self.commit_instance_for_node(node_id, symbol_id, environment, infer, types)
+        self.record_provisional_instance_for_node(node_id, symbol_id, environment, infer, types)
     }
 
     /// Collect instance arguments recorded on a member expression.

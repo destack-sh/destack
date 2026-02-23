@@ -1,5 +1,5 @@
 use super::*;
-use destack_dir::InferTable;
+use destack_dir::{InferTable, LocalInstanceId};
 
 impl Compiler {
     /// Extend substitutions with owner-parameter slots derived from inherited arguments.
@@ -67,8 +67,8 @@ impl Compiler {
         substitutions
     }
 
-    /// Commit instance arguments for a resolved member symbol.
-    pub(crate) fn commit_member_instance_for_arguments(
+    /// Record instance arguments for a resolved member symbol.
+    pub(crate) fn record_member_instance_for_arguments(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -82,7 +82,7 @@ impl Compiler {
         symbols: &SymbolTable,
         infer: &mut InferTable,
         types: &mut TypeTable,
-    ) -> AnalyzeResult<Option<destack_dir::LocalInstanceId>> {
+    ) -> AnalyzeResult<Option<LocalInstanceId>> {
         let substitutions = self.merge_member_substitutions(inherited, extension_context);
         let base_instance_arguments = self.infer_member_instance_base_arguments(
             &inherited.arguments,
@@ -104,7 +104,7 @@ impl Compiler {
             return Ok(None);
         };
 
-        self.commit_instance_for_node_maybe(
+        self.record_provisional_instance_for_node_maybe(
             expression_id.into_global_any(module.id),
             member_symbol,
             environment,

@@ -294,7 +294,7 @@ impl Compiler {
         })
     }
 
-    /// Resolve symbol space for one global symbol when declare facts are available.
+    /// Resolve symbol space for one global symbol when declare commitments are available.
     fn query_symbol_space_for_global_if_declared(
         &self,
         module: &Module,

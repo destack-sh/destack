@@ -1,4 +1,5 @@
 use super::*;
+use destack_dir::NodeTree;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -64,6 +65,13 @@ impl Compiler {
         // substitute static parameter references with constraints
         let type_id =
             self.resolve_assignability_static_constraint(module, profile, type_id, symbols, types);
+
+        // preserve newtype references as nominal assignability boundaries
+        if let Some(symbol) = self.unwrap_type_value_symbol(types, type_id)
+            && symbol.ty() == SymbolType::Newtype
+        {
+            return type_id;
+        }
 
         // normalize the prepared type once so downstream checks see a stable shape
         self.normalize_type(
@@ -542,7 +550,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         type_id: LocalTypeId,
-        tree: &destack_dir::NodeTree,
+        tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) {

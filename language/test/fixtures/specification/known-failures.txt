@@ -1,5 +1,4 @@
 destack_test::specification::declarations/associated-comptime/array-shapes.md/array-shapes/layout-aliases-require-as-comptime-to-force-fixed-size-when-indexed-access-is-admissible
-destack_test::specification::declarations/associated-comptime/basic.md/basic/associated-comptime-projections-can-drive-fixed-array-aliases
 destack_test::specification::declarations/associated-comptime/modules.md/modules/renamed-re-exports-preserve-mapped-aliases-that-use-associated-comptime-defaults
 destack_test::specification::declarations/associated-comptime/type-operators.md/type-operators/conditional-associated-comptime-defaults-can-shape-mapped-packet-aliases
 destack_test::specification::declarations/associated-types/modules.md/modules/associated-projections-stay-precise-inside-imported-mapped-aliases
@@ -43,12 +42,6 @@ destack_test::specification::expressions/loops/iterator.md/for-in/for-of-values-
 destack_test::specification::expressions/patterns/array.md/array-patterns/array-patterns-reject-non-iterable-initializers
 destack_test::specification::expressions/patterns/tuple.md/tuple-patterns/tuple-patterns-reject-arity-mismatch
 destack_test::specification::expressions/try/options.md/noexceptions/noexceptions-allows-try-when-no-throw-occurs
-destack_test::specification::flow/if/ternary.md/cross-module-literal-precision/branch-const-assertions-preserve-ternary-object-member-literal-unions-across-modules
-destack_test::specification::flow/if/ternary.md/cross-module-literal-precision/exported-const-ternary-object-members-do-not-keep-literal-unions-across-modules
-destack_test::specification::flow/if/ternary.md/cross-module-literal-precision/exported-const-ternary-object-members-widen-across-modules
-destack_test::specification::flow/if/ternary.md/cross-module-literal-precision/exported-const-ternary-values-preserve-literal-unions-across-modules
-destack_test::specification::flow/if/ternary.md/cross-module-literal-precision/exported-let-ternary-values-widen-across-modules
-destack_test::specification::flow/if/ternary.md/inference-interactions/const-ternary-templates-preserve-span-unions-in-generic-template-inference
 destack_test::specification::flow/match/decorators.md/match-arms/duplicate-likely-decorators-on-one-arm-are-rejected
 destack_test::specification::flow/match/decorators.md/match-arms/match-arm-decorators-reject-duplicate-cold-decorators
 destack_test::specification::flow/narrowing/invalidation.md/local-writes/assignment-invalidates-discriminant-member-availability
@@ -100,11 +93,6 @@ destack_test::specification::types/parameterization/parameters.md/const-type-par
 destack_test::specification::types/parameterization/parameters.md/const-type-parameters/non-const-function-parameters-widen-tuple-literal-arguments
 destack_test::specification::types/parameterization/parameters.md/const-type-parameters/out-modifiers-are-allowed-on-type-aliases
 destack_test::specification::types/structs/embedding.md/embedded-fields/struct-embedding-rejects-duplicate-field-declarations
-destack_test::specification::types/template-literals/inference-arguments.md/cross-module-literal-precision-behavior/export-star-generic-t-parser-widens-mutable-scalar-inputs
-destack_test::specification::types/template-literals/inference-arguments.md/cross-module-literal-precision-behavior/template-inference-widens-mutable-object-member-literals
-destack_test::specification::types/template-literals/inference-arguments.md/cross-module-literal-precision-behavior/template-literal-argument-inference-accepts-widened-let-scalar-inputs-for-t
-destack_test::specification::types/template-literals/inference-arguments.md/cross-module-literal-precision-behavior/template-literal-argument-inference-preserves-const-ternary-unions-for-t
-destack_test::specification::types/template-literals/inference-arguments.md/cross-module-literal-precision-behavior/template-literal-parser-infers-union-spans-from-const-ternary-arguments
 destack_test::specification::types/template-literals/modules.md/modules/associated-template-mapped-conditionals-preserve-precision-through-export-star-barrels
 destack_test::specification::types/template-literals/modules.md/modules/associated-template-mapped-conditionals-preserve-precision-through-namespace-imports
 destack_test::specification::types/template-literals/modules.md/modules/conditional-template-aliases-distribute-unions-through-export-star-barrels

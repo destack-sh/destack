@@ -1,6 +1,131 @@
 use super::*;
 use crate::analyze::common::AnalyzeDependencyStage;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ParallelValueKind {
+    IntLiteral,
+    NumberPrimitive,
+    IntPrimitive,
+    Error,
+    Other,
+}
+
+fn add_parallel_analyze_stress_modules(test: &TestProgram) -> ModuleId {
+    test.add_module(
+        "dep.ds",
+        r#"
+export enum Mode {
+    A = 1,
+    B = 2,
+}
+
+export function pick(flag: boolean): Mode {
+    if (flag) {
+        return Mode.A;
+    }
+
+    return Mode.B;
+}
+"#,
+    );
+    test.add_module(
+        "bridge.ds",
+        r#"
+import { pick } from "./dep.ds";
+
+export function wrap(flag: boolean) {
+    return pick(flag);
+}
+"#,
+    );
+    test.add_module(
+        "leaf.ds",
+        r#"
+import { wrap } from "./bridge.ds";
+
+export const value = wrap(true);
+"#,
+    )
+}
+
+fn value_kind_for_symbol(view: &TestModuleView<'_>, symbol: GlobalSymbolId) -> ParallelValueKind {
+    let type_id = view.expect_value_type_id(symbol);
+    match view.types().get_type(type_id) {
+        Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_)),
+        } => ParallelValueKind::IntLiteral,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number),
+        } => ParallelValueKind::NumberPrimitive,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(_)),
+        } => ParallelValueKind::IntPrimitive,
+        Type::Error => ParallelValueKind::Error,
+        _ => ParallelValueKind::Other,
+    }
+}
+
+/// Keep parallel analyze runs live and diagnostic clean for repeated module-graph work.
+#[test]
+fn test_parallel_analyze_repeated_runs_stay_live_and_clean() {
+    for _ in 0..10 {
+        let test = TestProgram::memory_parallel();
+        let leaf_id = add_parallel_analyze_stress_modules(&test);
+
+        test.analyze_module_and_check_clean(leaf_id);
+    }
+}
+
+/// Keep sequential and parallel analyze aligned for a representative cross-module value.
+#[test]
+fn test_parallel_analyze_matches_sequential_value_kind() {
+    let sequential = TestProgram::memory_sequential();
+    let sequential_leaf = add_parallel_analyze_stress_modules(&sequential);
+    sequential.analyze_module_and_check_clean(sequential_leaf);
+    let sequential_view = sequential.view(sequential_leaf);
+    let sequential_symbol = sequential
+        .resolve_to_symbol("leaf.ds", "value")
+        .expect("expected value symbol in sequential run");
+    let sequential_kind = value_kind_for_symbol(&sequential_view, sequential_symbol);
+
+    let parallel = TestProgram::memory_parallel();
+    let parallel_leaf = add_parallel_analyze_stress_modules(&parallel);
+    parallel.analyze_module_and_check_clean(parallel_leaf);
+    let parallel_view = parallel.view(parallel_leaf);
+    let parallel_symbol = parallel
+        .resolve_to_symbol("leaf.ds", "value")
+        .expect("expected value symbol in parallel run");
+    let parallel_kind = value_kind_for_symbol(&parallel_view, parallel_symbol);
+
+    assert_eq!(parallel_kind, sequential_kind);
+    assert_ne!(parallel_kind, ParallelValueKind::Error);
+}
+
+/// Report imprecise primitive diagnostics for inferred Number constructor calls.
+#[test]
+fn test_no_imprecise_primitives_reports_number_constructor_call() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es5"]);
+    test.add_dsconfig(
+        r#"{
+            "compilerOptions": {
+                "noAny": false,
+                "noImprecisePrimitives": true
+            }
+        }"#,
+    );
+    let module_id = test.add_module(
+        "main.ds",
+        r#"
+let value = Number(1);
+"#,
+    );
+
+    test.analyze_module(module_id);
+    test.compile();
+
+    test.check_has_diagnostic("EA806");
+}
+
 /// Merge global interface members across imported modules.
 #[test]
 fn test_merge_global_declarations_across_imports() {
@@ -395,8 +520,6 @@ let x = value;
 
     // load typed module data
     let view = test.view(module_id);
-
-    // x should have int32 type (imported from lib.ds)
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
     let x_ty_id = view.types().get_value_type_id(x_symbol).unwrap();
 
@@ -1340,6 +1463,45 @@ export let b = a;
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))
         }
+    );
+}
+
+/// Keep export surface initializer commitment aligned with local declarator commitment.
+#[test]
+fn test_analyze_export_surface_satisfies_uses_same_commitment_as_local_declarators() {
+    // arrange module with equivalent local and exported declarators
+    let test = TestProgram::memory_parallel();
+    let module_id = test.analyze_module_with_source(
+        "producer.ds",
+        r#"
+let local = "alpha" satisfies string;
+export let exported = "alpha" satisfies string;
+"#,
+    );
+
+    // read local and exported value types
+    let view = test.view(module_id);
+    let local_symbol = test
+        .resolve_to_symbol("producer.ds", "local")
+        .expect("expected local symbol");
+    let exported_symbol = test
+        .resolve_to_symbol("producer.ds", "exported")
+        .expect("expected exported symbol");
+    let local_type_id = view
+        .types()
+        .get_value_type_id(local_symbol)
+        .expect("expected local type");
+    let exported_type_id = view
+        .types()
+        .get_value_type_id(exported_symbol)
+        .expect("expected exported type");
+
+    // local and exported commitment paths should produce the same type shape
+    let local_ty = view.types().get_type(local_type_id).clone();
+    let exported_ty = view.types().get_type(exported_type_id).clone();
+    assert_eq!(
+        local_ty, exported_ty,
+        "expected local and exported declarator commitment to agree",
     );
 }
 

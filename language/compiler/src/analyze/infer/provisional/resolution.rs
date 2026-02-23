@@ -1,36 +1,36 @@
-use super::member::MemberResolution;
 use crate::Compiler;
+use crate::analyze::infer::member::MemberResolution;
 use destack_dir::{
-    DispatchKey, GlobalNodeIdAny, GlobalSymbolId, LocalInstanceId, LocalResolutionId, LocalTypeId,
+    DispatchKey, GlobalNodeIdAny, GlobalSymbolId, InferTable, LocalInstanceId, LocalTypeId,
     Resolution, ResolutionCandidate, ResolvedSignature, TypeTable,
 };
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Commit a builtin resolution for a node.
-    pub(crate) fn commit_builtin_resolution(
+    /// Record a builtin resolution for a node.
+    pub(crate) fn record_provisional_builtin_resolution(
         &self,
         node_id: GlobalNodeIdAny,
         receiver_ty_id: Option<LocalTypeId>,
-        types: &mut TypeTable,
+        infer: &mut InferTable,
+        _types: &mut TypeTable,
     ) {
         let resolution = Resolution::Builtin {
             receiver: receiver_ty_id,
         };
-
-        let resolution_id = types.insert_resolution(resolution);
-        types.set_resolution_for_node(node_id, resolution_id);
+        infer.set_provisional_resolution_for_node(node_id, resolution);
     }
 
-    /// Commit a static resolution for a node.
-    pub(crate) fn commit_static_resolution(
+    /// Record a static resolution for a node.
+    pub(crate) fn record_provisional_static_resolution(
         &self,
         node_id: GlobalNodeIdAny,
         receiver_ty_id: Option<LocalTypeId>,
         target_symbol: GlobalSymbolId,
         instance_id: Option<LocalInstanceId>,
         resolved_signature: Option<ResolvedSignature>,
-        types: &mut TypeTable,
+        infer: &mut InferTable,
+        _types: &mut TypeTable,
     ) {
         let candidate = ResolutionCandidate {
             key: None,
@@ -42,31 +42,27 @@ impl Compiler {
             receiver: receiver_ty_id,
             candidate,
         };
-
-        let resolution_id = types.insert_resolution(resolution);
-        types.set_resolution_for_node(node_id, resolution_id);
+        infer.set_provisional_resolution_for_node(node_id, resolution);
     }
 
-    /// Commit a dynamic resolution for a node.
-    pub(crate) fn commit_dynamic_resolution(
+    /// Record a dynamic resolution for a node.
+    pub(crate) fn record_provisional_dynamic_resolution(
         &self,
         node_id: GlobalNodeIdAny,
         receiver_ty_id: Option<LocalTypeId>,
         candidates: Vec<ResolutionCandidate>,
-        types: &mut TypeTable,
-    ) -> LocalResolutionId {
+        infer: &mut InferTable,
+        _types: &mut TypeTable,
+    ) {
         let resolution = Resolution::Dynamic {
             receiver: receiver_ty_id,
             candidates,
         };
-
-        let resolution_id = types.insert_resolution(resolution);
-        types.set_resolution_for_node(node_id, resolution_id);
-        resolution_id
+        infer.set_provisional_resolution_for_node(node_id, resolution);
     }
 
-    /// Commit the resolution for a member lookup.
-    pub(crate) fn commit_member_resolution(
+    /// Record the resolution for a member lookup.
+    pub(crate) fn record_provisional_member_resolution(
         &self,
         node_id: GlobalNodeIdAny,
         receiver_ty_id: Option<LocalTypeId>,
@@ -74,18 +70,20 @@ impl Compiler {
         instance_id: Option<LocalInstanceId>,
         resolved_signature: Option<ResolvedSignature>,
         has_member: bool,
+        infer: &mut InferTable,
         types: &mut TypeTable,
     ) {
         // TODO #Architecture: store instantiation context on resolution entries
         if has_member {
             match resolution {
                 MemberResolution::Static { symbol } => {
-                    self.commit_static_resolution(
+                    self.record_provisional_static_resolution(
                         node_id,
                         receiver_ty_id,
                         *symbol,
                         instance_id,
                         resolved_signature,
+                        infer,
                         types,
                     );
                 }
@@ -99,45 +97,52 @@ impl Compiler {
                             resolved_signature: None,
                         })
                         .collect();
-                    self.commit_dynamic_resolution(node_id, receiver_ty_id, candidates, types);
+                    self.record_provisional_dynamic_resolution(
+                        node_id,
+                        receiver_ty_id,
+                        candidates,
+                        infer,
+                        types,
+                    );
                 }
                 MemberResolution::Unresolved | MemberResolution::None => {
-                    self.commit_unresolved_resolution(
+                    self.record_provisional_unresolved_resolution(
                         node_id,
                         receiver_ty_id,
                         Vec::new(),
                         Vec::new(),
+                        infer,
                         types,
                     );
                 }
             }
         } else {
-            self.commit_unresolved_resolution(
+            self.record_provisional_unresolved_resolution(
                 node_id,
                 receiver_ty_id,
                 Vec::new(),
                 Vec::new(),
+                infer,
                 types,
             );
         }
     }
 
-    /// Commit an unresolved resolution for a node.
-    pub(crate) fn commit_unresolved_resolution(
+    /// Record an unresolved resolution for a node.
+    pub(crate) fn record_provisional_unresolved_resolution(
         &self,
         node_id: GlobalNodeIdAny,
         receiver_ty_id: Option<LocalTypeId>,
         missing_keys: Vec<DispatchKey>,
         candidates: Vec<ResolutionCandidate>,
-        types: &mut TypeTable,
+        infer: &mut InferTable,
+        _types: &mut TypeTable,
     ) {
         let resolution = Resolution::Unresolved {
             receiver: receiver_ty_id,
             missing_keys,
             candidates,
         };
-
-        let resolution_id = types.insert_resolution(resolution);
-        types.set_resolution_for_node(node_id, resolution_id);
+        infer.set_provisional_resolution_for_node(node_id, resolution);
     }
 }

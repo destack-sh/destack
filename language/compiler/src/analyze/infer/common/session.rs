@@ -45,4 +45,9 @@ impl InferSession {
     pub fn parts_mut(&mut self) -> (&mut InferTable, &mut InferContext) {
         (&mut self.table, &mut self.context)
     }
+
+    /// Consume the session and return the infer table.
+    pub fn into_table(self) -> InferTable {
+        self.table
+    }
 }

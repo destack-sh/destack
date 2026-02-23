@@ -52,20 +52,6 @@ impl Compiler {
         Ok(handle(&remote_module, &remote_types))
     }
 
-    /// Provide mutable type tables with stage-gated cross-module reads.
-    pub(crate) fn with_module_types_mut_at_stage<R>(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        module_id: ModuleId,
-        stage: AnalyzeDependencyStage,
-        handle: impl FnOnce(&Module, &mut TypeTable) -> R,
-    ) -> Result<R, TaskDependencyError> {
-        self.require_stage_for_remote_module_read(module.id, module_id, profile, stage)?;
-
-        Ok(self.with_module_types_mut_unchecked(module, profile, module_id, handle))
-    }
-
     /// Provide the type table for a module in the given profile.
     fn with_module_types_unchecked<R>(
         &self,
@@ -102,26 +88,5 @@ impl Compiler {
         }
 
         self.with_module_types_unchecked(module, profile, module_id, handle)
-    }
-
-    /// Provide the type table for a module in the given profile, with mutable access.
-    fn with_module_types_mut_unchecked<R>(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        module_id: ModuleId,
-        handle: impl FnOnce(&Module, &mut TypeTable) -> R,
-    ) -> R {
-        // use the current module when it matches
-        if module_id == module.id {
-            let mut types = module.dir(profile).types.write();
-            return handle(module, &mut types);
-        }
-
-        // otherwise load the module from the program
-        let remote_module = self.program.modules.get(module_id);
-        let remote_module = remote_module.read();
-        let mut remote_types = remote_module.dir(profile).types.write();
-        handle(&remote_module, &mut remote_types)
     }
 }
