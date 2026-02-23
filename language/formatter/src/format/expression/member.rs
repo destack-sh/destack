@@ -3,8 +3,7 @@ use crate::format::expression::{
     DestackFormatter, Expression, FormatResult, LocalNodeId, NodeTree, ParenthesizedUnwrapMode,
     PostfixPosition, Span, StringId, block_indent, format_static_argument_list, format_with, group,
     indent, line_postfix_boundary, should_parenthesize_index_expression,
-    should_unwrap_parenthesized, soft_line_break, span_has_comment, token,
-    write_postfix_base_expression,
+    should_unwrap_parenthesized, soft_line_break, token, write_postfix_base_expression,
 };
 use destack_fir::format::Buffer;
 use destack_fir::{format_args, write};
@@ -206,7 +205,7 @@ pub(crate) fn format_type_template_literal<'ast>(
     }
 
     for (span, segment) in spans.iter().zip(string_segments) {
-        let span_has_comment_annotation = span_has_comment(f.context(), f.context().span(*span));
+        let span_has_comment_annotation = f.context().has_comment(f.context().span(*span));
         let span_has_source_newline = f.context().node_has_newline(*span);
         let span_is_type_conditional = matches!(
             f.context().tree.get(*span),

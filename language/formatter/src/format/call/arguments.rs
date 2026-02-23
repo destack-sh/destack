@@ -1,12 +1,11 @@
 use crate::FormatNode;
 use crate::format::analysis::{
     argument_has_leading_prefix_annotation_outside_span, argument_has_multiline_prefix_annotation,
-    argument_has_non_blank_annotation, argument_has_separator_line_comment_annotation,
-    argument_is_inline_closure_cast_object, argument_is_interpolated_template_literal,
-    call_arguments_have_boundary_comments, call_arguments_preserve_blank_line_between,
-    call_has_static_arguments, next_non_whitespace_token_after_annotation,
-    previous_non_whitespace_token_before_annotation, previous_non_whitespace_token_before_span,
-    timing,
+    argument_has_separator_line_comment_annotation, argument_is_inline_closure_cast_object,
+    argument_is_interpolated_template_literal, call_arguments_have_boundary_comments,
+    call_arguments_preserve_blank_line_between, call_has_static_arguments,
+    next_non_whitespace_token_after_annotation, previous_non_whitespace_token_before_annotation,
+    previous_non_whitespace_token_before_span, timing,
 };
 use crate::format::call::layout::{
     CallArgumentLayout, argument_has_callback_blocking_comment_annotation, call_argument_layout,
@@ -271,7 +270,7 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
         && !has_boundary_comments
         && {
             let value_id = argument_value_id(f.context().tree, argument_id);
-            !argument_has_non_blank_annotation(f.context(), argument_id)
+            !f.context().has_non_blank_annotation(argument_id)
                 && !f.context().has_non_blank_annotation(value_id)
                 && !argument_has_callback_blocking_comment_annotation(f.context(), argument_id)
                 && !argument_has_leading_prefix_annotation_outside_span(f.context(), argument_id)
@@ -292,7 +291,7 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
         && !has_boundary_comments
         && {
             let value_id = argument_value_id(f.context().tree, argument_id);
-            !argument_has_non_blank_annotation(f.context(), argument_id)
+            !f.context().has_non_blank_annotation(argument_id)
                 && !f.context().has_non_blank_annotation(value_id)
                 && !argument_has_callback_blocking_comment_annotation(f.context(), argument_id)
                 && !argument_has_leading_prefix_annotation_outside_span(f.context(), argument_id)
@@ -660,13 +659,6 @@ fn separator_line_comment_is_own_line(
 }
 
 /// Return whether one annotation is a separator line comment.
-fn annotation_is_separator_line_comment(
-    context: &DestackFormatContext<'_>,
-    annotation_id: LocalNodeId<Annotation>,
-) -> bool {
-    separator_line_comment_annotation_info(context, annotation_id).is_some()
-}
-
 /// Return one separator comment source from one annotation list and filter.
 fn separator_line_comment_source_from_annotations<F>(
     context: &DestackFormatContext<'_>,
@@ -796,7 +788,7 @@ fn argument_has_non_separator_postfix_or_infix_annotation(
                 );
                 is_postfix_or_infix
                     && !matches!(context.annotation(*annotation_id), Annotation::Blank { .. })
-                    && !annotation_is_separator_line_comment(context, *annotation_id)
+                    && separator_line_comment_annotation_info(context, *annotation_id).is_none()
             })
         })
         .unwrap_or(false)
@@ -1424,7 +1416,7 @@ pub(crate) fn argument_should_emit_prefix_annotations(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    if argument_has_satisfies_static_seam_prefix_line_comment(context, argument_id) {
+    if argument_satisfies_static_seam_comment_annotation_id(context, argument_id).is_some() {
         return false;
     }
 
@@ -1480,14 +1472,6 @@ pub(crate) fn argument_satisfies_static_seam_comment_annotation_id(
     }
 
     seam_comment_id
-}
-
-/// Return whether this argument has one satisfies static seam prefix line comment.
-fn argument_has_satisfies_static_seam_prefix_line_comment(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    argument_satisfies_static_seam_comment_annotation_id(context, argument_id).is_some()
 }
 
 /// Return whether one argument is the first static argument in a satisfies rhs path with multiple arguments.

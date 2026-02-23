@@ -8,8 +8,7 @@ use crate::format::expression::{
     Argument, BinaryOperator, DestackFormatContext, DestackFormatter, Expression, FormatResult,
     HugOptions, IfCondition, IfKind, Keyword, LocalNodeId, NodeType, ParenthesizedDropMode,
     TypeModifier, TypePredicateSubject, argument_value_id, array_elements_are_fill_candidates,
-    array_has_only_boundary_comments, block_indent,
-    expression_is_in_template_literal_interpolation, format_boundary_comment_array,
+    array_has_only_boundary_comments, block_indent, format_boundary_comment_array,
     format_expression, format_fill_array, format_hugged, format_scalar_literal,
     format_static_argument_list, format_struct_literal, format_template_literal,
     format_type_index_expression, format_type_template_literal, format_with, group,
@@ -20,7 +19,7 @@ use crate::format::expression::{
     parenthesized_has_leading_inner_trivia, sequence_expression_needs_parens,
     should_drop_parenthesized, should_force_multiline_mapped_type,
     should_hoist_parenthesized_inner_cast_prefix_comments, soft_block_indent, soft_line_break,
-    soft_line_break_or_space, space, span_has_comment, token, transparent_inner_expression,
+    soft_line_break_or_space, space, token, transparent_inner_expression,
     tree_literal_should_break,
 };
 use crate::format::tree::format_tree_literal_expression;
@@ -443,10 +442,11 @@ pub(crate) fn format_primary_expression<'ast>(
                     ]
                 )
             });
-            let should_double_indent_tail =
-                expression_is_in_template_literal_interpolation(f.context(), node_id)
-                    && f.context()
-                        .expression_has_type_conditional_ancestor(node_id);
+            let should_double_indent_tail = f
+                .context()
+                .expression_is_in_template_literal_interpolation(node_id)
+                && f.context()
+                    .expression_has_type_conditional_ancestor(node_id);
             if should_double_indent_tail {
                 write!(
                     f,
@@ -899,7 +899,7 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
             }
         ) {
             let should_keep_multiline = f.context().has_annotation(*expression)
-                || span_has_comment(f.context(), f.context().span(*expression));
+                || f.context().has_comment(f.context().span(*expression));
             if should_keep_multiline {
                 write!(
                     f,

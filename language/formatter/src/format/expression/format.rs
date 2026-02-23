@@ -1,7 +1,7 @@
 use crate::format::analysis::{
     first_non_trivia_token_in_span, last_non_trivia_token_in_span, timing,
 };
-use crate::format::chain::{should_expand_static_argument_list, should_hug_static_argument_list};
+use crate::format::chain::{should_expand_static_argument_list, static_argument_list_is_hug_safe};
 use crate::format::collection::list_like;
 use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition,
@@ -181,7 +181,7 @@ pub(crate) fn format_static_argument_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     static_arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
-    if should_hug_static_argument_list(f.context(), static_arguments) {
+    if static_argument_list_is_hug_safe(f.context(), static_arguments) {
         write!(f, [token("<")])?;
         for (index, argument_id) in static_arguments.iter().enumerate() {
             if index > 0 {
@@ -482,11 +482,6 @@ pub fn is_pattern_breakable(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -
         | Pattern::TaggedTuple { fields, .. } => !fields.is_empty(),
         _ => false,
     }
-}
-
-/// Check if a span includes any comment tokens.
-pub(crate) fn span_has_comment(context: &DestackFormatContext<'_>, span: Span) -> bool {
-    context.has_comment(span)
 }
 
 /// Return whether array elements are simple enough for concise fill formatting.

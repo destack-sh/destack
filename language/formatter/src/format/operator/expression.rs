@@ -10,8 +10,8 @@ use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, DestackFormatContext, DestackFormatter, Expression,
     FormatResult, LocalNodeId, ParenthesizedUnwrapMode, TypeUnaryOperator, UnaryOperator,
     expression_has_leading_prefix_comment, format_static_argument_list, format_with,
-    hard_line_break, parenthesized_prefers_new_member_callee_parentheses,
-    should_unwrap_parenthesized, space, token,
+    hard_line_break, member_object_prefers_new_callee_parentheses, should_unwrap_parenthesized,
+    space, token,
 };
 use crate::format::operator::assign::format_assign_expression;
 use crate::format::operator::binary::{format_binary_expression, format_type_binary_expression};
@@ -105,7 +105,7 @@ pub(crate) fn format_new_expression<'ast>(
             } | Expression::PrivateMember {
                 left: member_left,
                 ..
-            } if parenthesized_prefers_new_member_callee_parentheses(
+            } if member_object_prefers_new_callee_parentheses(
                 f.context(),
                 *member_left
             )

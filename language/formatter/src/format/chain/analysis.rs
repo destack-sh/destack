@@ -1,10 +1,9 @@
 use crate::format::chain::{
     Annotation, AnnotationPosition, Argument, ArgumentSimplicityOptions, ChainExpression,
     Declaration, DestackFormatContext, Expression, FunctionKind, LocalNodeId, NodeTree, NodeType,
-    ScalarLiteral, Span, TokenType, argument_has_non_blank_annotation,
-    argument_is_simple_with_options, call_arguments_force_expand_for_chain,
-    call_has_non_blank_infix_annotation, chain_node_has_non_inline_annotation, chain_node_left_id,
-    is_chain_expression, is_expression_breakable, span_has_comment, transparent_inner_expression,
+    ScalarLiteral, Span, TokenType, argument_is_simple_with_options,
+    call_arguments_force_expand_for_chain, chain_node_has_non_inline_annotation,
+    chain_node_left_id, is_chain_expression, is_expression_breakable, transparent_inner_expression,
     tree_literal_should_break,
 };
 use crate::format::operator::expression_static_arguments;
@@ -53,10 +52,7 @@ pub(crate) fn has_comment_between_expressions(
         return false;
     }
 
-    span_has_comment(
-        context,
-        Span::new(left_span.file, left_span.end, right_span.start),
-    )
+    context.has_comment(Span::new(left_span.file, left_span.end, right_span.start))
 }
 
 /// Return whether a `//` comment exists between two expression nodes.
@@ -186,7 +182,7 @@ pub(crate) fn is_simple_chain_call(
     dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> bool {
     // annotated calls are never simple
-    if call_has_non_blank_infix_annotation(context, node_id) {
+    if context.has_non_blank_infix_annotation(node_id) {
         return false;
     }
 
@@ -575,7 +571,7 @@ pub(crate) fn member_has_intervening_comment(
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     member_receiver_property_gap_span(context, node_id)
-        .is_some_and(|span| span_has_comment(context, span))
+        .is_some_and(|span| context.has_comment(span))
 }
 
 /// Check if a member access has an intervening break or comment between receiver and property.
@@ -585,14 +581,14 @@ pub(crate) fn member_has_intervening_break_or_comment(
 ) -> bool {
     // member and private member: inspect the trivia gap between receiver and property
     if let Some(span) = member_receiver_property_gap_span(context, node_id) {
-        return context.has_newline(span) || span_has_comment(context, span);
+        return context.has_newline(span) || context.has_comment(span);
     }
 
     // path chains: only the first separator can influence root splitting
     if matches!(context.tree.get(node_id), Expression::Path { .. }) {
         let span = context.span(node_id);
         return path_has_newline_before_first_separator(context, node_id)
-            || span_has_comment(context, span);
+            || context.has_comment(span);
     }
 
     false
@@ -720,7 +716,7 @@ pub(crate) fn chain_has_parent_intervening_break_or_comment(
     }
     let between_span = Span::new(node_span.file, node_anchor_end, parent_operator_start);
 
-    context.has_newline(between_span) || span_has_comment(context, between_span)
+    context.has_newline(between_span) || context.has_comment(between_span)
 }
 
 /// Return the concrete span that corresponds to one annotation node.
@@ -842,7 +838,7 @@ pub(crate) fn chain_call_can_expand_in_head(
     static_arguments: &Option<Vec<LocalNodeId<Argument>>>,
     dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    if call_has_non_blank_infix_annotation(context, call_node_id) {
+    if context.has_non_blank_infix_annotation(call_node_id) {
         return false;
     }
 
@@ -856,7 +852,7 @@ pub(crate) fn chain_call_can_expand_in_head(
 
     if dynamic_arguments
         .iter()
-        .any(|argument_id| argument_has_non_blank_annotation(context, *argument_id))
+        .any(|argument_id| context.has_non_blank_annotation(*argument_id))
     {
         return false;
     }
@@ -901,16 +897,8 @@ pub(crate) fn should_expand_static_argument_list(
     })
 }
 
-/// Decide whether static argument lists should stay inline regardless of line width.
-pub(crate) fn should_hug_static_argument_list(
-    context: &DestackFormatContext<'_>,
-    static_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    static_argument_list_is_hug_safe(context, static_arguments)
-}
-
 /// Return whether static arguments are structurally safe for hugged inline formatting.
-fn static_argument_list_is_hug_safe(
+pub(crate) fn static_argument_list_is_hug_safe(
     context: &DestackFormatContext<'_>,
     static_arguments: &[LocalNodeId<Argument>],
 ) -> bool {
@@ -929,7 +917,7 @@ fn static_argument_is_hug_safe(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    if argument_has_non_blank_annotation(context, argument_id) {
+    if context.has_non_blank_annotation(argument_id) {
         return false;
     }
 
@@ -1002,7 +990,7 @@ pub(crate) fn should_force_multiline_mapped_type(
     }
 
     let span = context.span(node_id);
-    if span_has_comment(context, span) {
+    if context.has_comment(span) {
         return true;
     }
 

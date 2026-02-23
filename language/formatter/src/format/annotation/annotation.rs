@@ -343,7 +343,7 @@ mod tests {
     use crate::format::annotation::render::annotation_precedes_separator;
     use crate::{
         Annotation, DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions,
-        TestFormatter, assert_format,
+        TestFormatter, assert_format, statement_list,
     };
     use destack_ast::{
         AnnotationPosition, DeclarationDescriptor, LocalNodeId, NodeParentIndex, NodeType,
@@ -583,7 +583,7 @@ mod tests {
     #[test]
     fn test_type_mapped_remap_line_comment_attachment() {
         let source = "{\n    type Paths<T> = {\n      [K in keyof T as // remap-note\n        `get${Capitalize<K & string>}`]: () => T[K]\n    }\n}";
-        let expected = "{\n    type Paths<T> = {\n        [K in keyof T as `get${Capitalize<K & string> // remap-note\n        }`]: () => T[K],\n    };\n}";
+        let expected = "{\n    type Paths<T> = {\n        [K in keyof T as `get${Capitalize<K & string> // remap-note\n        }`]: () => T[K];\n    };\n}";
         let (formatter, block_id) =
             TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| {
                 p.eat_block(destack_ast::BlockContext::Expression)
@@ -633,6 +633,61 @@ mod tests {
             .expect("expected marker-tagged separator annotation");
         let precedes_separator = annotation_precedes_separator(&context, annotation_id);
         assert!(precedes_separator);
+    }
+
+    /// File-level docs before decorated declarations should keep their declaration ownership.
+    #[test]
+    fn test_annotation_file_level_doc_before_decorator_keeps_following_declaration_owner() {
+        let source = r#"@description("The status of a Meetup.")
+export enum MeetupStatus {
+    @description("The Meetup is a draft.")
+    Draft,
+
+    @description("The Meetup is upcoming.")
+    Upcoming,
+}
+
+/// A Series of related Meetups (with a common prefix).
+@entity
+export class MeetupSeries {
+    @description("The name of the Meetup Series.")
+    name: string;
+}
+"#;
+
+        let (formatter, expressions) =
+            TestFormatter::parse_with_file_type(source, FileType::Destack, |p| Ok(p.parse()))
+                .expect("parse file-level doc ownership source");
+        let context = context_from_formatter(&formatter);
+
+        let annotation_id = find_annotation_by_marker(
+            &context,
+            "A Series of related Meetups (with a common prefix).",
+        )
+        .expect("expected class doc annotation");
+        let _ = find_annotation_target_owner_node(&context, annotation_id)
+            .expect("expected class doc owner node");
+
+        let formatted = formatter.format(
+            &statement_list(expressions.as_slice()),
+            DestackFormatOptions::default(),
+        );
+        let expected = r#"@description("The status of a Meetup.")
+export enum MeetupStatus {
+    @description("The Meetup is a draft.")
+    Draft,
+    @description("The Meetup is upcoming.")
+    Upcoming,
+}
+
+/// A Series of related Meetups (with a common prefix).
+@entity
+export class MeetupSeries {
+    @description("The name of the Meetup Series.")
+    name: string;
+}
+"#;
+        assert_eq!(formatted, expected);
     }
 
     /// Block comments should retain all their newlines (including leading and trailing newlines).
@@ -872,15 +927,12 @@ mod tests {
         );
     }
 
-    /// Comments inside object literals cause expansion.
+    /// Comments inside short object literals stay inline.
     #[test]
     fn test_format_comment_in_object() {
         assert_format!(
             "{ /* key */ a: 1, /* another */ b: 2 }",
-            "{
-    /* key */ a: 1,
-    /* another */ b: 2,
-}",
+            "{ /* key */ a: 1, /* another */ b: 2 }",
             |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
         );

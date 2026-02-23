@@ -3,8 +3,7 @@ use crate::format::chain::flatten_type_binary_expression;
 use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, BinaryOperator, Declaration, DestackFormatContext,
     Expression, FunctionKind, IfKind, LocalNodeId, NodeTree, NodeType, PostfixPosition,
-    TypeBinaryOperator, needs_parens_in_postfix_position, span_has_comment,
-    tree_literal_should_expand,
+    TypeBinaryOperator, needs_parens_in_postfix_position, tree_literal_should_expand,
 };
 use crate::format::operator::{is_simple_type_binary_left_expression, is_type_context};
 use destack_ast::{Comment, CommentStyle};
@@ -71,14 +70,6 @@ pub(crate) fn should_drop_parenthesized(
             )
         }
     }
-}
-
-/// Return whether `new` callee formatting should keep member-object parentheses.
-pub(crate) fn parenthesized_prefers_new_member_callee_parentheses(
-    context: &DestackFormatContext<'_>,
-    object_id: LocalNodeId<Expression>,
-) -> bool {
-    member_object_prefers_new_callee_parentheses(context, object_id)
 }
 
 /// Collect postfix star comments from an inner expression that should render after `)`.
@@ -205,10 +196,10 @@ fn parenthesized_has_leading_inner_pattern(
         return true;
     }
 
-    span_has_comment(context, leading_span)
+    context.has_comment(leading_span)
 }
 
-fn expression_chain_has_optional_maybe(
+fn member_expression_has_optional_chain(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -229,14 +220,6 @@ fn expression_chain_has_optional_maybe(
             _ => return false,
         }
     }
-}
-
-/// Return whether one member expression contains optional chaining semantics.
-pub(crate) fn member_expression_has_optional_chain(
-    context: &DestackFormatContext<'_>,
-    member_id: LocalNodeId<Expression>,
-) -> bool {
-    expression_chain_has_optional_maybe(context, member_id)
 }
 
 /// Decide whether a parenthesized expression can be unwrapped in member object position.
