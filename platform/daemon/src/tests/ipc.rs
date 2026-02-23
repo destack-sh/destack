@@ -62,13 +62,20 @@ fn ensure_ipc_test_environment() -> bool {
 /// Build deterministic server options for ipc tests.
 #[cfg(unix)]
 fn ipc_test_server_options() -> DaemonServerOptions {
-    DaemonServerOptions {
+    // start from deterministic defaults
+    let mut options = DaemonServerOptions {
         shutdown: DaemonShutdownOptions {
             idle_shutdown: None,
             idle_poll: Duration::from_millis(250),
         },
         ..DaemonServerOptions::default()
-    }
+    };
+
+    // run compiler work in a single worker to avoid test contention
+    options.compiler_options.workers = 1;
+
+    // return configured options
+    options
 }
 
 /// Spawn a daemon server thread and return its completion channel.
@@ -128,6 +135,7 @@ fn test_daemon_ipc_roundtrip() {
 
     // request shutdown and join the server
     let _ = connection.client.send_request(DaemonRequest::Shutdown);
+    drop(connection);
     join_daemon_server(handle, server_result_rx);
 }
 

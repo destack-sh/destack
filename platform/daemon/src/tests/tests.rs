@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
+use destack_compiler::CompilerOptions;
 use destack_source::{
     FileId, FileSystem, FileWatchEvent, FileWatchEventKind, FileWatchOptions, MemoryFileSystem,
     MemoryFileWatcher,
@@ -114,7 +115,10 @@ impl TestDaemon {
         for root_path in &roots {
             session.add_root(root_path.clone());
         }
-        let daemon = Daemon::new(session.clone());
+        // keep daemon tests deterministic: use a single compiler worker
+        let mut compiler_options = CompilerOptions::default();
+        compiler_options.workers = 1;
+        let daemon = Daemon::with_options(session.clone(), compiler_options);
 
         Self {
             fs,
