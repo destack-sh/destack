@@ -2,6 +2,7 @@ destack_test::specification::declarations/associated-comptime/array-shapes.md/ar
 destack_test::specification::declarations/associated-comptime/basic.md/basic/associated-comptime-projections-can-drive-fixed-array-aliases
 destack_test::specification::declarations/associated-comptime/modules.md/modules/renamed-re-exports-preserve-mapped-aliases-that-use-associated-comptime-defaults
 destack_test::specification::declarations/associated-comptime/type-operators.md/type-operators/conditional-associated-comptime-defaults-can-shape-mapped-packet-aliases
+destack_test::specification::declarations/associated-types/modules.md/modules/associated-projections-stay-precise-inside-imported-mapped-aliases
 destack_test::specification::declarations/classes/decorators.md/member-decorators/static-method-decorator-allows-declaration
 destack_test::specification::declarations/classes/overrides.md/noimplicitoverride/override-requires-compatible-method-signature
 destack_test::specification::declarations/functions/invocation.md/strictbindcallapply/strict-call-checks-argument-arity

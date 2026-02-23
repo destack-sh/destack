@@ -97,16 +97,16 @@ function unresolved<Row>() {
 ### associated comptime projections can drive fixed array aliases
 
 > Associated comptime projections can be used as fixed array sizes with `as comptime`.
-> The projection should fold from the specialized owner before array sizing.
+> The projection should fold from a specialized owner before array sizing.
 
 ```ds
 class SegmentPlan<Row> {
     comptime const Width: number = Row extends string ? 4 : 2;
 }
 
-type Lane<Row> = uint8[SegmentPlan<Row>.Width as comptime];
+type Lane = uint8[SegmentPlan<string>.Width as comptime];
 
-declare const lane: Lane<string>;
+declare const lane: Lane;
 lane satisfies uint8[4];
 ```
 

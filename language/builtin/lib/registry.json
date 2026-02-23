@@ -340,12 +340,14 @@
     ],
     "js": [
       "Slice",
+      "FixedArray",
       "Vector"
     ],
     "native": [
       "String",
       "Array",
       "ReadonlyArray",
+      "FixedArray",
       "arrayOf",
       "arrayFill",
       "Slice",

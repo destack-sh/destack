@@ -285,6 +285,9 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> Option<WellKnownSymbol> {
+        if self.is_well_known_symbol(profile, symbol, WellKnownSymbol::FixedArray) {
+            return Some(WellKnownSymbol::FixedArray);
+        }
         if self.is_well_known_symbol(profile, symbol, WellKnownSymbol::Array) {
             return Some(WellKnownSymbol::Array);
         }
@@ -379,9 +382,9 @@ impl Compiler {
         &self,
         _module: &Module,
         _symbols: &SymbolTable,
-        profile: ProfileId,
+        _profile: ProfileId,
         source_id: LocalNodeIdAny,
-        symbol: GlobalSymbolId,
+        _symbol: GlobalSymbolId,
         well_known: WellKnownSymbol,
         static_arguments: Option<&[StaticArgument]>,
         types: &mut TypeTable,
@@ -391,6 +394,25 @@ impl Compiler {
             .map(|argument| self.static_argument_type(argument, source_id, types));
 
         match well_known {
+            WellKnownSymbol::FixedArray => {
+                let Some(arguments) = static_arguments else {
+                    return None;
+                };
+                let Some(element_argument) = arguments.first() else {
+                    return None;
+                };
+                let Some(count_argument) = arguments.get(1) else {
+                    return None;
+                };
+
+                let element = self.static_argument_type(element_argument, source_id, types);
+                let count = self.static_argument_type(count_argument, source_id, types);
+                Some(Type::ArraySized {
+                    element,
+                    count,
+                    is_readonly: false,
+                })
+            }
             WellKnownSymbol::Array => Some(Type::Array {
                 element,
                 is_readonly: false,
@@ -399,16 +421,7 @@ impl Compiler {
                 element,
                 is_readonly: true,
             }),
-            _ => {
-                if self.is_well_known_symbol(profile, symbol, well_known) {
-                    Some(Type::Array {
-                        element,
-                        is_readonly: false,
-                    })
-                } else {
-                    None
-                }
-            }
+            _ => None,
         }
     }
 
