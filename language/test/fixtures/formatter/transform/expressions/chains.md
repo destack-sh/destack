@@ -13,11 +13,8 @@ const result = api.getClient().getService().fetchAll().map((x) => x.id)
 ```
 
 ```ds expected
-const result = api
-    .getClient()
-    .getService()
-    .fetchAll()
-    .map((x) => x.id);
+const result = api.getClient().getService().fetchAll().map((x) =>
+    x.id);
 ```
 
 ### chain with long generic call arguments

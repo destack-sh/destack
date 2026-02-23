@@ -53,7 +53,10 @@ Objects with internal comments expand to multiple lines.
 The formatter expands the object when it contains comments.
 
 ```ts expected
-({ /* key */ a: 1, /* another */ b: 2 });
+({
+    /* key */ a: 1,
+    /* another */ b: 2,
+});
 ```
 
 ### comment in computed object key
@@ -179,8 +182,7 @@ const valid = isActive() && /* must have permission */ hasPermission()
 ```
 
 ```ds expected
-const valid =
-    isActive() &&
+const valid = isActive() &&
     /* must have permission */ hasPermission();
 ```
 
@@ -276,8 +278,7 @@ obj.method() /* step 1 */ .transform() /* step 2 */ .result()
 ```
 
 ```ds expected
-obj
-    .method() /* step 1 */
+obj.method() /* step 1 */
     .transform() /* step 2 */
     .result();
 ```
@@ -425,7 +426,7 @@ class Foo {
 ```ts expected
 class Foo {
     // prettier-ignore
-    bar   :    number;;
+    bar   :    number;
     baz: number;
 }
 ```

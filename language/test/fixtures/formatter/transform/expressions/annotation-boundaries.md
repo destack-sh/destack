@@ -250,9 +250,9 @@ const count = (await
 ```
 
 ```ts expected
-const count = (
-    await ((await (await focusOnSection("bookmarks")).findItem("mine")) as TreeItem).getChildren()
-).length;
+const count = (await ((await (
+    await focusOnSection("bookmarks")
+).findItem("mine")) as TreeItem).getChildren()).length;
 ```
 
 ### member assignment through as assertion target

@@ -192,7 +192,7 @@ type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3
 ```
 
 ```ds expected
-type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3;
+type Nested<T> = T extends string ? (T extends 'a' ? 1 : 2) : 3;
 ```
 
 ## Intersections and Unions

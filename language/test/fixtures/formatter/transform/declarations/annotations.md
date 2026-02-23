@@ -208,7 +208,8 @@ export type Value = /** union-doc
 ```
 
 ```ts expected
-export type Value = /** union-doc
+export type Value =
+    /** union-doc
      */
     | { ok: true }
     | { ok: false; value: bigint | null };
@@ -225,9 +226,7 @@ type Value =
 ```
 
 ```ts expected
-type Value =
-    | First
-    | Second; // second-tail
+type Value = First | Second; // second-tail
 ```
 
 ### parenthesized union comment attachment
@@ -501,9 +500,9 @@ type Mixed = null // null-arm
 type Mixed =
     | null // null-arm
     | {
-            y: number;
-            z: string;
-        } // object-arm
+        y: number;
+        z: string;
+    } // object-arm
     | void; // void-arm
 ```
 
@@ -882,9 +881,7 @@ type Value =
 ```
 
 ```ts expected
-type Value =
-    | A
-    | B; // last-union
+type Value = A | B; // last-union
 ```
 
 ## Mapped Type Conformance Permutations

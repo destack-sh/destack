@@ -184,7 +184,8 @@ const value = source
 ```
 
 ```ts expected
-const value = source.first /* first-boundary */
+const value = source
+    .first /* first-boundary */
     ?.second();
 ```
 
