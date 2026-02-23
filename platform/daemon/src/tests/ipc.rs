@@ -107,6 +107,113 @@ fn join_daemon_server(
     }
 }
 
+/// Harness for daemon ipc lifecycle tests.
+#[cfg(unix)]
+struct TestIpcDaemon {
+    /// Temporary workspace root for this daemon.
+    root: TemporaryPhysicalFileSystem,
+    /// Shared session backing server restarts.
+    session: Arc<Session>,
+    /// Stable daemon instance metadata.
+    instance: DaemonInstance,
+    /// Running server thread handle, when started.
+    server_handle: Option<std::thread::JoinHandle<()>>,
+    /// Running server result channel, when started.
+    server_result_rx: Option<Receiver<DaemonServerResult>>,
+}
+
+#[cfg(unix)]
+impl TestIpcDaemon {
+    /// Create an ipc daemon harness with an isolated root.
+    fn new(prefix: &str) -> Self {
+        // build a workspace and daemon instance
+        let root = TemporaryPhysicalFileSystem::new_with_prefix(prefix);
+        let session = Arc::new(Session::new(root.root().to_path_buf()));
+        let cache_root = session.workspace_cache_dir();
+        let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);
+
+        Self {
+            root,
+            session,
+            instance,
+            server_handle: None,
+            server_result_rx: None,
+        }
+    }
+
+    /// Return the workspace root path.
+    fn root_path(&self) -> &std::path::Path {
+        self.root.root()
+    }
+
+    /// Start the daemon server with deterministic test options.
+    fn start(&mut self) {
+        self.start_with_options(ipc_test_server_options());
+    }
+
+    /// Start the daemon server with explicit options.
+    fn start_with_options(&mut self, options: DaemonServerOptions) {
+        // reject duplicate starts for a running server
+        if self.server_handle.is_some() || self.server_result_rx.is_some() {
+            panic!("ipc daemon server is already running");
+        }
+
+        // spawn the daemon server thread
+        let server =
+            DaemonServer::with_options(self.session.clone(), self.instance.clone(), options);
+        let (handle, server_result_rx) = spawn_daemon_server(server);
+        self.server_handle = Some(handle);
+        self.server_result_rx = Some(server_result_rx);
+    }
+
+    /// Connect to the running daemon.
+    fn connect(&self) -> crate::daemon::DaemonConnection {
+        let server_result_rx = self.server_result_rx.as_ref();
+        wait_for_daemon(&self.instance, server_result_rx)
+    }
+
+    /// Send shutdown through a connection and join the server.
+    fn shutdown_and_join(&mut self, connection: crate::daemon::DaemonConnection) {
+        let _ = connection.client.send_request(DaemonRequest::Shutdown);
+        drop(connection);
+        self.join();
+    }
+
+    /// Join a running server and validate a clean exit.
+    fn join(&mut self) {
+        let handle = self
+            .server_handle
+            .take()
+            .expect("expected running ipc server handle");
+        let result_rx = self
+            .server_result_rx
+            .take()
+            .expect("expected running ipc server result channel");
+        join_daemon_server(handle, result_rx);
+    }
+
+    /// Wait for server exit and join the thread when it finishes.
+    fn wait_for_exit(
+        &mut self,
+        timeout: Duration,
+    ) -> Result<DaemonServerResult, std::sync::mpsc::RecvTimeoutError> {
+        let result_rx = self
+            .server_result_rx
+            .as_ref()
+            .expect("expected running ipc server result channel");
+        let result = result_rx.recv_timeout(timeout)?;
+
+        let handle = self
+            .server_handle
+            .take()
+            .expect("expected running ipc server handle");
+        let _ = handle.join();
+        let _ = self.server_result_rx.take();
+
+        Ok(result)
+    }
+}
+
 /// Round trip a daemon request over ipc.
 #[cfg(unix)]
 #[test]
@@ -115,28 +222,19 @@ fn test_daemon_ipc_roundtrip() {
         return;
     }
 
-    // build a workspace and daemon instance
-    let root = TemporaryPhysicalFileSystem::new_with_prefix("daemon_ipc_roundtrip");
-    let session = Arc::new(Session::new(root.root().to_path_buf()));
-    let cache_root = session.workspace_cache_dir();
-    let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);
-
-    // start the daemon server
-    let options = ipc_test_server_options();
-    let server = DaemonServer::with_options(session, instance.clone(), options);
-    let (handle, server_result_rx) = spawn_daemon_server(server);
+    // start a daemon harness
+    let mut daemon = TestIpcDaemon::new("daemon_ipc_roundtrip");
+    daemon.start();
 
     // connect to the daemon and issue a ping
-    let connection = wait_for_daemon(&instance, Some(&server_result_rx));
+    let connection = daemon.connect();
     let response = connection.client.send_request(DaemonRequest::Ping);
 
     // assertion block
     assert!(matches!(response, Ok(DaemonResponse::Pong)), "{response:?}");
 
     // request shutdown and join the server
-    let _ = connection.client.send_request(DaemonRequest::Shutdown);
-    drop(connection);
-    join_daemon_server(handle, server_result_rx);
+    daemon.shutdown_and_join(connection);
 }
 
 /// Reconnects after a client disconnect.
@@ -147,19 +245,12 @@ fn test_daemon_ipc_reconnect() {
         return;
     }
 
-    // build a workspace and daemon instance
-    let root = TemporaryPhysicalFileSystem::new_with_prefix("daemon_ipc_reconnect");
-    let session = Arc::new(Session::new(root.root().to_path_buf()));
-    let cache_root = session.workspace_cache_dir();
-    let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);
-
-    // start the daemon server
-    let options = ipc_test_server_options();
-    let server = DaemonServer::with_options(session, instance.clone(), options);
-    let (handle, server_result_rx) = spawn_daemon_server(server);
+    // start a daemon harness
+    let mut daemon = TestIpcDaemon::new("daemon_ipc_reconnect");
+    daemon.start();
 
     // connect to the daemon and issue a ping
-    let connection = wait_for_daemon(&instance, Some(&server_result_rx));
+    let connection = daemon.connect();
     let response = connection.client.send_request(DaemonRequest::Ping);
 
     // assertion block
@@ -167,15 +258,14 @@ fn test_daemon_ipc_reconnect() {
 
     // drop the connection and reconnect
     drop(connection);
-    let connection = wait_for_daemon(&instance, Some(&server_result_rx));
+    let connection = daemon.connect();
     let response = connection.client.send_request(DaemonRequest::Ping);
 
     // assertion block
     assert!(matches!(response, Ok(DaemonResponse::Pong)), "{response:?}");
 
     // request shutdown and join the server
-    let _ = connection.client.send_request(DaemonRequest::Shutdown);
-    join_daemon_server(handle, server_result_rx);
+    daemon.shutdown_and_join(connection);
 }
 
 /// Restarts cleanly after a shutdown.
@@ -186,43 +276,32 @@ fn test_daemon_ipc_restart() {
         return;
     }
 
-    // build a workspace and daemon instance
-    let root = TemporaryPhysicalFileSystem::new_with_prefix("daemon_ipc_restart");
-    let session = Arc::new(Session::new(root.root().to_path_buf()));
-    let cache_root = session.workspace_cache_dir();
-    let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);
-
-    // start the daemon server
-    let options = ipc_test_server_options();
-    let server = DaemonServer::with_options(session.clone(), instance.clone(), options);
-    let (handle, server_result_rx) = spawn_daemon_server(server);
+    // start a daemon harness
+    let mut daemon = TestIpcDaemon::new("daemon_ipc_restart");
+    daemon.start();
 
     // connect to the daemon and issue a ping
-    let connection = wait_for_daemon(&instance, Some(&server_result_rx));
+    let connection = daemon.connect();
     let response = connection.client.send_request(DaemonRequest::Ping);
 
     // assertion block
     assert!(matches!(response, Ok(DaemonResponse::Pong)), "{response:?}");
 
     // request shutdown and join the server
-    let _ = connection.client.send_request(DaemonRequest::Shutdown);
-    join_daemon_server(handle, server_result_rx);
+    daemon.shutdown_and_join(connection);
 
     // restart the daemon server
-    let options = ipc_test_server_options();
-    let server = DaemonServer::with_options(session, instance.clone(), options);
-    let (handle, server_result_rx) = spawn_daemon_server(server);
+    daemon.start();
 
     // reconnect to the daemon and issue another ping
-    let connection = wait_for_daemon(&instance, Some(&server_result_rx));
+    let connection = daemon.connect();
     let response = connection.client.send_request(DaemonRequest::Ping);
 
     // assertion block
     assert!(matches!(response, Ok(DaemonResponse::Pong)), "{response:?}");
 
     // request shutdown and join the server
-    let _ = connection.client.send_request(DaemonRequest::Shutdown);
-    join_daemon_server(handle, server_result_rx);
+    daemon.shutdown_and_join(connection);
 }
 
 /// Opens a workspace again after restart and handles updates.
@@ -233,24 +312,17 @@ fn test_daemon_ipc_restart_resubscribe() {
         return;
     }
 
-    // build a workspace and daemon instance
-    let root = TemporaryPhysicalFileSystem::new_with_prefix("daemon_ipc_resubscribe");
-    let session = Arc::new(Session::new(root.root().to_path_buf()));
-    let cache_root = session.workspace_cache_dir();
-    let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);
-
-    // start the daemon server
-    let options = ipc_test_server_options();
-    let server = DaemonServer::with_options(session.clone(), instance.clone(), options);
-    let (handle, server_result_rx) = spawn_daemon_server(server);
+    // start a daemon harness
+    let mut daemon = TestIpcDaemon::new("daemon_ipc_resubscribe");
+    daemon.start();
 
     // connect to the daemon and open the workspace
-    let connection = wait_for_daemon(&instance, Some(&server_result_rx));
+    let connection = daemon.connect();
     let response =
         connection
             .client
             .send_request(DaemonRequest::OpenWorkspace(OpenWorkspaceRequest {
-                root: root.root().to_path_buf(),
+                root: daemon.root_path().to_path_buf(),
                 options: WorkspaceOpenOptions::default(),
             }));
     let handle_id = match response {
@@ -259,7 +331,7 @@ fn test_daemon_ipc_restart_resubscribe() {
     };
 
     // apply a file update
-    let file_path = root.root().join("main.ds");
+    let file_path = daemon.root_path().join("main.ds");
     let update = FileUpdate {
         path: file_path.clone(),
         update: FileUpdateKind::Text {
@@ -281,22 +353,18 @@ fn test_daemon_ipc_restart_resubscribe() {
     }
 
     // request shutdown and join the server
-    let _ = connection.client.send_request(DaemonRequest::Shutdown);
-    drop(connection);
-    join_daemon_server(handle, server_result_rx);
+    daemon.shutdown_and_join(connection);
 
     // restart the daemon server
-    let options = ipc_test_server_options();
-    let server = DaemonServer::with_options(session, instance.clone(), options);
-    let (handle, server_result_rx) = spawn_daemon_server(server);
+    daemon.start();
 
     // reconnect and open the workspace again
-    let connection = wait_for_daemon(&instance, Some(&server_result_rx));
+    let connection = daemon.connect();
     let response =
         connection
             .client
             .send_request(DaemonRequest::OpenWorkspace(OpenWorkspaceRequest {
-                root: root.root().to_path_buf(),
+                root: daemon.root_path().to_path_buf(),
                 options: WorkspaceOpenOptions::default(),
             }));
     let handle_id = match response {
@@ -326,8 +394,7 @@ fn test_daemon_ipc_restart_resubscribe() {
     }
 
     // request shutdown and join the server
-    let _ = connection.client.send_request(DaemonRequest::Shutdown);
-    join_daemon_server(handle, server_result_rx);
+    daemon.shutdown_and_join(connection);
 }
 
 /// Shuts down after an idle period with no connections.
@@ -338,12 +405,6 @@ fn test_daemon_ipc_idle_shutdown() {
         return;
     }
 
-    // build a workspace and daemon instance
-    let root = TemporaryPhysicalFileSystem::new_with_prefix("daemon_ipc_idle_shutdown");
-    let session = Arc::new(Session::new(root.root().to_path_buf()));
-    let cache_root = session.workspace_cache_dir();
-    let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);
-
     // configure the daemon server for a short idle shutdown
     let options = DaemonServerOptions {
         shutdown: DaemonShutdownOptions {
@@ -353,24 +414,21 @@ fn test_daemon_ipc_idle_shutdown() {
         ..DaemonServerOptions::default()
     };
 
-    // start the daemon server
-    let server = DaemonServer::with_options(session, instance.clone(), options);
-    let (tx, rx) = std::sync::mpsc::channel();
-    let handle = std::thread::spawn(move || {
-        let _ = tx.send(server.serve());
-    });
+    // start a daemon harness
+    let mut daemon = TestIpcDaemon::new("daemon_ipc_idle_shutdown");
+    daemon.start_with_options(options);
 
     // wait for the server to shut itself down
-    let result = rx.recv_timeout(Duration::from_secs(2)).unwrap_or_else(|_| {
-        let connection = wait_for_daemon(&instance, None);
-        let _ = connection.client.send_request(DaemonRequest::Shutdown);
-        rx.recv_timeout(Duration::from_secs(2))
-            .expect("daemon shutdown timeout")
-    });
+    let result = daemon
+        .wait_for_exit(Duration::from_secs(2))
+        .unwrap_or_else(|_| {
+            let connection = daemon.connect();
+            daemon.shutdown_and_join(connection);
+            Ok(())
+        });
 
     // assertion block
     assert!(result.is_ok());
-    let _ = handle.join();
 }
 
 /// Wait for the daemon metadata and connection to become available.

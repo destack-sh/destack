@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use destack_compiler::CompilerOptions;
 use destack_source::{
@@ -141,9 +141,19 @@ impl TestDaemon {
         self.session.add_root(root)
     }
 
+    /// Return the primary workspace root.
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    /// Resolve a path relative to the primary root when needed.
+    pub fn path_for(&self, path: impl AsRef<Path>) -> PathBuf {
+        resolve_test_path(&self.root, path)
+    }
+
     /// Write a text file into the test file system.
     pub fn write_text(&self, path: impl AsRef<Path>, contents: &str) -> PathBuf {
-        let path = self.resolve_path(path);
+        let path = self.path_for(path);
         if let Some(parent) = path.parent() {
             let _ = self.fs.create_dir_all(parent);
         }
@@ -155,7 +165,7 @@ impl TestDaemon {
 
     /// Update a file and return all daemon updates.
     pub fn update_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<DaemonUpdate> {
-        let path = self.resolve_path(path);
+        let path = self.path_for(path);
         self.daemon
             .update_file(&path, content.to_string())
             .unwrap_or_else(|error| panic!("update failed for {}: {error}", path.display()))
@@ -164,7 +174,7 @@ impl TestDaemon {
 
     /// Update a virtual file and return all daemon updates.
     pub fn update_virtual_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<DaemonUpdate> {
-        let path = self.resolve_path(path);
+        let path = self.path_for(path);
         self.daemon
             .update_virtual_file(&path, content.to_string())
             .unwrap_or_else(|error| panic!("virtual update failed for {}: {error}", path.display()))
@@ -173,7 +183,7 @@ impl TestDaemon {
 
     /// Resolve the tracked file id for a path.
     pub fn file_id_for_path(&self, path: impl AsRef<Path>) -> FileId {
-        let path = self.resolve_path(path);
+        let path = self.path_for(path);
         self.session
             .files
             .get_id_by_path(&path)
@@ -204,7 +214,7 @@ impl TestDaemon {
 
     /// Update a file and return the update for the target file.
     pub fn update_file_for_path(&self, path: impl AsRef<Path>, content: &str) -> DaemonUpdate {
-        let path = self.resolve_path(path);
+        let path = self.path_for(path);
         let updates = self.update_file(&path, content);
         self.update_for_path(&updates, &path).clone()
     }
@@ -215,7 +225,7 @@ impl TestDaemon {
         path: impl AsRef<Path>,
         content: &str,
     ) -> DaemonUpdate {
-        let path = self.resolve_path(path);
+        let path = self.path_for(path);
         let updates = self.update_virtual_file(&path, content);
         self.update_for_path(&updates, &path).clone()
     }
@@ -233,7 +243,7 @@ impl TestDaemon {
     /// Build a watch event for tests.
     pub fn watch_event(&self, path: impl AsRef<Path>, kind: FileWatchEventKind) -> FileWatchEvent {
         FileWatchEvent {
-            path: self.resolve_path(path),
+            path: self.path_for(path),
             previous_path: None,
             kind,
         }
@@ -246,8 +256,8 @@ impl TestDaemon {
         to: impl AsRef<Path>,
     ) -> FileWatchEvent {
         FileWatchEvent {
-            path: self.resolve_path(to),
-            previous_path: Some(self.resolve_path(from)),
+            path: self.path_for(to),
+            previous_path: Some(self.path_for(from)),
             kind: FileWatchEventKind::Renamed,
         }
     }
@@ -265,11 +275,6 @@ impl TestDaemon {
     /// Build a protocol harness with custom server options.
     pub fn protocol_with_options(&self, options: ProtocolServerOptions) -> TestProtocolHarness {
         TestProtocolHarness::from_test_with_options(self.clone(), options)
-    }
-
-    /// Resolve a path relative to the primary root when needed.
-    fn resolve_path(&self, path: impl AsRef<Path>) -> PathBuf {
-        resolve_test_path(&self.root, path)
     }
 }
 
@@ -501,6 +506,27 @@ impl Default for TestProtocolHarness {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Wait until a predicate evaluates to true within a timeout.
+pub fn wait_for_condition(
+    timeout: Duration,
+    poll_interval: Duration,
+    mut condition: impl FnMut() -> bool,
+) -> bool {
+    // compute the deadline for the condition check
+    let deadline = Instant::now() + timeout;
+
+    // poll until the condition passes or the deadline expires
+    while Instant::now() < deadline {
+        if condition() {
+            return true;
+        }
+
+        thread::sleep(poll_interval);
+    }
+
+    condition()
 }
 
 /// Resolve a path relative to the provided root when needed.

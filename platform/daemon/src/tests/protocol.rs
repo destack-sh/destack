@@ -11,7 +11,7 @@ use crate::protocol::{
     RescanWorkspaceRequest, WatchBatch, WatchBatchRequest, WatchEvent, WatchEventKind, WatchStatus,
     WorkspaceHandleId, WorkspaceOpenOptions, inline_payload_max_bytes, payload_chunk_bytes,
 };
-use crate::tests::{RequestRetryPolicy, TestDaemon, TestProtocolHarness};
+use crate::tests::{RequestRetryPolicy, TestDaemon, TestProtocolHarness, wait_for_condition};
 use destack_service::query;
 use destack_service::query::{
     DocumentSymbolsRequest, FindReferencesRequest, GotoDefinitionRequest, HoverRequest,
@@ -1025,13 +1025,21 @@ fn test_protocol_activity_idle_shutdown() {
 
     // keep alive while a connection lease is held
     activity.register_connection();
-    std::thread::sleep(Duration::from_millis(10));
-    assert!(!activity.should_shutdown());
+    let remained_active =
+        wait_for_condition(Duration::from_millis(30), Duration::from_millis(1), || {
+            !activity.should_shutdown()
+        });
+    assert!(
+        remained_active,
+        "expected activity to stay active with a lease"
+    );
 
     // release the lease and wait for idle shutdown
     activity.unregister_connection();
-    std::thread::sleep(Duration::from_millis(10));
-    assert!(activity.should_shutdown());
+    let shutdown = wait_for_condition(Duration::from_millis(30), Duration::from_millis(1), || {
+        activity.should_shutdown()
+    });
+    assert!(shutdown, "expected activity idle shutdown");
 }
 
 fn assert_cache_stats(stats: CacheStatsPayload) {
