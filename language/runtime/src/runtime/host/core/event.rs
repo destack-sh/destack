@@ -1,6 +1,19 @@
 use super::service::HostLifecycleState;
 use crate::runtime::poller::PollerEvent;
 
+/// Host semantic event kind key for scheduler watches.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HostEventKind {
+    /// Lifecycle transitions.
+    Lifecycle,
+    /// Window and surface events.
+    Window,
+    /// Permission result events.
+    Permission,
+    /// Interruption events.
+    Interruption,
+}
+
 /// Runtime-visible host event payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HostEvent {
@@ -16,6 +29,32 @@ pub enum HostEvent {
     Interruption(HostInterruptionEvent),
 }
 
+impl HostEvent {
+    /// Return the host semantic event kind for this event when one exists.
+    pub const fn kind(&self) -> Option<HostEventKind> {
+        match self {
+            HostEvent::Poller(_) => None,
+            HostEvent::Lifecycle(_) => Some(HostEventKind::Lifecycle),
+            HostEvent::Window(_) => Some(HostEventKind::Window),
+            HostEvent::Permission(_) => Some(HostEventKind::Permission),
+            HostEvent::Interruption(_) => Some(HostEventKind::Interruption),
+        }
+    }
+
+    /// Return whether this event must be handled losslessly.
+    pub const fn is_lossless(&self) -> bool {
+        matches!(self.kind(), Some(HostEventKind::Permission))
+    }
+
+    /// Return whether this event uses latest-state coalescing semantics.
+    pub const fn is_coalescing(&self) -> bool {
+        matches!(
+            self.kind(),
+            Some(HostEventKind::Lifecycle | HostEventKind::Window | HostEventKind::Interruption)
+        )
+    }
+}
+
 /// Host lifecycle state change payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HostLifecycleEvent {
@@ -27,10 +66,13 @@ pub struct HostLifecycleEvent {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HostWindowEvent {
     /// Host window became available.
+    /// On Android this aligns to surface creation events such as `InitWindow`.
     WindowAvailable,
     /// Host window was torn down.
+    /// On Android this aligns to surface teardown events such as `TerminateWindow`.
     WindowTerminated,
     /// Host window dimensions changed.
+    /// This aligns to window resize events in common host event systems.
     WindowResized {
         /// Window width in physical pixels.
         width_px: u32,

@@ -4,7 +4,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::{PlatformContext, ResourceId};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::engine::{EngineContinuation, RuntimeValue};
-use crate::runtime::host::HostRuntime;
+use crate::runtime::host::{HostEventKind, HostRuntime};
 use crate::runtime::memory::Heap;
 use crate::runtime::poller::{HostPoller, PollerToken};
 use crate::runtime::scheduler::{EventLoop, EventLoopWatch};
@@ -48,8 +48,7 @@ impl Runtime {
     pub fn new(state: Arc<RuntimeState>) -> Self {
         let event_loop = Box::new(EventLoop::default());
         let mut bindings = BindingRegistry::new();
-        let mut policy = BindingPolicy::new(state.replay.mode());
-        policy.set_capabilities(state.host.capabilities().clone());
+        let policy = BindingPolicy::new(state.replay.mode());
         bindings.set_policy(policy);
         bindings.set_runtime_handles(&state, event_loop.as_ref());
         bindings.install_native_defaults();
@@ -90,6 +89,11 @@ impl Runtime {
     /// Borrow host adapter integration.
     pub fn host(&self) -> &HostRuntime {
         &self.host
+    }
+
+    /// Return the callback runtime id used by native host callback routing.
+    pub fn host_callback_runtime_id(&self) -> Option<u64> {
+        self.host.callback_runtime_id()
     }
 
     /// Register one timer watch.
@@ -134,9 +138,40 @@ impl Runtime {
         self.event_loop.unwatch_event(token)
     }
 
-    /// Return the number of dropped external events observed by the event loop.
-    pub fn dropped_external_events(&self) -> u64 {
-        self.event_loop.dropped_external_events()
+    /// Register one host semantic event watch.
+    pub fn watch_host_event(
+        &mut self,
+        kind: HostEventKind,
+        runnable: EngineContinuation,
+        resume_value: RuntimeValue,
+        priority: u8,
+    ) -> RuntimeResult<()> {
+        let watch = EventLoopWatch {
+            runnable,
+            resume_value,
+            priority,
+        };
+        self.event_loop.watch_host_event(kind, watch)
+    }
+
+    /// Remove the host event watch registered for one host event kind.
+    pub fn unwatch_host_event(&mut self, kind: HostEventKind) -> Option<EventLoopWatch> {
+        self.event_loop.unwatch_host_event(kind)
+    }
+
+    /// Return the number of dropped events with no registered dispatch watch.
+    pub fn dropped_unwatched_dispatch_events(&self) -> u64 {
+        self.event_loop.dropped_unwatched_dispatch_events()
+    }
+
+    /// Return the number of dropped host queue events due to queue pressure.
+    pub fn dropped_host_queue_events(&self) -> u64 {
+        self.event_loop.dropped_host_queue_events()
+    }
+
+    /// Return the number of dropped dispatch events observed by the event loop.
+    pub fn dropped_dispatch_events(&self) -> u64 {
+        self.event_loop.dropped_dispatch_events()
     }
 
     /// Capture a runtime snapshot and record a checkpoint in the replay log.
