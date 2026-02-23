@@ -198,7 +198,7 @@ interface Worker {
 
 ### union doc block comment arm
 
-Doc block comments before union arms stay with the same arm.
+Doc block comments in union expressions stay attached to the same type side.
 
 ```ts:main.ts line-width=80
 export type Value = /** union-doc
