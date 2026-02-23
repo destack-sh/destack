@@ -4,11 +4,12 @@ use std::sync::Arc;
 use destack_compiler::CompilerOptions;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{
-    FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri,
+    FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem, PhysicalFileSystem,
+    TemporaryPhysicalFileSystem, Uri,
 };
 use destack_workspace::{MemoryCacheStore, Session, Workspace};
 
-use crate::LanguageService;
+use crate::{LanguageService, LanguageServiceResult};
 
 /// Test harness for workspace service integration tests.
 #[derive(Debug)]
@@ -83,6 +84,49 @@ impl TestLanguageService {
     /// Build a source uri for a path.
     pub(super) fn uri_for_path(&self, path: &Path) -> Uri {
         Uri::from_file_path(path.to_path_buf())
+    }
+
+    /// Write text under the default root.
+    pub(super) fn write_text(&self, path: impl AsRef<Path>, source: &str) -> PathBuf {
+        let path = self.path_for(path);
+        self.fs
+            .write_text(&path, source)
+            .unwrap_or_else(|error| panic!("failed to write {}: {error}", path.display()));
+        path
+    }
+
+    /// Write text under a specific root.
+    pub(super) fn write_text_for_root(
+        &self,
+        root_index: usize,
+        path: impl AsRef<Path>,
+        source: &str,
+    ) -> PathBuf {
+        let path = self.path_for_root(root_index, path);
+        self.fs
+            .write_text(&path, source)
+            .unwrap_or_else(|error| panic!("failed to write {}: {error}", path.display()));
+        path
+    }
+
+    /// Apply a virtual source update for a path.
+    pub(super) fn update_virtual_text(&self, path: &Path, source: &str) -> LanguageServiceResult {
+        self.service
+            .update_virtual_file(path, source.to_string())
+            .unwrap_or_else(|error| panic!("failed virtual update for {}: {error}", path.display()))
+    }
+
+    /// Apply a modified watch event for a path.
+    pub(super) fn apply_watch_modified(&self, path: &Path) -> LanguageServiceResult {
+        let event = FileWatchEvent {
+            path: path.to_path_buf(),
+            previous_path: None,
+            kind: FileWatchEventKind::Modified,
+        };
+
+        self.service
+            .apply_watch_events(vec![event])
+            .unwrap_or_else(|error| panic!("failed watch apply for {}: {error}", path.display()))
     }
 }
 

@@ -10,32 +10,17 @@ use crate::tests::harness::TestLanguageService;
 #[test]
 fn test_workspace_service_routes_queries_across_roots() {
     let test = TestLanguageService::new_with_roots("workspace_service_multi_root", 2);
-    let path_a = test.path_for_root(0, "main.ds");
-    let path_b = test.path_for_root(1, "main.ds");
-    let uri_a = test.uri_for_path(&path_a);
-    let uri_b = test.uri_for_path(&path_b);
     let source = r#"export function id(value: number) {
     return value;
 }
 "#;
+    let path_a = test.write_text_for_root(0, "main.ds", source);
+    let path_b = test.write_text_for_root(1, "main.ds", source);
+    let uri_a = test.uri_for_path(&path_a);
+    let uri_b = test.uri_for_path(&path_b);
 
-    let _ = test
-        .fs
-        .write_text(&path_a, source)
-        .expect("expected root a write");
-    let _ = test
-        .fs
-        .write_text(&path_b, source)
-        .expect("expected root b write");
-
-    let _ = test
-        .service
-        .update_virtual_file(&path_a, source.to_string())
-        .expect("expected root a update");
-    let _ = test
-        .service
-        .update_virtual_file(&path_b, source.to_string())
-        .expect("expected root b update");
+    let _ = test.update_virtual_text(&path_a, source);
+    let _ = test.update_virtual_text(&path_b, source);
 
     let response_a = test
         .service

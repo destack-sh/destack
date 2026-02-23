@@ -5,22 +5,14 @@ use crate::{LanguageServiceError, query};
 #[test]
 fn test_workspace_service_query_document_symbols() {
     let test = TestLanguageService::new("workspace_service_query");
-    let path = test.path_for("main.ds");
-    let uri = test.uri_for_path(&path);
     let source = r#"export function add(a: number, b: number) {
     return a + b;
 }
 "#;
+    let path = test.write_text("main.ds", source);
+    let uri = test.uri_for_path(&path);
 
-    let _ = test
-        .fs
-        .write_text("main.ds", source)
-        .expect("expected source write");
-
-    let _ = test
-        .service
-        .update_virtual_file(&path, source.to_string())
-        .expect("expected virtual update");
+    let _ = test.update_virtual_text(&path, source);
 
     let response = test
         .service
@@ -44,28 +36,17 @@ fn test_workspace_service_query_document_symbols() {
 #[test]
 fn test_workspace_service_revisions_advance_after_updates() {
     let test = TestLanguageService::new("workspace_service_revision_updates");
-    let path = test.path_for("main.ds");
     let source_a = "export const value = 1;\n";
     let source_b = "export const value = 2;\n";
+    let path = test.write_text("main.ds", source_a);
 
-    let _ = test
-        .fs
-        .write_text("main.ds", source_a)
-        .expect("expected source write");
-
-    let _ = test
-        .service
-        .update_virtual_file(&path, source_a.to_string())
-        .expect("expected first virtual update");
+    let _ = test.update_virtual_text(&path, source_a);
     let revision_a = test
         .service
         .revision_for_path(&path)
         .expect("expected first revision");
 
-    let _ = test
-        .service
-        .update_virtual_file(&path, source_b.to_string())
-        .expect("expected second virtual update");
+    let _ = test.update_virtual_text(&path, source_b);
     let revision_b = test
         .service
         .revision_for_path(&path)
@@ -78,17 +59,10 @@ fn test_workspace_service_revisions_advance_after_updates() {
 #[test]
 fn test_workspace_service_query_requires_revision_for_mutation() {
     let test = TestLanguageService::new("workspace_service_mutation_revision");
-    let path = test.path_for("main.ds");
     let source = "export const value = 1;\n";
+    let path = test.write_text("main.ds", source);
 
-    let _ = test
-        .fs
-        .write_text("main.ds", source)
-        .expect("expected source write");
-    let _ = test
-        .service
-        .update_virtual_file(&path, source.to_string())
-        .expect("expected virtual update");
+    let _ = test.update_virtual_text(&path, source);
 
     // reject mutating queries without an expected revision
     let missing_revision = query::QueryRequestEnvelope {
