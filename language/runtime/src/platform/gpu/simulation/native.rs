@@ -1161,7 +1161,7 @@ pub(crate) unsafe fn destack_gpu_command_insert_debug_marker(
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.render.multiDraw`.
+/// Requires `gpu.render.multi.draw`.
 ///
 /// # Replay
 /// External, recordable.
@@ -1194,7 +1194,7 @@ pub(crate) unsafe fn destack_gpu_command_multi_draw_indexed_indirect(
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.render.multiDrawCount`.
+/// Requires `gpu.render.multi.draw.count`.
 ///
 /// # Replay
 /// External, recordable.
@@ -1238,7 +1238,7 @@ pub(crate) unsafe fn destack_gpu_command_multi_draw_indexed_indirect_count(
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.render.multiDraw`.
+/// Requires `gpu.render.multi.draw`.
 ///
 /// # Replay
 /// External, recordable.
@@ -1271,7 +1271,7 @@ pub(crate) unsafe fn destack_gpu_command_multi_draw_indirect(
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.render.multiDrawCount`.
+/// Requires `gpu.render.multi.draw.count`.
 ///
 /// # Replay
 /// External, recordable.
@@ -3580,7 +3580,7 @@ pub(crate) unsafe fn destack_gpu_texture_view_destroy(
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.sync.pipelineStatistics`.
+/// Requires `gpu.sync.pipeline.statistics`.
 ///
 /// # Replay
 /// External, recordable.
@@ -3642,7 +3642,7 @@ pub(crate) unsafe fn destack_gpu_command_begin_occlusion_query(
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.sync.pipelineStatistics`.
+/// Requires `gpu.sync.pipeline.statistics`.
 ///
 /// # Replay
 /// External, recordable.
@@ -3673,7 +3673,7 @@ pub(crate) unsafe fn destack_gpu_command_begin_render_pipeline_statistics_query(
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.sync.pipelineStatistics`.
+/// Requires `gpu.sync.pipeline.statistics`.
 ///
 /// # Replay
 /// External, recordable.
@@ -3731,7 +3731,7 @@ pub(crate) unsafe fn destack_gpu_command_end_occlusion_query(
 /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
-/// Requires `gpu.sync.pipelineStatistics`.
+/// Requires `gpu.sync.pipeline.statistics`.
 ///
 /// # Replay
 /// External, recordable.

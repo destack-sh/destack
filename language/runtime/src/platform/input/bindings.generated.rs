@@ -1419,6 +1419,10 @@ fn decode_destack_input_sensor_configure_args(
         4u8 => InputSensorKind::Gravity,
         5u8 => InputSensorKind::LinearAcceleration,
         6u8 => InputSensorKind::Orientation,
+        7u8 => InputSensorKind::Barometer,
+        8u8 => InputSensorKind::AmbientLight,
+        9u8 => InputSensorKind::Proximity,
+        10u8 => InputSensorKind::StepCounter,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "kind",
@@ -1520,6 +1524,10 @@ fn decode_destack_input_sensor_read_args(
         4u8 => InputSensorKind::Gravity,
         5u8 => InputSensorKind::LinearAcceleration,
         6u8 => InputSensorKind::Orientation,
+        7u8 => InputSensorKind::Barometer,
+        8u8 => InputSensorKind::AmbientLight,
+        9u8 => InputSensorKind::Proximity,
+        10u8 => InputSensorKind::StepCounter,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "kind",
@@ -1571,6 +1579,10 @@ fn decode_destack_input_sensor_try_read_args(
         4u8 => InputSensorKind::Gravity,
         5u8 => InputSensorKind::LinearAcceleration,
         6u8 => InputSensorKind::Orientation,
+        7u8 => InputSensorKind::Barometer,
+        8u8 => InputSensorKind::AmbientLight,
+        9u8 => InputSensorKind::Proximity,
+        10u8 => InputSensorKind::StepCounter,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "kind",
@@ -12474,6 +12486,10 @@ fn destack_input_sensor_list_vm_replay(
                             4u8 => InputSensorKind::Gravity,
                             5u8 => InputSensorKind::LinearAcceleration,
                             6u8 => InputSensorKind::Orientation,
+                            7u8 => InputSensorKind::Barometer,
+                            8u8 => InputSensorKind::AmbientLight,
+                            9u8 => InputSensorKind::Proximity,
+                            10u8 => InputSensorKind::StepCounter,
                             _ => {
                                 return Err(RuntimeError::from(
                                     PlatformError::invalid_argument_value(

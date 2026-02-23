@@ -13,6 +13,1079 @@ use crate::platform::{
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
+/// ABI enum for BackgroundEventKind.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BackgroundEventKind {
+    /// TaskReady.
+    TaskReady = 1,
+    /// TaskExpired.
+    TaskExpired = 2,
+}
+
+impl VmValueCodec for BackgroundEventKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::TaskReady,
+            2u8 => Self::TaskExpired,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BackgroundEventKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for BackgroundStatus.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BackgroundStatus {
+    /// Unavailable.
+    Unavailable = 1,
+    /// Restricted.
+    Restricted = 2,
+    /// Available.
+    Available = 3,
+}
+
+impl VmValueCodec for BackgroundStatus {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Unavailable,
+            2u8 => Self::Restricted,
+            3u8 => Self::Available,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BackgroundStatus value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for BackgroundTaskResult.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BackgroundTaskResult {
+    /// Success.
+    Success = 1,
+    /// Retry.
+    Retry = 2,
+    /// Failure.
+    Failure = 3,
+}
+
+impl VmValueCodec for BackgroundTaskResult {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Success,
+            2u8 => Self::Retry,
+            3u8 => Self::Failure,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BackgroundTaskResult value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for BackgroundTriggerKind.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum BackgroundTriggerKind {
+    /// AppRefresh.
+    AppRefresh = 1,
+    /// Processing.
+    Processing = 2,
+}
+
+impl VmValueCodec for BackgroundTriggerKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::AppRefresh,
+            2u8 => Self::Processing,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown BackgroundTriggerKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for CalendarAccess.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CalendarAccess {
+    /// Read.
+    Read = 1,
+    /// Write.
+    Write = 2,
+}
+
+impl VmValueCodec for CalendarAccess {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Read,
+            2u8 => Self::Write,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CalendarAccess value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for CalendarAvailability.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CalendarAvailability {
+    /// Busy.
+    Busy = 1,
+    /// Free.
+    Free = 2,
+    /// Tentative.
+    Tentative = 3,
+    /// OutOfOffice.
+    OutOfOffice = 4,
+}
+
+impl VmValueCodec for CalendarAvailability {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Busy,
+            2u8 => Self::Free,
+            3u8 => Self::Tentative,
+            4u8 => Self::OutOfOffice,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CalendarAvailability value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for CalendarParticipantStatus.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CalendarParticipantStatus {
+    /// Pending.
+    Pending = 1,
+    /// Accepted.
+    Accepted = 2,
+    /// Tentative.
+    Tentative = 3,
+    /// Declined.
+    Declined = 4,
+}
+
+impl VmValueCodec for CalendarParticipantStatus {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Pending,
+            2u8 => Self::Accepted,
+            3u8 => Self::Tentative,
+            4u8 => Self::Declined,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CalendarParticipantStatus value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for CalendarRecurrenceFrequency.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CalendarRecurrenceFrequency {
+    /// Daily.
+    Daily = 1,
+    /// Weekly.
+    Weekly = 2,
+    /// Monthly.
+    Monthly = 3,
+    /// Yearly.
+    Yearly = 4,
+}
+
+impl VmValueCodec for CalendarRecurrenceFrequency {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Daily,
+            2u8 => Self::Weekly,
+            3u8 => Self::Monthly,
+            4u8 => Self::Yearly,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CalendarRecurrenceFrequency value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for CalendarReminderKind.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CalendarReminderKind {
+    /// Relative.
+    Relative = 1,
+    /// Absolute.
+    Absolute = 2,
+}
+
+impl VmValueCodec for CalendarReminderKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Relative,
+            2u8 => Self::Absolute,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CalendarReminderKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for ClipboardBinaryFormat.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ClipboardBinaryFormat {
+    /// TextUtf8.
+    TextUtf8 = 1,
+    /// Html.
+    Html = 2,
+    /// Binary.
+    Binary = 3,
+}
+
+impl VmValueCodec for ClipboardBinaryFormat {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::TextUtf8,
+            2u8 => Self::Html,
+            3u8 => Self::Binary,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown ClipboardBinaryFormat value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for CredentialAccessibility.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CredentialAccessibility {
+    /// WhenUnlocked.
+    WhenUnlocked = 1,
+    /// AfterFirstUnlock.
+    AfterFirstUnlock = 2,
+    /// HostDefault.
+    HostDefault = 3,
+}
+
+impl VmValueCodec for CredentialAccessibility {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::WhenUnlocked,
+            2u8 => Self::AfterFirstUnlock,
+            3u8 => Self::HostDefault,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CredentialAccessibility value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for CredentialAuthenticationMechanism.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CredentialAuthenticationMechanism {
+    /// Unknown.
+    Unknown = 1,
+    /// Biometric.
+    Biometric = 2,
+    /// DevicePasscode.
+    DevicePasscode = 3,
+}
+
+impl VmValueCodec for CredentialAuthenticationMechanism {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Unknown,
+            2u8 => Self::Biometric,
+            3u8 => Self::DevicePasscode,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CredentialAuthenticationMechanism value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for CredentialAuthenticationPolicy.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CredentialAuthenticationPolicy {
+    /// None.
+    None = 1,
+    /// UserPresence.
+    UserPresence = 2,
+    /// Biometric.
+    Biometric = 3,
+    /// DevicePasscode.
+    DevicePasscode = 4,
+}
+
+impl VmValueCodec for CredentialAuthenticationPolicy {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::None,
+            2u8 => Self::UserPresence,
+            3u8 => Self::Biometric,
+            4u8 => Self::DevicePasscode,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CredentialAuthenticationPolicy value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for DocumentAccess.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DocumentAccess {
+    /// Read.
+    Read = 1,
+    /// Write.
+    Write = 2,
+    /// ReadWrite.
+    ReadWrite = 3,
+}
+
+impl VmValueCodec for DocumentAccess {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Read,
+            2u8 => Self::Write,
+            3u8 => Self::ReadWrite,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown DocumentAccess value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for IntentKind.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum IntentKind {
+    /// OpenUrl.
+    OpenUrl = 1,
+    /// OpenFile.
+    OpenFile = 2,
+    /// ShareText.
+    ShareText = 3,
+    /// ShareFiles.
+    ShareFiles = 4,
+    /// CustomAction.
+    CustomAction = 5,
+}
+
+impl VmValueCodec for IntentKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::OpenUrl,
+            2u8 => Self::OpenFile,
+            3u8 => Self::ShareText,
+            4u8 => Self::ShareFiles,
+            5u8 => Self::CustomAction,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown IntentKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for LifecycleEventKind.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum LifecycleEventKind {
+    /// Launch.
+    Launch = 1,
+    /// Resume.
+    Resume = 2,
+    /// Pause.
+    Pause = 3,
+    /// Background.
+    Background = 4,
+    /// Foreground.
+    Foreground = 5,
+    /// LowMemory.
+    LowMemory = 6,
+    /// LowPowerModeChanged.
+    LowPowerModeChanged = 7,
+    /// Terminate.
+    Terminate = 8,
+}
+
+impl VmValueCodec for LifecycleEventKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Launch,
+            2u8 => Self::Resume,
+            3u8 => Self::Pause,
+            4u8 => Self::Background,
+            5u8 => Self::Foreground,
+            6u8 => Self::LowMemory,
+            7u8 => Self::LowPowerModeChanged,
+            8u8 => Self::Terminate,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown LifecycleEventKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for LifecycleState.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum LifecycleState {
+    /// Inactive.
+    Inactive = 1,
+    /// Active.
+    Active = 2,
+    /// Background.
+    Background = 3,
+    /// Terminating.
+    Terminating = 4,
+}
+
+impl VmValueCodec for LifecycleState {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Inactive,
+            2u8 => Self::Active,
+            3u8 => Self::Background,
+            4u8 => Self::Terminating,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown LifecycleState value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for LocationAccuracy.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum LocationAccuracy {
+    /// Passive.
+    Passive = 1,
+    /// Low.
+    Low = 2,
+    /// Balanced.
+    Balanced = 3,
+    /// High.
+    High = 4,
+    /// Best.
+    Best = 5,
+}
+
+impl VmValueCodec for LocationAccuracy {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Passive,
+            2u8 => Self::Low,
+            3u8 => Self::Balanced,
+            4u8 => Self::High,
+            5u8 => Self::Best,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown LocationAccuracy value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for MediaAssetKind.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum MediaAssetKind {
+    /// Image.
+    Image = 1,
+    /// Video.
+    Video = 2,
+    /// Audio.
+    Audio = 3,
+    /// Other.
+    Other = 4,
+}
+
+impl VmValueCodec for MediaAssetKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Image,
+            2u8 => Self::Video,
+            3u8 => Self::Audio,
+            4u8 => Self::Other,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MediaAssetKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for NetworkCellularGeneration.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NetworkCellularGeneration {
+    /// Unknown.
+    Unknown = 1,
+    /// G2.
+    G2 = 2,
+    /// G3.
+    G3 = 3,
+    /// G4.
+    G4 = 4,
+    /// G5.
+    G5 = 5,
+}
+
+impl VmValueCodec for NetworkCellularGeneration {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Unknown,
+            2u8 => Self::G2,
+            3u8 => Self::G3,
+            4u8 => Self::G4,
+            5u8 => Self::G5,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown NetworkCellularGeneration value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for NetworkConnectionType.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NetworkConnectionType {
+    /// None.
+    None = 1,
+    /// Unknown.
+    Unknown = 2,
+    /// Wifi.
+    Wifi = 3,
+    /// Cellular.
+    Cellular = 4,
+    /// Ethernet.
+    Ethernet = 5,
+    /// Bluetooth.
+    Bluetooth = 6,
+    /// Vpn.
+    Vpn = 7,
+    /// Other.
+    Other = 8,
+}
+
+impl VmValueCodec for NetworkConnectionType {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::None,
+            2u8 => Self::Unknown,
+            3u8 => Self::Wifi,
+            4u8 => Self::Cellular,
+            5u8 => Self::Ethernet,
+            6u8 => Self::Bluetooth,
+            7u8 => Self::Vpn,
+            8u8 => Self::Other,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown NetworkConnectionType value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for NotificationActionStyle.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NotificationActionStyle {
+    /// Default.
+    Default = 1,
+    /// Destructive.
+    Destructive = 2,
+    /// TextInput.
+    TextInput = 3,
+}
+
+impl VmValueCodec for NotificationActionStyle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Default,
+            2u8 => Self::Destructive,
+            3u8 => Self::TextInput,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown NotificationActionStyle value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for NotificationEventKind.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NotificationEventKind {
+    /// Delivered.
+    Delivered = 1,
+    /// Interacted.
+    Interacted = 2,
+    /// Dismissed.
+    Dismissed = 3,
+}
+
+impl VmValueCodec for NotificationEventKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Delivered,
+            2u8 => Self::Interacted,
+            3u8 => Self::Dismissed,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown NotificationEventKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for NotificationPermissionState.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NotificationPermissionState {
+    /// Granted.
+    Granted = 1,
+    /// Denied.
+    Denied = 2,
+    /// Prompt.
+    Prompt = 3,
+}
+
+impl VmValueCodec for NotificationPermissionState {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Granted,
+            2u8 => Self::Denied,
+            3u8 => Self::Prompt,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown NotificationPermissionState value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for NotificationPriority.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NotificationPriority {
+    /// Low.
+    Low = 1,
+    /// Normal.
+    Normal = 2,
+    /// High.
+    High = 3,
+}
+
+impl VmValueCodec for NotificationPriority {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Low,
+            2u8 => Self::Normal,
+            3u8 => Self::High,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown NotificationPriority value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for NotificationTriggerKind.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NotificationTriggerKind {
+    /// Immediate.
+    Immediate = 1,
+    /// TimeInterval.
+    TimeInterval = 2,
+    /// CalendarDate.
+    CalendarDate = 3,
+}
+
+impl VmValueCodec for NotificationTriggerKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Immediate,
+            2u8 => Self::TimeInterval,
+            3u8 => Self::CalendarDate,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown NotificationTriggerKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for Permission.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Permission {
+    /// Location.
+    Location = 1,
+    /// LocationBackground.
+    LocationBackground = 2,
+    /// Camera.
+    Camera = 3,
+    /// Microphone.
+    Microphone = 4,
+    /// Bluetooth.
+    Bluetooth = 5,
+    /// Notifications.
+    Notifications = 6,
+    /// ContactsRead.
+    ContactsRead = 7,
+    /// ContactsWrite.
+    ContactsWrite = 8,
+    /// MediaRead.
+    MediaRead = 9,
+    /// MediaWrite.
+    MediaWrite = 10,
+    /// Motion.
+    Motion = 11,
+    /// ClipboardRead.
+    ClipboardRead = 12,
+    /// CalendarRead.
+    CalendarRead = 13,
+    /// CalendarWrite.
+    CalendarWrite = 14,
+}
+
+impl VmValueCodec for Permission {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Location,
+            2u8 => Self::LocationBackground,
+            3u8 => Self::Camera,
+            4u8 => Self::Microphone,
+            5u8 => Self::Bluetooth,
+            6u8 => Self::Notifications,
+            7u8 => Self::ContactsRead,
+            8u8 => Self::ContactsWrite,
+            9u8 => Self::MediaRead,
+            10u8 => Self::MediaWrite,
+            11u8 => Self::Motion,
+            12u8 => Self::ClipboardRead,
+            13u8 => Self::CalendarRead,
+            14u8 => Self::CalendarWrite,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown Permission value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for PermissionState.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PermissionState {
+    /// Granted.
+    Granted = 1,
+    /// Denied.
+    Denied = 2,
+    /// Prompt.
+    Prompt = 3,
+    /// Restricted.
+    Restricted = 4,
+    /// Limited.
+    Limited = 5,
+}
+
+impl VmValueCodec for PermissionState {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Granted,
+            2u8 => Self::Denied,
+            3u8 => Self::Prompt,
+            4u8 => Self::Restricted,
+            5u8 => Self::Limited,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown PermissionState value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
 /// ABI enum for PowerState.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -45,6 +1118,2842 @@ impl VmValueCodec for PowerState {
 
     fn encode(self) -> vm::Value {
         <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI struct for BackgroundEvent.
+#[repr(C)]
+pub struct BackgroundEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: BackgroundEventKind,
+    /// The timestamp_ns field.
+    pub timestamp_ns: u64,
+    /// The sequence field.
+    pub sequence: u64,
+    /// The identifier field.
+    pub identifier: A::String,
+    /// The execution_id field.
+    pub execution_id: A::String,
+    /// The deadline_unix_ns field.
+    pub deadline_unix_ns: u64,
+}
+
+pub type BackgroundEvent = BackgroundEventAbi<NativeAbi>;
+pub type BackgroundEventVm = BackgroundEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for BackgroundEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("BackgroundEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for BackgroundEventAbi<NativeAbi> {}
+impl Clone for BackgroundEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for BackgroundEventAbi<VmAbi> {}
+impl Clone for BackgroundEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for BackgroundEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BackgroundEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 6 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <BackgroundEventKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_identifier =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_execution_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_deadline_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        Ok(Self {
+            kind: field_kind,
+            timestamp_ns: field_timestamp_ns,
+            sequence: field_sequence,
+            identifier: field_identifier,
+            execution_id: field_execution_id,
+            deadline_unix_ns: field_deadline_unix_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <BackgroundEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.identifier, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.execution_id,
+                context,
+            )?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.deadline_unix_ns, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for BackgroundEventOpenOptions.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct BackgroundEventOpenOptions {
+    /// The include_task_ready field.
+    pub include_task_ready: bool,
+    /// The include_task_expired field.
+    pub include_task_expired: bool,
+}
+
+pub type BackgroundEventOpenOptionsVm = BackgroundEventOpenOptions;
+
+impl VmAggregateCodec for BackgroundEventOpenOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BackgroundEventOpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_include_task_ready =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_include_task_expired =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            include_task_ready: field_include_task_ready,
+            include_task_expired: field_include_task_expired,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <bool as VmAggregateCodec>::encode_with_context(self.include_task_ready, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_task_expired, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for BackgroundTaskDescriptor.
+#[repr(C)]
+pub struct BackgroundTaskDescriptorAbi<A: BindingAbi> {
+    /// The identifier field.
+    pub identifier: A::String,
+    /// The trigger field.
+    pub trigger: BackgroundTriggerKind,
+    /// The minimum_interval_ns field.
+    pub minimum_interval_ns: u64,
+    /// The earliest_begin_unix_ns field.
+    pub earliest_begin_unix_ns: u64,
+    /// The requires_network field.
+    pub requires_network: bool,
+    /// The requires_unmetered_network field.
+    pub requires_unmetered_network: bool,
+    /// The requires_charging field.
+    pub requires_charging: bool,
+    /// The requires_idle field.
+    pub requires_idle: bool,
+    /// The persisted field.
+    pub persisted: bool,
+}
+
+pub type BackgroundTaskDescriptor = BackgroundTaskDescriptorAbi<NativeAbi>;
+pub type BackgroundTaskDescriptorVm = BackgroundTaskDescriptorAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for BackgroundTaskDescriptorAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("BackgroundTaskDescriptorAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for BackgroundTaskDescriptorAbi<NativeAbi> {}
+impl Clone for BackgroundTaskDescriptorAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for BackgroundTaskDescriptorAbi<VmAbi> {}
+impl Clone for BackgroundTaskDescriptorAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for BackgroundTaskDescriptorAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BackgroundTaskDescriptor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 9 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 9 fields",
+            ))
+            .boxed());
+        }
+        let field_identifier =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_trigger =
+            <BackgroundTriggerKind as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_minimum_interval_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_earliest_begin_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_requires_network =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_requires_unmetered_network =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_requires_charging =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_requires_idle =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_persisted = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        Ok(Self {
+            identifier: field_identifier,
+            trigger: field_trigger,
+            minimum_interval_ns: field_minimum_interval_ns,
+            earliest_begin_unix_ns: field_earliest_begin_unix_ns,
+            requires_network: field_requires_network,
+            requires_unmetered_network: field_requires_unmetered_network,
+            requires_charging: field_requires_charging,
+            requires_idle: field_requires_idle,
+            persisted: field_persisted,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.identifier, context)?,
+            <BackgroundTriggerKind as VmAggregateCodec>::encode_with_context(
+                self.trigger,
+                context,
+            )?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.minimum_interval_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.earliest_begin_unix_ns, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.requires_network, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.requires_unmetered_network,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.requires_charging, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.requires_idle, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.persisted, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for BackgroundTaskOptions.
+#[repr(C)]
+pub struct BackgroundTaskOptionsAbi<A: BindingAbi> {
+    /// The identifier field.
+    pub identifier: A::String,
+    /// The trigger field.
+    pub trigger: BackgroundTriggerKind,
+    /// The minimum_interval_ns field.
+    pub minimum_interval_ns: u64,
+    /// The earliest_begin_unix_ns field.
+    pub earliest_begin_unix_ns: u64,
+    /// The requires_network field.
+    pub requires_network: bool,
+    /// The requires_unmetered_network field.
+    pub requires_unmetered_network: bool,
+    /// The requires_charging field.
+    pub requires_charging: bool,
+    /// The requires_idle field.
+    pub requires_idle: bool,
+    /// The persisted field.
+    pub persisted: bool,
+}
+
+pub type BackgroundTaskOptions = BackgroundTaskOptionsAbi<NativeAbi>;
+pub type BackgroundTaskOptionsVm = BackgroundTaskOptionsAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for BackgroundTaskOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("BackgroundTaskOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for BackgroundTaskOptionsAbi<NativeAbi> {}
+impl Clone for BackgroundTaskOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for BackgroundTaskOptionsAbi<VmAbi> {}
+impl Clone for BackgroundTaskOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for BackgroundTaskOptionsAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "BackgroundTaskOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 9 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 9 fields",
+            ))
+            .boxed());
+        }
+        let field_identifier =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_trigger =
+            <BackgroundTriggerKind as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_minimum_interval_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_earliest_begin_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_requires_network =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_requires_unmetered_network =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_requires_charging =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_requires_idle =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_persisted = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        Ok(Self {
+            identifier: field_identifier,
+            trigger: field_trigger,
+            minimum_interval_ns: field_minimum_interval_ns,
+            earliest_begin_unix_ns: field_earliest_begin_unix_ns,
+            requires_network: field_requires_network,
+            requires_unmetered_network: field_requires_unmetered_network,
+            requires_charging: field_requires_charging,
+            requires_idle: field_requires_idle,
+            persisted: field_persisted,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.identifier, context)?,
+            <BackgroundTriggerKind as VmAggregateCodec>::encode_with_context(
+                self.trigger,
+                context,
+            )?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.minimum_interval_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.earliest_begin_unix_ns, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.requires_network, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.requires_unmetered_network,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.requires_charging, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.requires_idle, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.persisted, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CalendarAttendee.
+#[repr(C)]
+pub struct CalendarAttendeeAbi<A: BindingAbi> {
+    /// The id field.
+    pub id: A::String,
+    /// The name field.
+    pub name: A::String,
+    /// The email field.
+    pub email: A::String,
+    /// The optional field.
+    pub optional: bool,
+    /// The organizer field.
+    pub organizer: bool,
+    /// The response_status field.
+    pub response_status: CalendarParticipantStatus,
+}
+
+pub type CalendarAttendee = CalendarAttendeeAbi<NativeAbi>;
+pub type CalendarAttendeeVm = CalendarAttendeeAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CalendarAttendeeAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CalendarAttendeeAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CalendarAttendeeAbi<NativeAbi> {}
+impl Clone for CalendarAttendeeAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CalendarAttendeeAbi<VmAbi> {}
+impl Clone for CalendarAttendeeAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CalendarAttendeeAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CalendarAttendee",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 6 fields",
+            ))
+            .boxed());
+        }
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_email =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_optional = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_organizer = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_response_status =
+            <CalendarParticipantStatus as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
+        Ok(Self {
+            id: field_id,
+            name: field_name,
+            email: field_email,
+            optional: field_optional,
+            organizer: field_organizer,
+            response_status: field_response_status,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.email, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.optional, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.organizer, context)?,
+            <CalendarParticipantStatus as VmAggregateCodec>::encode_with_context(
+                self.response_status,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CalendarDescriptor.
+#[repr(C)]
+pub struct CalendarDescriptorAbi<A: BindingAbi> {
+    /// The id field.
+    pub id: A::String,
+    /// The title field.
+    pub title: A::String,
+    /// The source field.
+    pub source: A::String,
+    /// The owner field.
+    pub owner: A::String,
+    /// The color_argb field.
+    pub color_argb: u32,
+    /// The primary field.
+    pub primary: bool,
+    /// The access field.
+    pub access: CalendarAccess,
+}
+
+pub type CalendarDescriptor = CalendarDescriptorAbi<NativeAbi>;
+pub type CalendarDescriptorVm = CalendarDescriptorAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CalendarDescriptorAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CalendarDescriptorAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CalendarDescriptorAbi<NativeAbi> {}
+impl Clone for CalendarDescriptorAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CalendarDescriptorAbi<VmAbi> {}
+impl Clone for CalendarDescriptorAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CalendarDescriptorAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CalendarDescriptor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_title =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_source =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_owner =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_color_argb = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_access =
+            <CalendarAccess as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            id: field_id,
+            title: field_title,
+            source: field_source,
+            owner: field_owner,
+            color_argb: field_color_argb,
+            primary: field_primary,
+            access: field_access,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.source, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.owner, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.color_argb, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?,
+            <CalendarAccess as VmAggregateCodec>::encode_with_context(self.access, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CalendarEvent.
+#[repr(C)]
+pub struct CalendarEventAbi<A: BindingAbi> {
+    /// The id field.
+    pub id: A::String,
+    /// The calendar_id field.
+    pub calendar_id: A::String,
+    /// The title field.
+    pub title: A::String,
+    /// The notes field.
+    pub notes: A::String,
+    /// The location field.
+    pub location: A::String,
+    /// The start_unix_ns field.
+    pub start_unix_ns: u64,
+    /// The end_unix_ns field.
+    pub end_unix_ns: u64,
+    /// The all_day field.
+    pub all_day: bool,
+    /// The canceled field.
+    pub canceled: bool,
+    /// The time_zone field.
+    pub time_zone: A::String,
+    /// The availability field.
+    pub availability: CalendarAvailability,
+    /// The url field.
+    pub url: A::String,
+    /// The organizer_name field.
+    pub organizer_name: A::String,
+    /// The organizer_email field.
+    pub organizer_email: A::String,
+    /// The recurring field.
+    pub recurring: bool,
+    /// The recurrence_master_id field.
+    pub recurrence_master_id: A::String,
+    /// The recurrence_id_unix_ns field.
+    pub recurrence_id_unix_ns: u64,
+    /// The recurrence_rule field.
+    pub recurrence_rule: platform_os::CalendarRecurrenceRuleAbi<A>,
+    /// The attendees field.
+    pub attendees: A::Array<platform_os::CalendarAttendeeAbi<A>>,
+    /// The reminders field.
+    pub reminders: A::Array<CalendarReminder>,
+}
+
+pub type CalendarEvent = CalendarEventAbi<NativeAbi>;
+pub type CalendarEventVm = CalendarEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CalendarEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CalendarEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CalendarEventAbi<NativeAbi> {}
+impl Clone for CalendarEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CalendarEventAbi<VmAbi> {}
+impl Clone for CalendarEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CalendarEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CalendarEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 20 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 20 fields",
+            ))
+            .boxed());
+        }
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_calendar_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_title =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_notes =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_location =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_start_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_end_unix_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_all_day = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_canceled = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_time_zone =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_availability =
+            <CalendarAvailability as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_url =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_organizer_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        let field_organizer_email =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+        let field_recurring = <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+        let field_recurrence_master_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+        let field_recurrence_id_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+        let field_recurrence_rule =
+            <CalendarRecurrenceRuleVm as VmAggregateCodec>::decode_with_context(
+                context, slots[17],
+            )?;
+        let field_attendees =
+            <VmArray<CalendarAttendeeVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[18],
+            )?;
+        let field_reminders =
+            <VmArray<CalendarReminderVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[19],
+            )?;
+        Ok(Self {
+            id: field_id,
+            calendar_id: field_calendar_id,
+            title: field_title,
+            notes: field_notes,
+            location: field_location,
+            start_unix_ns: field_start_unix_ns,
+            end_unix_ns: field_end_unix_ns,
+            all_day: field_all_day,
+            canceled: field_canceled,
+            time_zone: field_time_zone,
+            availability: field_availability,
+            url: field_url,
+            organizer_name: field_organizer_name,
+            organizer_email: field_organizer_email,
+            recurring: field_recurring,
+            recurrence_master_id: field_recurrence_master_id,
+            recurrence_id_unix_ns: field_recurrence_id_unix_ns,
+            recurrence_rule: field_recurrence_rule,
+            attendees: field_attendees,
+            reminders: field_reminders,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.calendar_id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.notes, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.location, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.start_unix_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.end_unix_ns, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.all_day, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.canceled, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.time_zone, context)?,
+            <CalendarAvailability as VmAggregateCodec>::encode_with_context(
+                self.availability,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.url, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.organizer_name,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.organizer_email,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.recurring, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.recurrence_master_id,
+                context,
+            )?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.recurrence_id_unix_ns, context)?,
+            <CalendarRecurrenceRuleVm as VmAggregateCodec>::encode_with_context(
+                self.recurrence_rule,
+                context,
+            )?,
+            <VmArray<CalendarAttendeeVm> as VmAggregateCodec>::encode_with_context(
+                self.attendees,
+                context,
+            )?,
+            <VmArray<CalendarReminderVm> as VmAggregateCodec>::encode_with_context(
+                self.reminders,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CalendarEventDraft.
+#[repr(C)]
+pub struct CalendarEventDraftAbi<A: BindingAbi> {
+    /// The calendar_id field.
+    pub calendar_id: A::String,
+    /// The title field.
+    pub title: A::String,
+    /// The notes field.
+    pub notes: A::String,
+    /// The location field.
+    pub location: A::String,
+    /// The start_unix_ns field.
+    pub start_unix_ns: u64,
+    /// The end_unix_ns field.
+    pub end_unix_ns: u64,
+    /// The all_day field.
+    pub all_day: bool,
+    /// The time_zone field.
+    pub time_zone: A::String,
+    /// The availability field.
+    pub availability: CalendarAvailability,
+    /// The url field.
+    pub url: A::String,
+    /// The recurrence_rule field.
+    pub recurrence_rule: platform_os::CalendarRecurrenceRuleAbi<A>,
+    /// The attendees field.
+    pub attendees: A::Array<platform_os::CalendarAttendeeAbi<A>>,
+    /// The reminders field.
+    pub reminders: A::Array<CalendarReminder>,
+}
+
+pub type CalendarEventDraft = CalendarEventDraftAbi<NativeAbi>;
+pub type CalendarEventDraftVm = CalendarEventDraftAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CalendarEventDraftAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CalendarEventDraftAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CalendarEventDraftAbi<NativeAbi> {}
+impl Clone for CalendarEventDraftAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CalendarEventDraftAbi<VmAbi> {}
+impl Clone for CalendarEventDraftAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CalendarEventDraftAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CalendarEventDraft",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 13 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 13 fields",
+            ))
+            .boxed());
+        }
+        let field_calendar_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_title =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_notes =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_location =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_start_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_end_unix_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_all_day = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_time_zone =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_availability =
+            <CalendarAvailability as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_url =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_recurrence_rule =
+            <CalendarRecurrenceRuleVm as VmAggregateCodec>::decode_with_context(
+                context, slots[10],
+            )?;
+        let field_attendees =
+            <VmArray<CalendarAttendeeVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[11],
+            )?;
+        let field_reminders =
+            <VmArray<CalendarReminderVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[12],
+            )?;
+        Ok(Self {
+            calendar_id: field_calendar_id,
+            title: field_title,
+            notes: field_notes,
+            location: field_location,
+            start_unix_ns: field_start_unix_ns,
+            end_unix_ns: field_end_unix_ns,
+            all_day: field_all_day,
+            time_zone: field_time_zone,
+            availability: field_availability,
+            url: field_url,
+            recurrence_rule: field_recurrence_rule,
+            attendees: field_attendees,
+            reminders: field_reminders,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.calendar_id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.notes, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.location, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.start_unix_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.end_unix_ns, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.all_day, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.time_zone, context)?,
+            <CalendarAvailability as VmAggregateCodec>::encode_with_context(
+                self.availability,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.url, context)?,
+            <CalendarRecurrenceRuleVm as VmAggregateCodec>::encode_with_context(
+                self.recurrence_rule,
+                context,
+            )?,
+            <VmArray<CalendarAttendeeVm> as VmAggregateCodec>::encode_with_context(
+                self.attendees,
+                context,
+            )?,
+            <VmArray<CalendarReminderVm> as VmAggregateCodec>::encode_with_context(
+                self.reminders,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CalendarEventQuery.
+#[repr(C)]
+pub struct CalendarEventQueryAbi<A: BindingAbi> {
+    /// The calendar_ids field.
+    pub calendar_ids: A::Array<A::String>,
+    /// The start_unix_ns field.
+    pub start_unix_ns: u64,
+    /// The end_unix_ns field.
+    pub end_unix_ns: u64,
+    /// The limit field.
+    pub limit: u32,
+    /// The include_canceled field.
+    pub include_canceled: bool,
+    /// The include_declined field.
+    pub include_declined: bool,
+    /// The include_recurrence_instances field.
+    pub include_recurrence_instances: bool,
+}
+
+pub type CalendarEventQuery = CalendarEventQueryAbi<NativeAbi>;
+pub type CalendarEventQueryVm = CalendarEventQueryAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CalendarEventQueryAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CalendarEventQueryAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CalendarEventQueryAbi<NativeAbi> {}
+impl Clone for CalendarEventQueryAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CalendarEventQueryAbi<VmAbi> {}
+impl Clone for CalendarEventQueryAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CalendarEventQueryAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CalendarEventQuery",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_calendar_ids =
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_start_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_end_unix_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_limit = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_include_canceled =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_include_declined =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_include_recurrence_instances =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            calendar_ids: field_calendar_ids,
+            start_unix_ns: field_start_unix_ns,
+            end_unix_ns: field_end_unix_ns,
+            limit: field_limit,
+            include_canceled: field_include_canceled,
+            include_declined: field_include_declined,
+            include_recurrence_instances: field_include_recurrence_instances,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.calendar_ids,
+                context,
+            )?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.start_unix_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.end_unix_ns, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.limit, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_canceled, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_declined, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.include_recurrence_instances,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CalendarRecurrenceRule.
+#[repr(C)]
+pub struct CalendarRecurrenceRuleAbi<A: BindingAbi> {
+    /// The frequency field.
+    pub frequency: CalendarRecurrenceFrequency,
+    /// The interval field.
+    pub interval: u32,
+    /// The count field.
+    pub count: u32,
+    /// The until_unix_ns field.
+    pub until_unix_ns: u64,
+    /// The by_week_days field.
+    pub by_week_days: A::Array<u8>,
+    /// The by_month_days field.
+    pub by_month_days: A::Array<i8>,
+    /// The by_months field.
+    pub by_months: A::Array<u8>,
+}
+
+pub type CalendarRecurrenceRule = CalendarRecurrenceRuleAbi<NativeAbi>;
+pub type CalendarRecurrenceRuleVm = CalendarRecurrenceRuleAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CalendarRecurrenceRuleAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CalendarRecurrenceRuleAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CalendarRecurrenceRuleAbi<NativeAbi> {}
+impl Clone for CalendarRecurrenceRuleAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CalendarRecurrenceRuleAbi<VmAbi> {}
+impl Clone for CalendarRecurrenceRuleAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CalendarRecurrenceRuleAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CalendarRecurrenceRule",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_frequency =
+            <CalendarRecurrenceFrequency as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_interval = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_count = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_until_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_by_week_days =
+            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_by_month_days =
+            <VmArray<i8> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_by_months =
+            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            frequency: field_frequency,
+            interval: field_interval,
+            count: field_count,
+            until_unix_ns: field_until_unix_ns,
+            by_week_days: field_by_week_days,
+            by_month_days: field_by_month_days,
+            by_months: field_by_months,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CalendarRecurrenceFrequency as VmAggregateCodec>::encode_with_context(
+                self.frequency,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.interval, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.count, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.until_unix_ns, context)?,
+            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.by_week_days, context)?,
+            <VmArray<i8> as VmAggregateCodec>::encode_with_context(self.by_month_days, context)?,
+            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.by_months, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CalendarReminder.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CalendarReminder {
+    /// The kind field.
+    pub kind: CalendarReminderKind,
+    /// The minutes_before_start field.
+    pub minutes_before_start: i32,
+    /// The absolute_unix_ns field.
+    pub absolute_unix_ns: u64,
+}
+
+pub type CalendarReminderVm = CalendarReminder;
+
+impl VmAggregateCodec for CalendarReminder {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CalendarReminder",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <CalendarReminderKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_minutes_before_start =
+            <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_absolute_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            kind: field_kind,
+            minutes_before_start: field_minutes_before_start,
+            absolute_unix_ns: field_absolute_unix_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CalendarReminderKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <i32 as VmAggregateCodec>::encode_with_context(self.minutes_before_start, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.absolute_unix_ns, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for Contact.
+#[repr(C)]
+pub struct ContactAbi<A: BindingAbi> {
+    /// The id field.
+    pub id: A::String,
+    /// The name field.
+    pub name: platform_os::ContactNameAbi<A>,
+    /// The phones field.
+    pub phones: A::Array<platform_os::ContactPhoneAbi<A>>,
+    /// The emails field.
+    pub emails: A::Array<platform_os::ContactEmailAbi<A>>,
+    /// The addresses field.
+    pub addresses: A::Array<platform_os::ContactAddressAbi<A>>,
+    /// The organization field.
+    pub organization: platform_os::ContactOrganizationAbi<A>,
+    /// The note field.
+    pub note: A::String,
+}
+
+pub type Contact = ContactAbi<NativeAbi>;
+pub type ContactVm = ContactAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ContactAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("ContactAbi").finish_non_exhaustive()
+    }
+}
+
+impl Copy for ContactAbi<NativeAbi> {}
+impl Clone for ContactAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ContactAbi<VmAbi> {}
+impl Clone for ContactAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for ContactAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value", "Contact",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_name =
+            <ContactNameVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_phones =
+            <VmArray<ContactPhoneVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_emails =
+            <VmArray<ContactEmailVm> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_addresses = <VmArray<ContactAddressVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[4],
+        )?;
+        let field_organization =
+            <ContactOrganizationVm as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_note =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            id: field_id,
+            name: field_name,
+            phones: field_phones,
+            emails: field_emails,
+            addresses: field_addresses,
+            organization: field_organization,
+            note: field_note,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <ContactNameVm as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <VmArray<ContactPhoneVm> as VmAggregateCodec>::encode_with_context(
+                self.phones,
+                context,
+            )?,
+            <VmArray<ContactEmailVm> as VmAggregateCodec>::encode_with_context(
+                self.emails,
+                context,
+            )?,
+            <VmArray<ContactAddressVm> as VmAggregateCodec>::encode_with_context(
+                self.addresses,
+                context,
+            )?,
+            <ContactOrganizationVm as VmAggregateCodec>::encode_with_context(
+                self.organization,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.note, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for ContactAddress.
+#[repr(C)]
+pub struct ContactAddressAbi<A: BindingAbi> {
+    /// The label field.
+    pub label: A::String,
+    /// The street field.
+    pub street: A::String,
+    /// The city field.
+    pub city: A::String,
+    /// The region field.
+    pub region: A::String,
+    /// The postal_code field.
+    pub postal_code: A::String,
+    /// The country field.
+    pub country: A::String,
+    /// The country_code field.
+    pub country_code: A::String,
+}
+
+pub type ContactAddress = ContactAddressAbi<NativeAbi>;
+pub type ContactAddressVm = ContactAddressAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ContactAddressAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ContactAddressAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ContactAddressAbi<NativeAbi> {}
+impl Clone for ContactAddressAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ContactAddressAbi<VmAbi> {}
+impl Clone for ContactAddressAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for ContactAddressAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ContactAddress",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_street =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_city =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_region =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_postal_code =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_country =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_country_code =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            label: field_label,
+            street: field_street,
+            city: field_city,
+            region: field_region,
+            postal_code: field_postal_code,
+            country: field_country,
+            country_code: field_country_code,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.street, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.city, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.region, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.postal_code, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.country, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.country_code,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for ContactDraft.
+#[repr(C)]
+pub struct ContactDraftAbi<A: BindingAbi> {
+    /// The name field.
+    pub name: platform_os::ContactNameAbi<A>,
+    /// The phones field.
+    pub phones: A::Array<platform_os::ContactPhoneAbi<A>>,
+    /// The emails field.
+    pub emails: A::Array<platform_os::ContactEmailAbi<A>>,
+    /// The addresses field.
+    pub addresses: A::Array<platform_os::ContactAddressAbi<A>>,
+    /// The organization field.
+    pub organization: platform_os::ContactOrganizationAbi<A>,
+    /// The note field.
+    pub note: A::String,
+}
+
+pub type ContactDraft = ContactDraftAbi<NativeAbi>;
+pub type ContactDraftVm = ContactDraftAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ContactDraftAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ContactDraftAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ContactDraftAbi<NativeAbi> {}
+impl Clone for ContactDraftAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ContactDraftAbi<VmAbi> {}
+impl Clone for ContactDraftAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for ContactDraftAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ContactDraft",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 6 fields",
+            ))
+            .boxed());
+        }
+        let field_name =
+            <ContactNameVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_phones =
+            <VmArray<ContactPhoneVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_emails =
+            <VmArray<ContactEmailVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_addresses = <VmArray<ContactAddressVm> as VmAggregateCodec>::decode_with_context(
+            context, slots[3],
+        )?;
+        let field_organization =
+            <ContactOrganizationVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_note =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        Ok(Self {
+            name: field_name,
+            phones: field_phones,
+            emails: field_emails,
+            addresses: field_addresses,
+            organization: field_organization,
+            note: field_note,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <ContactNameVm as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <VmArray<ContactPhoneVm> as VmAggregateCodec>::encode_with_context(
+                self.phones,
+                context,
+            )?,
+            <VmArray<ContactEmailVm> as VmAggregateCodec>::encode_with_context(
+                self.emails,
+                context,
+            )?,
+            <VmArray<ContactAddressVm> as VmAggregateCodec>::encode_with_context(
+                self.addresses,
+                context,
+            )?,
+            <ContactOrganizationVm as VmAggregateCodec>::encode_with_context(
+                self.organization,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.note, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for ContactEmail.
+#[repr(C)]
+pub struct ContactEmailAbi<A: BindingAbi> {
+    /// The label field.
+    pub label: A::String,
+    /// The address field.
+    pub address: A::String,
+    /// The primary field.
+    pub primary: bool,
+}
+
+pub type ContactEmail = ContactEmailAbi<NativeAbi>;
+pub type ContactEmailVm = ContactEmailAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ContactEmailAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ContactEmailAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ContactEmailAbi<NativeAbi> {}
+impl Clone for ContactEmailAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ContactEmailAbi<VmAbi> {}
+impl Clone for ContactEmailAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for ContactEmailAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ContactEmail",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_address =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            label: field_label,
+            address: field_address,
+            primary: field_primary,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.address, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for ContactName.
+#[repr(C)]
+pub struct ContactNameAbi<A: BindingAbi> {
+    /// The given_name field.
+    pub given_name: A::String,
+    /// The middle_name field.
+    pub middle_name: A::String,
+    /// The family_name field.
+    pub family_name: A::String,
+    /// The prefix field.
+    pub prefix: A::String,
+    /// The suffix field.
+    pub suffix: A::String,
+    /// The nickname field.
+    pub nickname: A::String,
+    /// The phonetic_given_name field.
+    pub phonetic_given_name: A::String,
+    /// The phonetic_family_name field.
+    pub phonetic_family_name: A::String,
+}
+
+pub type ContactName = ContactNameAbi<NativeAbi>;
+pub type ContactNameVm = ContactNameAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ContactNameAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ContactNameAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ContactNameAbi<NativeAbi> {}
+impl Clone for ContactNameAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ContactNameAbi<VmAbi> {}
+impl Clone for ContactNameAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for ContactNameAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ContactName",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 8 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 8 fields",
+            ))
+            .boxed());
+        }
+        let field_given_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_middle_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_family_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_prefix =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_suffix =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_nickname =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_phonetic_given_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_phonetic_family_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        Ok(Self {
+            given_name: field_given_name,
+            middle_name: field_middle_name,
+            family_name: field_family_name,
+            prefix: field_prefix,
+            suffix: field_suffix,
+            nickname: field_nickname,
+            phonetic_given_name: field_phonetic_given_name,
+            phonetic_family_name: field_phonetic_family_name,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.given_name, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.middle_name, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.family_name, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.prefix, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.suffix, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.nickname, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.phonetic_given_name,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.phonetic_family_name,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for ContactOrganization.
+#[repr(C)]
+pub struct ContactOrganizationAbi<A: BindingAbi> {
+    /// The company field.
+    pub company: A::String,
+    /// The department field.
+    pub department: A::String,
+    /// The title field.
+    pub title: A::String,
+}
+
+pub type ContactOrganization = ContactOrganizationAbi<NativeAbi>;
+pub type ContactOrganizationVm = ContactOrganizationAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ContactOrganizationAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ContactOrganizationAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ContactOrganizationAbi<NativeAbi> {}
+impl Clone for ContactOrganizationAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ContactOrganizationAbi<VmAbi> {}
+impl Clone for ContactOrganizationAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for ContactOrganizationAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ContactOrganization",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_company =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_department =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_title =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            company: field_company,
+            department: field_department,
+            title: field_title,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.company, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.department, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for ContactPage.
+#[repr(C)]
+pub struct ContactPageAbi<A: BindingAbi> {
+    /// The contacts field.
+    pub contacts: A::Array<platform_os::ContactAbi<A>>,
+    /// The next_cursor field.
+    pub next_cursor: A::String,
+    /// The has_more field.
+    pub has_more: bool,
+}
+
+pub type ContactPage = ContactPageAbi<NativeAbi>;
+pub type ContactPageVm = ContactPageAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ContactPageAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ContactPageAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ContactPageAbi<NativeAbi> {}
+impl Clone for ContactPageAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ContactPageAbi<VmAbi> {}
+impl Clone for ContactPageAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for ContactPageAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ContactPage",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_contacts =
+            <VmArray<ContactVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_next_cursor =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_has_more = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            contacts: field_contacts,
+            next_cursor: field_next_cursor,
+            has_more: field_has_more,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <VmArray<ContactVm> as VmAggregateCodec>::encode_with_context(self.contacts, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.next_cursor, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.has_more, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for ContactPhone.
+#[repr(C)]
+pub struct ContactPhoneAbi<A: BindingAbi> {
+    /// The label field.
+    pub label: A::String,
+    /// The number field.
+    pub number: A::String,
+    /// The normalized_number field.
+    pub normalized_number: A::String,
+    /// The primary field.
+    pub primary: bool,
+}
+
+pub type ContactPhone = ContactPhoneAbi<NativeAbi>;
+pub type ContactPhoneVm = ContactPhoneAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ContactPhoneAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ContactPhoneAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ContactPhoneAbi<NativeAbi> {}
+impl Clone for ContactPhoneAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ContactPhoneAbi<VmAbi> {}
+impl Clone for ContactPhoneAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for ContactPhoneAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ContactPhone",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_label =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_number =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_normalized_number =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            label: field_label,
+            number: field_number,
+            normalized_number: field_normalized_number,
+            primary: field_primary,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.number, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.normalized_number,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.primary, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for ContactQuery.
+#[repr(C)]
+pub struct ContactQueryAbi<A: BindingAbi> {
+    /// The cursor field.
+    pub cursor: A::String,
+    /// The limit field.
+    pub limit: u32,
+    /// The include_phones field.
+    pub include_phones: bool,
+    /// The include_emails field.
+    pub include_emails: bool,
+    /// The include_addresses field.
+    pub include_addresses: bool,
+    /// The include_organization field.
+    pub include_organization: bool,
+    /// The include_notes field.
+    pub include_notes: bool,
+}
+
+pub type ContactQuery = ContactQueryAbi<NativeAbi>;
+pub type ContactQueryVm = ContactQueryAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for ContactQueryAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ContactQueryAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for ContactQueryAbi<NativeAbi> {}
+impl Clone for ContactQueryAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for ContactQueryAbi<VmAbi> {}
+impl Clone for ContactQueryAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for ContactQueryAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "ContactQuery",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_cursor =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_limit = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_include_phones =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_include_emails =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_include_addresses =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_include_organization =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_include_notes =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            cursor: field_cursor,
+            limit: field_limit,
+            include_phones: field_include_phones,
+            include_emails: field_include_emails,
+            include_addresses: field_include_addresses,
+            include_organization: field_include_organization,
+            include_notes: field_include_notes,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.cursor, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.limit, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_phones, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_emails, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_addresses, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_organization, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_notes, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CredentialAuthenticationOptions.
+#[repr(C)]
+pub struct CredentialAuthenticationOptionsAbi<A: BindingAbi> {
+    /// The title field.
+    pub title: A::String,
+    /// The subtitle field.
+    pub subtitle: A::String,
+    /// The message field.
+    pub message: A::String,
+    /// The allow_passcode_fallback field.
+    pub allow_passcode_fallback: bool,
+}
+
+pub type CredentialAuthenticationOptions = CredentialAuthenticationOptionsAbi<NativeAbi>;
+pub type CredentialAuthenticationOptionsVm = CredentialAuthenticationOptionsAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CredentialAuthenticationOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CredentialAuthenticationOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CredentialAuthenticationOptionsAbi<NativeAbi> {}
+impl Clone for CredentialAuthenticationOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CredentialAuthenticationOptionsAbi<VmAbi> {}
+impl Clone for CredentialAuthenticationOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CredentialAuthenticationOptionsAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CredentialAuthenticationOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_title =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_subtitle =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_message =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_allow_passcode_fallback =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            title: field_title,
+            subtitle: field_subtitle,
+            message: field_message,
+            allow_passcode_fallback: field_allow_passcode_fallback,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.subtitle, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.message, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.allow_passcode_fallback, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CredentialAuthenticationResult.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CredentialAuthenticationResult {
+    /// The authenticated field.
+    pub authenticated: bool,
+    /// The mechanism field.
+    pub mechanism: CredentialAuthenticationMechanism,
+}
+
+pub type CredentialAuthenticationResultVm = CredentialAuthenticationResult;
+
+impl VmAggregateCodec for CredentialAuthenticationResult {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CredentialAuthenticationResult",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_authenticated =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_mechanism =
+            <CredentialAuthenticationMechanism as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            authenticated: field_authenticated,
+            mechanism: field_mechanism,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <bool as VmAggregateCodec>::encode_with_context(self.authenticated, context)?,
+            <CredentialAuthenticationMechanism as VmAggregateCodec>::encode_with_context(
+                self.mechanism,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CredentialQuery.
+#[repr(C)]
+pub struct CredentialQueryAbi<A: BindingAbi> {
+    /// The service field.
+    pub service: A::String,
+    /// The account field.
+    pub account: A::String,
+    /// The access_group field.
+    pub access_group: A::String,
+    /// The require_authentication field.
+    pub require_authentication: bool,
+}
+
+pub type CredentialQuery = CredentialQueryAbi<NativeAbi>;
+pub type CredentialQueryVm = CredentialQueryAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CredentialQueryAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CredentialQueryAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CredentialQueryAbi<NativeAbi> {}
+impl Clone for CredentialQueryAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CredentialQueryAbi<VmAbi> {}
+impl Clone for CredentialQueryAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CredentialQueryAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CredentialQuery",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_service =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_account =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_access_group =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_require_authentication =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            service: field_service,
+            account: field_account,
+            access_group: field_access_group,
+            require_authentication: field_require_authentication,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.account, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.access_group,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.require_authentication, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CredentialRecord.
+#[repr(C)]
+pub struct CredentialRecordAbi<A: BindingAbi> {
+    /// The service field.
+    pub service: A::String,
+    /// The account field.
+    pub account: A::String,
+    /// The bytes field.
+    pub bytes: A::Slice<u8>,
+    /// The created_unix_ns field.
+    pub created_unix_ns: u64,
+    /// The modified_unix_ns field.
+    pub modified_unix_ns: u64,
+}
+
+pub type CredentialRecord = CredentialRecordAbi<NativeAbi>;
+pub type CredentialRecordVm = CredentialRecordAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CredentialRecordAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CredentialRecordAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CredentialRecordAbi<NativeAbi> {}
+impl Clone for CredentialRecordAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CredentialRecordAbi<VmAbi> {}
+impl Clone for CredentialRecordAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CredentialRecordAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CredentialRecord",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_service =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_account =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_created_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_modified_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            service: field_service,
+            account: field_account,
+            bytes: field_bytes,
+            created_unix_ns: field_created_unix_ns,
+            modified_unix_ns: field_modified_unix_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.account, context)?,
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.created_unix_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.modified_unix_ns, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CredentialWriteOptions.
+#[repr(C)]
+pub struct CredentialWriteOptionsAbi<A: BindingAbi> {
+    /// The service field.
+    pub service: A::String,
+    /// The account field.
+    pub account: A::String,
+    /// The access_group field.
+    pub access_group: A::String,
+    /// The bytes field.
+    pub bytes: A::Slice<u8>,
+    /// The accessibility field.
+    pub accessibility: CredentialAccessibility,
+    /// The authentication field.
+    pub authentication: CredentialAuthenticationPolicy,
+    /// The replace_existing field.
+    pub replace_existing: bool,
+}
+
+pub type CredentialWriteOptions = CredentialWriteOptionsAbi<NativeAbi>;
+pub type CredentialWriteOptionsVm = CredentialWriteOptionsAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CredentialWriteOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CredentialWriteOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CredentialWriteOptionsAbi<NativeAbi> {}
+impl Clone for CredentialWriteOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CredentialWriteOptionsAbi<VmAbi> {}
+impl Clone for CredentialWriteOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CredentialWriteOptionsAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CredentialWriteOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_service =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_account =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_access_group =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_bytes =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_accessibility =
+            <CredentialAccessibility as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_authentication =
+            <CredentialAuthenticationPolicy as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
+        let field_replace_existing =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            service: field_service,
+            account: field_account,
+            access_group: field_access_group,
+            bytes: field_bytes,
+            accessibility: field_accessibility,
+            authentication: field_authentication,
+            replace_existing: field_replace_existing,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.account, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.access_group,
+                context,
+            )?,
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
+            <CredentialAccessibility as VmAggregateCodec>::encode_with_context(
+                self.accessibility,
+                context,
+            )?,
+            <CredentialAuthenticationPolicy as VmAggregateCodec>::encode_with_context(
+                self.authentication,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.replace_existing, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for DocumentDescriptor.
+#[repr(C)]
+pub struct DocumentDescriptorAbi<A: BindingAbi> {
+    /// The uri field.
+    pub uri: A::String,
+    /// The name field.
+    pub name: A::String,
+    /// The mime_type field.
+    pub mime_type: A::String,
+    /// The size_bytes field.
+    pub size_bytes: u64,
+    /// The modified_unix_ns field.
+    pub modified_unix_ns: u64,
+    /// The is_directory field.
+    pub is_directory: bool,
+    /// The local_path field.
+    pub local_path: platform_fs::OsPathAbi<A>,
+}
+
+pub type DocumentDescriptor = DocumentDescriptorAbi<NativeAbi>;
+pub type DocumentDescriptorVm = DocumentDescriptorAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DocumentDescriptorAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DocumentDescriptorAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for DocumentDescriptorAbi<NativeAbi> {}
+impl Clone for DocumentDescriptorAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DocumentDescriptorAbi<VmAbi> {}
+impl Clone for DocumentDescriptorAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for DocumentDescriptorAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DocumentDescriptor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_uri =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_mime_type =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_size_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_modified_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_is_directory =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_local_path =
+            <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            uri: field_uri,
+            name: field_name,
+            mime_type: field_mime_type,
+            size_bytes: field_size_bytes,
+            modified_unix_ns: field_modified_unix_ns,
+            is_directory: field_is_directory,
+            local_path: field_local_path,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uri, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.mime_type, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.size_bytes, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.modified_unix_ns, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_directory, context)?,
+            <fs::OsPathVm as VmAggregateCodec>::encode_with_context(self.local_path, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for DocumentPickOptions.
+#[repr(C)]
+pub struct DocumentPickOptionsAbi<A: BindingAbi> {
+    /// The mime_types field.
+    pub mime_types: A::Array<A::String>,
+    /// The extensions field.
+    pub extensions: A::Array<A::String>,
+    /// The multiple field.
+    pub multiple: bool,
+    /// The allow_directories field.
+    pub allow_directories: bool,
+    /// The copy_to_sandbox field.
+    pub copy_to_sandbox: bool,
+}
+
+pub type DocumentPickOptions = DocumentPickOptionsAbi<NativeAbi>;
+pub type DocumentPickOptionsVm = DocumentPickOptionsAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for DocumentPickOptionsAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DocumentPickOptionsAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for DocumentPickOptionsAbi<NativeAbi> {}
+impl Clone for DocumentPickOptionsAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for DocumentPickOptionsAbi<VmAbi> {}
+impl Clone for DocumentPickOptionsAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for DocumentPickOptionsAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "DocumentPickOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_mime_types =
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_extensions =
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_multiple = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_allow_directories =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_copy_to_sandbox =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            mime_types: field_mime_types,
+            extensions: field_extensions,
+            multiple: field_multiple,
+            allow_directories: field_allow_directories,
+            copy_to_sandbox: field_copy_to_sandbox,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.mime_types,
+                context,
+            )?,
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+                self.extensions,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.multiple, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.allow_directories, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.copy_to_sandbox, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
     }
 }
 
@@ -140,6 +4049,496 @@ impl VmAggregateCodec for HostIdentityAbi<VmAbi> {
     }
 }
 
+/// ABI struct for IntentEvent.
+#[repr(C)]
+pub struct IntentEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: IntentKind,
+    /// The timestamp_ns field.
+    pub timestamp_ns: u64,
+    /// The sequence field.
+    pub sequence: u64,
+    /// The source field.
+    pub source: A::String,
+    /// The payload field.
+    pub payload: platform_os::IntentPayloadAbi<A>,
+}
+
+pub type IntentEvent = IntentEventAbi<NativeAbi>;
+pub type IntentEventVm = IntentEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for IntentEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("IntentEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for IntentEventAbi<NativeAbi> {}
+impl Clone for IntentEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for IntentEventAbi<VmAbi> {}
+impl Clone for IntentEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for IntentEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "IntentEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_kind = <IntentKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_source =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_payload =
+            <IntentPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            kind: field_kind,
+            timestamp_ns: field_timestamp_ns,
+            sequence: field_sequence,
+            source: field_source,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <IntentKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.source, context)?,
+            <IntentPayloadVm as VmAggregateCodec>::encode_with_context(self.payload, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for IntentOpenOptions.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct IntentOpenOptions {
+    /// The include_open_url field.
+    pub include_open_url: bool,
+    /// The include_open_file field.
+    pub include_open_file: bool,
+    /// The include_share field.
+    pub include_share: bool,
+    /// The include_custom_action field.
+    pub include_custom_action: bool,
+}
+
+pub type IntentOpenOptionsVm = IntentOpenOptions;
+
+impl VmAggregateCodec for IntentOpenOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "IntentOpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_include_open_url =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_include_open_file =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_include_share =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_include_custom_action =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            include_open_url: field_include_open_url,
+            include_open_file: field_include_open_file,
+            include_share: field_include_share,
+            include_custom_action: field_include_custom_action,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <bool as VmAggregateCodec>::encode_with_context(self.include_open_url, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_open_file, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_share, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_custom_action, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for IntentPayload.
+#[repr(C)]
+pub struct IntentPayloadAbi<A: BindingAbi> {
+    /// The url field.
+    pub url: A::String,
+    /// The paths field.
+    pub paths: A::Array<platform_fs::OsPathAbi<A>>,
+    /// The text field.
+    pub text: A::String,
+    /// The mime_type field.
+    pub mime_type: A::String,
+    /// The action field.
+    pub action: A::String,
+}
+
+pub type IntentPayload = IntentPayloadAbi<NativeAbi>;
+pub type IntentPayloadVm = IntentPayloadAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for IntentPayloadAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("IntentPayloadAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for IntentPayloadAbi<NativeAbi> {}
+impl Clone for IntentPayloadAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for IntentPayloadAbi<VmAbi> {}
+impl Clone for IntentPayloadAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for IntentPayloadAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "IntentPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_url =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_paths =
+            <VmArray<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_text =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_mime_type =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_action =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            url: field_url,
+            paths: field_paths,
+            text: field_text,
+            mime_type: field_mime_type,
+            action: field_action,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.url, context)?,
+            <VmArray<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.paths, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.mime_type, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.action, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for LifecycleEvent.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct LifecycleEvent {
+    /// The kind field.
+    pub kind: LifecycleEventKind,
+    /// The timestamp_ns field.
+    pub timestamp_ns: u64,
+    /// The sequence field.
+    pub sequence: u64,
+    /// The payload field.
+    pub payload: LifecycleEventPayload,
+}
+
+pub type LifecycleEventVm = LifecycleEvent;
+
+impl VmAggregateCodec for LifecycleEvent {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "LifecycleEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <LifecycleEventKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_payload =
+            <LifecycleEventPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            kind: field_kind,
+            timestamp_ns: field_timestamp_ns,
+            sequence: field_sequence,
+            payload: field_payload,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <LifecycleEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
+            <LifecycleEventPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.payload,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for LifecycleEventPayload.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct LifecycleEventPayload {
+    /// The low_memory field.
+    pub low_memory: LifecycleLowMemoryPayload,
+    /// The low_power field.
+    pub low_power: LifecycleLowPowerPayload,
+}
+
+pub type LifecycleEventPayloadVm = LifecycleEventPayload;
+
+impl VmAggregateCodec for LifecycleEventPayload {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "LifecycleEventPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_low_memory =
+            <LifecycleLowMemoryPayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_low_power =
+            <LifecycleLowPowerPayloadVm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            low_memory: field_low_memory,
+            low_power: field_low_power,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <LifecycleLowMemoryPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.low_memory,
+                context,
+            )?,
+            <LifecycleLowPowerPayloadVm as VmAggregateCodec>::encode_with_context(
+                self.low_power,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for LifecycleLowMemoryPayload.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct LifecycleLowMemoryPayload {
+    /// The severity field.
+    pub severity: u32,
+}
+
+pub type LifecycleLowMemoryPayloadVm = LifecycleLowMemoryPayload;
+
+impl VmAggregateCodec for LifecycleLowMemoryPayload {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "LifecycleLowMemoryPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_severity = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self {
+            severity: field_severity,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<u32 as VmAggregateCodec>::encode_with_context(
+            self.severity,
+            context,
+        )?];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for LifecycleLowPowerPayload.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct LifecycleLowPowerPayload {
+    /// The enabled field.
+    pub enabled: bool,
+}
+
+pub type LifecycleLowPowerPayloadVm = LifecycleLowPowerPayload;
+
+impl VmAggregateCodec for LifecycleLowPowerPayload {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "LifecycleLowPowerPayload",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 1 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 1 fields",
+            ))
+            .boxed());
+        }
+        let field_enabled = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        Ok(Self {
+            enabled: field_enabled,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![<bool as VmAggregateCodec>::encode_with_context(
+            self.enabled,
+            context,
+        )?];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for LoadAverage.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -194,6 +4593,473 @@ impl VmAggregateCodec for LoadAverage {
             <f64 as VmAggregateCodec>::encode_with_context(self.one, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.five, context)?,
             <f64 as VmAggregateCodec>::encode_with_context(self.fifteen, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for LocationSample.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct LocationSample {
+    /// The latitude_degrees field.
+    pub latitude_degrees: f64,
+    /// The longitude_degrees field.
+    pub longitude_degrees: f64,
+    /// The altitude_meters field.
+    pub altitude_meters: f64,
+    /// The horizontal_accuracy_meters field.
+    pub horizontal_accuracy_meters: f64,
+    /// The vertical_accuracy_meters field.
+    pub vertical_accuracy_meters: f64,
+    /// The speed_meters_per_second field.
+    pub speed_meters_per_second: f64,
+    /// The heading_degrees field.
+    pub heading_degrees: f64,
+    /// The timestamp_unix_ns field.
+    pub timestamp_unix_ns: u64,
+}
+
+pub type LocationSampleVm = LocationSample;
+
+impl VmAggregateCodec for LocationSample {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "LocationSample",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 8 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 8 fields",
+            ))
+            .boxed());
+        }
+        let field_latitude_degrees =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_longitude_degrees =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_altitude_meters =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_horizontal_accuracy_meters =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_vertical_accuracy_meters =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_speed_meters_per_second =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_heading_degrees =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_timestamp_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        Ok(Self {
+            latitude_degrees: field_latitude_degrees,
+            longitude_degrees: field_longitude_degrees,
+            altitude_meters: field_altitude_meters,
+            horizontal_accuracy_meters: field_horizontal_accuracy_meters,
+            vertical_accuracy_meters: field_vertical_accuracy_meters,
+            speed_meters_per_second: field_speed_meters_per_second,
+            heading_degrees: field_heading_degrees,
+            timestamp_unix_ns: field_timestamp_unix_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <f64 as VmAggregateCodec>::encode_with_context(self.latitude_degrees, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.longitude_degrees, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.altitude_meters, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(
+                self.horizontal_accuracy_meters,
+                context,
+            )?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.vertical_accuracy_meters, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.speed_meters_per_second, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.heading_degrees, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_unix_ns, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for LocationWatchOptions.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct LocationWatchOptions {
+    /// The accuracy field.
+    pub accuracy: LocationAccuracy,
+    /// The minimum_interval_ns field.
+    pub minimum_interval_ns: u64,
+    /// The minimum_distance_meters field.
+    pub minimum_distance_meters: f64,
+    /// The include_heading field.
+    pub include_heading: bool,
+}
+
+pub type LocationWatchOptionsVm = LocationWatchOptions;
+
+impl VmAggregateCodec for LocationWatchOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "LocationWatchOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_accuracy =
+            <LocationAccuracy as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_minimum_interval_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_minimum_distance_meters =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_include_heading =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            accuracy: field_accuracy,
+            minimum_interval_ns: field_minimum_interval_ns,
+            minimum_distance_meters: field_minimum_distance_meters,
+            include_heading: field_include_heading,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <LocationAccuracy as VmAggregateCodec>::encode_with_context(self.accuracy, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.minimum_interval_ns, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.minimum_distance_meters, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_heading, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for MediaAssetDescriptor.
+#[repr(C)]
+pub struct MediaAssetDescriptorAbi<A: BindingAbi> {
+    /// The id field.
+    pub id: A::String,
+    /// The uri field.
+    pub uri: A::String,
+    /// The filename field.
+    pub filename: A::String,
+    /// The mime_type field.
+    pub mime_type: A::String,
+    /// The kind field.
+    pub kind: MediaAssetKind,
+    /// The width field.
+    pub width: u32,
+    /// The height field.
+    pub height: u32,
+    /// The duration_ms field.
+    pub duration_ms: u64,
+    /// The size_bytes field.
+    pub size_bytes: u64,
+    /// The created_unix_ns field.
+    pub created_unix_ns: u64,
+    /// The modified_unix_ns field.
+    pub modified_unix_ns: u64,
+}
+
+pub type MediaAssetDescriptor = MediaAssetDescriptorAbi<NativeAbi>;
+pub type MediaAssetDescriptorVm = MediaAssetDescriptorAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for MediaAssetDescriptorAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("MediaAssetDescriptorAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for MediaAssetDescriptorAbi<NativeAbi> {}
+impl Clone for MediaAssetDescriptorAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for MediaAssetDescriptorAbi<VmAbi> {}
+impl Clone for MediaAssetDescriptorAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for MediaAssetDescriptorAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MediaAssetDescriptor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 11 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 11 fields",
+            ))
+            .boxed());
+        }
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_uri =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_filename =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_mime_type =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_kind =
+            <MediaAssetKind as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_width = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_height = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_duration_ms = <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_size_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_created_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_modified_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        Ok(Self {
+            id: field_id,
+            uri: field_uri,
+            filename: field_filename,
+            mime_type: field_mime_type,
+            kind: field_kind,
+            width: field_width,
+            height: field_height,
+            duration_ms: field_duration_ms,
+            size_bytes: field_size_bytes,
+            created_unix_ns: field_created_unix_ns,
+            modified_unix_ns: field_modified_unix_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.uri, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.filename, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.mime_type, context)?,
+            <MediaAssetKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.width, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.height, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.duration_ms, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.size_bytes, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.created_unix_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.modified_unix_ns, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for MediaPage.
+#[repr(C)]
+pub struct MediaPageAbi<A: BindingAbi> {
+    /// The assets field.
+    pub assets: A::Array<platform_os::MediaAssetDescriptorAbi<A>>,
+    /// The next_cursor field.
+    pub next_cursor: A::String,
+    /// The has_more field.
+    pub has_more: bool,
+}
+
+pub type MediaPage = MediaPageAbi<NativeAbi>;
+pub type MediaPageVm = MediaPageAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for MediaPageAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("MediaPageAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for MediaPageAbi<NativeAbi> {}
+impl Clone for MediaPageAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for MediaPageAbi<VmAbi> {}
+impl Clone for MediaPageAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for MediaPageAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MediaPage",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_assets =
+            <VmArray<MediaAssetDescriptorVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[0],
+            )?;
+        let field_next_cursor =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_has_more = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            assets: field_assets,
+            next_cursor: field_next_cursor,
+            has_more: field_has_more,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <VmArray<MediaAssetDescriptorVm> as VmAggregateCodec>::encode_with_context(
+                self.assets,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.next_cursor, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.has_more, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for MediaQuery.
+#[repr(C)]
+pub struct MediaQueryAbi<A: BindingAbi> {
+    /// The cursor field.
+    pub cursor: A::String,
+    /// The limit field.
+    pub limit: u32,
+    /// The kinds field.
+    pub kinds: A::Array<MediaAssetKind>,
+    /// The include_hidden field.
+    pub include_hidden: bool,
+}
+
+pub type MediaQuery = MediaQueryAbi<NativeAbi>;
+pub type MediaQueryVm = MediaQueryAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for MediaQueryAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("MediaQueryAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for MediaQueryAbi<NativeAbi> {}
+impl Clone for MediaQueryAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for MediaQueryAbi<VmAbi> {}
+impl Clone for MediaQueryAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for MediaQueryAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MediaQuery",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let field_cursor =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_limit = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kinds =
+            <VmArray<MediaAssetKind> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_include_hidden =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        Ok(Self {
+            cursor: field_cursor,
+            limit: field_limit,
+            kinds: field_kinds,
+            include_hidden: field_include_hidden,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.cursor, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.limit, context)?,
+            <VmArray<MediaAssetKind> as VmAggregateCodec>::encode_with_context(
+                self.kinds, context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_hidden, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -287,6 +5153,1019 @@ impl VmAggregateCodec for MountEntryAbi<VmAbi> {
     }
 }
 
+/// ABI struct for NetworkEvent.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct NetworkEvent {
+    /// The timestamp_ns field.
+    pub timestamp_ns: u64,
+    /// The sequence field.
+    pub sequence: u64,
+    /// The state field.
+    pub state: NetworkState,
+}
+
+pub type NetworkEventVm = NetworkEvent;
+
+impl VmAggregateCodec for NetworkEvent {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "NetworkEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_state =
+            <NetworkStateVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            timestamp_ns: field_timestamp_ns,
+            sequence: field_sequence,
+            state: field_state,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
+            <NetworkStateVm as VmAggregateCodec>::encode_with_context(self.state, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for NetworkState.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct NetworkState {
+    /// The connection_type field.
+    pub connection_type: NetworkConnectionType,
+    /// The connected field.
+    pub connected: bool,
+    /// The internet_reachable field.
+    pub internet_reachable: bool,
+    /// The expensive field.
+    pub expensive: bool,
+    /// The constrained field.
+    pub constrained: bool,
+    /// The roaming field.
+    pub roaming: bool,
+    /// The cellular_generation field.
+    pub cellular_generation: NetworkCellularGeneration,
+    /// The downlink_mbps field.
+    pub downlink_mbps: f64,
+    /// The uplink_mbps field.
+    pub uplink_mbps: f64,
+}
+
+pub type NetworkStateVm = NetworkState;
+
+impl VmAggregateCodec for NetworkState {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "NetworkState",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 9 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 9 fields",
+            ))
+            .boxed());
+        }
+        let field_connection_type =
+            <NetworkConnectionType as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_internet_reachable =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_expensive = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_constrained = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_roaming = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_cellular_generation =
+            <NetworkCellularGeneration as VmAggregateCodec>::decode_with_context(
+                context, slots[6],
+            )?;
+        let field_downlink_mbps =
+            <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_uplink_mbps = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        Ok(Self {
+            connection_type: field_connection_type,
+            connected: field_connected,
+            internet_reachable: field_internet_reachable,
+            expensive: field_expensive,
+            constrained: field_constrained,
+            roaming: field_roaming,
+            cellular_generation: field_cellular_generation,
+            downlink_mbps: field_downlink_mbps,
+            uplink_mbps: field_uplink_mbps,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <NetworkConnectionType as VmAggregateCodec>::encode_with_context(
+                self.connection_type,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.internet_reachable, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.expensive, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.constrained, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.roaming, context)?,
+            <NetworkCellularGeneration as VmAggregateCodec>::encode_with_context(
+                self.cellular_generation,
+                context,
+            )?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.downlink_mbps, context)?,
+            <f64 as VmAggregateCodec>::encode_with_context(self.uplink_mbps, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for NotificationAction.
+#[repr(C)]
+pub struct NotificationActionAbi<A: BindingAbi> {
+    /// The id field.
+    pub id: A::String,
+    /// The title field.
+    pub title: A::String,
+    /// The style field.
+    pub style: NotificationActionStyle,
+    /// The foreground field.
+    pub foreground: bool,
+    /// The authentication_required field.
+    pub authentication_required: bool,
+    /// The text_input_button_title field.
+    pub text_input_button_title: A::String,
+    /// The text_input_placeholder field.
+    pub text_input_placeholder: A::String,
+}
+
+pub type NotificationAction = NotificationActionAbi<NativeAbi>;
+pub type NotificationActionVm = NotificationActionAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for NotificationActionAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("NotificationActionAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for NotificationActionAbi<NativeAbi> {}
+impl Clone for NotificationActionAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for NotificationActionAbi<VmAbi> {}
+impl Clone for NotificationActionAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for NotificationActionAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "NotificationAction",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_title =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_style =
+            <NotificationActionStyle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_foreground = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_authentication_required =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_text_input_button_title =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_text_input_placeholder =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            id: field_id,
+            title: field_title,
+            style: field_style,
+            foreground: field_foreground,
+            authentication_required: field_authentication_required,
+            text_input_button_title: field_text_input_button_title,
+            text_input_placeholder: field_text_input_placeholder,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
+            <NotificationActionStyle as VmAggregateCodec>::encode_with_context(
+                self.style, context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.foreground, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.authentication_required, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.text_input_button_title,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.text_input_placeholder,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for NotificationCalendarTrigger.
+#[repr(C)]
+pub struct NotificationCalendarTriggerAbi<A: BindingAbi> {
+    /// The year field.
+    pub year: u16,
+    /// The month field.
+    pub month: u8,
+    /// The day field.
+    pub day: u8,
+    /// The hour field.
+    pub hour: u8,
+    /// The minute field.
+    pub minute: u8,
+    /// The second field.
+    pub second: u8,
+    /// The time_zone field.
+    pub time_zone: A::String,
+    /// The repeats field.
+    pub repeats: bool,
+}
+
+pub type NotificationCalendarTrigger = NotificationCalendarTriggerAbi<NativeAbi>;
+pub type NotificationCalendarTriggerVm = NotificationCalendarTriggerAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for NotificationCalendarTriggerAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("NotificationCalendarTriggerAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for NotificationCalendarTriggerAbi<NativeAbi> {}
+impl Clone for NotificationCalendarTriggerAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for NotificationCalendarTriggerAbi<VmAbi> {}
+impl Clone for NotificationCalendarTriggerAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for NotificationCalendarTriggerAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "NotificationCalendarTrigger",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 8 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 8 fields",
+            ))
+            .boxed());
+        }
+        let field_year = <u16 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_month = <u8 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_day = <u8 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_hour = <u8 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_minute = <u8 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_second = <u8 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_time_zone =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_repeats = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        Ok(Self {
+            year: field_year,
+            month: field_month,
+            day: field_day,
+            hour: field_hour,
+            minute: field_minute,
+            second: field_second,
+            time_zone: field_time_zone,
+            repeats: field_repeats,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u16 as VmAggregateCodec>::encode_with_context(self.year, context)?,
+            <u8 as VmAggregateCodec>::encode_with_context(self.month, context)?,
+            <u8 as VmAggregateCodec>::encode_with_context(self.day, context)?,
+            <u8 as VmAggregateCodec>::encode_with_context(self.hour, context)?,
+            <u8 as VmAggregateCodec>::encode_with_context(self.minute, context)?,
+            <u8 as VmAggregateCodec>::encode_with_context(self.second, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.time_zone, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.repeats, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for NotificationCategory.
+#[repr(C)]
+pub struct NotificationCategoryAbi<A: BindingAbi> {
+    /// The id field.
+    pub id: A::String,
+    /// The actions field.
+    pub actions: A::Array<platform_os::NotificationActionAbi<A>>,
+}
+
+pub type NotificationCategory = NotificationCategoryAbi<NativeAbi>;
+pub type NotificationCategoryVm = NotificationCategoryAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for NotificationCategoryAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("NotificationCategoryAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for NotificationCategoryAbi<NativeAbi> {}
+impl Clone for NotificationCategoryAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for NotificationCategoryAbi<VmAbi> {}
+impl Clone for NotificationCategoryAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for NotificationCategoryAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "NotificationCategory",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_actions =
+            <VmArray<NotificationActionVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        Ok(Self {
+            id: field_id,
+            actions: field_actions,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <VmArray<NotificationActionVm> as VmAggregateCodec>::encode_with_context(
+                self.actions,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for NotificationEvent.
+#[repr(C)]
+pub struct NotificationEventAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: NotificationEventKind,
+    /// The timestamp_ns field.
+    pub timestamp_ns: u64,
+    /// The sequence field.
+    pub sequence: u64,
+    /// The id field.
+    pub id: A::String,
+    /// The action_id field.
+    pub action_id: A::String,
+    /// The action_response_text field.
+    pub action_response_text: A::String,
+    /// The request field.
+    pub request: platform_os::NotificationRequestAbi<A>,
+}
+
+pub type NotificationEvent = NotificationEventAbi<NativeAbi>;
+pub type NotificationEventVm = NotificationEventAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for NotificationEventAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("NotificationEventAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for NotificationEventAbi<NativeAbi> {}
+impl Clone for NotificationEventAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for NotificationEventAbi<VmAbi> {}
+impl Clone for NotificationEventAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for NotificationEventAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "NotificationEvent",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <NotificationEventKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_action_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_action_response_text =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_request =
+            <NotificationRequestVm as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            kind: field_kind,
+            timestamp_ns: field_timestamp_ns,
+            sequence: field_sequence,
+            id: field_id,
+            action_id: field_action_id,
+            action_response_text: field_action_response_text,
+            request: field_request,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <NotificationEventKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.action_id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.action_response_text,
+                context,
+            )?,
+            <NotificationRequestVm as VmAggregateCodec>::encode_with_context(
+                self.request,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for NotificationEventOpenOptions.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct NotificationEventOpenOptions {
+    /// The include_delivered field.
+    pub include_delivered: bool,
+    /// The include_interacted field.
+    pub include_interacted: bool,
+    /// The include_dismissed field.
+    pub include_dismissed: bool,
+}
+
+pub type NotificationEventOpenOptionsVm = NotificationEventOpenOptions;
+
+impl VmAggregateCodec for NotificationEventOpenOptions {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "NotificationEventOpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_include_delivered =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_include_interacted =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_include_dismissed =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            include_delivered: field_include_delivered,
+            include_interacted: field_include_interacted,
+            include_dismissed: field_include_dismissed,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <bool as VmAggregateCodec>::encode_with_context(self.include_delivered, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_interacted, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.include_dismissed, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for NotificationRequest.
+#[repr(C)]
+pub struct NotificationRequestAbi<A: BindingAbi> {
+    /// The title field.
+    pub title: A::String,
+    /// The subtitle field.
+    pub subtitle: A::String,
+    /// The body field.
+    pub body: A::String,
+    /// The tag field.
+    pub tag: A::String,
+    /// The channel_id field.
+    pub channel_id: A::String,
+    /// The priority field.
+    pub priority: NotificationPriority,
+    /// The badge_count field.
+    pub badge_count: u32,
+    /// The sound field.
+    pub sound: A::String,
+    /// The category_id field.
+    pub category_id: A::String,
+    /// The thread_id field.
+    pub thread_id: A::String,
+    /// The trigger field.
+    pub trigger: platform_os::NotificationTriggerAbi<A>,
+    /// The action_id field.
+    pub action_id: A::String,
+    /// The data_json field.
+    pub data_json: A::String,
+}
+
+pub type NotificationRequest = NotificationRequestAbi<NativeAbi>;
+pub type NotificationRequestVm = NotificationRequestAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for NotificationRequestAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("NotificationRequestAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for NotificationRequestAbi<NativeAbi> {}
+impl Clone for NotificationRequestAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for NotificationRequestAbi<VmAbi> {}
+impl Clone for NotificationRequestAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for NotificationRequestAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "NotificationRequest",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 13 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 13 fields",
+            ))
+            .boxed());
+        }
+        let field_title =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_subtitle =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_body =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_tag =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_channel_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_priority =
+            <NotificationPriority as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_badge_count = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_sound =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_category_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_thread_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_trigger =
+            <NotificationTriggerVm as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_action_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_data_json =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+        Ok(Self {
+            title: field_title,
+            subtitle: field_subtitle,
+            body: field_body,
+            tag: field_tag,
+            channel_id: field_channel_id,
+            priority: field_priority,
+            badge_count: field_badge_count,
+            sound: field_sound,
+            category_id: field_category_id,
+            thread_id: field_thread_id,
+            trigger: field_trigger,
+            action_id: field_action_id,
+            data_json: field_data_json,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.title, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.subtitle, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.body, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.tag, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.channel_id, context)?,
+            <NotificationPriority as VmAggregateCodec>::encode_with_context(
+                self.priority,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.badge_count, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.sound, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.category_id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.thread_id, context)?,
+            <NotificationTriggerVm as VmAggregateCodec>::encode_with_context(
+                self.trigger,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.action_id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.data_json, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for NotificationScheduledDescriptor.
+#[repr(C)]
+pub struct NotificationScheduledDescriptorAbi<A: BindingAbi> {
+    /// The id field.
+    pub id: A::String,
+    /// The request field.
+    pub request: platform_os::NotificationRequestAbi<A>,
+    /// The scheduled_unix_ns field.
+    pub scheduled_unix_ns: u64,
+}
+
+pub type NotificationScheduledDescriptor = NotificationScheduledDescriptorAbi<NativeAbi>;
+pub type NotificationScheduledDescriptorVm = NotificationScheduledDescriptorAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for NotificationScheduledDescriptorAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("NotificationScheduledDescriptorAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for NotificationScheduledDescriptorAbi<NativeAbi> {}
+impl Clone for NotificationScheduledDescriptorAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for NotificationScheduledDescriptorAbi<VmAbi> {}
+impl Clone for NotificationScheduledDescriptorAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for NotificationScheduledDescriptorAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "NotificationScheduledDescriptor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_request =
+            <NotificationRequestVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_scheduled_unix_ns =
+            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            id: field_id,
+            request: field_request,
+            scheduled_unix_ns: field_scheduled_unix_ns,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <NotificationRequestVm as VmAggregateCodec>::encode_with_context(
+                self.request,
+                context,
+            )?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.scheduled_unix_ns, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for NotificationTrigger.
+#[repr(C)]
+pub struct NotificationTriggerAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: NotificationTriggerKind,
+    /// The interval_ns field.
+    pub interval_ns: u64,
+    /// The calendar field.
+    pub calendar: platform_os::NotificationCalendarTriggerAbi<A>,
+}
+
+pub type NotificationTrigger = NotificationTriggerAbi<NativeAbi>;
+pub type NotificationTriggerVm = NotificationTriggerAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for NotificationTriggerAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("NotificationTriggerAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for NotificationTriggerAbi<NativeAbi> {}
+impl Clone for NotificationTriggerAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for NotificationTriggerAbi<VmAbi> {}
+impl Clone for NotificationTriggerAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for NotificationTriggerAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "NotificationTrigger",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_kind =
+            <NotificationTriggerKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_interval_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_calendar =
+            <NotificationCalendarTriggerVm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        Ok(Self {
+            kind: field_kind,
+            interval_ns: field_interval_ns,
+            calendar: field_calendar,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <NotificationTriggerKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+            <u64 as VmAggregateCodec>::encode_with_context(self.interval_ns, context)?,
+            <NotificationCalendarTriggerVm as VmAggregateCodec>::encode_with_context(
+                self.calendar,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for PermissionEntry.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct PermissionEntry {
+    /// The permission field.
+    pub permission: Permission,
+    /// The state field.
+    pub state: PermissionState,
+}
+
+pub type PermissionEntryVm = PermissionEntry;
+
+impl VmAggregateCodec for PermissionEntry {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "PermissionEntry",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_permission =
+            <Permission as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_state =
+            <PermissionState as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            permission: field_permission,
+            state: field_state,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <Permission as VmAggregateCodec>::encode_with_context(self.permission, context)?,
+            <PermissionState as VmAggregateCodec>::encode_with_context(self.state, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for SystemSnapshot.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -352,6 +6231,454 @@ impl VmAggregateCodec for SystemSnapshot {
     }
 }
 
+/// Replay struct for BackgroundEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BackgroundEventReplayRecord {
+    /// The kind field.
+    pub kind: BackgroundEventKind,
+    /// The timestamp_ns field.
+    pub timestamp_ns: u64,
+    /// The sequence field.
+    pub sequence: u64,
+    /// The identifier field.
+    pub identifier: String,
+    /// The execution_id field.
+    pub execution_id: String,
+    /// The deadline_unix_ns field.
+    pub deadline_unix_ns: u64,
+}
+
+/// Replay struct for BackgroundTaskDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BackgroundTaskDescriptorReplayRecord {
+    /// The identifier field.
+    pub identifier: String,
+    /// The trigger field.
+    pub trigger: BackgroundTriggerKind,
+    /// The minimum_interval_ns field.
+    pub minimum_interval_ns: u64,
+    /// The earliest_begin_unix_ns field.
+    pub earliest_begin_unix_ns: u64,
+    /// The requires_network field.
+    pub requires_network: bool,
+    /// The requires_unmetered_network field.
+    pub requires_unmetered_network: bool,
+    /// The requires_charging field.
+    pub requires_charging: bool,
+    /// The requires_idle field.
+    pub requires_idle: bool,
+    /// The persisted field.
+    pub persisted: bool,
+}
+
+/// Replay struct for BackgroundTaskOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BackgroundTaskOptionsReplayRecord {
+    /// The identifier field.
+    pub identifier: String,
+    /// The trigger field.
+    pub trigger: BackgroundTriggerKind,
+    /// The minimum_interval_ns field.
+    pub minimum_interval_ns: u64,
+    /// The earliest_begin_unix_ns field.
+    pub earliest_begin_unix_ns: u64,
+    /// The requires_network field.
+    pub requires_network: bool,
+    /// The requires_unmetered_network field.
+    pub requires_unmetered_network: bool,
+    /// The requires_charging field.
+    pub requires_charging: bool,
+    /// The requires_idle field.
+    pub requires_idle: bool,
+    /// The persisted field.
+    pub persisted: bool,
+}
+
+/// Replay struct for CalendarAttendee.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CalendarAttendeeReplayRecord {
+    /// The id field.
+    pub id: String,
+    /// The name field.
+    pub name: String,
+    /// The email field.
+    pub email: String,
+    /// The optional field.
+    pub optional: bool,
+    /// The organizer field.
+    pub organizer: bool,
+    /// The response_status field.
+    pub response_status: CalendarParticipantStatus,
+}
+
+/// Replay struct for CalendarDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CalendarDescriptorReplayRecord {
+    /// The id field.
+    pub id: String,
+    /// The title field.
+    pub title: String,
+    /// The source field.
+    pub source: String,
+    /// The owner field.
+    pub owner: String,
+    /// The color_argb field.
+    pub color_argb: u32,
+    /// The primary field.
+    pub primary: bool,
+    /// The access field.
+    pub access: CalendarAccess,
+}
+
+/// Replay struct for CalendarEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CalendarEventReplayRecord {
+    /// The id field.
+    pub id: String,
+    /// The calendar_id field.
+    pub calendar_id: String,
+    /// The title field.
+    pub title: String,
+    /// The notes field.
+    pub notes: String,
+    /// The location field.
+    pub location: String,
+    /// The start_unix_ns field.
+    pub start_unix_ns: u64,
+    /// The end_unix_ns field.
+    pub end_unix_ns: u64,
+    /// The all_day field.
+    pub all_day: bool,
+    /// The canceled field.
+    pub canceled: bool,
+    /// The time_zone field.
+    pub time_zone: String,
+    /// The availability field.
+    pub availability: CalendarAvailability,
+    /// The url field.
+    pub url: String,
+    /// The organizer_name field.
+    pub organizer_name: String,
+    /// The organizer_email field.
+    pub organizer_email: String,
+    /// The recurring field.
+    pub recurring: bool,
+    /// The recurrence_master_id field.
+    pub recurrence_master_id: String,
+    /// The recurrence_id_unix_ns field.
+    pub recurrence_id_unix_ns: u64,
+    /// The recurrence_rule field.
+    pub recurrence_rule: CalendarRecurrenceRuleReplayRecord,
+    /// The attendees field.
+    pub attendees: Vec<CalendarAttendeeReplayRecord>,
+    /// The reminders field.
+    pub reminders: Vec<CalendarReminder>,
+}
+
+/// Replay struct for CalendarEventDraft.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CalendarEventDraftReplayRecord {
+    /// The calendar_id field.
+    pub calendar_id: String,
+    /// The title field.
+    pub title: String,
+    /// The notes field.
+    pub notes: String,
+    /// The location field.
+    pub location: String,
+    /// The start_unix_ns field.
+    pub start_unix_ns: u64,
+    /// The end_unix_ns field.
+    pub end_unix_ns: u64,
+    /// The all_day field.
+    pub all_day: bool,
+    /// The time_zone field.
+    pub time_zone: String,
+    /// The availability field.
+    pub availability: CalendarAvailability,
+    /// The url field.
+    pub url: String,
+    /// The recurrence_rule field.
+    pub recurrence_rule: CalendarRecurrenceRuleReplayRecord,
+    /// The attendees field.
+    pub attendees: Vec<CalendarAttendeeReplayRecord>,
+    /// The reminders field.
+    pub reminders: Vec<CalendarReminder>,
+}
+
+/// Replay struct for CalendarEventQuery.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CalendarEventQueryReplayRecord {
+    /// The calendar_ids field.
+    pub calendar_ids: Vec<String>,
+    /// The start_unix_ns field.
+    pub start_unix_ns: u64,
+    /// The end_unix_ns field.
+    pub end_unix_ns: u64,
+    /// The limit field.
+    pub limit: u32,
+    /// The include_canceled field.
+    pub include_canceled: bool,
+    /// The include_declined field.
+    pub include_declined: bool,
+    /// The include_recurrence_instances field.
+    pub include_recurrence_instances: bool,
+}
+
+/// Replay struct for CalendarRecurrenceRule.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CalendarRecurrenceRuleReplayRecord {
+    /// The frequency field.
+    pub frequency: CalendarRecurrenceFrequency,
+    /// The interval field.
+    pub interval: u32,
+    /// The count field.
+    pub count: u32,
+    /// The until_unix_ns field.
+    pub until_unix_ns: u64,
+    /// The by_week_days field.
+    pub by_week_days: Vec<u8>,
+    /// The by_month_days field.
+    pub by_month_days: Vec<i8>,
+    /// The by_months field.
+    pub by_months: Vec<u8>,
+}
+
+/// Replay struct for Contact.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContactReplayRecord {
+    /// The id field.
+    pub id: String,
+    /// The name field.
+    pub name: ContactNameReplayRecord,
+    /// The phones field.
+    pub phones: Vec<ContactPhoneReplayRecord>,
+    /// The emails field.
+    pub emails: Vec<ContactEmailReplayRecord>,
+    /// The addresses field.
+    pub addresses: Vec<ContactAddressReplayRecord>,
+    /// The organization field.
+    pub organization: ContactOrganizationReplayRecord,
+    /// The note field.
+    pub note: String,
+}
+
+/// Replay struct for ContactAddress.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContactAddressReplayRecord {
+    /// The label field.
+    pub label: String,
+    /// The street field.
+    pub street: String,
+    /// The city field.
+    pub city: String,
+    /// The region field.
+    pub region: String,
+    /// The postal_code field.
+    pub postal_code: String,
+    /// The country field.
+    pub country: String,
+    /// The country_code field.
+    pub country_code: String,
+}
+
+/// Replay struct for ContactDraft.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContactDraftReplayRecord {
+    /// The name field.
+    pub name: ContactNameReplayRecord,
+    /// The phones field.
+    pub phones: Vec<ContactPhoneReplayRecord>,
+    /// The emails field.
+    pub emails: Vec<ContactEmailReplayRecord>,
+    /// The addresses field.
+    pub addresses: Vec<ContactAddressReplayRecord>,
+    /// The organization field.
+    pub organization: ContactOrganizationReplayRecord,
+    /// The note field.
+    pub note: String,
+}
+
+/// Replay struct for ContactEmail.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContactEmailReplayRecord {
+    /// The label field.
+    pub label: String,
+    /// The address field.
+    pub address: String,
+    /// The primary field.
+    pub primary: bool,
+}
+
+/// Replay struct for ContactName.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContactNameReplayRecord {
+    /// The given_name field.
+    pub given_name: String,
+    /// The middle_name field.
+    pub middle_name: String,
+    /// The family_name field.
+    pub family_name: String,
+    /// The prefix field.
+    pub prefix: String,
+    /// The suffix field.
+    pub suffix: String,
+    /// The nickname field.
+    pub nickname: String,
+    /// The phonetic_given_name field.
+    pub phonetic_given_name: String,
+    /// The phonetic_family_name field.
+    pub phonetic_family_name: String,
+}
+
+/// Replay struct for ContactOrganization.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContactOrganizationReplayRecord {
+    /// The company field.
+    pub company: String,
+    /// The department field.
+    pub department: String,
+    /// The title field.
+    pub title: String,
+}
+
+/// Replay struct for ContactPage.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContactPageReplayRecord {
+    /// The contacts field.
+    pub contacts: Vec<ContactReplayRecord>,
+    /// The next_cursor field.
+    pub next_cursor: String,
+    /// The has_more field.
+    pub has_more: bool,
+}
+
+/// Replay struct for ContactPhone.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContactPhoneReplayRecord {
+    /// The label field.
+    pub label: String,
+    /// The number field.
+    pub number: String,
+    /// The normalized_number field.
+    pub normalized_number: String,
+    /// The primary field.
+    pub primary: bool,
+}
+
+/// Replay struct for ContactQuery.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ContactQueryReplayRecord {
+    /// The cursor field.
+    pub cursor: String,
+    /// The limit field.
+    pub limit: u32,
+    /// The include_phones field.
+    pub include_phones: bool,
+    /// The include_emails field.
+    pub include_emails: bool,
+    /// The include_addresses field.
+    pub include_addresses: bool,
+    /// The include_organization field.
+    pub include_organization: bool,
+    /// The include_notes field.
+    pub include_notes: bool,
+}
+
+/// Replay struct for CredentialAuthenticationOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CredentialAuthenticationOptionsReplayRecord {
+    /// The title field.
+    pub title: String,
+    /// The subtitle field.
+    pub subtitle: String,
+    /// The message field.
+    pub message: String,
+    /// The allow_passcode_fallback field.
+    pub allow_passcode_fallback: bool,
+}
+
+/// Replay struct for CredentialQuery.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CredentialQueryReplayRecord {
+    /// The service field.
+    pub service: String,
+    /// The account field.
+    pub account: String,
+    /// The access_group field.
+    pub access_group: String,
+    /// The require_authentication field.
+    pub require_authentication: bool,
+}
+
+/// Replay struct for CredentialRecord.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CredentialRecordReplayRecord {
+    /// The service field.
+    pub service: String,
+    /// The account field.
+    pub account: String,
+    /// The bytes field.
+    pub bytes: Vec<u8>,
+    /// The created_unix_ns field.
+    pub created_unix_ns: u64,
+    /// The modified_unix_ns field.
+    pub modified_unix_ns: u64,
+}
+
+/// Replay struct for CredentialWriteOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CredentialWriteOptionsReplayRecord {
+    /// The service field.
+    pub service: String,
+    /// The account field.
+    pub account: String,
+    /// The access_group field.
+    pub access_group: String,
+    /// The bytes field.
+    pub bytes: Vec<u8>,
+    /// The accessibility field.
+    pub accessibility: CredentialAccessibility,
+    /// The authentication field.
+    pub authentication: CredentialAuthenticationPolicy,
+    /// The replace_existing field.
+    pub replace_existing: bool,
+}
+
+/// Replay struct for DocumentDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DocumentDescriptorReplayRecord {
+    /// The uri field.
+    pub uri: String,
+    /// The name field.
+    pub name: String,
+    /// The mime_type field.
+    pub mime_type: String,
+    /// The size_bytes field.
+    pub size_bytes: u64,
+    /// The modified_unix_ns field.
+    pub modified_unix_ns: u64,
+    /// The is_directory field.
+    pub is_directory: bool,
+    /// The local_path field.
+    pub local_path: fs::OsPathReplayRecord,
+}
+
+/// Replay struct for DocumentPickOptions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DocumentPickOptionsReplayRecord {
+    /// The mime_types field.
+    pub mime_types: Vec<String>,
+    /// The extensions field.
+    pub extensions: Vec<String>,
+    /// The multiple field.
+    pub multiple: bool,
+    /// The allow_directories field.
+    pub allow_directories: bool,
+    /// The copy_to_sandbox field.
+    pub copy_to_sandbox: bool,
+}
+
 /// Replay struct for HostIdentity.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HostIdentityReplayRecord {
@@ -365,6 +6692,87 @@ pub struct HostIdentityReplayRecord {
     pub architecture: String,
 }
 
+/// Replay struct for IntentEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct IntentEventReplayRecord {
+    /// The kind field.
+    pub kind: IntentKind,
+    /// The timestamp_ns field.
+    pub timestamp_ns: u64,
+    /// The sequence field.
+    pub sequence: u64,
+    /// The source field.
+    pub source: String,
+    /// The payload field.
+    pub payload: IntentPayloadReplayRecord,
+}
+
+/// Replay struct for IntentPayload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct IntentPayloadReplayRecord {
+    /// The url field.
+    pub url: String,
+    /// The paths field.
+    pub paths: Vec<fs::OsPathReplayRecord>,
+    /// The text field.
+    pub text: String,
+    /// The mime_type field.
+    pub mime_type: String,
+    /// The action field.
+    pub action: String,
+}
+
+/// Replay struct for MediaAssetDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MediaAssetDescriptorReplayRecord {
+    /// The id field.
+    pub id: String,
+    /// The uri field.
+    pub uri: String,
+    /// The filename field.
+    pub filename: String,
+    /// The mime_type field.
+    pub mime_type: String,
+    /// The kind field.
+    pub kind: MediaAssetKind,
+    /// The width field.
+    pub width: u32,
+    /// The height field.
+    pub height: u32,
+    /// The duration_ms field.
+    pub duration_ms: u64,
+    /// The size_bytes field.
+    pub size_bytes: u64,
+    /// The created_unix_ns field.
+    pub created_unix_ns: u64,
+    /// The modified_unix_ns field.
+    pub modified_unix_ns: u64,
+}
+
+/// Replay struct for MediaPage.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MediaPageReplayRecord {
+    /// The assets field.
+    pub assets: Vec<MediaAssetDescriptorReplayRecord>,
+    /// The next_cursor field.
+    pub next_cursor: String,
+    /// The has_more field.
+    pub has_more: bool,
+}
+
+/// Replay struct for MediaQuery.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MediaQueryReplayRecord {
+    /// The cursor field.
+    pub cursor: String,
+    /// The limit field.
+    pub limit: u32,
+    /// The kinds field.
+    pub kinds: Vec<MediaAssetKind>,
+    /// The include_hidden field.
+    pub include_hidden: bool,
+}
+
 /// Replay struct for MountEntry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MountEntryReplayRecord {
@@ -376,4 +6784,125 @@ pub struct MountEntryReplayRecord {
     pub file_system: String,
     /// The flags field.
     pub flags: u64,
+}
+
+/// Replay struct for NotificationAction.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NotificationActionReplayRecord {
+    /// The id field.
+    pub id: String,
+    /// The title field.
+    pub title: String,
+    /// The style field.
+    pub style: NotificationActionStyle,
+    /// The foreground field.
+    pub foreground: bool,
+    /// The authentication_required field.
+    pub authentication_required: bool,
+    /// The text_input_button_title field.
+    pub text_input_button_title: String,
+    /// The text_input_placeholder field.
+    pub text_input_placeholder: String,
+}
+
+/// Replay struct for NotificationCalendarTrigger.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NotificationCalendarTriggerReplayRecord {
+    /// The year field.
+    pub year: u16,
+    /// The month field.
+    pub month: u8,
+    /// The day field.
+    pub day: u8,
+    /// The hour field.
+    pub hour: u8,
+    /// The minute field.
+    pub minute: u8,
+    /// The second field.
+    pub second: u8,
+    /// The time_zone field.
+    pub time_zone: String,
+    /// The repeats field.
+    pub repeats: bool,
+}
+
+/// Replay struct for NotificationCategory.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NotificationCategoryReplayRecord {
+    /// The id field.
+    pub id: String,
+    /// The actions field.
+    pub actions: Vec<NotificationActionReplayRecord>,
+}
+
+/// Replay struct for NotificationEvent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NotificationEventReplayRecord {
+    /// The kind field.
+    pub kind: NotificationEventKind,
+    /// The timestamp_ns field.
+    pub timestamp_ns: u64,
+    /// The sequence field.
+    pub sequence: u64,
+    /// The id field.
+    pub id: String,
+    /// The action_id field.
+    pub action_id: String,
+    /// The action_response_text field.
+    pub action_response_text: String,
+    /// The request field.
+    pub request: NotificationRequestReplayRecord,
+}
+
+/// Replay struct for NotificationRequest.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NotificationRequestReplayRecord {
+    /// The title field.
+    pub title: String,
+    /// The subtitle field.
+    pub subtitle: String,
+    /// The body field.
+    pub body: String,
+    /// The tag field.
+    pub tag: String,
+    /// The channel_id field.
+    pub channel_id: String,
+    /// The priority field.
+    pub priority: NotificationPriority,
+    /// The badge_count field.
+    pub badge_count: u32,
+    /// The sound field.
+    pub sound: String,
+    /// The category_id field.
+    pub category_id: String,
+    /// The thread_id field.
+    pub thread_id: String,
+    /// The trigger field.
+    pub trigger: NotificationTriggerReplayRecord,
+    /// The action_id field.
+    pub action_id: String,
+    /// The data_json field.
+    pub data_json: String,
+}
+
+/// Replay struct for NotificationScheduledDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NotificationScheduledDescriptorReplayRecord {
+    /// The id field.
+    pub id: String,
+    /// The request field.
+    pub request: NotificationRequestReplayRecord,
+    /// The scheduled_unix_ns field.
+    pub scheduled_unix_ns: u64,
+}
+
+/// Replay struct for NotificationTrigger.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NotificationTriggerReplayRecord {
+    /// The kind field.
+    pub kind: NotificationTriggerKind,
+    /// The interval_ns field.
+    pub interval_ns: u64,
+    /// The calendar field.
+    pub calendar: NotificationCalendarTriggerReplayRecord,
 }

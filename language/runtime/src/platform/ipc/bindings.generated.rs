@@ -979,7 +979,7 @@ pub const IPC_SHARED_MEMORY_CLOSE: BindingDescriptor = BindingDescriptor::extern
     "export function sharedMemoryClose(handle: SharedMemoryHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["ipc.sharedMemory"],
+    &["ipc.shared.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
@@ -991,7 +991,7 @@ pub const IPC_SHARED_MEMORY_CREATE: BindingDescriptor = BindingDescriptor::exter
     "export function sharedMemoryCreate(name: string, size: uint64, flags: uint32): Result<SharedMemoryHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["ipc.sharedMemory"],
+    &["ipc.shared.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
@@ -1003,7 +1003,7 @@ pub const IPC_SHARED_MEMORY_MAP: BindingDescriptor = BindingDescriptor::external
     "export function sharedMemoryMap(handle: SharedMemoryHandle, offset: uint64, length: uint64, flags: uint32): Result<SharedMemoryMapping, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["ipc.sharedMemory"],
+    &["ipc.shared.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
@@ -1015,7 +1015,7 @@ pub const IPC_SHARED_MEMORY_OPEN: BindingDescriptor = BindingDescriptor::externa
     "export function sharedMemoryOpen(name: string, flags: uint32): Result<SharedMemoryHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["ipc.sharedMemory"],
+    &["ipc.shared.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
@@ -1027,7 +1027,7 @@ pub const IPC_SHARED_MEMORY_UNMAP: BindingDescriptor = BindingDescriptor::extern
     "export function sharedMemoryUnmap(address: uint64, length: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["ipc.sharedMemory"],
+    &["ipc.shared.memory"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
@@ -1099,7 +1099,7 @@ pub const IPC_UNIX_RECEIVE: BindingDescriptor = BindingDescriptor::external_with
     "export function unixReceive(socket: SocketHandle, maxHandles: uint32): Result<UnixReceiveAncillary, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["ipc.fdPass", "ipc.unix"],
+    &["ipc.fd.pass", "ipc.unix"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
@@ -1111,7 +1111,7 @@ pub const IPC_UNIX_SEND: BindingDescriptor = BindingDescriptor::external_with_re
     "export function unixSend(socket: SocketHandle, payload: Slice<uint8>, handles: Slice<TransferredHandle>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["ipc.fdPass", "ipc.unix"],
+    &["ipc.fd.pass", "ipc.unix"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )

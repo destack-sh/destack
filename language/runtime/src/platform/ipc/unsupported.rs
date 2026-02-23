@@ -306,7 +306,7 @@ pub(crate) unsafe fn destack_ipc_pipe_write(
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `ipc.sharedMemory`.
+/// Requires `ipc.shared.memory`.
 ///
 /// # Replay
 /// External, recordable.
@@ -335,7 +335,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_close(
 /// Returns invalidArgument, ioPermissionDenied, ioAlreadyExists, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `ipc.sharedMemory`.
+/// Requires `ipc.shared.memory`.
 ///
 /// # Replay
 /// External, recordable.
@@ -370,7 +370,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `ipc.sharedMemory`.
+/// Requires `ipc.shared.memory`.
 ///
 /// # Replay
 /// External, recordable.
@@ -403,7 +403,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `ipc.sharedMemory`.
+/// Requires `ipc.shared.memory`.
 ///
 /// # Replay
 /// External, recordable.
@@ -437,7 +437,7 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `ipc.sharedMemory`.
+/// Requires `ipc.shared.memory`.
 ///
 /// # Replay
 /// External, recordable.
@@ -623,7 +623,7 @@ pub(crate) unsafe fn destack_ipc_semaphore_wait(
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `ipc.unix`, `ipc.fdPass`.
+/// Requires `ipc.unix`, `ipc.fd.pass`.
 ///
 /// # Replay
 /// External, recordable.
@@ -654,7 +654,7 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `ipc.unix`, `ipc.fdPass`.
+/// Requires `ipc.unix`, `ipc.fd.pass`.
 ///
 /// # Replay
 /// External, recordable.

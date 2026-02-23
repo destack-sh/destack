@@ -7,11 +7,17 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::{
-    DisplayDescriptor, DisplayDescriptorVm, DisplayMode, DisplayModeVm, WindowEvent, WindowEventVm,
-    WindowOptions, WindowOptionsVm, native as display_native, vm as display_vm,
+    DisplayDescriptor, DisplayDescriptorVm, DisplayMode, DisplayModeVm, WindowDescriptor,
+    WindowDescriptorVm, WindowEvent, WindowEventKind, WindowEventPayload, WindowEventPayloadVm,
+    WindowEventVm, WindowFocusPayload, WindowFocusPayloadVm, WindowMode, WindowOcclusionPayload,
+    WindowOcclusionPayloadVm, WindowOptions, WindowOptionsVm, WindowPositionPayload,
+    WindowPositionPayloadVm, WindowScaleFactorPayload, WindowScaleFactorPayloadVm,
+    WindowSizePayload, WindowSizePayloadVm, WindowState, WindowStateVm, WindowVisibility,
+    WindowVisibilityPayload, WindowVisibilityPayloadVm, native as display_native, vm as display_vm,
 };
 use crate::platform::{
-    NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmSlice, resource,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
+    VmSlice, resource,
 };
 use destack_vm as vm;
 
@@ -214,7 +220,6 @@ impl<'call> DisplayHarnessContext<'call> {
     /// Close one window.
     ///
     /// Close one host window and release associated compositor or window-system resources.
-    /// Close behavior follows host event-loop and teardown semantics.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -242,40 +247,301 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Wait for one window event.
+    /// Read descriptor metadata for one window.
     ///
-    /// Wait for one event from the host window queue and return it as a normalized payload.
-    /// Event ordering follows host event-loop delivery behavior.
+    /// Read one normalized descriptor snapshot for one opened host window.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses host event queue wait operations.
+    /// Uses backend-specific window metadata queries.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInterrupted, notSupported.
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
     /// Requires `display.window`.
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_display_window_event(
+    pub(crate) fn destack_display_window_descriptor(
         &mut self,
         window: resource::WindowHandle,
-    ) -> RuntimeResult<HarnessValue<WindowEvent, WindowEventVm>> {
+    ) -> RuntimeResult<HarnessValue<WindowDescriptor, WindowDescriptorVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_window_descriptor(
+                    self.call_context,
+                    context,
+                    window,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<WindowDescriptor>::uninit();
+                unsafe {
+                    display_native::destack_display_window_descriptor(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        window,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Close one global window-event stream.
+    ///
+    /// Close one opened window-event stream and release host event routing resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific event-stream close operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_event_close(
+        &mut self,
+        handle: resource::WindowEventHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                display_vm::destack_display_window_event_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                display_native::destack_display_window_event_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Open one global window-event stream.
+    ///
+    /// Open one host window-event stream for all windows in this runtime.
+    /// Event ordering follows host event-loop delivery behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses one host event-loop stream model aligned with winit and SDL style window id routing.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_event_open(
+        &mut self,
+    ) -> RuntimeResult<resource::WindowEventHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let out =
-                    display_vm::destack_display_window_event(self.call_context, context, window)?;
+                    display_vm::destack_display_window_event_open(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::WindowEventHandle>::uninit();
+                unsafe {
+                    display_native::destack_display_window_event_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Wait for one window event.
+    ///
+    /// Wait for one event from one opened host window-event stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host event queue wait operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_event_read(
+        &mut self,
+        handle: resource::WindowEventHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<WindowEvent, WindowEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_window_event_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    timeoutns,
+                )?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<WindowEvent>::uninit();
                 unsafe {
-                    display_native::destack_display_window_event(
+                    display_native::destack_display_window_event_read(
                         self.call_context,
                         out.as_mut_ptr(),
-                        window,
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Wait for one batch of window events.
+    ///
+    /// Wait for pending events from one opened host window-event stream and return up to `maxEvents` events.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host event queue batch wait operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_event_read_batch(
+        &mut self,
+        handle: resource::WindowEventHandle,
+        maxevents: u32,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<NativeArray<WindowEvent>, VmArray<WindowEventVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_window_event_read_batch(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxevents,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<WindowEvent>>::uninit();
+                unsafe {
+                    display_native::destack_display_window_event_read_batch(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxevents,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one window event without blocking.
+    ///
+    /// Poll one pending event from one opened host window-event stream without waiting.
+    /// Empty queue state is reported through ioWouldBlock.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host event queue polling.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_event_try_read(
+        &mut self,
+        handle: resource::WindowEventHandle,
+    ) -> RuntimeResult<HarnessValue<WindowEvent, WindowEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_window_event_try_read(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<WindowEvent>::uninit();
+                unsafe {
+                    display_native::destack_display_window_event_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one batch of window events without blocking.
+    ///
+    /// Poll pending events from one opened host window-event stream and return up to `maxEvents` events.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host event queue batch polling.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window.events`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_event_try_read_batch(
+        &mut self,
+        handle: resource::WindowEventHandle,
+        maxevents: u32,
+    ) -> RuntimeResult<HarnessValue<NativeArray<WindowEvent>, VmArray<WindowEventVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = display_vm::destack_display_window_event_try_read_batch(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxevents,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<WindowEvent>>::uninit();
+                unsafe {
+                    display_native::destack_display_window_event_try_read_batch(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxevents,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -291,7 +557,7 @@ impl<'call> DisplayHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses Wayland or X11 window creation on Unix-like hosts and CreateWindowExW on Windows.
+    /// Uses winit or SDL class host backends over Wayland or X11 or Win32 windowing APIs.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -334,10 +600,152 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
+    /// Request one redraw for one window.
+    ///
+    /// Enqueue one host redraw request for one opened window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend redraw request operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_request_refresh(
+        &mut self,
+        window: resource::WindowHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => display_vm::destack_display_window_request_refresh(
+                self.call_context,
+                context,
+                window,
+            ),
+            None => unsafe {
+                display_native::destack_display_window_request_refresh(self.call_context, window)
+            },
+        }
+    }
+
+    /// Set one window mode.
+    ///
+    /// Apply one host window mode transition for one opened window.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific fullscreen and borderless and windowed mode operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_set_mode(
+        &mut self,
+        window: resource::WindowHandle,
+        mode: WindowMode,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => display_vm::destack_display_window_set_mode(
+                self.call_context,
+                context,
+                window,
+                mode,
+            ),
+            None => unsafe {
+                display_native::destack_display_window_set_mode(self.call_context, window, mode)
+            },
+        }
+    }
+
+    /// Set one window position.
+    ///
+    /// Apply one host window position in physical pixels.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific window move operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_set_position(
+        &mut self,
+        window: resource::WindowHandle,
+        x: i32,
+        y: i32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => display_vm::destack_display_window_set_position(
+                self.call_context,
+                context,
+                window,
+                x,
+                y,
+            ),
+            None => unsafe {
+                display_native::destack_display_window_set_position(self.call_context, window, x, y)
+            },
+        }
+    }
+
+    /// Set one window size.
+    ///
+    /// Apply one host window size in physical pixels.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific window resize operations.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_set_size(
+        &mut self,
+        window: resource::WindowHandle,
+        width: u32,
+        height: u32,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => display_vm::destack_display_window_set_size(
+                self.call_context,
+                context,
+                window,
+                width,
+                height,
+            ),
+            None => unsafe {
+                display_native::destack_display_window_set_size(
+                    self.call_context,
+                    window,
+                    width,
+                    height,
+                )
+            },
+        }
+    }
+
     /// Set one window title string.
     ///
     /// Update one host window title using host window-system APIs.
-    /// Encoding and truncation semantics follow host platform behavior.
     ///
     /// # Platform
     /// Unix and Windows.
@@ -379,14 +787,13 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Poll one window event.
+    /// Set one window visibility state.
     ///
-    /// Poll one pending event from the host window event queue without blocking.
-    /// Empty queue state is reported through ioWouldBlock.
+    /// Apply one window visibility state transition.
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses nonblocking host event queue polling on both platforms.
+    /// Uses backend-specific show and hide and minimize and maximize operations.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -396,23 +803,58 @@ impl<'call> DisplayHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_display_window_try_event(
+    pub(crate) fn destack_display_window_set_visibility(
         &mut self,
         window: resource::WindowHandle,
-    ) -> RuntimeResult<HarnessValue<WindowEvent, WindowEventVm>> {
+        visibility: WindowVisibility,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => display_vm::destack_display_window_set_visibility(
+                self.call_context,
+                context,
+                window,
+                visibility,
+            ),
+            None => unsafe {
+                display_native::destack_display_window_set_visibility(
+                    self.call_context,
+                    window,
+                    visibility,
+                )
+            },
+        }
+    }
+
+    /// Read one window state snapshot.
+    ///
+    /// Read one point-in-time host window state snapshot.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific window state queries.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `display.window`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_display_window_state(
+        &mut self,
+        window: resource::WindowHandle,
+    ) -> RuntimeResult<HarnessValue<WindowState, WindowStateVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = display_vm::destack_display_window_try_event(
-                    self.call_context,
-                    context,
-                    window,
-                )?;
+                let out =
+                    display_vm::destack_display_window_state(self.call_context, context, window)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
-                let mut out = std::mem::MaybeUninit::<WindowEvent>::uninit();
+                let mut out = std::mem::MaybeUninit::<WindowState>::uninit();
                 unsafe {
-                    display_native::destack_display_window_try_event(
+                    display_native::destack_display_window_state(
                         self.call_context,
                         out.as_mut_ptr(),
                         window,
@@ -427,7 +869,6 @@ impl<'call> DisplayHarnessContext<'call> {
     /// Present one frame interval marker.
     ///
     /// Block until the next present interval for one window when host backends support vsync synchronization.
-    /// Wake timing follows host compositor and swap-chain behavior.
     ///
     /// # Platform
     /// Unix and Windows.

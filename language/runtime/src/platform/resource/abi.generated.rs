@@ -73,6 +73,26 @@ impl VmValueCodec for AudioStreamHandle {
     }
 }
 
+/// ABI newtype for BackgroundEventHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BackgroundEventHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type BackgroundEventHandleVm = BackgroundEventHandle;
+
+impl VmValueCodec for BackgroundEventHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for BarrierHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -84,6 +104,106 @@ pub struct BarrierHandle(
 pub type BarrierHandleVm = BarrierHandle;
 
 impl VmValueCodec for BarrierHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for BluetoothDeviceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BluetoothDeviceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type BluetoothDeviceHandleVm = BluetoothDeviceHandle;
+
+impl VmValueCodec for BluetoothDeviceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for BluetoothScanHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BluetoothScanHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type BluetoothScanHandleVm = BluetoothScanHandle;
+
+impl VmValueCodec for BluetoothScanHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for BluetoothSubscriptionHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BluetoothSubscriptionHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type BluetoothSubscriptionHandleVm = BluetoothSubscriptionHandle;
+
+impl VmValueCodec for BluetoothSubscriptionHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for CameraDeviceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CameraDeviceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CameraDeviceHandleVm = CameraDeviceHandle;
+
+impl VmValueCodec for CameraDeviceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for CameraStreamHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CameraStreamHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CameraStreamHandleVm = CameraStreamHandle;
+
+impl VmValueCodec for CameraStreamHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
@@ -244,6 +364,26 @@ pub struct DisplayHandle(
 pub type DisplayHandleVm = DisplayHandle;
 
 impl VmValueCodec for DisplayHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for DocumentHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DocumentHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type DocumentHandleVm = DocumentHandle;
+
+impl VmValueCodec for DocumentHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
@@ -733,6 +873,26 @@ impl VmValueCodec for InspectorHandle {
     }
 }
 
+/// ABI newtype for IntentHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct IntentHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type IntentHandleVm = IntentHandle;
+
+impl VmValueCodec for IntentHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for LibraryHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -744,6 +904,26 @@ pub struct LibraryHandle(
 pub type LibraryHandleVm = LibraryHandle;
 
 impl VmValueCodec for LibraryHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for LifecycleEventHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LifecycleEventHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type LifecycleEventHandleVm = LifecycleEventHandle;
+
+impl VmValueCodec for LifecycleEventHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
@@ -773,6 +953,26 @@ impl VmValueCodec for ListenerHandle {
     }
 }
 
+/// ABI newtype for LocationWatchHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LocationWatchHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type LocationWatchHandleVm = LocationWatchHandle;
+
+impl VmValueCodec for LocationWatchHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for MessageQueueHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -793,6 +993,26 @@ impl VmValueCodec for MessageQueueHandle {
     }
 }
 
+/// ABI newtype for MidiPortHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct MidiPortHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type MidiPortHandleVm = MidiPortHandle;
+
+impl VmValueCodec for MidiPortHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for MutexHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -804,6 +1024,46 @@ pub struct MutexHandle(
 pub type MutexHandleVm = MutexHandle;
 
 impl VmValueCodec for MutexHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for NetworkWatchHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NetworkWatchHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type NetworkWatchHandleVm = NetworkWatchHandle;
+
+impl VmValueCodec for NetworkWatchHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for NotificationEventHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NotificationEventHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type NotificationEventHandleVm = NotificationEventHandle;
+
+impl VmValueCodec for NotificationEventHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
@@ -1033,6 +1293,26 @@ pub struct SemaphoreHandle(
 pub type SemaphoreHandleVm = SemaphoreHandle;
 
 impl VmValueCodec for SemaphoreHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for SerialPortHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SerialPortHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type SerialPortHandleVm = SerialPortHandle;
+
+impl VmValueCodec for SerialPortHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
@@ -1362,6 +1642,26 @@ impl VmValueCodec for UringHandle {
     }
 }
 
+/// ABI newtype for UsbDeviceHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct UsbDeviceHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type UsbDeviceHandleVm = UsbDeviceHandle;
+
+impl VmValueCodec for UsbDeviceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for WatchHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1373,6 +1673,26 @@ pub struct WatchHandle(
 pub type WatchHandleVm = WatchHandle;
 
 impl VmValueCodec for WatchHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for WindowEventHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct WindowEventHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type WindowEventHandleVm = WindowEventHandle;
+
+impl VmValueCodec for WindowEventHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }

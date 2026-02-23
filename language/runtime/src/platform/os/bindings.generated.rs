@@ -6,11 +6,44 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::os::{
-    HostIdentity, HostIdentityReplayRecord, HostIdentityVm, LoadAverage, LoadAverageVm, MountEntry,
-    MountEntryReplayRecord, MountEntryVm, PowerState, SystemSnapshot, SystemSnapshotVm,
+    BackgroundEvent, BackgroundEventOpenOptions, BackgroundEventOpenOptionsVm,
+    BackgroundEventReplayRecord, BackgroundEventVm, BackgroundStatus, BackgroundTaskDescriptor,
+    BackgroundTaskDescriptorReplayRecord, BackgroundTaskDescriptorVm, BackgroundTaskOptions,
+    BackgroundTaskOptionsVm, BackgroundTaskResult, BackgroundTriggerKind, CalendarAttendeeVm,
+    CalendarAvailability, CalendarDescriptor, CalendarDescriptorVm, CalendarEvent,
+    CalendarEventDraft, CalendarEventDraftVm, CalendarEventQuery, CalendarEventQueryVm,
+    CalendarEventVm, CalendarRecurrenceFrequency, CalendarRecurrenceRuleVm, CalendarReminderVm,
+    ClipboardBinaryFormat, Contact, ContactAddressVm, ContactDraft, ContactDraftVm, ContactEmailVm,
+    ContactNameVm, ContactOrganizationVm, ContactPage, ContactPageVm, ContactPhoneVm, ContactQuery,
+    ContactQueryVm, ContactVm, CredentialAccessibility, CredentialAuthenticationOptions,
+    CredentialAuthenticationOptionsVm, CredentialAuthenticationPolicy,
+    CredentialAuthenticationResult, CredentialAuthenticationResultVm, CredentialQuery,
+    CredentialQueryVm, CredentialRecord, CredentialRecordVm, CredentialWriteOptions,
+    CredentialWriteOptionsVm, DocumentAccess, DocumentDescriptor, DocumentDescriptorVm,
+    DocumentPickOptions, DocumentPickOptionsVm, HostIdentity, HostIdentityReplayRecord,
+    HostIdentityVm, IntentEvent, IntentEventReplayRecord, IntentEventVm, IntentOpenOptions,
+    IntentOpenOptionsVm, IntentPayload, IntentPayloadReplayRecord, IntentPayloadVm, LifecycleEvent,
+    LifecycleEventPayload, LifecycleEventPayloadVm, LifecycleEventVm, LifecycleLowMemoryPayload,
+    LifecycleLowMemoryPayloadVm, LifecycleLowPowerPayload, LifecycleLowPowerPayloadVm,
+    LifecycleState, LoadAverage, LoadAverageVm, LocationAccuracy, LocationSample, LocationSampleVm,
+    LocationWatchOptions, LocationWatchOptionsVm, MediaAssetDescriptor, MediaAssetDescriptorVm,
+    MediaAssetKind, MediaPage, MediaPageVm, MediaQuery, MediaQueryVm, MountEntry,
+    MountEntryReplayRecord, MountEntryVm, NetworkEvent, NetworkEventVm, NetworkState,
+    NetworkStateVm, NotificationAction, NotificationActionReplayRecord, NotificationActionStyle,
+    NotificationActionVm, NotificationCalendarTrigger, NotificationCalendarTriggerReplayRecord,
+    NotificationCalendarTriggerVm, NotificationCategory, NotificationCategoryReplayRecord,
+    NotificationCategoryVm, NotificationEvent, NotificationEventOpenOptions,
+    NotificationEventOpenOptionsVm, NotificationEventVm, NotificationPermissionState,
+    NotificationPriority, NotificationRequest, NotificationRequestReplayRecord,
+    NotificationRequestVm, NotificationScheduledDescriptor,
+    NotificationScheduledDescriptorReplayRecord, NotificationScheduledDescriptorVm,
+    NotificationTrigger, NotificationTriggerKind, NotificationTriggerReplayRecord,
+    NotificationTriggerVm, Permission, PermissionEntry, PermissionEntryVm, PermissionState,
+    PowerState, SystemSnapshot, SystemSnapshotVm,
 };
 use crate::platform::{
-    NativeArray, NativeStringRef, PlatformError, RuntimeStatus, VmArray, abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
+    abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
@@ -29,7 +62,9 @@ use crate::platform::os::simulation::{
     native as platform_simulation_native, vm as platform_simulation_vm,
 };
 use crate::platform::os::{native as platform_native, vm as platform_vm};
-use crate::platform::{fs as platform_fs, fs, os as platform_os};
+use crate::platform::{
+    fs as platform_fs, fs, os as platform_os, resource as platform_resource, resource,
+};
 
 /// Read a positional argument value.
 #[allow(dead_code)]
@@ -44,6 +79,18 @@ fn arg_value(
     })?;
 
     Ok(value)
+}
+
+/// Decode a boolean argument.
+#[allow(dead_code)]
+fn decode_bool(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<bool> {
+    value.as_bool().ok_or_else(|| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode an unsigned integer argument with an explicit width.
@@ -130,6 +177,16 @@ fn decode_string(
     Ok(vm::StringHandle::new(value))
 }
 
+/// Decode a slice argument.
+fn decode_slice<T>(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<VmSlice<T>> {
+    VmSlice::<T>::from_value(context, value, name, expected)
+}
+
 /// Decode an array argument.
 fn decode_array<T>(
     context: &mut vm::ExternalCallContext<'_>,
@@ -138,6 +195,1822 @@ fn decode_array<T>(
     expected: &'static str,
 ) -> RuntimeResult<VmArray<T>> {
     VmArray::<T>::from_value(context, value, name, expected)
+}
+
+/// Decode arguments for destack.os.background.complete.
+#[inline]
+fn decode_destack_os_background_complete_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, BackgroundTaskResult)> {
+    let executionid_value = arg_value(args, 0, "executionid", "string")?;
+    let executionid = decode_string(executionid_value, "executionid", "string")?;
+    let argument_result_value = arg_value(args, 1, "argument_result", "BackgroundTaskResult")?;
+    let argument_result_raw = decode_uint8(
+        argument_result_value,
+        "argument_result_raw",
+        "BackgroundTaskResult",
+    )?;
+    let argument_result = match argument_result_raw {
+        1u8 => BackgroundTaskResult::Success,
+        2u8 => BackgroundTaskResult::Retry,
+        3u8 => BackgroundTaskResult::Failure,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "argument_result",
+                "unknown BackgroundTaskResult value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((executionid, argument_result))
+}
+
+/// Encode the result for destack.os.background.complete.
+#[inline]
+fn encode_destack_os_background_complete_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.background.event.close.
+#[inline]
+fn decode_destack_os_background_event_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::BackgroundEventHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "BackgroundEventHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "BackgroundEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::BackgroundEventHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.background.event.close.
+#[inline]
+fn encode_destack_os_background_event_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.background.event.open.
+#[inline]
+fn decode_destack_os_background_event_open_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(BackgroundEventOpenOptionsVm,)> {
+    let options_value = arg_value(args, 0, "options", "BackgroundEventOpenOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "BackgroundEventOpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let options_include_task_ready =
+            decode_bool(slots[0], "options_include_task_ready", "includeTaskReady")?;
+        let options_include_task_expired = decode_bool(
+            slots[1],
+            "options_include_task_expired",
+            "includeTaskExpired",
+        )?;
+        BackgroundEventOpenOptionsVm {
+            include_task_ready: options_include_task_ready,
+            include_task_expired: options_include_task_expired,
+        }
+    };
+    Ok((options,))
+}
+
+/// Encode the result for destack.os.background.event.open.
+#[inline]
+fn encode_destack_os_background_event_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::BackgroundEventHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.os.background.event.read.
+#[inline]
+fn decode_destack_os_background_event_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::BackgroundEventHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "BackgroundEventHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "BackgroundEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::BackgroundEventHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.os.background.event.read.
+#[inline]
+fn encode_destack_os_background_event_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<BackgroundEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_2 = vm::Value::uint(value.sequence, 64);
+        let field_3 = value.identifier.value();
+        let field_4 = value.execution_id.value();
+        let field_5 = vm::Value::uint(value.deadline_unix_ns, 64);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+    })
+}
+
+/// Decode arguments for destack.os.background.event.tryRead.
+#[inline]
+fn decode_destack_os_background_event_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::BackgroundEventHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "BackgroundEventHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "BackgroundEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::BackgroundEventHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.background.event.tryRead.
+#[inline]
+fn encode_destack_os_background_event_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<BackgroundEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_2 = vm::Value::uint(value.sequence, 64);
+        let field_3 = value.identifier.value();
+        let field_4 = value.execution_id.value();
+        let field_5 = vm::Value::uint(value.deadline_unix_ns, 64);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+    })
+}
+
+/// Encode the result for destack.os.background.list.
+#[inline]
+fn encode_destack_os_background_list_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<BackgroundTaskDescriptorVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.os.background.register.
+#[inline]
+fn decode_destack_os_background_register_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(BackgroundTaskOptionsVm,)> {
+    let options_value = arg_value(args, 0, "options", "BackgroundTaskOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "BackgroundTaskOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 9 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 9 fields",
+            ))
+            .boxed());
+        }
+        let options_identifier = decode_string(slots[0], "options_identifier", "identifier")?;
+        let options_trigger_raw = decode_uint8(slots[1], "options_trigger_raw", "trigger")?;
+        let options_trigger = match options_trigger_raw {
+            1u8 => BackgroundTriggerKind::AppRefresh,
+            2u8 => BackgroundTriggerKind::Processing,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_trigger",
+                    "unknown BackgroundTriggerKind value",
+                ))
+                .boxed());
+            }
+        };
+        let options_minimum_interval_ns =
+            decode_uint64(slots[2], "options_minimum_interval_ns", "minimumIntervalNs")?;
+        let options_earliest_begin_unix_ns = decode_uint64(
+            slots[3],
+            "options_earliest_begin_unix_ns",
+            "earliestBeginUnixNs",
+        )?;
+        let options_requires_network =
+            decode_bool(slots[4], "options_requires_network", "requiresNetwork")?;
+        let options_requires_unmetered_network = decode_bool(
+            slots[5],
+            "options_requires_unmetered_network",
+            "requiresUnmeteredNetwork",
+        )?;
+        let options_requires_charging =
+            decode_bool(slots[6], "options_requires_charging", "requiresCharging")?;
+        let options_requires_idle = decode_bool(slots[7], "options_requires_idle", "requiresIdle")?;
+        let options_persisted = decode_bool(slots[8], "options_persisted", "persisted")?;
+        BackgroundTaskOptionsVm {
+            identifier: options_identifier,
+            trigger: options_trigger,
+            minimum_interval_ns: options_minimum_interval_ns,
+            earliest_begin_unix_ns: options_earliest_begin_unix_ns,
+            requires_network: options_requires_network,
+            requires_unmetered_network: options_requires_unmetered_network,
+            requires_charging: options_requires_charging,
+            requires_idle: options_requires_idle,
+            persisted: options_persisted,
+        }
+    };
+    Ok((options,))
+}
+
+/// Encode the result for destack.os.background.register.
+#[inline]
+fn encode_destack_os_background_register_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.os.background.status.
+#[inline]
+fn encode_destack_os_background_status_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<BackgroundStatus>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+}
+
+/// Decode arguments for destack.os.background.triggerTest.
+#[inline]
+fn decode_destack_os_background_trigger_test_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let identifier_value = arg_value(args, 0, "identifier", "string")?;
+    let identifier = decode_string(identifier_value, "identifier", "string")?;
+    Ok((identifier,))
+}
+
+/// Encode the result for destack.os.background.triggerTest.
+#[inline]
+fn encode_destack_os_background_trigger_test_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<bool>,
+) -> RuntimeResult<vm::Value> {
+    result.map(vm::Value::bool)
+}
+
+/// Decode arguments for destack.os.background.unregister.
+#[inline]
+fn decode_destack_os_background_unregister_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let identifier_value = arg_value(args, 0, "identifier", "string")?;
+    let identifier = decode_string(identifier_value, "identifier", "string")?;
+    Ok((identifier,))
+}
+
+/// Encode the result for destack.os.background.unregister.
+#[inline]
+fn encode_destack_os_background_unregister_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.calendar.eventCreate.
+#[inline]
+fn decode_destack_os_calendar_event_create_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(CalendarEventDraftVm,)> {
+    let event_value = arg_value(args, 0, "event", "CalendarEventDraft")?;
+    let event = {
+        if event_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "event",
+                "CalendarEventDraft",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(event_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 13 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "event",
+                "expected 13 fields",
+            ))
+            .boxed());
+        }
+        let event_calendar_id = decode_string(slots[0], "event_calendar_id", "calendarId")?;
+        let event_title = decode_string(slots[1], "event_title", "title")?;
+        let event_notes = decode_string(slots[2], "event_notes", "notes")?;
+        let event_location = decode_string(slots[3], "event_location", "location")?;
+        let event_start_unix_ns = decode_uint64(slots[4], "event_start_unix_ns", "startUnixNs")?;
+        let event_end_unix_ns = decode_uint64(slots[5], "event_end_unix_ns", "endUnixNs")?;
+        let event_all_day = decode_bool(slots[6], "event_all_day", "allDay")?;
+        let event_time_zone = decode_string(slots[7], "event_time_zone", "timeZone")?;
+        let event_availability_raw =
+            decode_uint8(slots[8], "event_availability_raw", "availability")?;
+        let event_availability = match event_availability_raw {
+            1u8 => CalendarAvailability::Busy,
+            2u8 => CalendarAvailability::Free,
+            3u8 => CalendarAvailability::Tentative,
+            4u8 => CalendarAvailability::OutOfOffice,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "event_availability",
+                    "unknown CalendarAvailability value",
+                ))
+                .boxed());
+            }
+        };
+        let event_url = decode_string(slots[9], "event_url", "url")?;
+        let event_recurrence_rule = {
+            if slots[10].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "event_recurrence_rule",
+                    "recurrenceRule",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[10])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 7 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "event_recurrence_rule",
+                    "expected 7 fields",
+                ))
+                .boxed());
+            }
+            let event_recurrence_rule_frequency_raw =
+                decode_uint8(slots[0], "event_recurrence_rule_frequency_raw", "frequency")?;
+            let event_recurrence_rule_frequency = match event_recurrence_rule_frequency_raw {
+                1u8 => CalendarRecurrenceFrequency::Daily,
+                2u8 => CalendarRecurrenceFrequency::Weekly,
+                3u8 => CalendarRecurrenceFrequency::Monthly,
+                4u8 => CalendarRecurrenceFrequency::Yearly,
+                _ => {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "event_recurrence_rule_frequency",
+                        "unknown CalendarRecurrenceFrequency value",
+                    ))
+                    .boxed());
+                }
+            };
+            let event_recurrence_rule_interval =
+                decode_uint32(slots[1], "event_recurrence_rule_interval", "interval")?;
+            let event_recurrence_rule_count =
+                decode_uint32(slots[2], "event_recurrence_rule_count", "count")?;
+            let event_recurrence_rule_until_unix_ns = decode_uint64(
+                slots[3],
+                "event_recurrence_rule_until_unix_ns",
+                "untilUnixNs",
+            )?;
+            let event_recurrence_rule_by_week_days = decode_array::<u8>(
+                context,
+                slots[4],
+                "event_recurrence_rule_by_week_days",
+                "byWeekDays",
+            )?;
+            let event_recurrence_rule_by_month_days = decode_array::<i8>(
+                context,
+                slots[5],
+                "event_recurrence_rule_by_month_days",
+                "byMonthDays",
+            )?;
+            let event_recurrence_rule_by_months = decode_array::<u8>(
+                context,
+                slots[6],
+                "event_recurrence_rule_by_months",
+                "byMonths",
+            )?;
+            CalendarRecurrenceRuleVm {
+                frequency: event_recurrence_rule_frequency,
+                interval: event_recurrence_rule_interval,
+                count: event_recurrence_rule_count,
+                until_unix_ns: event_recurrence_rule_until_unix_ns,
+                by_week_days: event_recurrence_rule_by_week_days,
+                by_month_days: event_recurrence_rule_by_month_days,
+                by_months: event_recurrence_rule_by_months,
+            }
+        };
+        let event_attendees =
+            decode_array::<CalendarAttendeeVm>(context, slots[11], "event_attendees", "attendees")?;
+        let event_reminders =
+            decode_array::<CalendarReminderVm>(context, slots[12], "event_reminders", "reminders")?;
+        CalendarEventDraftVm {
+            calendar_id: event_calendar_id,
+            title: event_title,
+            notes: event_notes,
+            location: event_location,
+            start_unix_ns: event_start_unix_ns,
+            end_unix_ns: event_end_unix_ns,
+            all_day: event_all_day,
+            time_zone: event_time_zone,
+            availability: event_availability,
+            url: event_url,
+            recurrence_rule: event_recurrence_rule,
+            attendees: event_attendees,
+            reminders: event_reminders,
+        }
+    };
+    Ok((event,))
+}
+
+/// Encode the result for destack.os.calendar.eventCreate.
+#[inline]
+fn encode_destack_os_calendar_event_create_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<vm::StringHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.value())
+}
+
+/// Decode arguments for destack.os.calendar.eventDelete.
+#[inline]
+fn decode_destack_os_calendar_event_delete_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let id_value = arg_value(args, 0, "id", "string")?;
+    let id = decode_string(id_value, "id", "string")?;
+    Ok((id,))
+}
+
+/// Encode the result for destack.os.calendar.eventDelete.
+#[inline]
+fn encode_destack_os_calendar_event_delete_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.calendar.eventList.
+#[inline]
+fn decode_destack_os_calendar_event_list_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(CalendarEventQueryVm,)> {
+    let query_value = arg_value(args, 0, "query", "CalendarEventQuery")?;
+    let query = {
+        if query_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "query",
+                "CalendarEventQuery",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(query_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "query",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let query_calendar_ids = decode_array::<vm::StringHandle>(
+            context,
+            slots[0],
+            "query_calendar_ids",
+            "calendarIds",
+        )?;
+        let query_start_unix_ns = decode_uint64(slots[1], "query_start_unix_ns", "startUnixNs")?;
+        let query_end_unix_ns = decode_uint64(slots[2], "query_end_unix_ns", "endUnixNs")?;
+        let query_limit = decode_uint32(slots[3], "query_limit", "limit")?;
+        let query_include_canceled =
+            decode_bool(slots[4], "query_include_canceled", "includeCanceled")?;
+        let query_include_declined =
+            decode_bool(slots[5], "query_include_declined", "includeDeclined")?;
+        let query_include_recurrence_instances = decode_bool(
+            slots[6],
+            "query_include_recurrence_instances",
+            "includeRecurrenceInstances",
+        )?;
+        CalendarEventQueryVm {
+            calendar_ids: query_calendar_ids,
+            start_unix_ns: query_start_unix_ns,
+            end_unix_ns: query_end_unix_ns,
+            limit: query_limit,
+            include_canceled: query_include_canceled,
+            include_declined: query_include_declined,
+            include_recurrence_instances: query_include_recurrence_instances,
+        }
+    };
+    Ok((query,))
+}
+
+/// Encode the result for destack.os.calendar.eventList.
+#[inline]
+fn encode_destack_os_calendar_event_list_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<CalendarEventVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.os.calendar.eventRead.
+#[inline]
+fn decode_destack_os_calendar_event_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let id_value = arg_value(args, 0, "id", "string")?;
+    let id = decode_string(id_value, "id", "string")?;
+    Ok((id,))
+}
+
+/// Encode the result for destack.os.calendar.eventRead.
+#[inline]
+fn encode_destack_os_calendar_event_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CalendarEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.id.value();
+        let field_1 = value.calendar_id.value();
+        let field_2 = value.title.value();
+        let field_3 = value.notes.value();
+        let field_4 = value.location.value();
+        let field_5 = vm::Value::uint(value.start_unix_ns, 64);
+        let field_6 = vm::Value::uint(value.end_unix_ns, 64);
+        let field_7 = vm::Value::bool(value.all_day);
+        let field_8 = vm::Value::bool(value.canceled);
+        let field_9 = value.time_zone.value();
+        let field_10 = vm::Value::uint(value.availability as u8 as u64, 8);
+        let field_11 = value.url.value();
+        let field_12 = value.organizer_name.value();
+        let field_13 = value.organizer_email.value();
+        let field_14 = vm::Value::bool(value.recurring);
+        let field_15 = value.recurrence_master_id.value();
+        let field_16 = vm::Value::uint(value.recurrence_id_unix_ns, 64);
+        let field_17 = {
+            let field_0 = vm::Value::uint(value.recurrence_rule.frequency as u8 as u64, 8);
+            let field_1 = vm::Value::uint(value.recurrence_rule.interval as u64, 32);
+            let field_2 = vm::Value::uint(value.recurrence_rule.count as u64, 32);
+            let field_3 = vm::Value::uint(value.recurrence_rule.until_unix_ns, 64);
+            let field_4 = value.recurrence_rule.by_week_days.to_value(context);
+            let field_5 = value.recurrence_rule.by_month_days.to_value(context);
+            let field_6 = value.recurrence_rule.by_months.to_value(context);
+            context.allocate_aggregate(vec![
+                field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+            ])
+        };
+        let field_18 = value.attendees.to_value(context);
+        let field_19 = value.reminders.to_value(context);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15, field_16,
+            field_17, field_18, field_19,
+        ])
+    })
+}
+
+/// Decode arguments for destack.os.calendar.eventUpdate.
+#[inline]
+fn decode_destack_os_calendar_event_update_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, CalendarEventDraftVm)> {
+    let id_value = arg_value(args, 0, "id", "string")?;
+    let id = decode_string(id_value, "id", "string")?;
+    let event_value = arg_value(args, 1, "event", "CalendarEventDraft")?;
+    let event = {
+        if event_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "event",
+                "CalendarEventDraft",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(event_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 13 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "event",
+                "expected 13 fields",
+            ))
+            .boxed());
+        }
+        let event_calendar_id = decode_string(slots[0], "event_calendar_id", "calendarId")?;
+        let event_title = decode_string(slots[1], "event_title", "title")?;
+        let event_notes = decode_string(slots[2], "event_notes", "notes")?;
+        let event_location = decode_string(slots[3], "event_location", "location")?;
+        let event_start_unix_ns = decode_uint64(slots[4], "event_start_unix_ns", "startUnixNs")?;
+        let event_end_unix_ns = decode_uint64(slots[5], "event_end_unix_ns", "endUnixNs")?;
+        let event_all_day = decode_bool(slots[6], "event_all_day", "allDay")?;
+        let event_time_zone = decode_string(slots[7], "event_time_zone", "timeZone")?;
+        let event_availability_raw =
+            decode_uint8(slots[8], "event_availability_raw", "availability")?;
+        let event_availability = match event_availability_raw {
+            1u8 => CalendarAvailability::Busy,
+            2u8 => CalendarAvailability::Free,
+            3u8 => CalendarAvailability::Tentative,
+            4u8 => CalendarAvailability::OutOfOffice,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "event_availability",
+                    "unknown CalendarAvailability value",
+                ))
+                .boxed());
+            }
+        };
+        let event_url = decode_string(slots[9], "event_url", "url")?;
+        let event_recurrence_rule = {
+            if slots[10].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "event_recurrence_rule",
+                    "recurrenceRule",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[10])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 7 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "event_recurrence_rule",
+                    "expected 7 fields",
+                ))
+                .boxed());
+            }
+            let event_recurrence_rule_frequency_raw =
+                decode_uint8(slots[0], "event_recurrence_rule_frequency_raw", "frequency")?;
+            let event_recurrence_rule_frequency = match event_recurrence_rule_frequency_raw {
+                1u8 => CalendarRecurrenceFrequency::Daily,
+                2u8 => CalendarRecurrenceFrequency::Weekly,
+                3u8 => CalendarRecurrenceFrequency::Monthly,
+                4u8 => CalendarRecurrenceFrequency::Yearly,
+                _ => {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "event_recurrence_rule_frequency",
+                        "unknown CalendarRecurrenceFrequency value",
+                    ))
+                    .boxed());
+                }
+            };
+            let event_recurrence_rule_interval =
+                decode_uint32(slots[1], "event_recurrence_rule_interval", "interval")?;
+            let event_recurrence_rule_count =
+                decode_uint32(slots[2], "event_recurrence_rule_count", "count")?;
+            let event_recurrence_rule_until_unix_ns = decode_uint64(
+                slots[3],
+                "event_recurrence_rule_until_unix_ns",
+                "untilUnixNs",
+            )?;
+            let event_recurrence_rule_by_week_days = decode_array::<u8>(
+                context,
+                slots[4],
+                "event_recurrence_rule_by_week_days",
+                "byWeekDays",
+            )?;
+            let event_recurrence_rule_by_month_days = decode_array::<i8>(
+                context,
+                slots[5],
+                "event_recurrence_rule_by_month_days",
+                "byMonthDays",
+            )?;
+            let event_recurrence_rule_by_months = decode_array::<u8>(
+                context,
+                slots[6],
+                "event_recurrence_rule_by_months",
+                "byMonths",
+            )?;
+            CalendarRecurrenceRuleVm {
+                frequency: event_recurrence_rule_frequency,
+                interval: event_recurrence_rule_interval,
+                count: event_recurrence_rule_count,
+                until_unix_ns: event_recurrence_rule_until_unix_ns,
+                by_week_days: event_recurrence_rule_by_week_days,
+                by_month_days: event_recurrence_rule_by_month_days,
+                by_months: event_recurrence_rule_by_months,
+            }
+        };
+        let event_attendees =
+            decode_array::<CalendarAttendeeVm>(context, slots[11], "event_attendees", "attendees")?;
+        let event_reminders =
+            decode_array::<CalendarReminderVm>(context, slots[12], "event_reminders", "reminders")?;
+        CalendarEventDraftVm {
+            calendar_id: event_calendar_id,
+            title: event_title,
+            notes: event_notes,
+            location: event_location,
+            start_unix_ns: event_start_unix_ns,
+            end_unix_ns: event_end_unix_ns,
+            all_day: event_all_day,
+            time_zone: event_time_zone,
+            availability: event_availability,
+            url: event_url,
+            recurrence_rule: event_recurrence_rule,
+            attendees: event_attendees,
+            reminders: event_reminders,
+        }
+    };
+    Ok((id, event))
+}
+
+/// Encode the result for destack.os.calendar.eventUpdate.
+#[inline]
+fn encode_destack_os_calendar_event_update_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.os.calendar.list.
+#[inline]
+fn encode_destack_os_calendar_list_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<CalendarDescriptorVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Encode the result for destack.os.clipboard.clear.
+#[inline]
+fn encode_destack_os_clipboard_clear_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.os.clipboard.hasText.
+#[inline]
+fn encode_destack_os_clipboard_has_text_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<bool>,
+) -> RuntimeResult<vm::Value> {
+    result.map(vm::Value::bool)
+}
+
+/// Decode arguments for destack.os.clipboard.readBytes.
+#[inline]
+fn decode_destack_os_clipboard_read_bytes_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ClipboardBinaryFormat,)> {
+    let format_value = arg_value(args, 0, "format", "ClipboardBinaryFormat")?;
+    let format_raw = decode_uint8(format_value, "format_raw", "ClipboardBinaryFormat")?;
+    let format = match format_raw {
+        1u8 => ClipboardBinaryFormat::TextUtf8,
+        2u8 => ClipboardBinaryFormat::Html,
+        3u8 => ClipboardBinaryFormat::Binary,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "format",
+                "unknown ClipboardBinaryFormat value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((format,))
+}
+
+/// Encode the result for destack.os.clipboard.readBytes.
+#[inline]
+fn encode_destack_os_clipboard_read_bytes_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Encode the result for destack.os.clipboard.readText.
+#[inline]
+fn encode_destack_os_clipboard_read_text_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<vm::StringHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.value())
+}
+
+/// Encode the result for destack.os.clipboard.sequence.
+#[inline]
+fn encode_destack_os_clipboard_sequence_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u64>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value, 64))
+}
+
+/// Decode arguments for destack.os.clipboard.writeBytes.
+#[inline]
+fn decode_destack_os_clipboard_write_bytes_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ClipboardBinaryFormat, VmSlice<u8>)> {
+    let format_value = arg_value(args, 0, "format", "ClipboardBinaryFormat")?;
+    let format_raw = decode_uint8(format_value, "format_raw", "ClipboardBinaryFormat")?;
+    let format = match format_raw {
+        1u8 => ClipboardBinaryFormat::TextUtf8,
+        2u8 => ClipboardBinaryFormat::Html,
+        3u8 => ClipboardBinaryFormat::Binary,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "format",
+                "unknown ClipboardBinaryFormat value",
+            ))
+            .boxed());
+        }
+    };
+    let argument_bytes_value = arg_value(args, 1, "argument_bytes", "Slice<uint8>")?;
+    let argument_bytes = decode_slice::<u8>(
+        context,
+        argument_bytes_value,
+        "argument_bytes",
+        "Slice<uint8>",
+    )?;
+    Ok((format, argument_bytes))
+}
+
+/// Encode the result for destack.os.clipboard.writeBytes.
+#[inline]
+fn encode_destack_os_clipboard_write_bytes_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.clipboard.writeText.
+#[inline]
+fn decode_destack_os_clipboard_write_text_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let text_value = arg_value(args, 0, "text", "string")?;
+    let text = decode_string(text_value, "text", "string")?;
+    Ok((text,))
+}
+
+/// Encode the result for destack.os.clipboard.writeText.
+#[inline]
+fn encode_destack_os_clipboard_write_text_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.contact.create.
+#[inline]
+fn decode_destack_os_contact_create_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ContactDraftVm,)> {
+    let contact_value = arg_value(args, 0, "contact", "ContactDraft")?;
+    let contact = {
+        if contact_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "contact",
+                "ContactDraft",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(contact_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "contact",
+                "expected 6 fields",
+            ))
+            .boxed());
+        }
+        let contact_name = {
+            if slots[0].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "contact_name",
+                    "name",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[0])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 8 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "contact_name",
+                    "expected 8 fields",
+                ))
+                .boxed());
+            }
+            let contact_name_given_name =
+                decode_string(slots[0], "contact_name_given_name", "givenName")?;
+            let contact_name_middle_name =
+                decode_string(slots[1], "contact_name_middle_name", "middleName")?;
+            let contact_name_family_name =
+                decode_string(slots[2], "contact_name_family_name", "familyName")?;
+            let contact_name_prefix = decode_string(slots[3], "contact_name_prefix", "prefix")?;
+            let contact_name_suffix = decode_string(slots[4], "contact_name_suffix", "suffix")?;
+            let contact_name_nickname =
+                decode_string(slots[5], "contact_name_nickname", "nickname")?;
+            let contact_name_phonetic_given_name = decode_string(
+                slots[6],
+                "contact_name_phonetic_given_name",
+                "phoneticGivenName",
+            )?;
+            let contact_name_phonetic_family_name = decode_string(
+                slots[7],
+                "contact_name_phonetic_family_name",
+                "phoneticFamilyName",
+            )?;
+            ContactNameVm {
+                given_name: contact_name_given_name,
+                middle_name: contact_name_middle_name,
+                family_name: contact_name_family_name,
+                prefix: contact_name_prefix,
+                suffix: contact_name_suffix,
+                nickname: contact_name_nickname,
+                phonetic_given_name: contact_name_phonetic_given_name,
+                phonetic_family_name: contact_name_phonetic_family_name,
+            }
+        };
+        let contact_phones =
+            decode_array::<ContactPhoneVm>(context, slots[1], "contact_phones", "phones")?;
+        let contact_emails =
+            decode_array::<ContactEmailVm>(context, slots[2], "contact_emails", "emails")?;
+        let contact_addresses =
+            decode_array::<ContactAddressVm>(context, slots[3], "contact_addresses", "addresses")?;
+        let contact_organization = {
+            if slots[4].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "contact_organization",
+                    "organization",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[4])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 3 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "contact_organization",
+                    "expected 3 fields",
+                ))
+                .boxed());
+            }
+            let contact_organization_company =
+                decode_string(slots[0], "contact_organization_company", "company")?;
+            let contact_organization_department =
+                decode_string(slots[1], "contact_organization_department", "department")?;
+            let contact_organization_title =
+                decode_string(slots[2], "contact_organization_title", "title")?;
+            ContactOrganizationVm {
+                company: contact_organization_company,
+                department: contact_organization_department,
+                title: contact_organization_title,
+            }
+        };
+        let contact_note = decode_string(slots[5], "contact_note", "note")?;
+        ContactDraftVm {
+            name: contact_name,
+            phones: contact_phones,
+            emails: contact_emails,
+            addresses: contact_addresses,
+            organization: contact_organization,
+            note: contact_note,
+        }
+    };
+    Ok((contact,))
+}
+
+/// Encode the result for destack.os.contact.create.
+#[inline]
+fn encode_destack_os_contact_create_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<vm::StringHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.value())
+}
+
+/// Decode arguments for destack.os.contact.delete.
+#[inline]
+fn decode_destack_os_contact_delete_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let id_value = arg_value(args, 0, "id", "string")?;
+    let id = decode_string(id_value, "id", "string")?;
+    Ok((id,))
+}
+
+/// Encode the result for destack.os.contact.delete.
+#[inline]
+fn encode_destack_os_contact_delete_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.contact.list.
+#[inline]
+fn decode_destack_os_contact_list_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(ContactQueryVm,)> {
+    let query_value = arg_value(args, 0, "query", "ContactQuery")?;
+    let query = {
+        if query_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "query",
+                "ContactQuery",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(query_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "query",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let query_cursor = decode_string(slots[0], "query_cursor", "cursor")?;
+        let query_limit = decode_uint32(slots[1], "query_limit", "limit")?;
+        let query_include_phones = decode_bool(slots[2], "query_include_phones", "includePhones")?;
+        let query_include_emails = decode_bool(slots[3], "query_include_emails", "includeEmails")?;
+        let query_include_addresses =
+            decode_bool(slots[4], "query_include_addresses", "includeAddresses")?;
+        let query_include_organization = decode_bool(
+            slots[5],
+            "query_include_organization",
+            "includeOrganization",
+        )?;
+        let query_include_notes = decode_bool(slots[6], "query_include_notes", "includeNotes")?;
+        ContactQueryVm {
+            cursor: query_cursor,
+            limit: query_limit,
+            include_phones: query_include_phones,
+            include_emails: query_include_emails,
+            include_addresses: query_include_addresses,
+            include_organization: query_include_organization,
+            include_notes: query_include_notes,
+        }
+    };
+    Ok((query,))
+}
+
+/// Encode the result for destack.os.contact.list.
+#[inline]
+fn encode_destack_os_contact_list_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<ContactPageVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.contacts.to_value(context);
+        let field_1 = value.next_cursor.value();
+        let field_2 = vm::Value::bool(value.has_more);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    })
+}
+
+/// Decode arguments for destack.os.contact.read.
+#[inline]
+fn decode_destack_os_contact_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let id_value = arg_value(args, 0, "id", "string")?;
+    let id = decode_string(id_value, "id", "string")?;
+    Ok((id,))
+}
+
+/// Encode the result for destack.os.contact.read.
+#[inline]
+fn encode_destack_os_contact_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<ContactVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.id.value();
+        let field_1 = {
+            let field_0 = value.name.given_name.value();
+            let field_1 = value.name.middle_name.value();
+            let field_2 = value.name.family_name.value();
+            let field_3 = value.name.prefix.value();
+            let field_4 = value.name.suffix.value();
+            let field_5 = value.name.nickname.value();
+            let field_6 = value.name.phonetic_given_name.value();
+            let field_7 = value.name.phonetic_family_name.value();
+            context.allocate_aggregate(vec![
+                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+            ])
+        };
+        let field_2 = value.phones.to_value(context);
+        let field_3 = value.emails.to_value(context);
+        let field_4 = value.addresses.to_value(context);
+        let field_5 = {
+            let field_0 = value.organization.company.value();
+            let field_1 = value.organization.department.value();
+            let field_2 = value.organization.title.value();
+            context.allocate_aggregate(vec![field_0, field_1, field_2])
+        };
+        let field_6 = value.note.value();
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+        ])
+    })
+}
+
+/// Decode arguments for destack.os.contact.search.
+#[inline]
+fn decode_destack_os_contact_search_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, ContactQueryVm)> {
+    let querytext_value = arg_value(args, 0, "querytext", "string")?;
+    let querytext = decode_string(querytext_value, "querytext", "string")?;
+    let query_value = arg_value(args, 1, "query", "ContactQuery")?;
+    let query = {
+        if query_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "query",
+                "ContactQuery",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(query_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "query",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let query_cursor = decode_string(slots[0], "query_cursor", "cursor")?;
+        let query_limit = decode_uint32(slots[1], "query_limit", "limit")?;
+        let query_include_phones = decode_bool(slots[2], "query_include_phones", "includePhones")?;
+        let query_include_emails = decode_bool(slots[3], "query_include_emails", "includeEmails")?;
+        let query_include_addresses =
+            decode_bool(slots[4], "query_include_addresses", "includeAddresses")?;
+        let query_include_organization = decode_bool(
+            slots[5],
+            "query_include_organization",
+            "includeOrganization",
+        )?;
+        let query_include_notes = decode_bool(slots[6], "query_include_notes", "includeNotes")?;
+        ContactQueryVm {
+            cursor: query_cursor,
+            limit: query_limit,
+            include_phones: query_include_phones,
+            include_emails: query_include_emails,
+            include_addresses: query_include_addresses,
+            include_organization: query_include_organization,
+            include_notes: query_include_notes,
+        }
+    };
+    Ok((querytext, query))
+}
+
+/// Encode the result for destack.os.contact.search.
+#[inline]
+fn encode_destack_os_contact_search_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<ContactPageVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.contacts.to_value(context);
+        let field_1 = value.next_cursor.value();
+        let field_2 = vm::Value::bool(value.has_more);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    })
+}
+
+/// Decode arguments for destack.os.contact.update.
+#[inline]
+fn decode_destack_os_contact_update_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, ContactDraftVm)> {
+    let id_value = arg_value(args, 0, "id", "string")?;
+    let id = decode_string(id_value, "id", "string")?;
+    let contact_value = arg_value(args, 1, "contact", "ContactDraft")?;
+    let contact = {
+        if contact_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "contact",
+                "ContactDraft",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(contact_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "contact",
+                "expected 6 fields",
+            ))
+            .boxed());
+        }
+        let contact_name = {
+            if slots[0].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "contact_name",
+                    "name",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[0])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 8 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "contact_name",
+                    "expected 8 fields",
+                ))
+                .boxed());
+            }
+            let contact_name_given_name =
+                decode_string(slots[0], "contact_name_given_name", "givenName")?;
+            let contact_name_middle_name =
+                decode_string(slots[1], "contact_name_middle_name", "middleName")?;
+            let contact_name_family_name =
+                decode_string(slots[2], "contact_name_family_name", "familyName")?;
+            let contact_name_prefix = decode_string(slots[3], "contact_name_prefix", "prefix")?;
+            let contact_name_suffix = decode_string(slots[4], "contact_name_suffix", "suffix")?;
+            let contact_name_nickname =
+                decode_string(slots[5], "contact_name_nickname", "nickname")?;
+            let contact_name_phonetic_given_name = decode_string(
+                slots[6],
+                "contact_name_phonetic_given_name",
+                "phoneticGivenName",
+            )?;
+            let contact_name_phonetic_family_name = decode_string(
+                slots[7],
+                "contact_name_phonetic_family_name",
+                "phoneticFamilyName",
+            )?;
+            ContactNameVm {
+                given_name: contact_name_given_name,
+                middle_name: contact_name_middle_name,
+                family_name: contact_name_family_name,
+                prefix: contact_name_prefix,
+                suffix: contact_name_suffix,
+                nickname: contact_name_nickname,
+                phonetic_given_name: contact_name_phonetic_given_name,
+                phonetic_family_name: contact_name_phonetic_family_name,
+            }
+        };
+        let contact_phones =
+            decode_array::<ContactPhoneVm>(context, slots[1], "contact_phones", "phones")?;
+        let contact_emails =
+            decode_array::<ContactEmailVm>(context, slots[2], "contact_emails", "emails")?;
+        let contact_addresses =
+            decode_array::<ContactAddressVm>(context, slots[3], "contact_addresses", "addresses")?;
+        let contact_organization = {
+            if slots[4].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "contact_organization",
+                    "organization",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[4])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 3 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "contact_organization",
+                    "expected 3 fields",
+                ))
+                .boxed());
+            }
+            let contact_organization_company =
+                decode_string(slots[0], "contact_organization_company", "company")?;
+            let contact_organization_department =
+                decode_string(slots[1], "contact_organization_department", "department")?;
+            let contact_organization_title =
+                decode_string(slots[2], "contact_organization_title", "title")?;
+            ContactOrganizationVm {
+                company: contact_organization_company,
+                department: contact_organization_department,
+                title: contact_organization_title,
+            }
+        };
+        let contact_note = decode_string(slots[5], "contact_note", "note")?;
+        ContactDraftVm {
+            name: contact_name,
+            phones: contact_phones,
+            emails: contact_emails,
+            addresses: contact_addresses,
+            organization: contact_organization,
+            note: contact_note,
+        }
+    };
+    Ok((id, contact))
+}
+
+/// Encode the result for destack.os.contact.update.
+#[inline]
+fn encode_destack_os_contact_update_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.credentials.authenticate.
+#[inline]
+fn decode_destack_os_credentials_authenticate_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(CredentialAuthenticationOptionsVm,)> {
+    let options_value = arg_value(args, 0, "options", "CredentialAuthenticationOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "CredentialAuthenticationOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let options_title = decode_string(slots[0], "options_title", "title")?;
+        let options_subtitle = decode_string(slots[1], "options_subtitle", "subtitle")?;
+        let options_message = decode_string(slots[2], "options_message", "message")?;
+        let options_allow_passcode_fallback = decode_bool(
+            slots[3],
+            "options_allow_passcode_fallback",
+            "allowPasscodeFallback",
+        )?;
+        CredentialAuthenticationOptionsVm {
+            title: options_title,
+            subtitle: options_subtitle,
+            message: options_message,
+            allow_passcode_fallback: options_allow_passcode_fallback,
+        }
+    };
+    Ok((options,))
+}
+
+/// Encode the result for destack.os.credentials.authenticate.
+#[inline]
+fn encode_destack_os_credentials_authenticate_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CredentialAuthenticationResultVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::bool(value.authenticated);
+        let field_1 = vm::Value::uint(value.mechanism as u8 as u64, 8);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.os.credentials.contains.
+#[inline]
+fn decode_destack_os_credentials_contains_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
+    let service_value = arg_value(args, 0, "service", "string")?;
+    let service = decode_string(service_value, "service", "string")?;
+    let account_value = arg_value(args, 1, "account", "string")?;
+    let account = decode_string(account_value, "account", "string")?;
+    Ok((service, account))
+}
+
+/// Encode the result for destack.os.credentials.contains.
+#[inline]
+fn encode_destack_os_credentials_contains_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<bool>,
+) -> RuntimeResult<vm::Value> {
+    result.map(vm::Value::bool)
+}
+
+/// Decode arguments for destack.os.credentials.delete.
+#[inline]
+fn decode_destack_os_credentials_delete_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
+    let service_value = arg_value(args, 0, "service", "string")?;
+    let service = decode_string(service_value, "service", "string")?;
+    let account_value = arg_value(args, 1, "account", "string")?;
+    let account = decode_string(account_value, "account", "string")?;
+    Ok((service, account))
+}
+
+/// Encode the result for destack.os.credentials.delete.
+#[inline]
+fn encode_destack_os_credentials_delete_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.credentials.read.
+#[inline]
+fn decode_destack_os_credentials_read_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(CredentialQueryVm,)> {
+    let query_value = arg_value(args, 0, "query", "CredentialQuery")?;
+    let query = {
+        if query_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "query",
+                "CredentialQuery",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(query_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "query",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let query_service = decode_string(slots[0], "query_service", "service")?;
+        let query_account = decode_string(slots[1], "query_account", "account")?;
+        let query_access_group = decode_string(slots[2], "query_access_group", "accessGroup")?;
+        let query_require_authentication = decode_bool(
+            slots[3],
+            "query_require_authentication",
+            "requireAuthentication",
+        )?;
+        CredentialQueryVm {
+            service: query_service,
+            account: query_account,
+            access_group: query_access_group,
+            require_authentication: query_require_authentication,
+        }
+    };
+    Ok((query,))
+}
+
+/// Encode the result for destack.os.credentials.read.
+#[inline]
+fn encode_destack_os_credentials_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CredentialRecordVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.service.value();
+        let field_1 = value.account.value();
+        let field_2 = value.bytes.to_value(context);
+        let field_3 = vm::Value::uint(value.created_unix_ns, 64);
+        let field_4 = vm::Value::uint(value.modified_unix_ns, 64);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+    })
+}
+
+/// Decode arguments for destack.os.credentials.write.
+#[inline]
+fn decode_destack_os_credentials_write_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(CredentialWriteOptionsVm,)> {
+    let options_value = arg_value(args, 0, "options", "CredentialWriteOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "CredentialWriteOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let options_service = decode_string(slots[0], "options_service", "service")?;
+        let options_account = decode_string(slots[1], "options_account", "account")?;
+        let options_access_group = decode_string(slots[2], "options_access_group", "accessGroup")?;
+        let options_bytes = decode_slice::<u8>(context, slots[3], "options_bytes", "bytes")?;
+        let options_accessibility_raw =
+            decode_uint8(slots[4], "options_accessibility_raw", "accessibility")?;
+        let options_accessibility = match options_accessibility_raw {
+            1u8 => CredentialAccessibility::WhenUnlocked,
+            2u8 => CredentialAccessibility::AfterFirstUnlock,
+            3u8 => CredentialAccessibility::HostDefault,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_accessibility",
+                    "unknown CredentialAccessibility value",
+                ))
+                .boxed());
+            }
+        };
+        let options_authentication_raw =
+            decode_uint8(slots[5], "options_authentication_raw", "authentication")?;
+        let options_authentication = match options_authentication_raw {
+            1u8 => CredentialAuthenticationPolicy::None,
+            2u8 => CredentialAuthenticationPolicy::UserPresence,
+            3u8 => CredentialAuthenticationPolicy::Biometric,
+            4u8 => CredentialAuthenticationPolicy::DevicePasscode,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_authentication",
+                    "unknown CredentialAuthenticationPolicy value",
+                ))
+                .boxed());
+            }
+        };
+        let options_replace_existing =
+            decode_bool(slots[6], "options_replace_existing", "replaceExisting")?;
+        CredentialWriteOptionsVm {
+            service: options_service,
+            account: options_account,
+            access_group: options_access_group,
+            bytes: options_bytes,
+            accessibility: options_accessibility,
+            authentication: options_authentication,
+            replace_existing: options_replace_existing,
+        }
+    };
+    Ok((options,))
+}
+
+/// Encode the result for destack.os.credentials.write.
+#[inline]
+fn encode_destack_os_credentials_write_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.document.close.
+#[inline]
+fn decode_destack_os_document_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DocumentHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "DocumentHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DocumentHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DocumentHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.document.close.
+#[inline]
+fn encode_destack_os_document_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.document.flush.
+#[inline]
+fn decode_destack_os_document_flush_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DocumentHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "DocumentHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DocumentHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DocumentHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.document.flush.
+#[inline]
+fn encode_destack_os_document_flush_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.document.open.
+#[inline]
+fn decode_destack_os_document_open_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, DocumentAccess)> {
+    let uri_value = arg_value(args, 0, "uri", "string")?;
+    let uri = decode_string(uri_value, "uri", "string")?;
+    let access_value = arg_value(args, 1, "access", "DocumentAccess")?;
+    let access_raw = decode_uint8(access_value, "access_raw", "DocumentAccess")?;
+    let access = match access_raw {
+        1u8 => DocumentAccess::Read,
+        2u8 => DocumentAccess::Write,
+        3u8 => DocumentAccess::ReadWrite,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "access",
+                "unknown DocumentAccess value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((uri, access))
+}
+
+/// Encode the result for destack.os.document.open.
+#[inline]
+fn encode_destack_os_document_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::DocumentHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.os.document.pick.
+#[inline]
+fn decode_destack_os_document_pick_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(DocumentPickOptionsVm,)> {
+    let options_value = arg_value(args, 0, "options", "DocumentPickOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "DocumentPickOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let options_mime_types =
+            decode_array::<vm::StringHandle>(context, slots[0], "options_mime_types", "mimeTypes")?;
+        let options_extensions = decode_array::<vm::StringHandle>(
+            context,
+            slots[1],
+            "options_extensions",
+            "extensions",
+        )?;
+        let options_multiple = decode_bool(slots[2], "options_multiple", "multiple")?;
+        let options_allow_directories =
+            decode_bool(slots[3], "options_allow_directories", "allowDirectories")?;
+        let options_copy_to_sandbox =
+            decode_bool(slots[4], "options_copy_to_sandbox", "copyToSandbox")?;
+        DocumentPickOptionsVm {
+            mime_types: options_mime_types,
+            extensions: options_extensions,
+            multiple: options_multiple,
+            allow_directories: options_allow_directories,
+            copy_to_sandbox: options_copy_to_sandbox,
+        }
+    };
+    Ok((options,))
+}
+
+/// Encode the result for destack.os.document.pick.
+#[inline]
+fn encode_destack_os_document_pick_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<DocumentDescriptorVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.os.document.read.
+#[inline]
+fn decode_destack_os_document_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DocumentHandle, u32, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "DocumentHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DocumentHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DocumentHandle(handle_inner);
+    let maxbytes_value = arg_value(args, 1, "maxbytes", "uint32")?;
+    let maxbytes = decode_uint32(maxbytes_value, "maxbytes", "uint32")?;
+    let timeoutns_value = arg_value(args, 2, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, maxbytes, timeoutns))
+}
+
+/// Encode the result for destack.os.document.read.
+#[inline]
+fn encode_destack_os_document_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.os.document.tryRead.
+#[inline]
+fn decode_destack_os_document_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DocumentHandle, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "DocumentHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DocumentHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DocumentHandle(handle_inner);
+    let maxbytes_value = arg_value(args, 1, "maxbytes", "uint32")?;
+    let maxbytes = decode_uint32(maxbytes_value, "maxbytes", "uint32")?;
+    Ok((handle, maxbytes))
+}
+
+/// Encode the result for destack.os.document.tryRead.
+#[inline]
+fn encode_destack_os_document_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.os.document.write.
+#[inline]
+fn decode_destack_os_document_write_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DocumentHandle, VmSlice<u8>, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "DocumentHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DocumentHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::DocumentHandle(handle_inner);
+    let argument_bytes_value = arg_value(args, 1, "argument_bytes", "Slice<uint8>")?;
+    let argument_bytes = decode_slice::<u8>(
+        context,
+        argument_bytes_value,
+        "argument_bytes",
+        "Slice<uint8>",
+    )?;
+    let timeoutns_value = arg_value(args, 2, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, argument_bytes, timeoutns))
+}
+
+/// Encode the result for destack.os.document.write.
+#[inline]
+fn encode_destack_os_document_write_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u32>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Encode the result for destack.os.host.identity.
@@ -202,60 +2075,807 @@ fn encode_destack_os_info_uptime_ns_result(
     result.map(|value| vm::Value::uint(value, 64))
 }
 
+/// Decode arguments for destack.os.intent.canOpenUrl.
+#[inline]
+fn decode_destack_os_intent_can_open_url_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let url_value = arg_value(args, 0, "url", "string")?;
+    let url = decode_string(url_value, "url", "string")?;
+    Ok((url,))
+}
+
+/// Encode the result for destack.os.intent.canOpenUrl.
+#[inline]
+fn encode_destack_os_intent_can_open_url_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<bool>,
+) -> RuntimeResult<vm::Value> {
+    result.map(vm::Value::bool)
+}
+
+/// Decode arguments for destack.os.intent.close.
+#[inline]
+fn decode_destack_os_intent_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::IntentHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "IntentHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "IntentHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::IntentHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.intent.close.
+#[inline]
+fn encode_destack_os_intent_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.intent.open.
+#[inline]
+fn decode_destack_os_intent_open_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(IntentOpenOptionsVm,)> {
+    let options_value = arg_value(args, 0, "options", "IntentOpenOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "IntentOpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let options_include_open_url =
+            decode_bool(slots[0], "options_include_open_url", "includeOpenUrl")?;
+        let options_include_open_file =
+            decode_bool(slots[1], "options_include_open_file", "includeOpenFile")?;
+        let options_include_share = decode_bool(slots[2], "options_include_share", "includeShare")?;
+        let options_include_custom_action = decode_bool(
+            slots[3],
+            "options_include_custom_action",
+            "includeCustomAction",
+        )?;
+        IntentOpenOptionsVm {
+            include_open_url: options_include_open_url,
+            include_open_file: options_include_open_file,
+            include_share: options_include_share,
+            include_custom_action: options_include_custom_action,
+        }
+    };
+    Ok((options,))
+}
+
+/// Encode the result for destack.os.intent.open.
+#[inline]
+fn encode_destack_os_intent_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::IntentHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.os.intent.openPath.
+#[inline]
+fn decode_destack_os_intent_open_path_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(fs::OsPathVm,)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => fs::PathEncoding::Bytes,
+            2u8 => fs::PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown fs::PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
+        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
+        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
+        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
+        fs::OsPathVm {
+            encoding: path_encoding,
+            bytes: path_bytes,
+            utf16: path_utf16,
+        }
+    };
+    Ok((path,))
+}
+
+/// Encode the result for destack.os.intent.openPath.
+#[inline]
+fn encode_destack_os_intent_open_path_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.intent.openUrl.
+#[inline]
+fn decode_destack_os_intent_open_url_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let url_value = arg_value(args, 0, "url", "string")?;
+    let url = decode_string(url_value, "url", "string")?;
+    Ok((url,))
+}
+
+/// Encode the result for destack.os.intent.openUrl.
+#[inline]
+fn encode_destack_os_intent_open_url_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.intent.read.
+#[inline]
+fn decode_destack_os_intent_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::IntentHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "IntentHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "IntentHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::IntentHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.os.intent.read.
+#[inline]
+fn encode_destack_os_intent_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<IntentEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_2 = vm::Value::uint(value.sequence, 64);
+        let field_3 = value.source.value();
+        let field_4 = {
+            let field_0 = value.payload.url.value();
+            let field_1 = value.payload.paths.to_value(context);
+            let field_2 = value.payload.text.value();
+            let field_3 = value.payload.mime_type.value();
+            let field_4 = value.payload.action.value();
+            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+        };
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+    })
+}
+
+/// Decode arguments for destack.os.intent.sharePaths.
+#[inline]
+fn decode_destack_os_intent_share_paths_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmArray<fs::OsPathVm>, vm::StringHandle)> {
+    let paths_value = arg_value(args, 0, "paths", "OsPath[]")?;
+    let paths = decode_array::<fs::OsPathVm>(context, paths_value, "paths", "OsPath[]")?;
+    let mimetype_value = arg_value(args, 1, "mimetype", "string")?;
+    let mimetype = decode_string(mimetype_value, "mimetype", "string")?;
+    Ok((paths, mimetype))
+}
+
+/// Encode the result for destack.os.intent.sharePaths.
+#[inline]
+fn encode_destack_os_intent_share_paths_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.intent.shareText.
+#[inline]
+fn decode_destack_os_intent_share_text_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
+    let text_value = arg_value(args, 0, "text", "string")?;
+    let text = decode_string(text_value, "text", "string")?;
+    let mimetype_value = arg_value(args, 1, "mimetype", "string")?;
+    let mimetype = decode_string(mimetype_value, "mimetype", "string")?;
+    Ok((text, mimetype))
+}
+
+/// Encode the result for destack.os.intent.shareText.
+#[inline]
+fn encode_destack_os_intent_share_text_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.intent.tryRead.
+#[inline]
+fn decode_destack_os_intent_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::IntentHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "IntentHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "IntentHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::IntentHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.intent.tryRead.
+#[inline]
+fn encode_destack_os_intent_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<IntentEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_2 = vm::Value::uint(value.sequence, 64);
+        let field_3 = value.source.value();
+        let field_4 = {
+            let field_0 = value.payload.url.value();
+            let field_1 = value.payload.paths.to_value(context);
+            let field_2 = value.payload.text.value();
+            let field_3 = value.payload.mime_type.value();
+            let field_4 = value.payload.action.value();
+            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+        };
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+    })
+}
+
+/// Decode arguments for destack.os.lifecycle.close.
+#[inline]
+fn decode_destack_os_lifecycle_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::LifecycleEventHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "LifecycleEventHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "LifecycleEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::LifecycleEventHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.lifecycle.close.
+#[inline]
+fn encode_destack_os_lifecycle_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.os.lifecycle.open.
+#[inline]
+fn encode_destack_os_lifecycle_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::LifecycleEventHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.os.lifecycle.read.
+#[inline]
+fn decode_destack_os_lifecycle_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::LifecycleEventHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "LifecycleEventHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "LifecycleEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::LifecycleEventHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.os.lifecycle.read.
+#[inline]
+fn encode_destack_os_lifecycle_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<LifecycleEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_2 = vm::Value::uint(value.sequence, 64);
+        let field_3 = {
+            let field_0 = {
+                let field_0 = vm::Value::uint(value.payload.low_memory.severity as u64, 32);
+                context.allocate_aggregate(vec![field_0])
+            };
+            let field_1 = {
+                let field_0 = vm::Value::bool(value.payload.low_power.enabled);
+                context.allocate_aggregate(vec![field_0])
+            };
+            context.allocate_aggregate(vec![field_0, field_1])
+        };
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    })
+}
+
+/// Encode the result for destack.os.lifecycle.state.
+#[inline]
+fn encode_destack_os_lifecycle_state_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<LifecycleState>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+}
+
+/// Decode arguments for destack.os.lifecycle.tryRead.
+#[inline]
+fn decode_destack_os_lifecycle_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::LifecycleEventHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "LifecycleEventHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "LifecycleEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::LifecycleEventHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.lifecycle.tryRead.
+#[inline]
+fn encode_destack_os_lifecycle_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<LifecycleEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_2 = vm::Value::uint(value.sequence, 64);
+        let field_3 = {
+            let field_0 = {
+                let field_0 = vm::Value::uint(value.payload.low_memory.severity as u64, 32);
+                context.allocate_aggregate(vec![field_0])
+            };
+            let field_1 = {
+                let field_0 = vm::Value::bool(value.payload.low_power.enabled);
+                context.allocate_aggregate(vec![field_0])
+            };
+            context.allocate_aggregate(vec![field_0, field_1])
+        };
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    })
+}
+
+/// Encode the result for destack.os.location.lastKnown.
+#[inline]
+fn encode_destack_os_location_last_known_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<LocationSampleVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::float64(value.latitude_degrees);
+        let field_1 = vm::Value::float64(value.longitude_degrees);
+        let field_2 = vm::Value::float64(value.altitude_meters);
+        let field_3 = vm::Value::float64(value.horizontal_accuracy_meters);
+        let field_4 = vm::Value::float64(value.vertical_accuracy_meters);
+        let field_5 = vm::Value::float64(value.speed_meters_per_second);
+        let field_6 = vm::Value::float64(value.heading_degrees);
+        let field_7 = vm::Value::uint(value.timestamp_unix_ns, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+        ])
+    })
+}
+
+/// Encode the result for destack.os.location.servicesEnabled.
+#[inline]
+fn encode_destack_os_location_services_enabled_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<bool>,
+) -> RuntimeResult<vm::Value> {
+    result.map(vm::Value::bool)
+}
+
+/// Decode arguments for destack.os.location.watchClose.
+#[inline]
+fn decode_destack_os_location_watch_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::LocationWatchHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "LocationWatchHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "LocationWatchHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::LocationWatchHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.location.watchClose.
+#[inline]
+fn encode_destack_os_location_watch_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.location.watchOpen.
+#[inline]
+fn decode_destack_os_location_watch_open_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(LocationWatchOptionsVm,)> {
+    let options_value = arg_value(args, 0, "options", "LocationWatchOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "LocationWatchOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let options_accuracy_raw = decode_uint8(slots[0], "options_accuracy_raw", "accuracy")?;
+        let options_accuracy = match options_accuracy_raw {
+            1u8 => LocationAccuracy::Passive,
+            2u8 => LocationAccuracy::Low,
+            3u8 => LocationAccuracy::Balanced,
+            4u8 => LocationAccuracy::High,
+            5u8 => LocationAccuracy::Best,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_accuracy",
+                    "unknown LocationAccuracy value",
+                ))
+                .boxed());
+            }
+        };
+        let options_minimum_interval_ns =
+            decode_uint64(slots[1], "options_minimum_interval_ns", "minimumIntervalNs")?;
+        let options_minimum_distance_meters = decode_float64(
+            slots[2],
+            "options_minimum_distance_meters",
+            "minimumDistanceMeters",
+        )?;
+        let options_include_heading =
+            decode_bool(slots[3], "options_include_heading", "includeHeading")?;
+        LocationWatchOptionsVm {
+            accuracy: options_accuracy,
+            minimum_interval_ns: options_minimum_interval_ns,
+            minimum_distance_meters: options_minimum_distance_meters,
+            include_heading: options_include_heading,
+        }
+    };
+    Ok((options,))
+}
+
+/// Encode the result for destack.os.location.watchOpen.
+#[inline]
+fn encode_destack_os_location_watch_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::LocationWatchHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.os.location.watchRead.
+#[inline]
+fn decode_destack_os_location_watch_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::LocationWatchHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "LocationWatchHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "LocationWatchHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::LocationWatchHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.os.location.watchRead.
+#[inline]
+fn encode_destack_os_location_watch_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<LocationSampleVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::float64(value.latitude_degrees);
+        let field_1 = vm::Value::float64(value.longitude_degrees);
+        let field_2 = vm::Value::float64(value.altitude_meters);
+        let field_3 = vm::Value::float64(value.horizontal_accuracy_meters);
+        let field_4 = vm::Value::float64(value.vertical_accuracy_meters);
+        let field_5 = vm::Value::float64(value.speed_meters_per_second);
+        let field_6 = vm::Value::float64(value.heading_degrees);
+        let field_7 = vm::Value::uint(value.timestamp_unix_ns, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+        ])
+    })
+}
+
+/// Decode arguments for destack.os.location.watchTryRead.
+#[inline]
+fn decode_destack_os_location_watch_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::LocationWatchHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "LocationWatchHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "LocationWatchHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::LocationWatchHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.location.watchTryRead.
+#[inline]
+fn encode_destack_os_location_watch_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<LocationSampleVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::float64(value.latitude_degrees);
+        let field_1 = vm::Value::float64(value.longitude_degrees);
+        let field_2 = vm::Value::float64(value.altitude_meters);
+        let field_3 = vm::Value::float64(value.horizontal_accuracy_meters);
+        let field_4 = vm::Value::float64(value.vertical_accuracy_meters);
+        let field_5 = vm::Value::float64(value.speed_meters_per_second);
+        let field_6 = vm::Value::float64(value.heading_degrees);
+        let field_7 = vm::Value::uint(value.timestamp_unix_ns, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+        ])
+    })
+}
+
+/// Decode arguments for destack.os.media.delete.
+#[inline]
+fn decode_destack_os_media_delete_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmArray<vm::StringHandle>,)> {
+    let ids_value = arg_value(args, 0, "ids", "string[]")?;
+    let ids = decode_array::<vm::StringHandle>(context, ids_value, "ids", "string[]")?;
+    Ok((ids,))
+}
+
+/// Encode the result for destack.os.media.delete.
+#[inline]
+fn encode_destack_os_media_delete_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u32>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value as u64, 32))
+}
+
+/// Decode arguments for destack.os.media.importPath.
+#[inline]
+fn decode_destack_os_media_import_path_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(fs::OsPathVm, MediaAssetKind)> {
+    let path_value = arg_value(args, 0, "path", "OsPath")?;
+    let path = {
+        if path_value.tag() != vm::ValueTag::Aggregate {
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type("path", "OsPath")).boxed(),
+            );
+        }
+        let slots = context
+            .aggregate_slots(path_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "path",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let path_encoding_raw = decode_uint8(slots[0], "path_encoding_raw", "encoding")?;
+        let path_encoding = match path_encoding_raw {
+            1u8 => fs::PathEncoding::Bytes,
+            2u8 => fs::PathEncoding::Utf16,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "path_encoding",
+                    "unknown fs::PathEncoding value",
+                ))
+                .boxed());
+            }
+        };
+        let path_bytes_inner = decode_array::<u8>(context, slots[1], "path_bytes_inner", "bytes")?;
+        let path_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(path_bytes_inner);
+        let path_utf16_inner = decode_array::<u16>(context, slots[2], "path_utf16_inner", "utf16")?;
+        let path_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(path_utf16_inner);
+        fs::OsPathVm {
+            encoding: path_encoding,
+            bytes: path_bytes,
+            utf16: path_utf16,
+        }
+    };
+    let kind_value = arg_value(args, 1, "kind", "MediaAssetKind")?;
+    let kind_raw = decode_uint8(kind_value, "kind_raw", "MediaAssetKind")?;
+    let kind = match kind_raw {
+        1u8 => MediaAssetKind::Image,
+        2u8 => MediaAssetKind::Video,
+        3u8 => MediaAssetKind::Audio,
+        4u8 => MediaAssetKind::Other,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "kind",
+                "unknown MediaAssetKind value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((path, kind))
+}
+
+/// Encode the result for destack.os.media.importPath.
+#[inline]
+fn encode_destack_os_media_import_path_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<vm::StringHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.value())
+}
+
+/// Decode arguments for destack.os.media.list.
+#[inline]
+fn decode_destack_os_media_list_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(MediaQueryVm,)> {
+    let query_value = arg_value(args, 0, "query", "MediaQuery")?;
+    let query = {
+        if query_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "query",
+                "MediaQuery",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(query_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 4 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "query",
+                "expected 4 fields",
+            ))
+            .boxed());
+        }
+        let query_cursor = decode_string(slots[0], "query_cursor", "cursor")?;
+        let query_limit = decode_uint32(slots[1], "query_limit", "limit")?;
+        let query_kinds =
+            decode_array::<MediaAssetKind>(context, slots[2], "query_kinds", "kinds")?;
+        let query_include_hidden = decode_bool(slots[3], "query_include_hidden", "includeHidden")?;
+        MediaQueryVm {
+            cursor: query_cursor,
+            limit: query_limit,
+            kinds: query_kinds,
+            include_hidden: query_include_hidden,
+        }
+    };
+    Ok((query,))
+}
+
+/// Encode the result for destack.os.media.list.
+#[inline]
+fn encode_destack_os_media_list_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<MediaPageVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.assets.to_value(context);
+        let field_1 = value.next_cursor.value();
+        let field_2 = vm::Value::bool(value.has_more);
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    })
+}
+
+/// Decode arguments for destack.os.media.read.
+#[inline]
+fn decode_destack_os_media_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let id_value = arg_value(args, 0, "id", "string")?;
+    let id = decode_string(id_value, "id", "string")?;
+    Ok((id,))
+}
+
+/// Encode the result for destack.os.media.read.
+#[inline]
+fn encode_destack_os_media_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<MediaAssetDescriptorVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.id.value();
+        let field_1 = value.uri.value();
+        let field_2 = value.filename.value();
+        let field_3 = value.mime_type.value();
+        let field_4 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_5 = vm::Value::uint(value.width as u64, 32);
+        let field_6 = vm::Value::uint(value.height as u64, 32);
+        let field_7 = vm::Value::uint(value.duration_ms, 64);
+        let field_8 = vm::Value::uint(value.size_bytes, 64);
+        let field_9 = vm::Value::uint(value.created_unix_ns, 64);
+        let field_10 = vm::Value::uint(value.modified_unix_ns, 64);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10,
+        ])
+    })
+}
+
 /// Decode arguments for destack.os.mount.add.
 #[inline]
 fn decode_destack_os_mount_add_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    fs::OsPathVm,
+    vm::StringHandle,
     fs::OsPathVm,
     vm::StringHandle,
     u64,
     vm::StringHandle,
 )> {
-    let source_value = arg_value(args, 0, "source", "OsPath")?;
-    let source = {
-        if source_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "source", "OsPath",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(source_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "source",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let source_encoding_raw = decode_uint8(slots[0], "source_encoding_raw", "encoding")?;
-        let source_encoding = match source_encoding_raw {
-            1u8 => fs::PathEncoding::Bytes,
-            2u8 => fs::PathEncoding::Utf16,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "source_encoding",
-                    "unknown fs::PathEncoding value",
-                ))
-                .boxed());
-            }
-        };
-        let source_bytes_inner =
-            decode_array::<u8>(context, slots[1], "source_bytes_inner", "bytes")?;
-        let source_bytes = platform_fs::PathBytesAbi::<platform_abi::VmAbi>(source_bytes_inner);
-        let source_utf16_inner =
-            decode_array::<u16>(context, slots[2], "source_utf16_inner", "utf16")?;
-        let source_utf16 = platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(source_utf16_inner);
-        fs::OsPathVm {
-            encoding: source_encoding,
-            bytes: source_bytes,
-            utf16: source_utf16,
-        }
-    };
+    let source_value = arg_value(args, 0, "source", "string")?;
+    let source = decode_string(source_value, "source", "string")?;
     let target_value = arg_value(args, 1, "target", "OsPath")?;
     let target = {
         if target_value.tag() != vm::ValueTag::Aggregate {
@@ -330,7 +2950,7 @@ fn encode_destack_os_mount_list_result(
 fn decode_destack_os_mount_remove_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(fs::OsPathVm, u32)> {
+) -> RuntimeResult<(fs::OsPathVm, u64)> {
     let target_value = arg_value(args, 0, "target", "OsPath")?;
     let target = {
         if target_value.tag() != vm::ValueTag::Aggregate {
@@ -373,8 +2993,8 @@ fn decode_destack_os_mount_remove_args(
             utf16: target_utf16,
         }
     };
-    let flags_value = arg_value(args, 1, "flags", "uint32")?;
-    let flags = decode_uint32(flags_value, "flags", "uint32")?;
+    let flags_value = arg_value(args, 1, "flags", "uint64")?;
+    let flags = decode_uint64(flags_value, "flags", "uint64")?;
     Ok((target, flags))
 }
 
@@ -385,6 +3005,945 @@ fn encode_destack_os_mount_remove_result(
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.os.network.state.
+#[inline]
+fn encode_destack_os_network_state_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<NetworkStateVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.connection_type as u8 as u64, 8);
+        let field_1 = vm::Value::bool(value.connected);
+        let field_2 = vm::Value::bool(value.internet_reachable);
+        let field_3 = vm::Value::bool(value.expensive);
+        let field_4 = vm::Value::bool(value.constrained);
+        let field_5 = vm::Value::bool(value.roaming);
+        let field_6 = vm::Value::uint(value.cellular_generation as u8 as u64, 8);
+        let field_7 = vm::Value::float64(value.downlink_mbps);
+        let field_8 = vm::Value::float64(value.uplink_mbps);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+        ])
+    })
+}
+
+/// Decode arguments for destack.os.network.watchClose.
+#[inline]
+fn decode_destack_os_network_watch_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::NetworkWatchHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "NetworkWatchHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "NetworkWatchHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::NetworkWatchHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.network.watchClose.
+#[inline]
+fn encode_destack_os_network_watch_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.os.network.watchOpen.
+#[inline]
+fn encode_destack_os_network_watch_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::NetworkWatchHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.os.network.watchRead.
+#[inline]
+fn decode_destack_os_network_watch_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::NetworkWatchHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "NetworkWatchHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "NetworkWatchHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::NetworkWatchHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.os.network.watchRead.
+#[inline]
+fn encode_destack_os_network_watch_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<NetworkEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_1 = vm::Value::uint(value.sequence, 64);
+        let field_2 = {
+            let field_0 = vm::Value::uint(value.state.connection_type as u8 as u64, 8);
+            let field_1 = vm::Value::bool(value.state.connected);
+            let field_2 = vm::Value::bool(value.state.internet_reachable);
+            let field_3 = vm::Value::bool(value.state.expensive);
+            let field_4 = vm::Value::bool(value.state.constrained);
+            let field_5 = vm::Value::bool(value.state.roaming);
+            let field_6 = vm::Value::uint(value.state.cellular_generation as u8 as u64, 8);
+            let field_7 = vm::Value::float64(value.state.downlink_mbps);
+            let field_8 = vm::Value::float64(value.state.uplink_mbps);
+            context.allocate_aggregate(vec![
+                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            ])
+        };
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    })
+}
+
+/// Decode arguments for destack.os.network.watchTryRead.
+#[inline]
+fn decode_destack_os_network_watch_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::NetworkWatchHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "NetworkWatchHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "NetworkWatchHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::NetworkWatchHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.network.watchTryRead.
+#[inline]
+fn encode_destack_os_network_watch_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<NetworkEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_1 = vm::Value::uint(value.sequence, 64);
+        let field_2 = {
+            let field_0 = vm::Value::uint(value.state.connection_type as u8 as u64, 8);
+            let field_1 = vm::Value::bool(value.state.connected);
+            let field_2 = vm::Value::bool(value.state.internet_reachable);
+            let field_3 = vm::Value::bool(value.state.expensive);
+            let field_4 = vm::Value::bool(value.state.constrained);
+            let field_5 = vm::Value::bool(value.state.roaming);
+            let field_6 = vm::Value::uint(value.state.cellular_generation as u8 as u64, 8);
+            let field_7 = vm::Value::float64(value.state.downlink_mbps);
+            let field_8 = vm::Value::float64(value.state.uplink_mbps);
+            context.allocate_aggregate(vec![
+                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            ])
+        };
+        context.allocate_aggregate(vec![field_0, field_1, field_2])
+    })
+}
+
+/// Decode arguments for destack.os.notification.cancel.
+#[inline]
+fn decode_destack_os_notification_cancel_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let id_value = arg_value(args, 0, "id", "string")?;
+    let id = decode_string(id_value, "id", "string")?;
+    Ok((id,))
+}
+
+/// Encode the result for destack.os.notification.cancel.
+#[inline]
+fn encode_destack_os_notification_cancel_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.os.notification.cancelAll.
+#[inline]
+fn encode_destack_os_notification_cancel_all_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.os.notification.categoryList.
+#[inline]
+fn encode_destack_os_notification_category_list_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<NotificationCategoryVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.os.notification.categorySet.
+#[inline]
+fn decode_destack_os_notification_category_set_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmArray<NotificationCategoryVm>,)> {
+    let categories_value = arg_value(args, 0, "categories", "NotificationCategory[]")?;
+    let categories = decode_array::<NotificationCategoryVm>(
+        context,
+        categories_value,
+        "categories",
+        "NotificationCategory[]",
+    )?;
+    Ok((categories,))
+}
+
+/// Encode the result for destack.os.notification.categorySet.
+#[inline]
+fn encode_destack_os_notification_category_set_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.notification.event.close.
+#[inline]
+fn decode_destack_os_notification_event_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::NotificationEventHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "NotificationEventHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "NotificationEventHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::NotificationEventHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.notification.event.close.
+#[inline]
+fn encode_destack_os_notification_event_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.notification.event.open.
+#[inline]
+fn decode_destack_os_notification_event_open_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(NotificationEventOpenOptionsVm,)> {
+    let options_value = arg_value(args, 0, "options", "NotificationEventOpenOptions")?;
+    let options = {
+        if options_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "options",
+                "NotificationEventOpenOptions",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(options_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "options",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let options_include_delivered =
+            decode_bool(slots[0], "options_include_delivered", "includeDelivered")?;
+        let options_include_interacted =
+            decode_bool(slots[1], "options_include_interacted", "includeInteracted")?;
+        let options_include_dismissed =
+            decode_bool(slots[2], "options_include_dismissed", "includeDismissed")?;
+        NotificationEventOpenOptionsVm {
+            include_delivered: options_include_delivered,
+            include_interacted: options_include_interacted,
+            include_dismissed: options_include_dismissed,
+        }
+    };
+    Ok((options,))
+}
+
+/// Encode the result for destack.os.notification.event.open.
+#[inline]
+fn encode_destack_os_notification_event_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::NotificationEventHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.os.notification.event.read.
+#[inline]
+fn decode_destack_os_notification_event_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::NotificationEventHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "NotificationEventHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "NotificationEventHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::NotificationEventHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.os.notification.event.read.
+#[inline]
+fn encode_destack_os_notification_event_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<NotificationEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_2 = vm::Value::uint(value.sequence, 64);
+        let field_3 = value.id.value();
+        let field_4 = value.action_id.value();
+        let field_5 = value.action_response_text.value();
+        let field_6 = {
+            let field_0 = value.request.title.value();
+            let field_1 = value.request.subtitle.value();
+            let field_2 = value.request.body.value();
+            let field_3 = value.request.tag.value();
+            let field_4 = value.request.channel_id.value();
+            let field_5 = vm::Value::uint(value.request.priority as u8 as u64, 8);
+            let field_6 = vm::Value::uint(value.request.badge_count as u64, 32);
+            let field_7 = value.request.sound.value();
+            let field_8 = value.request.category_id.value();
+            let field_9 = value.request.thread_id.value();
+            let field_10 = {
+                let field_0 = vm::Value::uint(value.request.trigger.kind as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.request.trigger.interval_ns, 64);
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.request.trigger.calendar.year as u64, 16);
+                    let field_1 = vm::Value::uint(value.request.trigger.calendar.month as u64, 8);
+                    let field_2 = vm::Value::uint(value.request.trigger.calendar.day as u64, 8);
+                    let field_3 = vm::Value::uint(value.request.trigger.calendar.hour as u64, 8);
+                    let field_4 = vm::Value::uint(value.request.trigger.calendar.minute as u64, 8);
+                    let field_5 = vm::Value::uint(value.request.trigger.calendar.second as u64, 8);
+                    let field_6 = value.request.trigger.calendar.time_zone.value();
+                    let field_7 = vm::Value::bool(value.request.trigger.calendar.repeats);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+                    ])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            let field_11 = value.request.action_id.value();
+            let field_12 = value.request.data_json.value();
+            context.allocate_aggregate(vec![
+                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+                field_9, field_10, field_11, field_12,
+            ])
+        };
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+        ])
+    })
+}
+
+/// Decode arguments for destack.os.notification.event.tryRead.
+#[inline]
+fn decode_destack_os_notification_event_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::NotificationEventHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "NotificationEventHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "NotificationEventHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::NotificationEventHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.os.notification.event.tryRead.
+#[inline]
+fn encode_destack_os_notification_event_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<NotificationEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_2 = vm::Value::uint(value.sequence, 64);
+        let field_3 = value.id.value();
+        let field_4 = value.action_id.value();
+        let field_5 = value.action_response_text.value();
+        let field_6 = {
+            let field_0 = value.request.title.value();
+            let field_1 = value.request.subtitle.value();
+            let field_2 = value.request.body.value();
+            let field_3 = value.request.tag.value();
+            let field_4 = value.request.channel_id.value();
+            let field_5 = vm::Value::uint(value.request.priority as u8 as u64, 8);
+            let field_6 = vm::Value::uint(value.request.badge_count as u64, 32);
+            let field_7 = value.request.sound.value();
+            let field_8 = value.request.category_id.value();
+            let field_9 = value.request.thread_id.value();
+            let field_10 = {
+                let field_0 = vm::Value::uint(value.request.trigger.kind as u8 as u64, 8);
+                let field_1 = vm::Value::uint(value.request.trigger.interval_ns, 64);
+                let field_2 = {
+                    let field_0 = vm::Value::uint(value.request.trigger.calendar.year as u64, 16);
+                    let field_1 = vm::Value::uint(value.request.trigger.calendar.month as u64, 8);
+                    let field_2 = vm::Value::uint(value.request.trigger.calendar.day as u64, 8);
+                    let field_3 = vm::Value::uint(value.request.trigger.calendar.hour as u64, 8);
+                    let field_4 = vm::Value::uint(value.request.trigger.calendar.minute as u64, 8);
+                    let field_5 = vm::Value::uint(value.request.trigger.calendar.second as u64, 8);
+                    let field_6 = value.request.trigger.calendar.time_zone.value();
+                    let field_7 = vm::Value::bool(value.request.trigger.calendar.repeats);
+                    context.allocate_aggregate(vec![
+                        field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+                    ])
+                };
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            let field_11 = value.request.action_id.value();
+            let field_12 = value.request.data_json.value();
+            context.allocate_aggregate(vec![
+                field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+                field_9, field_10, field_11, field_12,
+            ])
+        };
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+        ])
+    })
+}
+
+/// Decode arguments for destack.os.notification.pendingCancel.
+#[inline]
+fn decode_destack_os_notification_pending_cancel_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle,)> {
+    let id_value = arg_value(args, 0, "id", "string")?;
+    let id = decode_string(id_value, "id", "string")?;
+    Ok((id,))
+}
+
+/// Encode the result for destack.os.notification.pendingCancel.
+#[inline]
+fn encode_destack_os_notification_pending_cancel_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.os.notification.pendingCancelAll.
+#[inline]
+fn encode_destack_os_notification_pending_cancel_all_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.os.notification.pendingList.
+#[inline]
+fn encode_destack_os_notification_pending_list_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<NotificationScheduledDescriptorVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Encode the result for destack.os.notification.permissionState.
+#[inline]
+fn encode_destack_os_notification_permission_state_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<NotificationPermissionState>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+}
+
+/// Decode arguments for destack.os.notification.post.
+#[inline]
+fn decode_destack_os_notification_post_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(NotificationRequestVm,)> {
+    let request_value = arg_value(args, 0, "request", "NotificationRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "NotificationRequest",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 13 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 13 fields",
+            ))
+            .boxed());
+        }
+        let request_title = decode_string(slots[0], "request_title", "title")?;
+        let request_subtitle = decode_string(slots[1], "request_subtitle", "subtitle")?;
+        let request_body = decode_string(slots[2], "request_body", "body")?;
+        let request_tag = decode_string(slots[3], "request_tag", "tag")?;
+        let request_channel_id = decode_string(slots[4], "request_channel_id", "channelId")?;
+        let request_priority_raw = decode_uint8(slots[5], "request_priority_raw", "priority")?;
+        let request_priority = match request_priority_raw {
+            1u8 => NotificationPriority::Low,
+            2u8 => NotificationPriority::Normal,
+            3u8 => NotificationPriority::High,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_priority",
+                    "unknown NotificationPriority value",
+                ))
+                .boxed());
+            }
+        };
+        let request_badge_count = decode_uint32(slots[6], "request_badge_count", "badgeCount")?;
+        let request_sound = decode_string(slots[7], "request_sound", "sound")?;
+        let request_category_id = decode_string(slots[8], "request_category_id", "categoryId")?;
+        let request_thread_id = decode_string(slots[9], "request_thread_id", "threadId")?;
+        let request_trigger = {
+            if slots[10].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "request_trigger",
+                    "trigger",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[10])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 3 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_trigger",
+                    "expected 3 fields",
+                ))
+                .boxed());
+            }
+            let request_trigger_kind_raw =
+                decode_uint8(slots[0], "request_trigger_kind_raw", "kind")?;
+            let request_trigger_kind = match request_trigger_kind_raw {
+                1u8 => NotificationTriggerKind::Immediate,
+                2u8 => NotificationTriggerKind::TimeInterval,
+                3u8 => NotificationTriggerKind::CalendarDate,
+                _ => {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "request_trigger_kind",
+                        "unknown NotificationTriggerKind value",
+                    ))
+                    .boxed());
+                }
+            };
+            let request_trigger_interval_ns =
+                decode_uint64(slots[1], "request_trigger_interval_ns", "intervalNs")?;
+            let request_trigger_calendar = {
+                if slots[2].tag() != vm::ValueTag::Aggregate {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                        "request_trigger_calendar",
+                        "calendar",
+                    ))
+                    .boxed());
+                }
+                let slots = context
+                    .aggregate_slots(slots[2])
+                    .map_err(|error| RuntimeError::from(error).boxed())?;
+                if slots.len() != 8 {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "request_trigger_calendar",
+                        "expected 8 fields",
+                    ))
+                    .boxed());
+                }
+                let request_trigger_calendar_year =
+                    decode_uint16(slots[0], "request_trigger_calendar_year", "year")?;
+                let request_trigger_calendar_month =
+                    decode_uint8(slots[1], "request_trigger_calendar_month", "month")?;
+                let request_trigger_calendar_day =
+                    decode_uint8(slots[2], "request_trigger_calendar_day", "day")?;
+                let request_trigger_calendar_hour =
+                    decode_uint8(slots[3], "request_trigger_calendar_hour", "hour")?;
+                let request_trigger_calendar_minute =
+                    decode_uint8(slots[4], "request_trigger_calendar_minute", "minute")?;
+                let request_trigger_calendar_second =
+                    decode_uint8(slots[5], "request_trigger_calendar_second", "second")?;
+                let request_trigger_calendar_time_zone =
+                    decode_string(slots[6], "request_trigger_calendar_time_zone", "timeZone")?;
+                let request_trigger_calendar_repeats =
+                    decode_bool(slots[7], "request_trigger_calendar_repeats", "repeats")?;
+                NotificationCalendarTriggerVm {
+                    year: request_trigger_calendar_year,
+                    month: request_trigger_calendar_month,
+                    day: request_trigger_calendar_day,
+                    hour: request_trigger_calendar_hour,
+                    minute: request_trigger_calendar_minute,
+                    second: request_trigger_calendar_second,
+                    time_zone: request_trigger_calendar_time_zone,
+                    repeats: request_trigger_calendar_repeats,
+                }
+            };
+            NotificationTriggerVm {
+                kind: request_trigger_kind,
+                interval_ns: request_trigger_interval_ns,
+                calendar: request_trigger_calendar,
+            }
+        };
+        let request_action_id = decode_string(slots[11], "request_action_id", "actionId")?;
+        let request_data_json = decode_string(slots[12], "request_data_json", "dataJson")?;
+        NotificationRequestVm {
+            title: request_title,
+            subtitle: request_subtitle,
+            body: request_body,
+            tag: request_tag,
+            channel_id: request_channel_id,
+            priority: request_priority,
+            badge_count: request_badge_count,
+            sound: request_sound,
+            category_id: request_category_id,
+            thread_id: request_thread_id,
+            trigger: request_trigger,
+            action_id: request_action_id,
+            data_json: request_data_json,
+        }
+    };
+    Ok((request,))
+}
+
+/// Encode the result for destack.os.notification.post.
+#[inline]
+fn encode_destack_os_notification_post_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<vm::StringHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.value())
+}
+
+/// Encode the result for destack.os.notification.requestPermission.
+#[inline]
+fn encode_destack_os_notification_request_permission_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<NotificationPermissionState>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+}
+
+/// Decode arguments for destack.os.notification.schedule.
+#[inline]
+fn decode_destack_os_notification_schedule_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(NotificationRequestVm,)> {
+    let request_value = arg_value(args, 0, "request", "NotificationRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "NotificationRequest",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 13 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 13 fields",
+            ))
+            .boxed());
+        }
+        let request_title = decode_string(slots[0], "request_title", "title")?;
+        let request_subtitle = decode_string(slots[1], "request_subtitle", "subtitle")?;
+        let request_body = decode_string(slots[2], "request_body", "body")?;
+        let request_tag = decode_string(slots[3], "request_tag", "tag")?;
+        let request_channel_id = decode_string(slots[4], "request_channel_id", "channelId")?;
+        let request_priority_raw = decode_uint8(slots[5], "request_priority_raw", "priority")?;
+        let request_priority = match request_priority_raw {
+            1u8 => NotificationPriority::Low,
+            2u8 => NotificationPriority::Normal,
+            3u8 => NotificationPriority::High,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_priority",
+                    "unknown NotificationPriority value",
+                ))
+                .boxed());
+            }
+        };
+        let request_badge_count = decode_uint32(slots[6], "request_badge_count", "badgeCount")?;
+        let request_sound = decode_string(slots[7], "request_sound", "sound")?;
+        let request_category_id = decode_string(slots[8], "request_category_id", "categoryId")?;
+        let request_thread_id = decode_string(slots[9], "request_thread_id", "threadId")?;
+        let request_trigger = {
+            if slots[10].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "request_trigger",
+                    "trigger",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[10])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 3 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_trigger",
+                    "expected 3 fields",
+                ))
+                .boxed());
+            }
+            let request_trigger_kind_raw =
+                decode_uint8(slots[0], "request_trigger_kind_raw", "kind")?;
+            let request_trigger_kind = match request_trigger_kind_raw {
+                1u8 => NotificationTriggerKind::Immediate,
+                2u8 => NotificationTriggerKind::TimeInterval,
+                3u8 => NotificationTriggerKind::CalendarDate,
+                _ => {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "request_trigger_kind",
+                        "unknown NotificationTriggerKind value",
+                    ))
+                    .boxed());
+                }
+            };
+            let request_trigger_interval_ns =
+                decode_uint64(slots[1], "request_trigger_interval_ns", "intervalNs")?;
+            let request_trigger_calendar = {
+                if slots[2].tag() != vm::ValueTag::Aggregate {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                        "request_trigger_calendar",
+                        "calendar",
+                    ))
+                    .boxed());
+                }
+                let slots = context
+                    .aggregate_slots(slots[2])
+                    .map_err(|error| RuntimeError::from(error).boxed())?;
+                if slots.len() != 8 {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "request_trigger_calendar",
+                        "expected 8 fields",
+                    ))
+                    .boxed());
+                }
+                let request_trigger_calendar_year =
+                    decode_uint16(slots[0], "request_trigger_calendar_year", "year")?;
+                let request_trigger_calendar_month =
+                    decode_uint8(slots[1], "request_trigger_calendar_month", "month")?;
+                let request_trigger_calendar_day =
+                    decode_uint8(slots[2], "request_trigger_calendar_day", "day")?;
+                let request_trigger_calendar_hour =
+                    decode_uint8(slots[3], "request_trigger_calendar_hour", "hour")?;
+                let request_trigger_calendar_minute =
+                    decode_uint8(slots[4], "request_trigger_calendar_minute", "minute")?;
+                let request_trigger_calendar_second =
+                    decode_uint8(slots[5], "request_trigger_calendar_second", "second")?;
+                let request_trigger_calendar_time_zone =
+                    decode_string(slots[6], "request_trigger_calendar_time_zone", "timeZone")?;
+                let request_trigger_calendar_repeats =
+                    decode_bool(slots[7], "request_trigger_calendar_repeats", "repeats")?;
+                NotificationCalendarTriggerVm {
+                    year: request_trigger_calendar_year,
+                    month: request_trigger_calendar_month,
+                    day: request_trigger_calendar_day,
+                    hour: request_trigger_calendar_hour,
+                    minute: request_trigger_calendar_minute,
+                    second: request_trigger_calendar_second,
+                    time_zone: request_trigger_calendar_time_zone,
+                    repeats: request_trigger_calendar_repeats,
+                }
+            };
+            NotificationTriggerVm {
+                kind: request_trigger_kind,
+                interval_ns: request_trigger_interval_ns,
+                calendar: request_trigger_calendar,
+            }
+        };
+        let request_action_id = decode_string(slots[11], "request_action_id", "actionId")?;
+        let request_data_json = decode_string(slots[12], "request_data_json", "dataJson")?;
+        NotificationRequestVm {
+            title: request_title,
+            subtitle: request_subtitle,
+            body: request_body,
+            tag: request_tag,
+            channel_id: request_channel_id,
+            priority: request_priority,
+            badge_count: request_badge_count,
+            sound: request_sound,
+            category_id: request_category_id,
+            thread_id: request_thread_id,
+            trigger: request_trigger,
+            action_id: request_action_id,
+            data_json: request_data_json,
+        }
+    };
+    Ok((request,))
+}
+
+/// Encode the result for destack.os.notification.schedule.
+#[inline]
+fn encode_destack_os_notification_schedule_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<vm::StringHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.value())
+}
+
+/// Encode the result for destack.os.permission.openSettings.
+#[inline]
+fn encode_destack_os_permission_open_settings_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.os.permission.request.
+#[inline]
+fn decode_destack_os_permission_request_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(Permission,)> {
+    let permission_value = arg_value(args, 0, "permission", "Permission")?;
+    let permission_raw = decode_uint8(permission_value, "permission_raw", "Permission")?;
+    let permission = match permission_raw {
+        1u8 => Permission::Location,
+        2u8 => Permission::LocationBackground,
+        3u8 => Permission::Camera,
+        4u8 => Permission::Microphone,
+        5u8 => Permission::Bluetooth,
+        6u8 => Permission::Notifications,
+        7u8 => Permission::ContactsRead,
+        8u8 => Permission::ContactsWrite,
+        9u8 => Permission::MediaRead,
+        10u8 => Permission::MediaWrite,
+        11u8 => Permission::Motion,
+        12u8 => Permission::ClipboardRead,
+        13u8 => Permission::CalendarRead,
+        14u8 => Permission::CalendarWrite,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "permission",
+                "unknown Permission value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((permission,))
+}
+
+/// Encode the result for destack.os.permission.request.
+#[inline]
+fn encode_destack_os_permission_request_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<PermissionState>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+}
+
+/// Decode arguments for destack.os.permission.requestMany.
+#[inline]
+fn decode_destack_os_permission_request_many_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmArray<Permission>,)> {
+    let permissions_value = arg_value(args, 0, "permissions", "Permission[]")?;
+    let permissions =
+        decode_array::<Permission>(context, permissions_value, "permissions", "Permission[]")?;
+    Ok((permissions,))
+}
+
+/// Encode the result for destack.os.permission.requestMany.
+#[inline]
+fn encode_destack_os_permission_request_many_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<PermissionEntryVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.os.permission.state.
+#[inline]
+fn decode_destack_os_permission_state_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(Permission,)> {
+    let permission_value = arg_value(args, 0, "permission", "Permission")?;
+    let permission_raw = decode_uint8(permission_value, "permission_raw", "Permission")?;
+    let permission = match permission_raw {
+        1u8 => Permission::Location,
+        2u8 => Permission::LocationBackground,
+        3u8 => Permission::Camera,
+        4u8 => Permission::Microphone,
+        5u8 => Permission::Bluetooth,
+        6u8 => Permission::Notifications,
+        7u8 => Permission::ContactsRead,
+        8u8 => Permission::ContactsWrite,
+        9u8 => Permission::MediaRead,
+        10u8 => Permission::MediaWrite,
+        11u8 => Permission::Motion,
+        12u8 => Permission::ClipboardRead,
+        13u8 => Permission::CalendarRead,
+        14u8 => Permission::CalendarWrite,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "permission",
+                "unknown Permission value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((permission,))
+}
+
+/// Encode the result for destack.os.permission.state.
+#[inline]
+fn encode_destack_os_permission_state_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<PermissionState>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value as u8 as u64, 8))
+}
+
+/// Decode arguments for destack.os.permission.stateMany.
+#[inline]
+fn decode_destack_os_permission_state_many_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmArray<Permission>,)> {
+    let permissions_value = arg_value(args, 0, "permissions", "Permission[]")?;
+    let permissions =
+        decode_array::<Permission>(context, permissions_value, "permissions", "Permission[]")?;
+    Ok((permissions,))
+}
+
+/// Encode the result for destack.os.permission.stateMany.
+#[inline]
+fn encode_destack_os_permission_state_many_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<PermissionEntryVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
 }
 
 /// Encode the result for destack.os.power.state.
@@ -403,6 +3962,76 @@ fn encode_destack_os_power_suspend_result(
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
+}
+
+/// Replay payload for destack.os.background.event.close.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsBackgroundEventCloseReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.os.background.event.open.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsBackgroundEventOpenReplay {
+    /// Replay result payload.
+    pub result: Result<resource::BackgroundEventHandle, PlatformError>,
+}
+
+/// Replay payload for destack.os.background.event.read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsBackgroundEventReadReplay {
+    /// Replay result payload.
+    pub result: Result<BackgroundEventReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.os.background.event.tryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsBackgroundEventTryReadReplay {
+    /// Replay result payload.
+    pub result: Result<BackgroundEventReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.os.background.list.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsBackgroundListReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<BackgroundTaskDescriptorReplayRecord>, PlatformError>,
+}
+
+/// Replay payload for destack.os.background.status.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsBackgroundStatusReplay {
+    /// Replay result payload.
+    pub result: Result<BackgroundStatus, PlatformError>,
+}
+
+/// Replay payload for destack.os.clipboard.hasText.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsClipboardHasTextReplay {
+    /// Replay result payload.
+    pub result: Result<bool, PlatformError>,
+}
+
+/// Replay payload for destack.os.clipboard.readBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsClipboardReadBytesReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<u8>, PlatformError>,
+}
+
+/// Replay payload for destack.os.clipboard.readText.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsClipboardReadTextReplay {
+    /// Replay result payload.
+    pub result: Result<String, PlatformError>,
+}
+
+/// Replay payload for destack.os.clipboard.sequence.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsClipboardSequenceReplay {
+    /// Replay result payload.
+    pub result: Result<u64, PlatformError>,
 }
 
 /// Replay payload for destack.os.host.identity.
@@ -440,6 +4069,118 @@ struct OsInfoUptimeNsReplay {
     pub result: Result<u64, PlatformError>,
 }
 
+/// Replay payload for destack.os.intent.canOpenUrl.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsIntentCanOpenUrlReplay {
+    /// Replay result payload.
+    pub result: Result<bool, PlatformError>,
+}
+
+/// Replay payload for destack.os.intent.close.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsIntentCloseReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.os.intent.open.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsIntentOpenReplay {
+    /// Replay result payload.
+    pub result: Result<resource::IntentHandle, PlatformError>,
+}
+
+/// Replay payload for destack.os.intent.read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsIntentReadReplay {
+    /// Replay result payload.
+    pub result: Result<IntentEventReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.os.intent.tryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsIntentTryReadReplay {
+    /// Replay result payload.
+    pub result: Result<IntentEventReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.os.lifecycle.close.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsLifecycleCloseReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.os.lifecycle.open.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsLifecycleOpenReplay {
+    /// Replay result payload.
+    pub result: Result<resource::LifecycleEventHandle, PlatformError>,
+}
+
+/// Replay payload for destack.os.lifecycle.read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsLifecycleReadReplay {
+    /// Replay result payload.
+    pub result: Result<LifecycleEvent, PlatformError>,
+}
+
+/// Replay payload for destack.os.lifecycle.state.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsLifecycleStateReplay {
+    /// Replay result payload.
+    pub result: Result<LifecycleState, PlatformError>,
+}
+
+/// Replay payload for destack.os.lifecycle.tryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsLifecycleTryReadReplay {
+    /// Replay result payload.
+    pub result: Result<LifecycleEvent, PlatformError>,
+}
+
+/// Replay payload for destack.os.location.lastKnown.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsLocationLastKnownReplay {
+    /// Replay result payload.
+    pub result: Result<LocationSample, PlatformError>,
+}
+
+/// Replay payload for destack.os.location.servicesEnabled.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsLocationServicesEnabledReplay {
+    /// Replay result payload.
+    pub result: Result<bool, PlatformError>,
+}
+
+/// Replay payload for destack.os.location.watchClose.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsLocationWatchCloseReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.os.location.watchOpen.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsLocationWatchOpenReplay {
+    /// Replay result payload.
+    pub result: Result<resource::LocationWatchHandle, PlatformError>,
+}
+
+/// Replay payload for destack.os.location.watchRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsLocationWatchReadReplay {
+    /// Replay result payload.
+    pub result: Result<LocationSample, PlatformError>,
+}
+
+/// Replay payload for destack.os.location.watchTryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsLocationWatchTryReadReplay {
+    /// Replay result payload.
+    pub result: Result<LocationSample, PlatformError>,
+}
+
 /// Replay payload for destack.os.mount.add.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsMountAddReplay {
@@ -461,12 +4202,826 @@ struct OsMountRemoveReplay {
     pub result: Result<(), PlatformError>,
 }
 
+/// Replay payload for destack.os.network.state.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsNetworkStateReplay {
+    /// Replay result payload.
+    pub result: Result<NetworkState, PlatformError>,
+}
+
+/// Replay payload for destack.os.network.watchClose.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsNetworkWatchCloseReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.os.network.watchOpen.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsNetworkWatchOpenReplay {
+    /// Replay result payload.
+    pub result: Result<resource::NetworkWatchHandle, PlatformError>,
+}
+
+/// Replay payload for destack.os.network.watchRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsNetworkWatchReadReplay {
+    /// Replay result payload.
+    pub result: Result<NetworkEvent, PlatformError>,
+}
+
+/// Replay payload for destack.os.network.watchTryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsNetworkWatchTryReadReplay {
+    /// Replay result payload.
+    pub result: Result<NetworkEvent, PlatformError>,
+}
+
+/// Replay payload for destack.os.notification.categoryList.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsNotificationCategoryListReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<NotificationCategoryReplayRecord>, PlatformError>,
+}
+
+/// Replay payload for destack.os.notification.pendingList.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsNotificationPendingListReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<NotificationScheduledDescriptorReplayRecord>, PlatformError>,
+}
+
+/// Replay payload for destack.os.notification.permissionState.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsNotificationPermissionStateReplay {
+    /// Replay result payload.
+    pub result: Result<NotificationPermissionState, PlatformError>,
+}
+
+/// Replay payload for destack.os.permission.state.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsPermissionStateReplay {
+    /// Replay result payload.
+    pub result: Result<PermissionState, PlatformError>,
+}
+
+/// Replay payload for destack.os.permission.stateMany.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OsPermissionStateManyReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<PermissionEntry>, PlatformError>,
+}
+
 /// Replay payload for destack.os.power.state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct OsPowerStateReplay {
     /// Replay result payload.
     pub result: Result<PowerState, PlatformError>,
 }
+
+/// Binding descriptor for destack.os.background.complete.
+pub const OS_BACKGROUND_COMPLETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.background.complete",
+    "export function backgroundComplete(executionId: string, result: BackgroundTaskResult): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.background.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.background.event.close.
+pub const OS_BACKGROUND_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.background.event.close",
+    "export function backgroundEventClose(handle: BackgroundEventHandle): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.background.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.background.event.open.
+pub const OS_BACKGROUND_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.background.event.open",
+    "export function backgroundEventOpen(options: BackgroundEventOpenOptions): Result<BackgroundEventHandle, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.background.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.background.event.read.
+pub const OS_BACKGROUND_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.background.event.read",
+    "export function backgroundEventRead(handle: BackgroundEventHandle, timeoutNs: uint64): Result<BackgroundEvent, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.background.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.background.event.tryRead.
+pub const OS_BACKGROUND_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.background.event.tryRead",
+    "export function backgroundEventTryRead(handle: BackgroundEventHandle): Result<BackgroundEvent, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.background.read"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.background.list.
+pub const OS_BACKGROUND_LIST: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.background.list",
+        "export function backgroundList(): Result<BackgroundTaskDescriptor[], PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.background.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.background.register.
+pub const OS_BACKGROUND_REGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.background.register",
+    "export function backgroundRegister(options: BackgroundTaskOptions): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.background.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.background.status.
+pub const OS_BACKGROUND_STATUS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.background.status",
+        "export function backgroundStatus(): Result<BackgroundStatus, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.background.read"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.background.triggerTest.
+pub const OS_BACKGROUND_TRIGGER_TEST: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.background.triggerTest",
+        "export function backgroundTriggerTest(identifier: string): Result<boolean, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.background.control"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.background.unregister.
+pub const OS_BACKGROUND_UNREGISTER: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.background.unregister",
+        "export function backgroundUnregister(identifier: string): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.background.control"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.calendar.eventCreate.
+pub const OS_CALENDAR_EVENT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.calendar.eventCreate",
+    "export function calendarEventCreate(event: CalendarEventDraft): Result<string, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.calendar.write"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.calendar.eventDelete.
+pub const OS_CALENDAR_EVENT_DELETE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.calendar.eventDelete",
+        "export function calendarEventDelete(id: string): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.calendar.write"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.calendar.eventList.
+pub const OS_CALENDAR_EVENT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.calendar.eventList",
+    "export function calendarEventList(query: CalendarEventQuery): Result<CalendarEvent[], PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.calendar.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.calendar.eventRead.
+pub const OS_CALENDAR_EVENT_READ: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.calendar.eventRead",
+        "export function calendarEventRead(id: string): Result<CalendarEvent, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.calendar.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.calendar.eventUpdate.
+pub const OS_CALENDAR_EVENT_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.calendar.eventUpdate",
+    "export function calendarEventUpdate(id: string, event: CalendarEventDraft): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.calendar.write"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.calendar.list.
+pub const OS_CALENDAR_LIST: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.calendar.list",
+        "export function calendarList(): Result<CalendarDescriptor[], PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.calendar.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.clipboard.clear.
+pub const OS_CLIPBOARD_CLEAR: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.clipboard.clear",
+        "export function clipboardClear(): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.clipboard.write"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.clipboard.hasText.
+pub const OS_CLIPBOARD_HAS_TEXT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.clipboard.hasText",
+        "export function clipboardHasText(): Result<boolean, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.clipboard.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.clipboard.readBytes.
+pub const OS_CLIPBOARD_READ_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.clipboard.readBytes",
+    "export function clipboardReadBytes(format: ClipboardBinaryFormat): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.clipboard.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.clipboard.readText.
+pub const OS_CLIPBOARD_READ_TEXT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.clipboard.readText",
+        "export function clipboardReadText(): Result<string, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.clipboard.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.clipboard.sequence.
+pub const OS_CLIPBOARD_SEQUENCE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.clipboard.sequence",
+        "export function clipboardSequence(): Result<uint64, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.clipboard.read"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.clipboard.writeBytes.
+pub const OS_CLIPBOARD_WRITE_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.clipboard.writeBytes",
+    "export function clipboardWriteBytes(format: ClipboardBinaryFormat, bytes: Slice<uint8>): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.clipboard.write"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.clipboard.writeText.
+pub const OS_CLIPBOARD_WRITE_TEXT: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.clipboard.writeText",
+        "export function clipboardWriteText(text: string): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.clipboard.write"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.contact.create.
+pub const OS_CONTACT_CREATE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.contact.create",
+        "export function contactCreate(contact: ContactDraft): Result<string, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.contact.write"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.contact.delete.
+pub const OS_CONTACT_DELETE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.contact.delete",
+        "export function contactDelete(id: string): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.contact.write"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.contact.list.
+pub const OS_CONTACT_LIST: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.contact.list",
+        "export function contactList(query: ContactQuery): Result<ContactPage, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.contact.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.contact.read.
+pub const OS_CONTACT_READ: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.contact.read",
+        "export function contactRead(id: string): Result<Contact, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.contact.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.contact.search.
+pub const OS_CONTACT_SEARCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.contact.search",
+    "export function contactSearch(queryText: string, query: ContactQuery): Result<ContactPage, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.contact.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.contact.update.
+pub const OS_CONTACT_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.contact.update",
+    "export function contactUpdate(id: string, contact: ContactDraft): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.contact.write"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.credentials.authenticate.
+pub const OS_CREDENTIALS_AUTHENTICATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.credentials.authenticate",
+    "export function credentialsAuthenticate(options: CredentialAuthenticationOptions): Result<CredentialAuthenticationResult, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.credentials.auth"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.credentials.contains.
+pub const OS_CREDENTIALS_CONTAINS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.credentials.contains",
+    "export function credentialsContains(service: string, account: string): Result<boolean, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.credentials.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.credentials.delete.
+pub const OS_CREDENTIALS_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.credentials.delete",
+    "export function credentialsDelete(service: string, account: string): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.credentials.write"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.credentials.read.
+pub const OS_CREDENTIALS_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.credentials.read",
+    "export function credentialsRead(query: CredentialQuery): Result<CredentialRecord, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.credentials.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.credentials.write.
+pub const OS_CREDENTIALS_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.credentials.write",
+    "export function credentialsWrite(options: CredentialWriteOptions): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.credentials.write"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.document.close.
+pub const OS_DOCUMENT_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.document.close",
+        "export function documentClose(handle: DocumentHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.document.control"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.document.flush.
+pub const OS_DOCUMENT_FLUSH: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.document.flush",
+        "export function documentFlush(handle: DocumentHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.document.write"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.document.open.
+pub const OS_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.document.open",
+    "export function documentOpen(uri: string, access: DocumentAccess): Result<DocumentHandle, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.document.control"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.document.pick.
+pub const OS_DOCUMENT_PICK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.document.pick",
+    "export function documentPick(options: DocumentPickOptions): Result<DocumentDescriptor[], PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.document.pick"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.document.read.
+pub const OS_DOCUMENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.document.read",
+    "export function documentRead(handle: DocumentHandle, maxBytes: uint32, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.document.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.document.tryRead.
+pub const OS_DOCUMENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.document.tryRead",
+    "export function documentTryRead(handle: DocumentHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.document.read"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.document.write.
+pub const OS_DOCUMENT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.document.write",
+    "export function documentWrite(handle: DocumentHandle, bytes: Slice<uint8>, timeoutNs: uint64): Result<uint32, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.document.write"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.host.identity.
 pub const OS_HOST_IDENTITY: BindingDescriptor =
@@ -597,10 +5152,480 @@ pub const OS_INFO_UPTIME_NS: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.os.intent.canOpenUrl.
+pub const OS_INTENT_CAN_OPEN_URL: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.intent.canOpenUrl",
+        "export function intentCanOpenUrl(url: string): Result<boolean, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.intent.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.intent.close.
+pub const OS_INTENT_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.intent.close",
+        "export function intentClose(handle: IntentHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.intent.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.intent.open.
+pub const OS_INTENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.intent.open",
+    "export function intentOpen(options: IntentOpenOptions): Result<IntentHandle, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.intent.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.intent.openPath.
+pub const OS_INTENT_OPEN_PATH: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.intent.openPath",
+        "export function intentOpenPath(path: OsPath): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.intent.write"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.intent.openUrl.
+pub const OS_INTENT_OPEN_URL: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.intent.openUrl",
+        "export function intentOpenUrl(url: string): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.intent.write"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.intent.read.
+pub const OS_INTENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.intent.read",
+    "export function intentRead(handle: IntentHandle, timeoutNs: uint64): Result<IntentEvent, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.intent.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.intent.sharePaths.
+pub const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.intent.sharePaths",
+    "export function intentSharePaths(paths: OsPath[], mimeType: string): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.intent.write"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.intent.shareText.
+pub const OS_INTENT_SHARE_TEXT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.intent.shareText",
+    "export function intentShareText(text: string, mimeType: string): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.intent.write"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.intent.tryRead.
+pub const OS_INTENT_TRY_READ: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.intent.tryRead",
+        "export function intentTryRead(handle: IntentHandle): Result<IntentEvent, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.intent.read"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.lifecycle.close.
+pub const OS_LIFECYCLE_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.lifecycle.close",
+        "export function lifecycleClose(handle: LifecycleEventHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.lifecycle.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.lifecycle.open.
+pub const OS_LIFECYCLE_OPEN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.lifecycle.open",
+        "export function lifecycleOpen(): Result<LifecycleEventHandle, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.lifecycle.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.lifecycle.read.
+pub const OS_LIFECYCLE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.lifecycle.read",
+    "export function lifecycleRead(handle: LifecycleEventHandle, timeoutNs: uint64): Result<LifecycleEvent, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.lifecycle.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.lifecycle.state.
+pub const OS_LIFECYCLE_STATE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.lifecycle.state",
+        "export function lifecycleState(): Result<LifecycleState, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.lifecycle.read"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.lifecycle.tryRead.
+pub const OS_LIFECYCLE_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.lifecycle.tryRead",
+    "export function lifecycleTryRead(handle: LifecycleEventHandle): Result<LifecycleEvent, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.lifecycle.read"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.location.lastKnown.
+pub const OS_LOCATION_LAST_KNOWN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.location.lastKnown",
+        "export function locationLastKnown(): Result<LocationSample, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.location.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.location.servicesEnabled.
+pub const OS_LOCATION_SERVICES_ENABLED: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.location.servicesEnabled",
+        "export function locationServicesEnabled(): Result<boolean, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.location.read"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.location.watchClose.
+pub const OS_LOCATION_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.location.watchClose",
+    "export function locationWatchClose(handle: LocationWatchHandle): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.location.watch"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.location.watchOpen.
+pub const OS_LOCATION_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.location.watchOpen",
+    "export function locationWatchOpen(options: LocationWatchOptions): Result<LocationWatchHandle, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.location.watch"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.location.watchRead.
+pub const OS_LOCATION_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.location.watchRead",
+    "export function locationWatchRead(handle: LocationWatchHandle, timeoutNs: uint64): Result<LocationSample, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.location.watch"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.location.watchTryRead.
+pub const OS_LOCATION_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.location.watchTryRead",
+    "export function locationWatchTryRead(handle: LocationWatchHandle): Result<LocationSample, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.location.watch"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.media.delete.
+pub const OS_MEDIA_DELETE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.media.delete",
+        "export function mediaDelete(ids: string[]): Result<uint32, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.media.write"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.media.importPath.
+pub const OS_MEDIA_IMPORT_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.media.importPath",
+    "export function mediaImportPath(path: OsPath, kind: MediaAssetKind): Result<string, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.media.write"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.media.list.
+pub const OS_MEDIA_LIST: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.media.list",
+        "export function mediaList(query: MediaQuery): Result<MediaPage, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.media.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.media.read.
+pub const OS_MEDIA_READ: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.media.read",
+        "export function mediaRead(id: string): Result<MediaAssetDescriptor, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.media.read"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
 /// Binding descriptor for destack.os.mount.add.
 pub const OS_MOUNT_ADD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.mount.add",
-    "export function add(source: OsPath, target: OsPath, fileSystem: string, flags: uint64, data: string): Result<void, PlatformError>",
+    "export function mountAdd(source: string, target: OsPath, fileSystem: string, flags: uint64, data: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["os.mount"],
@@ -613,7 +5638,7 @@ pub const OS_MOUNT_ADD: BindingDescriptor = BindingDescriptor::external_with_req
 pub const OS_MOUNT_LIST: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.mount.list",
-        "export function list(): Result<MountEntry[], PlatformError>",
+        "export function mountList(): Result<MountEntry[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.mount"],
@@ -639,7 +5664,7 @@ pub const OS_MOUNT_LIST: BindingDescriptor =
 pub const OS_MOUNT_REMOVE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
         "destack.os.mount.remove",
-        "export function remove(target: OsPath, flags: uint32): Result<void, PlatformError>",
+        "export function mountRemove(target: OsPath, flags: uint64): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["os.mount"],
@@ -660,6 +5685,418 @@ pub const OS_MOUNT_REMOVE: BindingDescriptor =
         "solaris",
         "windows",
     ]);
+
+/// Binding descriptor for destack.os.network.state.
+pub const OS_NETWORK_STATE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.network.state",
+        "export function networkState(): Result<NetworkState, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.network.read"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.network.watchClose.
+pub const OS_NETWORK_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.network.watchClose",
+    "export function networkWatchClose(handle: NetworkWatchHandle): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.network.watch"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.network.watchOpen.
+pub const OS_NETWORK_WATCH_OPEN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.network.watchOpen",
+        "export function networkWatchOpen(): Result<NetworkWatchHandle, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.network.watch"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.network.watchRead.
+pub const OS_NETWORK_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.network.watchRead",
+    "export function networkWatchRead(handle: NetworkWatchHandle, timeoutNs: uint64): Result<NetworkEvent, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.network.watch"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.network.watchTryRead.
+pub const OS_NETWORK_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.network.watchTryRead",
+    "export function networkWatchTryRead(handle: NetworkWatchHandle): Result<NetworkEvent, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.network.watch"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.notification.cancel.
+pub const OS_NOTIFICATION_CANCEL: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.notification.cancel",
+        "export function notificationCancel(id: string): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.notification.post"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.notification.cancelAll.
+pub const OS_NOTIFICATION_CANCEL_ALL: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.notification.cancelAll",
+        "export function notificationCancelAll(): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.notification.post"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.notification.categoryList.
+pub const OS_NOTIFICATION_CATEGORY_LIST: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.notification.categoryList",
+        "export function notificationCategoryList(): Result<NotificationCategory[], PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["os.notification.post"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.notification.categorySet.
+pub const OS_NOTIFICATION_CATEGORY_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.categorySet",
+    "export function notificationCategorySet(categories: NotificationCategory[]): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.notification.post"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.notification.event.close.
+pub const OS_NOTIFICATION_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.event.close",
+    "export function notificationEventClose(handle: NotificationEventHandle): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.notification.permission"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.notification.event.open.
+pub const OS_NOTIFICATION_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.event.open",
+    "export function notificationEventOpen(options: NotificationEventOpenOptions): Result<NotificationEventHandle, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.notification.permission"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.notification.event.read.
+pub const OS_NOTIFICATION_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.event.read",
+    "export function notificationEventRead(handle: NotificationEventHandle, timeoutNs: uint64): Result<NotificationEvent, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.notification.permission"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.notification.event.tryRead.
+pub const OS_NOTIFICATION_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.event.tryRead",
+    "export function notificationEventTryRead(handle: NotificationEventHandle): Result<NotificationEvent, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.notification.permission"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.notification.pendingCancel.
+pub const OS_NOTIFICATION_PENDING_CANCEL: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.notification.pendingCancel",
+        "export function notificationPendingCancel(id: string): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.notification.post"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.notification.pendingCancelAll.
+pub const OS_NOTIFICATION_PENDING_CANCEL_ALL: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.notification.pendingCancelAll",
+        "export function notificationPendingCancelAll(): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.notification.post"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.notification.pendingList.
+pub const OS_NOTIFICATION_PENDING_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.pendingList",
+    "export function notificationPendingList(): Result<NotificationScheduledDescriptor[], PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.notification.post"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.notification.permissionState.
+pub const OS_NOTIFICATION_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.permissionState",
+    "export function notificationPermissionState(): Result<NotificationPermissionState, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.notification.permission"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.notification.post.
+pub const OS_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.post",
+    "export function notificationPost(request: NotificationRequest): Result<string, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.notification.post"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.notification.requestPermission.
+pub const OS_NOTIFICATION_REQUEST_PERMISSION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.requestPermission",
+    "export function notificationRequestPermission(): Result<NotificationPermissionState, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.notification.permission"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.notification.schedule.
+pub const OS_NOTIFICATION_SCHEDULE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.notification.schedule",
+    "export function notificationSchedule(request: NotificationRequest): Result<string, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.notification.post"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.permission.openSettings.
+pub const OS_PERMISSION_OPEN_SETTINGS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.os.permission.openSettings",
+        "export function permissionOpenSettings(): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["os.permission.request"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.os.permission.request.
+pub const OS_PERMISSION_REQUEST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.permission.request",
+    "export function permissionRequest(permission: Permission): Result<PermissionState, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.permission.request"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.permission.requestMany.
+pub const OS_PERMISSION_REQUEST_MANY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.permission.requestMany",
+    "export function permissionRequestMany(permissions: Permission[]): Result<PermissionEntry[], PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["os.permission.request"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.permission.state.
+pub const OS_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.permission.state",
+    "export function permissionState(permission: Permission): Result<PermissionState, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.permission.read"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.os.permission.stateMany.
+pub const OS_PERMISSION_STATE_MANY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.os.permission.stateMany",
+    "export function permissionStateMany(permissions: Permission[]): Result<PermissionEntry[], PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["os.permission.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.os.power.state.
 pub const OS_POWER_STATE: BindingDescriptor =
@@ -715,14 +6152,104 @@ pub const OS_POWER_SUSPEND: BindingDescriptor =
 
 /// Binding descriptors for os.
 pub const BINDINGS: &[BindingDescriptor] = &[
+    OS_BACKGROUND_COMPLETE,
+    OS_BACKGROUND_EVENT_CLOSE,
+    OS_BACKGROUND_EVENT_OPEN,
+    OS_BACKGROUND_EVENT_READ,
+    OS_BACKGROUND_EVENT_TRY_READ,
+    OS_BACKGROUND_LIST,
+    OS_BACKGROUND_REGISTER,
+    OS_BACKGROUND_STATUS,
+    OS_BACKGROUND_TRIGGER_TEST,
+    OS_BACKGROUND_UNREGISTER,
+    OS_CALENDAR_EVENT_CREATE,
+    OS_CALENDAR_EVENT_DELETE,
+    OS_CALENDAR_EVENT_LIST,
+    OS_CALENDAR_EVENT_READ,
+    OS_CALENDAR_EVENT_UPDATE,
+    OS_CALENDAR_LIST,
+    OS_CLIPBOARD_CLEAR,
+    OS_CLIPBOARD_HAS_TEXT,
+    OS_CLIPBOARD_READ_BYTES,
+    OS_CLIPBOARD_READ_TEXT,
+    OS_CLIPBOARD_SEQUENCE,
+    OS_CLIPBOARD_WRITE_BYTES,
+    OS_CLIPBOARD_WRITE_TEXT,
+    OS_CONTACT_CREATE,
+    OS_CONTACT_DELETE,
+    OS_CONTACT_LIST,
+    OS_CONTACT_READ,
+    OS_CONTACT_SEARCH,
+    OS_CONTACT_UPDATE,
+    OS_CREDENTIALS_AUTHENTICATE,
+    OS_CREDENTIALS_CONTAINS,
+    OS_CREDENTIALS_DELETE,
+    OS_CREDENTIALS_READ,
+    OS_CREDENTIALS_WRITE,
+    OS_DOCUMENT_CLOSE,
+    OS_DOCUMENT_FLUSH,
+    OS_DOCUMENT_OPEN,
+    OS_DOCUMENT_PICK,
+    OS_DOCUMENT_READ,
+    OS_DOCUMENT_TRY_READ,
+    OS_DOCUMENT_WRITE,
     OS_HOST_IDENTITY,
     OS_INFO_BOOT_TIME_UNIX_NS,
     OS_INFO_LOAD_AVERAGE,
     OS_INFO_SYSTEM_SNAPSHOT,
     OS_INFO_UPTIME_NS,
+    OS_INTENT_CAN_OPEN_URL,
+    OS_INTENT_CLOSE,
+    OS_INTENT_OPEN,
+    OS_INTENT_OPEN_PATH,
+    OS_INTENT_OPEN_URL,
+    OS_INTENT_READ,
+    OS_INTENT_SHARE_PATHS,
+    OS_INTENT_SHARE_TEXT,
+    OS_INTENT_TRY_READ,
+    OS_LIFECYCLE_CLOSE,
+    OS_LIFECYCLE_OPEN,
+    OS_LIFECYCLE_READ,
+    OS_LIFECYCLE_STATE,
+    OS_LIFECYCLE_TRY_READ,
+    OS_LOCATION_LAST_KNOWN,
+    OS_LOCATION_SERVICES_ENABLED,
+    OS_LOCATION_WATCH_CLOSE,
+    OS_LOCATION_WATCH_OPEN,
+    OS_LOCATION_WATCH_READ,
+    OS_LOCATION_WATCH_TRY_READ,
+    OS_MEDIA_DELETE,
+    OS_MEDIA_IMPORT_PATH,
+    OS_MEDIA_LIST,
+    OS_MEDIA_READ,
     OS_MOUNT_ADD,
     OS_MOUNT_LIST,
     OS_MOUNT_REMOVE,
+    OS_NETWORK_STATE,
+    OS_NETWORK_WATCH_CLOSE,
+    OS_NETWORK_WATCH_OPEN,
+    OS_NETWORK_WATCH_READ,
+    OS_NETWORK_WATCH_TRY_READ,
+    OS_NOTIFICATION_CANCEL,
+    OS_NOTIFICATION_CANCEL_ALL,
+    OS_NOTIFICATION_CATEGORY_LIST,
+    OS_NOTIFICATION_CATEGORY_SET,
+    OS_NOTIFICATION_EVENT_CLOSE,
+    OS_NOTIFICATION_EVENT_OPEN,
+    OS_NOTIFICATION_EVENT_READ,
+    OS_NOTIFICATION_EVENT_TRY_READ,
+    OS_NOTIFICATION_PENDING_CANCEL,
+    OS_NOTIFICATION_PENDING_CANCEL_ALL,
+    OS_NOTIFICATION_PENDING_LIST,
+    OS_NOTIFICATION_PERMISSION_STATE,
+    OS_NOTIFICATION_POST,
+    OS_NOTIFICATION_REQUEST_PERMISSION,
+    OS_NOTIFICATION_SCHEDULE,
+    OS_PERMISSION_OPEN_SETTINGS,
+    OS_PERMISSION_REQUEST,
+    OS_PERMISSION_REQUEST_MANY,
+    OS_PERMISSION_STATE,
+    OS_PERMISSION_STATE_MANY,
     OS_POWER_STATE,
     OS_POWER_SUSPEND,
 ];
@@ -731,6 +6258,211 @@ pub const BINDINGS: &[BindingDescriptor] = &[
 pub const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "os",
     bindings: &[
+        NativeBinding::new(
+            OS_BACKGROUND_COMPLETE,
+            "destack.os.background.complete",
+            destack_os_background_complete as *const (),
+        ),
+        NativeBinding::new(
+            OS_BACKGROUND_EVENT_CLOSE,
+            "destack.os.background.event.close",
+            destack_os_background_event_close as *const (),
+        ),
+        NativeBinding::new(
+            OS_BACKGROUND_EVENT_OPEN,
+            "destack.os.background.event.open",
+            destack_os_background_event_open as *const (),
+        ),
+        NativeBinding::new(
+            OS_BACKGROUND_EVENT_READ,
+            "destack.os.background.event.read",
+            destack_os_background_event_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_BACKGROUND_EVENT_TRY_READ,
+            "destack.os.background.event.tryRead",
+            destack_os_background_event_try_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_BACKGROUND_LIST,
+            "destack.os.background.list",
+            destack_os_background_list as *const (),
+        ),
+        NativeBinding::new(
+            OS_BACKGROUND_REGISTER,
+            "destack.os.background.register",
+            destack_os_background_register as *const (),
+        ),
+        NativeBinding::new(
+            OS_BACKGROUND_STATUS,
+            "destack.os.background.status",
+            destack_os_background_status as *const (),
+        ),
+        NativeBinding::new(
+            OS_BACKGROUND_TRIGGER_TEST,
+            "destack.os.background.triggerTest",
+            destack_os_background_trigger_test as *const (),
+        ),
+        NativeBinding::new(
+            OS_BACKGROUND_UNREGISTER,
+            "destack.os.background.unregister",
+            destack_os_background_unregister as *const (),
+        ),
+        NativeBinding::new(
+            OS_CALENDAR_EVENT_CREATE,
+            "destack.os.calendar.eventCreate",
+            destack_os_calendar_event_create as *const (),
+        ),
+        NativeBinding::new(
+            OS_CALENDAR_EVENT_DELETE,
+            "destack.os.calendar.eventDelete",
+            destack_os_calendar_event_delete as *const (),
+        ),
+        NativeBinding::new(
+            OS_CALENDAR_EVENT_LIST,
+            "destack.os.calendar.eventList",
+            destack_os_calendar_event_list as *const (),
+        ),
+        NativeBinding::new(
+            OS_CALENDAR_EVENT_READ,
+            "destack.os.calendar.eventRead",
+            destack_os_calendar_event_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_CALENDAR_EVENT_UPDATE,
+            "destack.os.calendar.eventUpdate",
+            destack_os_calendar_event_update as *const (),
+        ),
+        NativeBinding::new(
+            OS_CALENDAR_LIST,
+            "destack.os.calendar.list",
+            destack_os_calendar_list as *const (),
+        ),
+        NativeBinding::new(
+            OS_CLIPBOARD_CLEAR,
+            "destack.os.clipboard.clear",
+            destack_os_clipboard_clear as *const (),
+        ),
+        NativeBinding::new(
+            OS_CLIPBOARD_HAS_TEXT,
+            "destack.os.clipboard.hasText",
+            destack_os_clipboard_has_text as *const (),
+        ),
+        NativeBinding::new(
+            OS_CLIPBOARD_READ_BYTES,
+            "destack.os.clipboard.readBytes",
+            destack_os_clipboard_read_bytes as *const (),
+        ),
+        NativeBinding::new(
+            OS_CLIPBOARD_READ_TEXT,
+            "destack.os.clipboard.readText",
+            destack_os_clipboard_read_text as *const (),
+        ),
+        NativeBinding::new(
+            OS_CLIPBOARD_SEQUENCE,
+            "destack.os.clipboard.sequence",
+            destack_os_clipboard_sequence as *const (),
+        ),
+        NativeBinding::new(
+            OS_CLIPBOARD_WRITE_BYTES,
+            "destack.os.clipboard.writeBytes",
+            destack_os_clipboard_write_bytes as *const (),
+        ),
+        NativeBinding::new(
+            OS_CLIPBOARD_WRITE_TEXT,
+            "destack.os.clipboard.writeText",
+            destack_os_clipboard_write_text as *const (),
+        ),
+        NativeBinding::new(
+            OS_CONTACT_CREATE,
+            "destack.os.contact.create",
+            destack_os_contact_create as *const (),
+        ),
+        NativeBinding::new(
+            OS_CONTACT_DELETE,
+            "destack.os.contact.delete",
+            destack_os_contact_delete as *const (),
+        ),
+        NativeBinding::new(
+            OS_CONTACT_LIST,
+            "destack.os.contact.list",
+            destack_os_contact_list as *const (),
+        ),
+        NativeBinding::new(
+            OS_CONTACT_READ,
+            "destack.os.contact.read",
+            destack_os_contact_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_CONTACT_SEARCH,
+            "destack.os.contact.search",
+            destack_os_contact_search as *const (),
+        ),
+        NativeBinding::new(
+            OS_CONTACT_UPDATE,
+            "destack.os.contact.update",
+            destack_os_contact_update as *const (),
+        ),
+        NativeBinding::new(
+            OS_CREDENTIALS_AUTHENTICATE,
+            "destack.os.credentials.authenticate",
+            destack_os_credentials_authenticate as *const (),
+        ),
+        NativeBinding::new(
+            OS_CREDENTIALS_CONTAINS,
+            "destack.os.credentials.contains",
+            destack_os_credentials_contains as *const (),
+        ),
+        NativeBinding::new(
+            OS_CREDENTIALS_DELETE,
+            "destack.os.credentials.delete",
+            destack_os_credentials_delete as *const (),
+        ),
+        NativeBinding::new(
+            OS_CREDENTIALS_READ,
+            "destack.os.credentials.read",
+            destack_os_credentials_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_CREDENTIALS_WRITE,
+            "destack.os.credentials.write",
+            destack_os_credentials_write as *const (),
+        ),
+        NativeBinding::new(
+            OS_DOCUMENT_CLOSE,
+            "destack.os.document.close",
+            destack_os_document_close as *const (),
+        ),
+        NativeBinding::new(
+            OS_DOCUMENT_FLUSH,
+            "destack.os.document.flush",
+            destack_os_document_flush as *const (),
+        ),
+        NativeBinding::new(
+            OS_DOCUMENT_OPEN,
+            "destack.os.document.open",
+            destack_os_document_open as *const (),
+        ),
+        NativeBinding::new(
+            OS_DOCUMENT_PICK,
+            "destack.os.document.pick",
+            destack_os_document_pick as *const (),
+        ),
+        NativeBinding::new(
+            OS_DOCUMENT_READ,
+            "destack.os.document.read",
+            destack_os_document_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_DOCUMENT_TRY_READ,
+            "destack.os.document.tryRead",
+            destack_os_document_try_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_DOCUMENT_WRITE,
+            "destack.os.document.write",
+            destack_os_document_write as *const (),
+        ),
         NativeBinding::new(
             OS_HOST_IDENTITY,
             "destack.os.host.identity",
@@ -757,6 +6489,126 @@ pub const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_os_info_uptime_ns as *const (),
         ),
         NativeBinding::new(
+            OS_INTENT_CAN_OPEN_URL,
+            "destack.os.intent.canOpenUrl",
+            destack_os_intent_can_open_url as *const (),
+        ),
+        NativeBinding::new(
+            OS_INTENT_CLOSE,
+            "destack.os.intent.close",
+            destack_os_intent_close as *const (),
+        ),
+        NativeBinding::new(
+            OS_INTENT_OPEN,
+            "destack.os.intent.open",
+            destack_os_intent_open as *const (),
+        ),
+        NativeBinding::new(
+            OS_INTENT_OPEN_PATH,
+            "destack.os.intent.openPath",
+            destack_os_intent_open_path as *const (),
+        ),
+        NativeBinding::new(
+            OS_INTENT_OPEN_URL,
+            "destack.os.intent.openUrl",
+            destack_os_intent_open_url as *const (),
+        ),
+        NativeBinding::new(
+            OS_INTENT_READ,
+            "destack.os.intent.read",
+            destack_os_intent_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_INTENT_SHARE_PATHS,
+            "destack.os.intent.sharePaths",
+            destack_os_intent_share_paths as *const (),
+        ),
+        NativeBinding::new(
+            OS_INTENT_SHARE_TEXT,
+            "destack.os.intent.shareText",
+            destack_os_intent_share_text as *const (),
+        ),
+        NativeBinding::new(
+            OS_INTENT_TRY_READ,
+            "destack.os.intent.tryRead",
+            destack_os_intent_try_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_LIFECYCLE_CLOSE,
+            "destack.os.lifecycle.close",
+            destack_os_lifecycle_close as *const (),
+        ),
+        NativeBinding::new(
+            OS_LIFECYCLE_OPEN,
+            "destack.os.lifecycle.open",
+            destack_os_lifecycle_open as *const (),
+        ),
+        NativeBinding::new(
+            OS_LIFECYCLE_READ,
+            "destack.os.lifecycle.read",
+            destack_os_lifecycle_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_LIFECYCLE_STATE,
+            "destack.os.lifecycle.state",
+            destack_os_lifecycle_state as *const (),
+        ),
+        NativeBinding::new(
+            OS_LIFECYCLE_TRY_READ,
+            "destack.os.lifecycle.tryRead",
+            destack_os_lifecycle_try_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_LOCATION_LAST_KNOWN,
+            "destack.os.location.lastKnown",
+            destack_os_location_last_known as *const (),
+        ),
+        NativeBinding::new(
+            OS_LOCATION_SERVICES_ENABLED,
+            "destack.os.location.servicesEnabled",
+            destack_os_location_services_enabled as *const (),
+        ),
+        NativeBinding::new(
+            OS_LOCATION_WATCH_CLOSE,
+            "destack.os.location.watchClose",
+            destack_os_location_watch_close as *const (),
+        ),
+        NativeBinding::new(
+            OS_LOCATION_WATCH_OPEN,
+            "destack.os.location.watchOpen",
+            destack_os_location_watch_open as *const (),
+        ),
+        NativeBinding::new(
+            OS_LOCATION_WATCH_READ,
+            "destack.os.location.watchRead",
+            destack_os_location_watch_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_LOCATION_WATCH_TRY_READ,
+            "destack.os.location.watchTryRead",
+            destack_os_location_watch_try_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_MEDIA_DELETE,
+            "destack.os.media.delete",
+            destack_os_media_delete as *const (),
+        ),
+        NativeBinding::new(
+            OS_MEDIA_IMPORT_PATH,
+            "destack.os.media.importPath",
+            destack_os_media_import_path as *const (),
+        ),
+        NativeBinding::new(
+            OS_MEDIA_LIST,
+            "destack.os.media.list",
+            destack_os_media_list as *const (),
+        ),
+        NativeBinding::new(
+            OS_MEDIA_READ,
+            "destack.os.media.read",
+            destack_os_media_read as *const (),
+        ),
+        NativeBinding::new(
             OS_MOUNT_ADD,
             "destack.os.mount.add",
             destack_os_mount_add as *const (),
@@ -772,6 +6624,131 @@ pub const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_os_mount_remove as *const (),
         ),
         NativeBinding::new(
+            OS_NETWORK_STATE,
+            "destack.os.network.state",
+            destack_os_network_state as *const (),
+        ),
+        NativeBinding::new(
+            OS_NETWORK_WATCH_CLOSE,
+            "destack.os.network.watchClose",
+            destack_os_network_watch_close as *const (),
+        ),
+        NativeBinding::new(
+            OS_NETWORK_WATCH_OPEN,
+            "destack.os.network.watchOpen",
+            destack_os_network_watch_open as *const (),
+        ),
+        NativeBinding::new(
+            OS_NETWORK_WATCH_READ,
+            "destack.os.network.watchRead",
+            destack_os_network_watch_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_NETWORK_WATCH_TRY_READ,
+            "destack.os.network.watchTryRead",
+            destack_os_network_watch_try_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_CANCEL,
+            "destack.os.notification.cancel",
+            destack_os_notification_cancel as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_CANCEL_ALL,
+            "destack.os.notification.cancelAll",
+            destack_os_notification_cancel_all as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_CATEGORY_LIST,
+            "destack.os.notification.categoryList",
+            destack_os_notification_category_list as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_CATEGORY_SET,
+            "destack.os.notification.categorySet",
+            destack_os_notification_category_set as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_EVENT_CLOSE,
+            "destack.os.notification.event.close",
+            destack_os_notification_event_close as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_EVENT_OPEN,
+            "destack.os.notification.event.open",
+            destack_os_notification_event_open as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_EVENT_READ,
+            "destack.os.notification.event.read",
+            destack_os_notification_event_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_EVENT_TRY_READ,
+            "destack.os.notification.event.tryRead",
+            destack_os_notification_event_try_read as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_PENDING_CANCEL,
+            "destack.os.notification.pendingCancel",
+            destack_os_notification_pending_cancel as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_PENDING_CANCEL_ALL,
+            "destack.os.notification.pendingCancelAll",
+            destack_os_notification_pending_cancel_all as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_PENDING_LIST,
+            "destack.os.notification.pendingList",
+            destack_os_notification_pending_list as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_PERMISSION_STATE,
+            "destack.os.notification.permissionState",
+            destack_os_notification_permission_state as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_POST,
+            "destack.os.notification.post",
+            destack_os_notification_post as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_REQUEST_PERMISSION,
+            "destack.os.notification.requestPermission",
+            destack_os_notification_request_permission as *const (),
+        ),
+        NativeBinding::new(
+            OS_NOTIFICATION_SCHEDULE,
+            "destack.os.notification.schedule",
+            destack_os_notification_schedule as *const (),
+        ),
+        NativeBinding::new(
+            OS_PERMISSION_OPEN_SETTINGS,
+            "destack.os.permission.openSettings",
+            destack_os_permission_open_settings as *const (),
+        ),
+        NativeBinding::new(
+            OS_PERMISSION_REQUEST,
+            "destack.os.permission.request",
+            destack_os_permission_request as *const (),
+        ),
+        NativeBinding::new(
+            OS_PERMISSION_REQUEST_MANY,
+            "destack.os.permission.requestMany",
+            destack_os_permission_request_many as *const (),
+        ),
+        NativeBinding::new(
+            OS_PERMISSION_STATE,
+            "destack.os.permission.state",
+            destack_os_permission_state as *const (),
+        ),
+        NativeBinding::new(
+            OS_PERMISSION_STATE_MANY,
+            "destack.os.permission.stateMany",
+            destack_os_permission_state_many as *const (),
+        ),
+        NativeBinding::new(
             OS_POWER_STATE,
             "destack.os.power.state",
             destack_os_power_state as *const (),
@@ -785,6 +6762,726 @@ pub const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 };
 
 /// Native replay implementations for os bindings.
+#[inline]
+fn destack_os_background_event_close_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::BackgroundEventHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        OS_BACKGROUND_EVENT_CLOSE,
+        context.replay_payload_for(OS_BACKGROUND_EVENT_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_background_event_close(context, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_background_event_close(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = OsBackgroundEventCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsBackgroundEventCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_background_event_open_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::BackgroundEventHandle,
+    options: BackgroundEventOpenOptions,
+) -> RuntimeResult<()> {
+    let _ = &options;
+
+    context.replay().run_binding_with_policy(
+        OS_BACKGROUND_EVENT_OPEN,
+        context.replay_payload_for(OS_BACKGROUND_EVENT_OPEN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_background_event_open(context, out, options)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_background_event_open(context, out, options)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = OsBackgroundEventOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsBackgroundEventOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_background_event_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut BackgroundEvent,
+    handle: resource::BackgroundEventHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &timeoutns);
+
+    context.replay().run_binding_with_policy(
+        OS_BACKGROUND_EVENT_READ,
+        context.replay_payload_for(OS_BACKGROUND_EVENT_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_background_event_read(context, out, handle, timeoutns)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_background_event_read(
+                    context, out, handle, timeoutns,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_identifier =
+                    unsafe { result_value.identifier.as_str()? }.to_string();
+                let result_recorded_execution_id =
+                    unsafe { result_value.execution_id.as_str()? }.to_string();
+                let result_recorded_deadline_unix_ns = result_value.deadline_unix_ns;
+                let result_recorded = BackgroundEventReplayRecord {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    identifier: result_recorded_identifier,
+                    execution_id: result_recorded_execution_id,
+                    deadline_unix_ns: result_recorded_deadline_unix_ns,
+                };
+                let payload = OsBackgroundEventReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsBackgroundEventReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_kind = value.kind;
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_identifier = context.store_string(&value.identifier);
+                    let value_native_execution_id = context.store_string(&value.execution_id);
+                    let value_native_deadline_unix_ns = value.deadline_unix_ns;
+                    let value_native = BackgroundEvent {
+                        kind: value_native_kind,
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        identifier: value_native_identifier,
+                        execution_id: value_native_execution_id,
+                        deadline_unix_ns: value_native_deadline_unix_ns,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_background_event_try_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut BackgroundEvent,
+    handle: resource::BackgroundEventHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        OS_BACKGROUND_EVENT_TRY_READ,
+        context.replay_payload_for(OS_BACKGROUND_EVENT_TRY_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_background_event_try_read(context, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_background_event_try_read(
+                    context, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_identifier =
+                    unsafe { result_value.identifier.as_str()? }.to_string();
+                let result_recorded_execution_id =
+                    unsafe { result_value.execution_id.as_str()? }.to_string();
+                let result_recorded_deadline_unix_ns = result_value.deadline_unix_ns;
+                let result_recorded = BackgroundEventReplayRecord {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    identifier: result_recorded_identifier,
+                    execution_id: result_recorded_execution_id,
+                    deadline_unix_ns: result_recorded_deadline_unix_ns,
+                };
+                let payload = OsBackgroundEventTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsBackgroundEventTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_kind = value.kind;
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_identifier = context.store_string(&value.identifier);
+                    let value_native_execution_id = context.store_string(&value.execution_id);
+                    let value_native_deadline_unix_ns = value.deadline_unix_ns;
+                    let value_native = BackgroundEvent {
+                        kind: value_native_kind,
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        identifier: value_native_identifier,
+                        execution_id: value_native_execution_id,
+                        deadline_unix_ns: value_native_deadline_unix_ns,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_background_list_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<BackgroundTaskDescriptor>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_BACKGROUND_LIST,
+        context.replay_payload_for(OS_BACKGROUND_LIST)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_background_list(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_background_list(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_identifier =
+                        unsafe { result_recorded_item.identifier.as_str()? }.to_string();
+                    let result_recorded_item_recorded_trigger = result_recorded_item.trigger;
+                    let result_recorded_item_recorded_minimum_interval_ns =
+                        result_recorded_item.minimum_interval_ns;
+                    let result_recorded_item_recorded_earliest_begin_unix_ns =
+                        result_recorded_item.earliest_begin_unix_ns;
+                    let result_recorded_item_recorded_requires_network =
+                        result_recorded_item.requires_network;
+                    let result_recorded_item_recorded_requires_unmetered_network =
+                        result_recorded_item.requires_unmetered_network;
+                    let result_recorded_item_recorded_requires_charging =
+                        result_recorded_item.requires_charging;
+                    let result_recorded_item_recorded_requires_idle =
+                        result_recorded_item.requires_idle;
+                    let result_recorded_item_recorded_persisted = result_recorded_item.persisted;
+                    let result_recorded_item_recorded = BackgroundTaskDescriptorReplayRecord {
+                        identifier: result_recorded_item_recorded_identifier,
+                        trigger: result_recorded_item_recorded_trigger,
+                        minimum_interval_ns: result_recorded_item_recorded_minimum_interval_ns,
+                        earliest_begin_unix_ns:
+                            result_recorded_item_recorded_earliest_begin_unix_ns,
+                        requires_network: result_recorded_item_recorded_requires_network,
+                        requires_unmetered_network:
+                            result_recorded_item_recorded_requires_unmetered_network,
+                        requires_charging: result_recorded_item_recorded_requires_charging,
+                        requires_idle: result_recorded_item_recorded_requires_idle,
+                        persisted: result_recorded_item_recorded_persisted,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = OsBackgroundListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsBackgroundListReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_identifier =
+                            context.store_string(&value_native_item.identifier);
+                        let value_native_item_native_trigger = value_native_item.trigger;
+                        let value_native_item_native_minimum_interval_ns =
+                            value_native_item.minimum_interval_ns;
+                        let value_native_item_native_earliest_begin_unix_ns =
+                            value_native_item.earliest_begin_unix_ns;
+                        let value_native_item_native_requires_network =
+                            value_native_item.requires_network;
+                        let value_native_item_native_requires_unmetered_network =
+                            value_native_item.requires_unmetered_network;
+                        let value_native_item_native_requires_charging =
+                            value_native_item.requires_charging;
+                        let value_native_item_native_requires_idle =
+                            value_native_item.requires_idle;
+                        let value_native_item_native_persisted = value_native_item.persisted;
+                        let value_native_item_native = BackgroundTaskDescriptor {
+                            identifier: value_native_item_native_identifier,
+                            trigger: value_native_item_native_trigger,
+                            minimum_interval_ns: value_native_item_native_minimum_interval_ns,
+                            earliest_begin_unix_ns: value_native_item_native_earliest_begin_unix_ns,
+                            requires_network: value_native_item_native_requires_network,
+                            requires_unmetered_network:
+                                value_native_item_native_requires_unmetered_network,
+                            requires_charging: value_native_item_native_requires_charging,
+                            requires_idle: value_native_item_native_requires_idle,
+                            persisted: value_native_item_native_persisted,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_background_status_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut BackgroundStatus,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_BACKGROUND_STATUS,
+        context.replay_payload_for(OS_BACKGROUND_STATUS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_background_status(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_background_status(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = OsBackgroundStatusReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsBackgroundStatusReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_clipboard_has_text_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut bool,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_CLIPBOARD_HAS_TEXT,
+        context.replay_payload_for(OS_CLIPBOARD_HAS_TEXT)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_clipboard_has_text(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_clipboard_has_text(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = OsClipboardHasTextReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsClipboardHasTextReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_clipboard_read_bytes_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<u8>,
+    format: ClipboardBinaryFormat,
+) -> RuntimeResult<()> {
+    let _ = &format;
+
+    context.replay().run_binding_with_policy(
+        OS_CLIPBOARD_READ_BYTES,
+        context.replay_payload_for(OS_CLIPBOARD_READ_BYTES)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_clipboard_read_bytes(context, out, format)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_clipboard_read_bytes(context, out, format)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = OsClipboardReadBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsClipboardReadBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_clipboard_read_text_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeStringRef,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_CLIPBOARD_READ_TEXT,
+        context.replay_payload_for(OS_CLIPBOARD_READ_TEXT)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_clipboard_read_text(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_clipboard_read_text(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = unsafe { result_value.as_str()? }.to_string();
+                let payload = OsClipboardReadTextReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsClipboardReadTextReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = context.store_string(&value);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_clipboard_sequence_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut u64,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_CLIPBOARD_SEQUENCE,
+        context.replay_payload_for(OS_CLIPBOARD_SEQUENCE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_clipboard_sequence(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_clipboard_sequence(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = OsClipboardSequenceReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsClipboardSequenceReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
 #[inline]
 fn destack_os_host_identity_replay(
     context: &BindingCallContext,
@@ -1124,10 +7821,1420 @@ fn destack_os_info_uptime_ns_replay(
 }
 
 #[inline]
+fn destack_os_intent_can_open_url_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut bool,
+    url: NativeStringRef,
+) -> RuntimeResult<()> {
+    let _ = &url;
+
+    context.replay().run_binding_with_policy(
+        OS_INTENT_CAN_OPEN_URL,
+        context.replay_payload_for(OS_INTENT_CAN_OPEN_URL)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_intent_can_open_url(context, out, url)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_intent_can_open_url(context, out, url)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = OsIntentCanOpenUrlReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsIntentCanOpenUrlReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_intent_close_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::IntentHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        OS_INTENT_CLOSE,
+        context.replay_payload_for(OS_INTENT_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_intent_close(context, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_intent_close(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = OsIntentCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsIntentCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_intent_open_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::IntentHandle,
+    options: IntentOpenOptions,
+) -> RuntimeResult<()> {
+    let _ = &options;
+
+    context.replay().run_binding_with_policy(
+        OS_INTENT_OPEN,
+        context.replay_payload_for(OS_INTENT_OPEN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_intent_open(context, out, options)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_intent_open(context, out, options)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = OsIntentOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsIntentOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_intent_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut IntentEvent,
+    handle: resource::IntentHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &timeoutns);
+
+    context.replay().run_binding_with_policy(
+        OS_INTENT_READ,
+        context.replay_payload_for(OS_INTENT_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_intent_read(context, out, handle, timeoutns)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_intent_read(context, out, handle, timeoutns)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_source = unsafe { result_value.source.as_str()? }.to_string();
+                let result_recorded_payload_url =
+                    unsafe { result_value.payload.url.as_str()? }.to_string();
+                let result_recorded_payload_paths_raw =
+                    unsafe { result_value.payload.paths.as_slice()? };
+                let mut result_recorded_payload_paths =
+                    Vec::with_capacity(result_recorded_payload_paths_raw.len());
+                for result_recorded_payload_paths_item_value in result_recorded_payload_paths_raw {
+                    let result_recorded_payload_paths_item =
+                        *result_recorded_payload_paths_item_value;
+                    let result_recorded_payload_paths_item_recorded_encoding =
+                        result_recorded_payload_paths_item.encoding;
+                    let result_recorded_payload_paths_item_recorded_bytes_raw =
+                        unsafe { result_recorded_payload_paths_item.bytes.0.as_slice()? };
+                    let mut result_recorded_payload_paths_item_recorded_bytes = Vec::with_capacity(
+                        result_recorded_payload_paths_item_recorded_bytes_raw.len(),
+                    );
+                    for result_recorded_payload_paths_item_recorded_bytes_item_value in
+                        result_recorded_payload_paths_item_recorded_bytes_raw
+                    {
+                        let result_recorded_payload_paths_item_recorded_bytes_item =
+                            *result_recorded_payload_paths_item_recorded_bytes_item_value;
+                        let result_recorded_payload_paths_item_recorded_bytes_item_recorded =
+                            result_recorded_payload_paths_item_recorded_bytes_item;
+                        result_recorded_payload_paths_item_recorded_bytes
+                            .push(result_recorded_payload_paths_item_recorded_bytes_item_recorded);
+                    }
+                    let result_recorded_payload_paths_item_recorded_utf16_raw =
+                        unsafe { result_recorded_payload_paths_item.utf16.0.as_slice()? };
+                    let mut result_recorded_payload_paths_item_recorded_utf16 = Vec::with_capacity(
+                        result_recorded_payload_paths_item_recorded_utf16_raw.len(),
+                    );
+                    for result_recorded_payload_paths_item_recorded_utf16_item_value in
+                        result_recorded_payload_paths_item_recorded_utf16_raw
+                    {
+                        let result_recorded_payload_paths_item_recorded_utf16_item =
+                            *result_recorded_payload_paths_item_recorded_utf16_item_value;
+                        let result_recorded_payload_paths_item_recorded_utf16_item_recorded =
+                            result_recorded_payload_paths_item_recorded_utf16_item;
+                        result_recorded_payload_paths_item_recorded_utf16
+                            .push(result_recorded_payload_paths_item_recorded_utf16_item_recorded);
+                    }
+                    let result_recorded_payload_paths_item_recorded = fs::OsPathReplayRecord {
+                        encoding: result_recorded_payload_paths_item_recorded_encoding,
+                        bytes: result_recorded_payload_paths_item_recorded_bytes,
+                        utf16: result_recorded_payload_paths_item_recorded_utf16,
+                    };
+                    result_recorded_payload_paths.push(result_recorded_payload_paths_item_recorded);
+                }
+                let result_recorded_payload_text =
+                    unsafe { result_value.payload.text.as_str()? }.to_string();
+                let result_recorded_payload_mime_type =
+                    unsafe { result_value.payload.mime_type.as_str()? }.to_string();
+                let result_recorded_payload_action =
+                    unsafe { result_value.payload.action.as_str()? }.to_string();
+                let result_recorded_payload = IntentPayloadReplayRecord {
+                    url: result_recorded_payload_url,
+                    paths: result_recorded_payload_paths,
+                    text: result_recorded_payload_text,
+                    mime_type: result_recorded_payload_mime_type,
+                    action: result_recorded_payload_action,
+                };
+                let result_recorded = IntentEventReplayRecord {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    source: result_recorded_source,
+                    payload: result_recorded_payload,
+                };
+                let payload = OsIntentReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsIntentReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_kind = value.kind;
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_source = context.store_string(&value.source);
+                    let value_native_payload_url = context.store_string(&value.payload.url);
+                    let mut value_native_payload_paths_values =
+                        Vec::with_capacity(value.payload.paths.len());
+                    for value_native_payload_paths_item in value.payload.paths {
+                        let value_native_payload_paths_item_native_encoding =
+                            value_native_payload_paths_item.encoding;
+                        let mut value_native_payload_paths_item_native_bytes_inner_values =
+                            Vec::with_capacity(value_native_payload_paths_item.bytes.len());
+                        for value_native_payload_paths_item_native_bytes_inner_item in
+                            value_native_payload_paths_item.bytes
+                        {
+                            let value_native_payload_paths_item_native_bytes_inner_item_native =
+                                value_native_payload_paths_item_native_bytes_inner_item;
+                            value_native_payload_paths_item_native_bytes_inner_values.push(
+                                value_native_payload_paths_item_native_bytes_inner_item_native,
+                            );
+                        }
+                        let value_native_payload_paths_item_native_bytes_inner = context
+                            .store_array(value_native_payload_paths_item_native_bytes_inner_values);
+                        let value_native_payload_paths_item_native_bytes =
+                            platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
+                                value_native_payload_paths_item_native_bytes_inner,
+                            );
+                        let mut value_native_payload_paths_item_native_utf16_inner_values =
+                            Vec::with_capacity(value_native_payload_paths_item.utf16.len());
+                        for value_native_payload_paths_item_native_utf16_inner_item in
+                            value_native_payload_paths_item.utf16
+                        {
+                            let value_native_payload_paths_item_native_utf16_inner_item_native =
+                                value_native_payload_paths_item_native_utf16_inner_item;
+                            value_native_payload_paths_item_native_utf16_inner_values.push(
+                                value_native_payload_paths_item_native_utf16_inner_item_native,
+                            );
+                        }
+                        let value_native_payload_paths_item_native_utf16_inner = context
+                            .store_array(value_native_payload_paths_item_native_utf16_inner_values);
+                        let value_native_payload_paths_item_native_utf16 =
+                            platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
+                                value_native_payload_paths_item_native_utf16_inner,
+                            );
+                        let value_native_payload_paths_item_native = fs::OsPath {
+                            encoding: value_native_payload_paths_item_native_encoding,
+                            bytes: value_native_payload_paths_item_native_bytes,
+                            utf16: value_native_payload_paths_item_native_utf16,
+                        };
+                        value_native_payload_paths_values
+                            .push(value_native_payload_paths_item_native);
+                    }
+                    let value_native_payload_paths =
+                        context.store_array(value_native_payload_paths_values);
+                    let value_native_payload_text = context.store_string(&value.payload.text);
+                    let value_native_payload_mime_type =
+                        context.store_string(&value.payload.mime_type);
+                    let value_native_payload_action = context.store_string(&value.payload.action);
+                    let value_native_payload = IntentPayload {
+                        url: value_native_payload_url,
+                        paths: value_native_payload_paths,
+                        text: value_native_payload_text,
+                        mime_type: value_native_payload_mime_type,
+                        action: value_native_payload_action,
+                    };
+                    let value_native = IntentEvent {
+                        kind: value_native_kind,
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        source: value_native_source,
+                        payload: value_native_payload,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_intent_try_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut IntentEvent,
+    handle: resource::IntentHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        OS_INTENT_TRY_READ,
+        context.replay_payload_for(OS_INTENT_TRY_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_intent_try_read(context, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_intent_try_read(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_source = unsafe { result_value.source.as_str()? }.to_string();
+                let result_recorded_payload_url =
+                    unsafe { result_value.payload.url.as_str()? }.to_string();
+                let result_recorded_payload_paths_raw =
+                    unsafe { result_value.payload.paths.as_slice()? };
+                let mut result_recorded_payload_paths =
+                    Vec::with_capacity(result_recorded_payload_paths_raw.len());
+                for result_recorded_payload_paths_item_value in result_recorded_payload_paths_raw {
+                    let result_recorded_payload_paths_item =
+                        *result_recorded_payload_paths_item_value;
+                    let result_recorded_payload_paths_item_recorded_encoding =
+                        result_recorded_payload_paths_item.encoding;
+                    let result_recorded_payload_paths_item_recorded_bytes_raw =
+                        unsafe { result_recorded_payload_paths_item.bytes.0.as_slice()? };
+                    let mut result_recorded_payload_paths_item_recorded_bytes = Vec::with_capacity(
+                        result_recorded_payload_paths_item_recorded_bytes_raw.len(),
+                    );
+                    for result_recorded_payload_paths_item_recorded_bytes_item_value in
+                        result_recorded_payload_paths_item_recorded_bytes_raw
+                    {
+                        let result_recorded_payload_paths_item_recorded_bytes_item =
+                            *result_recorded_payload_paths_item_recorded_bytes_item_value;
+                        let result_recorded_payload_paths_item_recorded_bytes_item_recorded =
+                            result_recorded_payload_paths_item_recorded_bytes_item;
+                        result_recorded_payload_paths_item_recorded_bytes
+                            .push(result_recorded_payload_paths_item_recorded_bytes_item_recorded);
+                    }
+                    let result_recorded_payload_paths_item_recorded_utf16_raw =
+                        unsafe { result_recorded_payload_paths_item.utf16.0.as_slice()? };
+                    let mut result_recorded_payload_paths_item_recorded_utf16 = Vec::with_capacity(
+                        result_recorded_payload_paths_item_recorded_utf16_raw.len(),
+                    );
+                    for result_recorded_payload_paths_item_recorded_utf16_item_value in
+                        result_recorded_payload_paths_item_recorded_utf16_raw
+                    {
+                        let result_recorded_payload_paths_item_recorded_utf16_item =
+                            *result_recorded_payload_paths_item_recorded_utf16_item_value;
+                        let result_recorded_payload_paths_item_recorded_utf16_item_recorded =
+                            result_recorded_payload_paths_item_recorded_utf16_item;
+                        result_recorded_payload_paths_item_recorded_utf16
+                            .push(result_recorded_payload_paths_item_recorded_utf16_item_recorded);
+                    }
+                    let result_recorded_payload_paths_item_recorded = fs::OsPathReplayRecord {
+                        encoding: result_recorded_payload_paths_item_recorded_encoding,
+                        bytes: result_recorded_payload_paths_item_recorded_bytes,
+                        utf16: result_recorded_payload_paths_item_recorded_utf16,
+                    };
+                    result_recorded_payload_paths.push(result_recorded_payload_paths_item_recorded);
+                }
+                let result_recorded_payload_text =
+                    unsafe { result_value.payload.text.as_str()? }.to_string();
+                let result_recorded_payload_mime_type =
+                    unsafe { result_value.payload.mime_type.as_str()? }.to_string();
+                let result_recorded_payload_action =
+                    unsafe { result_value.payload.action.as_str()? }.to_string();
+                let result_recorded_payload = IntentPayloadReplayRecord {
+                    url: result_recorded_payload_url,
+                    paths: result_recorded_payload_paths,
+                    text: result_recorded_payload_text,
+                    mime_type: result_recorded_payload_mime_type,
+                    action: result_recorded_payload_action,
+                };
+                let result_recorded = IntentEventReplayRecord {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    source: result_recorded_source,
+                    payload: result_recorded_payload,
+                };
+                let payload = OsIntentTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsIntentTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_kind = value.kind;
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_source = context.store_string(&value.source);
+                    let value_native_payload_url = context.store_string(&value.payload.url);
+                    let mut value_native_payload_paths_values =
+                        Vec::with_capacity(value.payload.paths.len());
+                    for value_native_payload_paths_item in value.payload.paths {
+                        let value_native_payload_paths_item_native_encoding =
+                            value_native_payload_paths_item.encoding;
+                        let mut value_native_payload_paths_item_native_bytes_inner_values =
+                            Vec::with_capacity(value_native_payload_paths_item.bytes.len());
+                        for value_native_payload_paths_item_native_bytes_inner_item in
+                            value_native_payload_paths_item.bytes
+                        {
+                            let value_native_payload_paths_item_native_bytes_inner_item_native =
+                                value_native_payload_paths_item_native_bytes_inner_item;
+                            value_native_payload_paths_item_native_bytes_inner_values.push(
+                                value_native_payload_paths_item_native_bytes_inner_item_native,
+                            );
+                        }
+                        let value_native_payload_paths_item_native_bytes_inner = context
+                            .store_array(value_native_payload_paths_item_native_bytes_inner_values);
+                        let value_native_payload_paths_item_native_bytes =
+                            platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(
+                                value_native_payload_paths_item_native_bytes_inner,
+                            );
+                        let mut value_native_payload_paths_item_native_utf16_inner_values =
+                            Vec::with_capacity(value_native_payload_paths_item.utf16.len());
+                        for value_native_payload_paths_item_native_utf16_inner_item in
+                            value_native_payload_paths_item.utf16
+                        {
+                            let value_native_payload_paths_item_native_utf16_inner_item_native =
+                                value_native_payload_paths_item_native_utf16_inner_item;
+                            value_native_payload_paths_item_native_utf16_inner_values.push(
+                                value_native_payload_paths_item_native_utf16_inner_item_native,
+                            );
+                        }
+                        let value_native_payload_paths_item_native_utf16_inner = context
+                            .store_array(value_native_payload_paths_item_native_utf16_inner_values);
+                        let value_native_payload_paths_item_native_utf16 =
+                            platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(
+                                value_native_payload_paths_item_native_utf16_inner,
+                            );
+                        let value_native_payload_paths_item_native = fs::OsPath {
+                            encoding: value_native_payload_paths_item_native_encoding,
+                            bytes: value_native_payload_paths_item_native_bytes,
+                            utf16: value_native_payload_paths_item_native_utf16,
+                        };
+                        value_native_payload_paths_values
+                            .push(value_native_payload_paths_item_native);
+                    }
+                    let value_native_payload_paths =
+                        context.store_array(value_native_payload_paths_values);
+                    let value_native_payload_text = context.store_string(&value.payload.text);
+                    let value_native_payload_mime_type =
+                        context.store_string(&value.payload.mime_type);
+                    let value_native_payload_action = context.store_string(&value.payload.action);
+                    let value_native_payload = IntentPayload {
+                        url: value_native_payload_url,
+                        paths: value_native_payload_paths,
+                        text: value_native_payload_text,
+                        mime_type: value_native_payload_mime_type,
+                        action: value_native_payload_action,
+                    };
+                    let value_native = IntentEvent {
+                        kind: value_native_kind,
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        source: value_native_source,
+                        payload: value_native_payload,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_lifecycle_close_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::LifecycleEventHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        OS_LIFECYCLE_CLOSE,
+        context.replay_payload_for(OS_LIFECYCLE_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_lifecycle_close(context, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_lifecycle_close(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = OsLifecycleCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLifecycleCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_lifecycle_open_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::LifecycleEventHandle,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_LIFECYCLE_OPEN,
+        context.replay_payload_for(OS_LIFECYCLE_OPEN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_lifecycle_open(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_lifecycle_open(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = OsLifecycleOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLifecycleOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_lifecycle_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut LifecycleEvent,
+    handle: resource::LifecycleEventHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &timeoutns);
+
+    context.replay().run_binding_with_policy(
+        OS_LIFECYCLE_READ,
+        context.replay_payload_for(OS_LIFECYCLE_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_lifecycle_read(context, out, handle, timeoutns)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_lifecycle_read(
+                    context, out, handle, timeoutns,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_payload_low_memory_severity =
+                    result_value.payload.low_memory.severity;
+                let result_recorded_payload_low_memory = LifecycleLowMemoryPayload {
+                    severity: result_recorded_payload_low_memory_severity,
+                };
+                let result_recorded_payload_low_power_enabled =
+                    result_value.payload.low_power.enabled;
+                let result_recorded_payload_low_power = LifecycleLowPowerPayload {
+                    enabled: result_recorded_payload_low_power_enabled,
+                };
+                let result_recorded_payload = LifecycleEventPayload {
+                    low_memory: result_recorded_payload_low_memory,
+                    low_power: result_recorded_payload_low_power,
+                };
+                let result_recorded = LifecycleEvent {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    payload: result_recorded_payload,
+                };
+                let payload = OsLifecycleReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLifecycleReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_kind = value.kind;
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_payload_low_memory_severity =
+                        value.payload.low_memory.severity;
+                    let value_native_payload_low_memory = LifecycleLowMemoryPayload {
+                        severity: value_native_payload_low_memory_severity,
+                    };
+                    let value_native_payload_low_power_enabled = value.payload.low_power.enabled;
+                    let value_native_payload_low_power = LifecycleLowPowerPayload {
+                        enabled: value_native_payload_low_power_enabled,
+                    };
+                    let value_native_payload = LifecycleEventPayload {
+                        low_memory: value_native_payload_low_memory,
+                        low_power: value_native_payload_low_power,
+                    };
+                    let value_native = LifecycleEvent {
+                        kind: value_native_kind,
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        payload: value_native_payload,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_lifecycle_state_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut LifecycleState,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_LIFECYCLE_STATE,
+        context.replay_payload_for(OS_LIFECYCLE_STATE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_lifecycle_state(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_lifecycle_state(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = OsLifecycleStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLifecycleStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_lifecycle_try_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut LifecycleEvent,
+    handle: resource::LifecycleEventHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        OS_LIFECYCLE_TRY_READ,
+        context.replay_payload_for(OS_LIFECYCLE_TRY_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_lifecycle_try_read(context, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_lifecycle_try_read(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_payload_low_memory_severity =
+                    result_value.payload.low_memory.severity;
+                let result_recorded_payload_low_memory = LifecycleLowMemoryPayload {
+                    severity: result_recorded_payload_low_memory_severity,
+                };
+                let result_recorded_payload_low_power_enabled =
+                    result_value.payload.low_power.enabled;
+                let result_recorded_payload_low_power = LifecycleLowPowerPayload {
+                    enabled: result_recorded_payload_low_power_enabled,
+                };
+                let result_recorded_payload = LifecycleEventPayload {
+                    low_memory: result_recorded_payload_low_memory,
+                    low_power: result_recorded_payload_low_power,
+                };
+                let result_recorded = LifecycleEvent {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    payload: result_recorded_payload,
+                };
+                let payload = OsLifecycleTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLifecycleTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_kind = value.kind;
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_payload_low_memory_severity =
+                        value.payload.low_memory.severity;
+                    let value_native_payload_low_memory = LifecycleLowMemoryPayload {
+                        severity: value_native_payload_low_memory_severity,
+                    };
+                    let value_native_payload_low_power_enabled = value.payload.low_power.enabled;
+                    let value_native_payload_low_power = LifecycleLowPowerPayload {
+                        enabled: value_native_payload_low_power_enabled,
+                    };
+                    let value_native_payload = LifecycleEventPayload {
+                        low_memory: value_native_payload_low_memory,
+                        low_power: value_native_payload_low_power,
+                    };
+                    let value_native = LifecycleEvent {
+                        kind: value_native_kind,
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        payload: value_native_payload,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_location_last_known_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut LocationSample,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_LOCATION_LAST_KNOWN,
+        context.replay_payload_for(OS_LOCATION_LAST_KNOWN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_location_last_known(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_location_last_known(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_latitude_degrees = result_value.latitude_degrees;
+                let result_recorded_longitude_degrees = result_value.longitude_degrees;
+                let result_recorded_altitude_meters = result_value.altitude_meters;
+                let result_recorded_horizontal_accuracy_meters =
+                    result_value.horizontal_accuracy_meters;
+                let result_recorded_vertical_accuracy_meters =
+                    result_value.vertical_accuracy_meters;
+                let result_recorded_speed_meters_per_second = result_value.speed_meters_per_second;
+                let result_recorded_heading_degrees = result_value.heading_degrees;
+                let result_recorded_timestamp_unix_ns = result_value.timestamp_unix_ns;
+                let result_recorded = LocationSample {
+                    latitude_degrees: result_recorded_latitude_degrees,
+                    longitude_degrees: result_recorded_longitude_degrees,
+                    altitude_meters: result_recorded_altitude_meters,
+                    horizontal_accuracy_meters: result_recorded_horizontal_accuracy_meters,
+                    vertical_accuracy_meters: result_recorded_vertical_accuracy_meters,
+                    speed_meters_per_second: result_recorded_speed_meters_per_second,
+                    heading_degrees: result_recorded_heading_degrees,
+                    timestamp_unix_ns: result_recorded_timestamp_unix_ns,
+                };
+                let payload = OsLocationLastKnownReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLocationLastKnownReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_latitude_degrees = value.latitude_degrees;
+                    let value_native_longitude_degrees = value.longitude_degrees;
+                    let value_native_altitude_meters = value.altitude_meters;
+                    let value_native_horizontal_accuracy_meters = value.horizontal_accuracy_meters;
+                    let value_native_vertical_accuracy_meters = value.vertical_accuracy_meters;
+                    let value_native_speed_meters_per_second = value.speed_meters_per_second;
+                    let value_native_heading_degrees = value.heading_degrees;
+                    let value_native_timestamp_unix_ns = value.timestamp_unix_ns;
+                    let value_native = LocationSample {
+                        latitude_degrees: value_native_latitude_degrees,
+                        longitude_degrees: value_native_longitude_degrees,
+                        altitude_meters: value_native_altitude_meters,
+                        horizontal_accuracy_meters: value_native_horizontal_accuracy_meters,
+                        vertical_accuracy_meters: value_native_vertical_accuracy_meters,
+                        speed_meters_per_second: value_native_speed_meters_per_second,
+                        heading_degrees: value_native_heading_degrees,
+                        timestamp_unix_ns: value_native_timestamp_unix_ns,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_location_services_enabled_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut bool,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_LOCATION_SERVICES_ENABLED,
+        context.replay_payload_for(OS_LOCATION_SERVICES_ENABLED)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_location_services_enabled(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_location_services_enabled(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = OsLocationServicesEnabledReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLocationServicesEnabledReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_location_watch_close_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::LocationWatchHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        OS_LOCATION_WATCH_CLOSE,
+        context.replay_payload_for(OS_LOCATION_WATCH_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_location_watch_close(context, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_location_watch_close(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = OsLocationWatchCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLocationWatchCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_location_watch_open_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::LocationWatchHandle,
+    options: LocationWatchOptions,
+) -> RuntimeResult<()> {
+    let _ = &options;
+
+    context.replay().run_binding_with_policy(
+        OS_LOCATION_WATCH_OPEN,
+        context.replay_payload_for(OS_LOCATION_WATCH_OPEN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_location_watch_open(context, out, options)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_location_watch_open(context, out, options)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = OsLocationWatchOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLocationWatchOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_location_watch_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut LocationSample,
+    handle: resource::LocationWatchHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &timeoutns);
+
+    context.replay().run_binding_with_policy(
+        OS_LOCATION_WATCH_READ,
+        context.replay_payload_for(OS_LOCATION_WATCH_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_location_watch_read(context, out, handle, timeoutns)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_location_watch_read(
+                    context, out, handle, timeoutns,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_latitude_degrees = result_value.latitude_degrees;
+                let result_recorded_longitude_degrees = result_value.longitude_degrees;
+                let result_recorded_altitude_meters = result_value.altitude_meters;
+                let result_recorded_horizontal_accuracy_meters =
+                    result_value.horizontal_accuracy_meters;
+                let result_recorded_vertical_accuracy_meters =
+                    result_value.vertical_accuracy_meters;
+                let result_recorded_speed_meters_per_second = result_value.speed_meters_per_second;
+                let result_recorded_heading_degrees = result_value.heading_degrees;
+                let result_recorded_timestamp_unix_ns = result_value.timestamp_unix_ns;
+                let result_recorded = LocationSample {
+                    latitude_degrees: result_recorded_latitude_degrees,
+                    longitude_degrees: result_recorded_longitude_degrees,
+                    altitude_meters: result_recorded_altitude_meters,
+                    horizontal_accuracy_meters: result_recorded_horizontal_accuracy_meters,
+                    vertical_accuracy_meters: result_recorded_vertical_accuracy_meters,
+                    speed_meters_per_second: result_recorded_speed_meters_per_second,
+                    heading_degrees: result_recorded_heading_degrees,
+                    timestamp_unix_ns: result_recorded_timestamp_unix_ns,
+                };
+                let payload = OsLocationWatchReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLocationWatchReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_latitude_degrees = value.latitude_degrees;
+                    let value_native_longitude_degrees = value.longitude_degrees;
+                    let value_native_altitude_meters = value.altitude_meters;
+                    let value_native_horizontal_accuracy_meters = value.horizontal_accuracy_meters;
+                    let value_native_vertical_accuracy_meters = value.vertical_accuracy_meters;
+                    let value_native_speed_meters_per_second = value.speed_meters_per_second;
+                    let value_native_heading_degrees = value.heading_degrees;
+                    let value_native_timestamp_unix_ns = value.timestamp_unix_ns;
+                    let value_native = LocationSample {
+                        latitude_degrees: value_native_latitude_degrees,
+                        longitude_degrees: value_native_longitude_degrees,
+                        altitude_meters: value_native_altitude_meters,
+                        horizontal_accuracy_meters: value_native_horizontal_accuracy_meters,
+                        vertical_accuracy_meters: value_native_vertical_accuracy_meters,
+                        speed_meters_per_second: value_native_speed_meters_per_second,
+                        heading_degrees: value_native_heading_degrees,
+                        timestamp_unix_ns: value_native_timestamp_unix_ns,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_location_watch_try_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut LocationSample,
+    handle: resource::LocationWatchHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        OS_LOCATION_WATCH_TRY_READ,
+        context.replay_payload_for(OS_LOCATION_WATCH_TRY_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_location_watch_try_read(context, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_location_watch_try_read(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_latitude_degrees = result_value.latitude_degrees;
+                let result_recorded_longitude_degrees = result_value.longitude_degrees;
+                let result_recorded_altitude_meters = result_value.altitude_meters;
+                let result_recorded_horizontal_accuracy_meters =
+                    result_value.horizontal_accuracy_meters;
+                let result_recorded_vertical_accuracy_meters =
+                    result_value.vertical_accuracy_meters;
+                let result_recorded_speed_meters_per_second = result_value.speed_meters_per_second;
+                let result_recorded_heading_degrees = result_value.heading_degrees;
+                let result_recorded_timestamp_unix_ns = result_value.timestamp_unix_ns;
+                let result_recorded = LocationSample {
+                    latitude_degrees: result_recorded_latitude_degrees,
+                    longitude_degrees: result_recorded_longitude_degrees,
+                    altitude_meters: result_recorded_altitude_meters,
+                    horizontal_accuracy_meters: result_recorded_horizontal_accuracy_meters,
+                    vertical_accuracy_meters: result_recorded_vertical_accuracy_meters,
+                    speed_meters_per_second: result_recorded_speed_meters_per_second,
+                    heading_degrees: result_recorded_heading_degrees,
+                    timestamp_unix_ns: result_recorded_timestamp_unix_ns,
+                };
+                let payload = OsLocationWatchTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLocationWatchTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_latitude_degrees = value.latitude_degrees;
+                    let value_native_longitude_degrees = value.longitude_degrees;
+                    let value_native_altitude_meters = value.altitude_meters;
+                    let value_native_horizontal_accuracy_meters = value.horizontal_accuracy_meters;
+                    let value_native_vertical_accuracy_meters = value.vertical_accuracy_meters;
+                    let value_native_speed_meters_per_second = value.speed_meters_per_second;
+                    let value_native_heading_degrees = value.heading_degrees;
+                    let value_native_timestamp_unix_ns = value.timestamp_unix_ns;
+                    let value_native = LocationSample {
+                        latitude_degrees: value_native_latitude_degrees,
+                        longitude_degrees: value_native_longitude_degrees,
+                        altitude_meters: value_native_altitude_meters,
+                        horizontal_accuracy_meters: value_native_horizontal_accuracy_meters,
+                        vertical_accuracy_meters: value_native_vertical_accuracy_meters,
+                        speed_meters_per_second: value_native_speed_meters_per_second,
+                        heading_degrees: value_native_heading_degrees,
+                        timestamp_unix_ns: value_native_timestamp_unix_ns,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_os_mount_add_replay(
     context: &BindingCallContext,
     world: RuntimeWorld,
-    source: fs::OsPath,
+    source: NativeStringRef,
     target: fs::OsPath,
     filesystem: NativeStringRef,
     flags: u64,
@@ -1140,10 +9247,12 @@ fn destack_os_mount_add_replay(
         context.replay_payload_for(OS_MOUNT_ADD)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_add(context, source, target, filesystem, flags, data)
+                platform_native::destack_os_mount_add(
+                    context, source, target, filesystem, flags, data,
+                )
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_add(
+                platform_simulation_native::destack_os_mount_add(
                     context, source, target, filesystem, flags, data,
                 )
             },
@@ -1187,9 +9296,9 @@ fn destack_os_mount_list_replay(
         OS_MOUNT_LIST,
         context.replay_payload_for(OS_MOUNT_LIST)?,
         || match world {
-            RuntimeWorld::Host => unsafe { platform_native::destack_os_list(context, out) },
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_mount_list(context, out) },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_list(context, out)
+                platform_simulation_native::destack_os_mount_list(context, out)
             },
         },
         |result| {
@@ -1343,7 +9452,7 @@ fn destack_os_mount_remove_replay(
     context: &BindingCallContext,
     world: RuntimeWorld,
     target: fs::OsPath,
-    flags: u32,
+    flags: u64,
 ) -> RuntimeResult<()> {
     let _ = (&target, &flags);
 
@@ -1352,10 +9461,10 @@ fn destack_os_mount_remove_replay(
         context.replay_payload_for(OS_MOUNT_REMOVE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_os_remove(context, target, flags)
+                platform_native::destack_os_mount_remove(context, target, flags)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_os_remove(context, target, flags)
+                platform_simulation_native::destack_os_mount_remove(context, target, flags)
             },
         },
         |result| {
@@ -1381,6 +9490,1006 @@ fn destack_os_mount_remove_replay(
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_network_state_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NetworkState,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_NETWORK_STATE,
+        context.replay_payload_for(OS_NETWORK_STATE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_network_state(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_network_state(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_connection_type = result_value.connection_type;
+                let result_recorded_connected = result_value.connected;
+                let result_recorded_internet_reachable = result_value.internet_reachable;
+                let result_recorded_expensive = result_value.expensive;
+                let result_recorded_constrained = result_value.constrained;
+                let result_recorded_roaming = result_value.roaming;
+                let result_recorded_cellular_generation = result_value.cellular_generation;
+                let result_recorded_downlink_mbps = result_value.downlink_mbps;
+                let result_recorded_uplink_mbps = result_value.uplink_mbps;
+                let result_recorded = NetworkState {
+                    connection_type: result_recorded_connection_type,
+                    connected: result_recorded_connected,
+                    internet_reachable: result_recorded_internet_reachable,
+                    expensive: result_recorded_expensive,
+                    constrained: result_recorded_constrained,
+                    roaming: result_recorded_roaming,
+                    cellular_generation: result_recorded_cellular_generation,
+                    downlink_mbps: result_recorded_downlink_mbps,
+                    uplink_mbps: result_recorded_uplink_mbps,
+                };
+                let payload = OsNetworkStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNetworkStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_connection_type = value.connection_type;
+                    let value_native_connected = value.connected;
+                    let value_native_internet_reachable = value.internet_reachable;
+                    let value_native_expensive = value.expensive;
+                    let value_native_constrained = value.constrained;
+                    let value_native_roaming = value.roaming;
+                    let value_native_cellular_generation = value.cellular_generation;
+                    let value_native_downlink_mbps = value.downlink_mbps;
+                    let value_native_uplink_mbps = value.uplink_mbps;
+                    let value_native = NetworkState {
+                        connection_type: value_native_connection_type,
+                        connected: value_native_connected,
+                        internet_reachable: value_native_internet_reachable,
+                        expensive: value_native_expensive,
+                        constrained: value_native_constrained,
+                        roaming: value_native_roaming,
+                        cellular_generation: value_native_cellular_generation,
+                        downlink_mbps: value_native_downlink_mbps,
+                        uplink_mbps: value_native_uplink_mbps,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_network_watch_close_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::NetworkWatchHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        OS_NETWORK_WATCH_CLOSE,
+        context.replay_payload_for(OS_NETWORK_WATCH_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_network_watch_close(context, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_network_watch_close(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = OsNetworkWatchCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNetworkWatchCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_network_watch_open_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::NetworkWatchHandle,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_NETWORK_WATCH_OPEN,
+        context.replay_payload_for(OS_NETWORK_WATCH_OPEN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_network_watch_open(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_network_watch_open(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = OsNetworkWatchOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNetworkWatchOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_network_watch_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NetworkEvent,
+    handle: resource::NetworkWatchHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &timeoutns);
+
+    context.replay().run_binding_with_policy(
+        OS_NETWORK_WATCH_READ,
+        context.replay_payload_for(OS_NETWORK_WATCH_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_network_watch_read(context, out, handle, timeoutns)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_network_watch_read(
+                    context, out, handle, timeoutns,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_state_connection_type = result_value.state.connection_type;
+                let result_recorded_state_connected = result_value.state.connected;
+                let result_recorded_state_internet_reachable =
+                    result_value.state.internet_reachable;
+                let result_recorded_state_expensive = result_value.state.expensive;
+                let result_recorded_state_constrained = result_value.state.constrained;
+                let result_recorded_state_roaming = result_value.state.roaming;
+                let result_recorded_state_cellular_generation =
+                    result_value.state.cellular_generation;
+                let result_recorded_state_downlink_mbps = result_value.state.downlink_mbps;
+                let result_recorded_state_uplink_mbps = result_value.state.uplink_mbps;
+                let result_recorded_state = NetworkState {
+                    connection_type: result_recorded_state_connection_type,
+                    connected: result_recorded_state_connected,
+                    internet_reachable: result_recorded_state_internet_reachable,
+                    expensive: result_recorded_state_expensive,
+                    constrained: result_recorded_state_constrained,
+                    roaming: result_recorded_state_roaming,
+                    cellular_generation: result_recorded_state_cellular_generation,
+                    downlink_mbps: result_recorded_state_downlink_mbps,
+                    uplink_mbps: result_recorded_state_uplink_mbps,
+                };
+                let result_recorded = NetworkEvent {
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    state: result_recorded_state,
+                };
+                let payload = OsNetworkWatchReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNetworkWatchReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_state_connection_type = value.state.connection_type;
+                    let value_native_state_connected = value.state.connected;
+                    let value_native_state_internet_reachable = value.state.internet_reachable;
+                    let value_native_state_expensive = value.state.expensive;
+                    let value_native_state_constrained = value.state.constrained;
+                    let value_native_state_roaming = value.state.roaming;
+                    let value_native_state_cellular_generation = value.state.cellular_generation;
+                    let value_native_state_downlink_mbps = value.state.downlink_mbps;
+                    let value_native_state_uplink_mbps = value.state.uplink_mbps;
+                    let value_native_state = NetworkState {
+                        connection_type: value_native_state_connection_type,
+                        connected: value_native_state_connected,
+                        internet_reachable: value_native_state_internet_reachable,
+                        expensive: value_native_state_expensive,
+                        constrained: value_native_state_constrained,
+                        roaming: value_native_state_roaming,
+                        cellular_generation: value_native_state_cellular_generation,
+                        downlink_mbps: value_native_state_downlink_mbps,
+                        uplink_mbps: value_native_state_uplink_mbps,
+                    };
+                    let value_native = NetworkEvent {
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        state: value_native_state,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_network_watch_try_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NetworkEvent,
+    handle: resource::NetworkWatchHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        OS_NETWORK_WATCH_TRY_READ,
+        context.replay_payload_for(OS_NETWORK_WATCH_TRY_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_network_watch_try_read(context, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_network_watch_try_read(context, out, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_state_connection_type = result_value.state.connection_type;
+                let result_recorded_state_connected = result_value.state.connected;
+                let result_recorded_state_internet_reachable =
+                    result_value.state.internet_reachable;
+                let result_recorded_state_expensive = result_value.state.expensive;
+                let result_recorded_state_constrained = result_value.state.constrained;
+                let result_recorded_state_roaming = result_value.state.roaming;
+                let result_recorded_state_cellular_generation =
+                    result_value.state.cellular_generation;
+                let result_recorded_state_downlink_mbps = result_value.state.downlink_mbps;
+                let result_recorded_state_uplink_mbps = result_value.state.uplink_mbps;
+                let result_recorded_state = NetworkState {
+                    connection_type: result_recorded_state_connection_type,
+                    connected: result_recorded_state_connected,
+                    internet_reachable: result_recorded_state_internet_reachable,
+                    expensive: result_recorded_state_expensive,
+                    constrained: result_recorded_state_constrained,
+                    roaming: result_recorded_state_roaming,
+                    cellular_generation: result_recorded_state_cellular_generation,
+                    downlink_mbps: result_recorded_state_downlink_mbps,
+                    uplink_mbps: result_recorded_state_uplink_mbps,
+                };
+                let result_recorded = NetworkEvent {
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    state: result_recorded_state,
+                };
+                let payload = OsNetworkWatchTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNetworkWatchTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_state_connection_type = value.state.connection_type;
+                    let value_native_state_connected = value.state.connected;
+                    let value_native_state_internet_reachable = value.state.internet_reachable;
+                    let value_native_state_expensive = value.state.expensive;
+                    let value_native_state_constrained = value.state.constrained;
+                    let value_native_state_roaming = value.state.roaming;
+                    let value_native_state_cellular_generation = value.state.cellular_generation;
+                    let value_native_state_downlink_mbps = value.state.downlink_mbps;
+                    let value_native_state_uplink_mbps = value.state.uplink_mbps;
+                    let value_native_state = NetworkState {
+                        connection_type: value_native_state_connection_type,
+                        connected: value_native_state_connected,
+                        internet_reachable: value_native_state_internet_reachable,
+                        expensive: value_native_state_expensive,
+                        constrained: value_native_state_constrained,
+                        roaming: value_native_state_roaming,
+                        cellular_generation: value_native_state_cellular_generation,
+                        downlink_mbps: value_native_state_downlink_mbps,
+                        uplink_mbps: value_native_state_uplink_mbps,
+                    };
+                    let value_native = NetworkEvent {
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        state: value_native_state,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_notification_category_list_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<NotificationCategory>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_NOTIFICATION_CATEGORY_LIST,
+        context.replay_payload_for(OS_NOTIFICATION_CATEGORY_LIST)?,
+        || match world {
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_notification_category_list(context, out) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_os_notification_category_list(context, out) },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_id = unsafe { result_recorded_item.id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_actions_raw = unsafe { result_recorded_item.actions.as_slice()? };
+                    let mut result_recorded_item_recorded_actions = Vec::with_capacity(result_recorded_item_recorded_actions_raw.len());
+                    for result_recorded_item_recorded_actions_item_value in result_recorded_item_recorded_actions_raw {
+                        let result_recorded_item_recorded_actions_item = *result_recorded_item_recorded_actions_item_value;
+                        let result_recorded_item_recorded_actions_item_recorded_id = unsafe { result_recorded_item_recorded_actions_item.id.as_str()? }.to_string();
+                        let result_recorded_item_recorded_actions_item_recorded_title = unsafe { result_recorded_item_recorded_actions_item.title.as_str()? }.to_string();
+                        let result_recorded_item_recorded_actions_item_recorded_style = result_recorded_item_recorded_actions_item.style;
+                        let result_recorded_item_recorded_actions_item_recorded_foreground = result_recorded_item_recorded_actions_item.foreground;
+                        let result_recorded_item_recorded_actions_item_recorded_authentication_required = result_recorded_item_recorded_actions_item.authentication_required;
+                        let result_recorded_item_recorded_actions_item_recorded_text_input_button_title = unsafe { result_recorded_item_recorded_actions_item.text_input_button_title.as_str()? }.to_string();
+                        let result_recorded_item_recorded_actions_item_recorded_text_input_placeholder = unsafe { result_recorded_item_recorded_actions_item.text_input_placeholder.as_str()? }.to_string();
+                        let result_recorded_item_recorded_actions_item_recorded = NotificationActionReplayRecord {
+                            id: result_recorded_item_recorded_actions_item_recorded_id,
+                            title: result_recorded_item_recorded_actions_item_recorded_title,
+                            style: result_recorded_item_recorded_actions_item_recorded_style,
+                            foreground: result_recorded_item_recorded_actions_item_recorded_foreground,
+                            authentication_required: result_recorded_item_recorded_actions_item_recorded_authentication_required,
+                            text_input_button_title: result_recorded_item_recorded_actions_item_recorded_text_input_button_title,
+                            text_input_placeholder: result_recorded_item_recorded_actions_item_recorded_text_input_placeholder,
+                        };
+                        result_recorded_item_recorded_actions.push(result_recorded_item_recorded_actions_item_recorded);
+                    }
+                    let result_recorded_item_recorded = NotificationCategoryReplayRecord {
+                        id: result_recorded_item_recorded_id,
+                        actions: result_recorded_item_recorded_actions,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = OsNotificationCategoryListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNotificationCategoryListReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_id = context.store_string(&value_native_item.id);
+                        let mut value_native_item_native_actions_values = Vec::with_capacity(value_native_item.actions.len());
+                        for value_native_item_native_actions_item in value_native_item.actions {
+                            let value_native_item_native_actions_item_native_id = context.store_string(&value_native_item_native_actions_item.id);
+                            let value_native_item_native_actions_item_native_title = context.store_string(&value_native_item_native_actions_item.title);
+                            let value_native_item_native_actions_item_native_style = value_native_item_native_actions_item.style;
+                            let value_native_item_native_actions_item_native_foreground = value_native_item_native_actions_item.foreground;
+                            let value_native_item_native_actions_item_native_authentication_required = value_native_item_native_actions_item.authentication_required;
+                            let value_native_item_native_actions_item_native_text_input_button_title = context.store_string(&value_native_item_native_actions_item.text_input_button_title);
+                            let value_native_item_native_actions_item_native_text_input_placeholder = context.store_string(&value_native_item_native_actions_item.text_input_placeholder);
+                            let value_native_item_native_actions_item_native = NotificationAction {
+                                id: value_native_item_native_actions_item_native_id,
+                                title: value_native_item_native_actions_item_native_title,
+                                style: value_native_item_native_actions_item_native_style,
+                                foreground: value_native_item_native_actions_item_native_foreground,
+                                authentication_required: value_native_item_native_actions_item_native_authentication_required,
+                                text_input_button_title: value_native_item_native_actions_item_native_text_input_button_title,
+                                text_input_placeholder: value_native_item_native_actions_item_native_text_input_placeholder,
+                            };
+                            value_native_item_native_actions_values.push(value_native_item_native_actions_item_native);
+                        }
+                        let value_native_item_native_actions = context.store_array(value_native_item_native_actions_values);
+                        let value_native_item_native = NotificationCategory {
+                            id: value_native_item_native_id,
+                            actions: value_native_item_native_actions,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe { std::ptr::write(out, value_native); }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_notification_pending_list_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<NotificationScheduledDescriptor>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_NOTIFICATION_PENDING_LIST,
+        context.replay_payload_for(OS_NOTIFICATION_PENDING_LIST)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_notification_pending_list(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_notification_pending_list(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_id =
+                        unsafe { result_recorded_item.id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_request_title =
+                        unsafe { result_recorded_item.request.title.as_str()? }.to_string();
+                    let result_recorded_item_recorded_request_subtitle =
+                        unsafe { result_recorded_item.request.subtitle.as_str()? }.to_string();
+                    let result_recorded_item_recorded_request_body =
+                        unsafe { result_recorded_item.request.body.as_str()? }.to_string();
+                    let result_recorded_item_recorded_request_tag =
+                        unsafe { result_recorded_item.request.tag.as_str()? }.to_string();
+                    let result_recorded_item_recorded_request_channel_id =
+                        unsafe { result_recorded_item.request.channel_id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_request_priority =
+                        result_recorded_item.request.priority;
+                    let result_recorded_item_recorded_request_badge_count =
+                        result_recorded_item.request.badge_count;
+                    let result_recorded_item_recorded_request_sound =
+                        unsafe { result_recorded_item.request.sound.as_str()? }.to_string();
+                    let result_recorded_item_recorded_request_category_id =
+                        unsafe { result_recorded_item.request.category_id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_request_thread_id =
+                        unsafe { result_recorded_item.request.thread_id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_request_trigger_kind =
+                        result_recorded_item.request.trigger.kind;
+                    let result_recorded_item_recorded_request_trigger_interval_ns =
+                        result_recorded_item.request.trigger.interval_ns;
+                    let result_recorded_item_recorded_request_trigger_calendar_year =
+                        result_recorded_item.request.trigger.calendar.year;
+                    let result_recorded_item_recorded_request_trigger_calendar_month =
+                        result_recorded_item.request.trigger.calendar.month;
+                    let result_recorded_item_recorded_request_trigger_calendar_day =
+                        result_recorded_item.request.trigger.calendar.day;
+                    let result_recorded_item_recorded_request_trigger_calendar_hour =
+                        result_recorded_item.request.trigger.calendar.hour;
+                    let result_recorded_item_recorded_request_trigger_calendar_minute =
+                        result_recorded_item.request.trigger.calendar.minute;
+                    let result_recorded_item_recorded_request_trigger_calendar_second =
+                        result_recorded_item.request.trigger.calendar.second;
+                    let result_recorded_item_recorded_request_trigger_calendar_time_zone = unsafe {
+                        result_recorded_item
+                            .request
+                            .trigger
+                            .calendar
+                            .time_zone
+                            .as_str()?
+                    }
+                    .to_string();
+                    let result_recorded_item_recorded_request_trigger_calendar_repeats =
+                        result_recorded_item.request.trigger.calendar.repeats;
+                    let result_recorded_item_recorded_request_trigger_calendar =
+                        NotificationCalendarTriggerReplayRecord {
+                            year: result_recorded_item_recorded_request_trigger_calendar_year,
+                            month: result_recorded_item_recorded_request_trigger_calendar_month,
+                            day: result_recorded_item_recorded_request_trigger_calendar_day,
+                            hour: result_recorded_item_recorded_request_trigger_calendar_hour,
+                            minute: result_recorded_item_recorded_request_trigger_calendar_minute,
+                            second: result_recorded_item_recorded_request_trigger_calendar_second,
+                            time_zone:
+                                result_recorded_item_recorded_request_trigger_calendar_time_zone,
+                            repeats: result_recorded_item_recorded_request_trigger_calendar_repeats,
+                        };
+                    let result_recorded_item_recorded_request_trigger =
+                        NotificationTriggerReplayRecord {
+                            kind: result_recorded_item_recorded_request_trigger_kind,
+                            interval_ns: result_recorded_item_recorded_request_trigger_interval_ns,
+                            calendar: result_recorded_item_recorded_request_trigger_calendar,
+                        };
+                    let result_recorded_item_recorded_request_action_id =
+                        unsafe { result_recorded_item.request.action_id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_request_data_json =
+                        unsafe { result_recorded_item.request.data_json.as_str()? }.to_string();
+                    let result_recorded_item_recorded_request = NotificationRequestReplayRecord {
+                        title: result_recorded_item_recorded_request_title,
+                        subtitle: result_recorded_item_recorded_request_subtitle,
+                        body: result_recorded_item_recorded_request_body,
+                        tag: result_recorded_item_recorded_request_tag,
+                        channel_id: result_recorded_item_recorded_request_channel_id,
+                        priority: result_recorded_item_recorded_request_priority,
+                        badge_count: result_recorded_item_recorded_request_badge_count,
+                        sound: result_recorded_item_recorded_request_sound,
+                        category_id: result_recorded_item_recorded_request_category_id,
+                        thread_id: result_recorded_item_recorded_request_thread_id,
+                        trigger: result_recorded_item_recorded_request_trigger,
+                        action_id: result_recorded_item_recorded_request_action_id,
+                        data_json: result_recorded_item_recorded_request_data_json,
+                    };
+                    let result_recorded_item_recorded_scheduled_unix_ns =
+                        result_recorded_item.scheduled_unix_ns;
+                    let result_recorded_item_recorded =
+                        NotificationScheduledDescriptorReplayRecord {
+                            id: result_recorded_item_recorded_id,
+                            request: result_recorded_item_recorded_request,
+                            scheduled_unix_ns: result_recorded_item_recorded_scheduled_unix_ns,
+                        };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = OsNotificationPendingListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNotificationPendingListReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_id =
+                            context.store_string(&value_native_item.id);
+                        let value_native_item_native_request_title =
+                            context.store_string(&value_native_item.request.title);
+                        let value_native_item_native_request_subtitle =
+                            context.store_string(&value_native_item.request.subtitle);
+                        let value_native_item_native_request_body =
+                            context.store_string(&value_native_item.request.body);
+                        let value_native_item_native_request_tag =
+                            context.store_string(&value_native_item.request.tag);
+                        let value_native_item_native_request_channel_id =
+                            context.store_string(&value_native_item.request.channel_id);
+                        let value_native_item_native_request_priority =
+                            value_native_item.request.priority;
+                        let value_native_item_native_request_badge_count =
+                            value_native_item.request.badge_count;
+                        let value_native_item_native_request_sound =
+                            context.store_string(&value_native_item.request.sound);
+                        let value_native_item_native_request_category_id =
+                            context.store_string(&value_native_item.request.category_id);
+                        let value_native_item_native_request_thread_id =
+                            context.store_string(&value_native_item.request.thread_id);
+                        let value_native_item_native_request_trigger_kind =
+                            value_native_item.request.trigger.kind;
+                        let value_native_item_native_request_trigger_interval_ns =
+                            value_native_item.request.trigger.interval_ns;
+                        let value_native_item_native_request_trigger_calendar_year =
+                            value_native_item.request.trigger.calendar.year;
+                        let value_native_item_native_request_trigger_calendar_month =
+                            value_native_item.request.trigger.calendar.month;
+                        let value_native_item_native_request_trigger_calendar_day =
+                            value_native_item.request.trigger.calendar.day;
+                        let value_native_item_native_request_trigger_calendar_hour =
+                            value_native_item.request.trigger.calendar.hour;
+                        let value_native_item_native_request_trigger_calendar_minute =
+                            value_native_item.request.trigger.calendar.minute;
+                        let value_native_item_native_request_trigger_calendar_second =
+                            value_native_item.request.trigger.calendar.second;
+                        let value_native_item_native_request_trigger_calendar_time_zone = context
+                            .store_string(&value_native_item.request.trigger.calendar.time_zone);
+                        let value_native_item_native_request_trigger_calendar_repeats =
+                            value_native_item.request.trigger.calendar.repeats;
+                        let value_native_item_native_request_trigger_calendar =
+                            NotificationCalendarTrigger {
+                                year: value_native_item_native_request_trigger_calendar_year,
+                                month: value_native_item_native_request_trigger_calendar_month,
+                                day: value_native_item_native_request_trigger_calendar_day,
+                                hour: value_native_item_native_request_trigger_calendar_hour,
+                                minute: value_native_item_native_request_trigger_calendar_minute,
+                                second: value_native_item_native_request_trigger_calendar_second,
+                                time_zone:
+                                    value_native_item_native_request_trigger_calendar_time_zone,
+                                repeats: value_native_item_native_request_trigger_calendar_repeats,
+                            };
+                        let value_native_item_native_request_trigger = NotificationTrigger {
+                            kind: value_native_item_native_request_trigger_kind,
+                            interval_ns: value_native_item_native_request_trigger_interval_ns,
+                            calendar: value_native_item_native_request_trigger_calendar,
+                        };
+                        let value_native_item_native_request_action_id =
+                            context.store_string(&value_native_item.request.action_id);
+                        let value_native_item_native_request_data_json =
+                            context.store_string(&value_native_item.request.data_json);
+                        let value_native_item_native_request = NotificationRequest {
+                            title: value_native_item_native_request_title,
+                            subtitle: value_native_item_native_request_subtitle,
+                            body: value_native_item_native_request_body,
+                            tag: value_native_item_native_request_tag,
+                            channel_id: value_native_item_native_request_channel_id,
+                            priority: value_native_item_native_request_priority,
+                            badge_count: value_native_item_native_request_badge_count,
+                            sound: value_native_item_native_request_sound,
+                            category_id: value_native_item_native_request_category_id,
+                            thread_id: value_native_item_native_request_thread_id,
+                            trigger: value_native_item_native_request_trigger,
+                            action_id: value_native_item_native_request_action_id,
+                            data_json: value_native_item_native_request_data_json,
+                        };
+                        let value_native_item_native_scheduled_unix_ns =
+                            value_native_item.scheduled_unix_ns;
+                        let value_native_item_native = NotificationScheduledDescriptor {
+                            id: value_native_item_native_id,
+                            request: value_native_item_native_request,
+                            scheduled_unix_ns: value_native_item_native_scheduled_unix_ns,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_notification_permission_state_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NotificationPermissionState,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        OS_NOTIFICATION_PERMISSION_STATE,
+        context.replay_payload_for(OS_NOTIFICATION_PERMISSION_STATE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_notification_permission_state(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_notification_permission_state(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = OsNotificationPermissionStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNotificationPermissionStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_permission_state_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut PermissionState,
+    permission: Permission,
+) -> RuntimeResult<()> {
+    let _ = &permission;
+
+    context.replay().run_binding_with_policy(
+        OS_PERMISSION_STATE,
+        context.replay_payload_for(OS_PERMISSION_STATE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_permission_state(context, out, permission)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_permission_state(context, out, permission)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = OsPermissionStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsPermissionStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_os_permission_state_many_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<PermissionEntry>,
+    permissions: NativeArray<Permission>,
+) -> RuntimeResult<()> {
+    let _ = &permissions;
+
+    context.replay().run_binding_with_policy(
+        OS_PERMISSION_STATE_MANY,
+        context.replay_payload_for(OS_PERMISSION_STATE_MANY)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_permission_state_many(context, out, permissions)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_permission_state_many(
+                    context,
+                    out,
+                    permissions,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_permission = result_recorded_item.permission;
+                    let result_recorded_item_recorded_state = result_recorded_item.state;
+                    let result_recorded_item_recorded = PermissionEntry {
+                        permission: result_recorded_item_recorded_permission,
+                        state: result_recorded_item_recorded_state,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = OsPermissionStateManyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsPermissionStateManyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_permission = value_native_item.permission;
+                        let value_native_item_native_state = value_native_item.state;
+                        let value_native_item_native = PermissionEntry {
+                            permission: value_native_item_native_permission,
+                            state: value_native_item_native_state,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
@@ -1444,6 +10553,917 @@ fn destack_os_power_state_replay(
 }
 
 /// Native export wrappers for os bindings.
+#[unsafe(export_name = "destack.os.background.complete")]
+pub unsafe extern "C" fn destack_os_background_complete(
+    executionid: NativeStringRef,
+    argument_result: BackgroundTaskResult,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&executionid, &argument_result);
+
+        {
+            let world = context.check_and_resolve_world(OS_BACKGROUND_COMPLETE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_background_complete(
+                        context,
+                        executionid,
+                        argument_result,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_background_complete(
+                        context,
+                        executionid,
+                        argument_result,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.background.event.close")]
+pub unsafe extern "C" fn destack_os_background_event_close(
+    handle: resource::BackgroundEventHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        let world = context.check_and_resolve_world(OS_BACKGROUND_EVENT_CLOSE)?;
+        destack_os_background_event_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.os.background.event.open")]
+pub unsafe extern "C" fn destack_os_background_event_open(
+    out: *mut resource::BackgroundEventHandle,
+    options: BackgroundEventOpenOptions,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &options);
+
+        let world = context.check_and_resolve_world(OS_BACKGROUND_EVENT_OPEN)?;
+        destack_os_background_event_open_replay(context, world, out, options)
+    })
+}
+
+#[unsafe(export_name = "destack.os.background.event.read")]
+pub unsafe extern "C" fn destack_os_background_event_read(
+    out: *mut BackgroundEvent,
+    handle: resource::BackgroundEventHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        let world = context.check_and_resolve_world(OS_BACKGROUND_EVENT_READ)?;
+        destack_os_background_event_read_replay(context, world, out, handle, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.os.background.event.tryRead")]
+pub unsafe extern "C" fn destack_os_background_event_try_read(
+    out: *mut BackgroundEvent,
+    handle: resource::BackgroundEventHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let world = context.check_and_resolve_world(OS_BACKGROUND_EVENT_TRY_READ)?;
+        destack_os_background_event_try_read_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.os.background.list")]
+pub unsafe extern "C" fn destack_os_background_list(
+    out: *mut NativeArray<BackgroundTaskDescriptor>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_BACKGROUND_LIST)?;
+        destack_os_background_list_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.background.register")]
+pub unsafe extern "C" fn destack_os_background_register(
+    options: BackgroundTaskOptions,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &options;
+
+        {
+            let world = context.check_and_resolve_world(OS_BACKGROUND_REGISTER)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_background_register(context, options)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_background_register(context, options)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.background.status")]
+pub unsafe extern "C" fn destack_os_background_status(out: *mut BackgroundStatus) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_BACKGROUND_STATUS)?;
+        destack_os_background_status_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.background.triggerTest")]
+pub unsafe extern "C" fn destack_os_background_trigger_test(
+    out: *mut bool,
+    identifier: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &identifier);
+
+        {
+            let world = context.check_and_resolve_world(OS_BACKGROUND_TRIGGER_TEST)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_background_trigger_test(context, out, identifier)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_background_trigger_test(
+                        context, out, identifier,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.background.unregister")]
+pub unsafe extern "C" fn destack_os_background_unregister(
+    identifier: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &identifier;
+
+        {
+            let world = context.check_and_resolve_world(OS_BACKGROUND_UNREGISTER)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_background_unregister(context, identifier)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_background_unregister(
+                        context, identifier,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.calendar.eventCreate")]
+pub unsafe extern "C" fn destack_os_calendar_event_create(
+    out: *mut NativeStringRef,
+    event: CalendarEventDraft,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &event);
+
+        {
+            let world = context.check_and_resolve_world(OS_CALENDAR_EVENT_CREATE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_calendar_event_create(context, out, event)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_calendar_event_create(
+                        context, out, event,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.calendar.eventDelete")]
+pub unsafe extern "C" fn destack_os_calendar_event_delete(id: NativeStringRef) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &id;
+
+        {
+            let world = context.check_and_resolve_world(OS_CALENDAR_EVENT_DELETE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_calendar_event_delete(context, id)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_calendar_event_delete(context, id)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.calendar.eventList")]
+pub unsafe extern "C" fn destack_os_calendar_event_list(
+    out: *mut NativeArray<CalendarEvent>,
+    query: CalendarEventQuery,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &query);
+
+        {
+            let world = context.check_and_resolve_world(OS_CALENDAR_EVENT_LIST)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_calendar_event_list(context, out, query)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_calendar_event_list(context, out, query)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.calendar.eventRead")]
+pub unsafe extern "C" fn destack_os_calendar_event_read(
+    out: *mut CalendarEvent,
+    id: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &id);
+
+        {
+            let world = context.check_and_resolve_world(OS_CALENDAR_EVENT_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_calendar_event_read(context, out, id)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_calendar_event_read(context, out, id)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.calendar.eventUpdate")]
+pub unsafe extern "C" fn destack_os_calendar_event_update(
+    id: NativeStringRef,
+    event: CalendarEventDraft,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&id, &event);
+
+        {
+            let world = context.check_and_resolve_world(OS_CALENDAR_EVENT_UPDATE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_calendar_event_update(context, id, event)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_calendar_event_update(context, id, event)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.calendar.list")]
+pub unsafe extern "C" fn destack_os_calendar_list(
+    out: *mut NativeArray<CalendarDescriptor>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        {
+            let world = context.check_and_resolve_world(OS_CALENDAR_LIST)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_calendar_list(context, out)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_calendar_list(context, out)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.clipboard.clear")]
+pub unsafe extern "C" fn destack_os_clipboard_clear() -> RuntimeStatus {
+    native_call(|context| {
+        let world = context.check_and_resolve_world(OS_CLIPBOARD_CLEAR)?;
+        match world {
+            RuntimeWorld::Host => unsafe { platform_native::destack_os_clipboard_clear(context) },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_clipboard_clear(context)
+            },
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.clipboard.hasText")]
+pub unsafe extern "C" fn destack_os_clipboard_has_text(out: *mut bool) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_CLIPBOARD_HAS_TEXT)?;
+        destack_os_clipboard_has_text_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.clipboard.readBytes")]
+pub unsafe extern "C" fn destack_os_clipboard_read_bytes(
+    out: *mut NativeSlice<u8>,
+    format: ClipboardBinaryFormat,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &format);
+
+        let world = context.check_and_resolve_world(OS_CLIPBOARD_READ_BYTES)?;
+        destack_os_clipboard_read_bytes_replay(context, world, out, format)
+    })
+}
+
+#[unsafe(export_name = "destack.os.clipboard.readText")]
+pub unsafe extern "C" fn destack_os_clipboard_read_text(
+    out: *mut NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_CLIPBOARD_READ_TEXT)?;
+        destack_os_clipboard_read_text_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.clipboard.sequence")]
+pub unsafe extern "C" fn destack_os_clipboard_sequence(out: *mut u64) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_CLIPBOARD_SEQUENCE)?;
+        destack_os_clipboard_sequence_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.clipboard.writeBytes")]
+pub unsafe extern "C" fn destack_os_clipboard_write_bytes(
+    format: ClipboardBinaryFormat,
+    argument_bytes: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&format, &argument_bytes);
+
+        {
+            let world = context.check_and_resolve_world(OS_CLIPBOARD_WRITE_BYTES)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_clipboard_write_bytes(
+                        context,
+                        format,
+                        argument_bytes,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_clipboard_write_bytes(
+                        context,
+                        format,
+                        argument_bytes,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.clipboard.writeText")]
+pub unsafe extern "C" fn destack_os_clipboard_write_text(text: NativeStringRef) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &text;
+
+        {
+            let world = context.check_and_resolve_world(OS_CLIPBOARD_WRITE_TEXT)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_clipboard_write_text(context, text)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_clipboard_write_text(context, text)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.contact.create")]
+pub unsafe extern "C" fn destack_os_contact_create(
+    out: *mut NativeStringRef,
+    contact: ContactDraft,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &contact);
+
+        {
+            let world = context.check_and_resolve_world(OS_CONTACT_CREATE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_contact_create(context, out, contact)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_contact_create(context, out, contact)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.contact.delete")]
+pub unsafe extern "C" fn destack_os_contact_delete(id: NativeStringRef) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &id;
+
+        {
+            let world = context.check_and_resolve_world(OS_CONTACT_DELETE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_contact_delete(context, id)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_contact_delete(context, id)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.contact.list")]
+pub unsafe extern "C" fn destack_os_contact_list(
+    out: *mut ContactPage,
+    query: ContactQuery,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &query);
+
+        {
+            let world = context.check_and_resolve_world(OS_CONTACT_LIST)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_contact_list(context, out, query)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_contact_list(context, out, query)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.contact.read")]
+pub unsafe extern "C" fn destack_os_contact_read(
+    out: *mut Contact,
+    id: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &id);
+
+        {
+            let world = context.check_and_resolve_world(OS_CONTACT_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_contact_read(context, out, id)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_contact_read(context, out, id)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.contact.search")]
+pub unsafe extern "C" fn destack_os_contact_search(
+    out: *mut ContactPage,
+    querytext: NativeStringRef,
+    query: ContactQuery,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &querytext, &query);
+
+        {
+            let world = context.check_and_resolve_world(OS_CONTACT_SEARCH)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_contact_search(context, out, querytext, query)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_contact_search(
+                        context, out, querytext, query,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.contact.update")]
+pub unsafe extern "C" fn destack_os_contact_update(
+    id: NativeStringRef,
+    contact: ContactDraft,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&id, &contact);
+
+        {
+            let world = context.check_and_resolve_world(OS_CONTACT_UPDATE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_contact_update(context, id, contact)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_contact_update(context, id, contact)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.credentials.authenticate")]
+pub unsafe extern "C" fn destack_os_credentials_authenticate(
+    out: *mut CredentialAuthenticationResult,
+    options: CredentialAuthenticationOptions,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &options);
+
+        {
+            let world = context.check_and_resolve_world(OS_CREDENTIALS_AUTHENTICATE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_credentials_authenticate(context, out, options)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_credentials_authenticate(
+                        context, out, options,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.credentials.contains")]
+pub unsafe extern "C" fn destack_os_credentials_contains(
+    out: *mut bool,
+    service: NativeStringRef,
+    account: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &service, &account);
+
+        {
+            let world = context.check_and_resolve_world(OS_CREDENTIALS_CONTAINS)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_credentials_contains(context, out, service, account)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_credentials_contains(
+                        context, out, service, account,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.credentials.delete")]
+pub unsafe extern "C" fn destack_os_credentials_delete(
+    service: NativeStringRef,
+    account: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&service, &account);
+
+        {
+            let world = context.check_and_resolve_world(OS_CREDENTIALS_DELETE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_credentials_delete(context, service, account)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_credentials_delete(
+                        context, service, account,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.credentials.read")]
+pub unsafe extern "C" fn destack_os_credentials_read(
+    out: *mut CredentialRecord,
+    query: CredentialQuery,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &query);
+
+        {
+            let world = context.check_and_resolve_world(OS_CREDENTIALS_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_credentials_read(context, out, query)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_credentials_read(context, out, query)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.credentials.write")]
+pub unsafe extern "C" fn destack_os_credentials_write(
+    options: CredentialWriteOptions,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &options;
+
+        {
+            let world = context.check_and_resolve_world(OS_CREDENTIALS_WRITE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_credentials_write(context, options)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_credentials_write(context, options)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.document.close")]
+pub unsafe extern "C" fn destack_os_document_close(
+    handle: resource::DocumentHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        {
+            let world = context.check_and_resolve_world(OS_DOCUMENT_CLOSE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_document_close(context, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_document_close(context, handle)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.document.flush")]
+pub unsafe extern "C" fn destack_os_document_flush(
+    handle: resource::DocumentHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        {
+            let world = context.check_and_resolve_world(OS_DOCUMENT_FLUSH)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_document_flush(context, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_document_flush(context, handle)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.document.open")]
+pub unsafe extern "C" fn destack_os_document_open(
+    out: *mut resource::DocumentHandle,
+    uri: NativeStringRef,
+    access: DocumentAccess,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &uri, &access);
+
+        {
+            let world = context.check_and_resolve_world(OS_DOCUMENT_OPEN)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_document_open(context, out, uri, access)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_document_open(context, out, uri, access)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.document.pick")]
+pub unsafe extern "C" fn destack_os_document_pick(
+    out: *mut NativeArray<DocumentDescriptor>,
+    options: DocumentPickOptions,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &options);
+
+        {
+            let world = context.check_and_resolve_world(OS_DOCUMENT_PICK)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_document_pick(context, out, options)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_document_pick(context, out, options)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.document.read")]
+pub unsafe extern "C" fn destack_os_document_read(
+    out: *mut NativeSlice<u8>,
+    handle: resource::DocumentHandle,
+    maxbytes: u32,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &maxbytes, &timeoutns);
+
+        {
+            let world = context.check_and_resolve_world(OS_DOCUMENT_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_document_read(
+                        context, out, handle, maxbytes, timeoutns,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_document_read(
+                        context, out, handle, maxbytes, timeoutns,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.document.tryRead")]
+pub unsafe extern "C" fn destack_os_document_try_read(
+    out: *mut NativeSlice<u8>,
+    handle: resource::DocumentHandle,
+    maxbytes: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &maxbytes);
+
+        {
+            let world = context.check_and_resolve_world(OS_DOCUMENT_TRY_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_document_try_read(context, out, handle, maxbytes)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_document_try_read(
+                        context, out, handle, maxbytes,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.document.write")]
+pub unsafe extern "C" fn destack_os_document_write(
+    out: *mut u32,
+    handle: resource::DocumentHandle,
+    argument_bytes: NativeSlice<u8>,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &argument_bytes, &timeoutns);
+
+        {
+            let world = context.check_and_resolve_world(OS_DOCUMENT_WRITE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_document_write(
+                        context,
+                        out,
+                        handle,
+                        argument_bytes,
+                        timeoutns,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_document_write(
+                        context,
+                        out,
+                        handle,
+                        argument_bytes,
+                        timeoutns,
+                    )
+                },
+            }
+        }
+    })
+}
+
 #[unsafe(export_name = "destack.os.host.identity")]
 pub unsafe extern "C" fn destack_os_host_identity(out: *mut HostIdentity) -> RuntimeStatus {
     native_call(|context| {
@@ -1511,9 +11531,433 @@ pub unsafe extern "C" fn destack_os_info_uptime_ns(out: *mut u64) -> RuntimeStat
     })
 }
 
+#[unsafe(export_name = "destack.os.intent.canOpenUrl")]
+pub unsafe extern "C" fn destack_os_intent_can_open_url(
+    out: *mut bool,
+    url: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &url);
+
+        let world = context.check_and_resolve_world(OS_INTENT_CAN_OPEN_URL)?;
+        destack_os_intent_can_open_url_replay(context, world, out, url)
+    })
+}
+
+#[unsafe(export_name = "destack.os.intent.close")]
+pub unsafe extern "C" fn destack_os_intent_close(handle: resource::IntentHandle) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        let world = context.check_and_resolve_world(OS_INTENT_CLOSE)?;
+        destack_os_intent_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.os.intent.open")]
+pub unsafe extern "C" fn destack_os_intent_open(
+    out: *mut resource::IntentHandle,
+    options: IntentOpenOptions,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &options);
+
+        let world = context.check_and_resolve_world(OS_INTENT_OPEN)?;
+        destack_os_intent_open_replay(context, world, out, options)
+    })
+}
+
+#[unsafe(export_name = "destack.os.intent.openPath")]
+pub unsafe extern "C" fn destack_os_intent_open_path(path: fs::OsPath) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &path;
+
+        {
+            let world = context.check_and_resolve_world(OS_INTENT_OPEN_PATH)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_intent_open_path(context, path)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_intent_open_path(context, path)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.intent.openUrl")]
+pub unsafe extern "C" fn destack_os_intent_open_url(url: NativeStringRef) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &url;
+
+        {
+            let world = context.check_and_resolve_world(OS_INTENT_OPEN_URL)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_intent_open_url(context, url)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_intent_open_url(context, url)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.intent.read")]
+pub unsafe extern "C" fn destack_os_intent_read(
+    out: *mut IntentEvent,
+    handle: resource::IntentHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        let world = context.check_and_resolve_world(OS_INTENT_READ)?;
+        destack_os_intent_read_replay(context, world, out, handle, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.os.intent.sharePaths")]
+pub unsafe extern "C" fn destack_os_intent_share_paths(
+    paths: NativeArray<fs::OsPath>,
+    mimetype: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&paths, &mimetype);
+
+        {
+            let world = context.check_and_resolve_world(OS_INTENT_SHARE_PATHS)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_intent_share_paths(context, paths, mimetype)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_intent_share_paths(
+                        context, paths, mimetype,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.intent.shareText")]
+pub unsafe extern "C" fn destack_os_intent_share_text(
+    text: NativeStringRef,
+    mimetype: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&text, &mimetype);
+
+        {
+            let world = context.check_and_resolve_world(OS_INTENT_SHARE_TEXT)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_intent_share_text(context, text, mimetype)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_intent_share_text(
+                        context, text, mimetype,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.intent.tryRead")]
+pub unsafe extern "C" fn destack_os_intent_try_read(
+    out: *mut IntentEvent,
+    handle: resource::IntentHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let world = context.check_and_resolve_world(OS_INTENT_TRY_READ)?;
+        destack_os_intent_try_read_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.os.lifecycle.close")]
+pub unsafe extern "C" fn destack_os_lifecycle_close(
+    handle: resource::LifecycleEventHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        let world = context.check_and_resolve_world(OS_LIFECYCLE_CLOSE)?;
+        destack_os_lifecycle_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.os.lifecycle.open")]
+pub unsafe extern "C" fn destack_os_lifecycle_open(
+    out: *mut resource::LifecycleEventHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_LIFECYCLE_OPEN)?;
+        destack_os_lifecycle_open_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.lifecycle.read")]
+pub unsafe extern "C" fn destack_os_lifecycle_read(
+    out: *mut LifecycleEvent,
+    handle: resource::LifecycleEventHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        let world = context.check_and_resolve_world(OS_LIFECYCLE_READ)?;
+        destack_os_lifecycle_read_replay(context, world, out, handle, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.os.lifecycle.state")]
+pub unsafe extern "C" fn destack_os_lifecycle_state(out: *mut LifecycleState) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_LIFECYCLE_STATE)?;
+        destack_os_lifecycle_state_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.lifecycle.tryRead")]
+pub unsafe extern "C" fn destack_os_lifecycle_try_read(
+    out: *mut LifecycleEvent,
+    handle: resource::LifecycleEventHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let world = context.check_and_resolve_world(OS_LIFECYCLE_TRY_READ)?;
+        destack_os_lifecycle_try_read_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.os.location.lastKnown")]
+pub unsafe extern "C" fn destack_os_location_last_known(out: *mut LocationSample) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_LOCATION_LAST_KNOWN)?;
+        destack_os_location_last_known_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.location.servicesEnabled")]
+pub unsafe extern "C" fn destack_os_location_services_enabled(out: *mut bool) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_LOCATION_SERVICES_ENABLED)?;
+        destack_os_location_services_enabled_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.location.watchClose")]
+pub unsafe extern "C" fn destack_os_location_watch_close(
+    handle: resource::LocationWatchHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        let world = context.check_and_resolve_world(OS_LOCATION_WATCH_CLOSE)?;
+        destack_os_location_watch_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.os.location.watchOpen")]
+pub unsafe extern "C" fn destack_os_location_watch_open(
+    out: *mut resource::LocationWatchHandle,
+    options: LocationWatchOptions,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &options);
+
+        let world = context.check_and_resolve_world(OS_LOCATION_WATCH_OPEN)?;
+        destack_os_location_watch_open_replay(context, world, out, options)
+    })
+}
+
+#[unsafe(export_name = "destack.os.location.watchRead")]
+pub unsafe extern "C" fn destack_os_location_watch_read(
+    out: *mut LocationSample,
+    handle: resource::LocationWatchHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        let world = context.check_and_resolve_world(OS_LOCATION_WATCH_READ)?;
+        destack_os_location_watch_read_replay(context, world, out, handle, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.os.location.watchTryRead")]
+pub unsafe extern "C" fn destack_os_location_watch_try_read(
+    out: *mut LocationSample,
+    handle: resource::LocationWatchHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let world = context.check_and_resolve_world(OS_LOCATION_WATCH_TRY_READ)?;
+        destack_os_location_watch_try_read_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.os.media.delete")]
+pub unsafe extern "C" fn destack_os_media_delete(
+    out: *mut u32,
+    ids: NativeArray<NativeStringRef>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &ids);
+
+        {
+            let world = context.check_and_resolve_world(OS_MEDIA_DELETE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_media_delete(context, out, ids)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_media_delete(context, out, ids)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.media.importPath")]
+pub unsafe extern "C" fn destack_os_media_import_path(
+    out: *mut NativeStringRef,
+    path: fs::OsPath,
+    kind: MediaAssetKind,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path, &kind);
+
+        {
+            let world = context.check_and_resolve_world(OS_MEDIA_IMPORT_PATH)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_media_import_path(context, out, path, kind)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_media_import_path(
+                        context, out, path, kind,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.media.list")]
+pub unsafe extern "C" fn destack_os_media_list(
+    out: *mut MediaPage,
+    query: MediaQuery,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &query);
+
+        {
+            let world = context.check_and_resolve_world(OS_MEDIA_LIST)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_media_list(context, out, query)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_media_list(context, out, query)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.media.read")]
+pub unsafe extern "C" fn destack_os_media_read(
+    out: *mut MediaAssetDescriptor,
+    id: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &id);
+
+        {
+            let world = context.check_and_resolve_world(OS_MEDIA_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_media_read(context, out, id)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_media_read(context, out, id)
+                },
+            }
+        }
+    })
+}
+
 #[unsafe(export_name = "destack.os.mount.add")]
 pub unsafe extern "C" fn destack_os_mount_add(
-    source: fs::OsPath,
+    source: NativeStringRef,
     target: fs::OsPath,
     filesystem: NativeStringRef,
     flags: u64,
@@ -1541,12 +11985,509 @@ pub unsafe extern "C" fn destack_os_mount_list(out: *mut NativeArray<MountEntry>
 }
 
 #[unsafe(export_name = "destack.os.mount.remove")]
-pub unsafe extern "C" fn destack_os_mount_remove(target: fs::OsPath, flags: u32) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_os_mount_remove(target: fs::OsPath, flags: u64) -> RuntimeStatus {
     native_call(|context| {
         let _ = (&target, &flags);
 
         let world = context.check_and_resolve_world(OS_MOUNT_REMOVE)?;
         destack_os_mount_remove_replay(context, world, target, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.os.network.state")]
+pub unsafe extern "C" fn destack_os_network_state(out: *mut NetworkState) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_NETWORK_STATE)?;
+        destack_os_network_state_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.network.watchClose")]
+pub unsafe extern "C" fn destack_os_network_watch_close(
+    handle: resource::NetworkWatchHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        let world = context.check_and_resolve_world(OS_NETWORK_WATCH_CLOSE)?;
+        destack_os_network_watch_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.os.network.watchOpen")]
+pub unsafe extern "C" fn destack_os_network_watch_open(
+    out: *mut resource::NetworkWatchHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_NETWORK_WATCH_OPEN)?;
+        destack_os_network_watch_open_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.network.watchRead")]
+pub unsafe extern "C" fn destack_os_network_watch_read(
+    out: *mut NetworkEvent,
+    handle: resource::NetworkWatchHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        let world = context.check_and_resolve_world(OS_NETWORK_WATCH_READ)?;
+        destack_os_network_watch_read_replay(context, world, out, handle, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.os.network.watchTryRead")]
+pub unsafe extern "C" fn destack_os_network_watch_try_read(
+    out: *mut NetworkEvent,
+    handle: resource::NetworkWatchHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let world = context.check_and_resolve_world(OS_NETWORK_WATCH_TRY_READ)?;
+        destack_os_network_watch_try_read_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.cancel")]
+pub unsafe extern "C" fn destack_os_notification_cancel(id: NativeStringRef) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &id;
+
+        {
+            let world = context.check_and_resolve_world(OS_NOTIFICATION_CANCEL)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_notification_cancel(context, id)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_notification_cancel(context, id)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.cancelAll")]
+pub unsafe extern "C" fn destack_os_notification_cancel_all() -> RuntimeStatus {
+    native_call(|context| {
+        let world = context.check_and_resolve_world(OS_NOTIFICATION_CANCEL_ALL)?;
+        match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_notification_cancel_all(context)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_notification_cancel_all(context)
+            },
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.categoryList")]
+pub unsafe extern "C" fn destack_os_notification_category_list(
+    out: *mut NativeArray<NotificationCategory>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_NOTIFICATION_CATEGORY_LIST)?;
+        destack_os_notification_category_list_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.categorySet")]
+pub unsafe extern "C" fn destack_os_notification_category_set(
+    categories: NativeArray<NotificationCategory>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &categories;
+
+        {
+            let world = context.check_and_resolve_world(OS_NOTIFICATION_CATEGORY_SET)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_notification_category_set(context, categories)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_notification_category_set(
+                        context, categories,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.event.close")]
+pub unsafe extern "C" fn destack_os_notification_event_close(
+    handle: resource::NotificationEventHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        {
+            let world = context.check_and_resolve_world(OS_NOTIFICATION_EVENT_CLOSE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_notification_event_close(context, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_notification_event_close(context, handle)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.event.open")]
+pub unsafe extern "C" fn destack_os_notification_event_open(
+    out: *mut resource::NotificationEventHandle,
+    options: NotificationEventOpenOptions,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &options);
+
+        {
+            let world = context.check_and_resolve_world(OS_NOTIFICATION_EVENT_OPEN)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_notification_event_open(context, out, options)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_notification_event_open(
+                        context, out, options,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.event.read")]
+pub unsafe extern "C" fn destack_os_notification_event_read(
+    out: *mut NotificationEvent,
+    handle: resource::NotificationEventHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        {
+            let world = context.check_and_resolve_world(OS_NOTIFICATION_EVENT_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_notification_event_read(
+                        context, out, handle, timeoutns,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_notification_event_read(
+                        context, out, handle, timeoutns,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.event.tryRead")]
+pub unsafe extern "C" fn destack_os_notification_event_try_read(
+    out: *mut NotificationEvent,
+    handle: resource::NotificationEventHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        {
+            let world = context.check_and_resolve_world(OS_NOTIFICATION_EVENT_TRY_READ)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_notification_event_try_read(context, out, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_notification_event_try_read(
+                        context, out, handle,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.pendingCancel")]
+pub unsafe extern "C" fn destack_os_notification_pending_cancel(
+    id: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &id;
+
+        {
+            let world = context.check_and_resolve_world(OS_NOTIFICATION_PENDING_CANCEL)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_notification_pending_cancel(context, id)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_notification_pending_cancel(context, id)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.pendingCancelAll")]
+pub unsafe extern "C" fn destack_os_notification_pending_cancel_all() -> RuntimeStatus {
+    native_call(|context| {
+        let world = context.check_and_resolve_world(OS_NOTIFICATION_PENDING_CANCEL_ALL)?;
+        match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_notification_pending_cancel_all(context)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_notification_pending_cancel_all(context)
+            },
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.pendingList")]
+pub unsafe extern "C" fn destack_os_notification_pending_list(
+    out: *mut NativeArray<NotificationScheduledDescriptor>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_NOTIFICATION_PENDING_LIST)?;
+        destack_os_notification_pending_list_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.permissionState")]
+pub unsafe extern "C" fn destack_os_notification_permission_state(
+    out: *mut NotificationPermissionState,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(OS_NOTIFICATION_PERMISSION_STATE)?;
+        destack_os_notification_permission_state_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.post")]
+pub unsafe extern "C" fn destack_os_notification_post(
+    out: *mut NativeStringRef,
+    request: NotificationRequest,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &request);
+
+        {
+            let world = context.check_and_resolve_world(OS_NOTIFICATION_POST)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_notification_post(context, out, request)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_notification_post(context, out, request)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.requestPermission")]
+pub unsafe extern "C" fn destack_os_notification_request_permission(
+    out: *mut NotificationPermissionState,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        {
+            let world = context.check_and_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_notification_request_permission(context, out)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_notification_request_permission(
+                        context, out,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.notification.schedule")]
+pub unsafe extern "C" fn destack_os_notification_schedule(
+    out: *mut NativeStringRef,
+    request: NotificationRequest,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &request);
+
+        {
+            let world = context.check_and_resolve_world(OS_NOTIFICATION_SCHEDULE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_notification_schedule(context, out, request)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_notification_schedule(
+                        context, out, request,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.permission.openSettings")]
+pub unsafe extern "C" fn destack_os_permission_open_settings() -> RuntimeStatus {
+    native_call(|context| {
+        let world = context.check_and_resolve_world(OS_PERMISSION_OPEN_SETTINGS)?;
+        match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_os_permission_open_settings(context)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_os_permission_open_settings(context)
+            },
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.permission.request")]
+pub unsafe extern "C" fn destack_os_permission_request(
+    out: *mut PermissionState,
+    permission: Permission,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &permission);
+
+        {
+            let world = context.check_and_resolve_world(OS_PERMISSION_REQUEST)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_permission_request(context, out, permission)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_permission_request(
+                        context, out, permission,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.permission.requestMany")]
+pub unsafe extern "C" fn destack_os_permission_request_many(
+    out: *mut NativeArray<PermissionEntry>,
+    permissions: NativeArray<Permission>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &permissions);
+
+        {
+            let world = context.check_and_resolve_world(OS_PERMISSION_REQUEST_MANY)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_os_permission_request_many(context, out, permissions)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_os_permission_request_many(
+                        context,
+                        out,
+                        permissions,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.os.permission.state")]
+pub unsafe extern "C" fn destack_os_permission_state(
+    out: *mut PermissionState,
+    permission: Permission,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &permission);
+
+        let world = context.check_and_resolve_world(OS_PERMISSION_STATE)?;
+        destack_os_permission_state_replay(context, world, out, permission)
+    })
+}
+
+#[unsafe(export_name = "destack.os.permission.stateMany")]
+pub unsafe extern "C" fn destack_os_permission_state_many(
+    out: *mut NativeArray<PermissionEntry>,
+    permissions: NativeArray<Permission>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &permissions);
+
+        let world = context.check_and_resolve_world(OS_PERMISSION_STATE_MANY)?;
+        destack_os_permission_state_many_replay(context, world, out, permissions)
     })
 }
 
@@ -1577,6 +12518,818 @@ pub unsafe extern "C" fn destack_os_power_suspend() -> RuntimeStatus {
 }
 
 /// VM replay implementations for os bindings.
+#[inline]
+fn destack_os_background_event_close_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::BackgroundEventHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_BACKGROUND_EVENT_CLOSE,
+        runtime.replay_payload_for(OS_BACKGROUND_EVENT_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_background_event_close(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_background_event_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = OsBackgroundEventCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsBackgroundEventCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_background_event_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_background_event_open_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    options: BackgroundEventOpenOptionsVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_BACKGROUND_EVENT_OPEN,
+        runtime.replay_payload_for(OS_BACKGROUND_EVENT_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_background_event_open(runtime, context, options)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_background_event_open(runtime, context, options)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::BackgroundEventHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = OsBackgroundEventOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsBackgroundEventOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_background_event_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_background_event_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::BackgroundEventHandle,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_BACKGROUND_EVENT_READ,
+        runtime.replay_payload_for(OS_BACKGROUND_EVENT_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_background_event_read(runtime, context, handle, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_background_event_read(
+                runtime, context, handle, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: BackgroundEventVm = value.clone();
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_identifier = {
+                    let result_recorded_identifier_ref = context
+                        .string_ref(result_value.identifier)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_identifier_ref.as_str().to_string()
+                };
+                let result_recorded_execution_id = {
+                    let result_recorded_execution_id_ref = context
+                        .string_ref(result_value.execution_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_execution_id_ref.as_str().to_string()
+                };
+                let result_recorded_deadline_unix_ns = result_value.deadline_unix_ns;
+                let result_recorded = BackgroundEventReplayRecord {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    identifier: result_recorded_identifier,
+                    execution_id: result_recorded_execution_id,
+                    deadline_unix_ns: result_recorded_deadline_unix_ns,
+                };
+                let payload = OsBackgroundEventReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsBackgroundEventReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_kind = value.kind;
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_identifier_value =
+                        context.intern_string(value.identifier.as_str());
+                    let vm_result_identifier = vm::StringHandle::new(vm_result_identifier_value);
+                    let vm_result_execution_id_value =
+                        context.intern_string(value.execution_id.as_str());
+                    let vm_result_execution_id =
+                        vm::StringHandle::new(vm_result_execution_id_value);
+                    let vm_result_deadline_unix_ns = value.deadline_unix_ns;
+                    let vm_result = BackgroundEventVm {
+                        kind: vm_result_kind,
+                        timestamp_ns: vm_result_timestamp_ns,
+                        sequence: vm_result_sequence,
+                        identifier: vm_result_identifier,
+                        execution_id: vm_result_execution_id,
+                        deadline_unix_ns: vm_result_deadline_unix_ns,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_background_event_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_background_event_try_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::BackgroundEventHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_BACKGROUND_EVENT_TRY_READ,
+        runtime.replay_payload_for(OS_BACKGROUND_EVENT_TRY_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_background_event_try_read(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_background_event_try_read(
+                    runtime, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: BackgroundEventVm = value.clone();
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_identifier = {
+                    let result_recorded_identifier_ref = context
+                        .string_ref(result_value.identifier)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_identifier_ref.as_str().to_string()
+                };
+                let result_recorded_execution_id = {
+                    let result_recorded_execution_id_ref = context
+                        .string_ref(result_value.execution_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_execution_id_ref.as_str().to_string()
+                };
+                let result_recorded_deadline_unix_ns = result_value.deadline_unix_ns;
+                let result_recorded = BackgroundEventReplayRecord {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    identifier: result_recorded_identifier,
+                    execution_id: result_recorded_execution_id,
+                    deadline_unix_ns: result_recorded_deadline_unix_ns,
+                };
+                let payload = OsBackgroundEventTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsBackgroundEventTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_kind = value.kind;
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_identifier_value =
+                        context.intern_string(value.identifier.as_str());
+                    let vm_result_identifier = vm::StringHandle::new(vm_result_identifier_value);
+                    let vm_result_execution_id_value =
+                        context.intern_string(value.execution_id.as_str());
+                    let vm_result_execution_id =
+                        vm::StringHandle::new(vm_result_execution_id_value);
+                    let vm_result_deadline_unix_ns = value.deadline_unix_ns;
+                    let vm_result = BackgroundEventVm {
+                        kind: vm_result_kind,
+                        timestamp_ns: vm_result_timestamp_ns,
+                        sequence: vm_result_sequence,
+                        identifier: vm_result_identifier,
+                        execution_id: vm_result_execution_id,
+                        deadline_unix_ns: vm_result_deadline_unix_ns,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_background_event_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_background_list_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_BACKGROUND_LIST,
+        runtime.replay_payload_for(OS_BACKGROUND_LIST)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_background_list(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_background_list(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<BackgroundTaskDescriptorVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 9 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 9 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_identifier = decode_string(
+                            slots[0],
+                            "result_recorded_item_identifier",
+                            "identifier",
+                        )?;
+                        let result_recorded_item_trigger_raw =
+                            decode_uint8(slots[1], "result_recorded_item_trigger_raw", "trigger")?;
+                        let result_recorded_item_trigger = match result_recorded_item_trigger_raw {
+                            1u8 => BackgroundTriggerKind::AppRefresh,
+                            2u8 => BackgroundTriggerKind::Processing,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item_trigger",
+                                        "unknown BackgroundTriggerKind value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                        let result_recorded_item_minimum_interval_ns = decode_uint64(
+                            slots[2],
+                            "result_recorded_item_minimum_interval_ns",
+                            "minimumIntervalNs",
+                        )?;
+                        let result_recorded_item_earliest_begin_unix_ns = decode_uint64(
+                            slots[3],
+                            "result_recorded_item_earliest_begin_unix_ns",
+                            "earliestBeginUnixNs",
+                        )?;
+                        let result_recorded_item_requires_network = decode_bool(
+                            slots[4],
+                            "result_recorded_item_requires_network",
+                            "requiresNetwork",
+                        )?;
+                        let result_recorded_item_requires_unmetered_network = decode_bool(
+                            slots[5],
+                            "result_recorded_item_requires_unmetered_network",
+                            "requiresUnmeteredNetwork",
+                        )?;
+                        let result_recorded_item_requires_charging = decode_bool(
+                            slots[6],
+                            "result_recorded_item_requires_charging",
+                            "requiresCharging",
+                        )?;
+                        let result_recorded_item_requires_idle = decode_bool(
+                            slots[7],
+                            "result_recorded_item_requires_idle",
+                            "requiresIdle",
+                        )?;
+                        let result_recorded_item_persisted =
+                            decode_bool(slots[8], "result_recorded_item_persisted", "persisted")?;
+                        BackgroundTaskDescriptorVm {
+                            identifier: result_recorded_item_identifier,
+                            trigger: result_recorded_item_trigger,
+                            minimum_interval_ns: result_recorded_item_minimum_interval_ns,
+                            earliest_begin_unix_ns: result_recorded_item_earliest_begin_unix_ns,
+                            requires_network: result_recorded_item_requires_network,
+                            requires_unmetered_network:
+                                result_recorded_item_requires_unmetered_network,
+                            requires_charging: result_recorded_item_requires_charging,
+                            requires_idle: result_recorded_item_requires_idle,
+                            persisted: result_recorded_item_persisted,
+                        }
+                    };
+                    let result_recorded_item_recorded_identifier = {
+                        let result_recorded_item_recorded_identifier_ref = context
+                            .string_ref(result_recorded_item.identifier)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_identifier_ref
+                            .as_str()
+                            .to_string()
+                    };
+                    let result_recorded_item_recorded_trigger = result_recorded_item.trigger;
+                    let result_recorded_item_recorded_minimum_interval_ns =
+                        result_recorded_item.minimum_interval_ns;
+                    let result_recorded_item_recorded_earliest_begin_unix_ns =
+                        result_recorded_item.earliest_begin_unix_ns;
+                    let result_recorded_item_recorded_requires_network =
+                        result_recorded_item.requires_network;
+                    let result_recorded_item_recorded_requires_unmetered_network =
+                        result_recorded_item.requires_unmetered_network;
+                    let result_recorded_item_recorded_requires_charging =
+                        result_recorded_item.requires_charging;
+                    let result_recorded_item_recorded_requires_idle =
+                        result_recorded_item.requires_idle;
+                    let result_recorded_item_recorded_persisted = result_recorded_item.persisted;
+                    let result_recorded_item_recorded = BackgroundTaskDescriptorReplayRecord {
+                        identifier: result_recorded_item_recorded_identifier,
+                        trigger: result_recorded_item_recorded_trigger,
+                        minimum_interval_ns: result_recorded_item_recorded_minimum_interval_ns,
+                        earliest_begin_unix_ns:
+                            result_recorded_item_recorded_earliest_begin_unix_ns,
+                        requires_network: result_recorded_item_recorded_requires_network,
+                        requires_unmetered_network:
+                            result_recorded_item_recorded_requires_unmetered_network,
+                        requires_charging: result_recorded_item_recorded_requires_charging,
+                        requires_idle: result_recorded_item_recorded_requires_idle,
+                        persisted: result_recorded_item_recorded_persisted,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = OsBackgroundListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsBackgroundListReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_identifier_value =
+                            context.intern_string(vm_result_item.identifier.as_str());
+                        let vm_result_item_value_identifier =
+                            vm::StringHandle::new(vm_result_item_value_identifier_value);
+                        let vm_result_item_value_trigger = vm_result_item.trigger;
+                        let vm_result_item_value_minimum_interval_ns =
+                            vm_result_item.minimum_interval_ns;
+                        let vm_result_item_value_earliest_begin_unix_ns =
+                            vm_result_item.earliest_begin_unix_ns;
+                        let vm_result_item_value_requires_network = vm_result_item.requires_network;
+                        let vm_result_item_value_requires_unmetered_network =
+                            vm_result_item.requires_unmetered_network;
+                        let vm_result_item_value_requires_charging =
+                            vm_result_item.requires_charging;
+                        let vm_result_item_value_requires_idle = vm_result_item.requires_idle;
+                        let vm_result_item_value_persisted = vm_result_item.persisted;
+                        let vm_result_item_value = BackgroundTaskDescriptorVm {
+                            identifier: vm_result_item_value_identifier,
+                            trigger: vm_result_item_value_trigger,
+                            minimum_interval_ns: vm_result_item_value_minimum_interval_ns,
+                            earliest_begin_unix_ns: vm_result_item_value_earliest_begin_unix_ns,
+                            requires_network: vm_result_item_value_requires_network,
+                            requires_unmetered_network:
+                                vm_result_item_value_requires_unmetered_network,
+                            requires_charging: vm_result_item_value_requires_charging,
+                            requires_idle: vm_result_item_value_requires_idle,
+                            persisted: vm_result_item_value_persisted,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 = vm_result_item_value.identifier.value();
+                            let field_1 =
+                                vm::Value::uint(vm_result_item_value.trigger as u8 as u64, 8);
+                            let field_2 =
+                                vm::Value::uint(vm_result_item_value.minimum_interval_ns, 64);
+                            let field_3 =
+                                vm::Value::uint(vm_result_item_value.earliest_begin_unix_ns, 64);
+                            let field_4 = vm::Value::bool(vm_result_item_value.requires_network);
+                            let field_5 =
+                                vm::Value::bool(vm_result_item_value.requires_unmetered_network);
+                            let field_6 = vm::Value::bool(vm_result_item_value.requires_charging);
+                            let field_7 = vm::Value::bool(vm_result_item_value.requires_idle);
+                            let field_8 = vm::Value::bool(vm_result_item_value.persisted);
+                            context.allocate_aggregate(vec![
+                                field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+                                field_7, field_8,
+                            ])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<BackgroundTaskDescriptorVm> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_background_list_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_background_status_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_BACKGROUND_STATUS,
+        runtime.replay_payload_for(OS_BACKGROUND_STATUS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_background_status(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_background_status(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: BackgroundStatus = value.clone();
+                let result_recorded = result_value;
+                let payload = OsBackgroundStatusReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsBackgroundStatusReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_background_status_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_clipboard_has_text_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_CLIPBOARD_HAS_TEXT,
+        runtime.replay_payload_for(OS_CLIPBOARD_HAS_TEXT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_clipboard_has_text(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_clipboard_has_text(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: bool = value.clone();
+                let result_recorded = result_value;
+                let payload = OsClipboardHasTextReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsClipboardHasTextReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_clipboard_has_text_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_clipboard_read_bytes_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    format: ClipboardBinaryFormat,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_CLIPBOARD_READ_BYTES,
+        runtime.replay_payload_for(OS_CLIPBOARD_READ_BYTES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_clipboard_read_bytes(runtime, context, format)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_clipboard_read_bytes(runtime, context, format)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<u8> = value.clone();
+                let result_recorded = result_value.read_bytes(context)?;
+                let payload = OsClipboardReadBytesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsClipboardReadBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = VmSlice::from_bytes(context, value.as_slice());
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_clipboard_read_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_clipboard_read_text_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_CLIPBOARD_READ_TEXT,
+        runtime.replay_payload_for(OS_CLIPBOARD_READ_TEXT)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_clipboard_read_text(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_clipboard_read_text(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: vm::StringHandle = value.clone();
+                let result_recorded = {
+                    let result_recorded_ref = context
+                        .string_ref(result_value)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_ref.as_str().to_string()
+                };
+                let payload = OsClipboardReadTextReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsClipboardReadTextReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_value = context.intern_string(value.as_str());
+                    let vm_result = vm::StringHandle::new(vm_result_value);
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_clipboard_read_text_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_clipboard_sequence_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_CLIPBOARD_SEQUENCE,
+        runtime.replay_payload_for(OS_CLIPBOARD_SEQUENCE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_clipboard_sequence(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_clipboard_sequence(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u64 = value.clone();
+                let result_recorded = result_value;
+                let payload = OsClipboardSequenceReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsClipboardSequenceReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_clipboard_sequence_result(context, result)?;
+    Ok(result)
+}
+
 #[inline]
 fn destack_os_host_identity_vm_replay(
     runtime: &BindingCallContext,
@@ -1919,11 +13672,1574 @@ fn destack_os_info_uptime_ns_vm_replay(
 }
 
 #[inline]
+fn destack_os_intent_can_open_url_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    url: vm::StringHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_INTENT_CAN_OPEN_URL,
+        runtime.replay_payload_for(OS_INTENT_CAN_OPEN_URL)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_intent_can_open_url(runtime, context, url)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_intent_can_open_url(runtime, context, url)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: bool = value.clone();
+                let result_recorded = result_value;
+                let payload = OsIntentCanOpenUrlReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsIntentCanOpenUrlReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_intent_can_open_url_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_intent_close_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::IntentHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_INTENT_CLOSE,
+        runtime.replay_payload_for(OS_INTENT_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_intent_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_intent_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = OsIntentCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsIntentCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_intent_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_intent_open_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    options: IntentOpenOptionsVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_INTENT_OPEN,
+        runtime.replay_payload_for(OS_INTENT_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_intent_open(runtime, context, options),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_intent_open(runtime, context, options)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::IntentHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = OsIntentOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsIntentOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_intent_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_intent_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::IntentHandle,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_INTENT_READ,
+        runtime.replay_payload_for(OS_INTENT_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_intent_read(runtime, context, handle, timeoutns)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_intent_read(runtime, context, handle, timeoutns)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: IntentEventVm = value.clone();
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_source = {
+                    let result_recorded_source_ref = context
+                        .string_ref(result_value.source)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_source_ref.as_str().to_string()
+                };
+                let result_recorded_payload_url = {
+                    let result_recorded_payload_url_ref = context
+                        .string_ref(result_value.payload.url)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_payload_url_ref.as_str().to_string()
+                };
+                let result_recorded_payload_paths_raw =
+                    result_value.payload.paths.raw_values(context)?;
+                let mut result_recorded_payload_paths =
+                    Vec::with_capacity(result_recorded_payload_paths_raw.len());
+                for result_recorded_payload_paths_item_value in result_recorded_payload_paths_raw {
+                    let result_recorded_payload_paths_item = {
+                        if result_recorded_payload_paths_item_value.tag() != vm::ValueTag::Aggregate
+                        {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_payload_paths_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_payload_paths_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 3 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_payload_paths_item",
+                                "expected 3 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_payload_paths_item_encoding_raw = decode_uint8(
+                            slots[0],
+                            "result_recorded_payload_paths_item_encoding_raw",
+                            "encoding",
+                        )?;
+                        let result_recorded_payload_paths_item_encoding =
+                            match result_recorded_payload_paths_item_encoding_raw {
+                                1u8 => fs::PathEncoding::Bytes,
+                                2u8 => fs::PathEncoding::Utf16,
+                                _ => {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_recorded_payload_paths_item_encoding",
+                                            "unknown fs::PathEncoding value",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                            };
+                        let result_recorded_payload_paths_item_bytes_inner = decode_array::<u8>(
+                            context,
+                            slots[1],
+                            "result_recorded_payload_paths_item_bytes_inner",
+                            "bytes",
+                        )?;
+                        let result_recorded_payload_paths_item_bytes =
+                            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
+                                result_recorded_payload_paths_item_bytes_inner,
+                            );
+                        let result_recorded_payload_paths_item_utf16_inner = decode_array::<u16>(
+                            context,
+                            slots[2],
+                            "result_recorded_payload_paths_item_utf16_inner",
+                            "utf16",
+                        )?;
+                        let result_recorded_payload_paths_item_utf16 =
+                            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
+                                result_recorded_payload_paths_item_utf16_inner,
+                            );
+                        fs::OsPathVm {
+                            encoding: result_recorded_payload_paths_item_encoding,
+                            bytes: result_recorded_payload_paths_item_bytes,
+                            utf16: result_recorded_payload_paths_item_utf16,
+                        }
+                    };
+                    let result_recorded_payload_paths_item_recorded_encoding =
+                        result_recorded_payload_paths_item.encoding;
+                    let result_recorded_payload_paths_item_recorded_bytes_inner =
+                        result_recorded_payload_paths_item
+                            .bytes
+                            .0
+                            .read_bytes(context)?;
+                    let result_recorded_payload_paths_item_recorded_bytes =
+                        result_recorded_payload_paths_item_recorded_bytes_inner;
+                    let result_recorded_payload_paths_item_recorded_utf16_inner_raw =
+                        result_recorded_payload_paths_item
+                            .utf16
+                            .0
+                            .raw_values(context)?;
+                    let mut result_recorded_payload_paths_item_recorded_utf16_inner =
+                        Vec::with_capacity(
+                            result_recorded_payload_paths_item_recorded_utf16_inner_raw.len(),
+                        );
+                    for result_recorded_payload_paths_item_recorded_utf16_inner_item_value in
+                        result_recorded_payload_paths_item_recorded_utf16_inner_raw
+                    {
+                        let result_recorded_payload_paths_item_recorded_utf16_inner_item =
+                            decode_uint16(
+                                result_recorded_payload_paths_item_recorded_utf16_inner_item_value,
+                                "result_recorded_payload_paths_item_recorded_utf16_inner_item",
+                                "item",
+                            )?;
+                        let result_recorded_payload_paths_item_recorded_utf16_inner_item_recorded =
+                            result_recorded_payload_paths_item_recorded_utf16_inner_item;
+                        result_recorded_payload_paths_item_recorded_utf16_inner.push(
+                            result_recorded_payload_paths_item_recorded_utf16_inner_item_recorded,
+                        );
+                    }
+                    let result_recorded_payload_paths_item_recorded_utf16 =
+                        result_recorded_payload_paths_item_recorded_utf16_inner;
+                    let result_recorded_payload_paths_item_recorded = fs::OsPathReplayRecord {
+                        encoding: result_recorded_payload_paths_item_recorded_encoding,
+                        bytes: result_recorded_payload_paths_item_recorded_bytes,
+                        utf16: result_recorded_payload_paths_item_recorded_utf16,
+                    };
+                    result_recorded_payload_paths.push(result_recorded_payload_paths_item_recorded);
+                }
+                let result_recorded_payload_text = {
+                    let result_recorded_payload_text_ref = context
+                        .string_ref(result_value.payload.text)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_payload_text_ref.as_str().to_string()
+                };
+                let result_recorded_payload_mime_type = {
+                    let result_recorded_payload_mime_type_ref = context
+                        .string_ref(result_value.payload.mime_type)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_payload_mime_type_ref.as_str().to_string()
+                };
+                let result_recorded_payload_action = {
+                    let result_recorded_payload_action_ref = context
+                        .string_ref(result_value.payload.action)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_payload_action_ref.as_str().to_string()
+                };
+                let result_recorded_payload = IntentPayloadReplayRecord {
+                    url: result_recorded_payload_url,
+                    paths: result_recorded_payload_paths,
+                    text: result_recorded_payload_text,
+                    mime_type: result_recorded_payload_mime_type,
+                    action: result_recorded_payload_action,
+                };
+                let result_recorded = IntentEventReplayRecord {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    source: result_recorded_source,
+                    payload: result_recorded_payload,
+                };
+                let payload = OsIntentReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsIntentReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_kind = value.kind;
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_source_value = context.intern_string(value.source.as_str());
+                    let vm_result_source = vm::StringHandle::new(vm_result_source_value);
+                    let vm_result_payload_url_value =
+                        context.intern_string(value.payload.url.as_str());
+                    let vm_result_payload_url = vm::StringHandle::new(vm_result_payload_url_value);
+                    let mut vm_result_payload_paths_values =
+                        Vec::with_capacity(value.payload.paths.len());
+                    for vm_result_payload_paths_item in value.payload.paths.iter() {
+                        let vm_result_payload_paths_item = vm_result_payload_paths_item.clone();
+                        let vm_result_payload_paths_item_value_encoding =
+                            vm_result_payload_paths_item.encoding;
+                        let vm_result_payload_paths_item_value_bytes_inner = VmArray::from_bytes(
+                            context,
+                            vm_result_payload_paths_item.bytes.as_slice(),
+                        );
+                        let vm_result_payload_paths_item_value_bytes =
+                            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
+                                vm_result_payload_paths_item_value_bytes_inner,
+                            );
+                        let mut vm_result_payload_paths_item_value_utf16_inner_values =
+                            Vec::with_capacity(vm_result_payload_paths_item.utf16.len());
+                        for vm_result_payload_paths_item_value_utf16_inner_item in
+                            vm_result_payload_paths_item.utf16.iter()
+                        {
+                            let vm_result_payload_paths_item_value_utf16_inner_item =
+                                *vm_result_payload_paths_item_value_utf16_inner_item;
+                            let vm_result_payload_paths_item_value_utf16_inner_item_value =
+                                vm_result_payload_paths_item_value_utf16_inner_item;
+                            vm_result_payload_paths_item_value_utf16_inner_values
+                                .push(vm_result_payload_paths_item_value_utf16_inner_item_value);
+                        }
+                        let vm_result_payload_paths_item_value_utf16_inner = VmArray::from_values(
+                            context,
+                            &vm_result_payload_paths_item_value_utf16_inner_values,
+                        )?;
+                        let vm_result_payload_paths_item_value_utf16 =
+                            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
+                                vm_result_payload_paths_item_value_utf16_inner,
+                            );
+                        let vm_result_payload_paths_item_value = fs::OsPathVm {
+                            encoding: vm_result_payload_paths_item_value_encoding,
+                            bytes: vm_result_payload_paths_item_value_bytes,
+                            utf16: vm_result_payload_paths_item_value_utf16,
+                        };
+                        let vm_result_payload_paths_item_value_encoded = {
+                            let field_0 = vm::Value::uint(
+                                vm_result_payload_paths_item_value.encoding as u8 as u64,
+                                8,
+                            );
+                            let field_1 =
+                                vm_result_payload_paths_item_value.bytes.0.to_value(context);
+                            let field_2 =
+                                vm_result_payload_paths_item_value.utf16.0.to_value(context);
+                            context.allocate_aggregate(vec![field_0, field_1, field_2])
+                        };
+                        vm_result_payload_paths_values
+                            .push(vm_result_payload_paths_item_value_encoded);
+                    }
+                    let vm_result_payload_paths_data =
+                        context.allocate_raw_values(vm_result_payload_paths_values);
+                    let vm_result_payload_paths: VmArray<fs::OsPathVm> = VmArray {
+                        data: vm_result_payload_paths_data,
+                        len: value.payload.paths.len() as u32,
+                        capacity: value.payload.paths.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    let vm_result_payload_text_value =
+                        context.intern_string(value.payload.text.as_str());
+                    let vm_result_payload_text =
+                        vm::StringHandle::new(vm_result_payload_text_value);
+                    let vm_result_payload_mime_type_value =
+                        context.intern_string(value.payload.mime_type.as_str());
+                    let vm_result_payload_mime_type =
+                        vm::StringHandle::new(vm_result_payload_mime_type_value);
+                    let vm_result_payload_action_value =
+                        context.intern_string(value.payload.action.as_str());
+                    let vm_result_payload_action =
+                        vm::StringHandle::new(vm_result_payload_action_value);
+                    let vm_result_payload = IntentPayloadVm {
+                        url: vm_result_payload_url,
+                        paths: vm_result_payload_paths,
+                        text: vm_result_payload_text,
+                        mime_type: vm_result_payload_mime_type,
+                        action: vm_result_payload_action,
+                    };
+                    let vm_result = IntentEventVm {
+                        kind: vm_result_kind,
+                        timestamp_ns: vm_result_timestamp_ns,
+                        sequence: vm_result_sequence,
+                        source: vm_result_source,
+                        payload: vm_result_payload,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_intent_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_intent_try_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::IntentHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_INTENT_TRY_READ,
+        runtime.replay_payload_for(OS_INTENT_TRY_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_intent_try_read(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_intent_try_read(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: IntentEventVm = value.clone();
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_source = {
+                    let result_recorded_source_ref = context
+                        .string_ref(result_value.source)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_source_ref.as_str().to_string()
+                };
+                let result_recorded_payload_url = {
+                    let result_recorded_payload_url_ref = context
+                        .string_ref(result_value.payload.url)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_payload_url_ref.as_str().to_string()
+                };
+                let result_recorded_payload_paths_raw =
+                    result_value.payload.paths.raw_values(context)?;
+                let mut result_recorded_payload_paths =
+                    Vec::with_capacity(result_recorded_payload_paths_raw.len());
+                for result_recorded_payload_paths_item_value in result_recorded_payload_paths_raw {
+                    let result_recorded_payload_paths_item = {
+                        if result_recorded_payload_paths_item_value.tag() != vm::ValueTag::Aggregate
+                        {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_payload_paths_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_payload_paths_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 3 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_payload_paths_item",
+                                "expected 3 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_payload_paths_item_encoding_raw = decode_uint8(
+                            slots[0],
+                            "result_recorded_payload_paths_item_encoding_raw",
+                            "encoding",
+                        )?;
+                        let result_recorded_payload_paths_item_encoding =
+                            match result_recorded_payload_paths_item_encoding_raw {
+                                1u8 => fs::PathEncoding::Bytes,
+                                2u8 => fs::PathEncoding::Utf16,
+                                _ => {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_recorded_payload_paths_item_encoding",
+                                            "unknown fs::PathEncoding value",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                            };
+                        let result_recorded_payload_paths_item_bytes_inner = decode_array::<u8>(
+                            context,
+                            slots[1],
+                            "result_recorded_payload_paths_item_bytes_inner",
+                            "bytes",
+                        )?;
+                        let result_recorded_payload_paths_item_bytes =
+                            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
+                                result_recorded_payload_paths_item_bytes_inner,
+                            );
+                        let result_recorded_payload_paths_item_utf16_inner = decode_array::<u16>(
+                            context,
+                            slots[2],
+                            "result_recorded_payload_paths_item_utf16_inner",
+                            "utf16",
+                        )?;
+                        let result_recorded_payload_paths_item_utf16 =
+                            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
+                                result_recorded_payload_paths_item_utf16_inner,
+                            );
+                        fs::OsPathVm {
+                            encoding: result_recorded_payload_paths_item_encoding,
+                            bytes: result_recorded_payload_paths_item_bytes,
+                            utf16: result_recorded_payload_paths_item_utf16,
+                        }
+                    };
+                    let result_recorded_payload_paths_item_recorded_encoding =
+                        result_recorded_payload_paths_item.encoding;
+                    let result_recorded_payload_paths_item_recorded_bytes_inner =
+                        result_recorded_payload_paths_item
+                            .bytes
+                            .0
+                            .read_bytes(context)?;
+                    let result_recorded_payload_paths_item_recorded_bytes =
+                        result_recorded_payload_paths_item_recorded_bytes_inner;
+                    let result_recorded_payload_paths_item_recorded_utf16_inner_raw =
+                        result_recorded_payload_paths_item
+                            .utf16
+                            .0
+                            .raw_values(context)?;
+                    let mut result_recorded_payload_paths_item_recorded_utf16_inner =
+                        Vec::with_capacity(
+                            result_recorded_payload_paths_item_recorded_utf16_inner_raw.len(),
+                        );
+                    for result_recorded_payload_paths_item_recorded_utf16_inner_item_value in
+                        result_recorded_payload_paths_item_recorded_utf16_inner_raw
+                    {
+                        let result_recorded_payload_paths_item_recorded_utf16_inner_item =
+                            decode_uint16(
+                                result_recorded_payload_paths_item_recorded_utf16_inner_item_value,
+                                "result_recorded_payload_paths_item_recorded_utf16_inner_item",
+                                "item",
+                            )?;
+                        let result_recorded_payload_paths_item_recorded_utf16_inner_item_recorded =
+                            result_recorded_payload_paths_item_recorded_utf16_inner_item;
+                        result_recorded_payload_paths_item_recorded_utf16_inner.push(
+                            result_recorded_payload_paths_item_recorded_utf16_inner_item_recorded,
+                        );
+                    }
+                    let result_recorded_payload_paths_item_recorded_utf16 =
+                        result_recorded_payload_paths_item_recorded_utf16_inner;
+                    let result_recorded_payload_paths_item_recorded = fs::OsPathReplayRecord {
+                        encoding: result_recorded_payload_paths_item_recorded_encoding,
+                        bytes: result_recorded_payload_paths_item_recorded_bytes,
+                        utf16: result_recorded_payload_paths_item_recorded_utf16,
+                    };
+                    result_recorded_payload_paths.push(result_recorded_payload_paths_item_recorded);
+                }
+                let result_recorded_payload_text = {
+                    let result_recorded_payload_text_ref = context
+                        .string_ref(result_value.payload.text)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_payload_text_ref.as_str().to_string()
+                };
+                let result_recorded_payload_mime_type = {
+                    let result_recorded_payload_mime_type_ref = context
+                        .string_ref(result_value.payload.mime_type)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_payload_mime_type_ref.as_str().to_string()
+                };
+                let result_recorded_payload_action = {
+                    let result_recorded_payload_action_ref = context
+                        .string_ref(result_value.payload.action)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_payload_action_ref.as_str().to_string()
+                };
+                let result_recorded_payload = IntentPayloadReplayRecord {
+                    url: result_recorded_payload_url,
+                    paths: result_recorded_payload_paths,
+                    text: result_recorded_payload_text,
+                    mime_type: result_recorded_payload_mime_type,
+                    action: result_recorded_payload_action,
+                };
+                let result_recorded = IntentEventReplayRecord {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    source: result_recorded_source,
+                    payload: result_recorded_payload,
+                };
+                let payload = OsIntentTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsIntentTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_kind = value.kind;
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_source_value = context.intern_string(value.source.as_str());
+                    let vm_result_source = vm::StringHandle::new(vm_result_source_value);
+                    let vm_result_payload_url_value =
+                        context.intern_string(value.payload.url.as_str());
+                    let vm_result_payload_url = vm::StringHandle::new(vm_result_payload_url_value);
+                    let mut vm_result_payload_paths_values =
+                        Vec::with_capacity(value.payload.paths.len());
+                    for vm_result_payload_paths_item in value.payload.paths.iter() {
+                        let vm_result_payload_paths_item = vm_result_payload_paths_item.clone();
+                        let vm_result_payload_paths_item_value_encoding =
+                            vm_result_payload_paths_item.encoding;
+                        let vm_result_payload_paths_item_value_bytes_inner = VmArray::from_bytes(
+                            context,
+                            vm_result_payload_paths_item.bytes.as_slice(),
+                        );
+                        let vm_result_payload_paths_item_value_bytes =
+                            platform_fs::PathBytesAbi::<platform_abi::VmAbi>(
+                                vm_result_payload_paths_item_value_bytes_inner,
+                            );
+                        let mut vm_result_payload_paths_item_value_utf16_inner_values =
+                            Vec::with_capacity(vm_result_payload_paths_item.utf16.len());
+                        for vm_result_payload_paths_item_value_utf16_inner_item in
+                            vm_result_payload_paths_item.utf16.iter()
+                        {
+                            let vm_result_payload_paths_item_value_utf16_inner_item =
+                                *vm_result_payload_paths_item_value_utf16_inner_item;
+                            let vm_result_payload_paths_item_value_utf16_inner_item_value =
+                                vm_result_payload_paths_item_value_utf16_inner_item;
+                            vm_result_payload_paths_item_value_utf16_inner_values
+                                .push(vm_result_payload_paths_item_value_utf16_inner_item_value);
+                        }
+                        let vm_result_payload_paths_item_value_utf16_inner = VmArray::from_values(
+                            context,
+                            &vm_result_payload_paths_item_value_utf16_inner_values,
+                        )?;
+                        let vm_result_payload_paths_item_value_utf16 =
+                            platform_fs::PathUtf16Abi::<platform_abi::VmAbi>(
+                                vm_result_payload_paths_item_value_utf16_inner,
+                            );
+                        let vm_result_payload_paths_item_value = fs::OsPathVm {
+                            encoding: vm_result_payload_paths_item_value_encoding,
+                            bytes: vm_result_payload_paths_item_value_bytes,
+                            utf16: vm_result_payload_paths_item_value_utf16,
+                        };
+                        let vm_result_payload_paths_item_value_encoded = {
+                            let field_0 = vm::Value::uint(
+                                vm_result_payload_paths_item_value.encoding as u8 as u64,
+                                8,
+                            );
+                            let field_1 =
+                                vm_result_payload_paths_item_value.bytes.0.to_value(context);
+                            let field_2 =
+                                vm_result_payload_paths_item_value.utf16.0.to_value(context);
+                            context.allocate_aggregate(vec![field_0, field_1, field_2])
+                        };
+                        vm_result_payload_paths_values
+                            .push(vm_result_payload_paths_item_value_encoded);
+                    }
+                    let vm_result_payload_paths_data =
+                        context.allocate_raw_values(vm_result_payload_paths_values);
+                    let vm_result_payload_paths: VmArray<fs::OsPathVm> = VmArray {
+                        data: vm_result_payload_paths_data,
+                        len: value.payload.paths.len() as u32,
+                        capacity: value.payload.paths.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    let vm_result_payload_text_value =
+                        context.intern_string(value.payload.text.as_str());
+                    let vm_result_payload_text =
+                        vm::StringHandle::new(vm_result_payload_text_value);
+                    let vm_result_payload_mime_type_value =
+                        context.intern_string(value.payload.mime_type.as_str());
+                    let vm_result_payload_mime_type =
+                        vm::StringHandle::new(vm_result_payload_mime_type_value);
+                    let vm_result_payload_action_value =
+                        context.intern_string(value.payload.action.as_str());
+                    let vm_result_payload_action =
+                        vm::StringHandle::new(vm_result_payload_action_value);
+                    let vm_result_payload = IntentPayloadVm {
+                        url: vm_result_payload_url,
+                        paths: vm_result_payload_paths,
+                        text: vm_result_payload_text,
+                        mime_type: vm_result_payload_mime_type,
+                        action: vm_result_payload_action,
+                    };
+                    let vm_result = IntentEventVm {
+                        kind: vm_result_kind,
+                        timestamp_ns: vm_result_timestamp_ns,
+                        sequence: vm_result_sequence,
+                        source: vm_result_source,
+                        payload: vm_result_payload,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_intent_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_lifecycle_close_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::LifecycleEventHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_LIFECYCLE_CLOSE,
+        runtime.replay_payload_for(OS_LIFECYCLE_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_lifecycle_close(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_lifecycle_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = OsLifecycleCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLifecycleCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_lifecycle_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_lifecycle_open_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_LIFECYCLE_OPEN,
+        runtime.replay_payload_for(OS_LIFECYCLE_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_lifecycle_open(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_lifecycle_open(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::LifecycleEventHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = OsLifecycleOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLifecycleOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_lifecycle_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_lifecycle_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::LifecycleEventHandle,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_LIFECYCLE_READ,
+        runtime.replay_payload_for(OS_LIFECYCLE_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_lifecycle_read(runtime, context, handle, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_lifecycle_read(
+                runtime, context, handle, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: LifecycleEventVm = value.clone();
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_payload_low_memory_severity =
+                    result_value.payload.low_memory.severity;
+                let result_recorded_payload_low_memory = LifecycleLowMemoryPayload {
+                    severity: result_recorded_payload_low_memory_severity,
+                };
+                let result_recorded_payload_low_power_enabled =
+                    result_value.payload.low_power.enabled;
+                let result_recorded_payload_low_power = LifecycleLowPowerPayload {
+                    enabled: result_recorded_payload_low_power_enabled,
+                };
+                let result_recorded_payload = LifecycleEventPayload {
+                    low_memory: result_recorded_payload_low_memory,
+                    low_power: result_recorded_payload_low_power,
+                };
+                let result_recorded = LifecycleEvent {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    payload: result_recorded_payload,
+                };
+                let payload = OsLifecycleReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLifecycleReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_kind = value.kind;
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_payload_low_memory_severity = value.payload.low_memory.severity;
+                    let vm_result_payload_low_memory = LifecycleLowMemoryPayloadVm {
+                        severity: vm_result_payload_low_memory_severity,
+                    };
+                    let vm_result_payload_low_power_enabled = value.payload.low_power.enabled;
+                    let vm_result_payload_low_power = LifecycleLowPowerPayloadVm {
+                        enabled: vm_result_payload_low_power_enabled,
+                    };
+                    let vm_result_payload = LifecycleEventPayloadVm {
+                        low_memory: vm_result_payload_low_memory,
+                        low_power: vm_result_payload_low_power,
+                    };
+                    let vm_result = LifecycleEventVm {
+                        kind: vm_result_kind,
+                        timestamp_ns: vm_result_timestamp_ns,
+                        sequence: vm_result_sequence,
+                        payload: vm_result_payload,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_lifecycle_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_lifecycle_state_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_LIFECYCLE_STATE,
+        runtime.replay_payload_for(OS_LIFECYCLE_STATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_lifecycle_state(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_lifecycle_state(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: LifecycleState = value.clone();
+                let result_recorded = result_value;
+                let payload = OsLifecycleStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLifecycleStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_lifecycle_state_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_lifecycle_try_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::LifecycleEventHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_LIFECYCLE_TRY_READ,
+        runtime.replay_payload_for(OS_LIFECYCLE_TRY_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_lifecycle_try_read(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_lifecycle_try_read(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: LifecycleEventVm = value.clone();
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_payload_low_memory_severity =
+                    result_value.payload.low_memory.severity;
+                let result_recorded_payload_low_memory = LifecycleLowMemoryPayload {
+                    severity: result_recorded_payload_low_memory_severity,
+                };
+                let result_recorded_payload_low_power_enabled =
+                    result_value.payload.low_power.enabled;
+                let result_recorded_payload_low_power = LifecycleLowPowerPayload {
+                    enabled: result_recorded_payload_low_power_enabled,
+                };
+                let result_recorded_payload = LifecycleEventPayload {
+                    low_memory: result_recorded_payload_low_memory,
+                    low_power: result_recorded_payload_low_power,
+                };
+                let result_recorded = LifecycleEvent {
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    payload: result_recorded_payload,
+                };
+                let payload = OsLifecycleTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLifecycleTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_kind = value.kind;
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_payload_low_memory_severity = value.payload.low_memory.severity;
+                    let vm_result_payload_low_memory = LifecycleLowMemoryPayloadVm {
+                        severity: vm_result_payload_low_memory_severity,
+                    };
+                    let vm_result_payload_low_power_enabled = value.payload.low_power.enabled;
+                    let vm_result_payload_low_power = LifecycleLowPowerPayloadVm {
+                        enabled: vm_result_payload_low_power_enabled,
+                    };
+                    let vm_result_payload = LifecycleEventPayloadVm {
+                        low_memory: vm_result_payload_low_memory,
+                        low_power: vm_result_payload_low_power,
+                    };
+                    let vm_result = LifecycleEventVm {
+                        kind: vm_result_kind,
+                        timestamp_ns: vm_result_timestamp_ns,
+                        sequence: vm_result_sequence,
+                        payload: vm_result_payload,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_lifecycle_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_location_last_known_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_LOCATION_LAST_KNOWN,
+        runtime.replay_payload_for(OS_LOCATION_LAST_KNOWN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_location_last_known(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_location_last_known(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: LocationSampleVm = value.clone();
+                let result_recorded_latitude_degrees = result_value.latitude_degrees;
+                let result_recorded_longitude_degrees = result_value.longitude_degrees;
+                let result_recorded_altitude_meters = result_value.altitude_meters;
+                let result_recorded_horizontal_accuracy_meters =
+                    result_value.horizontal_accuracy_meters;
+                let result_recorded_vertical_accuracy_meters =
+                    result_value.vertical_accuracy_meters;
+                let result_recorded_speed_meters_per_second = result_value.speed_meters_per_second;
+                let result_recorded_heading_degrees = result_value.heading_degrees;
+                let result_recorded_timestamp_unix_ns = result_value.timestamp_unix_ns;
+                let result_recorded = LocationSample {
+                    latitude_degrees: result_recorded_latitude_degrees,
+                    longitude_degrees: result_recorded_longitude_degrees,
+                    altitude_meters: result_recorded_altitude_meters,
+                    horizontal_accuracy_meters: result_recorded_horizontal_accuracy_meters,
+                    vertical_accuracy_meters: result_recorded_vertical_accuracy_meters,
+                    speed_meters_per_second: result_recorded_speed_meters_per_second,
+                    heading_degrees: result_recorded_heading_degrees,
+                    timestamp_unix_ns: result_recorded_timestamp_unix_ns,
+                };
+                let payload = OsLocationLastKnownReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLocationLastKnownReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_latitude_degrees = value.latitude_degrees;
+                    let vm_result_longitude_degrees = value.longitude_degrees;
+                    let vm_result_altitude_meters = value.altitude_meters;
+                    let vm_result_horizontal_accuracy_meters = value.horizontal_accuracy_meters;
+                    let vm_result_vertical_accuracy_meters = value.vertical_accuracy_meters;
+                    let vm_result_speed_meters_per_second = value.speed_meters_per_second;
+                    let vm_result_heading_degrees = value.heading_degrees;
+                    let vm_result_timestamp_unix_ns = value.timestamp_unix_ns;
+                    let vm_result = LocationSampleVm {
+                        latitude_degrees: vm_result_latitude_degrees,
+                        longitude_degrees: vm_result_longitude_degrees,
+                        altitude_meters: vm_result_altitude_meters,
+                        horizontal_accuracy_meters: vm_result_horizontal_accuracy_meters,
+                        vertical_accuracy_meters: vm_result_vertical_accuracy_meters,
+                        speed_meters_per_second: vm_result_speed_meters_per_second,
+                        heading_degrees: vm_result_heading_degrees,
+                        timestamp_unix_ns: vm_result_timestamp_unix_ns,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_location_last_known_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_location_services_enabled_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_LOCATION_SERVICES_ENABLED,
+        runtime.replay_payload_for(OS_LOCATION_SERVICES_ENABLED)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_location_services_enabled(runtime, context)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_location_services_enabled(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: bool = value.clone();
+                let result_recorded = result_value;
+                let payload = OsLocationServicesEnabledReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLocationServicesEnabledReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_location_services_enabled_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_location_watch_close_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::LocationWatchHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_LOCATION_WATCH_CLOSE,
+        runtime.replay_payload_for(OS_LOCATION_WATCH_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_location_watch_close(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_location_watch_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = OsLocationWatchCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLocationWatchCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_location_watch_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_location_watch_open_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    options: LocationWatchOptionsVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_LOCATION_WATCH_OPEN,
+        runtime.replay_payload_for(OS_LOCATION_WATCH_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_location_watch_open(runtime, context, options)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_location_watch_open(runtime, context, options)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::LocationWatchHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = OsLocationWatchOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLocationWatchOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_location_watch_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_location_watch_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::LocationWatchHandle,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_LOCATION_WATCH_READ,
+        runtime.replay_payload_for(OS_LOCATION_WATCH_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_location_watch_read(runtime, context, handle, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_location_watch_read(
+                runtime, context, handle, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: LocationSampleVm = value.clone();
+                let result_recorded_latitude_degrees = result_value.latitude_degrees;
+                let result_recorded_longitude_degrees = result_value.longitude_degrees;
+                let result_recorded_altitude_meters = result_value.altitude_meters;
+                let result_recorded_horizontal_accuracy_meters =
+                    result_value.horizontal_accuracy_meters;
+                let result_recorded_vertical_accuracy_meters =
+                    result_value.vertical_accuracy_meters;
+                let result_recorded_speed_meters_per_second = result_value.speed_meters_per_second;
+                let result_recorded_heading_degrees = result_value.heading_degrees;
+                let result_recorded_timestamp_unix_ns = result_value.timestamp_unix_ns;
+                let result_recorded = LocationSample {
+                    latitude_degrees: result_recorded_latitude_degrees,
+                    longitude_degrees: result_recorded_longitude_degrees,
+                    altitude_meters: result_recorded_altitude_meters,
+                    horizontal_accuracy_meters: result_recorded_horizontal_accuracy_meters,
+                    vertical_accuracy_meters: result_recorded_vertical_accuracy_meters,
+                    speed_meters_per_second: result_recorded_speed_meters_per_second,
+                    heading_degrees: result_recorded_heading_degrees,
+                    timestamp_unix_ns: result_recorded_timestamp_unix_ns,
+                };
+                let payload = OsLocationWatchReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLocationWatchReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_latitude_degrees = value.latitude_degrees;
+                    let vm_result_longitude_degrees = value.longitude_degrees;
+                    let vm_result_altitude_meters = value.altitude_meters;
+                    let vm_result_horizontal_accuracy_meters = value.horizontal_accuracy_meters;
+                    let vm_result_vertical_accuracy_meters = value.vertical_accuracy_meters;
+                    let vm_result_speed_meters_per_second = value.speed_meters_per_second;
+                    let vm_result_heading_degrees = value.heading_degrees;
+                    let vm_result_timestamp_unix_ns = value.timestamp_unix_ns;
+                    let vm_result = LocationSampleVm {
+                        latitude_degrees: vm_result_latitude_degrees,
+                        longitude_degrees: vm_result_longitude_degrees,
+                        altitude_meters: vm_result_altitude_meters,
+                        horizontal_accuracy_meters: vm_result_horizontal_accuracy_meters,
+                        vertical_accuracy_meters: vm_result_vertical_accuracy_meters,
+                        speed_meters_per_second: vm_result_speed_meters_per_second,
+                        heading_degrees: vm_result_heading_degrees,
+                        timestamp_unix_ns: vm_result_timestamp_unix_ns,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_location_watch_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_location_watch_try_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::LocationWatchHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_LOCATION_WATCH_TRY_READ,
+        runtime.replay_payload_for(OS_LOCATION_WATCH_TRY_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_location_watch_try_read(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_location_watch_try_read(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: LocationSampleVm = value.clone();
+                let result_recorded_latitude_degrees = result_value.latitude_degrees;
+                let result_recorded_longitude_degrees = result_value.longitude_degrees;
+                let result_recorded_altitude_meters = result_value.altitude_meters;
+                let result_recorded_horizontal_accuracy_meters =
+                    result_value.horizontal_accuracy_meters;
+                let result_recorded_vertical_accuracy_meters =
+                    result_value.vertical_accuracy_meters;
+                let result_recorded_speed_meters_per_second = result_value.speed_meters_per_second;
+                let result_recorded_heading_degrees = result_value.heading_degrees;
+                let result_recorded_timestamp_unix_ns = result_value.timestamp_unix_ns;
+                let result_recorded = LocationSample {
+                    latitude_degrees: result_recorded_latitude_degrees,
+                    longitude_degrees: result_recorded_longitude_degrees,
+                    altitude_meters: result_recorded_altitude_meters,
+                    horizontal_accuracy_meters: result_recorded_horizontal_accuracy_meters,
+                    vertical_accuracy_meters: result_recorded_vertical_accuracy_meters,
+                    speed_meters_per_second: result_recorded_speed_meters_per_second,
+                    heading_degrees: result_recorded_heading_degrees,
+                    timestamp_unix_ns: result_recorded_timestamp_unix_ns,
+                };
+                let payload = OsLocationWatchTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsLocationWatchTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_latitude_degrees = value.latitude_degrees;
+                    let vm_result_longitude_degrees = value.longitude_degrees;
+                    let vm_result_altitude_meters = value.altitude_meters;
+                    let vm_result_horizontal_accuracy_meters = value.horizontal_accuracy_meters;
+                    let vm_result_vertical_accuracy_meters = value.vertical_accuracy_meters;
+                    let vm_result_speed_meters_per_second = value.speed_meters_per_second;
+                    let vm_result_heading_degrees = value.heading_degrees;
+                    let vm_result_timestamp_unix_ns = value.timestamp_unix_ns;
+                    let vm_result = LocationSampleVm {
+                        latitude_degrees: vm_result_latitude_degrees,
+                        longitude_degrees: vm_result_longitude_degrees,
+                        altitude_meters: vm_result_altitude_meters,
+                        horizontal_accuracy_meters: vm_result_horizontal_accuracy_meters,
+                        vertical_accuracy_meters: vm_result_vertical_accuracy_meters,
+                        speed_meters_per_second: vm_result_speed_meters_per_second,
+                        heading_degrees: vm_result_heading_degrees,
+                        timestamp_unix_ns: vm_result_timestamp_unix_ns,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_location_watch_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_os_mount_add_vm_replay(
     runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
-    source: fs::OsPathVm,
+    source: vm::StringHandle,
     target: fs::OsPathVm,
     filesystem: vm::StringHandle,
     flags: u64,
@@ -1934,10 +15250,10 @@ fn destack_os_mount_add_vm_replay(
         runtime.replay_payload_for(OS_MOUNT_ADD)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_add(
+            RuntimeWorld::Host => platform_vm::destack_os_mount_add(
                 runtime, context, source, target, filesystem, flags, data,
             ),
-            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_add(
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_mount_add(
                 runtime, context, source, target, filesystem, flags, data,
             ),
         },
@@ -1985,8 +15301,10 @@ fn destack_os_mount_list_vm_replay(
         runtime.replay_payload_for(OS_MOUNT_LIST)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_list(runtime, context),
-            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_list(runtime, context),
+            RuntimeWorld::Host => platform_vm::destack_os_mount_list(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_mount_list(runtime, context)
+            }
         },
         |context, result| {
             let _ = &context;
@@ -2263,16 +15581,18 @@ fn destack_os_mount_remove_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     target: fs::OsPathVm,
-    flags: u32,
+    flags: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context_policy(
         OS_MOUNT_REMOVE,
         runtime.replay_payload_for(OS_MOUNT_REMOVE)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_os_remove(runtime, context, target, flags),
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_mount_remove(runtime, context, target, flags)
+            }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_os_remove(runtime, context, target, flags)
+                platform_simulation_vm::destack_os_mount_remove(runtime, context, target, flags)
             }
         },
         |context, result| {
@@ -2305,6 +15625,1185 @@ fn destack_os_mount_remove_vm_replay(
         },
     );
     let result = encode_destack_os_mount_remove_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_network_state_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_NETWORK_STATE,
+        runtime.replay_payload_for(OS_NETWORK_STATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_network_state(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_network_state(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: NetworkStateVm = value.clone();
+                let result_recorded_connection_type = result_value.connection_type;
+                let result_recorded_connected = result_value.connected;
+                let result_recorded_internet_reachable = result_value.internet_reachable;
+                let result_recorded_expensive = result_value.expensive;
+                let result_recorded_constrained = result_value.constrained;
+                let result_recorded_roaming = result_value.roaming;
+                let result_recorded_cellular_generation = result_value.cellular_generation;
+                let result_recorded_downlink_mbps = result_value.downlink_mbps;
+                let result_recorded_uplink_mbps = result_value.uplink_mbps;
+                let result_recorded = NetworkState {
+                    connection_type: result_recorded_connection_type,
+                    connected: result_recorded_connected,
+                    internet_reachable: result_recorded_internet_reachable,
+                    expensive: result_recorded_expensive,
+                    constrained: result_recorded_constrained,
+                    roaming: result_recorded_roaming,
+                    cellular_generation: result_recorded_cellular_generation,
+                    downlink_mbps: result_recorded_downlink_mbps,
+                    uplink_mbps: result_recorded_uplink_mbps,
+                };
+                let payload = OsNetworkStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNetworkStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_connection_type = value.connection_type;
+                    let vm_result_connected = value.connected;
+                    let vm_result_internet_reachable = value.internet_reachable;
+                    let vm_result_expensive = value.expensive;
+                    let vm_result_constrained = value.constrained;
+                    let vm_result_roaming = value.roaming;
+                    let vm_result_cellular_generation = value.cellular_generation;
+                    let vm_result_downlink_mbps = value.downlink_mbps;
+                    let vm_result_uplink_mbps = value.uplink_mbps;
+                    let vm_result = NetworkStateVm {
+                        connection_type: vm_result_connection_type,
+                        connected: vm_result_connected,
+                        internet_reachable: vm_result_internet_reachable,
+                        expensive: vm_result_expensive,
+                        constrained: vm_result_constrained,
+                        roaming: vm_result_roaming,
+                        cellular_generation: vm_result_cellular_generation,
+                        downlink_mbps: vm_result_downlink_mbps,
+                        uplink_mbps: vm_result_uplink_mbps,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_network_state_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_network_watch_close_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::NetworkWatchHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_NETWORK_WATCH_CLOSE,
+        runtime.replay_payload_for(OS_NETWORK_WATCH_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_network_watch_close(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_network_watch_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = OsNetworkWatchCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNetworkWatchCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_network_watch_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_network_watch_open_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_NETWORK_WATCH_OPEN,
+        runtime.replay_payload_for(OS_NETWORK_WATCH_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_os_network_watch_open(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_network_watch_open(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::NetworkWatchHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = OsNetworkWatchOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNetworkWatchOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_network_watch_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_network_watch_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::NetworkWatchHandle,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_NETWORK_WATCH_READ,
+        runtime.replay_payload_for(OS_NETWORK_WATCH_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_network_watch_read(runtime, context, handle, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_network_watch_read(
+                runtime, context, handle, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: NetworkEventVm = value.clone();
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_state_connection_type = result_value.state.connection_type;
+                let result_recorded_state_connected = result_value.state.connected;
+                let result_recorded_state_internet_reachable =
+                    result_value.state.internet_reachable;
+                let result_recorded_state_expensive = result_value.state.expensive;
+                let result_recorded_state_constrained = result_value.state.constrained;
+                let result_recorded_state_roaming = result_value.state.roaming;
+                let result_recorded_state_cellular_generation =
+                    result_value.state.cellular_generation;
+                let result_recorded_state_downlink_mbps = result_value.state.downlink_mbps;
+                let result_recorded_state_uplink_mbps = result_value.state.uplink_mbps;
+                let result_recorded_state = NetworkState {
+                    connection_type: result_recorded_state_connection_type,
+                    connected: result_recorded_state_connected,
+                    internet_reachable: result_recorded_state_internet_reachable,
+                    expensive: result_recorded_state_expensive,
+                    constrained: result_recorded_state_constrained,
+                    roaming: result_recorded_state_roaming,
+                    cellular_generation: result_recorded_state_cellular_generation,
+                    downlink_mbps: result_recorded_state_downlink_mbps,
+                    uplink_mbps: result_recorded_state_uplink_mbps,
+                };
+                let result_recorded = NetworkEvent {
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    state: result_recorded_state,
+                };
+                let payload = OsNetworkWatchReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNetworkWatchReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_state_connection_type = value.state.connection_type;
+                    let vm_result_state_connected = value.state.connected;
+                    let vm_result_state_internet_reachable = value.state.internet_reachable;
+                    let vm_result_state_expensive = value.state.expensive;
+                    let vm_result_state_constrained = value.state.constrained;
+                    let vm_result_state_roaming = value.state.roaming;
+                    let vm_result_state_cellular_generation = value.state.cellular_generation;
+                    let vm_result_state_downlink_mbps = value.state.downlink_mbps;
+                    let vm_result_state_uplink_mbps = value.state.uplink_mbps;
+                    let vm_result_state = NetworkStateVm {
+                        connection_type: vm_result_state_connection_type,
+                        connected: vm_result_state_connected,
+                        internet_reachable: vm_result_state_internet_reachable,
+                        expensive: vm_result_state_expensive,
+                        constrained: vm_result_state_constrained,
+                        roaming: vm_result_state_roaming,
+                        cellular_generation: vm_result_state_cellular_generation,
+                        downlink_mbps: vm_result_state_downlink_mbps,
+                        uplink_mbps: vm_result_state_uplink_mbps,
+                    };
+                    let vm_result = NetworkEventVm {
+                        timestamp_ns: vm_result_timestamp_ns,
+                        sequence: vm_result_sequence,
+                        state: vm_result_state,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_network_watch_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_network_watch_try_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::NetworkWatchHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_NETWORK_WATCH_TRY_READ,
+        runtime.replay_payload_for(OS_NETWORK_WATCH_TRY_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_network_watch_try_read(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_network_watch_try_read(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: NetworkEventVm = value.clone();
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_state_connection_type = result_value.state.connection_type;
+                let result_recorded_state_connected = result_value.state.connected;
+                let result_recorded_state_internet_reachable =
+                    result_value.state.internet_reachable;
+                let result_recorded_state_expensive = result_value.state.expensive;
+                let result_recorded_state_constrained = result_value.state.constrained;
+                let result_recorded_state_roaming = result_value.state.roaming;
+                let result_recorded_state_cellular_generation =
+                    result_value.state.cellular_generation;
+                let result_recorded_state_downlink_mbps = result_value.state.downlink_mbps;
+                let result_recorded_state_uplink_mbps = result_value.state.uplink_mbps;
+                let result_recorded_state = NetworkState {
+                    connection_type: result_recorded_state_connection_type,
+                    connected: result_recorded_state_connected,
+                    internet_reachable: result_recorded_state_internet_reachable,
+                    expensive: result_recorded_state_expensive,
+                    constrained: result_recorded_state_constrained,
+                    roaming: result_recorded_state_roaming,
+                    cellular_generation: result_recorded_state_cellular_generation,
+                    downlink_mbps: result_recorded_state_downlink_mbps,
+                    uplink_mbps: result_recorded_state_uplink_mbps,
+                };
+                let result_recorded = NetworkEvent {
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    state: result_recorded_state,
+                };
+                let payload = OsNetworkWatchTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNetworkWatchTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_state_connection_type = value.state.connection_type;
+                    let vm_result_state_connected = value.state.connected;
+                    let vm_result_state_internet_reachable = value.state.internet_reachable;
+                    let vm_result_state_expensive = value.state.expensive;
+                    let vm_result_state_constrained = value.state.constrained;
+                    let vm_result_state_roaming = value.state.roaming;
+                    let vm_result_state_cellular_generation = value.state.cellular_generation;
+                    let vm_result_state_downlink_mbps = value.state.downlink_mbps;
+                    let vm_result_state_uplink_mbps = value.state.uplink_mbps;
+                    let vm_result_state = NetworkStateVm {
+                        connection_type: vm_result_state_connection_type,
+                        connected: vm_result_state_connected,
+                        internet_reachable: vm_result_state_internet_reachable,
+                        expensive: vm_result_state_expensive,
+                        constrained: vm_result_state_constrained,
+                        roaming: vm_result_state_roaming,
+                        cellular_generation: vm_result_state_cellular_generation,
+                        downlink_mbps: vm_result_state_downlink_mbps,
+                        uplink_mbps: vm_result_state_uplink_mbps,
+                    };
+                    let vm_result = NetworkEventVm {
+                        timestamp_ns: vm_result_timestamp_ns,
+                        sequence: vm_result_sequence,
+                        state: vm_result_state,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_network_watch_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_notification_category_list_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_NOTIFICATION_CATEGORY_LIST,
+        runtime.replay_payload_for(OS_NOTIFICATION_CATEGORY_LIST)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_os_notification_category_list(runtime, context),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_notification_category_list(runtime, context),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<NotificationCategoryVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 2 fields")).boxed()); }
+                        let result_recorded_item_id = decode_string(slots[0], "result_recorded_item_id", "id")?;
+                        let result_recorded_item_actions = decode_array::<NotificationActionVm>(context, slots[1], "result_recorded_item_actions", "actions")?;
+                        NotificationCategoryVm {
+                            id: result_recorded_item_id,
+                            actions: result_recorded_item_actions,
+                        }
+                    };
+                    let result_recorded_item_recorded_id = {
+                        let result_recorded_item_recorded_id_ref = context.string_ref(result_recorded_item.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_actions_raw = result_recorded_item.actions.raw_values(context)?;
+                    let mut result_recorded_item_recorded_actions = Vec::with_capacity(result_recorded_item_recorded_actions_raw.len());
+                    for result_recorded_item_recorded_actions_item_value in result_recorded_item_recorded_actions_raw {
+                        let result_recorded_item_recorded_actions_item = {
+                            if result_recorded_item_recorded_actions_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_recorded_actions_item", "item")).boxed()); }
+                            let slots = context.aggregate_slots(result_recorded_item_recorded_actions_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 7 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_recorded_actions_item", "expected 7 fields")).boxed()); }
+                            let result_recorded_item_recorded_actions_item_id = decode_string(slots[0], "result_recorded_item_recorded_actions_item_id", "id")?;
+                            let result_recorded_item_recorded_actions_item_title = decode_string(slots[1], "result_recorded_item_recorded_actions_item_title", "title")?;
+                            let result_recorded_item_recorded_actions_item_style_raw = decode_uint8(slots[2], "result_recorded_item_recorded_actions_item_style_raw", "style")?;
+                            let result_recorded_item_recorded_actions_item_style = match result_recorded_item_recorded_actions_item_style_raw { 1u8 => NotificationActionStyle::Default, 2u8 => NotificationActionStyle::Destructive, 3u8 => NotificationActionStyle::TextInput , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_recorded_actions_item_style", "unknown NotificationActionStyle value")).boxed()), };
+                            let result_recorded_item_recorded_actions_item_foreground = decode_bool(slots[3], "result_recorded_item_recorded_actions_item_foreground", "foreground")?;
+                            let result_recorded_item_recorded_actions_item_authentication_required = decode_bool(slots[4], "result_recorded_item_recorded_actions_item_authentication_required", "authenticationRequired")?;
+                            let result_recorded_item_recorded_actions_item_text_input_button_title = decode_string(slots[5], "result_recorded_item_recorded_actions_item_text_input_button_title", "textInputButtonTitle")?;
+                            let result_recorded_item_recorded_actions_item_text_input_placeholder = decode_string(slots[6], "result_recorded_item_recorded_actions_item_text_input_placeholder", "textInputPlaceholder")?;
+                            NotificationActionVm {
+                                id: result_recorded_item_recorded_actions_item_id,
+                                title: result_recorded_item_recorded_actions_item_title,
+                                style: result_recorded_item_recorded_actions_item_style,
+                                foreground: result_recorded_item_recorded_actions_item_foreground,
+                                authentication_required: result_recorded_item_recorded_actions_item_authentication_required,
+                                text_input_button_title: result_recorded_item_recorded_actions_item_text_input_button_title,
+                                text_input_placeholder: result_recorded_item_recorded_actions_item_text_input_placeholder,
+                            }
+                        };
+                        let result_recorded_item_recorded_actions_item_recorded_id = {
+                            let result_recorded_item_recorded_actions_item_recorded_id_ref = context.string_ref(result_recorded_item_recorded_actions_item.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_item_recorded_actions_item_recorded_id_ref.as_str().to_string()
+                        };
+                        let result_recorded_item_recorded_actions_item_recorded_title = {
+                            let result_recorded_item_recorded_actions_item_recorded_title_ref = context.string_ref(result_recorded_item_recorded_actions_item.title).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_item_recorded_actions_item_recorded_title_ref.as_str().to_string()
+                        };
+                        let result_recorded_item_recorded_actions_item_recorded_style = result_recorded_item_recorded_actions_item.style;
+                        let result_recorded_item_recorded_actions_item_recorded_foreground = result_recorded_item_recorded_actions_item.foreground;
+                        let result_recorded_item_recorded_actions_item_recorded_authentication_required = result_recorded_item_recorded_actions_item.authentication_required;
+                        let result_recorded_item_recorded_actions_item_recorded_text_input_button_title = {
+                            let result_recorded_item_recorded_actions_item_recorded_text_input_button_title_ref = context.string_ref(result_recorded_item_recorded_actions_item.text_input_button_title).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_item_recorded_actions_item_recorded_text_input_button_title_ref.as_str().to_string()
+                        };
+                        let result_recorded_item_recorded_actions_item_recorded_text_input_placeholder = {
+                            let result_recorded_item_recorded_actions_item_recorded_text_input_placeholder_ref = context.string_ref(result_recorded_item_recorded_actions_item.text_input_placeholder).map_err(|error| RuntimeError::from(error).boxed())?;
+                            result_recorded_item_recorded_actions_item_recorded_text_input_placeholder_ref.as_str().to_string()
+                        };
+                        let result_recorded_item_recorded_actions_item_recorded = NotificationActionReplayRecord {
+                            id: result_recorded_item_recorded_actions_item_recorded_id,
+                            title: result_recorded_item_recorded_actions_item_recorded_title,
+                            style: result_recorded_item_recorded_actions_item_recorded_style,
+                            foreground: result_recorded_item_recorded_actions_item_recorded_foreground,
+                            authentication_required: result_recorded_item_recorded_actions_item_recorded_authentication_required,
+                            text_input_button_title: result_recorded_item_recorded_actions_item_recorded_text_input_button_title,
+                            text_input_placeholder: result_recorded_item_recorded_actions_item_recorded_text_input_placeholder,
+                        };
+                        result_recorded_item_recorded_actions.push(result_recorded_item_recorded_actions_item_recorded);
+                    }
+                    let result_recorded_item_recorded = NotificationCategoryReplayRecord {
+                        id: result_recorded_item_recorded_id,
+                        actions: result_recorded_item_recorded_actions,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = OsNotificationCategoryListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNotificationCategoryListReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_id_value = context.intern_string(vm_result_item.id.as_str());
+                        let vm_result_item_value_id = vm::StringHandle::new(vm_result_item_value_id_value);
+                        let mut vm_result_item_value_actions_values = Vec::with_capacity(vm_result_item.actions.len());
+                        for vm_result_item_value_actions_item in vm_result_item.actions.iter() {
+                            let vm_result_item_value_actions_item = vm_result_item_value_actions_item.clone();
+                            let vm_result_item_value_actions_item_value_id_value = context.intern_string(vm_result_item_value_actions_item.id.as_str());
+                            let vm_result_item_value_actions_item_value_id = vm::StringHandle::new(vm_result_item_value_actions_item_value_id_value);
+                            let vm_result_item_value_actions_item_value_title_value = context.intern_string(vm_result_item_value_actions_item.title.as_str());
+                            let vm_result_item_value_actions_item_value_title = vm::StringHandle::new(vm_result_item_value_actions_item_value_title_value);
+                            let vm_result_item_value_actions_item_value_style = vm_result_item_value_actions_item.style;
+                            let vm_result_item_value_actions_item_value_foreground = vm_result_item_value_actions_item.foreground;
+                            let vm_result_item_value_actions_item_value_authentication_required = vm_result_item_value_actions_item.authentication_required;
+                            let vm_result_item_value_actions_item_value_text_input_button_title_value = context.intern_string(vm_result_item_value_actions_item.text_input_button_title.as_str());
+                            let vm_result_item_value_actions_item_value_text_input_button_title = vm::StringHandle::new(vm_result_item_value_actions_item_value_text_input_button_title_value);
+                            let vm_result_item_value_actions_item_value_text_input_placeholder_value = context.intern_string(vm_result_item_value_actions_item.text_input_placeholder.as_str());
+                            let vm_result_item_value_actions_item_value_text_input_placeholder = vm::StringHandle::new(vm_result_item_value_actions_item_value_text_input_placeholder_value);
+                            let vm_result_item_value_actions_item_value = NotificationActionVm {
+                                id: vm_result_item_value_actions_item_value_id,
+                                title: vm_result_item_value_actions_item_value_title,
+                                style: vm_result_item_value_actions_item_value_style,
+                                foreground: vm_result_item_value_actions_item_value_foreground,
+                                authentication_required: vm_result_item_value_actions_item_value_authentication_required,
+                                text_input_button_title: vm_result_item_value_actions_item_value_text_input_button_title,
+                                text_input_placeholder: vm_result_item_value_actions_item_value_text_input_placeholder,
+                            };
+                            let vm_result_item_value_actions_item_value_encoded = { let field_0 = vm_result_item_value_actions_item_value.id.value(); let field_1 = vm_result_item_value_actions_item_value.title.value(); let field_2 = vm::Value::uint(vm_result_item_value_actions_item_value.style as u8 as u64, 8); let field_3 = vm::Value::bool(vm_result_item_value_actions_item_value.foreground); let field_4 = vm::Value::bool(vm_result_item_value_actions_item_value.authentication_required); let field_5 = vm_result_item_value_actions_item_value.text_input_button_title.value(); let field_6 = vm_result_item_value_actions_item_value.text_input_placeholder.value(); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6]) };
+                            vm_result_item_value_actions_values.push(vm_result_item_value_actions_item_value_encoded);
+                        }
+                        let vm_result_item_value_actions_data = context.allocate_raw_values(vm_result_item_value_actions_values);
+                        let vm_result_item_value_actions: VmArray<NotificationActionVm> = VmArray { data: vm_result_item_value_actions_data, len: vm_result_item.actions.len() as u32, capacity: vm_result_item.actions.len() as u32, _marker: std::marker::PhantomData };
+                        let vm_result_item_value = NotificationCategoryVm {
+                            id: vm_result_item_value_id,
+                            actions: vm_result_item_value_actions,
+                        };
+                        let vm_result_item_value_encoded = { let field_0 = vm_result_item_value.id.value(); let field_1 = vm_result_item_value.actions.to_value(context); context.allocate_aggregate(vec![field_0, field_1]) };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<NotificationCategoryVm> = VmArray { data: vm_result_data, len: value.len() as u32, capacity: value.len() as u32, _marker: std::marker::PhantomData };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_notification_category_list_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_notification_pending_list_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_NOTIFICATION_PENDING_LIST,
+        runtime.replay_payload_for(OS_NOTIFICATION_PENDING_LIST)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_os_notification_pending_list(runtime, context),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_os_notification_pending_list(runtime, context),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<NotificationScheduledDescriptorVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 3 fields")).boxed()); }
+                        let result_recorded_item_id = decode_string(slots[0], "result_recorded_item_id", "id")?;
+                        let result_recorded_item_request = {
+                            if slots[1].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_request", "request")).boxed()); }
+                            let slots = context.aggregate_slots(slots[1]).map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 13 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_request", "expected 13 fields")).boxed()); }
+                            let result_recorded_item_request_title = decode_string(slots[0], "result_recorded_item_request_title", "title")?;
+                            let result_recorded_item_request_subtitle = decode_string(slots[1], "result_recorded_item_request_subtitle", "subtitle")?;
+                            let result_recorded_item_request_body = decode_string(slots[2], "result_recorded_item_request_body", "body")?;
+                            let result_recorded_item_request_tag = decode_string(slots[3], "result_recorded_item_request_tag", "tag")?;
+                            let result_recorded_item_request_channel_id = decode_string(slots[4], "result_recorded_item_request_channel_id", "channelId")?;
+                            let result_recorded_item_request_priority_raw = decode_uint8(slots[5], "result_recorded_item_request_priority_raw", "priority")?;
+                            let result_recorded_item_request_priority = match result_recorded_item_request_priority_raw { 1u8 => NotificationPriority::Low, 2u8 => NotificationPriority::Normal, 3u8 => NotificationPriority::High , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_request_priority", "unknown NotificationPriority value")).boxed()), };
+                            let result_recorded_item_request_badge_count = decode_uint32(slots[6], "result_recorded_item_request_badge_count", "badgeCount")?;
+                            let result_recorded_item_request_sound = decode_string(slots[7], "result_recorded_item_request_sound", "sound")?;
+                            let result_recorded_item_request_category_id = decode_string(slots[8], "result_recorded_item_request_category_id", "categoryId")?;
+                            let result_recorded_item_request_thread_id = decode_string(slots[9], "result_recorded_item_request_thread_id", "threadId")?;
+                            let result_recorded_item_request_trigger = {
+                                if slots[10].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_request_trigger", "trigger")).boxed()); }
+                                let slots = context.aggregate_slots(slots[10]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_request_trigger", "expected 3 fields")).boxed()); }
+                                let result_recorded_item_request_trigger_kind_raw = decode_uint8(slots[0], "result_recorded_item_request_trigger_kind_raw", "kind")?;
+                                let result_recorded_item_request_trigger_kind = match result_recorded_item_request_trigger_kind_raw { 1u8 => NotificationTriggerKind::Immediate, 2u8 => NotificationTriggerKind::TimeInterval, 3u8 => NotificationTriggerKind::CalendarDate , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_request_trigger_kind", "unknown NotificationTriggerKind value")).boxed()), };
+                                let result_recorded_item_request_trigger_interval_ns = decode_uint64(slots[1], "result_recorded_item_request_trigger_interval_ns", "intervalNs")?;
+                                let result_recorded_item_request_trigger_calendar = {
+                                    if slots[2].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_request_trigger_calendar", "calendar")).boxed()); }
+                                    let slots = context.aggregate_slots(slots[2]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                    if slots.len() != 8 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_request_trigger_calendar", "expected 8 fields")).boxed()); }
+                                    let result_recorded_item_request_trigger_calendar_year = decode_uint16(slots[0], "result_recorded_item_request_trigger_calendar_year", "year")?;
+                                    let result_recorded_item_request_trigger_calendar_month = decode_uint8(slots[1], "result_recorded_item_request_trigger_calendar_month", "month")?;
+                                    let result_recorded_item_request_trigger_calendar_day = decode_uint8(slots[2], "result_recorded_item_request_trigger_calendar_day", "day")?;
+                                    let result_recorded_item_request_trigger_calendar_hour = decode_uint8(slots[3], "result_recorded_item_request_trigger_calendar_hour", "hour")?;
+                                    let result_recorded_item_request_trigger_calendar_minute = decode_uint8(slots[4], "result_recorded_item_request_trigger_calendar_minute", "minute")?;
+                                    let result_recorded_item_request_trigger_calendar_second = decode_uint8(slots[5], "result_recorded_item_request_trigger_calendar_second", "second")?;
+                                    let result_recorded_item_request_trigger_calendar_time_zone = decode_string(slots[6], "result_recorded_item_request_trigger_calendar_time_zone", "timeZone")?;
+                                    let result_recorded_item_request_trigger_calendar_repeats = decode_bool(slots[7], "result_recorded_item_request_trigger_calendar_repeats", "repeats")?;
+                                    NotificationCalendarTriggerVm {
+                                        year: result_recorded_item_request_trigger_calendar_year,
+                                        month: result_recorded_item_request_trigger_calendar_month,
+                                        day: result_recorded_item_request_trigger_calendar_day,
+                                        hour: result_recorded_item_request_trigger_calendar_hour,
+                                        minute: result_recorded_item_request_trigger_calendar_minute,
+                                        second: result_recorded_item_request_trigger_calendar_second,
+                                        time_zone: result_recorded_item_request_trigger_calendar_time_zone,
+                                        repeats: result_recorded_item_request_trigger_calendar_repeats,
+                                    }
+                                };
+                                NotificationTriggerVm {
+                                    kind: result_recorded_item_request_trigger_kind,
+                                    interval_ns: result_recorded_item_request_trigger_interval_ns,
+                                    calendar: result_recorded_item_request_trigger_calendar,
+                                }
+                            };
+                            let result_recorded_item_request_action_id = decode_string(slots[11], "result_recorded_item_request_action_id", "actionId")?;
+                            let result_recorded_item_request_data_json = decode_string(slots[12], "result_recorded_item_request_data_json", "dataJson")?;
+                            NotificationRequestVm {
+                                title: result_recorded_item_request_title,
+                                subtitle: result_recorded_item_request_subtitle,
+                                body: result_recorded_item_request_body,
+                                tag: result_recorded_item_request_tag,
+                                channel_id: result_recorded_item_request_channel_id,
+                                priority: result_recorded_item_request_priority,
+                                badge_count: result_recorded_item_request_badge_count,
+                                sound: result_recorded_item_request_sound,
+                                category_id: result_recorded_item_request_category_id,
+                                thread_id: result_recorded_item_request_thread_id,
+                                trigger: result_recorded_item_request_trigger,
+                                action_id: result_recorded_item_request_action_id,
+                                data_json: result_recorded_item_request_data_json,
+                            }
+                        };
+                        let result_recorded_item_scheduled_unix_ns = decode_uint64(slots[2], "result_recorded_item_scheduled_unix_ns", "scheduledUnixNs")?;
+                        NotificationScheduledDescriptorVm {
+                            id: result_recorded_item_id,
+                            request: result_recorded_item_request,
+                            scheduled_unix_ns: result_recorded_item_scheduled_unix_ns,
+                        }
+                    };
+                    let result_recorded_item_recorded_id = {
+                        let result_recorded_item_recorded_id_ref = context.string_ref(result_recorded_item.id).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_request_title = {
+                        let result_recorded_item_recorded_request_title_ref = context.string_ref(result_recorded_item.request.title).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_request_title_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_request_subtitle = {
+                        let result_recorded_item_recorded_request_subtitle_ref = context.string_ref(result_recorded_item.request.subtitle).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_request_subtitle_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_request_body = {
+                        let result_recorded_item_recorded_request_body_ref = context.string_ref(result_recorded_item.request.body).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_request_body_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_request_tag = {
+                        let result_recorded_item_recorded_request_tag_ref = context.string_ref(result_recorded_item.request.tag).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_request_tag_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_request_channel_id = {
+                        let result_recorded_item_recorded_request_channel_id_ref = context.string_ref(result_recorded_item.request.channel_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_request_channel_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_request_priority = result_recorded_item.request.priority;
+                    let result_recorded_item_recorded_request_badge_count = result_recorded_item.request.badge_count;
+                    let result_recorded_item_recorded_request_sound = {
+                        let result_recorded_item_recorded_request_sound_ref = context.string_ref(result_recorded_item.request.sound).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_request_sound_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_request_category_id = {
+                        let result_recorded_item_recorded_request_category_id_ref = context.string_ref(result_recorded_item.request.category_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_request_category_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_request_thread_id = {
+                        let result_recorded_item_recorded_request_thread_id_ref = context.string_ref(result_recorded_item.request.thread_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_request_thread_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_request_trigger_kind = result_recorded_item.request.trigger.kind;
+                    let result_recorded_item_recorded_request_trigger_interval_ns = result_recorded_item.request.trigger.interval_ns;
+                    let result_recorded_item_recorded_request_trigger_calendar_year = result_recorded_item.request.trigger.calendar.year;
+                    let result_recorded_item_recorded_request_trigger_calendar_month = result_recorded_item.request.trigger.calendar.month;
+                    let result_recorded_item_recorded_request_trigger_calendar_day = result_recorded_item.request.trigger.calendar.day;
+                    let result_recorded_item_recorded_request_trigger_calendar_hour = result_recorded_item.request.trigger.calendar.hour;
+                    let result_recorded_item_recorded_request_trigger_calendar_minute = result_recorded_item.request.trigger.calendar.minute;
+                    let result_recorded_item_recorded_request_trigger_calendar_second = result_recorded_item.request.trigger.calendar.second;
+                    let result_recorded_item_recorded_request_trigger_calendar_time_zone = {
+                        let result_recorded_item_recorded_request_trigger_calendar_time_zone_ref = context.string_ref(result_recorded_item.request.trigger.calendar.time_zone).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_request_trigger_calendar_time_zone_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_request_trigger_calendar_repeats = result_recorded_item.request.trigger.calendar.repeats;
+                    let result_recorded_item_recorded_request_trigger_calendar = NotificationCalendarTriggerReplayRecord {
+                        year: result_recorded_item_recorded_request_trigger_calendar_year,
+                        month: result_recorded_item_recorded_request_trigger_calendar_month,
+                        day: result_recorded_item_recorded_request_trigger_calendar_day,
+                        hour: result_recorded_item_recorded_request_trigger_calendar_hour,
+                        minute: result_recorded_item_recorded_request_trigger_calendar_minute,
+                        second: result_recorded_item_recorded_request_trigger_calendar_second,
+                        time_zone: result_recorded_item_recorded_request_trigger_calendar_time_zone,
+                        repeats: result_recorded_item_recorded_request_trigger_calendar_repeats,
+                    };
+                    let result_recorded_item_recorded_request_trigger = NotificationTriggerReplayRecord {
+                        kind: result_recorded_item_recorded_request_trigger_kind,
+                        interval_ns: result_recorded_item_recorded_request_trigger_interval_ns,
+                        calendar: result_recorded_item_recorded_request_trigger_calendar,
+                    };
+                    let result_recorded_item_recorded_request_action_id = {
+                        let result_recorded_item_recorded_request_action_id_ref = context.string_ref(result_recorded_item.request.action_id).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_request_action_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_request_data_json = {
+                        let result_recorded_item_recorded_request_data_json_ref = context.string_ref(result_recorded_item.request.data_json).map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_request_data_json_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_request = NotificationRequestReplayRecord {
+                        title: result_recorded_item_recorded_request_title,
+                        subtitle: result_recorded_item_recorded_request_subtitle,
+                        body: result_recorded_item_recorded_request_body,
+                        tag: result_recorded_item_recorded_request_tag,
+                        channel_id: result_recorded_item_recorded_request_channel_id,
+                        priority: result_recorded_item_recorded_request_priority,
+                        badge_count: result_recorded_item_recorded_request_badge_count,
+                        sound: result_recorded_item_recorded_request_sound,
+                        category_id: result_recorded_item_recorded_request_category_id,
+                        thread_id: result_recorded_item_recorded_request_thread_id,
+                        trigger: result_recorded_item_recorded_request_trigger,
+                        action_id: result_recorded_item_recorded_request_action_id,
+                        data_json: result_recorded_item_recorded_request_data_json,
+                    };
+                    let result_recorded_item_recorded_scheduled_unix_ns = result_recorded_item.scheduled_unix_ns;
+                    let result_recorded_item_recorded = NotificationScheduledDescriptorReplayRecord {
+                        id: result_recorded_item_recorded_id,
+                        request: result_recorded_item_recorded_request,
+                        scheduled_unix_ns: result_recorded_item_recorded_scheduled_unix_ns,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = OsNotificationPendingListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNotificationPendingListReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_id_value = context.intern_string(vm_result_item.id.as_str());
+                        let vm_result_item_value_id = vm::StringHandle::new(vm_result_item_value_id_value);
+                        let vm_result_item_value_request_title_value = context.intern_string(vm_result_item.request.title.as_str());
+                        let vm_result_item_value_request_title = vm::StringHandle::new(vm_result_item_value_request_title_value);
+                        let vm_result_item_value_request_subtitle_value = context.intern_string(vm_result_item.request.subtitle.as_str());
+                        let vm_result_item_value_request_subtitle = vm::StringHandle::new(vm_result_item_value_request_subtitle_value);
+                        let vm_result_item_value_request_body_value = context.intern_string(vm_result_item.request.body.as_str());
+                        let vm_result_item_value_request_body = vm::StringHandle::new(vm_result_item_value_request_body_value);
+                        let vm_result_item_value_request_tag_value = context.intern_string(vm_result_item.request.tag.as_str());
+                        let vm_result_item_value_request_tag = vm::StringHandle::new(vm_result_item_value_request_tag_value);
+                        let vm_result_item_value_request_channel_id_value = context.intern_string(vm_result_item.request.channel_id.as_str());
+                        let vm_result_item_value_request_channel_id = vm::StringHandle::new(vm_result_item_value_request_channel_id_value);
+                        let vm_result_item_value_request_priority = vm_result_item.request.priority;
+                        let vm_result_item_value_request_badge_count = vm_result_item.request.badge_count;
+                        let vm_result_item_value_request_sound_value = context.intern_string(vm_result_item.request.sound.as_str());
+                        let vm_result_item_value_request_sound = vm::StringHandle::new(vm_result_item_value_request_sound_value);
+                        let vm_result_item_value_request_category_id_value = context.intern_string(vm_result_item.request.category_id.as_str());
+                        let vm_result_item_value_request_category_id = vm::StringHandle::new(vm_result_item_value_request_category_id_value);
+                        let vm_result_item_value_request_thread_id_value = context.intern_string(vm_result_item.request.thread_id.as_str());
+                        let vm_result_item_value_request_thread_id = vm::StringHandle::new(vm_result_item_value_request_thread_id_value);
+                        let vm_result_item_value_request_trigger_kind = vm_result_item.request.trigger.kind;
+                        let vm_result_item_value_request_trigger_interval_ns = vm_result_item.request.trigger.interval_ns;
+                        let vm_result_item_value_request_trigger_calendar_year = vm_result_item.request.trigger.calendar.year;
+                        let vm_result_item_value_request_trigger_calendar_month = vm_result_item.request.trigger.calendar.month;
+                        let vm_result_item_value_request_trigger_calendar_day = vm_result_item.request.trigger.calendar.day;
+                        let vm_result_item_value_request_trigger_calendar_hour = vm_result_item.request.trigger.calendar.hour;
+                        let vm_result_item_value_request_trigger_calendar_minute = vm_result_item.request.trigger.calendar.minute;
+                        let vm_result_item_value_request_trigger_calendar_second = vm_result_item.request.trigger.calendar.second;
+                        let vm_result_item_value_request_trigger_calendar_time_zone_value = context.intern_string(vm_result_item.request.trigger.calendar.time_zone.as_str());
+                        let vm_result_item_value_request_trigger_calendar_time_zone = vm::StringHandle::new(vm_result_item_value_request_trigger_calendar_time_zone_value);
+                        let vm_result_item_value_request_trigger_calendar_repeats = vm_result_item.request.trigger.calendar.repeats;
+                        let vm_result_item_value_request_trigger_calendar = NotificationCalendarTriggerVm {
+                            year: vm_result_item_value_request_trigger_calendar_year,
+                            month: vm_result_item_value_request_trigger_calendar_month,
+                            day: vm_result_item_value_request_trigger_calendar_day,
+                            hour: vm_result_item_value_request_trigger_calendar_hour,
+                            minute: vm_result_item_value_request_trigger_calendar_minute,
+                            second: vm_result_item_value_request_trigger_calendar_second,
+                            time_zone: vm_result_item_value_request_trigger_calendar_time_zone,
+                            repeats: vm_result_item_value_request_trigger_calendar_repeats,
+                        };
+                        let vm_result_item_value_request_trigger = NotificationTriggerVm {
+                            kind: vm_result_item_value_request_trigger_kind,
+                            interval_ns: vm_result_item_value_request_trigger_interval_ns,
+                            calendar: vm_result_item_value_request_trigger_calendar,
+                        };
+                        let vm_result_item_value_request_action_id_value = context.intern_string(vm_result_item.request.action_id.as_str());
+                        let vm_result_item_value_request_action_id = vm::StringHandle::new(vm_result_item_value_request_action_id_value);
+                        let vm_result_item_value_request_data_json_value = context.intern_string(vm_result_item.request.data_json.as_str());
+                        let vm_result_item_value_request_data_json = vm::StringHandle::new(vm_result_item_value_request_data_json_value);
+                        let vm_result_item_value_request = NotificationRequestVm {
+                            title: vm_result_item_value_request_title,
+                            subtitle: vm_result_item_value_request_subtitle,
+                            body: vm_result_item_value_request_body,
+                            tag: vm_result_item_value_request_tag,
+                            channel_id: vm_result_item_value_request_channel_id,
+                            priority: vm_result_item_value_request_priority,
+                            badge_count: vm_result_item_value_request_badge_count,
+                            sound: vm_result_item_value_request_sound,
+                            category_id: vm_result_item_value_request_category_id,
+                            thread_id: vm_result_item_value_request_thread_id,
+                            trigger: vm_result_item_value_request_trigger,
+                            action_id: vm_result_item_value_request_action_id,
+                            data_json: vm_result_item_value_request_data_json,
+                        };
+                        let vm_result_item_value_scheduled_unix_ns = vm_result_item.scheduled_unix_ns;
+                        let vm_result_item_value = NotificationScheduledDescriptorVm {
+                            id: vm_result_item_value_id,
+                            request: vm_result_item_value_request,
+                            scheduled_unix_ns: vm_result_item_value_scheduled_unix_ns,
+                        };
+                        let vm_result_item_value_encoded = { let field_0 = vm_result_item_value.id.value(); let field_1 = { let field_0 = vm_result_item_value.request.title.value(); let field_1 = vm_result_item_value.request.subtitle.value(); let field_2 = vm_result_item_value.request.body.value(); let field_3 = vm_result_item_value.request.tag.value(); let field_4 = vm_result_item_value.request.channel_id.value(); let field_5 = vm::Value::uint(vm_result_item_value.request.priority as u8 as u64, 8); let field_6 = vm::Value::uint(vm_result_item_value.request.badge_count as u64, 32); let field_7 = vm_result_item_value.request.sound.value(); let field_8 = vm_result_item_value.request.category_id.value(); let field_9 = vm_result_item_value.request.thread_id.value(); let field_10 = { let field_0 = vm::Value::uint(vm_result_item_value.request.trigger.kind as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_item_value.request.trigger.interval_ns, 64); let field_2 = { let field_0 = vm::Value::uint(vm_result_item_value.request.trigger.calendar.year as u64, 16); let field_1 = vm::Value::uint(vm_result_item_value.request.trigger.calendar.month as u64, 8); let field_2 = vm::Value::uint(vm_result_item_value.request.trigger.calendar.day as u64, 8); let field_3 = vm::Value::uint(vm_result_item_value.request.trigger.calendar.hour as u64, 8); let field_4 = vm::Value::uint(vm_result_item_value.request.trigger.calendar.minute as u64, 8); let field_5 = vm::Value::uint(vm_result_item_value.request.trigger.calendar.second as u64, 8); let field_6 = vm_result_item_value.request.trigger.calendar.time_zone.value(); let field_7 = vm::Value::bool(vm_result_item_value.request.trigger.calendar.repeats); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7]) }; context.allocate_aggregate(vec![field_0, field_1, field_2]) }; let field_11 = vm_result_item_value.request.action_id.value(); let field_12 = vm_result_item_value.request.data_json.value(); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10, field_11, field_12]) }; let field_2 = vm::Value::uint(vm_result_item_value.scheduled_unix_ns, 64); context.allocate_aggregate(vec![field_0, field_1, field_2]) };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<NotificationScheduledDescriptorVm> = VmArray { data: vm_result_data, len: value.len() as u32, capacity: value.len() as u32, _marker: std::marker::PhantomData };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_notification_pending_list_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_notification_permission_state_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_NOTIFICATION_PERMISSION_STATE,
+        runtime.replay_payload_for(OS_NOTIFICATION_PERMISSION_STATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_notification_permission_state(runtime, context)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_notification_permission_state(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: NotificationPermissionState = value.clone();
+                let result_recorded = result_value;
+                let payload = OsNotificationPermissionStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsNotificationPermissionStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_notification_permission_state_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_permission_state_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    permission: Permission,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_PERMISSION_STATE,
+        runtime.replay_payload_for(OS_PERMISSION_STATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_permission_state(runtime, context, permission)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_os_permission_state(runtime, context, permission)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: PermissionState = value.clone();
+                let result_recorded = result_value;
+                let payload = OsPermissionStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsPermissionStateReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_permission_state_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_os_permission_state_many_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    permissions: VmArray<Permission>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        OS_PERMISSION_STATE_MANY,
+        runtime.replay_payload_for(OS_PERMISSION_STATE_MANY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_os_permission_state_many(runtime, context, permissions)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_os_permission_state_many(
+                runtime,
+                context,
+                permissions,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<PermissionEntryVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 2 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 2 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_permission_raw = decode_uint8(
+                            slots[0],
+                            "result_recorded_item_permission_raw",
+                            "permission",
+                        )?;
+                        let result_recorded_item_permission =
+                            match result_recorded_item_permission_raw {
+                                1u8 => Permission::Location,
+                                2u8 => Permission::LocationBackground,
+                                3u8 => Permission::Camera,
+                                4u8 => Permission::Microphone,
+                                5u8 => Permission::Bluetooth,
+                                6u8 => Permission::Notifications,
+                                7u8 => Permission::ContactsRead,
+                                8u8 => Permission::ContactsWrite,
+                                9u8 => Permission::MediaRead,
+                                10u8 => Permission::MediaWrite,
+                                11u8 => Permission::Motion,
+                                12u8 => Permission::ClipboardRead,
+                                13u8 => Permission::CalendarRead,
+                                14u8 => Permission::CalendarWrite,
+                                _ => {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_recorded_item_permission",
+                                            "unknown Permission value",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                            };
+                        let result_recorded_item_state_raw =
+                            decode_uint8(slots[1], "result_recorded_item_state_raw", "state")?;
+                        let result_recorded_item_state = match result_recorded_item_state_raw {
+                            1u8 => PermissionState::Granted,
+                            2u8 => PermissionState::Denied,
+                            3u8 => PermissionState::Prompt,
+                            4u8 => PermissionState::Restricted,
+                            5u8 => PermissionState::Limited,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_item_state",
+                                        "unknown PermissionState value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                        PermissionEntryVm {
+                            permission: result_recorded_item_permission,
+                            state: result_recorded_item_state,
+                        }
+                    };
+                    let result_recorded_item_recorded_permission = result_recorded_item.permission;
+                    let result_recorded_item_recorded_state = result_recorded_item.state;
+                    let result_recorded_item_recorded = PermissionEntry {
+                        permission: result_recorded_item_recorded_permission,
+                        state: result_recorded_item_recorded_state,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = OsPermissionStateManyReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OsPermissionStateManyReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value_permission = vm_result_item.permission;
+                        let vm_result_item_value_state = vm_result_item.state;
+                        let vm_result_item_value = PermissionEntryVm {
+                            permission: vm_result_item_value_permission,
+                            state: vm_result_item_value_state,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 =
+                                vm::Value::uint(vm_result_item_value.permission as u8 as u64, 8);
+                            let field_1 =
+                                vm::Value::uint(vm_result_item_value.state as u8 as u64, 8);
+                            context.allocate_aggregate(vec![field_0, field_1])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<PermissionEntryVm> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_os_permission_state_many_result(context, result)?;
     Ok(result)
 }
 
@@ -2363,6 +16862,1096 @@ fn destack_os_power_state_vm_replay(
 
 /// Register VM bindings for os.
 pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_BACKGROUND_COMPLETE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (executionid, argument_result) =
+                        decode_destack_os_background_complete_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_BACKGROUND_COMPLETE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_background_complete(
+                                runtime,
+                                context,
+                                executionid,
+                                argument_result,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_background_complete(
+                                    runtime,
+                                    context,
+                                    executionid,
+                                    argument_result,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_background_complete_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_BACKGROUND_EVENT_CLOSE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_os_background_event_close_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_BACKGROUND_EVENT_CLOSE)?;
+                    destack_os_background_event_close_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_BACKGROUND_EVENT_OPEN,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (options,) = decode_destack_os_background_event_open_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_BACKGROUND_EVENT_OPEN)?;
+                    destack_os_background_event_open_vm_replay(runtime, context, world, options)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_BACKGROUND_EVENT_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, timeoutns) =
+                        decode_destack_os_background_event_read_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_BACKGROUND_EVENT_READ)?;
+                    destack_os_background_event_read_vm_replay(
+                        runtime, context, world, handle, timeoutns,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_BACKGROUND_EVENT_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_os_background_event_try_read_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_BACKGROUND_EVENT_TRY_READ)?;
+                    destack_os_background_event_try_read_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_BACKGROUND_LIST,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_BACKGROUND_LIST)?;
+                    destack_os_background_list_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_BACKGROUND_REGISTER,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (options,) = decode_destack_os_background_register_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_BACKGROUND_REGISTER)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_background_register(
+                                runtime, context, options,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_background_register(
+                                    runtime, context, options,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_background_register_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_BACKGROUND_STATUS,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_BACKGROUND_STATUS)?;
+                    destack_os_background_status_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_BACKGROUND_TRIGGER_TEST,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (identifier,) =
+                        decode_destack_os_background_trigger_test_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_BACKGROUND_TRIGGER_TEST)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_background_trigger_test(
+                                runtime, context, identifier,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_background_trigger_test(
+                                    runtime, context, identifier,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_background_trigger_test_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_BACKGROUND_UNREGISTER,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (identifier,) =
+                        decode_destack_os_background_unregister_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_BACKGROUND_UNREGISTER)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_background_unregister(
+                                runtime, context, identifier,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_background_unregister(
+                                    runtime, context, identifier,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_background_unregister_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CALENDAR_EVENT_CREATE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (event,) = decode_destack_os_calendar_event_create_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CALENDAR_EVENT_CREATE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_calendar_event_create(
+                                runtime, context, event,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_calendar_event_create(
+                                    runtime, context, event,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_calendar_event_create_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CALENDAR_EVENT_DELETE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (id,) = decode_destack_os_calendar_event_delete_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CALENDAR_EVENT_DELETE)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_calendar_event_delete(runtime, context, id)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_calendar_event_delete(
+                                    runtime, context, id,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_calendar_event_delete_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CALENDAR_EVENT_LIST,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (query,) = decode_destack_os_calendar_event_list_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CALENDAR_EVENT_LIST)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_calendar_event_list(runtime, context, query)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_calendar_event_list(
+                                    runtime, context, query,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_calendar_event_list_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CALENDAR_EVENT_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (id,) = decode_destack_os_calendar_event_read_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CALENDAR_EVENT_READ)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_calendar_event_read(runtime, context, id)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_calendar_event_read(
+                                    runtime, context, id,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_calendar_event_read_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CALENDAR_EVENT_UPDATE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (id, event) = decode_destack_os_calendar_event_update_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CALENDAR_EVENT_UPDATE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_calendar_event_update(
+                                runtime, context, id, event,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_calendar_event_update(
+                                    runtime, context, id, event,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_calendar_event_update_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CALENDAR_LIST,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CALENDAR_LIST)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_calendar_list(runtime, context)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_calendar_list(runtime, context)
+                            }
+                        }
+                    };
+                    encode_destack_os_calendar_list_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CLIPBOARD_CLEAR,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CLIPBOARD_CLEAR)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_clipboard_clear(runtime, context)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_clipboard_clear(runtime, context)
+                            }
+                        }
+                    };
+                    encode_destack_os_clipboard_clear_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CLIPBOARD_HAS_TEXT,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_CLIPBOARD_HAS_TEXT)?;
+                    destack_os_clipboard_has_text_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CLIPBOARD_READ_BYTES,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (format,) = decode_destack_os_clipboard_read_bytes_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_CLIPBOARD_READ_BYTES)?;
+                    destack_os_clipboard_read_bytes_vm_replay(runtime, context, world, format)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CLIPBOARD_READ_TEXT,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_CLIPBOARD_READ_TEXT)?;
+                    destack_os_clipboard_read_text_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CLIPBOARD_SEQUENCE,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_CLIPBOARD_SEQUENCE)?;
+                    destack_os_clipboard_sequence_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CLIPBOARD_WRITE_BYTES,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (format, argument_bytes) =
+                        decode_destack_os_clipboard_write_bytes_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CLIPBOARD_WRITE_BYTES)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_clipboard_write_bytes(
+                                runtime,
+                                context,
+                                format,
+                                argument_bytes,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_clipboard_write_bytes(
+                                    runtime,
+                                    context,
+                                    format,
+                                    argument_bytes,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_clipboard_write_bytes_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CLIPBOARD_WRITE_TEXT,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (text,) = decode_destack_os_clipboard_write_text_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CLIPBOARD_WRITE_TEXT)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_clipboard_write_text(runtime, context, text)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_clipboard_write_text(
+                                    runtime, context, text,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_clipboard_write_text_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CONTACT_CREATE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (contact,) = decode_destack_os_contact_create_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CONTACT_CREATE)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_contact_create(runtime, context, contact)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_contact_create(
+                                    runtime, context, contact,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_contact_create_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CONTACT_DELETE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (id,) = decode_destack_os_contact_delete_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CONTACT_DELETE)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_contact_delete(runtime, context, id)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_contact_delete(
+                                    runtime, context, id,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_contact_delete_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, OS_CONTACT_LIST, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (query,) = decode_destack_os_contact_list_args(context, args)?;
+
+                // execute binding
+                let result = {
+                    let world = runtime.check_and_resolve_world(OS_CONTACT_LIST)?;
+                    match world {
+                        RuntimeWorld::Host => {
+                            platform_vm::destack_os_contact_list(runtime, context, query)
+                        }
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_os_contact_list(runtime, context, query)
+                        }
+                    }
+                };
+                encode_destack_os_contact_list_result(context, result)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, OS_CONTACT_READ, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (id,) = decode_destack_os_contact_read_args(context, args)?;
+
+                // execute binding
+                let result = {
+                    let world = runtime.check_and_resolve_world(OS_CONTACT_READ)?;
+                    match world {
+                        RuntimeWorld::Host => {
+                            platform_vm::destack_os_contact_read(runtime, context, id)
+                        }
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_os_contact_read(runtime, context, id)
+                        }
+                    }
+                };
+                encode_destack_os_contact_read_result(context, result)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CONTACT_SEARCH,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (querytext, query) = decode_destack_os_contact_search_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CONTACT_SEARCH)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_contact_search(
+                                runtime, context, querytext, query,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_contact_search(
+                                    runtime, context, querytext, query,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_contact_search_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CONTACT_UPDATE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (id, contact) = decode_destack_os_contact_update_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CONTACT_UPDATE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_contact_update(
+                                runtime, context, id, contact,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_contact_update(
+                                    runtime, context, id, contact,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_contact_update_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CREDENTIALS_AUTHENTICATE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (options,) =
+                        decode_destack_os_credentials_authenticate_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CREDENTIALS_AUTHENTICATE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_credentials_authenticate(
+                                runtime, context, options,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_credentials_authenticate(
+                                    runtime, context, options,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_credentials_authenticate_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CREDENTIALS_CONTAINS,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (service, account) =
+                        decode_destack_os_credentials_contains_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CREDENTIALS_CONTAINS)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_credentials_contains(
+                                runtime, context, service, account,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_credentials_contains(
+                                    runtime, context, service, account,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_credentials_contains_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CREDENTIALS_DELETE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (service, account) =
+                        decode_destack_os_credentials_delete_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CREDENTIALS_DELETE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_credentials_delete(
+                                runtime, context, service, account,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_credentials_delete(
+                                    runtime, context, service, account,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_credentials_delete_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CREDENTIALS_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (query,) = decode_destack_os_credentials_read_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CREDENTIALS_READ)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_credentials_read(runtime, context, query)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_credentials_read(
+                                    runtime, context, query,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_credentials_read_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_CREDENTIALS_WRITE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (options,) = decode_destack_os_credentials_write_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_CREDENTIALS_WRITE)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_credentials_write(runtime, context, options)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_credentials_write(
+                                    runtime, context, options,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_credentials_write_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_DOCUMENT_CLOSE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_os_document_close_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_DOCUMENT_CLOSE)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_document_close(runtime, context, handle)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_document_close(
+                                    runtime, context, handle,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_document_close_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_DOCUMENT_FLUSH,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_os_document_flush_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_DOCUMENT_FLUSH)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_document_flush(runtime, context, handle)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_document_flush(
+                                    runtime, context, handle,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_document_flush_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, OS_DOCUMENT_OPEN, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (uri, access) = decode_destack_os_document_open_args(context, args)?;
+
+                // execute binding
+                let result = {
+                    let world = runtime.check_and_resolve_world(OS_DOCUMENT_OPEN)?;
+                    match world {
+                        RuntimeWorld::Host => {
+                            platform_vm::destack_os_document_open(runtime, context, uri, access)
+                        }
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_os_document_open(
+                                runtime, context, uri, access,
+                            )
+                        }
+                    }
+                };
+                encode_destack_os_document_open_result(context, result)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, OS_DOCUMENT_PICK, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (options,) = decode_destack_os_document_pick_args(context, args)?;
+
+                // execute binding
+                let result = {
+                    let world = runtime.check_and_resolve_world(OS_DOCUMENT_PICK)?;
+                    match world {
+                        RuntimeWorld::Host => {
+                            platform_vm::destack_os_document_pick(runtime, context, options)
+                        }
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_os_document_pick(
+                                runtime, context, options,
+                            )
+                        }
+                    }
+                };
+                encode_destack_os_document_pick_result(context, result)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, OS_DOCUMENT_READ, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (handle, maxbytes, timeoutns) =
+                    decode_destack_os_document_read_args(context, args)?;
+
+                // execute binding
+                let result = {
+                    let world = runtime.check_and_resolve_world(OS_DOCUMENT_READ)?;
+                    match world {
+                        RuntimeWorld::Host => platform_vm::destack_os_document_read(
+                            runtime, context, handle, maxbytes, timeoutns,
+                        ),
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_os_document_read(
+                                runtime, context, handle, maxbytes, timeoutns,
+                            )
+                        }
+                    }
+                };
+                encode_destack_os_document_read_result(context, result)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_DOCUMENT_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, maxbytes) =
+                        decode_destack_os_document_try_read_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_DOCUMENT_TRY_READ)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_document_try_read(
+                                runtime, context, handle, maxbytes,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_document_try_read(
+                                    runtime, context, handle, maxbytes,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_document_try_read_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_DOCUMENT_WRITE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, argument_bytes, timeoutns) =
+                        decode_destack_os_document_write_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_DOCUMENT_WRITE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_document_write(
+                                runtime,
+                                context,
+                                handle,
+                                argument_bytes,
+                                timeoutns,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_document_write(
+                                    runtime,
+                                    context,
+                                    handle,
+                                    argument_bytes,
+                                    timeoutns,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_document_write_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
     {
         binding!(
             registry,
@@ -2439,6 +18028,490 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         );
     }
     {
+        binding!(
+            registry,
+            isolate,
+            OS_INTENT_CAN_OPEN_URL,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (url,) = decode_destack_os_intent_can_open_url_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_INTENT_CAN_OPEN_URL)?;
+                    destack_os_intent_can_open_url_vm_replay(runtime, context, world, url)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, OS_INTENT_CLOSE, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (handle,) = decode_destack_os_intent_close_args(context, args)?;
+
+                // execute binding
+                let world = runtime.check_and_resolve_world(OS_INTENT_CLOSE)?;
+                destack_os_intent_close_vm_replay(runtime, context, world, handle)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, OS_INTENT_OPEN, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (options,) = decode_destack_os_intent_open_args(context, args)?;
+
+                // execute binding
+                let world = runtime.check_and_resolve_world(OS_INTENT_OPEN)?;
+                destack_os_intent_open_vm_replay(runtime, context, world, options)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_INTENT_OPEN_PATH,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (path,) = decode_destack_os_intent_open_path_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_INTENT_OPEN_PATH)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_intent_open_path(runtime, context, path)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_intent_open_path(
+                                    runtime, context, path,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_intent_open_path_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_INTENT_OPEN_URL,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (url,) = decode_destack_os_intent_open_url_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_INTENT_OPEN_URL)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_intent_open_url(runtime, context, url)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_intent_open_url(
+                                    runtime, context, url,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_intent_open_url_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, OS_INTENT_READ, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (handle, timeoutns) = decode_destack_os_intent_read_args(context, args)?;
+
+                // execute binding
+                let world = runtime.check_and_resolve_world(OS_INTENT_READ)?;
+                destack_os_intent_read_vm_replay(runtime, context, world, handle, timeoutns)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_INTENT_SHARE_PATHS,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (paths, mimetype) =
+                        decode_destack_os_intent_share_paths_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_INTENT_SHARE_PATHS)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_intent_share_paths(
+                                runtime, context, paths, mimetype,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_intent_share_paths(
+                                    runtime, context, paths, mimetype,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_intent_share_paths_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_INTENT_SHARE_TEXT,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (text, mimetype) = decode_destack_os_intent_share_text_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_INTENT_SHARE_TEXT)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_intent_share_text(
+                                runtime, context, text, mimetype,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_intent_share_text(
+                                    runtime, context, text, mimetype,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_intent_share_text_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_INTENT_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_os_intent_try_read_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_INTENT_TRY_READ)?;
+                    destack_os_intent_try_read_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_LIFECYCLE_CLOSE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_os_lifecycle_close_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_LIFECYCLE_CLOSE)?;
+                    destack_os_lifecycle_close_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_LIFECYCLE_OPEN,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_LIFECYCLE_OPEN)?;
+                    destack_os_lifecycle_open_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_LIFECYCLE_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, timeoutns) = decode_destack_os_lifecycle_read_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_LIFECYCLE_READ)?;
+                    destack_os_lifecycle_read_vm_replay(runtime, context, world, handle, timeoutns)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_LIFECYCLE_STATE,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_LIFECYCLE_STATE)?;
+                    destack_os_lifecycle_state_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_LIFECYCLE_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_os_lifecycle_try_read_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_LIFECYCLE_TRY_READ)?;
+                    destack_os_lifecycle_try_read_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_LOCATION_LAST_KNOWN,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_LOCATION_LAST_KNOWN)?;
+                    destack_os_location_last_known_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_LOCATION_SERVICES_ENABLED,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_LOCATION_SERVICES_ENABLED)?;
+                    destack_os_location_services_enabled_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_LOCATION_WATCH_CLOSE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_os_location_watch_close_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_LOCATION_WATCH_CLOSE)?;
+                    destack_os_location_watch_close_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_LOCATION_WATCH_OPEN,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (options,) = decode_destack_os_location_watch_open_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_LOCATION_WATCH_OPEN)?;
+                    destack_os_location_watch_open_vm_replay(runtime, context, world, options)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_LOCATION_WATCH_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, timeoutns) =
+                        decode_destack_os_location_watch_read_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_LOCATION_WATCH_READ)?;
+                    destack_os_location_watch_read_vm_replay(
+                        runtime, context, world, handle, timeoutns,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_LOCATION_WATCH_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_os_location_watch_try_read_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_LOCATION_WATCH_TRY_READ)?;
+                    destack_os_location_watch_try_read_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, OS_MEDIA_DELETE, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (ids,) = decode_destack_os_media_delete_args(context, args)?;
+
+                // execute binding
+                let result = {
+                    let world = runtime.check_and_resolve_world(OS_MEDIA_DELETE)?;
+                    match world {
+                        RuntimeWorld::Host => {
+                            platform_vm::destack_os_media_delete(runtime, context, ids)
+                        }
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_os_media_delete(runtime, context, ids)
+                        }
+                    }
+                };
+                encode_destack_os_media_delete_result(context, result)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_MEDIA_IMPORT_PATH,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (path, kind) = decode_destack_os_media_import_path_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_MEDIA_IMPORT_PATH)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_media_import_path(
+                                runtime, context, path, kind,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_media_import_path(
+                                    runtime, context, path, kind,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_media_import_path_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, OS_MEDIA_LIST, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (query,) = decode_destack_os_media_list_args(context, args)?;
+
+                // execute binding
+                let result = {
+                    let world = runtime.check_and_resolve_world(OS_MEDIA_LIST)?;
+                    match world {
+                        RuntimeWorld::Host => {
+                            platform_vm::destack_os_media_list(runtime, context, query)
+                        }
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_os_media_list(runtime, context, query)
+                        }
+                    }
+                };
+                encode_destack_os_media_list_result(context, result)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, OS_MEDIA_READ, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (id,) = decode_destack_os_media_read_args(context, args)?;
+
+                // execute binding
+                let result = {
+                    let world = runtime.check_and_resolve_world(OS_MEDIA_READ)?;
+                    match world {
+                        RuntimeWorld::Host => {
+                            platform_vm::destack_os_media_read(runtime, context, id)
+                        }
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_os_media_read(runtime, context, id)
+                        }
+                    }
+                };
+                encode_destack_os_media_read_result(context, result)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
         binding!(registry, isolate, OS_MOUNT_ADD, move |context, args| {
             with_binding_call_context(|runtime| {
                 // decode args
@@ -2476,6 +18549,637 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             })
             .map_err(Into::into)
         });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NETWORK_STATE,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_NETWORK_STATE)?;
+                    destack_os_network_state_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NETWORK_WATCH_CLOSE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_os_network_watch_close_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_NETWORK_WATCH_CLOSE)?;
+                    destack_os_network_watch_close_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NETWORK_WATCH_OPEN,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_NETWORK_WATCH_OPEN)?;
+                    destack_os_network_watch_open_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NETWORK_WATCH_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, timeoutns) =
+                        decode_destack_os_network_watch_read_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_NETWORK_WATCH_READ)?;
+                    destack_os_network_watch_read_vm_replay(
+                        runtime, context, world, handle, timeoutns,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NETWORK_WATCH_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_os_network_watch_try_read_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_NETWORK_WATCH_TRY_READ)?;
+                    destack_os_network_watch_try_read_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_CANCEL,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (id,) = decode_destack_os_notification_cancel_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_CANCEL)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_notification_cancel(runtime, context, id)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_notification_cancel(
+                                    runtime, context, id,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_notification_cancel_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_CANCEL_ALL,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_CANCEL_ALL)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_notification_cancel_all(runtime, context)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_notification_cancel_all(
+                                    runtime, context,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_notification_cancel_all_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_CATEGORY_LIST,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_NOTIFICATION_CATEGORY_LIST)?;
+                    destack_os_notification_category_list_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_CATEGORY_SET,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (categories,) =
+                        decode_destack_os_notification_category_set_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world =
+                            runtime.check_and_resolve_world(OS_NOTIFICATION_CATEGORY_SET)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_notification_category_set(
+                                    runtime, context, categories,
+                                )
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_notification_category_set(
+                                    runtime, context, categories,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_notification_category_set_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_EVENT_CLOSE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_os_notification_event_close_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_EVENT_CLOSE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_notification_event_close(
+                                runtime, context, handle,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_notification_event_close(
+                                    runtime, context, handle,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_notification_event_close_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_EVENT_OPEN,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (options,) = decode_destack_os_notification_event_open_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_EVENT_OPEN)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_notification_event_open(
+                                runtime, context, options,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_notification_event_open(
+                                    runtime, context, options,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_notification_event_open_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_EVENT_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, timeoutns) =
+                        decode_destack_os_notification_event_read_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_EVENT_READ)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_notification_event_read(
+                                runtime, context, handle, timeoutns,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_notification_event_read(
+                                    runtime, context, handle, timeoutns,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_notification_event_read_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_EVENT_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_os_notification_event_try_read_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world =
+                            runtime.check_and_resolve_world(OS_NOTIFICATION_EVENT_TRY_READ)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_notification_event_try_read(
+                                    runtime, context, handle,
+                                )
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_notification_event_try_read(
+                                    runtime, context, handle,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_notification_event_try_read_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_PENDING_CANCEL,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (id,) = decode_destack_os_notification_pending_cancel_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world =
+                            runtime.check_and_resolve_world(OS_NOTIFICATION_PENDING_CANCEL)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_notification_pending_cancel(
+                                    runtime, context, id,
+                                )
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_notification_pending_cancel(
+                                    runtime, context, id,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_notification_pending_cancel_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_PENDING_CANCEL_ALL,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let result = {
+                        let world =
+                            runtime.check_and_resolve_world(OS_NOTIFICATION_PENDING_CANCEL_ALL)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_notification_pending_cancel_all(
+                                    runtime, context,
+                                )
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_notification_pending_cancel_all(
+                                    runtime, context,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_notification_pending_cancel_all_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_PENDING_LIST,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_NOTIFICATION_PENDING_LIST)?;
+                    destack_os_notification_pending_list_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_PERMISSION_STATE,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world =
+                        runtime.check_and_resolve_world(OS_NOTIFICATION_PERMISSION_STATE)?;
+                    destack_os_notification_permission_state_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_POST,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (request,) = decode_destack_os_notification_post_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_POST)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_notification_post(runtime, context, request)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_notification_post(
+                                    runtime, context, request,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_notification_post_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_REQUEST_PERMISSION,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let result = {
+                        let world =
+                            runtime.check_and_resolve_world(OS_NOTIFICATION_REQUEST_PERMISSION)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_notification_request_permission(
+                                    runtime, context,
+                                )
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_notification_request_permission(
+                                    runtime, context,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_notification_request_permission_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_NOTIFICATION_SCHEDULE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (request,) = decode_destack_os_notification_schedule_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_NOTIFICATION_SCHEDULE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_notification_schedule(
+                                runtime, context, request,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_notification_schedule(
+                                    runtime, context, request,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_notification_schedule_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_PERMISSION_OPEN_SETTINGS,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_PERMISSION_OPEN_SETTINGS)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_os_permission_open_settings(runtime, context)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_permission_open_settings(
+                                    runtime, context,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_permission_open_settings_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_PERMISSION_REQUEST,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (permission,) = decode_destack_os_permission_request_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_PERMISSION_REQUEST)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_permission_request(
+                                runtime, context, permission,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_permission_request(
+                                    runtime, context, permission,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_permission_request_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_PERMISSION_REQUEST_MANY,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (permissions,) =
+                        decode_destack_os_permission_request_many_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(OS_PERMISSION_REQUEST_MANY)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_os_permission_request_many(
+                                runtime,
+                                context,
+                                permissions,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_os_permission_request_many(
+                                    runtime,
+                                    context,
+                                    permissions,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_os_permission_request_many_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_PERMISSION_STATE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (permission,) = decode_destack_os_permission_state_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_PERMISSION_STATE)?;
+                    destack_os_permission_state_vm_replay(runtime, context, world, permission)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            OS_PERMISSION_STATE_MANY,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (permissions,) =
+                        decode_destack_os_permission_state_many_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(OS_PERMISSION_STATE_MANY)?;
+                    destack_os_permission_state_many_vm_replay(runtime, context, world, permissions)
+                })
+                .map_err(Into::into)
+            }
+        );
     }
     {
         binding!(registry, isolate, OS_POWER_STATE, move |context, _args| {

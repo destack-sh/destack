@@ -396,7 +396,7 @@ pub(crate) fn destack_net_get_only_v6(
 /// Mark value interpretation is host-network-stack specific.
 ///
 /// # Platform
-/// Linux and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
 /// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
 ///
 /// # Errors
@@ -736,7 +736,7 @@ pub(crate) fn destack_net_set_only_v6(
 /// Mark interpretation is host-network-stack specific.
 ///
 /// # Platform
-/// Linux and Windows. Operations return `notSupported` when the socket feature is unavailable.
+/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
 /// Uses SO_MARK on Linux and host route-marking controls on Windows where available.
 ///
 /// # Errors
@@ -1002,7 +1002,7 @@ pub(crate) fn destack_net_set_write_timeout(
 /// Group teardown behavior and packet redistribution follow host kernel semantics.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses PACKET_FANOUT reset on Linux and returns notSupported where fanout groups are unavailable.
 ///
 /// # Errors
@@ -1030,7 +1030,7 @@ pub(crate) fn destack_net_packet_clear_fanout(
 /// Filter teardown semantics are host defined.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses SO_DETACH_FILTER or BPF detach APIs on Unix and equivalent packet filter APIs on Windows.
 ///
 /// # Errors
@@ -1058,7 +1058,7 @@ pub(crate) fn destack_net_packet_clear_filter(
 /// Pending ring buffers are released according to host packet socket semantics.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses PACKET_RX_RING and PACKET_TX_RING reset on Linux and returns notSupported elsewhere.
 ///
 /// # Errors
@@ -1086,7 +1086,7 @@ pub(crate) fn destack_net_packet_clear_ring(
 /// Host privilege checks and backend-specific limits are enforced by the kernel or driver.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses AF_PACKET on Linux, BPF devices on BSD, and packet capture drivers on Windows.
 ///
 /// # Errors
@@ -1111,7 +1111,7 @@ pub(crate) fn destack_net_packet_open(
 /// Truncation is reported explicitly when the payload buffer is smaller than the captured frame.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses AF_PACKET or BPF packet reads on Unix and packet capture driver reads on Windows.
 ///
 /// # Errors
@@ -1141,7 +1141,7 @@ pub(crate) fn destack_net_packet_receive(
 /// Partial sends are reported through the returned byte count.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses AF_PACKET or BPF packet writes on Unix and packet injection driver writes on Windows.
 ///
 /// # Errors
@@ -1168,7 +1168,7 @@ pub(crate) fn destack_net_packet_send(
 /// Fanout group behavior and mode-specific flags follow host packet socket semantics.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses PACKET_FANOUT on Linux and returns notSupported where fanout groups are unavailable.
 ///
 /// # Errors
@@ -1198,7 +1198,7 @@ pub(crate) fn destack_net_packet_set_fanout(
 /// Filter verification and accepted instruction sets are host defined.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses SO_ATTACH_FILTER or BPF attach APIs on Unix and equivalent packet filter APIs on Windows.
 ///
 /// # Errors
@@ -1228,7 +1228,7 @@ pub(crate) fn destack_net_packet_set_filter(
 /// Ring geometry is validated by the host kernel and may be clamped or rejected.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses PACKET_RX_RING on Linux and returns notSupported where packet rings are unavailable.
 ///
 /// # Errors
@@ -1258,7 +1258,7 @@ pub(crate) fn destack_net_packet_set_rx_ring(
 /// Unsupported timestamp modes return notSupported.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses SO_TIMESTAMP families on Unix and socket timestamp controls on Windows where available.
 ///
 /// # Errors
@@ -1288,7 +1288,7 @@ pub(crate) fn destack_net_packet_set_timestamp_mode(
 /// Ring geometry is validated by the host kernel and may be clamped or rejected.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses PACKET_TX_RING on Linux and returns notSupported where packet rings are unavailable.
 ///
 /// # Errors
@@ -1318,7 +1318,7 @@ pub(crate) fn destack_net_packet_set_tx_ring(
 /// Counter units and reset behavior follow host backend semantics.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses packet socket stats on Linux, BPF stats on BSD, and equivalent packet backend stats on Windows.
 ///
 /// # Errors
@@ -1721,7 +1721,7 @@ pub(crate) fn destack_net_set_reuse_port(
 /// Host privilege and policy checks are enforced by the kernel.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
 ///
 /// # Errors
@@ -1746,7 +1746,7 @@ pub(crate) fn destack_net_route_add(
 /// Host privilege and policy checks are enforced by the kernel.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses netlink or routing sockets on Unix and iphlpapi route mutation APIs on Windows.
 ///
 /// # Errors
@@ -1771,7 +1771,7 @@ pub(crate) fn destack_net_route_delete(
 /// Results are snapshots and may become stale immediately after the call.
 ///
 /// # Platform
-/// Linux, BSD, and Windows.
+/// Unix and Windows.
 /// Uses netlink or routing sockets on Unix and iphlpapi route tables on Windows.
 ///
 /// # Errors

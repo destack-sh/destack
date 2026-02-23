@@ -23,10 +23,12 @@ use crate::platform::audio::{
     AudioStreamSupport, AudioStreamSupportReplayRecord, AudioStreamSupportVm, AudioStreamTiming,
     AudioStreamTimingVm, AudioStreamTransferMode, AudioSupportedEventSubscriptionFlags,
     AudioSupportedStreamClockDomains, AudioSupportedStreamFlags,
-    AudioSupportedStreamRequirementFlags,
+    AudioSupportedStreamRequirementFlags, MidiMessage, MidiMessageReplayRecord, MidiMessageVm,
+    MidiPortDescriptor, MidiPortDescriptorReplayRecord, MidiPortDescriptorVm, MidiPortDirection,
 };
 use crate::platform::{
-    NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmSlice, abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
+    abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
@@ -166,6 +168,16 @@ fn decode_slice<T>(
     expected: &'static str,
 ) -> RuntimeResult<VmSlice<T>> {
     VmSlice::<T>::from_value(context, value, name, expected)
+}
+
+/// Decode an array argument.
+fn decode_array<T>(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<VmArray<T>> {
+    VmArray::<T>::from_value(context, value, name, expected)
 }
 
 /// Encode the result for destack.audio.backend.list.
@@ -962,6 +974,189 @@ fn encode_destack_audio_event_try_read_batch_result(
     result: RuntimeResult<VmSlice<AudioEventVm>>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.audio.midi.flush.
+#[inline]
+fn decode_destack_audio_midi_flush_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::MidiPortHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "MidiPortHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "MidiPortHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::MidiPortHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.audio.midi.flush.
+#[inline]
+fn encode_destack_audio_midi_flush_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.audio.midi.portClose.
+#[inline]
+fn decode_destack_audio_midi_port_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::MidiPortHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "MidiPortHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "MidiPortHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::MidiPortHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.audio.midi.portClose.
+#[inline]
+fn encode_destack_audio_midi_port_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.audio.midi.portList.
+#[inline]
+fn decode_destack_audio_midi_port_list_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(MidiPortDirection,)> {
+    let direction_value = arg_value(args, 0, "direction", "MidiPortDirection")?;
+    let direction_raw = decode_uint8(direction_value, "direction_raw", "MidiPortDirection")?;
+    let direction = match direction_raw {
+        1u8 => MidiPortDirection::Input,
+        2u8 => MidiPortDirection::Output,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "direction",
+                "unknown MidiPortDirection value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((direction,))
+}
+
+/// Encode the result for destack.audio.midi.portList.
+#[inline]
+fn encode_destack_audio_midi_port_list_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<MidiPortDescriptorVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.audio.midi.portOpen.
+#[inline]
+fn decode_destack_audio_midi_port_open_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(vm::StringHandle, MidiPortDirection)> {
+    let id_value = arg_value(args, 0, "id", "string")?;
+    let id = decode_string(id_value, "id", "string")?;
+    let direction_value = arg_value(args, 1, "direction", "MidiPortDirection")?;
+    let direction_raw = decode_uint8(direction_value, "direction_raw", "MidiPortDirection")?;
+    let direction = match direction_raw {
+        1u8 => MidiPortDirection::Input,
+        2u8 => MidiPortDirection::Output,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "direction",
+                "unknown MidiPortDirection value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((id, direction))
+}
+
+/// Encode the result for destack.audio.midi.portOpen.
+#[inline]
+fn encode_destack_audio_midi_port_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::MidiPortHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.audio.midi.read.
+#[inline]
+fn decode_destack_audio_midi_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::MidiPortHandle, u32, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "MidiPortHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "MidiPortHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::MidiPortHandle(handle_inner);
+    let maxmessages_value = arg_value(args, 1, "maxmessages", "uint32")?;
+    let maxmessages = decode_uint32(maxmessages_value, "maxmessages", "uint32")?;
+    let timeoutns_value = arg_value(args, 2, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, maxmessages, timeoutns))
+}
+
+/// Encode the result for destack.audio.midi.read.
+#[inline]
+fn encode_destack_audio_midi_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<MidiMessageVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.audio.midi.tryRead.
+#[inline]
+fn decode_destack_audio_midi_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::MidiPortHandle, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "MidiPortHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "MidiPortHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::MidiPortHandle(handle_inner);
+    let maxmessages_value = arg_value(args, 1, "maxmessages", "uint32")?;
+    let maxmessages = decode_uint32(maxmessages_value, "maxmessages", "uint32")?;
+    Ok((handle, maxmessages))
+}
+
+/// Encode the result for destack.audio.midi.tryRead.
+#[inline]
+fn encode_destack_audio_midi_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<MidiMessageVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.audio.midi.write.
+#[inline]
+fn decode_destack_audio_midi_write_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::MidiPortHandle, VmArray<MidiMessageVm>)> {
+    let handle_value = arg_value(args, 0, "handle", "MidiPortHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "MidiPortHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::MidiPortHandle(handle_inner);
+    let messages_value = arg_value(args, 1, "messages", "MidiMessage[]")?;
+    let messages =
+        decode_array::<MidiMessageVm>(context, messages_value, "messages", "MidiMessage[]")?;
+    Ok((handle, messages))
+}
+
+/// Encode the result for destack.audio.midi.write.
+#[inline]
+fn encode_destack_audio_midi_write_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<u32>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value as u64, 32))
 }
 
 /// Decode arguments for destack.audio.stream.abort.
@@ -2044,6 +2239,55 @@ struct AudioEventTryReadBatchReplay {
     pub result: Result<Vec<AudioEventReplayRecord>, PlatformError>,
 }
 
+/// Replay payload for destack.audio.midi.flush.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioMidiFlushReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.audio.midi.portClose.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioMidiPortCloseReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.audio.midi.portList.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioMidiPortListReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<MidiPortDescriptorReplayRecord>, PlatformError>,
+}
+
+/// Replay payload for destack.audio.midi.portOpen.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioMidiPortOpenReplay {
+    /// Replay result payload.
+    pub result: Result<resource::MidiPortHandle, PlatformError>,
+}
+
+/// Replay payload for destack.audio.midi.read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioMidiReadReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<MidiMessageReplayRecord>, PlatformError>,
+}
+
+/// Replay payload for destack.audio.midi.tryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioMidiTryReadReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<MidiMessageReplayRecord>, PlatformError>,
+}
+
+/// Replay payload for destack.audio.midi.write.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct AudioMidiWriteReplay {
+    /// Replay result payload.
+    pub result: Result<u32, PlatformError>,
+}
+
 /// Replay payload for destack.audio.stream.abort.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct AudioStreamAbortReplay {
@@ -2476,6 +2720,118 @@ pub const AUDIO_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::ext
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.audio.midi.flush.
+pub const AUDIO_MIDI_FLUSH: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.audio.midi.flush",
+        "export function midiFlush(handle: MidiPortHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["audio.midi"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.audio.midi.portClose.
+pub const AUDIO_MIDI_PORT_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.audio.midi.portClose",
+        "export function midiPortClose(handle: MidiPortHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["audio.midi"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.audio.midi.portList.
+pub const AUDIO_MIDI_PORT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.midi.portList",
+    "export function midiPortList(direction: MidiPortDirection): Result<Slice<MidiPortDescriptor>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.midi"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.audio.midi.portOpen.
+pub const AUDIO_MIDI_PORT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.midi.portOpen",
+    "export function midiPortOpen(id: string, direction: MidiPortDirection): Result<MidiPortHandle, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.midi"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.audio.midi.read.
+pub const AUDIO_MIDI_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.midi.read",
+    "export function midiRead(handle: MidiPortHandle, maxMessages: uint32, timeoutNs: uint64): Result<MidiMessage[], PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.midi"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.audio.midi.tryRead.
+pub const AUDIO_MIDI_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.midi.tryRead",
+    "export function midiTryRead(handle: MidiPortHandle, maxMessages: uint32): Result<MidiMessage[], PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.midi"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.audio.midi.write.
+pub const AUDIO_MIDI_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.audio.midi.write",
+    "export function midiWrite(handle: MidiPortHandle, messages: MidiMessage[]): Result<uint32, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["audio.midi"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.audio.stream.abort.
 pub const AUDIO_STREAM_ABORT: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
@@ -2875,6 +3231,13 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     AUDIO_EVENT_READ_BATCH,
     AUDIO_EVENT_TRY_READ,
     AUDIO_EVENT_TRY_READ_BATCH,
+    AUDIO_MIDI_FLUSH,
+    AUDIO_MIDI_PORT_CLOSE,
+    AUDIO_MIDI_PORT_LIST,
+    AUDIO_MIDI_PORT_OPEN,
+    AUDIO_MIDI_READ,
+    AUDIO_MIDI_TRY_READ,
+    AUDIO_MIDI_WRITE,
     AUDIO_STREAM_ABORT,
     AUDIO_STREAM_AVAILABILITY,
     AUDIO_STREAM_CLOSE,
@@ -2981,6 +3344,41 @@ pub const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             AUDIO_EVENT_TRY_READ_BATCH,
             "destack.audio.event.tryReadBatch",
             destack_audio_event_try_read_batch as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_MIDI_FLUSH,
+            "destack.audio.midi.flush",
+            destack_audio_midi_flush as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_MIDI_PORT_CLOSE,
+            "destack.audio.midi.portClose",
+            destack_audio_midi_port_close as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_MIDI_PORT_LIST,
+            "destack.audio.midi.portList",
+            destack_audio_midi_port_list as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_MIDI_PORT_OPEN,
+            "destack.audio.midi.portOpen",
+            destack_audio_midi_port_open as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_MIDI_READ,
+            "destack.audio.midi.read",
+            destack_audio_midi_read as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_MIDI_TRY_READ,
+            "destack.audio.midi.tryRead",
+            destack_audio_midi_try_read as *const (),
+        ),
+        NativeBinding::new(
+            AUDIO_MIDI_WRITE,
+            "destack.audio.midi.write",
+            destack_audio_midi_write as *const (),
         ),
         NativeBinding::new(
             AUDIO_STREAM_ABORT,
@@ -4752,6 +5150,576 @@ fn destack_audio_event_try_read_batch_replay(
                         value_native_values.push(value_native_item_native);
                     }
                     let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_midi_flush_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::MidiPortHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        AUDIO_MIDI_FLUSH,
+        context.replay_payload_for(AUDIO_MIDI_FLUSH)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_midi_flush(context, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_audio_midi_flush(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioMidiFlushReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiFlushReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_midi_port_close_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::MidiPortHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        AUDIO_MIDI_PORT_CLOSE,
+        context.replay_payload_for(AUDIO_MIDI_PORT_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_midi_port_close(context, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_audio_midi_port_close(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioMidiPortCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiPortCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_midi_port_list_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<MidiPortDescriptor>,
+    direction: MidiPortDirection,
+) -> RuntimeResult<()> {
+    let _ = &direction;
+
+    context.replay().run_binding_with_policy(
+        AUDIO_MIDI_PORT_LIST,
+        context.replay_payload_for(AUDIO_MIDI_PORT_LIST)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_midi_port_list(context, out, direction)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_audio_midi_port_list(context, out, direction)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_id =
+                        unsafe { result_recorded_item.id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_name =
+                        unsafe { result_recorded_item.name.as_str()? }.to_string();
+                    let result_recorded_item_recorded_manufacturer =
+                        unsafe { result_recorded_item.manufacturer.as_str()? }.to_string();
+                    let result_recorded_item_recorded_version =
+                        unsafe { result_recorded_item.version.as_str()? }.to_string();
+                    let result_recorded_item_recorded_direction = result_recorded_item.direction;
+                    let result_recorded_item_recorded_is_virtual = result_recorded_item.is_virtual;
+                    let result_recorded_item_recorded = MidiPortDescriptorReplayRecord {
+                        id: result_recorded_item_recorded_id,
+                        name: result_recorded_item_recorded_name,
+                        manufacturer: result_recorded_item_recorded_manufacturer,
+                        version: result_recorded_item_recorded_version,
+                        direction: result_recorded_item_recorded_direction,
+                        is_virtual: result_recorded_item_recorded_is_virtual,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = AudioMidiPortListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiPortListReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_id =
+                            context.store_string(&value_native_item.id);
+                        let value_native_item_native_name =
+                            context.store_string(&value_native_item.name);
+                        let value_native_item_native_manufacturer =
+                            context.store_string(&value_native_item.manufacturer);
+                        let value_native_item_native_version =
+                            context.store_string(&value_native_item.version);
+                        let value_native_item_native_direction = value_native_item.direction;
+                        let value_native_item_native_is_virtual = value_native_item.is_virtual;
+                        let value_native_item_native = MidiPortDescriptor {
+                            id: value_native_item_native_id,
+                            name: value_native_item_native_name,
+                            manufacturer: value_native_item_native_manufacturer,
+                            version: value_native_item_native_version,
+                            direction: value_native_item_native_direction,
+                            is_virtual: value_native_item_native_is_virtual,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_midi_port_open_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::MidiPortHandle,
+    id: NativeStringRef,
+    direction: MidiPortDirection,
+) -> RuntimeResult<()> {
+    let _ = (&id, &direction);
+
+    context.replay().run_binding_with_policy(
+        AUDIO_MIDI_PORT_OPEN,
+        context.replay_payload_for(AUDIO_MIDI_PORT_OPEN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_midi_port_open(context, out, id, direction)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_audio_midi_port_open(
+                    context, out, id, direction,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = AudioMidiPortOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiPortOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_midi_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<MidiMessage>,
+    handle: resource::MidiPortHandle,
+    maxmessages: u32,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &maxmessages, &timeoutns);
+
+    context.replay().run_binding_with_policy(
+        AUDIO_MIDI_READ,
+        context.replay_payload_for(AUDIO_MIDI_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_midi_read(
+                    context,
+                    out,
+                    handle,
+                    maxmessages,
+                    timeoutns,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_audio_midi_read(
+                    context,
+                    out,
+                    handle,
+                    maxmessages,
+                    timeoutns,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_timestamp_ns =
+                        result_recorded_item.timestamp_ns;
+                    let result_recorded_item_recorded_source_id =
+                        unsafe { result_recorded_item.source_id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_data_raw =
+                        unsafe { result_recorded_item.data.as_slice()? };
+                    let mut result_recorded_item_recorded_data =
+                        Vec::with_capacity(result_recorded_item_recorded_data_raw.len());
+                    for result_recorded_item_recorded_data_item_value in
+                        result_recorded_item_recorded_data_raw
+                    {
+                        let result_recorded_item_recorded_data_item =
+                            *result_recorded_item_recorded_data_item_value;
+                        let result_recorded_item_recorded_data_item_recorded =
+                            result_recorded_item_recorded_data_item;
+                        result_recorded_item_recorded_data
+                            .push(result_recorded_item_recorded_data_item_recorded);
+                    }
+                    let result_recorded_item_recorded = MidiMessageReplayRecord {
+                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
+                        source_id: result_recorded_item_recorded_source_id,
+                        data: result_recorded_item_recorded_data,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = AudioMidiReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_timestamp_ns = value_native_item.timestamp_ns;
+                        let value_native_item_native_source_id =
+                            context.store_string(&value_native_item.source_id);
+                        let mut value_native_item_native_data_values =
+                            Vec::with_capacity(value_native_item.data.len());
+                        for value_native_item_native_data_item in value_native_item.data {
+                            let value_native_item_native_data_item_native =
+                                value_native_item_native_data_item;
+                            value_native_item_native_data_values
+                                .push(value_native_item_native_data_item_native);
+                        }
+                        let value_native_item_native_data =
+                            context.store_slice(value_native_item_native_data_values);
+                        let value_native_item_native = MidiMessage {
+                            timestamp_ns: value_native_item_native_timestamp_ns,
+                            source_id: value_native_item_native_source_id,
+                            data: value_native_item_native_data,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_midi_try_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<MidiMessage>,
+    handle: resource::MidiPortHandle,
+    maxmessages: u32,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &maxmessages);
+
+    context.replay().run_binding_with_policy(
+        AUDIO_MIDI_TRY_READ,
+        context.replay_payload_for(AUDIO_MIDI_TRY_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_midi_try_read(context, out, handle, maxmessages)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_audio_midi_try_read(
+                    context,
+                    out,
+                    handle,
+                    maxmessages,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_timestamp_ns =
+                        result_recorded_item.timestamp_ns;
+                    let result_recorded_item_recorded_source_id =
+                        unsafe { result_recorded_item.source_id.as_str()? }.to_string();
+                    let result_recorded_item_recorded_data_raw =
+                        unsafe { result_recorded_item.data.as_slice()? };
+                    let mut result_recorded_item_recorded_data =
+                        Vec::with_capacity(result_recorded_item_recorded_data_raw.len());
+                    for result_recorded_item_recorded_data_item_value in
+                        result_recorded_item_recorded_data_raw
+                    {
+                        let result_recorded_item_recorded_data_item =
+                            *result_recorded_item_recorded_data_item_value;
+                        let result_recorded_item_recorded_data_item_recorded =
+                            result_recorded_item_recorded_data_item;
+                        result_recorded_item_recorded_data
+                            .push(result_recorded_item_recorded_data_item_recorded);
+                    }
+                    let result_recorded_item_recorded = MidiMessageReplayRecord {
+                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
+                        source_id: result_recorded_item_recorded_source_id,
+                        data: result_recorded_item_recorded_data,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = AudioMidiTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_timestamp_ns = value_native_item.timestamp_ns;
+                        let value_native_item_native_source_id =
+                            context.store_string(&value_native_item.source_id);
+                        let mut value_native_item_native_data_values =
+                            Vec::with_capacity(value_native_item.data.len());
+                        for value_native_item_native_data_item in value_native_item.data {
+                            let value_native_item_native_data_item_native =
+                                value_native_item_native_data_item;
+                            value_native_item_native_data_values
+                                .push(value_native_item_native_data_item_native);
+                        }
+                        let value_native_item_native_data =
+                            context.store_slice(value_native_item_native_data_values);
+                        let value_native_item_native = MidiMessage {
+                            timestamp_ns: value_native_item_native_timestamp_ns,
+                            source_id: value_native_item_native_source_id,
+                            data: value_native_item_native_data,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_audio_midi_write_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut u32,
+    handle: resource::MidiPortHandle,
+    messages: NativeArray<MidiMessage>,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &messages);
+
+    context.replay().run_binding_with_policy(
+        AUDIO_MIDI_WRITE,
+        context.replay_payload_for(AUDIO_MIDI_WRITE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_audio_midi_write(context, out, handle, messages)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_audio_midi_write(context, out, handle, messages)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = AudioMidiWriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiWriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -6913,6 +7881,115 @@ pub unsafe extern "C" fn destack_audio_event_try_read_batch(
 
         let world = context.check_and_resolve_world(AUDIO_EVENT_TRY_READ_BATCH)?;
         destack_audio_event_try_read_batch_replay(context, world, out, handle, maxevents)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.midi.flush")]
+pub unsafe extern "C" fn destack_audio_midi_flush(
+    handle: resource::MidiPortHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        let world = context.check_and_resolve_world(AUDIO_MIDI_FLUSH)?;
+        destack_audio_midi_flush_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.midi.portClose")]
+pub unsafe extern "C" fn destack_audio_midi_port_close(
+    handle: resource::MidiPortHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        let world = context.check_and_resolve_world(AUDIO_MIDI_PORT_CLOSE)?;
+        destack_audio_midi_port_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.midi.portList")]
+pub unsafe extern "C" fn destack_audio_midi_port_list(
+    out: *mut NativeSlice<MidiPortDescriptor>,
+    direction: MidiPortDirection,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &direction);
+
+        let world = context.check_and_resolve_world(AUDIO_MIDI_PORT_LIST)?;
+        destack_audio_midi_port_list_replay(context, world, out, direction)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.midi.portOpen")]
+pub unsafe extern "C" fn destack_audio_midi_port_open(
+    out: *mut resource::MidiPortHandle,
+    id: NativeStringRef,
+    direction: MidiPortDirection,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &id, &direction);
+
+        let world = context.check_and_resolve_world(AUDIO_MIDI_PORT_OPEN)?;
+        destack_audio_midi_port_open_replay(context, world, out, id, direction)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.midi.read")]
+pub unsafe extern "C" fn destack_audio_midi_read(
+    out: *mut NativeArray<MidiMessage>,
+    handle: resource::MidiPortHandle,
+    maxmessages: u32,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &maxmessages, &timeoutns);
+
+        let world = context.check_and_resolve_world(AUDIO_MIDI_READ)?;
+        destack_audio_midi_read_replay(context, world, out, handle, maxmessages, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.midi.tryRead")]
+pub unsafe extern "C" fn destack_audio_midi_try_read(
+    out: *mut NativeArray<MidiMessage>,
+    handle: resource::MidiPortHandle,
+    maxmessages: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &maxmessages);
+
+        let world = context.check_and_resolve_world(AUDIO_MIDI_TRY_READ)?;
+        destack_audio_midi_try_read_replay(context, world, out, handle, maxmessages)
+    })
+}
+
+#[unsafe(export_name = "destack.audio.midi.write")]
+pub unsafe extern "C" fn destack_audio_midi_write(
+    out: *mut u32,
+    handle: resource::MidiPortHandle,
+    messages: NativeArray<MidiMessage>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &messages);
+
+        let world = context.check_and_resolve_world(AUDIO_MIDI_WRITE)?;
+        destack_audio_midi_write_replay(context, world, out, handle, messages)
     })
 }
 
@@ -9837,6 +10914,727 @@ fn destack_audio_event_try_read_batch_vm_replay(
 }
 
 #[inline]
+fn destack_audio_midi_flush_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::MidiPortHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_MIDI_FLUSH,
+        runtime.replay_payload_for(AUDIO_MIDI_FLUSH)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_midi_flush(runtime, context, handle),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_midi_flush(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioMidiFlushReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiFlushReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_audio_midi_flush_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_midi_port_close_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::MidiPortHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_MIDI_PORT_CLOSE,
+        runtime.replay_payload_for(AUDIO_MIDI_PORT_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_midi_port_close(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_midi_port_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = AudioMidiPortCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiPortCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_audio_midi_port_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_midi_port_list_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    direction: MidiPortDirection,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_MIDI_PORT_LIST,
+        runtime.replay_payload_for(AUDIO_MIDI_PORT_LIST)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_midi_port_list(runtime, context, direction)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_midi_port_list(runtime, context, direction)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<MidiPortDescriptorVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 6 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 6 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_id =
+                            decode_string(slots[0], "result_recorded_item_id", "id")?;
+                        let result_recorded_item_name =
+                            decode_string(slots[1], "result_recorded_item_name", "name")?;
+                        let result_recorded_item_manufacturer = decode_string(
+                            slots[2],
+                            "result_recorded_item_manufacturer",
+                            "manufacturer",
+                        )?;
+                        let result_recorded_item_version =
+                            decode_string(slots[3], "result_recorded_item_version", "version")?;
+                        let result_recorded_item_direction_raw = decode_uint8(
+                            slots[4],
+                            "result_recorded_item_direction_raw",
+                            "direction",
+                        )?;
+                        let result_recorded_item_direction =
+                            match result_recorded_item_direction_raw {
+                                1u8 => MidiPortDirection::Input,
+                                2u8 => MidiPortDirection::Output,
+                                _ => {
+                                    return Err(RuntimeError::from(
+                                        PlatformError::invalid_argument_value(
+                                            "result_recorded_item_direction",
+                                            "unknown MidiPortDirection value",
+                                        ),
+                                    )
+                                    .boxed());
+                                }
+                            };
+                        let result_recorded_item_is_virtual =
+                            decode_bool(slots[5], "result_recorded_item_is_virtual", "isVirtual")?;
+                        MidiPortDescriptorVm {
+                            id: result_recorded_item_id,
+                            name: result_recorded_item_name,
+                            manufacturer: result_recorded_item_manufacturer,
+                            version: result_recorded_item_version,
+                            direction: result_recorded_item_direction,
+                            is_virtual: result_recorded_item_is_virtual,
+                        }
+                    };
+                    let result_recorded_item_recorded_id = {
+                        let result_recorded_item_recorded_id_ref = context
+                            .string_ref(result_recorded_item.id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_id_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_name = {
+                        let result_recorded_item_recorded_name_ref = context
+                            .string_ref(result_recorded_item.name)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_name_ref.as_str().to_string()
+                    };
+                    let result_recorded_item_recorded_manufacturer = {
+                        let result_recorded_item_recorded_manufacturer_ref = context
+                            .string_ref(result_recorded_item.manufacturer)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_manufacturer_ref
+                            .as_str()
+                            .to_string()
+                    };
+                    let result_recorded_item_recorded_version = {
+                        let result_recorded_item_recorded_version_ref = context
+                            .string_ref(result_recorded_item.version)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_version_ref
+                            .as_str()
+                            .to_string()
+                    };
+                    let result_recorded_item_recorded_direction = result_recorded_item.direction;
+                    let result_recorded_item_recorded_is_virtual = result_recorded_item.is_virtual;
+                    let result_recorded_item_recorded = MidiPortDescriptorReplayRecord {
+                        id: result_recorded_item_recorded_id,
+                        name: result_recorded_item_recorded_name,
+                        manufacturer: result_recorded_item_recorded_manufacturer,
+                        version: result_recorded_item_recorded_version,
+                        direction: result_recorded_item_recorded_direction,
+                        is_virtual: result_recorded_item_recorded_is_virtual,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = AudioMidiPortListReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiPortListReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_id_value =
+                            context.intern_string(vm_result_item.id.as_str());
+                        let vm_result_item_value_id =
+                            vm::StringHandle::new(vm_result_item_value_id_value);
+                        let vm_result_item_value_name_value =
+                            context.intern_string(vm_result_item.name.as_str());
+                        let vm_result_item_value_name =
+                            vm::StringHandle::new(vm_result_item_value_name_value);
+                        let vm_result_item_value_manufacturer_value =
+                            context.intern_string(vm_result_item.manufacturer.as_str());
+                        let vm_result_item_value_manufacturer =
+                            vm::StringHandle::new(vm_result_item_value_manufacturer_value);
+                        let vm_result_item_value_version_value =
+                            context.intern_string(vm_result_item.version.as_str());
+                        let vm_result_item_value_version =
+                            vm::StringHandle::new(vm_result_item_value_version_value);
+                        let vm_result_item_value_direction = vm_result_item.direction;
+                        let vm_result_item_value_is_virtual = vm_result_item.is_virtual;
+                        let vm_result_item_value = MidiPortDescriptorVm {
+                            id: vm_result_item_value_id,
+                            name: vm_result_item_value_name,
+                            manufacturer: vm_result_item_value_manufacturer,
+                            version: vm_result_item_value_version,
+                            direction: vm_result_item_value_direction,
+                            is_virtual: vm_result_item_value_is_virtual,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 = vm_result_item_value.id.value();
+                            let field_1 = vm_result_item_value.name.value();
+                            let field_2 = vm_result_item_value.manufacturer.value();
+                            let field_3 = vm_result_item_value.version.value();
+                            let field_4 =
+                                vm::Value::uint(vm_result_item_value.direction as u8 as u64, 8);
+                            let field_5 = vm::Value::bool(vm_result_item_value.is_virtual);
+                            context.allocate_aggregate(vec![
+                                field_0, field_1, field_2, field_3, field_4, field_5,
+                            ])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmSlice<MidiPortDescriptorVm> = VmSlice {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_audio_midi_port_list_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_midi_port_open_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    id: vm::StringHandle,
+    direction: MidiPortDirection,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_MIDI_PORT_OPEN,
+        runtime.replay_payload_for(AUDIO_MIDI_PORT_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_midi_port_open(runtime, context, id, direction)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_midi_port_open(
+                runtime, context, id, direction,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::MidiPortHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = AudioMidiPortOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiPortOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_audio_midi_port_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_midi_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::MidiPortHandle,
+    maxmessages: u32,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_MIDI_READ,
+        runtime.replay_payload_for(AUDIO_MIDI_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_audio_midi_read(
+                runtime,
+                context,
+                handle,
+                maxmessages,
+                timeoutns,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_midi_read(
+                runtime,
+                context,
+                handle,
+                maxmessages,
+                timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<MidiMessageVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 3 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 3 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_timestamp_ns = decode_uint64(
+                            slots[0],
+                            "result_recorded_item_timestamp_ns",
+                            "timestampNs",
+                        )?;
+                        let result_recorded_item_source_id =
+                            decode_string(slots[1], "result_recorded_item_source_id", "sourceId")?;
+                        let result_recorded_item_data = decode_slice::<u8>(
+                            context,
+                            slots[2],
+                            "result_recorded_item_data",
+                            "data",
+                        )?;
+                        MidiMessageVm {
+                            timestamp_ns: result_recorded_item_timestamp_ns,
+                            source_id: result_recorded_item_source_id,
+                            data: result_recorded_item_data,
+                        }
+                    };
+                    let result_recorded_item_recorded_timestamp_ns =
+                        result_recorded_item.timestamp_ns;
+                    let result_recorded_item_recorded_source_id = {
+                        let result_recorded_item_recorded_source_id_ref = context
+                            .string_ref(result_recorded_item.source_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_source_id_ref
+                            .as_str()
+                            .to_string()
+                    };
+                    let result_recorded_item_recorded_data =
+                        result_recorded_item.data.read_bytes(context)?;
+                    let result_recorded_item_recorded = MidiMessageReplayRecord {
+                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
+                        source_id: result_recorded_item_recorded_source_id,
+                        data: result_recorded_item_recorded_data,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = AudioMidiReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_timestamp_ns = vm_result_item.timestamp_ns;
+                        let vm_result_item_value_source_id_value =
+                            context.intern_string(vm_result_item.source_id.as_str());
+                        let vm_result_item_value_source_id =
+                            vm::StringHandle::new(vm_result_item_value_source_id_value);
+                        let vm_result_item_value_data =
+                            VmSlice::from_bytes(context, vm_result_item.data.as_slice());
+                        let vm_result_item_value = MidiMessageVm {
+                            timestamp_ns: vm_result_item_value_timestamp_ns,
+                            source_id: vm_result_item_value_source_id,
+                            data: vm_result_item_value_data,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 = vm::Value::uint(vm_result_item_value.timestamp_ns, 64);
+                            let field_1 = vm_result_item_value.source_id.value();
+                            let field_2 = vm_result_item_value.data.to_value(context);
+                            context.allocate_aggregate(vec![field_0, field_1, field_2])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<MidiMessageVm> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_audio_midi_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_midi_try_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::MidiPortHandle,
+    maxmessages: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_MIDI_TRY_READ,
+        runtime.replay_payload_for(AUDIO_MIDI_TRY_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_midi_try_read(runtime, context, handle, maxmessages)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_audio_midi_try_read(
+                runtime,
+                context,
+                handle,
+                maxmessages,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<MidiMessageVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                                "result_recorded_item",
+                                "item",
+                            ))
+                            .boxed());
+                        }
+                        let slots = context
+                            .aggregate_slots(result_recorded_item_value)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 3 {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "expected 3 fields",
+                            ))
+                            .boxed());
+                        }
+                        let result_recorded_item_timestamp_ns = decode_uint64(
+                            slots[0],
+                            "result_recorded_item_timestamp_ns",
+                            "timestampNs",
+                        )?;
+                        let result_recorded_item_source_id =
+                            decode_string(slots[1], "result_recorded_item_source_id", "sourceId")?;
+                        let result_recorded_item_data = decode_slice::<u8>(
+                            context,
+                            slots[2],
+                            "result_recorded_item_data",
+                            "data",
+                        )?;
+                        MidiMessageVm {
+                            timestamp_ns: result_recorded_item_timestamp_ns,
+                            source_id: result_recorded_item_source_id,
+                            data: result_recorded_item_data,
+                        }
+                    };
+                    let result_recorded_item_recorded_timestamp_ns =
+                        result_recorded_item.timestamp_ns;
+                    let result_recorded_item_recorded_source_id = {
+                        let result_recorded_item_recorded_source_id_ref = context
+                            .string_ref(result_recorded_item.source_id)
+                            .map_err(|error| RuntimeError::from(error).boxed())?;
+                        result_recorded_item_recorded_source_id_ref
+                            .as_str()
+                            .to_string()
+                    };
+                    let result_recorded_item_recorded_data =
+                        result_recorded_item.data.read_bytes(context)?;
+                    let result_recorded_item_recorded = MidiMessageReplayRecord {
+                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
+                        source_id: result_recorded_item_recorded_source_id,
+                        data: result_recorded_item_recorded_data,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = AudioMidiTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = vm_result_item.clone();
+                        let vm_result_item_value_timestamp_ns = vm_result_item.timestamp_ns;
+                        let vm_result_item_value_source_id_value =
+                            context.intern_string(vm_result_item.source_id.as_str());
+                        let vm_result_item_value_source_id =
+                            vm::StringHandle::new(vm_result_item_value_source_id_value);
+                        let vm_result_item_value_data =
+                            VmSlice::from_bytes(context, vm_result_item.data.as_slice());
+                        let vm_result_item_value = MidiMessageVm {
+                            timestamp_ns: vm_result_item_value_timestamp_ns,
+                            source_id: vm_result_item_value_source_id,
+                            data: vm_result_item_value_data,
+                        };
+                        let vm_result_item_value_encoded = {
+                            let field_0 = vm::Value::uint(vm_result_item_value.timestamp_ns, 64);
+                            let field_1 = vm_result_item_value.source_id.value();
+                            let field_2 = vm_result_item_value.data.to_value(context);
+                            context.allocate_aggregate(vec![field_0, field_1, field_2])
+                        };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<MidiMessageVm> = VmArray {
+                        data: vm_result_data,
+                        len: value.len() as u32,
+                        capacity: value.len() as u32,
+                        _marker: std::marker::PhantomData,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_audio_midi_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_audio_midi_write_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::MidiPortHandle,
+    messages: VmArray<MidiMessageVm>,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        AUDIO_MIDI_WRITE,
+        runtime.replay_payload_for(AUDIO_MIDI_WRITE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_audio_midi_write(runtime, context, handle, messages)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_audio_midi_write(runtime, context, handle, messages)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: u32 = value.clone();
+                let result_recorded = result_value;
+                let payload = AudioMidiWriteReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AudioMidiWriteReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_audio_midi_write_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_audio_stream_abort_vm_replay(
     runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -11948,6 +13746,132 @@ pub fn register_audio_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                 .map_err(Into::into)
             }
         );
+    }
+    {
+        binding!(registry, isolate, AUDIO_MIDI_FLUSH, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (handle,) = decode_destack_audio_midi_flush_args(context, args)?;
+
+                // execute binding
+                let world = runtime.check_and_resolve_world(AUDIO_MIDI_FLUSH)?;
+                destack_audio_midi_flush_vm_replay(runtime, context, world, handle)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_MIDI_PORT_CLOSE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_audio_midi_port_close_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(AUDIO_MIDI_PORT_CLOSE)?;
+                    destack_audio_midi_port_close_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_MIDI_PORT_LIST,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (direction,) = decode_destack_audio_midi_port_list_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(AUDIO_MIDI_PORT_LIST)?;
+                    destack_audio_midi_port_list_vm_replay(runtime, context, world, direction)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_MIDI_PORT_OPEN,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (id, direction) = decode_destack_audio_midi_port_open_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(AUDIO_MIDI_PORT_OPEN)?;
+                    destack_audio_midi_port_open_vm_replay(runtime, context, world, id, direction)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, AUDIO_MIDI_READ, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (handle, maxmessages, timeoutns) =
+                    decode_destack_audio_midi_read_args(context, args)?;
+
+                // execute binding
+                let world = runtime.check_and_resolve_world(AUDIO_MIDI_READ)?;
+                destack_audio_midi_read_vm_replay(
+                    runtime,
+                    context,
+                    world,
+                    handle,
+                    maxmessages,
+                    timeoutns,
+                )
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            AUDIO_MIDI_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, maxmessages) =
+                        decode_destack_audio_midi_try_read_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(AUDIO_MIDI_TRY_READ)?;
+                    destack_audio_midi_try_read_vm_replay(
+                        runtime,
+                        context,
+                        world,
+                        handle,
+                        maxmessages,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, AUDIO_MIDI_WRITE, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (handle, messages) = decode_destack_audio_midi_write_args(context, args)?;
+
+                // execute binding
+                let world = runtime.check_and_resolve_world(AUDIO_MIDI_WRITE)?;
+                destack_audio_midi_write_vm_replay(runtime, context, world, handle, messages)
+            })
+            .map_err(Into::into)
+        });
     }
     {
         binding!(
