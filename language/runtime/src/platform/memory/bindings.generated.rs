@@ -571,7 +571,7 @@ pub const MEMORY_ADVISE_HUGE_PAGE: BindingDescriptor = BindingDescriptor::extern
     "export function hugePage(address: uint64, length: uint64, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["memory.hugePage"],
+    &["memory.huge.page"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
@@ -677,7 +677,7 @@ pub const MEMORY_MAP_NUMA_BIND: BindingDescriptor = BindingDescriptor::external_
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["linux", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.memory.map.release.
 pub const MEMORY_MAP_RELEASE: BindingDescriptor =

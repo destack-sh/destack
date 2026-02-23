@@ -84,7 +84,7 @@ pub(crate) unsafe fn destack_memory_discard(
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
 ///
 /// # Security
-/// Requires `memory.hugePage`.
+/// Requires `memory.huge.page`.
 ///
 /// # Replay
 /// External, recordable.
@@ -225,8 +225,8 @@ pub(crate) unsafe fn destack_memory_decommit(
 /// Node masks and policy modes are interpreted by host NUMA APIs.
 ///
 /// # Platform
-/// Linux and Windows.
-/// Uses mbind or set_mempolicy on Linux and VirtualAllocExNuma-style APIs on Windows.
+/// Unix and Windows.
+/// Uses mbind or set_mempolicy on Linux and VirtualAllocExNuma-style APIs on Windows where supported.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.

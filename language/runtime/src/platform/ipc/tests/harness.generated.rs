@@ -431,7 +431,7 @@ impl<'call> IpcHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
@@ -462,7 +462,7 @@ impl<'call> IpcHarnessContext<'call> {
     /// Returns invalidArgument, ioPermissionDenied, ioAlreadyExists, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
@@ -515,7 +515,7 @@ impl<'call> IpcHarnessContext<'call> {
     /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
@@ -569,7 +569,7 @@ impl<'call> IpcHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
@@ -619,7 +619,7 @@ impl<'call> IpcHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.sharedMemory`.
+    /// Requires `ipc.shared.memory`.
     ///
     /// # Replay
     /// External, recordable.
@@ -864,7 +864,7 @@ impl<'call> IpcHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.unix`, `ipc.fdPass`.
+    /// Requires `ipc.unix`, `ipc.fd.pass`.
     ///
     /// # Replay
     /// External, recordable.
@@ -912,7 +912,7 @@ impl<'call> IpcHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
-    /// Requires `ipc.unix`, `ipc.fdPass`.
+    /// Requires `ipc.unix`, `ipc.fd.pass`.
     ///
     /// # Replay
     /// External, recordable.

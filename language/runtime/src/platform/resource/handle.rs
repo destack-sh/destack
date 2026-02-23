@@ -219,3 +219,53 @@ define_handle!(
 );
 define_handle!("The handle for one tls context object.", TlsContextHandle);
 define_handle!("The handle for one tls session object.", TlsSessionHandle);
+define_handle!(
+    "The handle for one background event stream.",
+    BackgroundEventHandle
+);
+define_handle!(
+    "The handle for one Bluetooth device session.",
+    BluetoothDeviceHandle
+);
+define_handle!(
+    "The handle for one Bluetooth scan session.",
+    BluetoothScanHandle
+);
+define_handle!(
+    "The handle for one Bluetooth GATT subscription session.",
+    BluetoothSubscriptionHandle
+);
+define_handle!(
+    "The handle for one camera device session.",
+    CameraDeviceHandle
+);
+define_handle!(
+    "The handle for one camera stream session.",
+    CameraStreamHandle
+);
+define_handle!("The handle for one document session.", DocumentHandle);
+define_handle!("The handle for one intent session.", IntentHandle);
+define_handle!(
+    "The handle for one lifecycle event stream.",
+    LifecycleEventHandle
+);
+define_handle!(
+    "The handle for one location watch stream.",
+    LocationWatchHandle
+);
+define_handle!("The handle for one MIDI port session.", MidiPortHandle);
+define_handle!(
+    "The handle for one network watch stream.",
+    NetworkWatchHandle
+);
+define_handle!(
+    "The handle for one notification event stream.",
+    NotificationEventHandle
+);
+define_handle!("The handle for one serial port session.", SerialPortHandle);
+define_handle!("The handle for one USB device session.", UsbDeviceHandle);
+define_handle!(
+    "The handle for one USB hotplug watch stream.",
+    UsbWatchHandle
+);
+define_handle!("The handle for one window event stream.", WindowEventHandle);

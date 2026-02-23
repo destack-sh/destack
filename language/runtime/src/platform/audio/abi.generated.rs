@@ -877,6 +877,38 @@ impl VmValueCodec for AudioStreamTransferMode {
     }
 }
 
+/// ABI enum for MidiPortDirection.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum MidiPortDirection {
+    /// Input.
+    Input = 1,
+    /// Output.
+    Output = 2,
+}
+
+impl VmValueCodec for MidiPortDirection {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::Input,
+            2u8 => Self::Output,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown MidiPortDirection value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
 /// ABI struct for AudioBackendDescriptor.
 #[repr(C)]
 pub struct AudioBackendDescriptorAbi<A: BindingAbi> {
@@ -2684,6 +2716,190 @@ impl VmAggregateCodec for AudioStreamTiming {
     }
 }
 
+/// ABI struct for MidiMessage.
+#[repr(C)]
+pub struct MidiMessageAbi<A: BindingAbi> {
+    /// The timestamp_ns field.
+    pub timestamp_ns: u64,
+    /// The source_id field.
+    pub source_id: A::String,
+    /// The data field.
+    pub data: A::Slice<u8>,
+}
+
+pub type MidiMessage = MidiMessageAbi<NativeAbi>;
+pub type MidiMessageVm = MidiMessageAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for MidiMessageAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("MidiMessageAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for MidiMessageAbi<NativeAbi> {}
+impl Clone for MidiMessageAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for MidiMessageAbi<VmAbi> {}
+impl Clone for MidiMessageAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for MidiMessageAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiMessage",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_source_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_data = <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            timestamp_ns: field_timestamp_ns,
+            source_id: field_source_id,
+            data: field_data,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.source_id, context)?,
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for MidiPortDescriptor.
+#[repr(C)]
+pub struct MidiPortDescriptorAbi<A: BindingAbi> {
+    /// The id field.
+    pub id: A::String,
+    /// The name field.
+    pub name: A::String,
+    /// The manufacturer field.
+    pub manufacturer: A::String,
+    /// The version field.
+    pub version: A::String,
+    /// The direction field.
+    pub direction: MidiPortDirection,
+    /// The is_virtual field.
+    pub is_virtual: bool,
+}
+
+pub type MidiPortDescriptor = MidiPortDescriptorAbi<NativeAbi>;
+pub type MidiPortDescriptorVm = MidiPortDescriptorAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for MidiPortDescriptorAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("MidiPortDescriptorAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for MidiPortDescriptorAbi<NativeAbi> {}
+impl Clone for MidiPortDescriptorAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for MidiPortDescriptorAbi<VmAbi> {}
+impl Clone for MidiPortDescriptorAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for MidiPortDescriptorAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "MidiPortDescriptor",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 6 fields",
+            ))
+            .boxed());
+        }
+        let field_id =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_name =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_manufacturer =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_version =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_direction =
+            <MidiPortDirection as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_is_virtual = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        Ok(Self {
+            id: field_id,
+            name: field_name,
+            manufacturer: field_manufacturer,
+            version: field_version,
+            direction: field_direction,
+            is_virtual: field_is_virtual,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.manufacturer,
+                context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.version, context)?,
+            <MidiPortDirection as VmAggregateCodec>::encode_with_context(self.direction, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_virtual, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// Replay struct for AudioBackendDescriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioBackendDescriptorReplayRecord {
@@ -2869,4 +3085,32 @@ pub struct AudioStreamSupportReplayRecord {
     pub satisfied_requirements: AudioStreamRequirementFlags,
     /// The unsatisfied_requirements field.
     pub unsatisfied_requirements: AudioStreamRequirementFlags,
+}
+
+/// Replay struct for MidiMessage.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MidiMessageReplayRecord {
+    /// The timestamp_ns field.
+    pub timestamp_ns: u64,
+    /// The source_id field.
+    pub source_id: String,
+    /// The data field.
+    pub data: Vec<u8>,
+}
+
+/// Replay struct for MidiPortDescriptor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MidiPortDescriptorReplayRecord {
+    /// The id field.
+    pub id: String,
+    /// The name field.
+    pub name: String,
+    /// The manufacturer field.
+    pub manufacturer: String,
+    /// The version field.
+    pub version: String,
+    /// The direction field.
+    pub direction: MidiPortDirection,
+    /// The is_virtual field.
+    pub is_virtual: bool,
 }

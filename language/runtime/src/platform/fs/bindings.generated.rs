@@ -8374,7 +8374,7 @@ pub const FS_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_re
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["dragonfly", "freebsd", "linux", "macos", "netbsd", "openbsd", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.openClose.
 pub const FS_WATCH_OPEN_CLOSE: BindingDescriptor =
@@ -8388,12 +8388,17 @@ pub const FS_WATCH_OPEN_CLOSE: BindingDescriptor =
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
+        "android",
         "dragonfly",
         "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
         "linux",
         "macos",
         "netbsd",
         "openbsd",
+        "solaris",
         "windows",
     ]);
 
@@ -8409,12 +8414,17 @@ pub const FS_WATCH_OPEN_READ: BindingDescriptor =
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
+        "android",
         "dragonfly",
         "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
         "linux",
         "macos",
         "netbsd",
         "openbsd",
+        "solaris",
         "windows",
     ]);
 
@@ -8428,7 +8438,7 @@ pub const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::external_with_
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["dragonfly", "freebsd", "linux", "macos", "netbsd", "openbsd", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fgetxattr.
 pub const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(

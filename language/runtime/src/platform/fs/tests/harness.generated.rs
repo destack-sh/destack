@@ -3559,7 +3559,7 @@ impl<'call> FsHarnessContext<'call> {
     /// Event ordering and coalescing behavior are backend defined.
     ///
     /// # Platform
-    /// Linux, BSD, macOS, and Windows.
+    /// Unix and Windows.
     /// Uses inotify on Linux, kqueue on BSD, FSEvents on macOS, and ReadDirectoryChangesW on Windows.
     ///
     /// # Errors
@@ -3606,7 +3606,7 @@ impl<'call> FsHarnessContext<'call> {
     /// No further events are delivered after close succeeds.
     ///
     /// # Platform
-    /// Linux, BSD, macOS, and Windows.
+    /// Unix and Windows.
     /// Uses backend specific handle close and unregister operations.
     ///
     /// # Errors
@@ -3633,7 +3633,7 @@ impl<'call> FsHarnessContext<'call> {
     /// Callers should treat `overflowed` as a signal to resynchronize state.
     ///
     /// # Platform
-    /// Linux, BSD, macOS, and Windows.
+    /// Unix and Windows.
     /// Uses inotify event reads on Linux, kevent on BSD, FSEvents stream reads on macOS, and ReadDirectoryChangesW reads on Windows.
     ///
     /// # Errors
@@ -3670,7 +3670,7 @@ impl<'call> FsHarnessContext<'call> {
     /// Event ordering and coalescing behavior are backend defined.
     ///
     /// # Platform
-    /// Linux, BSD, macOS, and Windows.
+    /// Unix and Windows.
     /// Uses inotify on Linux, kqueue on BSD, FSEvents on macOS, and ReadDirectoryChangesW on Windows.
     ///
     /// # Errors

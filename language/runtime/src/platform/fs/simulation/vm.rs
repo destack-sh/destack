@@ -2430,7 +2430,7 @@ pub(crate) fn destack_fs_statx(
 /// Event ordering and coalescing behavior are backend defined.
 ///
 /// # Platform
-/// Linux, BSD, macOS, and Windows.
+/// Unix and Windows.
 /// Uses inotify on Linux, kqueue on BSD, FSEvents on macOS, and ReadDirectoryChangesW on Windows.
 ///
 /// # Errors
@@ -2457,7 +2457,7 @@ pub(crate) fn destack_fs_watch(
 /// No further events are delivered after close succeeds.
 ///
 /// # Platform
-/// Linux, BSD, macOS, and Windows.
+/// Unix and Windows.
 /// Uses backend specific handle close and unregister operations.
 ///
 /// # Errors
@@ -2482,7 +2482,7 @@ pub(crate) fn destack_fs_watch_close(
 /// Callers should treat `overflowed` as a signal to resynchronize state.
 ///
 /// # Platform
-/// Linux, BSD, macOS, and Windows.
+/// Unix and Windows.
 /// Uses inotify event reads on Linux, kevent on BSD, FSEvents stream reads on macOS, and ReadDirectoryChangesW reads on Windows.
 ///
 /// # Errors
@@ -2507,7 +2507,7 @@ pub(crate) fn destack_fs_watch_read(
 /// Event ordering and coalescing behavior are backend defined.
 ///
 /// # Platform
-/// Linux, BSD, macOS, and Windows.
+/// Unix and Windows.
 /// Uses inotify on Linux, kqueue on BSD, FSEvents on macOS, and ReadDirectoryChangesW on Windows.
 ///
 /// # Errors

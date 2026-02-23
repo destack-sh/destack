@@ -4896,7 +4896,20 @@ pub const NET_OPTIONS_GET_PACKET_MARK: BindingDescriptor =
         BindingScope::Host,
         BindingBlocking::Never,
     )
-    .with_host_platforms(&["linux", "windows"]);
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.net.options.getReadTimeout.
 pub const NET_OPTIONS_GET_READ_TIMEOUT: BindingDescriptor =
@@ -5124,7 +5137,7 @@ pub const NET_OPTIONS_SET_PACKET_MARK: BindingDescriptor = BindingDescriptor::ex
     BindingScope::Host,
     BindingBlocking::Never,
 )
-    .with_host_platforms(&["linux", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.options.setReadTimeout.
 pub const NET_OPTIONS_SET_READ_TIMEOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5262,11 +5275,17 @@ pub const NET_RAW_PACKET_CLEAR_FANOUT: BindingDescriptor =
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
+        "android",
         "dragonfly",
         "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
         "linux",
+        "macos",
         "netbsd",
         "openbsd",
+        "solaris",
         "windows",
     ]);
 
@@ -5282,11 +5301,17 @@ pub const NET_RAW_PACKET_CLEAR_FILTER: BindingDescriptor =
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
+        "android",
         "dragonfly",
         "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
         "linux",
+        "macos",
         "netbsd",
         "openbsd",
+        "solaris",
         "windows",
     ]);
 
@@ -5302,11 +5327,17 @@ pub const NET_RAW_PACKET_CLEAR_RING: BindingDescriptor =
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
+        "android",
         "dragonfly",
         "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
         "linux",
+        "macos",
         "netbsd",
         "openbsd",
+        "solaris",
         "windows",
     ]);
 
@@ -5320,7 +5351,7 @@ pub const NET_RAW_PACKET_OPEN: BindingDescriptor = BindingDescriptor::external_w
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetReceive.
 pub const NET_RAW_PACKET_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5332,7 +5363,7 @@ pub const NET_RAW_PACKET_RECEIVE: BindingDescriptor = BindingDescriptor::externa
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSend.
 pub const NET_RAW_PACKET_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5344,7 +5375,7 @@ pub const NET_RAW_PACKET_SEND: BindingDescriptor = BindingDescriptor::external_w
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetFanout.
 pub const NET_RAW_PACKET_SET_FANOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5356,7 +5387,7 @@ pub const NET_RAW_PACKET_SET_FANOUT: BindingDescriptor = BindingDescriptor::exte
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetFilter.
 pub const NET_RAW_PACKET_SET_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5368,7 +5399,7 @@ pub const NET_RAW_PACKET_SET_FILTER: BindingDescriptor = BindingDescriptor::exte
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetRxRing.
 pub const NET_RAW_PACKET_SET_RX_RING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5380,7 +5411,7 @@ pub const NET_RAW_PACKET_SET_RX_RING: BindingDescriptor = BindingDescriptor::ext
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetTimestampMode.
 pub const NET_RAW_PACKET_SET_TIMESTAMP_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5392,7 +5423,7 @@ pub const NET_RAW_PACKET_SET_TIMESTAMP_MODE: BindingDescriptor = BindingDescript
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetTxRing.
 pub const NET_RAW_PACKET_SET_TX_RING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5404,7 +5435,7 @@ pub const NET_RAW_PACKET_SET_TX_RING: BindingDescriptor = BindingDescriptor::ext
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetStats.
 pub const NET_RAW_PACKET_STATS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5416,7 +5447,7 @@ pub const NET_RAW_PACKET_STATS: BindingDescriptor = BindingDescriptor::external_
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
-    .with_host_platforms(&["dragonfly", "freebsd", "linux", "netbsd", "openbsd", "windows"]);
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.net.raw.setHeaderIncluded.
 pub const NET_RAW_SET_HEADER_INCLUDED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5567,11 +5598,17 @@ pub const NET_ROUTE_ROUTE_ADD: BindingDescriptor =
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
+        "android",
         "dragonfly",
         "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
         "linux",
+        "macos",
         "netbsd",
         "openbsd",
+        "solaris",
         "windows",
     ]);
 
@@ -5587,11 +5624,17 @@ pub const NET_ROUTE_ROUTE_DELETE: BindingDescriptor =
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
+        "android",
         "dragonfly",
         "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
         "linux",
+        "macos",
         "netbsd",
         "openbsd",
+        "solaris",
         "windows",
     ]);
 
@@ -5607,11 +5650,17 @@ pub const NET_ROUTE_ROUTE_LIST: BindingDescriptor =
         BindingBlocking::Sometimes,
     )
     .with_host_platforms(&[
+        "android",
         "dragonfly",
         "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
         "linux",
+        "macos",
         "netbsd",
         "openbsd",
+        "solaris",
         "windows",
     ]);
 

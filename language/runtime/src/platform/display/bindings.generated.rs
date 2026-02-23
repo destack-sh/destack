@@ -7,10 +7,17 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::{
     DisplayDescriptor, DisplayDescriptorReplayRecord, DisplayDescriptorVm, DisplayMode,
-    DisplayModeVm, WindowEvent, WindowEventVm, WindowOptions, WindowOptionsVm,
+    DisplayModeVm, WindowDescriptor, WindowDescriptorReplayRecord, WindowDescriptorVm, WindowEvent,
+    WindowEventKind, WindowEventPayload, WindowEventPayloadVm, WindowEventVm, WindowFocusPayload,
+    WindowFocusPayloadVm, WindowMode, WindowOcclusionPayload, WindowOcclusionPayloadVm,
+    WindowOptions, WindowOptionsVm, WindowPositionPayload, WindowPositionPayloadVm,
+    WindowScaleFactorPayload, WindowScaleFactorPayloadVm, WindowSizePayload, WindowSizePayloadVm,
+    WindowState, WindowStateVm, WindowVisibility, WindowVisibilityPayload,
+    WindowVisibilityPayloadVm,
 };
 use crate::platform::{
-    NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmSlice, abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
+    abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
@@ -108,14 +115,10 @@ fn decode_int32(
     Ok(decode_int(value, name, expected, 32)? as i32)
 }
 
-/// Decode an i64 argument.
+/// Decode a u8 argument.
 #[allow(dead_code)]
-fn decode_int64(
-    value: vm::Value,
-    name: &'static str,
-    expected: &'static str,
-) -> RuntimeResult<i64> {
-    decode_int(value, name, expected, 64)
+fn decode_uint8(value: vm::Value, name: &'static str, expected: &'static str) -> RuntimeResult<u8> {
+    Ok(decode_uint(value, name, expected, 8)? as u8)
 }
 
 /// Decode a u32 argument.
@@ -302,9 +305,9 @@ fn encode_destack_display_window_close_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.display.window.event.
+/// Decode arguments for destack.display.window.descriptor.
 #[inline]
-fn decode_destack_display_window_event_args(
+fn decode_destack_display_window_descriptor_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
@@ -315,19 +318,228 @@ fn decode_destack_display_window_event_args(
     Ok((window,))
 }
 
-/// Encode the result for destack.display.window.event.
+/// Encode the result for destack.display.window.descriptor.
 #[inline]
-fn encode_destack_display_window_event_result(
+fn encode_destack_display_window_descriptor_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<WindowDescriptorVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.id.value();
+        let field_1 = value.title.value();
+        let field_2 = value.display_id.value();
+        let field_3 = vm::Value::uint(value.mode as u8 as u64, 8);
+        let field_4 = vm::Value::bool(value.resizable);
+        let field_5 = vm::Value::bool(value.decorated);
+        let field_6 = vm::Value::bool(value.transparent);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+        ])
+    })
+}
+
+/// Decode arguments for destack.display.window.eventClose.
+#[inline]
+fn decode_destack_display_window_event_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowEventHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "WindowEventHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "WindowEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::WindowEventHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.display.window.eventClose.
+#[inline]
+fn encode_destack_display_window_event_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Encode the result for destack.display.window.eventOpen.
+#[inline]
+fn encode_destack_display_window_event_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::WindowEventHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.display.window.eventRead.
+#[inline]
+fn decode_destack_display_window_event_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowEventHandle, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "WindowEventHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "WindowEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::WindowEventHandle(handle_inner);
+    let timeoutns_value = arg_value(args, 1, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, timeoutns))
+}
+
+/// Encode the result for destack.display.window.eventRead.
+#[inline]
+fn encode_destack_display_window_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<WindowEventVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
-        let field_0 = vm::Value::uint(value.kind as u64, 32);
-        let field_1 = vm::Value::int(value.a, 64);
-        let field_2 = vm::Value::int(value.b, 64);
-        let field_3 = vm::Value::uint(value.timestamp_ns, 64);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+        let field_0 = vm::Value::uint(value.window.0.0, 64);
+        let field_1 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_2 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_3 = vm::Value::uint(value.sequence, 64);
+        let field_4 = {
+            let field_0 = {
+                let field_0 = vm::Value::bool(value.payload.focus.focused);
+                context.allocate_aggregate(vec![field_0])
+            };
+            let field_1 = {
+                let field_0 = vm::Value::uint(value.payload.visibility.visibility as u8 as u64, 8);
+                context.allocate_aggregate(vec![field_0])
+            };
+            let field_2 = {
+                let field_0 = vm::Value::bool(value.payload.occlusion.occluded);
+                context.allocate_aggregate(vec![field_0])
+            };
+            let field_3 = {
+                let field_0 = vm::Value::int(value.payload.position.x as i64, 32);
+                let field_1 = vm::Value::int(value.payload.position.y as i64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            let field_4 = {
+                let field_0 = vm::Value::uint(value.payload.size.width as u64, 32);
+                let field_1 = vm::Value::uint(value.payload.size.height as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            let field_5 = {
+                let field_0 =
+                    vm::Value::uint(value.payload.scale_factor.scale_factor_milli as u64, 32);
+                context.allocate_aggregate(vec![field_0])
+            };
+            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+        };
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
     })
+}
+
+/// Decode arguments for destack.display.window.eventReadBatch.
+#[inline]
+fn decode_destack_display_window_event_read_batch_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowEventHandle, u32, u64)> {
+    let handle_value = arg_value(args, 0, "handle", "WindowEventHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "WindowEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::WindowEventHandle(handle_inner);
+    let maxevents_value = arg_value(args, 1, "maxevents", "uint32")?;
+    let maxevents = decode_uint32(maxevents_value, "maxevents", "uint32")?;
+    let timeoutns_value = arg_value(args, 2, "timeoutns", "uint64")?;
+    let timeoutns = decode_uint64(timeoutns_value, "timeoutns", "uint64")?;
+    Ok((handle, maxevents, timeoutns))
+}
+
+/// Encode the result for destack.display.window.eventReadBatch.
+#[inline]
+fn encode_destack_display_window_event_read_batch_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<WindowEventVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.display.window.eventTryRead.
+#[inline]
+fn decode_destack_display_window_event_try_read_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowEventHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "WindowEventHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "WindowEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::WindowEventHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.display.window.eventTryRead.
+#[inline]
+fn encode_destack_display_window_event_try_read_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<WindowEventVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.window.0.0, 64);
+        let field_1 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_2 = vm::Value::uint(value.timestamp_ns, 64);
+        let field_3 = vm::Value::uint(value.sequence, 64);
+        let field_4 = {
+            let field_0 = {
+                let field_0 = vm::Value::bool(value.payload.focus.focused);
+                context.allocate_aggregate(vec![field_0])
+            };
+            let field_1 = {
+                let field_0 = vm::Value::uint(value.payload.visibility.visibility as u8 as u64, 8);
+                context.allocate_aggregate(vec![field_0])
+            };
+            let field_2 = {
+                let field_0 = vm::Value::bool(value.payload.occlusion.occluded);
+                context.allocate_aggregate(vec![field_0])
+            };
+            let field_3 = {
+                let field_0 = vm::Value::int(value.payload.position.x as i64, 32);
+                let field_1 = vm::Value::int(value.payload.position.y as i64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            let field_4 = {
+                let field_0 = vm::Value::uint(value.payload.size.width as u64, 32);
+                let field_1 = vm::Value::uint(value.payload.size.height as u64, 32);
+                context.allocate_aggregate(vec![field_0, field_1])
+            };
+            let field_5 = {
+                let field_0 =
+                    vm::Value::uint(value.payload.scale_factor.scale_factor_milli as u64, 32);
+                context.allocate_aggregate(vec![field_0])
+            };
+            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+        };
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4])
+    })
+}
+
+/// Decode arguments for destack.display.window.eventTryReadBatch.
+#[inline]
+fn decode_destack_display_window_event_try_read_batch_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowEventHandle, u32)> {
+    let handle_value = arg_value(args, 0, "handle", "WindowEventHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "WindowEventHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::WindowEventHandle(handle_inner);
+    let maxevents_value = arg_value(args, 1, "maxevents", "uint32")?;
+    let maxevents = decode_uint32(maxevents_value, "maxevents", "uint32")?;
+    Ok((handle, maxevents))
+}
+
+/// Encode the result for destack.display.window.eventTryReadBatch.
+#[inline]
+fn encode_destack_display_window_event_try_read_batch_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<WindowEventVm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.display.window.open.
@@ -352,10 +564,10 @@ fn decode_destack_display_window_open_args(
         let slots = context
             .aggregate_slots(options_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "options",
-                "expected 6 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
@@ -363,8 +575,39 @@ fn decode_destack_display_window_open_args(
         let options_height = decode_uint32(slots[1], "options_height", "height")?;
         let options_x = decode_int32(slots[2], "options_x", "x")?;
         let options_y = decode_int32(slots[3], "options_y", "y")?;
-        let options_flags = decode_uint32(slots[4], "options_flags", "flags")?;
+        let options_flags = decode_uint64(slots[4], "options_flags", "flags")?;
         let options_title = decode_string(slots[5], "options_title", "title")?;
+        let options_mode_raw = decode_uint8(slots[6], "options_mode_raw", "mode")?;
+        let options_mode = match options_mode_raw {
+            1u8 => WindowMode::Windowed,
+            2u8 => WindowMode::Borderless,
+            3u8 => WindowMode::Fullscreen,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_mode",
+                    "unknown WindowMode value",
+                ))
+                .boxed());
+            }
+        };
+        let options_visibility_raw =
+            decode_uint8(slots[7], "options_visibility_raw", "visibility")?;
+        let options_visibility = match options_visibility_raw {
+            1u8 => WindowVisibility::Hidden,
+            2u8 => WindowVisibility::Visible,
+            3u8 => WindowVisibility::Minimized,
+            4u8 => WindowVisibility::Maximized,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_visibility",
+                    "unknown WindowVisibility value",
+                ))
+                .boxed());
+            }
+        };
+        let options_resizable = decode_bool(slots[8], "options_resizable", "resizable")?;
+        let options_decorated = decode_bool(slots[9], "options_decorated", "decorated")?;
+        let options_transparent = decode_bool(slots[10], "options_transparent", "transparent")?;
         WindowOptionsVm {
             width: options_width,
             height: options_height,
@@ -372,6 +615,11 @@ fn decode_destack_display_window_open_args(
             y: options_y,
             flags: options_flags,
             title: options_title,
+            mode: options_mode,
+            visibility: options_visibility,
+            resizable: options_resizable,
+            decorated: options_decorated,
+            transparent: options_transparent,
         }
     };
     Ok((display, options))
@@ -384,6 +632,116 @@ fn encode_destack_display_window_open_result(
     result: RuntimeResult<resource::WindowHandle>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.display.window.requestRefresh.
+#[inline]
+fn decode_destack_display_window_request_refresh_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle,)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    Ok((window,))
+}
+
+/// Encode the result for destack.display.window.requestRefresh.
+#[inline]
+fn encode_destack_display_window_request_refresh_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.display.window.setMode.
+#[inline]
+fn decode_destack_display_window_set_mode_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle, WindowMode)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    let mode_value = arg_value(args, 1, "mode", "WindowMode")?;
+    let mode_raw = decode_uint8(mode_value, "mode_raw", "WindowMode")?;
+    let mode = match mode_raw {
+        1u8 => WindowMode::Windowed,
+        2u8 => WindowMode::Borderless,
+        3u8 => WindowMode::Fullscreen,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "mode",
+                "unknown WindowMode value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((window, mode))
+}
+
+/// Encode the result for destack.display.window.setMode.
+#[inline]
+fn encode_destack_display_window_set_mode_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.display.window.setPosition.
+#[inline]
+fn decode_destack_display_window_set_position_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle, i32, i32)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    let x_value = arg_value(args, 1, "x", "int32")?;
+    let x = decode_int32(x_value, "x", "int32")?;
+    let y_value = arg_value(args, 2, "y", "int32")?;
+    let y = decode_int32(y_value, "y", "int32")?;
+    Ok((window, x, y))
+}
+
+/// Encode the result for destack.display.window.setPosition.
+#[inline]
+fn encode_destack_display_window_set_position_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.display.window.setSize.
+#[inline]
+fn decode_destack_display_window_set_size_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle, u32, u32)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    let width_value = arg_value(args, 1, "width", "uint32")?;
+    let width = decode_uint32(width_value, "width", "uint32")?;
+    let height_value = arg_value(args, 2, "height", "uint32")?;
+    let height = decode_uint32(height_value, "height", "uint32")?;
+    Ok((window, width, height))
+}
+
+/// Encode the result for destack.display.window.setSize.
+#[inline]
+fn encode_destack_display_window_set_size_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.display.window.setTitle.
@@ -410,9 +768,46 @@ fn encode_destack_display_window_set_title_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.display.window.tryEvent.
+/// Decode arguments for destack.display.window.setVisibility.
 #[inline]
-fn decode_destack_display_window_try_event_args(
+fn decode_destack_display_window_set_visibility_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::WindowHandle, WindowVisibility)> {
+    let window_value = arg_value(args, 0, "window", "WindowHandle")?;
+    let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
+    let window_inner = resource::ResourceId(window_inner_inner);
+    let window = resource::WindowHandle(window_inner);
+    let visibility_value = arg_value(args, 1, "visibility", "WindowVisibility")?;
+    let visibility_raw = decode_uint8(visibility_value, "visibility_raw", "WindowVisibility")?;
+    let visibility = match visibility_raw {
+        1u8 => WindowVisibility::Hidden,
+        2u8 => WindowVisibility::Visible,
+        3u8 => WindowVisibility::Minimized,
+        4u8 => WindowVisibility::Maximized,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "visibility",
+                "unknown WindowVisibility value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((window, visibility))
+}
+
+/// Encode the result for destack.display.window.setVisibility.
+#[inline]
+fn encode_destack_display_window_set_visibility_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.display.window.state.
+#[inline]
+fn decode_destack_display_window_state_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle,)> {
@@ -423,18 +818,24 @@ fn decode_destack_display_window_try_event_args(
     Ok((window,))
 }
 
-/// Encode the result for destack.display.window.tryEvent.
+/// Encode the result for destack.display.window.state.
 #[inline]
-fn encode_destack_display_window_try_event_result(
+fn encode_destack_display_window_state_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<WindowEventVm>,
+    result: RuntimeResult<WindowStateVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
-        let field_0 = vm::Value::uint(value.kind as u64, 32);
-        let field_1 = vm::Value::int(value.a, 64);
-        let field_2 = vm::Value::int(value.b, 64);
-        let field_3 = vm::Value::uint(value.timestamp_ns, 64);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+        let field_0 = vm::Value::int(value.x as i64, 32);
+        let field_1 = vm::Value::int(value.y as i64, 32);
+        let field_2 = vm::Value::uint(value.width as u64, 32);
+        let field_3 = vm::Value::uint(value.height as u64, 32);
+        let field_4 = vm::Value::uint(value.scale_factor_milli as u64, 32);
+        let field_5 = vm::Value::uint(value.visibility as u8 as u64, 8);
+        let field_6 = vm::Value::bool(value.focused);
+        let field_7 = vm::Value::bool(value.occluded);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+        ])
     })
 }
 
@@ -497,11 +898,53 @@ struct DisplayWindowCloseReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.display.window.event.
+/// Replay payload for destack.display.window.descriptor.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct DisplayWindowEventReplay {
+struct DisplayWindowDescriptorReplay {
+    /// Replay result payload.
+    pub result: Result<WindowDescriptorReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.display.window.eventClose.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowEventCloseReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.display.window.eventOpen.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowEventOpenReplay {
+    /// Replay result payload.
+    pub result: Result<resource::WindowEventHandle, PlatformError>,
+}
+
+/// Replay payload for destack.display.window.eventRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowEventReadReplay {
     /// Replay result payload.
     pub result: Result<WindowEvent, PlatformError>,
+}
+
+/// Replay payload for destack.display.window.eventReadBatch.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowEventReadBatchReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<WindowEvent>, PlatformError>,
+}
+
+/// Replay payload for destack.display.window.eventTryRead.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowEventTryReadReplay {
+    /// Replay result payload.
+    pub result: Result<WindowEvent, PlatformError>,
+}
+
+/// Replay payload for destack.display.window.eventTryReadBatch.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowEventTryReadBatchReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<WindowEvent>, PlatformError>,
 }
 
 /// Replay payload for destack.display.window.open.
@@ -511,6 +954,34 @@ struct DisplayWindowOpenReplay {
     pub result: Result<resource::WindowHandle, PlatformError>,
 }
 
+/// Replay payload for destack.display.window.requestRefresh.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowRequestRefreshReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.display.window.setMode.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowSetModeReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.display.window.setPosition.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowSetPositionReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.display.window.setSize.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowSetSizeReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
 /// Replay payload for destack.display.window.setTitle.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct DisplayWindowSetTitleReplay {
@@ -518,11 +989,18 @@ struct DisplayWindowSetTitleReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.display.window.tryEvent.
+/// Replay payload for destack.display.window.setVisibility.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct DisplayWindowTryEventReplay {
+struct DisplayWindowSetVisibilityReplay {
     /// Replay result payload.
-    pub result: Result<WindowEvent, PlatformError>,
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.display.window.state.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct DisplayWindowStateReplay {
+    /// Replay result payload.
+    pub result: Result<WindowState, PlatformError>,
 }
 
 /// Replay payload for destack.display.window.vsyncWait.
@@ -674,14 +1152,26 @@ pub const DISPLAY_WINDOW_CLOSE: BindingDescriptor =
         "windows",
     ]);
 
-/// Binding descriptor for destack.display.window.event.
-pub const DISPLAY_WINDOW_EVENT: BindingDescriptor =
+/// Binding descriptor for destack.display.window.descriptor.
+pub const DISPLAY_WINDOW_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.descriptor",
+    "export function windowDescriptor(window: WindowHandle): Result<WindowDescriptor, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.window.eventClose.
+pub const DISPLAY_WINDOW_EVENT_CLOSE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.display.window.event",
-        "export function windowEvent(window: WindowHandle): Result<WindowEvent, PlatformError>",
+        "destack.display.window.eventClose",
+        "export function windowEventClose(handle: WindowEventHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
-        &["display.window"],
+        &["display.window.events"],
         BindingScope::Host,
         BindingBlocking::Sometimes,
     )
@@ -700,10 +1190,146 @@ pub const DISPLAY_WINDOW_EVENT: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.display.window.eventOpen.
+pub const DISPLAY_WINDOW_EVENT_OPEN: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.display.window.eventOpen",
+        "export function windowEventOpen(): Result<WindowEventHandle, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["display.window.events"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.display.window.eventRead.
+pub const DISPLAY_WINDOW_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.eventRead",
+    "export function windowEventRead(handle: WindowEventHandle, timeoutNs: uint64): Result<WindowEvent, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["display.window.events"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.window.eventReadBatch.
+pub const DISPLAY_WINDOW_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.eventReadBatch",
+    "export function windowEventReadBatch(handle: WindowEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<WindowEvent[], PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["display.window.events"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.window.eventTryRead.
+pub const DISPLAY_WINDOW_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.eventTryRead",
+    "export function windowEventTryRead(handle: WindowEventHandle): Result<WindowEvent, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["display.window.events"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.window.eventTryReadBatch.
+pub const DISPLAY_WINDOW_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.eventTryReadBatch",
+    "export function windowEventTryReadBatch(handle: WindowEventHandle, maxEvents: uint32): Result<WindowEvent[], PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["display.window.events"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.display.window.open.
 pub const DISPLAY_WINDOW_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.display.window.open",
     "export function windowOpen(display: DisplayHandle, options: WindowOptions): Result<WindowHandle, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.window.requestRefresh.
+pub const DISPLAY_WINDOW_REQUEST_REFRESH: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.display.window.requestRefresh",
+        "export function windowRequestRefresh(window: WindowHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["display.window"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.display.window.setMode.
+pub const DISPLAY_WINDOW_SET_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.setMode",
+    "export function windowSetMode(window: WindowHandle, mode: WindowMode): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.window.setPosition.
+pub const DISPLAY_WINDOW_SET_POSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.setPosition",
+    "export function windowSetPosition(window: WindowHandle, x: int32, y: int32): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.window.setSize.
+pub const DISPLAY_WINDOW_SET_SIZE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.setSize",
+    "export function windowSetSize(window: WindowHandle, width: uint32, height: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["display.window"],
@@ -724,11 +1350,23 @@ pub const DISPLAY_WINDOW_SET_TITLE: BindingDescriptor = BindingDescriptor::exter
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.display.window.tryEvent.
-pub const DISPLAY_WINDOW_TRY_EVENT: BindingDescriptor =
+/// Binding descriptor for destack.display.window.setVisibility.
+pub const DISPLAY_WINDOW_SET_VISIBILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.display.window.setVisibility",
+    "export function windowSetVisibility(window: WindowHandle, visibility: WindowVisibility): Result<void, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["display.window"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.display.window.state.
+pub const DISPLAY_WINDOW_STATE: BindingDescriptor =
     BindingDescriptor::external_with_requires_and_behavior(
-        "destack.display.window.tryEvent",
-        "export function windowTryEvent(window: WindowHandle): Result<WindowEvent, PlatformError>",
+        "destack.display.window.state",
+        "export function windowState(window: WindowHandle): Result<WindowState, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::Regular,
         &["display.window"],
@@ -770,10 +1408,21 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     DISPLAY_MONITOR_OPEN,
     DISPLAY_MONITOR_SET_MODE,
     DISPLAY_WINDOW_CLOSE,
-    DISPLAY_WINDOW_EVENT,
+    DISPLAY_WINDOW_DESCRIPTOR,
+    DISPLAY_WINDOW_EVENT_CLOSE,
+    DISPLAY_WINDOW_EVENT_OPEN,
+    DISPLAY_WINDOW_EVENT_READ,
+    DISPLAY_WINDOW_EVENT_READ_BATCH,
+    DISPLAY_WINDOW_EVENT_TRY_READ,
+    DISPLAY_WINDOW_EVENT_TRY_READ_BATCH,
     DISPLAY_WINDOW_OPEN,
+    DISPLAY_WINDOW_REQUEST_REFRESH,
+    DISPLAY_WINDOW_SET_MODE,
+    DISPLAY_WINDOW_SET_POSITION,
+    DISPLAY_WINDOW_SET_SIZE,
     DISPLAY_WINDOW_SET_TITLE,
-    DISPLAY_WINDOW_TRY_EVENT,
+    DISPLAY_WINDOW_SET_VISIBILITY,
+    DISPLAY_WINDOW_STATE,
     DISPLAY_WINDOW_VSYNC_WAIT,
 ];
 
@@ -812,9 +1461,39 @@ pub const DISPLAY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_display_window_close as *const (),
         ),
         NativeBinding::new(
-            DISPLAY_WINDOW_EVENT,
-            "destack.display.window.event",
-            destack_display_window_event as *const (),
+            DISPLAY_WINDOW_DESCRIPTOR,
+            "destack.display.window.descriptor",
+            destack_display_window_descriptor as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_WINDOW_EVENT_CLOSE,
+            "destack.display.window.eventClose",
+            destack_display_window_event_close as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_WINDOW_EVENT_OPEN,
+            "destack.display.window.eventOpen",
+            destack_display_window_event_open as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_WINDOW_EVENT_READ,
+            "destack.display.window.eventRead",
+            destack_display_window_event_read as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_WINDOW_EVENT_READ_BATCH,
+            "destack.display.window.eventReadBatch",
+            destack_display_window_event_read_batch as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_WINDOW_EVENT_TRY_READ,
+            "destack.display.window.eventTryRead",
+            destack_display_window_event_try_read as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_WINDOW_EVENT_TRY_READ_BATCH,
+            "destack.display.window.eventTryReadBatch",
+            destack_display_window_event_try_read_batch as *const (),
         ),
         NativeBinding::new(
             DISPLAY_WINDOW_OPEN,
@@ -822,14 +1501,39 @@ pub const DISPLAY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_display_window_open as *const (),
         ),
         NativeBinding::new(
+            DISPLAY_WINDOW_REQUEST_REFRESH,
+            "destack.display.window.requestRefresh",
+            destack_display_window_request_refresh as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_WINDOW_SET_MODE,
+            "destack.display.window.setMode",
+            destack_display_window_set_mode as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_WINDOW_SET_POSITION,
+            "destack.display.window.setPosition",
+            destack_display_window_set_position as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_WINDOW_SET_SIZE,
+            "destack.display.window.setSize",
+            destack_display_window_set_size as *const (),
+        ),
+        NativeBinding::new(
             DISPLAY_WINDOW_SET_TITLE,
             "destack.display.window.setTitle",
             destack_display_window_set_title as *const (),
         ),
         NativeBinding::new(
-            DISPLAY_WINDOW_TRY_EVENT,
-            "destack.display.window.tryEvent",
-            destack_display_window_try_event as *const (),
+            DISPLAY_WINDOW_SET_VISIBILITY,
+            "destack.display.window.setVisibility",
+            destack_display_window_set_visibility as *const (),
+        ),
+        NativeBinding::new(
+            DISPLAY_WINDOW_STATE,
+            "destack.display.window.state",
+            destack_display_window_state as *const (),
         ),
         NativeBinding::new(
             DISPLAY_WINDOW_VSYNC_WAIT,
@@ -1183,23 +1887,23 @@ fn destack_display_window_close_replay(
 }
 
 #[inline]
-fn destack_display_window_event_replay(
+fn destack_display_window_descriptor_replay(
     context: &BindingCallContext,
     world: RuntimeWorld,
-    out: *mut WindowEvent,
+    out: *mut WindowDescriptor,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let _ = &window;
 
     context.replay().run_binding_with_policy(
-        DISPLAY_WINDOW_EVENT,
-        context.replay_payload_for(DISPLAY_WINDOW_EVENT)?,
+        DISPLAY_WINDOW_DESCRIPTOR,
+        context.replay_payload_for(DISPLAY_WINDOW_DESCRIPTOR)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_display_window_event(context, out, window)
+                platform_native::destack_display_window_descriptor(context, out, window)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_display_window_event(context, out, window)
+                platform_simulation_native::destack_display_window_descriptor(context, out, window)
             },
         },
         |result| {
@@ -1210,17 +1914,24 @@ fn destack_display_window_event_replay(
                     }
                     *out
                 };
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_a = result_value.a;
-                let result_recorded_b = result_value.b;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded = WindowEvent {
-                    kind: result_recorded_kind,
-                    a: result_recorded_a,
-                    b: result_recorded_b,
-                    timestamp_ns: result_recorded_timestamp_ns,
+                let result_recorded_id = unsafe { result_value.id.as_str()? }.to_string();
+                let result_recorded_title = unsafe { result_value.title.as_str()? }.to_string();
+                let result_recorded_display_id =
+                    unsafe { result_value.display_id.as_str()? }.to_string();
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_resizable = result_value.resizable;
+                let result_recorded_decorated = result_value.decorated;
+                let result_recorded_transparent = result_value.transparent;
+                let result_recorded = WindowDescriptorReplayRecord {
+                    id: result_recorded_id,
+                    title: result_recorded_title,
+                    display_id: result_recorded_display_id,
+                    mode: result_recorded_mode,
+                    resizable: result_recorded_resizable,
+                    decorated: result_recorded_decorated,
+                    transparent: result_recorded_transparent,
                 };
-                let payload = DisplayWindowEventReplay {
+                let payload = DisplayWindowDescriptorReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -1229,7 +1940,7 @@ fn destack_display_window_event_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    DisplayWindowEventReplay { result }
+                    DisplayWindowDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1240,19 +1951,771 @@ fn destack_display_window_event_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_kind = value.kind;
-                    let value_native_a = value.a;
-                    let value_native_b = value.b;
-                    let value_native_timestamp_ns = value.timestamp_ns;
-                    let value_native = WindowEvent {
-                        kind: value_native_kind,
-                        a: value_native_a,
-                        b: value_native_b,
-                        timestamp_ns: value_native_timestamp_ns,
+                    let value_native_id = context.store_string(&value.id);
+                    let value_native_title = context.store_string(&value.title);
+                    let value_native_display_id = context.store_string(&value.display_id);
+                    let value_native_mode = value.mode;
+                    let value_native_resizable = value.resizable;
+                    let value_native_decorated = value.decorated;
+                    let value_native_transparent = value.transparent;
+                    let value_native = WindowDescriptor {
+                        id: value_native_id,
+                        title: value_native_title,
+                        display_id: value_native_display_id,
+                        mode: value_native_mode,
+                        resizable: value_native_resizable,
+                        decorated: value_native_decorated,
+                        transparent: value_native_transparent,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_window_event_close_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    handle: resource::WindowEventHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        DISPLAY_WINDOW_EVENT_CLOSE,
+        context.replay_payload_for(DISPLAY_WINDOW_EVENT_CLOSE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_event_close(context, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_event_close(context, handle)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowEventCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowEventCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_window_event_open_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut resource::WindowEventHandle,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        DISPLAY_WINDOW_EVENT_OPEN,
+        context.replay_payload_for(DISPLAY_WINDOW_EVENT_OPEN)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_event_open(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_event_open(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded = result_value;
+                let payload = DisplayWindowEventOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowEventOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_window_event_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut WindowEvent,
+    handle: resource::WindowEventHandle,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &timeoutns);
+
+    context.replay().run_binding_with_policy(
+        DISPLAY_WINDOW_EVENT_READ,
+        context.replay_payload_for(DISPLAY_WINDOW_EVENT_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_event_read(context, out, handle, timeoutns)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_event_read(
+                    context, out, handle, timeoutns,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_window = result_value.window;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_payload_focus_focused = result_value.payload.focus.focused;
+                let result_recorded_payload_focus = WindowFocusPayload {
+                    focused: result_recorded_payload_focus_focused,
+                };
+                let result_recorded_payload_visibility_visibility =
+                    result_value.payload.visibility.visibility;
+                let result_recorded_payload_visibility = WindowVisibilityPayload {
+                    visibility: result_recorded_payload_visibility_visibility,
+                };
+                let result_recorded_payload_occlusion_occluded =
+                    result_value.payload.occlusion.occluded;
+                let result_recorded_payload_occlusion = WindowOcclusionPayload {
+                    occluded: result_recorded_payload_occlusion_occluded,
+                };
+                let result_recorded_payload_position_x = result_value.payload.position.x;
+                let result_recorded_payload_position_y = result_value.payload.position.y;
+                let result_recorded_payload_position = WindowPositionPayload {
+                    x: result_recorded_payload_position_x,
+                    y: result_recorded_payload_position_y,
+                };
+                let result_recorded_payload_size_width = result_value.payload.size.width;
+                let result_recorded_payload_size_height = result_value.payload.size.height;
+                let result_recorded_payload_size = WindowSizePayload {
+                    width: result_recorded_payload_size_width,
+                    height: result_recorded_payload_size_height,
+                };
+                let result_recorded_payload_scale_factor_scale_factor_milli =
+                    result_value.payload.scale_factor.scale_factor_milli;
+                let result_recorded_payload_scale_factor = WindowScaleFactorPayload {
+                    scale_factor_milli: result_recorded_payload_scale_factor_scale_factor_milli,
+                };
+                let result_recorded_payload = WindowEventPayload {
+                    focus: result_recorded_payload_focus,
+                    visibility: result_recorded_payload_visibility,
+                    occlusion: result_recorded_payload_occlusion,
+                    position: result_recorded_payload_position,
+                    size: result_recorded_payload_size,
+                    scale_factor: result_recorded_payload_scale_factor,
+                };
+                let result_recorded = WindowEvent {
+                    window: result_recorded_window,
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    payload: result_recorded_payload,
+                };
+                let payload = DisplayWindowEventReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowEventReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_window = value.window;
+                    let value_native_kind = value.kind;
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_payload_focus_focused = value.payload.focus.focused;
+                    let value_native_payload_focus = WindowFocusPayload {
+                        focused: value_native_payload_focus_focused,
+                    };
+                    let value_native_payload_visibility_visibility =
+                        value.payload.visibility.visibility;
+                    let value_native_payload_visibility = WindowVisibilityPayload {
+                        visibility: value_native_payload_visibility_visibility,
+                    };
+                    let value_native_payload_occlusion_occluded = value.payload.occlusion.occluded;
+                    let value_native_payload_occlusion = WindowOcclusionPayload {
+                        occluded: value_native_payload_occlusion_occluded,
+                    };
+                    let value_native_payload_position_x = value.payload.position.x;
+                    let value_native_payload_position_y = value.payload.position.y;
+                    let value_native_payload_position = WindowPositionPayload {
+                        x: value_native_payload_position_x,
+                        y: value_native_payload_position_y,
+                    };
+                    let value_native_payload_size_width = value.payload.size.width;
+                    let value_native_payload_size_height = value.payload.size.height;
+                    let value_native_payload_size = WindowSizePayload {
+                        width: value_native_payload_size_width,
+                        height: value_native_payload_size_height,
+                    };
+                    let value_native_payload_scale_factor_scale_factor_milli =
+                        value.payload.scale_factor.scale_factor_milli;
+                    let value_native_payload_scale_factor = WindowScaleFactorPayload {
+                        scale_factor_milli: value_native_payload_scale_factor_scale_factor_milli,
+                    };
+                    let value_native_payload = WindowEventPayload {
+                        focus: value_native_payload_focus,
+                        visibility: value_native_payload_visibility,
+                        occlusion: value_native_payload_occlusion,
+                        position: value_native_payload_position,
+                        size: value_native_payload_size,
+                        scale_factor: value_native_payload_scale_factor,
+                    };
+                    let value_native = WindowEvent {
+                        window: value_native_window,
+                        kind: value_native_kind,
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        payload: value_native_payload,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_window_event_read_batch_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<WindowEvent>,
+    handle: resource::WindowEventHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &maxevents, &timeoutns);
+
+    context.replay().run_binding_with_policy(
+        DISPLAY_WINDOW_EVENT_READ_BATCH,
+        context.replay_payload_for(DISPLAY_WINDOW_EVENT_READ_BATCH)?,
+        || match world {
+            RuntimeWorld::Host => unsafe { platform_native::destack_display_window_event_read_batch(context, out, handle, maxevents, timeoutns) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_display_window_event_read_batch(context, out, handle, maxevents, timeoutns) },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_window = result_recorded_item.window;
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded_timestamp_ns = result_recorded_item.timestamp_ns;
+                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
+                    let result_recorded_item_recorded_payload_focus_focused = result_recorded_item.payload.focus.focused;
+                    let result_recorded_item_recorded_payload_focus = WindowFocusPayload {
+                        focused: result_recorded_item_recorded_payload_focus_focused,
+                    };
+                    let result_recorded_item_recorded_payload_visibility_visibility = result_recorded_item.payload.visibility.visibility;
+                    let result_recorded_item_recorded_payload_visibility = WindowVisibilityPayload {
+                        visibility: result_recorded_item_recorded_payload_visibility_visibility,
+                    };
+                    let result_recorded_item_recorded_payload_occlusion_occluded = result_recorded_item.payload.occlusion.occluded;
+                    let result_recorded_item_recorded_payload_occlusion = WindowOcclusionPayload {
+                        occluded: result_recorded_item_recorded_payload_occlusion_occluded,
+                    };
+                    let result_recorded_item_recorded_payload_position_x = result_recorded_item.payload.position.x;
+                    let result_recorded_item_recorded_payload_position_y = result_recorded_item.payload.position.y;
+                    let result_recorded_item_recorded_payload_position = WindowPositionPayload {
+                        x: result_recorded_item_recorded_payload_position_x,
+                        y: result_recorded_item_recorded_payload_position_y,
+                    };
+                    let result_recorded_item_recorded_payload_size_width = result_recorded_item.payload.size.width;
+                    let result_recorded_item_recorded_payload_size_height = result_recorded_item.payload.size.height;
+                    let result_recorded_item_recorded_payload_size = WindowSizePayload {
+                        width: result_recorded_item_recorded_payload_size_width,
+                        height: result_recorded_item_recorded_payload_size_height,
+                    };
+                    let result_recorded_item_recorded_payload_scale_factor_scale_factor_milli = result_recorded_item.payload.scale_factor.scale_factor_milli;
+                    let result_recorded_item_recorded_payload_scale_factor = WindowScaleFactorPayload {
+                        scale_factor_milli: result_recorded_item_recorded_payload_scale_factor_scale_factor_milli,
+                    };
+                    let result_recorded_item_recorded_payload = WindowEventPayload {
+                        focus: result_recorded_item_recorded_payload_focus,
+                        visibility: result_recorded_item_recorded_payload_visibility,
+                        occlusion: result_recorded_item_recorded_payload_occlusion,
+                        position: result_recorded_item_recorded_payload_position,
+                        size: result_recorded_item_recorded_payload_size,
+                        scale_factor: result_recorded_item_recorded_payload_scale_factor,
+                    };
+                    let result_recorded_item_recorded = WindowEvent {
+                        window: result_recorded_item_recorded_window,
+                        kind: result_recorded_item_recorded_kind,
+                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
+                        sequence: result_recorded_item_recorded_sequence,
+                        payload: result_recorded_item_recorded_payload,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = DisplayWindowEventReadBatchReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowEventReadBatchReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_window = value_native_item.window;
+                        let value_native_item_native_kind = value_native_item.kind;
+                        let value_native_item_native_timestamp_ns = value_native_item.timestamp_ns;
+                        let value_native_item_native_sequence = value_native_item.sequence;
+                        let value_native_item_native_payload_focus_focused = value_native_item.payload.focus.focused;
+                        let value_native_item_native_payload_focus = WindowFocusPayload {
+                            focused: value_native_item_native_payload_focus_focused,
+                        };
+                        let value_native_item_native_payload_visibility_visibility = value_native_item.payload.visibility.visibility;
+                        let value_native_item_native_payload_visibility = WindowVisibilityPayload {
+                            visibility: value_native_item_native_payload_visibility_visibility,
+                        };
+                        let value_native_item_native_payload_occlusion_occluded = value_native_item.payload.occlusion.occluded;
+                        let value_native_item_native_payload_occlusion = WindowOcclusionPayload {
+                            occluded: value_native_item_native_payload_occlusion_occluded,
+                        };
+                        let value_native_item_native_payload_position_x = value_native_item.payload.position.x;
+                        let value_native_item_native_payload_position_y = value_native_item.payload.position.y;
+                        let value_native_item_native_payload_position = WindowPositionPayload {
+                            x: value_native_item_native_payload_position_x,
+                            y: value_native_item_native_payload_position_y,
+                        };
+                        let value_native_item_native_payload_size_width = value_native_item.payload.size.width;
+                        let value_native_item_native_payload_size_height = value_native_item.payload.size.height;
+                        let value_native_item_native_payload_size = WindowSizePayload {
+                            width: value_native_item_native_payload_size_width,
+                            height: value_native_item_native_payload_size_height,
+                        };
+                        let value_native_item_native_payload_scale_factor_scale_factor_milli = value_native_item.payload.scale_factor.scale_factor_milli;
+                        let value_native_item_native_payload_scale_factor = WindowScaleFactorPayload {
+                            scale_factor_milli: value_native_item_native_payload_scale_factor_scale_factor_milli,
+                        };
+                        let value_native_item_native_payload = WindowEventPayload {
+                            focus: value_native_item_native_payload_focus,
+                            visibility: value_native_item_native_payload_visibility,
+                            occlusion: value_native_item_native_payload_occlusion,
+                            position: value_native_item_native_payload_position,
+                            size: value_native_item_native_payload_size,
+                            scale_factor: value_native_item_native_payload_scale_factor,
+                        };
+                        let value_native_item_native = WindowEvent {
+                            window: value_native_item_native_window,
+                            kind: value_native_item_native_kind,
+                            timestamp_ns: value_native_item_native_timestamp_ns,
+                            sequence: value_native_item_native_sequence,
+                            payload: value_native_item_native_payload,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe { std::ptr::write(out, value_native); }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_window_event_try_read_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut WindowEvent,
+    handle: resource::WindowEventHandle,
+) -> RuntimeResult<()> {
+    let _ = &handle;
+
+    context.replay().run_binding_with_policy(
+        DISPLAY_WINDOW_EVENT_TRY_READ,
+        context.replay_payload_for(DISPLAY_WINDOW_EVENT_TRY_READ)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_event_try_read(context, out, handle)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_event_try_read(
+                    context, out, handle,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_window = result_value.window;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_payload_focus_focused = result_value.payload.focus.focused;
+                let result_recorded_payload_focus = WindowFocusPayload {
+                    focused: result_recorded_payload_focus_focused,
+                };
+                let result_recorded_payload_visibility_visibility =
+                    result_value.payload.visibility.visibility;
+                let result_recorded_payload_visibility = WindowVisibilityPayload {
+                    visibility: result_recorded_payload_visibility_visibility,
+                };
+                let result_recorded_payload_occlusion_occluded =
+                    result_value.payload.occlusion.occluded;
+                let result_recorded_payload_occlusion = WindowOcclusionPayload {
+                    occluded: result_recorded_payload_occlusion_occluded,
+                };
+                let result_recorded_payload_position_x = result_value.payload.position.x;
+                let result_recorded_payload_position_y = result_value.payload.position.y;
+                let result_recorded_payload_position = WindowPositionPayload {
+                    x: result_recorded_payload_position_x,
+                    y: result_recorded_payload_position_y,
+                };
+                let result_recorded_payload_size_width = result_value.payload.size.width;
+                let result_recorded_payload_size_height = result_value.payload.size.height;
+                let result_recorded_payload_size = WindowSizePayload {
+                    width: result_recorded_payload_size_width,
+                    height: result_recorded_payload_size_height,
+                };
+                let result_recorded_payload_scale_factor_scale_factor_milli =
+                    result_value.payload.scale_factor.scale_factor_milli;
+                let result_recorded_payload_scale_factor = WindowScaleFactorPayload {
+                    scale_factor_milli: result_recorded_payload_scale_factor_scale_factor_milli,
+                };
+                let result_recorded_payload = WindowEventPayload {
+                    focus: result_recorded_payload_focus,
+                    visibility: result_recorded_payload_visibility,
+                    occlusion: result_recorded_payload_occlusion,
+                    position: result_recorded_payload_position,
+                    size: result_recorded_payload_size,
+                    scale_factor: result_recorded_payload_scale_factor,
+                };
+                let result_recorded = WindowEvent {
+                    window: result_recorded_window,
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    payload: result_recorded_payload,
+                };
+                let payload = DisplayWindowEventTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowEventTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_window = value.window;
+                    let value_native_kind = value.kind;
+                    let value_native_timestamp_ns = value.timestamp_ns;
+                    let value_native_sequence = value.sequence;
+                    let value_native_payload_focus_focused = value.payload.focus.focused;
+                    let value_native_payload_focus = WindowFocusPayload {
+                        focused: value_native_payload_focus_focused,
+                    };
+                    let value_native_payload_visibility_visibility =
+                        value.payload.visibility.visibility;
+                    let value_native_payload_visibility = WindowVisibilityPayload {
+                        visibility: value_native_payload_visibility_visibility,
+                    };
+                    let value_native_payload_occlusion_occluded = value.payload.occlusion.occluded;
+                    let value_native_payload_occlusion = WindowOcclusionPayload {
+                        occluded: value_native_payload_occlusion_occluded,
+                    };
+                    let value_native_payload_position_x = value.payload.position.x;
+                    let value_native_payload_position_y = value.payload.position.y;
+                    let value_native_payload_position = WindowPositionPayload {
+                        x: value_native_payload_position_x,
+                        y: value_native_payload_position_y,
+                    };
+                    let value_native_payload_size_width = value.payload.size.width;
+                    let value_native_payload_size_height = value.payload.size.height;
+                    let value_native_payload_size = WindowSizePayload {
+                        width: value_native_payload_size_width,
+                        height: value_native_payload_size_height,
+                    };
+                    let value_native_payload_scale_factor_scale_factor_milli =
+                        value.payload.scale_factor.scale_factor_milli;
+                    let value_native_payload_scale_factor = WindowScaleFactorPayload {
+                        scale_factor_milli: value_native_payload_scale_factor_scale_factor_milli,
+                    };
+                    let value_native_payload = WindowEventPayload {
+                        focus: value_native_payload_focus,
+                        visibility: value_native_payload_visibility,
+                        occlusion: value_native_payload_occlusion,
+                        position: value_native_payload_position,
+                        size: value_native_payload_size,
+                        scale_factor: value_native_payload_scale_factor,
+                    };
+                    let value_native = WindowEvent {
+                        window: value_native_window,
+                        kind: value_native_kind,
+                        timestamp_ns: value_native_timestamp_ns,
+                        sequence: value_native_sequence,
+                        payload: value_native_payload,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_window_event_try_read_batch_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<WindowEvent>,
+    handle: resource::WindowEventHandle,
+    maxevents: u32,
+) -> RuntimeResult<()> {
+    let _ = (&handle, &maxevents);
+
+    context.replay().run_binding_with_policy(
+        DISPLAY_WINDOW_EVENT_TRY_READ_BATCH,
+        context.replay_payload_for(DISPLAY_WINDOW_EVENT_TRY_READ_BATCH)?,
+        || match world {
+            RuntimeWorld::Host => unsafe { platform_native::destack_display_window_event_try_read_batch(context, out, handle, maxevents) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_display_window_event_try_read_batch(context, out, handle, maxevents) },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded_window = result_recorded_item.window;
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded_timestamp_ns = result_recorded_item.timestamp_ns;
+                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
+                    let result_recorded_item_recorded_payload_focus_focused = result_recorded_item.payload.focus.focused;
+                    let result_recorded_item_recorded_payload_focus = WindowFocusPayload {
+                        focused: result_recorded_item_recorded_payload_focus_focused,
+                    };
+                    let result_recorded_item_recorded_payload_visibility_visibility = result_recorded_item.payload.visibility.visibility;
+                    let result_recorded_item_recorded_payload_visibility = WindowVisibilityPayload {
+                        visibility: result_recorded_item_recorded_payload_visibility_visibility,
+                    };
+                    let result_recorded_item_recorded_payload_occlusion_occluded = result_recorded_item.payload.occlusion.occluded;
+                    let result_recorded_item_recorded_payload_occlusion = WindowOcclusionPayload {
+                        occluded: result_recorded_item_recorded_payload_occlusion_occluded,
+                    };
+                    let result_recorded_item_recorded_payload_position_x = result_recorded_item.payload.position.x;
+                    let result_recorded_item_recorded_payload_position_y = result_recorded_item.payload.position.y;
+                    let result_recorded_item_recorded_payload_position = WindowPositionPayload {
+                        x: result_recorded_item_recorded_payload_position_x,
+                        y: result_recorded_item_recorded_payload_position_y,
+                    };
+                    let result_recorded_item_recorded_payload_size_width = result_recorded_item.payload.size.width;
+                    let result_recorded_item_recorded_payload_size_height = result_recorded_item.payload.size.height;
+                    let result_recorded_item_recorded_payload_size = WindowSizePayload {
+                        width: result_recorded_item_recorded_payload_size_width,
+                        height: result_recorded_item_recorded_payload_size_height,
+                    };
+                    let result_recorded_item_recorded_payload_scale_factor_scale_factor_milli = result_recorded_item.payload.scale_factor.scale_factor_milli;
+                    let result_recorded_item_recorded_payload_scale_factor = WindowScaleFactorPayload {
+                        scale_factor_milli: result_recorded_item_recorded_payload_scale_factor_scale_factor_milli,
+                    };
+                    let result_recorded_item_recorded_payload = WindowEventPayload {
+                        focus: result_recorded_item_recorded_payload_focus,
+                        visibility: result_recorded_item_recorded_payload_visibility,
+                        occlusion: result_recorded_item_recorded_payload_occlusion,
+                        position: result_recorded_item_recorded_payload_position,
+                        size: result_recorded_item_recorded_payload_size,
+                        scale_factor: result_recorded_item_recorded_payload_scale_factor,
+                    };
+                    let result_recorded_item_recorded = WindowEvent {
+                        window: result_recorded_item_recorded_window,
+                        kind: result_recorded_item_recorded_kind,
+                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
+                        sequence: result_recorded_item_recorded_sequence,
+                        payload: result_recorded_item_recorded_payload,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = DisplayWindowEventTryReadBatchReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowEventTryReadBatchReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native_window = value_native_item.window;
+                        let value_native_item_native_kind = value_native_item.kind;
+                        let value_native_item_native_timestamp_ns = value_native_item.timestamp_ns;
+                        let value_native_item_native_sequence = value_native_item.sequence;
+                        let value_native_item_native_payload_focus_focused = value_native_item.payload.focus.focused;
+                        let value_native_item_native_payload_focus = WindowFocusPayload {
+                            focused: value_native_item_native_payload_focus_focused,
+                        };
+                        let value_native_item_native_payload_visibility_visibility = value_native_item.payload.visibility.visibility;
+                        let value_native_item_native_payload_visibility = WindowVisibilityPayload {
+                            visibility: value_native_item_native_payload_visibility_visibility,
+                        };
+                        let value_native_item_native_payload_occlusion_occluded = value_native_item.payload.occlusion.occluded;
+                        let value_native_item_native_payload_occlusion = WindowOcclusionPayload {
+                            occluded: value_native_item_native_payload_occlusion_occluded,
+                        };
+                        let value_native_item_native_payload_position_x = value_native_item.payload.position.x;
+                        let value_native_item_native_payload_position_y = value_native_item.payload.position.y;
+                        let value_native_item_native_payload_position = WindowPositionPayload {
+                            x: value_native_item_native_payload_position_x,
+                            y: value_native_item_native_payload_position_y,
+                        };
+                        let value_native_item_native_payload_size_width = value_native_item.payload.size.width;
+                        let value_native_item_native_payload_size_height = value_native_item.payload.size.height;
+                        let value_native_item_native_payload_size = WindowSizePayload {
+                            width: value_native_item_native_payload_size_width,
+                            height: value_native_item_native_payload_size_height,
+                        };
+                        let value_native_item_native_payload_scale_factor_scale_factor_milli = value_native_item.payload.scale_factor.scale_factor_milli;
+                        let value_native_item_native_payload_scale_factor = WindowScaleFactorPayload {
+                            scale_factor_milli: value_native_item_native_payload_scale_factor_scale_factor_milli,
+                        };
+                        let value_native_item_native_payload = WindowEventPayload {
+                            focus: value_native_item_native_payload_focus,
+                            visibility: value_native_item_native_payload_visibility,
+                            occlusion: value_native_item_native_payload_occlusion,
+                            position: value_native_item_native_payload_position,
+                            size: value_native_item_native_payload_size,
+                            scale_factor: value_native_item_native_payload_scale_factor,
+                        };
+                        let value_native_item_native = WindowEvent {
+                            window: value_native_item_native_window,
+                            kind: value_native_item_native_kind,
+                            timestamp_ns: value_native_item_native_timestamp_ns,
+                            sequence: value_native_item_native_sequence,
+                            payload: value_native_item_native_payload,
+                        };
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -1326,6 +2789,207 @@ fn destack_display_window_open_replay(
 }
 
 #[inline]
+fn destack_display_window_request_refresh_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = &window;
+
+    context.replay().run_binding_with_policy(
+        DISPLAY_WINDOW_REQUEST_REFRESH,
+        context.replay_payload_for(DISPLAY_WINDOW_REQUEST_REFRESH)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_request_refresh(context, window)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_request_refresh(context, window)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowRequestRefreshReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowRequestRefreshReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_window_set_mode_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    mode: WindowMode,
+) -> RuntimeResult<()> {
+    let _ = (&window, &mode);
+
+    context.replay().run_binding_with_policy(
+        DISPLAY_WINDOW_SET_MODE,
+        context.replay_payload_for(DISPLAY_WINDOW_SET_MODE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_set_mode(context, window, mode)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_set_mode(context, window, mode)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowSetModeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowSetModeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_window_set_position_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    x: i32,
+    y: i32,
+) -> RuntimeResult<()> {
+    let _ = (&window, &x, &y);
+
+    context.replay().run_binding_with_policy(
+        DISPLAY_WINDOW_SET_POSITION,
+        context.replay_payload_for(DISPLAY_WINDOW_SET_POSITION)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_set_position(context, window, x, y)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_set_position(
+                    context, window, x, y,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowSetPositionReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowSetPositionReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_window_set_size_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    width: u32,
+    height: u32,
+) -> RuntimeResult<()> {
+    let _ = (&window, &width, &height);
+
+    context.replay().run_binding_with_policy(
+        DISPLAY_WINDOW_SET_SIZE,
+        context.replay_payload_for(DISPLAY_WINDOW_SET_SIZE)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_set_size(context, window, width, height)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_set_size(
+                    context, window, width, height,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowSetSizeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowSetSizeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_display_window_set_title_replay(
     context: &BindingCallContext,
     world: RuntimeWorld,
@@ -1375,23 +3039,74 @@ fn destack_display_window_set_title_replay(
 }
 
 #[inline]
-fn destack_display_window_try_event_replay(
+fn destack_display_window_set_visibility_replay(
     context: &BindingCallContext,
     world: RuntimeWorld,
-    out: *mut WindowEvent,
+    window: resource::WindowHandle,
+    visibility: WindowVisibility,
+) -> RuntimeResult<()> {
+    let _ = (&window, &visibility);
+
+    context.replay().run_binding_with_policy(
+        DISPLAY_WINDOW_SET_VISIBILITY,
+        context.replay_payload_for(DISPLAY_WINDOW_SET_VISIBILITY)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_display_window_set_visibility(context, window, visibility)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_display_window_set_visibility(
+                    context, window, visibility,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowSetVisibilityReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowSetVisibilityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_display_window_state_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut WindowState,
     window: resource::WindowHandle,
 ) -> RuntimeResult<()> {
     let _ = &window;
 
     context.replay().run_binding_with_policy(
-        DISPLAY_WINDOW_TRY_EVENT,
-        context.replay_payload_for(DISPLAY_WINDOW_TRY_EVENT)?,
+        DISPLAY_WINDOW_STATE,
+        context.replay_payload_for(DISPLAY_WINDOW_STATE)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_display_window_try_event(context, out, window)
+                platform_native::destack_display_window_state(context, out, window)
             },
             RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_display_window_try_event(context, out, window)
+                platform_simulation_native::destack_display_window_state(context, out, window)
             },
         },
         |result| {
@@ -1402,17 +3117,25 @@ fn destack_display_window_try_event_replay(
                     }
                     *out
                 };
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_a = result_value.a;
-                let result_recorded_b = result_value.b;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded = WindowEvent {
-                    kind: result_recorded_kind,
-                    a: result_recorded_a,
-                    b: result_recorded_b,
-                    timestamp_ns: result_recorded_timestamp_ns,
+                let result_recorded_x = result_value.x;
+                let result_recorded_y = result_value.y;
+                let result_recorded_width = result_value.width;
+                let result_recorded_height = result_value.height;
+                let result_recorded_scale_factor_milli = result_value.scale_factor_milli;
+                let result_recorded_visibility = result_value.visibility;
+                let result_recorded_focused = result_value.focused;
+                let result_recorded_occluded = result_value.occluded;
+                let result_recorded = WindowState {
+                    x: result_recorded_x,
+                    y: result_recorded_y,
+                    width: result_recorded_width,
+                    height: result_recorded_height,
+                    scale_factor_milli: result_recorded_scale_factor_milli,
+                    visibility: result_recorded_visibility,
+                    focused: result_recorded_focused,
+                    occluded: result_recorded_occluded,
                 };
-                let payload = DisplayWindowTryEventReplay {
+                let payload = DisplayWindowStateReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -1421,7 +3144,7 @@ fn destack_display_window_try_event_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    DisplayWindowTryEventReplay { result }
+                    DisplayWindowStateReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -1432,15 +3155,23 @@ fn destack_display_window_try_event_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_kind = value.kind;
-                    let value_native_a = value.a;
-                    let value_native_b = value.b;
-                    let value_native_timestamp_ns = value.timestamp_ns;
-                    let value_native = WindowEvent {
-                        kind: value_native_kind,
-                        a: value_native_a,
-                        b: value_native_b,
-                        timestamp_ns: value_native_timestamp_ns,
+                    let value_native_x = value.x;
+                    let value_native_y = value.y;
+                    let value_native_width = value.width;
+                    let value_native_height = value.height;
+                    let value_native_scale_factor_milli = value.scale_factor_milli;
+                    let value_native_visibility = value.visibility;
+                    let value_native_focused = value.focused;
+                    let value_native_occluded = value.occluded;
+                    let value_native = WindowState {
+                        x: value_native_x,
+                        y: value_native_y,
+                        width: value_native_width,
+                        height: value_native_height,
+                        scale_factor_milli: value_native_scale_factor_milli,
+                        visibility: value_native_visibility,
+                        focused: value_native_focused,
+                        occluded: value_native_occluded,
                     };
                     unsafe {
                         std::ptr::write(out, value_native);
@@ -1598,9 +3329,9 @@ pub unsafe extern "C" fn destack_display_window_close(
     })
 }
 
-#[unsafe(export_name = "destack.display.window.event")]
-pub unsafe extern "C" fn destack_display_window_event(
-    out: *mut WindowEvent,
+#[unsafe(export_name = "destack.display.window.descriptor")]
+pub unsafe extern "C" fn destack_display_window_descriptor(
+    out: *mut WindowDescriptor,
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1609,8 +3340,105 @@ pub unsafe extern "C" fn destack_display_window_event(
         }
         let _ = (&out, &window);
 
-        let world = context.check_and_resolve_world(DISPLAY_WINDOW_EVENT)?;
-        destack_display_window_event_replay(context, world, out, window)
+        let world = context.check_and_resolve_world(DISPLAY_WINDOW_DESCRIPTOR)?;
+        destack_display_window_descriptor_replay(context, world, out, window)
+    })
+}
+
+#[unsafe(export_name = "destack.display.window.eventClose")]
+pub unsafe extern "C" fn destack_display_window_event_close(
+    handle: resource::WindowEventHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        let world = context.check_and_resolve_world(DISPLAY_WINDOW_EVENT_CLOSE)?;
+        destack_display_window_event_close_replay(context, world, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.display.window.eventOpen")]
+pub unsafe extern "C" fn destack_display_window_event_open(
+    out: *mut resource::WindowEventHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(DISPLAY_WINDOW_EVENT_OPEN)?;
+        destack_display_window_event_open_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.display.window.eventRead")]
+pub unsafe extern "C" fn destack_display_window_event_read(
+    out: *mut WindowEvent,
+    handle: resource::WindowEventHandle,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &timeoutns);
+
+        let world = context.check_and_resolve_world(DISPLAY_WINDOW_EVENT_READ)?;
+        destack_display_window_event_read_replay(context, world, out, handle, timeoutns)
+    })
+}
+
+#[unsafe(export_name = "destack.display.window.eventReadBatch")]
+pub unsafe extern "C" fn destack_display_window_event_read_batch(
+    out: *mut NativeArray<WindowEvent>,
+    handle: resource::WindowEventHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &maxevents, &timeoutns);
+
+        let world = context.check_and_resolve_world(DISPLAY_WINDOW_EVENT_READ_BATCH)?;
+        destack_display_window_event_read_batch_replay(
+            context, world, out, handle, maxevents, timeoutns,
+        )
+    })
+}
+
+#[unsafe(export_name = "destack.display.window.eventTryRead")]
+pub unsafe extern "C" fn destack_display_window_event_try_read(
+    out: *mut WindowEvent,
+    handle: resource::WindowEventHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        let world = context.check_and_resolve_world(DISPLAY_WINDOW_EVENT_TRY_READ)?;
+        destack_display_window_event_try_read_replay(context, world, out, handle)
+    })
+}
+
+#[unsafe(export_name = "destack.display.window.eventTryReadBatch")]
+pub unsafe extern "C" fn destack_display_window_event_try_read_batch(
+    out: *mut NativeArray<WindowEvent>,
+    handle: resource::WindowEventHandle,
+    maxevents: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &maxevents);
+
+        let world = context.check_and_resolve_world(DISPLAY_WINDOW_EVENT_TRY_READ_BATCH)?;
+        destack_display_window_event_try_read_batch_replay(context, world, out, handle, maxevents)
     })
 }
 
@@ -1631,6 +3459,59 @@ pub unsafe extern "C" fn destack_display_window_open(
     })
 }
 
+#[unsafe(export_name = "destack.display.window.requestRefresh")]
+pub unsafe extern "C" fn destack_display_window_request_refresh(
+    window: resource::WindowHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &window;
+
+        let world = context.check_and_resolve_world(DISPLAY_WINDOW_REQUEST_REFRESH)?;
+        destack_display_window_request_refresh_replay(context, world, window)
+    })
+}
+
+#[unsafe(export_name = "destack.display.window.setMode")]
+pub unsafe extern "C" fn destack_display_window_set_mode(
+    window: resource::WindowHandle,
+    mode: WindowMode,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&window, &mode);
+
+        let world = context.check_and_resolve_world(DISPLAY_WINDOW_SET_MODE)?;
+        destack_display_window_set_mode_replay(context, world, window, mode)
+    })
+}
+
+#[unsafe(export_name = "destack.display.window.setPosition")]
+pub unsafe extern "C" fn destack_display_window_set_position(
+    window: resource::WindowHandle,
+    x: i32,
+    y: i32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&window, &x, &y);
+
+        let world = context.check_and_resolve_world(DISPLAY_WINDOW_SET_POSITION)?;
+        destack_display_window_set_position_replay(context, world, window, x, y)
+    })
+}
+
+#[unsafe(export_name = "destack.display.window.setSize")]
+pub unsafe extern "C" fn destack_display_window_set_size(
+    window: resource::WindowHandle,
+    width: u32,
+    height: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&window, &width, &height);
+
+        let world = context.check_and_resolve_world(DISPLAY_WINDOW_SET_SIZE)?;
+        destack_display_window_set_size_replay(context, world, window, width, height)
+    })
+}
+
 #[unsafe(export_name = "destack.display.window.setTitle")]
 pub unsafe extern "C" fn destack_display_window_set_title(
     window: resource::WindowHandle,
@@ -1644,9 +3525,22 @@ pub unsafe extern "C" fn destack_display_window_set_title(
     })
 }
 
-#[unsafe(export_name = "destack.display.window.tryEvent")]
-pub unsafe extern "C" fn destack_display_window_try_event(
-    out: *mut WindowEvent,
+#[unsafe(export_name = "destack.display.window.setVisibility")]
+pub unsafe extern "C" fn destack_display_window_set_visibility(
+    window: resource::WindowHandle,
+    visibility: WindowVisibility,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&window, &visibility);
+
+        let world = context.check_and_resolve_world(DISPLAY_WINDOW_SET_VISIBILITY)?;
+        destack_display_window_set_visibility_replay(context, world, window, visibility)
+    })
+}
+
+#[unsafe(export_name = "destack.display.window.state")]
+pub unsafe extern "C" fn destack_display_window_state(
+    out: *mut WindowState,
     window: resource::WindowHandle,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -1655,8 +3549,8 @@ pub unsafe extern "C" fn destack_display_window_try_event(
         }
         let _ = (&out, &window);
 
-        let world = context.check_and_resolve_world(DISPLAY_WINDOW_TRY_EVENT)?;
-        destack_display_window_try_event_replay(context, world, out, window)
+        let world = context.check_and_resolve_world(DISPLAY_WINDOW_STATE)?;
+        destack_display_window_state_replay(context, world, out, window)
     })
 }
 
@@ -2118,39 +4012,60 @@ fn destack_display_window_close_vm_replay(
 }
 
 #[inline]
-fn destack_display_window_event_vm_replay(
+fn destack_display_window_descriptor_vm_replay(
     runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context_policy(
-        DISPLAY_WINDOW_EVENT,
-        runtime.replay_payload_for(DISPLAY_WINDOW_EVENT)?,
+        DISPLAY_WINDOW_DESCRIPTOR,
+        runtime.replay_payload_for(DISPLAY_WINDOW_DESCRIPTOR)?,
         context,
         |context| match world {
             RuntimeWorld::Host => {
-                platform_vm::destack_display_window_event(runtime, context, window)
+                platform_vm::destack_display_window_descriptor(runtime, context, window)
             }
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_display_window_event(runtime, context, window)
+                platform_simulation_vm::destack_display_window_descriptor(runtime, context, window)
             }
         },
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
-                let result_value: WindowEventVm = value.clone();
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_a = result_value.a;
-                let result_recorded_b = result_value.b;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded = WindowEvent {
-                    kind: result_recorded_kind,
-                    a: result_recorded_a,
-                    b: result_recorded_b,
-                    timestamp_ns: result_recorded_timestamp_ns,
+                let result_value: WindowDescriptorVm = value.clone();
+                let result_recorded_id = {
+                    let result_recorded_id_ref = context
+                        .string_ref(result_value.id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_id_ref.as_str().to_string()
                 };
-                let payload = DisplayWindowEventReplay {
+                let result_recorded_title = {
+                    let result_recorded_title_ref = context
+                        .string_ref(result_value.title)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_title_ref.as_str().to_string()
+                };
+                let result_recorded_display_id = {
+                    let result_recorded_display_id_ref = context
+                        .string_ref(result_value.display_id)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_display_id_ref.as_str().to_string()
+                };
+                let result_recorded_mode = result_value.mode;
+                let result_recorded_resizable = result_value.resizable;
+                let result_recorded_decorated = result_value.decorated;
+                let result_recorded_transparent = result_value.transparent;
+                let result_recorded = WindowDescriptorReplayRecord {
+                    id: result_recorded_id,
+                    title: result_recorded_title,
+                    display_id: result_recorded_display_id,
+                    mode: result_recorded_mode,
+                    resizable: result_recorded_resizable,
+                    decorated: result_recorded_decorated,
+                    transparent: result_recorded_transparent,
+                };
+                let payload = DisplayWindowDescriptorReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -2159,7 +4074,7 @@ fn destack_display_window_event_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    DisplayWindowEventReplay { result }
+                    DisplayWindowDescriptorReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2171,15 +4086,25 @@ fn destack_display_window_event_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_kind = value.kind;
-                    let vm_result_a = value.a;
-                    let vm_result_b = value.b;
-                    let vm_result_timestamp_ns = value.timestamp_ns;
-                    let vm_result = WindowEventVm {
-                        kind: vm_result_kind,
-                        a: vm_result_a,
-                        b: vm_result_b,
-                        timestamp_ns: vm_result_timestamp_ns,
+                    let vm_result_id_value = context.intern_string(value.id.as_str());
+                    let vm_result_id = vm::StringHandle::new(vm_result_id_value);
+                    let vm_result_title_value = context.intern_string(value.title.as_str());
+                    let vm_result_title = vm::StringHandle::new(vm_result_title_value);
+                    let vm_result_display_id_value =
+                        context.intern_string(value.display_id.as_str());
+                    let vm_result_display_id = vm::StringHandle::new(vm_result_display_id_value);
+                    let vm_result_mode = value.mode;
+                    let vm_result_resizable = value.resizable;
+                    let vm_result_decorated = value.decorated;
+                    let vm_result_transparent = value.transparent;
+                    let vm_result = WindowDescriptorVm {
+                        id: vm_result_id,
+                        title: vm_result_title,
+                        display_id: vm_result_display_id,
+                        mode: vm_result_mode,
+                        resizable: vm_result_resizable,
+                        decorated: vm_result_decorated,
+                        transparent: vm_result_transparent,
                     };
                     Ok(vm_result)
                 }
@@ -2187,7 +4112,928 @@ fn destack_display_window_event_vm_replay(
             }
         },
     );
-    let result = encode_destack_display_window_event_result(context, result)?;
+    let result = encode_destack_display_window_descriptor_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_window_event_close_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::WindowEventHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_EVENT_CLOSE,
+        runtime.replay_payload_for(DISPLAY_WINDOW_EVENT_CLOSE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_event_close(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_event_close(runtime, context, handle)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowEventCloseReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowEventCloseReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_display_window_event_close_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_window_event_open_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_EVENT_OPEN,
+        runtime.replay_payload_for(DISPLAY_WINDOW_EVENT_OPEN)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_display_window_event_open(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_event_open(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: resource::WindowEventHandle = value.clone();
+                let result_recorded = result_value;
+                let payload = DisplayWindowEventOpenReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowEventOpenReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_display_window_event_open_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_window_event_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::WindowEventHandle,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_EVENT_READ,
+        runtime.replay_payload_for(DISPLAY_WINDOW_EVENT_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_event_read(runtime, context, handle, timeoutns)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_display_window_event_read(
+                runtime, context, handle, timeoutns,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: WindowEventVm = value.clone();
+                let result_recorded_window = result_value.window;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_payload_focus_focused = result_value.payload.focus.focused;
+                let result_recorded_payload_focus = WindowFocusPayload {
+                    focused: result_recorded_payload_focus_focused,
+                };
+                let result_recorded_payload_visibility_visibility =
+                    result_value.payload.visibility.visibility;
+                let result_recorded_payload_visibility = WindowVisibilityPayload {
+                    visibility: result_recorded_payload_visibility_visibility,
+                };
+                let result_recorded_payload_occlusion_occluded =
+                    result_value.payload.occlusion.occluded;
+                let result_recorded_payload_occlusion = WindowOcclusionPayload {
+                    occluded: result_recorded_payload_occlusion_occluded,
+                };
+                let result_recorded_payload_position_x = result_value.payload.position.x;
+                let result_recorded_payload_position_y = result_value.payload.position.y;
+                let result_recorded_payload_position = WindowPositionPayload {
+                    x: result_recorded_payload_position_x,
+                    y: result_recorded_payload_position_y,
+                };
+                let result_recorded_payload_size_width = result_value.payload.size.width;
+                let result_recorded_payload_size_height = result_value.payload.size.height;
+                let result_recorded_payload_size = WindowSizePayload {
+                    width: result_recorded_payload_size_width,
+                    height: result_recorded_payload_size_height,
+                };
+                let result_recorded_payload_scale_factor_scale_factor_milli =
+                    result_value.payload.scale_factor.scale_factor_milli;
+                let result_recorded_payload_scale_factor = WindowScaleFactorPayload {
+                    scale_factor_milli: result_recorded_payload_scale_factor_scale_factor_milli,
+                };
+                let result_recorded_payload = WindowEventPayload {
+                    focus: result_recorded_payload_focus,
+                    visibility: result_recorded_payload_visibility,
+                    occlusion: result_recorded_payload_occlusion,
+                    position: result_recorded_payload_position,
+                    size: result_recorded_payload_size,
+                    scale_factor: result_recorded_payload_scale_factor,
+                };
+                let result_recorded = WindowEvent {
+                    window: result_recorded_window,
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    payload: result_recorded_payload,
+                };
+                let payload = DisplayWindowEventReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowEventReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_window = value.window;
+                    let vm_result_kind = value.kind;
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_payload_focus_focused = value.payload.focus.focused;
+                    let vm_result_payload_focus = WindowFocusPayloadVm {
+                        focused: vm_result_payload_focus_focused,
+                    };
+                    let vm_result_payload_visibility_visibility =
+                        value.payload.visibility.visibility;
+                    let vm_result_payload_visibility = WindowVisibilityPayloadVm {
+                        visibility: vm_result_payload_visibility_visibility,
+                    };
+                    let vm_result_payload_occlusion_occluded = value.payload.occlusion.occluded;
+                    let vm_result_payload_occlusion = WindowOcclusionPayloadVm {
+                        occluded: vm_result_payload_occlusion_occluded,
+                    };
+                    let vm_result_payload_position_x = value.payload.position.x;
+                    let vm_result_payload_position_y = value.payload.position.y;
+                    let vm_result_payload_position = WindowPositionPayloadVm {
+                        x: vm_result_payload_position_x,
+                        y: vm_result_payload_position_y,
+                    };
+                    let vm_result_payload_size_width = value.payload.size.width;
+                    let vm_result_payload_size_height = value.payload.size.height;
+                    let vm_result_payload_size = WindowSizePayloadVm {
+                        width: vm_result_payload_size_width,
+                        height: vm_result_payload_size_height,
+                    };
+                    let vm_result_payload_scale_factor_scale_factor_milli =
+                        value.payload.scale_factor.scale_factor_milli;
+                    let vm_result_payload_scale_factor = WindowScaleFactorPayloadVm {
+                        scale_factor_milli: vm_result_payload_scale_factor_scale_factor_milli,
+                    };
+                    let vm_result_payload = WindowEventPayloadVm {
+                        focus: vm_result_payload_focus,
+                        visibility: vm_result_payload_visibility,
+                        occlusion: vm_result_payload_occlusion,
+                        position: vm_result_payload_position,
+                        size: vm_result_payload_size,
+                        scale_factor: vm_result_payload_scale_factor,
+                    };
+                    let vm_result = WindowEventVm {
+                        window: vm_result_window,
+                        kind: vm_result_kind,
+                        timestamp_ns: vm_result_timestamp_ns,
+                        sequence: vm_result_sequence,
+                        payload: vm_result_payload,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_display_window_event_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_window_event_read_batch_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::WindowEventHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_EVENT_READ_BATCH,
+        runtime.replay_payload_for(DISPLAY_WINDOW_EVENT_READ_BATCH)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_display_window_event_read_batch(runtime, context, handle, maxevents, timeoutns),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_display_window_event_read_batch(runtime, context, handle, maxevents, timeoutns),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<WindowEventVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 5 fields")).boxed()); }
+                        let result_recorded_item_window_inner_inner = decode_uint64(slots[0], "result_recorded_item_window_inner_inner", "window")?;
+                        let result_recorded_item_window_inner = resource::ResourceId(result_recorded_item_window_inner_inner);
+                        let result_recorded_item_window = resource::WindowHandle(result_recorded_item_window_inner);
+                        let result_recorded_item_kind_raw = decode_uint8(slots[1], "result_recorded_item_kind_raw", "kind")?;
+                        let result_recorded_item_kind = match result_recorded_item_kind_raw { 1u8 => WindowEventKind::Created, 2u8 => WindowEventKind::CloseRequested, 3u8 => WindowEventKind::Destroyed, 4u8 => WindowEventKind::FocusChanged, 5u8 => WindowEventKind::VisibilityChanged, 6u8 => WindowEventKind::OcclusionChanged, 7u8 => WindowEventKind::PositionChanged, 8u8 => WindowEventKind::SizeChanged, 9u8 => WindowEventKind::ScaleFactorChanged, 10u8 => WindowEventKind::RefreshRequested, 11u8 => WindowEventKind::EnterFullscreen, 12u8 => WindowEventKind::LeaveFullscreen , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_kind", "unknown WindowEventKind value")).boxed()), };
+                        let result_recorded_item_timestamp_ns = decode_uint64(slots[2], "result_recorded_item_timestamp_ns", "timestampNs")?;
+                        let result_recorded_item_sequence = decode_uint64(slots[3], "result_recorded_item_sequence", "sequence")?;
+                        let result_recorded_item_payload = {
+                            if slots[4].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload", "payload")).boxed()); }
+                            let slots = context.aggregate_slots(slots[4]).map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 6 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload", "expected 6 fields")).boxed()); }
+                            let result_recorded_item_payload_focus = {
+                                if slots[0].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_focus", "focus")).boxed()); }
+                                let slots = context.aggregate_slots(slots[0]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 1 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_focus", "expected 1 fields")).boxed()); }
+                                let result_recorded_item_payload_focus_focused = decode_bool(slots[0], "result_recorded_item_payload_focus_focused", "focused")?;
+                                WindowFocusPayloadVm {
+                                    focused: result_recorded_item_payload_focus_focused,
+                                }
+                            };
+                            let result_recorded_item_payload_visibility = {
+                                if slots[1].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_visibility", "visibility")).boxed()); }
+                                let slots = context.aggregate_slots(slots[1]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 1 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_visibility", "expected 1 fields")).boxed()); }
+                                let result_recorded_item_payload_visibility_visibility_raw = decode_uint8(slots[0], "result_recorded_item_payload_visibility_visibility_raw", "visibility")?;
+                                let result_recorded_item_payload_visibility_visibility = match result_recorded_item_payload_visibility_visibility_raw { 1u8 => WindowVisibility::Hidden, 2u8 => WindowVisibility::Visible, 3u8 => WindowVisibility::Minimized, 4u8 => WindowVisibility::Maximized , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_visibility_visibility", "unknown WindowVisibility value")).boxed()), };
+                                WindowVisibilityPayloadVm {
+                                    visibility: result_recorded_item_payload_visibility_visibility,
+                                }
+                            };
+                            let result_recorded_item_payload_occlusion = {
+                                if slots[2].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_occlusion", "occlusion")).boxed()); }
+                                let slots = context.aggregate_slots(slots[2]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 1 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_occlusion", "expected 1 fields")).boxed()); }
+                                let result_recorded_item_payload_occlusion_occluded = decode_bool(slots[0], "result_recorded_item_payload_occlusion_occluded", "occluded")?;
+                                WindowOcclusionPayloadVm {
+                                    occluded: result_recorded_item_payload_occlusion_occluded,
+                                }
+                            };
+                            let result_recorded_item_payload_position = {
+                                if slots[3].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_position", "position")).boxed()); }
+                                let slots = context.aggregate_slots(slots[3]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_position", "expected 2 fields")).boxed()); }
+                                let result_recorded_item_payload_position_x = decode_int32(slots[0], "result_recorded_item_payload_position_x", "x")?;
+                                let result_recorded_item_payload_position_y = decode_int32(slots[1], "result_recorded_item_payload_position_y", "y")?;
+                                WindowPositionPayloadVm {
+                                    x: result_recorded_item_payload_position_x,
+                                    y: result_recorded_item_payload_position_y,
+                                }
+                            };
+                            let result_recorded_item_payload_size = {
+                                if slots[4].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_size", "size")).boxed()); }
+                                let slots = context.aggregate_slots(slots[4]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_size", "expected 2 fields")).boxed()); }
+                                let result_recorded_item_payload_size_width = decode_uint32(slots[0], "result_recorded_item_payload_size_width", "width")?;
+                                let result_recorded_item_payload_size_height = decode_uint32(slots[1], "result_recorded_item_payload_size_height", "height")?;
+                                WindowSizePayloadVm {
+                                    width: result_recorded_item_payload_size_width,
+                                    height: result_recorded_item_payload_size_height,
+                                }
+                            };
+                            let result_recorded_item_payload_scale_factor = {
+                                if slots[5].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_scale_factor", "scaleFactor")).boxed()); }
+                                let slots = context.aggregate_slots(slots[5]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 1 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_scale_factor", "expected 1 fields")).boxed()); }
+                                let result_recorded_item_payload_scale_factor_scale_factor_milli = decode_uint32(slots[0], "result_recorded_item_payload_scale_factor_scale_factor_milli", "scaleFactorMilli")?;
+                                WindowScaleFactorPayloadVm {
+                                    scale_factor_milli: result_recorded_item_payload_scale_factor_scale_factor_milli,
+                                }
+                            };
+                            WindowEventPayloadVm {
+                                focus: result_recorded_item_payload_focus,
+                                visibility: result_recorded_item_payload_visibility,
+                                occlusion: result_recorded_item_payload_occlusion,
+                                position: result_recorded_item_payload_position,
+                                size: result_recorded_item_payload_size,
+                                scale_factor: result_recorded_item_payload_scale_factor,
+                            }
+                        };
+                        WindowEventVm {
+                            window: result_recorded_item_window,
+                            kind: result_recorded_item_kind,
+                            timestamp_ns: result_recorded_item_timestamp_ns,
+                            sequence: result_recorded_item_sequence,
+                            payload: result_recorded_item_payload,
+                        }
+                    };
+                    let result_recorded_item_recorded_window = result_recorded_item.window;
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded_timestamp_ns = result_recorded_item.timestamp_ns;
+                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
+                    let result_recorded_item_recorded_payload_focus_focused = result_recorded_item.payload.focus.focused;
+                    let result_recorded_item_recorded_payload_focus = WindowFocusPayload {
+                        focused: result_recorded_item_recorded_payload_focus_focused,
+                    };
+                    let result_recorded_item_recorded_payload_visibility_visibility = result_recorded_item.payload.visibility.visibility;
+                    let result_recorded_item_recorded_payload_visibility = WindowVisibilityPayload {
+                        visibility: result_recorded_item_recorded_payload_visibility_visibility,
+                    };
+                    let result_recorded_item_recorded_payload_occlusion_occluded = result_recorded_item.payload.occlusion.occluded;
+                    let result_recorded_item_recorded_payload_occlusion = WindowOcclusionPayload {
+                        occluded: result_recorded_item_recorded_payload_occlusion_occluded,
+                    };
+                    let result_recorded_item_recorded_payload_position_x = result_recorded_item.payload.position.x;
+                    let result_recorded_item_recorded_payload_position_y = result_recorded_item.payload.position.y;
+                    let result_recorded_item_recorded_payload_position = WindowPositionPayload {
+                        x: result_recorded_item_recorded_payload_position_x,
+                        y: result_recorded_item_recorded_payload_position_y,
+                    };
+                    let result_recorded_item_recorded_payload_size_width = result_recorded_item.payload.size.width;
+                    let result_recorded_item_recorded_payload_size_height = result_recorded_item.payload.size.height;
+                    let result_recorded_item_recorded_payload_size = WindowSizePayload {
+                        width: result_recorded_item_recorded_payload_size_width,
+                        height: result_recorded_item_recorded_payload_size_height,
+                    };
+                    let result_recorded_item_recorded_payload_scale_factor_scale_factor_milli = result_recorded_item.payload.scale_factor.scale_factor_milli;
+                    let result_recorded_item_recorded_payload_scale_factor = WindowScaleFactorPayload {
+                        scale_factor_milli: result_recorded_item_recorded_payload_scale_factor_scale_factor_milli,
+                    };
+                    let result_recorded_item_recorded_payload = WindowEventPayload {
+                        focus: result_recorded_item_recorded_payload_focus,
+                        visibility: result_recorded_item_recorded_payload_visibility,
+                        occlusion: result_recorded_item_recorded_payload_occlusion,
+                        position: result_recorded_item_recorded_payload_position,
+                        size: result_recorded_item_recorded_payload_size,
+                        scale_factor: result_recorded_item_recorded_payload_scale_factor,
+                    };
+                    let result_recorded_item_recorded = WindowEvent {
+                        window: result_recorded_item_recorded_window,
+                        kind: result_recorded_item_recorded_kind,
+                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
+                        sequence: result_recorded_item_recorded_sequence,
+                        payload: result_recorded_item_recorded_payload,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = DisplayWindowEventReadBatchReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowEventReadBatchReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value_window = vm_result_item.window;
+                        let vm_result_item_value_kind = vm_result_item.kind;
+                        let vm_result_item_value_timestamp_ns = vm_result_item.timestamp_ns;
+                        let vm_result_item_value_sequence = vm_result_item.sequence;
+                        let vm_result_item_value_payload_focus_focused = vm_result_item.payload.focus.focused;
+                        let vm_result_item_value_payload_focus = WindowFocusPayloadVm {
+                            focused: vm_result_item_value_payload_focus_focused,
+                        };
+                        let vm_result_item_value_payload_visibility_visibility = vm_result_item.payload.visibility.visibility;
+                        let vm_result_item_value_payload_visibility = WindowVisibilityPayloadVm {
+                            visibility: vm_result_item_value_payload_visibility_visibility,
+                        };
+                        let vm_result_item_value_payload_occlusion_occluded = vm_result_item.payload.occlusion.occluded;
+                        let vm_result_item_value_payload_occlusion = WindowOcclusionPayloadVm {
+                            occluded: vm_result_item_value_payload_occlusion_occluded,
+                        };
+                        let vm_result_item_value_payload_position_x = vm_result_item.payload.position.x;
+                        let vm_result_item_value_payload_position_y = vm_result_item.payload.position.y;
+                        let vm_result_item_value_payload_position = WindowPositionPayloadVm {
+                            x: vm_result_item_value_payload_position_x,
+                            y: vm_result_item_value_payload_position_y,
+                        };
+                        let vm_result_item_value_payload_size_width = vm_result_item.payload.size.width;
+                        let vm_result_item_value_payload_size_height = vm_result_item.payload.size.height;
+                        let vm_result_item_value_payload_size = WindowSizePayloadVm {
+                            width: vm_result_item_value_payload_size_width,
+                            height: vm_result_item_value_payload_size_height,
+                        };
+                        let vm_result_item_value_payload_scale_factor_scale_factor_milli = vm_result_item.payload.scale_factor.scale_factor_milli;
+                        let vm_result_item_value_payload_scale_factor = WindowScaleFactorPayloadVm {
+                            scale_factor_milli: vm_result_item_value_payload_scale_factor_scale_factor_milli,
+                        };
+                        let vm_result_item_value_payload = WindowEventPayloadVm {
+                            focus: vm_result_item_value_payload_focus,
+                            visibility: vm_result_item_value_payload_visibility,
+                            occlusion: vm_result_item_value_payload_occlusion,
+                            position: vm_result_item_value_payload_position,
+                            size: vm_result_item_value_payload_size,
+                            scale_factor: vm_result_item_value_payload_scale_factor,
+                        };
+                        let vm_result_item_value = WindowEventVm {
+                            window: vm_result_item_value_window,
+                            kind: vm_result_item_value_kind,
+                            timestamp_ns: vm_result_item_value_timestamp_ns,
+                            sequence: vm_result_item_value_sequence,
+                            payload: vm_result_item_value_payload,
+                        };
+                        let vm_result_item_value_encoded = { let field_0 = vm::Value::uint(vm_result_item_value.window.0.0, 64); let field_1 = vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8); let field_2 = vm::Value::uint(vm_result_item_value.timestamp_ns, 64); let field_3 = vm::Value::uint(vm_result_item_value.sequence, 64); let field_4 = { let field_0 = { let field_0 = vm::Value::bool(vm_result_item_value.payload.focus.focused); context.allocate_aggregate(vec![field_0]) }; let field_1 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.visibility.visibility as u8 as u64, 8); context.allocate_aggregate(vec![field_0]) }; let field_2 = { let field_0 = vm::Value::bool(vm_result_item_value.payload.occlusion.occluded); context.allocate_aggregate(vec![field_0]) }; let field_3 = { let field_0 = vm::Value::int(vm_result_item_value.payload.position.x as i64, 32); let field_1 = vm::Value::int(vm_result_item_value.payload.position.y as i64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; let field_4 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.size.width as u64, 32); let field_1 = vm::Value::uint(vm_result_item_value.payload.size.height as u64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; let field_5 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.scale_factor.scale_factor_milli as u64, 32); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<WindowEventVm> = VmArray { data: vm_result_data, len: value.len() as u32, capacity: value.len() as u32, _marker: std::marker::PhantomData };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_display_window_event_read_batch_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_window_event_try_read_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::WindowEventHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_EVENT_TRY_READ,
+        runtime.replay_payload_for(DISPLAY_WINDOW_EVENT_TRY_READ)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_event_try_read(runtime, context, handle)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_event_try_read(
+                    runtime, context, handle,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: WindowEventVm = value.clone();
+                let result_recorded_window = result_value.window;
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_timestamp_ns = result_value.timestamp_ns;
+                let result_recorded_sequence = result_value.sequence;
+                let result_recorded_payload_focus_focused = result_value.payload.focus.focused;
+                let result_recorded_payload_focus = WindowFocusPayload {
+                    focused: result_recorded_payload_focus_focused,
+                };
+                let result_recorded_payload_visibility_visibility =
+                    result_value.payload.visibility.visibility;
+                let result_recorded_payload_visibility = WindowVisibilityPayload {
+                    visibility: result_recorded_payload_visibility_visibility,
+                };
+                let result_recorded_payload_occlusion_occluded =
+                    result_value.payload.occlusion.occluded;
+                let result_recorded_payload_occlusion = WindowOcclusionPayload {
+                    occluded: result_recorded_payload_occlusion_occluded,
+                };
+                let result_recorded_payload_position_x = result_value.payload.position.x;
+                let result_recorded_payload_position_y = result_value.payload.position.y;
+                let result_recorded_payload_position = WindowPositionPayload {
+                    x: result_recorded_payload_position_x,
+                    y: result_recorded_payload_position_y,
+                };
+                let result_recorded_payload_size_width = result_value.payload.size.width;
+                let result_recorded_payload_size_height = result_value.payload.size.height;
+                let result_recorded_payload_size = WindowSizePayload {
+                    width: result_recorded_payload_size_width,
+                    height: result_recorded_payload_size_height,
+                };
+                let result_recorded_payload_scale_factor_scale_factor_milli =
+                    result_value.payload.scale_factor.scale_factor_milli;
+                let result_recorded_payload_scale_factor = WindowScaleFactorPayload {
+                    scale_factor_milli: result_recorded_payload_scale_factor_scale_factor_milli,
+                };
+                let result_recorded_payload = WindowEventPayload {
+                    focus: result_recorded_payload_focus,
+                    visibility: result_recorded_payload_visibility,
+                    occlusion: result_recorded_payload_occlusion,
+                    position: result_recorded_payload_position,
+                    size: result_recorded_payload_size,
+                    scale_factor: result_recorded_payload_scale_factor,
+                };
+                let result_recorded = WindowEvent {
+                    window: result_recorded_window,
+                    kind: result_recorded_kind,
+                    timestamp_ns: result_recorded_timestamp_ns,
+                    sequence: result_recorded_sequence,
+                    payload: result_recorded_payload,
+                };
+                let payload = DisplayWindowEventTryReadReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowEventTryReadReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_window = value.window;
+                    let vm_result_kind = value.kind;
+                    let vm_result_timestamp_ns = value.timestamp_ns;
+                    let vm_result_sequence = value.sequence;
+                    let vm_result_payload_focus_focused = value.payload.focus.focused;
+                    let vm_result_payload_focus = WindowFocusPayloadVm {
+                        focused: vm_result_payload_focus_focused,
+                    };
+                    let vm_result_payload_visibility_visibility =
+                        value.payload.visibility.visibility;
+                    let vm_result_payload_visibility = WindowVisibilityPayloadVm {
+                        visibility: vm_result_payload_visibility_visibility,
+                    };
+                    let vm_result_payload_occlusion_occluded = value.payload.occlusion.occluded;
+                    let vm_result_payload_occlusion = WindowOcclusionPayloadVm {
+                        occluded: vm_result_payload_occlusion_occluded,
+                    };
+                    let vm_result_payload_position_x = value.payload.position.x;
+                    let vm_result_payload_position_y = value.payload.position.y;
+                    let vm_result_payload_position = WindowPositionPayloadVm {
+                        x: vm_result_payload_position_x,
+                        y: vm_result_payload_position_y,
+                    };
+                    let vm_result_payload_size_width = value.payload.size.width;
+                    let vm_result_payload_size_height = value.payload.size.height;
+                    let vm_result_payload_size = WindowSizePayloadVm {
+                        width: vm_result_payload_size_width,
+                        height: vm_result_payload_size_height,
+                    };
+                    let vm_result_payload_scale_factor_scale_factor_milli =
+                        value.payload.scale_factor.scale_factor_milli;
+                    let vm_result_payload_scale_factor = WindowScaleFactorPayloadVm {
+                        scale_factor_milli: vm_result_payload_scale_factor_scale_factor_milli,
+                    };
+                    let vm_result_payload = WindowEventPayloadVm {
+                        focus: vm_result_payload_focus,
+                        visibility: vm_result_payload_visibility,
+                        occlusion: vm_result_payload_occlusion,
+                        position: vm_result_payload_position,
+                        size: vm_result_payload_size,
+                        scale_factor: vm_result_payload_scale_factor,
+                    };
+                    let vm_result = WindowEventVm {
+                        window: vm_result_window,
+                        kind: vm_result_kind,
+                        timestamp_ns: vm_result_timestamp_ns,
+                        sequence: vm_result_sequence,
+                        payload: vm_result_payload,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_display_window_event_try_read_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_window_event_try_read_batch_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    handle: resource::WindowEventHandle,
+    maxevents: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_EVENT_TRY_READ_BATCH,
+        runtime.replay_payload_for(DISPLAY_WINDOW_EVENT_TRY_READ_BATCH)?,
+        context,
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_display_window_event_try_read_batch(runtime, context, handle, maxevents),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_display_window_event_try_read_batch(runtime, context, handle, maxevents),
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<WindowEventVm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = {
+                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 5 fields")).boxed()); }
+                        let result_recorded_item_window_inner_inner = decode_uint64(slots[0], "result_recorded_item_window_inner_inner", "window")?;
+                        let result_recorded_item_window_inner = resource::ResourceId(result_recorded_item_window_inner_inner);
+                        let result_recorded_item_window = resource::WindowHandle(result_recorded_item_window_inner);
+                        let result_recorded_item_kind_raw = decode_uint8(slots[1], "result_recorded_item_kind_raw", "kind")?;
+                        let result_recorded_item_kind = match result_recorded_item_kind_raw { 1u8 => WindowEventKind::Created, 2u8 => WindowEventKind::CloseRequested, 3u8 => WindowEventKind::Destroyed, 4u8 => WindowEventKind::FocusChanged, 5u8 => WindowEventKind::VisibilityChanged, 6u8 => WindowEventKind::OcclusionChanged, 7u8 => WindowEventKind::PositionChanged, 8u8 => WindowEventKind::SizeChanged, 9u8 => WindowEventKind::ScaleFactorChanged, 10u8 => WindowEventKind::RefreshRequested, 11u8 => WindowEventKind::EnterFullscreen, 12u8 => WindowEventKind::LeaveFullscreen , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_kind", "unknown WindowEventKind value")).boxed()), };
+                        let result_recorded_item_timestamp_ns = decode_uint64(slots[2], "result_recorded_item_timestamp_ns", "timestampNs")?;
+                        let result_recorded_item_sequence = decode_uint64(slots[3], "result_recorded_item_sequence", "sequence")?;
+                        let result_recorded_item_payload = {
+                            if slots[4].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload", "payload")).boxed()); }
+                            let slots = context.aggregate_slots(slots[4]).map_err(|error| RuntimeError::from(error).boxed())?;
+                            if slots.len() != 6 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload", "expected 6 fields")).boxed()); }
+                            let result_recorded_item_payload_focus = {
+                                if slots[0].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_focus", "focus")).boxed()); }
+                                let slots = context.aggregate_slots(slots[0]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 1 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_focus", "expected 1 fields")).boxed()); }
+                                let result_recorded_item_payload_focus_focused = decode_bool(slots[0], "result_recorded_item_payload_focus_focused", "focused")?;
+                                WindowFocusPayloadVm {
+                                    focused: result_recorded_item_payload_focus_focused,
+                                }
+                            };
+                            let result_recorded_item_payload_visibility = {
+                                if slots[1].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_visibility", "visibility")).boxed()); }
+                                let slots = context.aggregate_slots(slots[1]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 1 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_visibility", "expected 1 fields")).boxed()); }
+                                let result_recorded_item_payload_visibility_visibility_raw = decode_uint8(slots[0], "result_recorded_item_payload_visibility_visibility_raw", "visibility")?;
+                                let result_recorded_item_payload_visibility_visibility = match result_recorded_item_payload_visibility_visibility_raw { 1u8 => WindowVisibility::Hidden, 2u8 => WindowVisibility::Visible, 3u8 => WindowVisibility::Minimized, 4u8 => WindowVisibility::Maximized , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_visibility_visibility", "unknown WindowVisibility value")).boxed()), };
+                                WindowVisibilityPayloadVm {
+                                    visibility: result_recorded_item_payload_visibility_visibility,
+                                }
+                            };
+                            let result_recorded_item_payload_occlusion = {
+                                if slots[2].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_occlusion", "occlusion")).boxed()); }
+                                let slots = context.aggregate_slots(slots[2]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 1 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_occlusion", "expected 1 fields")).boxed()); }
+                                let result_recorded_item_payload_occlusion_occluded = decode_bool(slots[0], "result_recorded_item_payload_occlusion_occluded", "occluded")?;
+                                WindowOcclusionPayloadVm {
+                                    occluded: result_recorded_item_payload_occlusion_occluded,
+                                }
+                            };
+                            let result_recorded_item_payload_position = {
+                                if slots[3].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_position", "position")).boxed()); }
+                                let slots = context.aggregate_slots(slots[3]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_position", "expected 2 fields")).boxed()); }
+                                let result_recorded_item_payload_position_x = decode_int32(slots[0], "result_recorded_item_payload_position_x", "x")?;
+                                let result_recorded_item_payload_position_y = decode_int32(slots[1], "result_recorded_item_payload_position_y", "y")?;
+                                WindowPositionPayloadVm {
+                                    x: result_recorded_item_payload_position_x,
+                                    y: result_recorded_item_payload_position_y,
+                                }
+                            };
+                            let result_recorded_item_payload_size = {
+                                if slots[4].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_size", "size")).boxed()); }
+                                let slots = context.aggregate_slots(slots[4]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_size", "expected 2 fields")).boxed()); }
+                                let result_recorded_item_payload_size_width = decode_uint32(slots[0], "result_recorded_item_payload_size_width", "width")?;
+                                let result_recorded_item_payload_size_height = decode_uint32(slots[1], "result_recorded_item_payload_size_height", "height")?;
+                                WindowSizePayloadVm {
+                                    width: result_recorded_item_payload_size_width,
+                                    height: result_recorded_item_payload_size_height,
+                                }
+                            };
+                            let result_recorded_item_payload_scale_factor = {
+                                if slots[5].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_payload_scale_factor", "scaleFactor")).boxed()); }
+                                let slots = context.aggregate_slots(slots[5]).map_err(|error| RuntimeError::from(error).boxed())?;
+                                if slots.len() != 1 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_payload_scale_factor", "expected 1 fields")).boxed()); }
+                                let result_recorded_item_payload_scale_factor_scale_factor_milli = decode_uint32(slots[0], "result_recorded_item_payload_scale_factor_scale_factor_milli", "scaleFactorMilli")?;
+                                WindowScaleFactorPayloadVm {
+                                    scale_factor_milli: result_recorded_item_payload_scale_factor_scale_factor_milli,
+                                }
+                            };
+                            WindowEventPayloadVm {
+                                focus: result_recorded_item_payload_focus,
+                                visibility: result_recorded_item_payload_visibility,
+                                occlusion: result_recorded_item_payload_occlusion,
+                                position: result_recorded_item_payload_position,
+                                size: result_recorded_item_payload_size,
+                                scale_factor: result_recorded_item_payload_scale_factor,
+                            }
+                        };
+                        WindowEventVm {
+                            window: result_recorded_item_window,
+                            kind: result_recorded_item_kind,
+                            timestamp_ns: result_recorded_item_timestamp_ns,
+                            sequence: result_recorded_item_sequence,
+                            payload: result_recorded_item_payload,
+                        }
+                    };
+                    let result_recorded_item_recorded_window = result_recorded_item.window;
+                    let result_recorded_item_recorded_kind = result_recorded_item.kind;
+                    let result_recorded_item_recorded_timestamp_ns = result_recorded_item.timestamp_ns;
+                    let result_recorded_item_recorded_sequence = result_recorded_item.sequence;
+                    let result_recorded_item_recorded_payload_focus_focused = result_recorded_item.payload.focus.focused;
+                    let result_recorded_item_recorded_payload_focus = WindowFocusPayload {
+                        focused: result_recorded_item_recorded_payload_focus_focused,
+                    };
+                    let result_recorded_item_recorded_payload_visibility_visibility = result_recorded_item.payload.visibility.visibility;
+                    let result_recorded_item_recorded_payload_visibility = WindowVisibilityPayload {
+                        visibility: result_recorded_item_recorded_payload_visibility_visibility,
+                    };
+                    let result_recorded_item_recorded_payload_occlusion_occluded = result_recorded_item.payload.occlusion.occluded;
+                    let result_recorded_item_recorded_payload_occlusion = WindowOcclusionPayload {
+                        occluded: result_recorded_item_recorded_payload_occlusion_occluded,
+                    };
+                    let result_recorded_item_recorded_payload_position_x = result_recorded_item.payload.position.x;
+                    let result_recorded_item_recorded_payload_position_y = result_recorded_item.payload.position.y;
+                    let result_recorded_item_recorded_payload_position = WindowPositionPayload {
+                        x: result_recorded_item_recorded_payload_position_x,
+                        y: result_recorded_item_recorded_payload_position_y,
+                    };
+                    let result_recorded_item_recorded_payload_size_width = result_recorded_item.payload.size.width;
+                    let result_recorded_item_recorded_payload_size_height = result_recorded_item.payload.size.height;
+                    let result_recorded_item_recorded_payload_size = WindowSizePayload {
+                        width: result_recorded_item_recorded_payload_size_width,
+                        height: result_recorded_item_recorded_payload_size_height,
+                    };
+                    let result_recorded_item_recorded_payload_scale_factor_scale_factor_milli = result_recorded_item.payload.scale_factor.scale_factor_milli;
+                    let result_recorded_item_recorded_payload_scale_factor = WindowScaleFactorPayload {
+                        scale_factor_milli: result_recorded_item_recorded_payload_scale_factor_scale_factor_milli,
+                    };
+                    let result_recorded_item_recorded_payload = WindowEventPayload {
+                        focus: result_recorded_item_recorded_payload_focus,
+                        visibility: result_recorded_item_recorded_payload_visibility,
+                        occlusion: result_recorded_item_recorded_payload_occlusion,
+                        position: result_recorded_item_recorded_payload_position,
+                        size: result_recorded_item_recorded_payload_size,
+                        scale_factor: result_recorded_item_recorded_payload_scale_factor,
+                    };
+                    let result_recorded_item_recorded = WindowEvent {
+                        window: result_recorded_item_recorded_window,
+                        kind: result_recorded_item_recorded_kind,
+                        timestamp_ns: result_recorded_item_recorded_timestamp_ns,
+                        sequence: result_recorded_item_recorded_sequence,
+                        payload: result_recorded_item_recorded_payload,
+                    };
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = DisplayWindowEventTryReadBatchReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowEventTryReadBatchReplay {
+                        result,
+                    }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value_window = vm_result_item.window;
+                        let vm_result_item_value_kind = vm_result_item.kind;
+                        let vm_result_item_value_timestamp_ns = vm_result_item.timestamp_ns;
+                        let vm_result_item_value_sequence = vm_result_item.sequence;
+                        let vm_result_item_value_payload_focus_focused = vm_result_item.payload.focus.focused;
+                        let vm_result_item_value_payload_focus = WindowFocusPayloadVm {
+                            focused: vm_result_item_value_payload_focus_focused,
+                        };
+                        let vm_result_item_value_payload_visibility_visibility = vm_result_item.payload.visibility.visibility;
+                        let vm_result_item_value_payload_visibility = WindowVisibilityPayloadVm {
+                            visibility: vm_result_item_value_payload_visibility_visibility,
+                        };
+                        let vm_result_item_value_payload_occlusion_occluded = vm_result_item.payload.occlusion.occluded;
+                        let vm_result_item_value_payload_occlusion = WindowOcclusionPayloadVm {
+                            occluded: vm_result_item_value_payload_occlusion_occluded,
+                        };
+                        let vm_result_item_value_payload_position_x = vm_result_item.payload.position.x;
+                        let vm_result_item_value_payload_position_y = vm_result_item.payload.position.y;
+                        let vm_result_item_value_payload_position = WindowPositionPayloadVm {
+                            x: vm_result_item_value_payload_position_x,
+                            y: vm_result_item_value_payload_position_y,
+                        };
+                        let vm_result_item_value_payload_size_width = vm_result_item.payload.size.width;
+                        let vm_result_item_value_payload_size_height = vm_result_item.payload.size.height;
+                        let vm_result_item_value_payload_size = WindowSizePayloadVm {
+                            width: vm_result_item_value_payload_size_width,
+                            height: vm_result_item_value_payload_size_height,
+                        };
+                        let vm_result_item_value_payload_scale_factor_scale_factor_milli = vm_result_item.payload.scale_factor.scale_factor_milli;
+                        let vm_result_item_value_payload_scale_factor = WindowScaleFactorPayloadVm {
+                            scale_factor_milli: vm_result_item_value_payload_scale_factor_scale_factor_milli,
+                        };
+                        let vm_result_item_value_payload = WindowEventPayloadVm {
+                            focus: vm_result_item_value_payload_focus,
+                            visibility: vm_result_item_value_payload_visibility,
+                            occlusion: vm_result_item_value_payload_occlusion,
+                            position: vm_result_item_value_payload_position,
+                            size: vm_result_item_value_payload_size,
+                            scale_factor: vm_result_item_value_payload_scale_factor,
+                        };
+                        let vm_result_item_value = WindowEventVm {
+                            window: vm_result_item_value_window,
+                            kind: vm_result_item_value_kind,
+                            timestamp_ns: vm_result_item_value_timestamp_ns,
+                            sequence: vm_result_item_value_sequence,
+                            payload: vm_result_item_value_payload,
+                        };
+                        let vm_result_item_value_encoded = { let field_0 = vm::Value::uint(vm_result_item_value.window.0.0, 64); let field_1 = vm::Value::uint(vm_result_item_value.kind as u8 as u64, 8); let field_2 = vm::Value::uint(vm_result_item_value.timestamp_ns, 64); let field_3 = vm::Value::uint(vm_result_item_value.sequence, 64); let field_4 = { let field_0 = { let field_0 = vm::Value::bool(vm_result_item_value.payload.focus.focused); context.allocate_aggregate(vec![field_0]) }; let field_1 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.visibility.visibility as u8 as u64, 8); context.allocate_aggregate(vec![field_0]) }; let field_2 = { let field_0 = vm::Value::bool(vm_result_item_value.payload.occlusion.occluded); context.allocate_aggregate(vec![field_0]) }; let field_3 = { let field_0 = vm::Value::int(vm_result_item_value.payload.position.x as i64, 32); let field_1 = vm::Value::int(vm_result_item_value.payload.position.y as i64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; let field_4 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.size.width as u64, 32); let field_1 = vm::Value::uint(vm_result_item_value.payload.size.height as u64, 32); context.allocate_aggregate(vec![field_0, field_1]) }; let field_5 = { let field_0 = vm::Value::uint(vm_result_item_value.payload.scale_factor.scale_factor_milli as u64, 32); context.allocate_aggregate(vec![field_0]) }; context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5]) }; context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) };
+                        vm_result_values.push(vm_result_item_value_encoded);
+                    }
+                    let vm_result_data = context.allocate_raw_values(vm_result_values);
+                    let vm_result: VmArray<WindowEventVm> = VmArray { data: vm_result_data, len: value.len() as u32, capacity: value.len() as u32, _marker: std::marker::PhantomData };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_display_window_event_try_read_batch_result(context, result)?;
     Ok(result)
 }
 
@@ -2249,6 +5095,223 @@ fn destack_display_window_open_vm_replay(
 }
 
 #[inline]
+fn destack_display_window_request_refresh_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_REQUEST_REFRESH,
+        runtime.replay_payload_for(DISPLAY_WINDOW_REQUEST_REFRESH)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_request_refresh(runtime, context, window)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_request_refresh(
+                    runtime, context, window,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowRequestRefreshReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowRequestRefreshReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_display_window_request_refresh_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_window_set_mode_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    mode: WindowMode,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_SET_MODE,
+        runtime.replay_payload_for(DISPLAY_WINDOW_SET_MODE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_set_mode(runtime, context, window, mode)
+            }
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_display_window_set_mode(
+                runtime, context, window, mode,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowSetModeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowSetModeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_display_window_set_mode_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_window_set_position_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    x: i32,
+    y: i32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_SET_POSITION,
+        runtime.replay_payload_for(DISPLAY_WINDOW_SET_POSITION)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_set_position(runtime, context, window, x, y)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_set_position(
+                    runtime, context, window, x, y,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowSetPositionReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowSetPositionReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_display_window_set_position_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_window_set_size_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+    width: u32,
+    height: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_SET_SIZE,
+        runtime.replay_payload_for(DISPLAY_WINDOW_SET_SIZE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_display_window_set_size(
+                runtime, context, window, width, height,
+            ),
+            RuntimeWorld::Simulation => platform_simulation_vm::destack_display_window_set_size(
+                runtime, context, window, width, height,
+            ),
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowSetSizeReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowSetSizeReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_display_window_set_size_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
 fn destack_display_window_set_title_vm_replay(
     runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
@@ -2302,39 +5365,32 @@ fn destack_display_window_set_title_vm_replay(
 }
 
 #[inline]
-fn destack_display_window_try_event_vm_replay(
+fn destack_display_window_set_visibility_vm_replay(
     runtime: &BindingCallContext,
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     window: resource::WindowHandle,
+    visibility: WindowVisibility,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context_policy(
-        DISPLAY_WINDOW_TRY_EVENT,
-        runtime.replay_payload_for(DISPLAY_WINDOW_TRY_EVENT)?,
+        DISPLAY_WINDOW_SET_VISIBILITY,
+        runtime.replay_payload_for(DISPLAY_WINDOW_SET_VISIBILITY)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_display_window_try_event(runtime, context, window)
-            }
+            RuntimeWorld::Host => platform_vm::destack_display_window_set_visibility(
+                runtime, context, window, visibility,
+            ),
             RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_display_window_try_event(runtime, context, window)
+                platform_simulation_vm::destack_display_window_set_visibility(
+                    runtime, context, window, visibility,
+                )
             }
         },
         |context, result| {
             let _ = &context;
-            if let Ok(value) = result {
-                let result_value: WindowEventVm = value.clone();
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_a = result_value.a;
-                let result_recorded_b = result_value.b;
-                let result_recorded_timestamp_ns = result_value.timestamp_ns;
-                let result_recorded = WindowEvent {
-                    kind: result_recorded_kind,
-                    a: result_recorded_a,
-                    b: result_recorded_b,
-                    timestamp_ns: result_recorded_timestamp_ns,
-                };
-                let payload = DisplayWindowTryEventReplay {
+            if let Ok(()) = result {
+                let result_recorded = ();
+                let payload = DisplayWindowSetVisibilityReplay {
                     result: Ok(result_recorded),
                 };
                 return Ok(Some(payload));
@@ -2343,7 +5399,77 @@ fn destack_display_window_try_event_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    DisplayWindowTryEventReplay { result }
+                    DisplayWindowSetVisibilityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_display_window_set_visibility_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_display_window_state_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    window: resource::WindowHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        DISPLAY_WINDOW_STATE,
+        runtime.replay_payload_for(DISPLAY_WINDOW_STATE)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_display_window_state(runtime, context, window)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_display_window_state(runtime, context, window)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: WindowStateVm = value.clone();
+                let result_recorded_x = result_value.x;
+                let result_recorded_y = result_value.y;
+                let result_recorded_width = result_value.width;
+                let result_recorded_height = result_value.height;
+                let result_recorded_scale_factor_milli = result_value.scale_factor_milli;
+                let result_recorded_visibility = result_value.visibility;
+                let result_recorded_focused = result_value.focused;
+                let result_recorded_occluded = result_value.occluded;
+                let result_recorded = WindowState {
+                    x: result_recorded_x,
+                    y: result_recorded_y,
+                    width: result_recorded_width,
+                    height: result_recorded_height,
+                    scale_factor_milli: result_recorded_scale_factor_milli,
+                    visibility: result_recorded_visibility,
+                    focused: result_recorded_focused,
+                    occluded: result_recorded_occluded,
+                };
+                let payload = DisplayWindowStateReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    DisplayWindowStateReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2355,15 +5481,23 @@ fn destack_display_window_try_event_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_kind = value.kind;
-                    let vm_result_a = value.a;
-                    let vm_result_b = value.b;
-                    let vm_result_timestamp_ns = value.timestamp_ns;
-                    let vm_result = WindowEventVm {
-                        kind: vm_result_kind,
-                        a: vm_result_a,
-                        b: vm_result_b,
-                        timestamp_ns: vm_result_timestamp_ns,
+                    let vm_result_x = value.x;
+                    let vm_result_y = value.y;
+                    let vm_result_width = value.width;
+                    let vm_result_height = value.height;
+                    let vm_result_scale_factor_milli = value.scale_factor_milli;
+                    let vm_result_visibility = value.visibility;
+                    let vm_result_focused = value.focused;
+                    let vm_result_occluded = value.occluded;
+                    let vm_result = WindowStateVm {
+                        x: vm_result_x,
+                        y: vm_result_y,
+                        width: vm_result_width,
+                        height: vm_result_height,
+                        scale_factor_milli: vm_result_scale_factor_milli,
+                        visibility: vm_result_visibility,
+                        focused: vm_result_focused,
+                        occluded: vm_result_occluded,
                     };
                     Ok(vm_result)
                 }
@@ -2371,7 +5505,7 @@ fn destack_display_window_try_event_vm_replay(
             }
         },
     );
-    let result = encode_destack_display_window_try_event_result(context, result)?;
+    let result = encode_destack_display_window_state_result(context, result)?;
     Ok(result)
 }
 
@@ -2552,15 +5686,131 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         binding!(
             registry,
             isolate,
-            DISPLAY_WINDOW_EVENT,
+            DISPLAY_WINDOW_DESCRIPTOR,
             move |context, args| {
                 with_binding_call_context(|runtime| {
                     // decode args
-                    let (window,) = decode_destack_display_window_event_args(context, args)?;
+                    let (window,) = decode_destack_display_window_descriptor_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_EVENT)?;
-                    destack_display_window_event_vm_replay(runtime, context, world, window)
+                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_DESCRIPTOR)?;
+                    destack_display_window_descriptor_vm_replay(runtime, context, world, window)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_WINDOW_EVENT_CLOSE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_display_window_event_close_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_EVENT_CLOSE)?;
+                    destack_display_window_event_close_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_WINDOW_EVENT_OPEN,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_EVENT_OPEN)?;
+                    destack_display_window_event_open_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_WINDOW_EVENT_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, timeoutns) =
+                        decode_destack_display_window_event_read_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_EVENT_READ)?;
+                    destack_display_window_event_read_vm_replay(
+                        runtime, context, world, handle, timeoutns,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_WINDOW_EVENT_READ_BATCH,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, maxevents, timeoutns) =
+                        decode_destack_display_window_event_read_batch_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_EVENT_READ_BATCH)?;
+                    destack_display_window_event_read_batch_vm_replay(
+                        runtime, context, world, handle, maxevents, timeoutns,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_WINDOW_EVENT_TRY_READ,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_display_window_event_try_read_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_EVENT_TRY_READ)?;
+                    destack_display_window_event_try_read_vm_replay(runtime, context, world, handle)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_WINDOW_EVENT_TRY_READ_BATCH,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, maxevents) =
+                        decode_destack_display_window_event_try_read_batch_args(context, args)?;
+
+                    // execute binding
+                    let world =
+                        runtime.check_and_resolve_world(DISPLAY_WINDOW_EVENT_TRY_READ_BATCH)?;
+                    destack_display_window_event_try_read_batch_vm_replay(
+                        runtime, context, world, handle, maxevents,
+                    )
                 })
                 .map_err(Into::into)
             }
@@ -2580,6 +5830,88 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
                     // execute binding
                     let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_OPEN)?;
                     destack_display_window_open_vm_replay(runtime, context, world, display, options)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_WINDOW_REQUEST_REFRESH,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (window,) =
+                        decode_destack_display_window_request_refresh_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_REQUEST_REFRESH)?;
+                    destack_display_window_request_refresh_vm_replay(
+                        runtime, context, world, window,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_WINDOW_SET_MODE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (window, mode) =
+                        decode_destack_display_window_set_mode_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_SET_MODE)?;
+                    destack_display_window_set_mode_vm_replay(runtime, context, world, window, mode)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_WINDOW_SET_POSITION,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (window, x, y) =
+                        decode_destack_display_window_set_position_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_SET_POSITION)?;
+                    destack_display_window_set_position_vm_replay(
+                        runtime, context, world, window, x, y,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_WINDOW_SET_SIZE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (window, width, height) =
+                        decode_destack_display_window_set_size_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_SET_SIZE)?;
+                    destack_display_window_set_size_vm_replay(
+                        runtime, context, world, window, width, height,
+                    )
                 })
                 .map_err(Into::into)
             }
@@ -2610,15 +5942,36 @@ pub fn register_display_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         binding!(
             registry,
             isolate,
-            DISPLAY_WINDOW_TRY_EVENT,
+            DISPLAY_WINDOW_SET_VISIBILITY,
             move |context, args| {
                 with_binding_call_context(|runtime| {
                     // decode args
-                    let (window,) = decode_destack_display_window_try_event_args(context, args)?;
+                    let (window, visibility) =
+                        decode_destack_display_window_set_visibility_args(context, args)?;
 
                     // execute binding
-                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_TRY_EVENT)?;
-                    destack_display_window_try_event_vm_replay(runtime, context, world, window)
+                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_SET_VISIBILITY)?;
+                    destack_display_window_set_visibility_vm_replay(
+                        runtime, context, world, window, visibility,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            DISPLAY_WINDOW_STATE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (window,) = decode_destack_display_window_state_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(DISPLAY_WINDOW_STATE)?;
+                    destack_display_window_state_vm_replay(runtime, context, world, window)
                 })
                 .map_err(Into::into)
             }

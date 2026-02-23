@@ -600,6 +600,14 @@ pub enum InputSensorKind {
     LinearAcceleration = 5,
     /// Orientation.
     Orientation = 6,
+    /// Barometer.
+    Barometer = 7,
+    /// AmbientLight.
+    AmbientLight = 8,
+    /// Proximity.
+    Proximity = 9,
+    /// StepCounter.
+    StepCounter = 10,
 }
 
 impl VmValueCodec for InputSensorKind {
@@ -612,6 +620,10 @@ impl VmValueCodec for InputSensorKind {
             4u8 => Self::Gravity,
             5u8 => Self::LinearAcceleration,
             6u8 => Self::Orientation,
+            7u8 => Self::Barometer,
+            8u8 => Self::AmbientLight,
+            9u8 => Self::Proximity,
+            10u8 => Self::StepCounter,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",

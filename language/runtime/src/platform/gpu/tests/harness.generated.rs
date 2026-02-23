@@ -1701,7 +1701,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.render.multiDraw`.
+    /// Requires `gpu.render.multi.draw`.
     ///
     /// # Replay
     /// External, recordable.
@@ -1749,7 +1749,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.render.multiDrawCount`.
+    /// Requires `gpu.render.multi.draw.count`.
     ///
     /// # Replay
     /// External, recordable.
@@ -1804,7 +1804,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.render.multiDraw`.
+    /// Requires `gpu.render.multi.draw`.
     ///
     /// # Replay
     /// External, recordable.
@@ -1852,7 +1852,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.render.multiDrawCount`.
+    /// Requires `gpu.render.multi.draw.count`.
     ///
     /// # Replay
     /// External, recordable.
@@ -5097,7 +5097,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.sync.pipelineStatistics`.
+    /// Requires `gpu.sync.pipeline.statistics`.
     ///
     /// # Replay
     /// External, recordable.
@@ -5181,7 +5181,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.sync.pipelineStatistics`.
+    /// Requires `gpu.sync.pipeline.statistics`.
     ///
     /// # Replay
     /// External, recordable.
@@ -5223,7 +5223,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.sync.pipelineStatistics`.
+    /// Requires `gpu.sync.pipeline.statistics`.
     ///
     /// # Replay
     /// External, recordable.
@@ -5292,7 +5292,7 @@ impl<'call> GpuHarnessContext<'call> {
     /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
     ///
     /// # Security
-    /// Requires `gpu.sync.pipelineStatistics`.
+    /// Requires `gpu.sync.pipeline.statistics`.
     ///
     /// # Replay
     /// External, recordable.

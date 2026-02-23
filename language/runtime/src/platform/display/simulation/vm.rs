@@ -2,9 +2,10 @@
 #![allow(unused_imports)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::display::{
-    DisplayDescriptorVm, DisplayModeVm, WindowEventVm, WindowOptionsVm,
+    DisplayDescriptorVm, DisplayModeVm, WindowDescriptorVm, WindowEventVm, WindowMode,
+    WindowOptionsVm, WindowStateVm, WindowVisibility,
 };
-use crate::platform::{PlatformError, VmSlice, resource};
+use crate::platform::{PlatformError, VmArray, VmSlice, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
@@ -149,7 +150,6 @@ pub(crate) fn destack_display_set_mode(
 /// Close one window.
 ///
 /// Close one host window and release associated compositor or window-system resources.
-/// Close behavior follows host event-loop and teardown semantics.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -172,30 +172,204 @@ pub(crate) fn destack_display_window_close(
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.close")).boxed())
 }
 
-/// Wait for one window event.
+/// Read descriptor metadata for one window.
 ///
-/// Wait for one event from the host window queue and return it as a normalized payload.
-/// Event ordering follows host event-loop delivery behavior.
+/// Read one normalized descriptor snapshot for one opened host window.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses host event queue wait operations.
+/// Uses backend-specific window metadata queries.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, notSupported.
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `display.window`.
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_display_window_event(
+pub(crate) fn destack_display_window_descriptor(
     _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-) -> RuntimeResult<WindowEventVm> {
+) -> RuntimeResult<WindowDescriptorVm> {
     let _ = window;
-    Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.event")).boxed())
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.descriptor",
+    ))
+    .boxed())
+}
+
+/// Close one global window-event stream.
+///
+/// Close one opened window-event stream and release host event routing resources.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend-specific event-stream close operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window.events`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_display_window_event_close(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::WindowEventHandle,
+) -> RuntimeResult<()> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.eventClose",
+    ))
+    .boxed())
+}
+
+/// Open one global window-event stream.
+///
+/// Open one host window-event stream for all windows in this runtime.
+/// Event ordering follows host event-loop delivery behavior.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses one host event-loop stream model aligned with winit and SDL style window id routing.
+///
+/// # Errors
+/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window.events`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_display_window_event_open(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<resource::WindowEventHandle> {
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.eventOpen",
+    ))
+    .boxed())
+}
+
+/// Wait for one window event.
+///
+/// Wait for one event from one opened host window-event stream.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host event queue wait operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window.events`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_display_window_event_read(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::WindowEventHandle,
+    timeoutns: u64,
+) -> RuntimeResult<WindowEventVm> {
+    let _ = (handle, timeoutns);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.eventRead",
+    ))
+    .boxed())
+}
+
+/// Wait for one batch of window events.
+///
+/// Wait for pending events from one opened host window-event stream and return up to `maxEvents` events.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses host event queue batch wait operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window.events`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_display_window_event_read_batch(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::WindowEventHandle,
+    maxevents: u32,
+    timeoutns: u64,
+) -> RuntimeResult<VmArray<WindowEventVm>> {
+    let _ = (handle, maxevents, timeoutns);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.eventReadBatch",
+    ))
+    .boxed())
+}
+
+/// Poll one window event without blocking.
+///
+/// Poll one pending event from one opened host window-event stream without waiting.
+/// Empty queue state is reported through ioWouldBlock.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking host event queue polling.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window.events`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_display_window_event_try_read(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::WindowEventHandle,
+) -> RuntimeResult<WindowEventVm> {
+    let _ = handle;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.eventTryRead",
+    ))
+    .boxed())
+}
+
+/// Poll one batch of window events without blocking.
+///
+/// Poll pending events from one opened host window-event stream and return up to `maxEvents` events.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses nonblocking host event queue batch polling.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window.events`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_display_window_event_try_read_batch(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    handle: resource::WindowEventHandle,
+    maxevents: u32,
+) -> RuntimeResult<VmArray<WindowEventVm>> {
+    let _ = (handle, maxevents);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.eventTryReadBatch",
+    ))
+    .boxed())
 }
 
 /// Open one window on a display.
@@ -205,7 +379,7 @@ pub(crate) fn destack_display_window_event(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses Wayland or X11 window creation on Unix-like hosts and CreateWindowExW on Windows.
+/// Uses winit or SDL class host backends over Wayland or X11 or Win32 windowing APIs.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
@@ -225,10 +399,126 @@ pub(crate) fn destack_display_window_open(
     Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.open")).boxed())
 }
 
+/// Request one redraw for one window.
+///
+/// Enqueue one host redraw request for one opened window.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend redraw request operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_display_window_request_refresh(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<()> {
+    let _ = window;
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.requestRefresh",
+    ))
+    .boxed())
+}
+
+/// Set one window mode.
+///
+/// Apply one host window mode transition for one opened window.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend-specific fullscreen and borderless and windowed mode operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_display_window_set_mode(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    mode: WindowMode,
+) -> RuntimeResult<()> {
+    let _ = (window, mode);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setMode",
+    ))
+    .boxed())
+}
+
+/// Set one window position.
+///
+/// Apply one host window position in physical pixels.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend-specific window move operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_display_window_set_position(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    x: i32,
+    y: i32,
+) -> RuntimeResult<()> {
+    let _ = (window, x, y);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setPosition",
+    ))
+    .boxed())
+}
+
+/// Set one window size.
+///
+/// Apply one host window size in physical pixels.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend-specific window resize operations.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+///
+/// # Security
+/// Requires `display.window`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_display_window_set_size(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+    width: u32,
+    height: u32,
+) -> RuntimeResult<()> {
+    let _ = (window, width, height);
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.display.window.setSize",
+    ))
+    .boxed())
+}
+
 /// Set one window title string.
 ///
 /// Update one host window title using host window-system APIs.
-/// Encoding and truncation semantics follow host platform behavior.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -255,14 +545,13 @@ pub(crate) fn destack_display_window_set_title(
     .boxed())
 }
 
-/// Poll one window event.
+/// Set one window visibility state.
 ///
-/// Poll one pending event from the host window event queue without blocking.
-/// Empty queue state is reported through ioWouldBlock.
+/// Apply one window visibility state transition.
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses nonblocking host event queue polling on both platforms.
+/// Uses backend-specific show and hide and minimize and maximize operations.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
@@ -272,22 +561,47 @@ pub(crate) fn destack_display_window_set_title(
 ///
 /// # Replay
 /// External, recordable.
-pub(crate) fn destack_display_window_try_event(
+pub(crate) fn destack_display_window_set_visibility(
     _runtime: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
     window: resource::WindowHandle,
-) -> RuntimeResult<WindowEventVm> {
-    let _ = window;
+    visibility: WindowVisibility,
+) -> RuntimeResult<()> {
+    let _ = (window, visibility);
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.display.window.tryEvent",
+        "destack.display.window.setVisibility",
     ))
     .boxed())
+}
+
+/// Read one window state snapshot.
+///
+/// Read one point-in-time host window state snapshot.
+///
+/// # Platform
+/// Unix and Windows.
+/// Uses backend-specific window state queries.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `display.window`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_display_window_state(
+    _runtime: &BindingCallContext,
+    _context: &mut vm::ExternalCallContext<'_>,
+    window: resource::WindowHandle,
+) -> RuntimeResult<WindowStateVm> {
+    let _ = window;
+    Err(RuntimeError::from(PlatformError::not_supported("destack.display.window.state")).boxed())
 }
 
 /// Present one frame interval marker.
 ///
 /// Block until the next present interval for one window when host backends support vsync synchronization.
-/// Wake timing follows host compositor and swap-chain behavior.
 ///
 /// # Platform
 /// Unix and Windows.

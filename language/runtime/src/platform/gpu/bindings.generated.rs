@@ -8171,7 +8171,7 @@ pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDe
     "export function commandMultiDrawIndexedIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.render.multiDraw"],
+    &["gpu.render.multi.draw"],
     BindingScope::Host,
     BindingBlocking::Never,
 )
@@ -8183,7 +8183,7 @@ pub const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT: BindingDescriptor = Bin
     "export function commandMultiDrawIndexedIndirectCount(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, countBuffer: GpuBufferHandle, countOffset: uint64, maxDrawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.render.multiDrawCount"],
+    &["gpu.render.multi.draw.count"],
     BindingScope::Host,
     BindingBlocking::Never,
 )
@@ -8195,7 +8195,7 @@ pub const GPU_COMMAND_MULTI_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor
     "export function commandMultiDrawIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.render.multiDraw"],
+    &["gpu.render.multi.draw"],
     BindingScope::Host,
     BindingBlocking::Never,
 )
@@ -8207,7 +8207,7 @@ pub const GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT: BindingDescriptor = BindingDesc
     "export function commandMultiDrawIndirectCount(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, countBuffer: GpuBufferHandle, countOffset: uint64, maxDrawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.render.multiDrawCount"],
+    &["gpu.render.multi.draw.count"],
     BindingScope::Host,
     BindingBlocking::Never,
 )
@@ -9261,7 +9261,7 @@ pub const GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescr
     "export function commandBeginComputePipelineStatisticsQuery(computePass: GpuComputePassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.sync.pipelineStatistics"],
+    &["gpu.sync.pipeline.statistics"],
     BindingScope::Host,
     BindingBlocking::Never,
 )
@@ -9285,7 +9285,7 @@ pub const GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescri
     "export function commandBeginRenderPipelineStatisticsQuery(renderPass: GpuRenderPassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.sync.pipelineStatistics"],
+    &["gpu.sync.pipeline.statistics"],
     BindingScope::Host,
     BindingBlocking::Never,
 )
@@ -9297,7 +9297,7 @@ pub const GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescrip
     "export function commandEndComputePipelineStatisticsQuery(computePass: GpuComputePassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.sync.pipelineStatistics"],
+    &["gpu.sync.pipeline.statistics"],
     BindingScope::Host,
     BindingBlocking::Never,
 )
@@ -9321,7 +9321,7 @@ pub const GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescript
     "export function commandEndRenderPipelineStatisticsQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
-    &["gpu.sync.pipelineStatistics"],
+    &["gpu.sync.pipeline.statistics"],
     BindingScope::Host,
     BindingBlocking::Never,
 )

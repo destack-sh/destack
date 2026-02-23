@@ -7,11 +7,44 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::os::{
-    HostIdentity, HostIdentityVm, LoadAverage, LoadAverageVm, MountEntry, MountEntryVm, PowerState,
-    SystemSnapshot, SystemSnapshotVm, native as os_native, vm as os_vm,
+    BackgroundEvent, BackgroundEventKind, BackgroundEventOpenOptions, BackgroundEventOpenOptionsVm,
+    BackgroundEventVm, BackgroundStatus, BackgroundTaskDescriptor, BackgroundTaskDescriptorVm,
+    BackgroundTaskOptions, BackgroundTaskOptionsVm, BackgroundTaskResult, BackgroundTriggerKind,
+    CalendarAccess, CalendarAttendee, CalendarAttendeeVm, CalendarAvailability, CalendarDescriptor,
+    CalendarDescriptorVm, CalendarEvent, CalendarEventDraft, CalendarEventDraftVm,
+    CalendarEventQuery, CalendarEventQueryVm, CalendarEventVm, CalendarParticipantStatus,
+    CalendarRecurrenceFrequency, CalendarRecurrenceRule, CalendarRecurrenceRuleVm,
+    CalendarReminder, CalendarReminderKind, CalendarReminderVm, ClipboardBinaryFormat, Contact,
+    ContactAddress, ContactAddressVm, ContactDraft, ContactDraftVm, ContactEmail, ContactEmailVm,
+    ContactName, ContactNameVm, ContactOrganization, ContactOrganizationVm, ContactPage,
+    ContactPageVm, ContactPhone, ContactPhoneVm, ContactQuery, ContactQueryVm, ContactVm,
+    CredentialAccessibility, CredentialAuthenticationMechanism, CredentialAuthenticationOptions,
+    CredentialAuthenticationOptionsVm, CredentialAuthenticationPolicy,
+    CredentialAuthenticationResult, CredentialAuthenticationResultVm, CredentialQuery,
+    CredentialQueryVm, CredentialRecord, CredentialRecordVm, CredentialWriteOptions,
+    CredentialWriteOptionsVm, DocumentAccess, DocumentDescriptor, DocumentDescriptorVm,
+    DocumentPickOptions, DocumentPickOptionsVm, HostIdentity, HostIdentityVm, IntentEvent,
+    IntentEventVm, IntentKind, IntentOpenOptions, IntentOpenOptionsVm, IntentPayload,
+    IntentPayloadVm, LifecycleEvent, LifecycleEventKind, LifecycleEventPayload,
+    LifecycleEventPayloadVm, LifecycleEventVm, LifecycleLowMemoryPayload,
+    LifecycleLowMemoryPayloadVm, LifecycleLowPowerPayload, LifecycleLowPowerPayloadVm,
+    LifecycleState, LoadAverage, LoadAverageVm, LocationAccuracy, LocationSample, LocationSampleVm,
+    LocationWatchOptions, LocationWatchOptionsVm, MediaAssetDescriptor, MediaAssetDescriptorVm,
+    MediaAssetKind, MediaPage, MediaPageVm, MediaQuery, MediaQueryVm, MountEntry, MountEntryVm,
+    NetworkCellularGeneration, NetworkConnectionType, NetworkEvent, NetworkEventVm, NetworkState,
+    NetworkStateVm, NotificationAction, NotificationActionStyle, NotificationActionVm,
+    NotificationCalendarTrigger, NotificationCalendarTriggerVm, NotificationCategory,
+    NotificationCategoryVm, NotificationEvent, NotificationEventKind, NotificationEventOpenOptions,
+    NotificationEventOpenOptionsVm, NotificationEventVm, NotificationPermissionState,
+    NotificationPriority, NotificationRequest, NotificationRequestVm,
+    NotificationScheduledDescriptor, NotificationScheduledDescriptorVm, NotificationTrigger,
+    NotificationTriggerKind, NotificationTriggerVm, Permission, PermissionEntry, PermissionEntryVm,
+    PermissionState, PowerState, SystemSnapshot, SystemSnapshotVm, native as os_native,
+    vm as os_vm,
 };
 use crate::platform::{
-    NativeArray, NativeStringRef, PlatformError as HarnessPlatformError, VmArray, fs,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
+    VmSlice, fs, resource,
 };
 use destack_vm as vm;
 
@@ -31,6 +64,1598 @@ impl<'call> OsHarnessContext<'call> {
     /// Return one standardized value payload for VM and native variants.
     pub(crate) fn harness_value_vm<Native, Vm>(&self, vm: Vm) -> HarnessValue<Native, Vm> {
         HarnessValue::Vm(vm)
+    }
+
+    /// Report completion for one scheduled background-task execution.
+    ///
+    /// Submit final execution status for one scheduled task execution token.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host background scheduler completion APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.background.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_background_complete(
+        &mut self,
+        executionid: HarnessValue<NativeStringRef, vm::StringHandle>,
+        argument_result: BackgroundTaskResult,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let executionid = executionid.into_vm("executionid")?;
+                os_vm::destack_os_background_complete(
+                    self.call_context,
+                    context,
+                    executionid,
+                    argument_result,
+                )
+            }
+            None => {
+                let executionid = executionid.into_native("executionid")?;
+                unsafe {
+                    os_native::destack_os_background_complete(
+                        self.call_context,
+                        executionid,
+                        argument_result,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Close one background-task event stream.
+    ///
+    /// Close one opened event stream and release host callback routing resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host callback unregistration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.background.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_background_event_close(
+        &mut self,
+        handle: resource::BackgroundEventHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                os_vm::destack_os_background_event_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                os_native::destack_os_background_event_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Open one background-task event stream.
+    ///
+    /// Open one event stream for task-ready and expiration callbacks.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host background scheduler callback bridges.
+    ///
+    /// # Errors
+    /// Returns ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.background.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_background_event_open(
+        &mut self,
+        options: HarnessValue<BackgroundEventOpenOptions, BackgroundEventOpenOptionsVm>,
+    ) -> RuntimeResult<resource::BackgroundEventHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out =
+                    os_vm::destack_os_background_event_open(self.call_context, context, options)?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::BackgroundEventHandle>::uninit();
+                unsafe {
+                    os_native::destack_os_background_event_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Wait for one background-task event.
+    ///
+    /// Wait for one queued background-task event from one opened event stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host background event queues.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.background.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_background_event_read(
+        &mut self,
+        handle: resource::BackgroundEventHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<BackgroundEvent, BackgroundEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_background_event_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<BackgroundEvent>::uninit();
+                unsafe {
+                    os_native::destack_os_background_event_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one background-task event without blocking.
+    ///
+    /// Poll one queued background-task event from one opened event stream without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host nonblocking background event queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.background.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_background_event_try_read(
+        &mut self,
+        handle: resource::BackgroundEventHandle,
+    ) -> RuntimeResult<HarnessValue<BackgroundEvent, BackgroundEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_background_event_try_read(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<BackgroundEvent>::uninit();
+                unsafe {
+                    os_native::destack_os_background_event_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List background-task registrations.
+    ///
+    /// Enumerate background-task registrations for this runtime identity.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host background scheduler registration queries.
+    ///
+    /// # Errors
+    /// Returns ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.background.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_background_list(
+        &mut self,
+    ) -> RuntimeResult<
+        HarnessValue<NativeArray<BackgroundTaskDescriptor>, VmArray<BackgroundTaskDescriptorVm>>,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_background_list(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out =
+                    std::mem::MaybeUninit::<NativeArray<BackgroundTaskDescriptor>>::uninit();
+                unsafe {
+                    os_native::destack_os_background_list(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Register one background task.
+    ///
+    /// Create or replace one background-task registration for this runtime identity.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host background scheduler registration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.background.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_background_register(
+        &mut self,
+        options: HarnessValue<BackgroundTaskOptions, BackgroundTaskOptionsVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                os_vm::destack_os_background_register(self.call_context, context, options)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                unsafe { os_native::destack_os_background_register(self.call_context, options) }
+            }
+        }
+    }
+
+    /// Read background-task scheduler status.
+    ///
+    /// Read the current background-task scheduler status for this host runtime.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses BGTaskScheduler on Apple platforms, WorkManager or JobScheduler on Android, and host scheduler bridges on desktop platforms.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.background.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_background_status(&mut self) -> RuntimeResult<BackgroundStatus> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_background_status(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<BackgroundStatus>::uninit();
+                unsafe {
+                    os_native::destack_os_background_status(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Trigger one background task for testing.
+    ///
+    /// Ask the host scheduler to trigger one registered task immediately for development validation where supported.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host developer test hooks where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.background.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_background_trigger_test(
+        &mut self,
+        identifier: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<bool> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let identifier = identifier.into_vm("identifier")?;
+                let out = os_vm::destack_os_background_trigger_test(
+                    self.call_context,
+                    context,
+                    identifier,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let identifier = identifier.into_native("identifier")?;
+                let mut out = std::mem::MaybeUninit::<bool>::uninit();
+                unsafe {
+                    os_native::destack_os_background_trigger_test(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        identifier,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Unregister one background task.
+    ///
+    /// Remove one background-task registration by identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host background scheduler unregistration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.background.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_background_unregister(
+        &mut self,
+        identifier: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let identifier = identifier.into_vm("identifier")?;
+                os_vm::destack_os_background_unregister(self.call_context, context, identifier)
+            }
+            None => {
+                let identifier = identifier.into_native("identifier")?;
+                unsafe {
+                    os_native::destack_os_background_unregister(self.call_context, identifier)
+                }
+            }
+        }
+    }
+
+    /// Create one calendar event.
+    ///
+    /// Create one host calendar event and return its stable identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host calendar-write APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.calendar.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_calendar_event_create(
+        &mut self,
+        event: HarnessValue<CalendarEventDraft, CalendarEventDraftVm>,
+    ) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let event = event.into_vm("event")?;
+                let out =
+                    os_vm::destack_os_calendar_event_create(self.call_context, context, event)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let event = event.into_native("event")?;
+                let mut out = std::mem::MaybeUninit::<NativeStringRef>::uninit();
+                unsafe {
+                    os_native::destack_os_calendar_event_create(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        event,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Delete one calendar event.
+    ///
+    /// Delete one existing host calendar event by identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host calendar-delete APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.calendar.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_calendar_event_delete(
+        &mut self,
+        id: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let id = id.into_vm("id")?;
+                os_vm::destack_os_calendar_event_delete(self.call_context, context, id)
+            }
+            None => {
+                let id = id.into_native("id")?;
+                unsafe { os_native::destack_os_calendar_event_delete(self.call_context, id) }
+            }
+        }
+    }
+
+    /// List host calendar events.
+    ///
+    /// Enumerate host calendar events over one selected UTC time range.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host calendar query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.calendar.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_calendar_event_list(
+        &mut self,
+        query: HarnessValue<CalendarEventQuery, CalendarEventQueryVm>,
+    ) -> RuntimeResult<HarnessValue<NativeArray<CalendarEvent>, VmArray<CalendarEventVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let query = query.into_vm("query")?;
+                let out = os_vm::destack_os_calendar_event_list(self.call_context, context, query)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let query = query.into_native("query")?;
+                let mut out = std::mem::MaybeUninit::<NativeArray<CalendarEvent>>::uninit();
+                unsafe {
+                    os_native::destack_os_calendar_event_list(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        query,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one host calendar event.
+    ///
+    /// Read one host calendar event payload by stable identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host calendar read APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.calendar.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_calendar_event_read(
+        &mut self,
+        id: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<HarnessValue<CalendarEvent, CalendarEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let id = id.into_vm("id")?;
+                let out = os_vm::destack_os_calendar_event_read(self.call_context, context, id)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let id = id.into_native("id")?;
+                let mut out = std::mem::MaybeUninit::<CalendarEvent>::uninit();
+                unsafe {
+                    os_native::destack_os_calendar_event_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        id,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Update one calendar event.
+    ///
+    /// Update one existing host calendar event by identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host calendar-write APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.calendar.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_calendar_event_update(
+        &mut self,
+        id: HarnessValue<NativeStringRef, vm::StringHandle>,
+        event: HarnessValue<CalendarEventDraft, CalendarEventDraftVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let id = id.into_vm("id")?;
+                let event = event.into_vm("event")?;
+                os_vm::destack_os_calendar_event_update(self.call_context, context, id, event)
+            }
+            None => {
+                let id = id.into_native("id")?;
+                let event = event.into_native("event")?;
+                unsafe { os_native::destack_os_calendar_event_update(self.call_context, id, event) }
+            }
+        }
+    }
+
+    /// List host calendars.
+    ///
+    /// Enumerate readable host calendars and return descriptor metadata.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses EventKit on Apple platforms, CalendarContract on Android, and calendar provider APIs on desktop hosts.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.calendar.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_calendar_list(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<NativeArray<CalendarDescriptor>, VmArray<CalendarDescriptorVm>>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_calendar_list(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<CalendarDescriptor>>::uninit();
+                unsafe {
+                    os_native::destack_os_calendar_list(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Clear clipboard payload.
+    ///
+    /// Clear current host clipboard ownership or payload contents.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard clear and owner-reset APIs.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_clipboard_clear(&mut self) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => os_vm::destack_os_clipboard_clear(self.call_context, context),
+            None => unsafe { os_native::destack_os_clipboard_clear(self.call_context) },
+        }
+    }
+
+    /// Query whether text clipboard payload exists.
+    ///
+    /// Return whether one text payload is currently available on the host clipboard.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard query APIs and selection ownership checks.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_clipboard_has_text(&mut self) -> RuntimeResult<bool> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_clipboard_has_text(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<bool>::uninit();
+                unsafe {
+                    os_native::destack_os_clipboard_has_text(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Read binary clipboard payload.
+    ///
+    /// Read one binary payload in one selected clipboard format.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard APIs for binary format extraction.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_clipboard_read_bytes(
+        &mut self,
+        format: ClipboardBinaryFormat,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    os_vm::destack_os_clipboard_read_bytes(self.call_context, context, format)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    os_native::destack_os_clipboard_read_bytes(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        format,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read text clipboard payload.
+    ///
+    /// Read one text payload from the host clipboard.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard APIs such as X11 or Wayland selection protocols and Win32 clipboard APIs.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_clipboard_read_text(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_clipboard_read_text(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeStringRef>::uninit();
+                unsafe {
+                    os_native::destack_os_clipboard_read_text(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read clipboard sequence number.
+    ///
+    /// Read one monotonic sequence marker for host clipboard contents.
+    /// Sequence semantics are host defined but monotonic within one host clipboard service lifetime.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard sequence APIs where available.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_clipboard_sequence(&mut self) -> RuntimeResult<u64> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_clipboard_sequence(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<u64>::uninit();
+                unsafe {
+                    os_native::destack_os_clipboard_sequence(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Write binary clipboard payload.
+    ///
+    /// Write one binary payload in one selected clipboard format.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard APIs for binary format insertion.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_clipboard_write_bytes(
+        &mut self,
+        format: ClipboardBinaryFormat,
+        argument_bytes: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let argument_bytes = argument_bytes.into_vm("argument_bytes")?;
+                os_vm::destack_os_clipboard_write_bytes(
+                    self.call_context,
+                    context,
+                    format,
+                    argument_bytes,
+                )
+            }
+            None => {
+                let argument_bytes = argument_bytes.into_native("argument_bytes")?;
+                unsafe {
+                    os_native::destack_os_clipboard_write_bytes(
+                        self.call_context,
+                        format,
+                        argument_bytes,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Write text clipboard payload.
+    ///
+    /// Write one text payload into the host clipboard.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host clipboard write APIs and ownership semantics.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.clipboard.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_clipboard_write_text(
+        &mut self,
+        text: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let text = text.into_vm("text")?;
+                os_vm::destack_os_clipboard_write_text(self.call_context, context, text)
+            }
+            None => {
+                let text = text.into_native("text")?;
+                unsafe { os_native::destack_os_clipboard_write_text(self.call_context, text) }
+            }
+        }
+    }
+
+    /// Create one contact.
+    ///
+    /// Create one host contact record and return its stable identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host contact-write APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.contact.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_contact_create(
+        &mut self,
+        contact: HarnessValue<ContactDraft, ContactDraftVm>,
+    ) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let contact = contact.into_vm("contact")?;
+                let out = os_vm::destack_os_contact_create(self.call_context, context, contact)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let contact = contact.into_native("contact")?;
+                let mut out = std::mem::MaybeUninit::<NativeStringRef>::uninit();
+                unsafe {
+                    os_native::destack_os_contact_create(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        contact,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Delete one contact.
+    ///
+    /// Delete one existing host contact by identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host contact-delete APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.contact.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_contact_delete(
+        &mut self,
+        id: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let id = id.into_vm("id")?;
+                os_vm::destack_os_contact_delete(self.call_context, context, id)
+            }
+            None => {
+                let id = id.into_native("id")?;
+                unsafe { os_native::destack_os_contact_delete(self.call_context, id) }
+            }
+        }
+    }
+
+    /// List contacts.
+    ///
+    /// Return one page of host contacts with one selected field set.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Contacts framework on Apple platforms, ContactsContract on Android, and address-book provider APIs on desktop hosts.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.contact.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_contact_list(
+        &mut self,
+        query: HarnessValue<ContactQuery, ContactQueryVm>,
+    ) -> RuntimeResult<HarnessValue<ContactPage, ContactPageVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let query = query.into_vm("query")?;
+                let out = os_vm::destack_os_contact_list(self.call_context, context, query)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let query = query.into_native("query")?;
+                let mut out = std::mem::MaybeUninit::<ContactPage>::uninit();
+                unsafe {
+                    os_native::destack_os_contact_list(self.call_context, out.as_mut_ptr(), query)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one contact by identifier.
+    ///
+    /// Read one host contact payload by stable identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host contact read APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.contact.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_contact_read(
+        &mut self,
+        id: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<HarnessValue<Contact, ContactVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let id = id.into_vm("id")?;
+                let out = os_vm::destack_os_contact_read(self.call_context, context, id)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let id = id.into_native("id")?;
+                let mut out = std::mem::MaybeUninit::<Contact>::uninit();
+                unsafe {
+                    os_native::destack_os_contact_read(self.call_context, out.as_mut_ptr(), id)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Search contacts.
+    ///
+    /// Return one page of host contacts matching one backend query string.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host contact search APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.contact.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_contact_search(
+        &mut self,
+        querytext: HarnessValue<NativeStringRef, vm::StringHandle>,
+        query: HarnessValue<ContactQuery, ContactQueryVm>,
+    ) -> RuntimeResult<HarnessValue<ContactPage, ContactPageVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let querytext = querytext.into_vm("querytext")?;
+                let query = query.into_vm("query")?;
+                let out =
+                    os_vm::destack_os_contact_search(self.call_context, context, querytext, query)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let querytext = querytext.into_native("querytext")?;
+                let query = query.into_native("query")?;
+                let mut out = std::mem::MaybeUninit::<ContactPage>::uninit();
+                unsafe {
+                    os_native::destack_os_contact_search(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        querytext,
+                        query,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Update one contact.
+    ///
+    /// Update one existing host contact by identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host contact-write APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.contact.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_contact_update(
+        &mut self,
+        id: HarnessValue<NativeStringRef, vm::StringHandle>,
+        contact: HarnessValue<ContactDraft, ContactDraftVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let id = id.into_vm("id")?;
+                let contact = contact.into_vm("contact")?;
+                os_vm::destack_os_contact_update(self.call_context, context, id, contact)
+            }
+            None => {
+                let id = id.into_native("id")?;
+                let contact = contact.into_native("contact")?;
+                unsafe { os_native::destack_os_contact_update(self.call_context, id, contact) }
+            }
+        }
+    }
+
+    /// Request one host credential authentication challenge.
+    ///
+    /// Request one host authentication challenge and return challenge outcome.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses LocalAuthentication and biometric manager APIs when available.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.credentials.auth`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_credentials_authenticate(
+        &mut self,
+        options: HarnessValue<CredentialAuthenticationOptions, CredentialAuthenticationOptionsVm>,
+    ) -> RuntimeResult<HarnessValue<CredentialAuthenticationResult, CredentialAuthenticationResultVm>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out = os_vm::destack_os_credentials_authenticate(
+                    self.call_context,
+                    context,
+                    options,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<CredentialAuthenticationResult>::uninit();
+                unsafe {
+                    os_native::destack_os_credentials_authenticate(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Query credential presence.
+    ///
+    /// Return whether one credential record exists for one service and account pair.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host credential-query APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.credentials.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_credentials_contains(
+        &mut self,
+        service: HarnessValue<NativeStringRef, vm::StringHandle>,
+        account: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<bool> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let service = service.into_vm("service")?;
+                let account = account.into_vm("account")?;
+                let out = os_vm::destack_os_credentials_contains(
+                    self.call_context,
+                    context,
+                    service,
+                    account,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let service = service.into_native("service")?;
+                let account = account.into_native("account")?;
+                let mut out = std::mem::MaybeUninit::<bool>::uninit();
+                unsafe {
+                    os_native::destack_os_credentials_contains(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        service,
+                        account,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Delete one credential record.
+    ///
+    /// Delete one secure credential payload from host credential store.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host credential-delete APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.credentials.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_credentials_delete(
+        &mut self,
+        service: HarnessValue<NativeStringRef, vm::StringHandle>,
+        account: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let service = service.into_vm("service")?;
+                let account = account.into_vm("account")?;
+                os_vm::destack_os_credentials_delete(self.call_context, context, service, account)
+            }
+            None => {
+                let service = service.into_native("service")?;
+                let account = account.into_native("account")?;
+                unsafe {
+                    os_native::destack_os_credentials_delete(self.call_context, service, account)
+                }
+            }
+        }
+    }
+
+    /// Read one credential record.
+    ///
+    /// Read one secure credential payload from host credential store.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Keychain on Apple platforms, Keystore-backed secure storage on Android, and credential manager APIs on desktop hosts.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.credentials.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_credentials_read(
+        &mut self,
+        query: HarnessValue<CredentialQuery, CredentialQueryVm>,
+    ) -> RuntimeResult<HarnessValue<CredentialRecord, CredentialRecordVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let query = query.into_vm("query")?;
+                let out = os_vm::destack_os_credentials_read(self.call_context, context, query)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let query = query.into_native("query")?;
+                let mut out = std::mem::MaybeUninit::<CredentialRecord>::uninit();
+                unsafe {
+                    os_native::destack_os_credentials_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        query,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Write one credential record.
+    ///
+    /// Create or replace one secure credential payload in host credential store.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host credential-write APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.credentials.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_credentials_write(
+        &mut self,
+        options: HarnessValue<CredentialWriteOptions, CredentialWriteOptionsVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                os_vm::destack_os_credentials_write(self.call_context, context, options)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                unsafe { os_native::destack_os_credentials_write(self.call_context, options) }
+            }
+        }
+    }
+
+    /// Close one opened document handle.
+    ///
+    /// Close one opened document-provider handle and release host resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host descriptor close APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_close(
+        &mut self,
+        handle: resource::DocumentHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => os_vm::destack_os_document_close(self.call_context, context, handle),
+            None => unsafe { os_native::destack_os_document_close(self.call_context, handle) },
+        }
+    }
+
+    /// Flush one opened document handle.
+    ///
+    /// Flush buffered outbound document bytes for one opened handle.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host document-provider flush APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_flush(
+        &mut self,
+        handle: resource::DocumentHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => os_vm::destack_os_document_flush(self.call_context, context, handle),
+            None => unsafe { os_native::destack_os_document_flush(self.call_context, handle) },
+        }
+    }
+
+    /// Open one document URI.
+    ///
+    /// Open one host document-provider URI with one selected access mode.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host document-provider open APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.control`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_open(
+        &mut self,
+        uri: HarnessValue<NativeStringRef, vm::StringHandle>,
+        access: DocumentAccess,
+    ) -> RuntimeResult<resource::DocumentHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let uri = uri.into_vm("uri")?;
+                let out = os_vm::destack_os_document_open(self.call_context, context, uri, access)?;
+                Ok(out)
+            }
+            None => {
+                let uri = uri.into_native("uri")?;
+                let mut out = std::mem::MaybeUninit::<resource::DocumentHandle>::uninit();
+                unsafe {
+                    os_native::destack_os_document_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        uri,
+                        access,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Pick documents from host picker UI.
+    ///
+    /// Open host picker UI and return selected document descriptors.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses SAF or system picker APIs on Android, UIDocumentPicker on Apple platforms, and host file-picker bridges on desktop hosts.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.pick`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_pick(
+        &mut self,
+        options: HarnessValue<DocumentPickOptions, DocumentPickOptionsVm>,
+    ) -> RuntimeResult<HarnessValue<NativeArray<DocumentDescriptor>, VmArray<DocumentDescriptorVm>>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out = os_vm::destack_os_document_pick(self.call_context, context, options)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<NativeArray<DocumentDescriptor>>::uninit();
+                unsafe {
+                    os_native::destack_os_document_pick(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one chunk of document bytes.
+    ///
+    /// Read up to `maxBytes` from one opened document handle.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host document-provider read APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_read(
+        &mut self,
+        handle: resource::DocumentHandle,
+        maxbytes: u32,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_document_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxbytes,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    os_native::destack_os_document_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxbytes,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one chunk of document bytes without blocking.
+    ///
+    /// Read up to `maxBytes` from one opened document handle without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host nonblocking document-provider read APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_try_read(
+        &mut self,
+        handle: resource::DocumentHandle,
+        maxbytes: u32,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_document_try_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    maxbytes,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    os_native::destack_os_document_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        maxbytes,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Write one chunk of document bytes.
+    ///
+    /// Write one byte chunk into one opened document handle and return written byte count.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host document-provider write APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.document.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_document_write(
+        &mut self,
+        handle: resource::DocumentHandle,
+        argument_bytes: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+        timeoutns: u64,
+    ) -> RuntimeResult<u32> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let argument_bytes = argument_bytes.into_vm("argument_bytes")?;
+                let out = os_vm::destack_os_document_write(
+                    self.call_context,
+                    context,
+                    handle,
+                    argument_bytes,
+                    timeoutns,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let argument_bytes = argument_bytes.into_native("argument_bytes")?;
+                let mut out = std::mem::MaybeUninit::<u32>::uninit();
+                unsafe {
+                    os_native::destack_os_document_write(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        argument_bytes,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
     }
 
     /// Read host identity.
@@ -209,6 +1834,909 @@ impl<'call> OsHarnessContext<'call> {
         }
     }
 
+    /// Query whether host can route one URL target.
+    ///
+    /// Ask host routing policy whether one URL target can be opened.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses `canOpenURL` or `resolveActivity` style APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.intent.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_intent_can_open_url(
+        &mut self,
+        url: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<bool> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let url = url.into_vm("url")?;
+                let out = os_vm::destack_os_intent_can_open_url(self.call_context, context, url)?;
+                Ok(out)
+            }
+            None => {
+                let url = url.into_native("url")?;
+                let mut out = std::mem::MaybeUninit::<bool>::uninit();
+                unsafe {
+                    os_native::destack_os_intent_can_open_url(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        url,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Close one host intent stream.
+    ///
+    /// Close one opened host intent stream and release host callback routing resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend-specific intent callback unregistration.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.intent.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_intent_close(
+        &mut self,
+        handle: resource::IntentHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => os_vm::destack_os_intent_close(self.call_context, context, handle),
+            None => unsafe { os_native::destack_os_intent_close(self.call_context, handle) },
+        }
+    }
+
+    /// Open one host intent stream.
+    ///
+    /// Open one inbound host intent stream for activation and share payload events.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses shell activation hooks on desktop platforms and runtime host intent bridges on mobile-like hosts.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.intent.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_intent_open(
+        &mut self,
+        options: HarnessValue<IntentOpenOptions, IntentOpenOptionsVm>,
+    ) -> RuntimeResult<resource::IntentHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out = os_vm::destack_os_intent_open(self.call_context, context, options)?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::IntentHandle>::uninit();
+                unsafe {
+                    os_native::destack_os_intent_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Request host to open one file path target.
+    ///
+    /// Ask host shell or app framework to open one file path with default routing.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses shell open-file APIs and host launcher integration.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.intent.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_intent_open_path(
+        &mut self,
+        path: HarnessValue<fs::OsPath, fs::OsPathVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let path = path.into_vm("path")?;
+                os_vm::destack_os_intent_open_path(self.call_context, context, path)
+            }
+            None => {
+                let path = path.into_native("path")?;
+                unsafe { os_native::destack_os_intent_open_path(self.call_context, path) }
+            }
+        }
+    }
+
+    /// Request host to open one URL target.
+    ///
+    /// Ask host shell or app framework to open one URL with default routing.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses shell open-url APIs on desktop platforms and intent launch APIs on mobile-like hosts.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.intent.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_intent_open_url(
+        &mut self,
+        url: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let url = url.into_vm("url")?;
+                os_vm::destack_os_intent_open_url(self.call_context, context, url)
+            }
+            None => {
+                let url = url.into_native("url")?;
+                unsafe { os_native::destack_os_intent_open_url(self.call_context, url) }
+            }
+        }
+    }
+
+    /// Wait for one inbound intent event.
+    ///
+    /// Wait for one queued inbound intent event from one opened intent stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend intent event queues or callback bridges.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.intent.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_intent_read(
+        &mut self,
+        handle: resource::IntentHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<IntentEvent, IntentEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    os_vm::destack_os_intent_read(self.call_context, context, handle, timeoutns)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<IntentEvent>::uninit();
+                unsafe {
+                    os_native::destack_os_intent_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Share file paths through host share routing.
+    ///
+    /// Ask host share infrastructure to present one file list to target applications.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses platform share APIs and shell handoff integration.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.intent.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_intent_share_paths(
+        &mut self,
+        paths: HarnessValue<NativeArray<fs::OsPath>, VmArray<fs::OsPathVm>>,
+        mimetype: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let paths = paths.into_vm("paths")?;
+                let mimetype = mimetype.into_vm("mimetype")?;
+                os_vm::destack_os_intent_share_paths(self.call_context, context, paths, mimetype)
+            }
+            None => {
+                let paths = paths.into_native("paths")?;
+                let mimetype = mimetype.into_native("mimetype")?;
+                unsafe {
+                    os_native::destack_os_intent_share_paths(self.call_context, paths, mimetype)
+                }
+            }
+        }
+    }
+
+    /// Share one text payload through host share routing.
+    ///
+    /// Ask host share infrastructure to present one text payload to target applications.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses platform share APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.intent.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_intent_share_text(
+        &mut self,
+        text: HarnessValue<NativeStringRef, vm::StringHandle>,
+        mimetype: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let text = text.into_vm("text")?;
+                let mimetype = mimetype.into_vm("mimetype")?;
+                os_vm::destack_os_intent_share_text(self.call_context, context, text, mimetype)
+            }
+            None => {
+                let text = text.into_native("text")?;
+                let mimetype = mimetype.into_native("mimetype")?;
+                unsafe {
+                    os_native::destack_os_intent_share_text(self.call_context, text, mimetype)
+                }
+            }
+        }
+    }
+
+    /// Poll one inbound intent event without blocking.
+    ///
+    /// Poll one queued inbound intent event from one opened intent stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses backend nonblocking intent queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.intent.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_intent_try_read(
+        &mut self,
+        handle: resource::IntentHandle,
+    ) -> RuntimeResult<HarnessValue<IntentEvent, IntentEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_intent_try_read(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<IntentEvent>::uninit();
+                unsafe {
+                    os_native::destack_os_intent_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Close lifecycle event stream.
+    ///
+    /// Close one lifecycle event stream and release host callback routing resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host callback unregistration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.lifecycle.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_lifecycle_close(
+        &mut self,
+        handle: resource::LifecycleEventHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => os_vm::destack_os_lifecycle_close(self.call_context, context, handle),
+            None => unsafe { os_native::destack_os_lifecycle_close(self.call_context, handle) },
+        }
+    }
+
+    /// Open lifecycle event stream.
+    ///
+    /// Open one lifecycle event stream for runtime lifecycle transitions.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host application lifecycle callback bridges.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.lifecycle.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_lifecycle_open(
+        &mut self,
+    ) -> RuntimeResult<resource::LifecycleEventHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_lifecycle_open(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::LifecycleEventHandle>::uninit();
+                unsafe {
+                    os_native::destack_os_lifecycle_open(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Wait for one lifecycle event.
+    ///
+    /// Wait for one lifecycle event from one opened stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host lifecycle event queues.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.lifecycle.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_lifecycle_read(
+        &mut self,
+        handle: resource::LifecycleEventHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<LifecycleEvent, LifecycleEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_lifecycle_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<LifecycleEvent>::uninit();
+                unsafe {
+                    os_native::destack_os_lifecycle_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read current lifecycle state.
+    ///
+    /// Return the current runtime lifecycle state from the host integration layer.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host application lifecycle bridges on desktop and mobile platforms.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.lifecycle.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_lifecycle_state(&mut self) -> RuntimeResult<LifecycleState> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_lifecycle_state(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<LifecycleState>::uninit();
+                unsafe {
+                    os_native::destack_os_lifecycle_state(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Poll one lifecycle event without blocking.
+    ///
+    /// Poll one lifecycle event from one opened stream without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host lifecycle event queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.lifecycle.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_lifecycle_try_read(
+        &mut self,
+        handle: resource::LifecycleEventHandle,
+    ) -> RuntimeResult<HarnessValue<LifecycleEvent, LifecycleEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_lifecycle_try_read(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<LifecycleEvent>::uninit();
+                unsafe {
+                    os_native::destack_os_lifecycle_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read last known location sample.
+    ///
+    /// Read one cached location sample from the host location service.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses CoreLocation on Apple platforms, FusedLocationProvider or LocationManager on Android, and Geolocator on Windows.
+    ///
+    /// # Errors
+    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.location.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_location_last_known(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<LocationSample, LocationSampleVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_location_last_known(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<LocationSample>::uninit();
+                unsafe {
+                    os_native::destack_os_location_last_known(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read whether host location services are enabled.
+    ///
+    /// Read global host location-service availability before per-runtime authorization checks.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host location service-status APIs.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.location.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_location_services_enabled(&mut self) -> RuntimeResult<bool> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_location_services_enabled(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<bool>::uninit();
+                unsafe {
+                    os_native::destack_os_location_services_enabled(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Close location watch stream.
+    ///
+    /// Close one location watch stream and release host subscription resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host location unsubscription APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.location.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_location_watch_close(
+        &mut self,
+        handle: resource::LocationWatchHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                os_vm::destack_os_location_watch_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                os_native::destack_os_location_watch_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Open location watch stream.
+    ///
+    /// Open one location watch stream with one selected update policy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host location subscription APIs.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.location.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_location_watch_open(
+        &mut self,
+        options: HarnessValue<LocationWatchOptions, LocationWatchOptionsVm>,
+    ) -> RuntimeResult<resource::LocationWatchHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out =
+                    os_vm::destack_os_location_watch_open(self.call_context, context, options)?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::LocationWatchHandle>::uninit();
+                unsafe {
+                    os_native::destack_os_location_watch_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Wait for one location sample.
+    ///
+    /// Wait for one location sample from one opened location watch stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host location update queues.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.location.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_location_watch_read(
+        &mut self,
+        handle: resource::LocationWatchHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<LocationSample, LocationSampleVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_location_watch_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<LocationSample>::uninit();
+                unsafe {
+                    os_native::destack_os_location_watch_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one location sample without blocking.
+    ///
+    /// Poll one location sample from one opened location watch stream without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses nonblocking host location update queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.location.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_location_watch_try_read(
+        &mut self,
+        handle: resource::LocationWatchHandle,
+    ) -> RuntimeResult<HarnessValue<LocationSample, LocationSampleVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    os_vm::destack_os_location_watch_try_read(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<LocationSample>::uninit();
+                unsafe {
+                    os_native::destack_os_location_watch_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Delete media assets by identifier.
+    ///
+    /// Delete host media assets and return deleted asset count.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host media-library delete APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.media.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_media_delete(
+        &mut self,
+        ids: HarnessValue<NativeArray<NativeStringRef>, VmArray<vm::StringHandle>>,
+    ) -> RuntimeResult<u32> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let ids = ids.into_vm("ids")?;
+                let out = os_vm::destack_os_media_delete(self.call_context, context, ids)?;
+                Ok(out)
+            }
+            None => {
+                let ids = ids.into_native("ids")?;
+                let mut out = std::mem::MaybeUninit::<u32>::uninit();
+                unsafe {
+                    os_native::destack_os_media_delete(self.call_context, out.as_mut_ptr(), ids)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Import one file path into host media library.
+    ///
+    /// Import one file from one runtime-visible path and return one created media identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host media-library write APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.media.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_media_import_path(
+        &mut self,
+        path: HarnessValue<fs::OsPath, fs::OsPathVm>,
+        kind: MediaAssetKind,
+    ) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let path = path.into_vm("path")?;
+                let out =
+                    os_vm::destack_os_media_import_path(self.call_context, context, path, kind)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let path = path.into_native("path")?;
+                let mut out = std::mem::MaybeUninit::<NativeStringRef>::uninit();
+                unsafe {
+                    os_native::destack_os_media_import_path(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        path,
+                        kind,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List media assets.
+    ///
+    /// Return one page of host media assets for one query.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Photos framework on Apple platforms, MediaStore on Android, and host media-library bridges on desktop hosts.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.media.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_media_list(
+        &mut self,
+        query: HarnessValue<MediaQuery, MediaQueryVm>,
+    ) -> RuntimeResult<HarnessValue<MediaPage, MediaPageVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let query = query.into_vm("query")?;
+                let out = os_vm::destack_os_media_list(self.call_context, context, query)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let query = query.into_native("query")?;
+                let mut out = std::mem::MaybeUninit::<MediaPage>::uninit();
+                unsafe {
+                    os_native::destack_os_media_list(self.call_context, out.as_mut_ptr(), query)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one media asset descriptor.
+    ///
+    /// Read one host media asset descriptor by stable identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host media-library read APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.media.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_media_read(
+        &mut self,
+        id: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<HarnessValue<MediaAssetDescriptor, MediaAssetDescriptorVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let id = id.into_vm("id")?;
+                let out = os_vm::destack_os_media_read(self.call_context, context, id)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let id = id.into_native("id")?;
+                let mut out = std::mem::MaybeUninit::<MediaAssetDescriptor>::uninit();
+                unsafe {
+                    os_native::destack_os_media_read(self.call_context, out.as_mut_ptr(), id)?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Mount one filesystem target.
     ///
     /// Mount one source on one target path with explicit flags and data.
@@ -226,9 +2754,9 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_os_add(
+    pub(crate) fn destack_os_mount_add(
         &mut self,
-        source: HarnessValue<fs::OsPath, fs::OsPathVm>,
+        source: HarnessValue<NativeStringRef, vm::StringHandle>,
         target: HarnessValue<fs::OsPath, fs::OsPathVm>,
         filesystem: HarnessValue<NativeStringRef, vm::StringHandle>,
         flags: u64,
@@ -240,7 +2768,7 @@ impl<'call> OsHarnessContext<'call> {
                 let target = target.into_vm("target")?;
                 let filesystem = filesystem.into_vm("filesystem")?;
                 let data = data.into_vm("data")?;
-                os_vm::destack_os_add(
+                os_vm::destack_os_mount_add(
                     self.call_context,
                     context,
                     source,
@@ -256,7 +2784,7 @@ impl<'call> OsHarnessContext<'call> {
                 let filesystem = filesystem.into_native("filesystem")?;
                 let data = data.into_native("data")?;
                 unsafe {
-                    os_native::destack_os_add(
+                    os_native::destack_os_mount_add(
                         self.call_context,
                         source,
                         target,
@@ -286,18 +2814,18 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_os_list(
+    pub(crate) fn destack_os_mount_list(
         &mut self,
     ) -> RuntimeResult<HarnessValue<NativeArray<MountEntry>, VmArray<MountEntryVm>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let out = os_vm::destack_os_list(self.call_context, context)?;
+                let out = os_vm::destack_os_mount_list(self.call_context, context)?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
                 let mut out = std::mem::MaybeUninit::<NativeArray<MountEntry>>::uninit();
                 unsafe {
-                    os_native::destack_os_list(self.call_context, out.as_mut_ptr())?;
+                    os_native::destack_os_mount_list(self.call_context, out.as_mut_ptr())?;
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(HarnessValue::Native(out))
@@ -322,19 +2850,964 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Replay
     /// External, recordable.
-    pub(crate) fn destack_os_remove(
+    pub(crate) fn destack_os_mount_remove(
         &mut self,
         target: HarnessValue<fs::OsPath, fs::OsPathVm>,
-        flags: u32,
+        flags: u64,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let target = target.into_vm("target")?;
-                os_vm::destack_os_remove(self.call_context, context, target, flags)
+                os_vm::destack_os_mount_remove(self.call_context, context, target, flags)
             }
             None => {
                 let target = target.into_native("target")?;
-                unsafe { os_native::destack_os_remove(self.call_context, target, flags) }
+                unsafe { os_native::destack_os_mount_remove(self.call_context, target, flags) }
+            }
+        }
+    }
+
+    /// Read host network state.
+    ///
+    /// Read one point-in-time host network state snapshot.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses Network.framework path monitoring on Apple platforms, ConnectivityManager on Android, and NetworkInformation APIs on Windows.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.network.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_network_state(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<NetworkState, NetworkStateVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_network_state(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NetworkState>::uninit();
+                unsafe {
+                    os_native::destack_os_network_state(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Close host network watch stream.
+    ///
+    /// Close one host network watch stream and release host subscription resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host network callback unsubscription APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.network.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_network_watch_close(
+        &mut self,
+        handle: resource::NetworkWatchHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                os_vm::destack_os_network_watch_close(self.call_context, context, handle)
+            }
+            None => unsafe { os_native::destack_os_network_watch_close(self.call_context, handle) },
+        }
+    }
+
+    /// Open host network watch stream.
+    ///
+    /// Open one host network watch stream for connectivity state transitions.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host network callback subscription APIs.
+    ///
+    /// # Errors
+    /// Returns ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.network.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_network_watch_open(
+        &mut self,
+    ) -> RuntimeResult<resource::NetworkWatchHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_network_watch_open(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::NetworkWatchHandle>::uninit();
+                unsafe {
+                    os_native::destack_os_network_watch_open(self.call_context, out.as_mut_ptr())?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Wait for one host network event.
+    ///
+    /// Wait for one queued host network event from one opened watch stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host network event queues.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.network.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_network_watch_read(
+        &mut self,
+        handle: resource::NetworkWatchHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<NetworkEvent, NetworkEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_network_watch_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NetworkEvent>::uninit();
+                unsafe {
+                    os_native::destack_os_network_watch_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one host network event without blocking.
+    ///
+    /// Poll one queued host network event from one opened watch stream without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host nonblocking network event queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.network.watch`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_network_watch_try_read(
+        &mut self,
+        handle: resource::NetworkWatchHandle,
+    ) -> RuntimeResult<HarnessValue<NetworkEvent, NetworkEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    os_vm::destack_os_network_watch_try_read(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NetworkEvent>::uninit();
+                unsafe {
+                    os_native::destack_os_network_watch_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Cancel host notification.
+    ///
+    /// Cancel one previously posted host notification by identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification cancellation APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_cancel(
+        &mut self,
+        id: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let id = id.into_vm("id")?;
+                os_vm::destack_os_notification_cancel(self.call_context, context, id)
+            }
+            None => {
+                let id = id.into_native("id")?;
+                unsafe { os_native::destack_os_notification_cancel(self.call_context, id) }
+            }
+        }
+    }
+
+    /// Cancel all host notifications for this runtime context.
+    ///
+    /// Cancel all currently posted host notifications owned by this runtime context.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification cancellation APIs.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_cancel_all(&mut self) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => os_vm::destack_os_notification_cancel_all(self.call_context, context),
+            None => unsafe { os_native::destack_os_notification_cancel_all(self.call_context) },
+        }
+    }
+
+    /// List notification categories.
+    ///
+    /// Enumerate registered host notification categories for this runtime context.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification category query APIs where available.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_notification_category_list(
+        &mut self,
+    ) -> RuntimeResult<
+        HarnessValue<NativeArray<NotificationCategory>, VmArray<NotificationCategoryVm>>,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_notification_category_list(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<NotificationCategory>>::uninit();
+                unsafe {
+                    os_native::destack_os_notification_category_list(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Register notification categories.
+    ///
+    /// Register host notification categories and actions for this runtime context.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification category registration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_category_set(
+        &mut self,
+        categories: HarnessValue<
+            NativeArray<NotificationCategory>,
+            VmArray<NotificationCategoryVm>,
+        >,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let categories = categories.into_vm("categories")?;
+                os_vm::destack_os_notification_category_set(self.call_context, context, categories)
+            }
+            None => {
+                let categories = categories.into_native("categories")?;
+                unsafe {
+                    os_native::destack_os_notification_category_set(self.call_context, categories)
+                }
+            }
+        }
+    }
+
+    /// Close one notification event stream.
+    ///
+    /// Close one opened event stream and release host callback routing resources.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host callback unregistration APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.permission`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_event_close(
+        &mut self,
+        handle: resource::NotificationEventHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                os_vm::destack_os_notification_event_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                os_native::destack_os_notification_event_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Open one notification event stream.
+    ///
+    /// Open one event stream for delivered, interacted, and dismissed notification events.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification callback bridges.
+    ///
+    /// # Errors
+    /// Returns ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.permission`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_event_open(
+        &mut self,
+        options: HarnessValue<NotificationEventOpenOptions, NotificationEventOpenOptionsVm>,
+    ) -> RuntimeResult<resource::NotificationEventHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let options = options.into_vm("options")?;
+                let out =
+                    os_vm::destack_os_notification_event_open(self.call_context, context, options)?;
+                Ok(out)
+            }
+            None => {
+                let options = options.into_native("options")?;
+                let mut out = std::mem::MaybeUninit::<resource::NotificationEventHandle>::uninit();
+                unsafe {
+                    os_native::destack_os_notification_event_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        options,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Wait for one notification event.
+    ///
+    /// Wait for one queued notification event from one opened event stream.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification event queues.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.permission`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_event_read(
+        &mut self,
+        handle: resource::NotificationEventHandle,
+        timeoutns: u64,
+    ) -> RuntimeResult<HarnessValue<NotificationEvent, NotificationEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_notification_event_read(
+                    self.call_context,
+                    context,
+                    handle,
+                    timeoutns,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NotificationEvent>::uninit();
+                unsafe {
+                    os_native::destack_os_notification_event_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        timeoutns,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Poll one notification event without blocking.
+    ///
+    /// Poll one queued notification event from one opened event stream without waiting.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host nonblocking notification event queue reads.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.permission`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_event_try_read(
+        &mut self,
+        handle: resource::NotificationEventHandle,
+    ) -> RuntimeResult<HarnessValue<NotificationEvent, NotificationEventVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_notification_event_try_read(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NotificationEvent>::uninit();
+                unsafe {
+                    os_native::destack_os_notification_event_try_read(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Cancel pending scheduled notification.
+    ///
+    /// Cancel one pending scheduled host notification by identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host scheduled-notification cancellation APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_pending_cancel(
+        &mut self,
+        id: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let id = id.into_vm("id")?;
+                os_vm::destack_os_notification_pending_cancel(self.call_context, context, id)
+            }
+            None => {
+                let id = id.into_native("id")?;
+                unsafe { os_native::destack_os_notification_pending_cancel(self.call_context, id) }
+            }
+        }
+    }
+
+    /// Cancel all pending scheduled notifications.
+    ///
+    /// Cancel all pending scheduled notifications owned by this runtime context.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host scheduled-notification cancellation APIs.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_pending_cancel_all(&mut self) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                os_vm::destack_os_notification_pending_cancel_all(self.call_context, context)
+            }
+            None => unsafe {
+                os_native::destack_os_notification_pending_cancel_all(self.call_context)
+            },
+        }
+    }
+
+    /// List pending scheduled notifications.
+    ///
+    /// Enumerate pending notification requests owned by this runtime context.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host pending-notification query APIs.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_notification_pending_list(
+        &mut self,
+    ) -> RuntimeResult<
+        HarnessValue<
+            NativeArray<NotificationScheduledDescriptor>,
+            VmArray<NotificationScheduledDescriptorVm>,
+        >,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = os_vm::destack_os_notification_pending_list(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out =
+                    std::mem::MaybeUninit::<NativeArray<NotificationScheduledDescriptor>>::uninit();
+                unsafe {
+                    os_native::destack_os_notification_pending_list(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read host notification permission state.
+    ///
+    /// Return current host notification permission state for this runtime context.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification authorization APIs.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.permission`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_notification_permission_state(
+        &mut self,
+    ) -> RuntimeResult<NotificationPermissionState> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    os_vm::destack_os_notification_permission_state(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NotificationPermissionState>::uninit();
+                unsafe {
+                    os_native::destack_os_notification_permission_state(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Post host notification.
+    ///
+    /// Submit one host notification request and return one host notification identifier.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification center APIs on each platform.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_post(
+        &mut self,
+        request: HarnessValue<NotificationRequest, NotificationRequestVm>,
+    ) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let request = request.into_vm("request")?;
+                let out = os_vm::destack_os_notification_post(self.call_context, context, request)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let request = request.into_native("request")?;
+                let mut out = std::mem::MaybeUninit::<NativeStringRef>::uninit();
+                unsafe {
+                    os_native::destack_os_notification_post(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        request,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Request host notification permission.
+    ///
+    /// Request notification permission through host authorization flow and return resulting permission state.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification permission request APIs where supported.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.permission`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_request_permission(
+        &mut self,
+    ) -> RuntimeResult<NotificationPermissionState> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    os_vm::destack_os_notification_request_permission(self.call_context, context)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NotificationPermissionState>::uninit();
+                unsafe {
+                    os_native::destack_os_notification_request_permission(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Schedule host notification.
+    ///
+    /// Schedule one host notification request for deferred delivery according to trigger policy.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host notification scheduling APIs on each platform.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.notification.post`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_notification_schedule(
+        &mut self,
+        request: HarnessValue<NotificationRequest, NotificationRequestVm>,
+    ) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let request = request.into_vm("request")?;
+                let out =
+                    os_vm::destack_os_notification_schedule(self.call_context, context, request)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let request = request.into_native("request")?;
+                let mut out = std::mem::MaybeUninit::<NativeStringRef>::uninit();
+                unsafe {
+                    os_native::destack_os_notification_schedule(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        request,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Open host settings for runtime permissions.
+    ///
+    /// Request host navigation to the runtime permission settings page.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host settings-intent APIs when available.
+    ///
+    /// # Errors
+    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.permission.request`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_permission_open_settings(&mut self) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => os_vm::destack_os_permission_open_settings(self.call_context, context),
+            None => unsafe { os_native::destack_os_permission_open_settings(self.call_context) },
+        }
+    }
+
+    /// Request one permission.
+    ///
+    /// Request host authorization for one permission selector.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host permission-request dialogs and policy APIs.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.permission.request`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_permission_request(
+        &mut self,
+        permission: Permission,
+    ) -> RuntimeResult<PermissionState> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    os_vm::destack_os_permission_request(self.call_context, context, permission)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<PermissionState>::uninit();
+                unsafe {
+                    os_native::destack_os_permission_request(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        permission,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Request multiple permissions.
+    ///
+    /// Request host authorization for one selector list and return resulting states.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses batched host permission request APIs where available.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.permission.request`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_os_permission_request_many(
+        &mut self,
+        permissions: HarnessValue<NativeArray<Permission>, VmArray<Permission>>,
+    ) -> RuntimeResult<HarnessValue<NativeArray<PermissionEntry>, VmArray<PermissionEntryVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let permissions = permissions.into_vm("permissions")?;
+                let out = os_vm::destack_os_permission_request_many(
+                    self.call_context,
+                    context,
+                    permissions,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let permissions = permissions.into_native("permissions")?;
+                let mut out = std::mem::MaybeUninit::<NativeArray<PermissionEntry>>::uninit();
+                unsafe {
+                    os_native::destack_os_permission_request_many(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        permissions,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Read one permission state.
+    ///
+    /// Read the current host permission state for one permission selector.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host permission-state APIs on Android and Apple platforms, and host policy bridges on desktop platforms.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.permission.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_permission_state(
+        &mut self,
+        permission: Permission,
+    ) -> RuntimeResult<PermissionState> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    os_vm::destack_os_permission_state(self.call_context, context, permission)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<PermissionState>::uninit();
+                unsafe {
+                    os_native::destack_os_permission_state(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        permission,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Read permission states.
+    ///
+    /// Read current host permission states for one selector list.
+    ///
+    /// # Platform
+    /// Unix and Windows.
+    /// Uses host permission-state APIs and policy bridges.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `os.permission.read`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_os_permission_state_many(
+        &mut self,
+        permissions: HarnessValue<NativeArray<Permission>, VmArray<Permission>>,
+    ) -> RuntimeResult<HarnessValue<NativeArray<PermissionEntry>, VmArray<PermissionEntryVm>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let permissions = permissions.into_vm("permissions")?;
+                let out = os_vm::destack_os_permission_state_many(
+                    self.call_context,
+                    context,
+                    permissions,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let permissions = permissions.into_native("permissions")?;
+                let mut out = std::mem::MaybeUninit::<NativeArray<PermissionEntry>>::uninit();
+                unsafe {
+                    os_native::destack_os_permission_state_many(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        permissions,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
             }
         }
     }
