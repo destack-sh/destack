@@ -10,6 +10,21 @@ use crate::resolve::binding::cache::{
 };
 use crate::{Compiler, ResolveError, ResolveResult};
 
+/// Shared resolve state for one unresolved path pass.
+#[derive(Clone, Copy)]
+struct ResolveState<'a> {
+    /// The module being resolved.
+    module: &'a Module,
+    /// The active profile id.
+    profile_id: ProfileId,
+    /// The origin node used for diagnostics.
+    node: GlobalNodeIdAny,
+    /// The requested symbol-space resolution order.
+    space_order: SymbolSpaceOrder,
+    /// The active symbol table.
+    symbols: &'a SymbolTable,
+}
+
 impl Compiler {
     fn allow_runtime_namespace_member_fallback(
         &self,
@@ -29,21 +44,19 @@ impl Compiler {
     /// Resolve CommonJS runtime paths (`module` and `exports`) for CommonJS modules.
     fn resolve_commonjs_runtime_path(
         &self,
-        module: &Module,
-        profile_id: ProfileId,
+        pass: ResolveState<'_>,
         expression_id: LocalNodeId<Expression>,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        space_order: SymbolSpaceOrder,
         tree: &mut NodeTree,
     ) -> Option<Expression> {
         // only value space lookups can resolve runtime commonjs names
-        if !space_order.spaces().contains(&SymbolSpace::Value) {
+        if !pass.space_order.spaces().contains(&SymbolSpace::Value) {
             return None;
         }
 
         // only commonjs modules expose these runtime bindings by default
-        if !module.module_format.is_commonjs() {
+        if !pass.module.module_format.is_commonjs() {
             return None;
         }
 
@@ -59,10 +72,11 @@ impl Compiler {
         }
 
         // resolve both roots against the current module namespace symbol
-        let namespace_symbol = module
-            .dir(profile_id)
+        let namespace_symbol = pass
+            .module
+            .dir(pass.profile_id)
             .namespace_symbol
-            .into_global(module.id);
+            .into_global(pass.module.id);
 
         // map `module` directly to the runtime module object
         if is_module_root {
@@ -151,13 +165,10 @@ impl Compiler {
     /// Resolve an inherited associated type name from an enclosing declaration heritage.
     fn resolve_heritage_associated_type_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        _origin: GlobalNodeIdAny,
+        pass: ResolveState<'_>,
         expression_id: LocalNodeId<Expression>,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
         member_name: StringId,
-        symbols: &SymbolTable,
         tree: &NodeTree,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         let mut current_scope = scope;
@@ -169,7 +180,7 @@ impl Compiler {
                 if let Some((parent_scope_id, parent_mark)) = current_scope.1.parent {
                     current_scope = (
                         parent_scope_id,
-                        symbols.get_scope_by_id(parent_scope_id),
+                        pass.symbols.get_scope_by_id(parent_scope_id),
                         parent_mark,
                     );
                     continue;
@@ -177,12 +188,12 @@ impl Compiler {
                 return Ok(None);
             };
 
-            let owner_symbol = symbols.get_symbol(owner_id);
+            let owner_symbol = pass.symbols.get_symbol(owner_id);
             let Some(primary_declaration) = owner_symbol.primary_declaration else {
                 if let Some((parent_scope_id, parent_mark)) = current_scope.1.parent {
                     current_scope = (
                         parent_scope_id,
-                        symbols.get_scope_by_id(parent_scope_id),
+                        pass.symbols.get_scope_by_id(parent_scope_id),
                         parent_mark,
                     );
                     continue;
@@ -193,7 +204,7 @@ impl Compiler {
                 if let Some((parent_scope_id, parent_mark)) = current_scope.1.parent {
                     current_scope = (
                         parent_scope_id,
-                        symbols.get_scope_by_id(parent_scope_id),
+                        pass.symbols.get_scope_by_id(parent_scope_id),
                         parent_mark,
                     );
                     continue;
@@ -215,7 +226,7 @@ impl Compiler {
                 if let Some((parent_scope_id, parent_mark)) = current_scope.1.parent {
                     current_scope = (
                         parent_scope_id,
-                        symbols.get_scope_by_id(parent_scope_id),
+                        pass.symbols.get_scope_by_id(parent_scope_id),
                         parent_mark,
                     );
                     continue;
@@ -233,13 +244,13 @@ impl Compiler {
                 };
 
                 let resolved_member = self.resolve_static_member_symbol(
-                    module,
-                    profile,
+                    pass.module,
+                    pass.profile_id,
                     expression_id,
                     heritage_symbol,
                     member_key,
                     tree,
-                    symbols,
+                    pass.symbols,
                 );
                 match resolved_member {
                     Ok(symbol) => return Ok(Some(symbol)),
@@ -263,6 +274,25 @@ impl Compiler {
         key: StaticKey,
         space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
+        scope_cache: Option<&mut ResolveScopeIndexCache>,
+    ) -> ResolveResult<LocalSymbolId> {
+        let pass = ResolveState {
+            module,
+            profile_id,
+            node,
+            space_order,
+            symbols,
+        };
+
+        self.resolve_absolute_symbol_from_state(pass, scope, key, scope_cache)
+    }
+
+    /// Resolve an absolute symbol from one pass state.
+    fn resolve_absolute_symbol_from_state(
+        &self,
+        pass: ResolveState<'_>,
+        scope: (LocalScopeId, &Scope, LocalScopeMark),
+        key: StaticKey,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<LocalSymbolId> {
         // track the nearest fallback symbol
@@ -276,8 +306,8 @@ impl Compiler {
                 scope.0,
                 scope.1,
                 key,
-                space_order,
-                symbols,
+                pass.space_order,
+                pass.symbols,
                 scope.2,
                 scope_cache.as_deref_mut(),
             );
@@ -294,20 +324,20 @@ impl Compiler {
 
             // resolve JS/TS hoisted value bindings
             if let Some(hoisted_symbol) = self.find_hoisted_symbol_in_scope(
-                module,
+                pass.module,
                 scope.1,
                 key,
-                space_order,
-                symbols,
+                pass.space_order,
+                pass.symbols,
                 scope.2,
             ) {
                 return Ok(hoisted_symbol);
             }
 
             // allow same-scope forward references for JS/TS bindings
-            if self.allow_forward_binding_lookup(module, space_order) {
+            if self.allow_forward_binding_lookup(pass.module, pass.space_order) {
                 let (forward_preferred, _) =
-                    self.find_symbol_in_scope(scope.1, key, space_order, symbols, None);
+                    self.find_symbol_in_scope(scope.1, key, pass.space_order, pass.symbols, None);
                 if let Some(forward_symbol) = forward_preferred {
                     return Ok(forward_symbol);
                 }
@@ -317,7 +347,7 @@ impl Compiler {
             if let Some((parent_scope_id, parent_mark)) = scope.1.parent {
                 scope = (
                     parent_scope_id,
-                    symbols.get_scope_by_id(parent_scope_id),
+                    pass.symbols.get_scope_by_id(parent_scope_id),
                     parent_mark,
                 );
             } else {
@@ -332,8 +362,8 @@ impl Compiler {
 
         // report missing symbol after walking all scopes
         Err(ResolveError::MissingSymbol {
-            node: node.into_anchored(Some(profile_id)),
-            scope: scope.0.into_global(module.id),
+            node: pass.node.into_anchored(Some(pass.profile_id)),
+            scope: scope.0.into_global(pass.module.id),
             via_module: None,
             key,
         })
@@ -342,19 +372,15 @@ impl Compiler {
     /// Resolve a path against merged ambient namespace scopes when inside a namespace.
     fn resolve_ambient_namespace_path(
         &self,
-        module: &Module,
-        profile_id: ProfileId,
+        pass: ResolveState<'_>,
         expression_id: LocalNodeId<Expression>,
-        node: GlobalNodeIdAny,
         scope: (LocalScopeId, &Scope, LocalScopeMark),
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        space_order: SymbolSpaceOrder,
-        symbols: &SymbolTable,
         tree: &mut NodeTree,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<Expression>> {
-        if !self.module_is_ambient_lib(module) {
+        if !self.module_is_ambient_lib(pass.module) {
             return Ok(None);
         }
 
@@ -363,24 +389,20 @@ impl Compiler {
             if scope.1.kind == ScopeKind::Namespace
                 && let Some(owner_id) = scope.1.owner_id
             {
-                match self.resolve_relative_symbol_with_ambient_merge(
-                    module,
-                    profile_id,
-                    node,
+                match self.resolve_relative_symbol_with_ambient_merge_from_state(
+                    pass,
                     owner_id,
                     path,
-                    space_order,
-                    symbols,
                     scope_cache.as_deref_mut(),
                 ) {
                     Ok((resolved_id, None)) => {
-                        if resolved_id.module_id == module.id {
+                        if resolved_id.module_id == pass.module.id {
                             return Ok(Some(self.resolve_symbol_to_expression(
-                                module,
+                                pass.module,
                                 resolved_id.local_id,
                                 path,
                                 static_arguments,
-                                symbols,
+                                pass.symbols,
                             )));
                         }
 
@@ -393,13 +415,13 @@ impl Compiler {
                     Ok((resolved_id, Some(remaining))) => {
                         let resolved_path =
                             path.slice(0..path.segments.len() - remaining.segments.len());
-                        let root_expr = if resolved_id.module_id == module.id {
+                        let root_expr = if resolved_id.module_id == pass.module.id {
                             self.resolve_symbol_to_expression(
-                                module,
+                                pass.module,
                                 resolved_id.local_id,
                                 &resolved_path,
                                 None,
-                                symbols,
+                                pass.symbols,
                             )
                         } else {
                             Expression::GlobalReference {
@@ -424,7 +446,7 @@ impl Compiler {
             if let Some((parent_scope_id, parent_mark)) = scope.1.parent {
                 scope = (
                     parent_scope_id,
-                    symbols.get_scope_by_id(parent_scope_id),
+                    pass.symbols.get_scope_by_id(parent_scope_id),
                     parent_mark,
                 );
             } else {
@@ -483,14 +505,11 @@ impl Compiler {
     /// Similar to resolve_local_path but for symbols from the prelude module.
     fn resolve_prelude_path(
         &self,
-        _module: &Module,
+        pass: ResolveState<'_>,
         expression_id: LocalNodeId<Expression>,
-        node: GlobalNodeIdAny,
         prelude_symbol: GlobalSymbolId,
-        profile: ProfileId,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        space_order: SymbolSpaceOrder,
         tree: &mut NodeTree,
     ) -> ResolveResult<Expression> {
         let remaining_segments = &path.segments[1..];
@@ -508,7 +527,7 @@ impl Compiler {
         let prelude_module_id = prelude_symbol.module_id;
         let prelude_module = self.program.modules.get(prelude_module_id);
         let prelude_module = prelude_module.read();
-        let prelude_symbols = prelude_module.dir(profile).symbols.read();
+        let prelude_symbols = prelude_module.dir(pass.profile_id).symbols.read();
 
         let local_symbol_id = prelude_symbol.local_id;
         let symbol = prelude_symbols.get_symbol(local_symbol_id);
@@ -516,14 +535,17 @@ impl Compiler {
         if symbol.kind == SymbolKind::Namespace {
             // resolve remaining path within the prelude module's namespace
             let remaining_path = path.slice(1..);
-            match self.resolve_relative_symbol_with_ambient_merge(
-                &prelude_module,
-                profile,
-                node,
+            let prelude_pass = ResolveState {
+                module: &prelude_module,
+                profile_id: pass.profile_id,
+                node: pass.node,
+                space_order: pass.space_order,
+                symbols: &prelude_symbols,
+            };
+            match self.resolve_relative_symbol_with_ambient_merge_from_state(
+                prelude_pass,
                 local_symbol_id,
                 &remaining_path,
-                space_order,
-                &prelude_symbols,
                 None,
             ) {
                 Ok((resolved_id, None)) => {
@@ -576,20 +598,17 @@ impl Compiler {
     /// Resolve a path from ambient lib modules, if available.
     fn resolve_ambient_path(
         &self,
-        module: &Module,
+        pass: ResolveState<'_>,
         expression_id: LocalNodeId<Expression>,
-        node: GlobalNodeIdAny,
-        profile_id: ProfileId,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        space_order: SymbolSpaceOrder,
         tree: &mut NodeTree,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<Expression>> {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return Ok(None);
         };
-        let profile = self.program.profile(profile_id);
+        let profile = self.program.profile(pass.profile_id);
         let profile_key = &profile.key;
         let Some(ambient_modules) = builtins.ambient_libs(profile_key) else {
             return Ok(None);
@@ -599,21 +618,21 @@ impl Compiler {
 
         // prefer cached declared lib symbols when available
         if let Some(symbol_id) =
-            builtins.get_declared_lib_symbol_from(profile_key, first_segment, space_order)
+            builtins.get_declared_lib_symbol_from(profile_key, first_segment, pass.space_order)
         {
             self.require_resolve_module_prepare_if_needed(
-                module.id,
+                pass.module.id,
                 symbol_id.module_id,
-                profile_id,
+                pass.profile_id,
             )?;
             let ambient_module = self.program.modules.get(symbol_id.module_id);
             let ambient_module = ambient_module.read();
-            let ambient_dir = ambient_module.dir(profile_id);
+            let ambient_dir = ambient_module.dir(pass.profile_id);
             let symbols = ambient_dir.symbols.read();
             let symbol = symbols.get_symbol(symbol_id.local_id);
             let global_this_name = self.program.strings.intern("globalThis");
             let matches_space = symbol.space == SymbolSpace::TypeValue
-                || space_order.spaces().contains(&symbol.space)
+                || pass.space_order.spaces().contains(&symbol.space)
                 || (symbol.space == SymbolSpace::Value && first_segment == global_this_name);
             if matches_space {
                 if path.segments.len() == 1 {
@@ -626,14 +645,17 @@ impl Compiler {
 
                 if symbol.kind == SymbolKind::Namespace {
                     let remaining_path = path.slice(1..);
-                    match self.resolve_relative_symbol_with_ambient_merge(
-                        &ambient_module,
-                        profile_id,
-                        node,
+                    let ambient_pass = ResolveState {
+                        module: &ambient_module,
+                        profile_id: pass.profile_id,
+                        node: pass.node,
+                        space_order: pass.space_order,
+                        symbols: &symbols,
+                    };
+                    match self.resolve_relative_symbol_with_ambient_merge_from_state(
+                        ambient_pass,
                         symbol_id.local_id,
                         &remaining_path,
-                        space_order,
-                        &symbols,
                         scope_cache.as_deref_mut(),
                     ) {
                         Ok((resolved_id, None)) => {
@@ -684,31 +706,38 @@ impl Compiler {
         // search ambient lib namespace scopes in order
         for module_id in ambient_modules {
             // skip self
-            if module_id == module.id {
+            if module_id == pass.module.id {
                 continue;
             }
 
             // read the ambient module's symbols
-            self.require_resolve_module_prepare_if_needed(module.id, module_id, profile_id)?;
+            self.require_resolve_module_prepare_if_needed(
+                pass.module.id,
+                module_id,
+                pass.profile_id,
+            )?;
             let ambient_module = self.program.modules.get(module_id);
             let ambient_module = ambient_module.read();
-            let ambient_dir = ambient_module.dir(profile_id);
+            let ambient_dir = ambient_module.dir(pass.profile_id);
             let symbols = ambient_dir.symbols.read();
+            let ambient_pass = ResolveState {
+                module: &ambient_module,
+                profile_id: pass.profile_id,
+                node: pass.node,
+                space_order: pass.space_order,
+                symbols: &symbols,
+            };
 
             // find symbol in ambient lib global augmentation scope
             let global_scope = symbols.get_scope_by_id(ambient_dir.global_augmentation_scope);
-            let symbol_id = self.resolve_absolute_symbol(
-                &ambient_module,
-                profile_id,
-                node,
+            let symbol_id = self.resolve_absolute_symbol_from_state(
+                ambient_pass,
                 (
                     ambient_dir.global_augmentation_scope,
                     global_scope,
                     LocalScopeMark::end(),
                 ),
                 key,
-                space_order,
-                &symbols,
                 scope_cache.as_deref_mut(),
             );
             let symbol_id = match symbol_id {
@@ -729,14 +758,10 @@ impl Compiler {
             let symbol = symbols.get_symbol(symbol_id);
             if symbol.kind == SymbolKind::Namespace {
                 let remaining_path = path.slice(1..);
-                match self.resolve_relative_symbol_with_ambient_merge(
-                    &ambient_module,
-                    profile_id,
-                    node,
+                match self.resolve_relative_symbol_with_ambient_merge_from_state(
+                    ambient_pass,
                     symbol_id,
                     &remaining_path,
-                    space_order,
-                    &symbols,
                     scope_cache.as_deref_mut(),
                 ) {
                     Ok((resolved_id, None)) => {
@@ -799,61 +824,79 @@ impl Compiler {
         path: &Path,
         space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
-        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
+        scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<(GlobalSymbolId, Option<Path>)> {
-        // try resolving within the current module first
-        let resolved = self.resolve_relative_symbol(
+        let pass = ResolveState {
             module,
             profile_id,
             node,
-            symbol_id,
-            path,
             space_order,
             symbols,
+        };
+
+        self.resolve_relative_symbol_with_ambient_merge_from_state(
+            pass,
+            symbol_id,
+            path,
+            scope_cache,
+        )
+    }
+
+    /// Resolve a relative symbol with ambient namespace merge sources.
+    fn resolve_relative_symbol_with_ambient_merge_from_state(
+        &self,
+        pass: ResolveState<'_>,
+        symbol_id: LocalSymbolId,
+        path: &Path,
+        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
+    ) -> ResolveResult<(GlobalSymbolId, Option<Path>)> {
+        // try resolving within the current module first
+        let resolved = self.resolve_relative_symbol_from_state(
+            pass,
+            symbol_id,
+            path,
             scope_cache.as_deref_mut(),
         );
         let missing = match resolved {
             Ok((resolved_id, remaining)) => {
-                return Ok((resolved_id.into_global(module.id), remaining));
+                return Ok((resolved_id.into_global(pass.module.id), remaining));
             }
             Err(error @ ResolveError::MissingSymbol { .. }) => error,
             Err(error) => return Err(error),
         };
 
         // stop if the module is not an ambient lib module
-        if !self.module_is_ambient_lib(module) {
+        if !self.module_is_ambient_lib(pass.module) {
             return Err(missing);
         }
 
         // gather ambient merge sources for the symbol key
-        let symbol_entry = symbols.get_symbol(symbol_id);
+        let symbol_entry = pass.symbols.get_symbol(symbol_id);
         let Some(key) = symbol_entry.key else {
             return Err(missing);
         };
-        let Some(ambient_sources) =
-            self.get_ambient_lib_symbol_sources_for_space_order(profile_id, key, space_order)
-        else {
+        let Some(ambient_sources) = self.get_ambient_lib_symbol_sources_for_space_order(
+            pass.profile_id,
+            key,
+            pass.space_order,
+        ) else {
             return Err(missing);
         };
 
         // search ambient sources for a matching path
         for source_symbol in ambient_sources {
             // avoid re locking the same module while holding its symbols lock
-            if source_symbol.module_id == module.id {
+            if source_symbol.module_id == pass.module.id {
                 // skip the original symbol, then try resolving within this module scope
                 if source_symbol.local_id == symbol_id {
                     continue;
                 }
 
                 // resolve using the existing symbols table
-                match self.resolve_relative_symbol(
-                    module,
-                    profile_id,
-                    node,
+                match self.resolve_relative_symbol_from_state(
+                    pass,
                     source_symbol.local_id,
                     path,
-                    space_order,
-                    symbols,
                     scope_cache.as_deref_mut(),
                 ) {
                     Ok((resolved_id, remaining)) => {
@@ -867,24 +910,27 @@ impl Compiler {
 
             // prepare and read the source module before resolving
             self.require_resolve_module_prepare_if_needed(
-                module.id,
+                pass.module.id,
                 source_symbol.module_id,
-                profile_id,
+                pass.profile_id,
             )?;
             let source_module = self.program.modules.get(source_symbol.module_id);
             let source_module = source_module.read();
-            let source_dir = source_module.dir(profile_id);
+            let source_dir = source_module.dir(pass.profile_id);
             let source_symbols = source_dir.symbols.read();
+            let source_pass = ResolveState {
+                module: &source_module,
+                profile_id: pass.profile_id,
+                node: pass.node,
+                space_order: pass.space_order,
+                symbols: &source_symbols,
+            };
 
             // resolve using the source module symbols table
-            match self.resolve_relative_symbol(
-                &source_module,
-                profile_id,
-                node,
+            match self.resolve_relative_symbol_from_state(
+                source_pass,
                 source_symbol.local_id,
                 path,
-                space_order,
-                &source_symbols,
                 scope_cache.as_deref_mut(),
             ) {
                 Ok((resolved_id, remaining)) => {
@@ -898,15 +944,12 @@ impl Compiler {
         Err(missing)
     }
 
-    pub(crate) fn resolve_relative_symbol(
+    /// Resolve a relative symbol from one pass state.
+    fn resolve_relative_symbol_from_state(
         &self,
-        module: &Module,
-        profile_id: ProfileId,
-        node: GlobalNodeIdAny,
+        pass: ResolveState<'_>,
         symbol_id: LocalSymbolId,
         path: &Path,
-        space_order: SymbolSpaceOrder,
-        symbols: &SymbolTable,
         mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<(LocalSymbolId, Option<Path>)> {
         // track the current symbol as we walk segments
@@ -915,7 +958,7 @@ impl Compiler {
 
         // walk the path segments
         for (i, &segment) in segments.iter().enumerate() {
-            let symbol = symbols.get_symbol(current_symbol_id);
+            let symbol = pass.symbols.get_symbol(current_symbol_id);
 
             // stop traversing when the symbol is not a namespace
             if symbol.kind != SymbolKind::Namespace {
@@ -925,13 +968,13 @@ impl Compiler {
 
             // resolve the next segment in the namespace scope
             let key = StaticKey::Name(segment);
-            let scope = symbols.get_scope_by_id(symbol.scope.0);
+            let scope = pass.symbols.get_scope_by_id(symbol.scope.0);
             let (preferred, fallback) = self.find_symbol_in_scope_cached(
                 symbol.scope.0,
                 scope,
                 key,
-                space_order,
-                symbols,
+                pass.space_order,
+                pass.symbols,
                 LocalScopeMark::end(),
                 scope_cache.as_deref_mut(),
             );
@@ -944,7 +987,7 @@ impl Compiler {
 
             // allow merged symbols to satisfy value or type paths
             if let Some(group_id) = symbol.merge_group {
-                let group_symbols = symbols.merge_group_symbols(group_id);
+                let group_symbols = pass.symbols.merge_group_symbols(group_id);
                 let match_space = |requested: SymbolSpace, actual: SymbolSpace| match requested {
                     SymbolSpace::Type => {
                         matches!(actual, SymbolSpace::Type | SymbolSpace::TypeValue)
@@ -956,9 +999,9 @@ impl Compiler {
                     SymbolSpace::Label => false,
                 };
 
-                for requested_space in space_order.spaces() {
+                for requested_space in pass.space_order.spaces() {
                     let candidate = group_symbols.iter().copied().find(|group_symbol| {
-                        let merged_symbol = symbols.get_symbol(*group_symbol);
+                        let merged_symbol = pass.symbols.get_symbol(*group_symbol);
                         merged_symbol.kind != SymbolKind::Namespace
                             && match_space(*requested_space, merged_symbol.space)
                     });
@@ -970,15 +1013,15 @@ impl Compiler {
             }
 
             // fall back to runtime member access in JS/TS value paths
-            if self.allow_runtime_namespace_member_fallback(module, space_order) {
+            if self.allow_runtime_namespace_member_fallback(pass.module, pass.space_order) {
                 let remaining = path.slice(i..);
                 return Ok((current_symbol_id, Some(remaining)));
             }
 
             // report a missing symbol in the namespace scope
             return Err(ResolveError::MissingSymbol {
-                node: node.into_anchored(Some(profile_id)),
-                scope: symbol.scope.0.into_global(module.id),
+                node: pass.node.into_anchored(Some(pass.profile_id)),
+                scope: symbol.scope.0.into_global(pass.module.id),
                 via_module: None,
                 key,
             });
@@ -1004,6 +1047,13 @@ impl Compiler {
         tree: &mut NodeTree,
         cache: &mut ResolveExpressionCache,
     ) -> ResolveResult<Expression> {
+        let pass = ResolveState {
+            module,
+            profile_id: profile,
+            node,
+            space_order,
+            symbols,
+        };
         let first_segment = path.first_segment().expect("path is empty in {node:?}");
         let first_segment_str = self.program.strings.get(first_segment);
         let scope_mark = if module.language_type.is_declaration() {
@@ -1088,14 +1138,10 @@ impl Compiler {
         } else {
             let local_result = {
                 let scope_cache = cache.scope_indices();
-                self.resolve_absolute_symbol(
-                    module,
-                    profile,
-                    node,
+                self.resolve_absolute_symbol_from_state(
+                    pass,
                     scope,
                     StaticKey::Name(first_segment),
-                    space_order,
-                    symbols,
                     Some(scope_cache),
                 )
             };
@@ -1108,15 +1154,11 @@ impl Compiler {
         // if local lookup succeeded, use the local symbol
         if let Ok(local_id) = local_result {
             return self.resolve_local_path(
-                module,
-                profile,
+                pass,
                 expression_id,
-                node,
                 local_id,
                 path,
                 static_arguments,
-                space_order,
-                symbols,
                 tree,
                 Some(cache.scope_indices()),
             );
@@ -1124,12 +1166,10 @@ impl Compiler {
 
         // resolve commonjs runtime paths when local resolution failed
         if let Some(expression) = self.resolve_commonjs_runtime_path(
-            module,
-            profile,
+            pass,
             expression_id,
             path,
             static_arguments.clone(),
-            space_order,
             tree,
         ) {
             return Ok(expression);
@@ -1138,13 +1178,10 @@ impl Compiler {
         // resolve inherited associated type names from enclosing declaration heritage
         if space_order.spaces().contains(&SymbolSpace::Type)
             && let Some(associated_symbol) = self.resolve_heritage_associated_type_symbol(
-                module,
-                profile,
-                node,
+                pass,
                 expression_id,
                 scope,
                 first_segment,
-                symbols,
                 tree,
             )?
         {
@@ -1217,14 +1254,10 @@ impl Compiler {
             let module_mark = LocalScopeMark::end();
             let module_result = {
                 let scope_cache = cache.scope_indices();
-                self.resolve_absolute_symbol(
-                    module,
-                    profile,
-                    node,
+                self.resolve_absolute_symbol_from_state(
+                    pass,
                     (module_scope_id, module_scope, module_mark),
                     StaticKey::Name(first_segment),
-                    space_order,
-                    symbols,
                     Some(scope_cache),
                 )
             };
@@ -1232,15 +1265,11 @@ impl Compiler {
             // return module binding symbols when present
             if let Ok(local_id) = module_result {
                 return self.resolve_local_path(
-                    module,
-                    profile,
+                    pass,
                     expression_id,
-                    node,
                     local_id,
                     path,
                     static_arguments,
-                    space_order,
-                    symbols,
                     tree,
                     Some(cache.scope_indices()),
                 );
@@ -1249,15 +1278,11 @@ impl Compiler {
 
         // try ambient namespace merges when inside a namespace
         if let Some(expr) = self.resolve_ambient_namespace_path(
-            module,
-            profile,
+            pass,
             expression_id,
-            node,
             scope,
             path,
             static_arguments.clone(),
-            space_order,
-            symbols,
             tree,
             Some(cache.scope_indices()),
         )? {
@@ -1278,14 +1303,11 @@ impl Compiler {
             let prelude_symbol =
                 self.resolve_canonical_symbol_chain(profile, node, prelude_symbol)?;
             return self.resolve_prelude_path(
-                module,
+                pass,
                 expression_id,
-                node,
                 prelude_symbol,
-                profile,
                 path,
                 static_arguments,
-                space_order,
                 tree,
             );
         }
@@ -1307,13 +1329,10 @@ impl Compiler {
 
         // resolve ambient lib symbols
         if let Some(expr) = self.resolve_ambient_path(
-            module,
+            pass,
             expression_id,
-            node,
-            profile,
             path,
             static_arguments,
-            space_order,
             tree,
             Some(cache.scope_indices()),
         )? {
@@ -1327,15 +1346,11 @@ impl Compiler {
     /// Resolve a path starting from a local symbol.
     fn resolve_local_path(
         &self,
-        module: &Module,
-        profile_id: ProfileId,
+        pass: ResolveState<'_>,
         expression_id: LocalNodeId<Expression>,
-        node: GlobalNodeIdAny,
         local_id: LocalSymbolId,
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-        space_order: SymbolSpaceOrder,
-        symbols: &SymbolTable,
         tree: &mut NodeTree,
         scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Expression> {
@@ -1345,36 +1360,32 @@ impl Compiler {
         // single-segment path: just return the resolved expression
         if remaining_segments.is_empty() {
             return Ok(self.resolve_symbol_to_expression(
-                module,
+                pass.module,
                 local_id,
                 path,
                 static_arguments,
-                symbols,
+                pass.symbols,
             ));
         }
 
         // multi-segment path: check if first segment is a namespace
-        let symbol = symbols.get_symbol(local_id);
+        let symbol = pass.symbols.get_symbol(local_id);
         if symbol.kind == SymbolKind::Namespace {
             let remaining_path = path.slice(1..);
-            match self.resolve_relative_symbol_with_ambient_merge(
-                module,
-                profile_id,
-                node,
+            match self.resolve_relative_symbol_with_ambient_merge_from_state(
+                pass,
                 local_id,
                 &remaining_path,
-                space_order,
-                symbols,
                 scope_cache,
             ) {
                 Ok((resolved_id, None)) => {
-                    if resolved_id.module_id == module.id {
+                    if resolved_id.module_id == pass.module.id {
                         return Ok(self.resolve_symbol_to_expression(
-                            module,
+                            pass.module,
                             resolved_id.local_id,
                             path,
                             static_arguments,
-                            symbols,
+                            pass.symbols,
                         ));
                     }
 
@@ -1387,13 +1398,13 @@ impl Compiler {
                 Ok((resolved_id, Some(remaining))) => {
                     let resolved_path =
                         path.slice(0..path.segments.len() - remaining.segments.len());
-                    let root_expr = if resolved_id.module_id == module.id {
+                    let root_expr = if resolved_id.module_id == pass.module.id {
                         self.resolve_symbol_to_expression(
-                            module,
+                            pass.module,
                             resolved_id.local_id,
                             &resolved_path,
                             None,
-                            symbols,
+                            pass.symbols,
                         )
                     } else {
                         Expression::GlobalReference {
@@ -1418,8 +1429,13 @@ impl Compiler {
         let root_path = Path {
             segments: vec![first_segment].into(),
         };
-        let root_expr =
-            self.resolve_symbol_to_expression(module, local_id, &root_path, None, symbols);
+        let root_expr = self.resolve_symbol_to_expression(
+            pass.module,
+            local_id,
+            &root_path,
+            None,
+            pass.symbols,
+        );
         let remaining_path = path.slice(1..);
         Ok(self.build_member_chain(
             expression_id,

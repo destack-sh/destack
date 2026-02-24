@@ -344,3 +344,56 @@ exports.helper = helper;
     let state = collect_commonjs_state(&test, module_id);
     assert!(state.named_values.is_empty());
 }
+
+/// Ignore CommonJS assignments that only occur inside nested function scopes.
+#[test]
+fn test_collect_commonjs_state_ignores_nested_scope_assignments() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let module_id = test.add_module(
+        "main.js",
+        r#"
+function selected() {
+    return 1;
+}
+
+function helper() {
+    return 2;
+}
+
+function assignNested() {
+    module.exports = selected;
+    exports.helper = helper;
+}
+"#,
+    );
+
+    test.resolve_module(module_id);
+    test.compile();
+
+    let state = collect_commonjs_state(&test, module_id);
+    assert!(state.default_value.is_none());
+    assert!(state.named_values.is_empty());
+}
+
+/// Ignore CommonJS property writes with non-static computed keys.
+#[test]
+fn test_collect_commonjs_state_ignores_non_static_computed_property_keys() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let module_id = test.add_module(
+        "main.js",
+        r#"
+function helper() {
+    return 2;
+}
+
+const key = "helper";
+module.exports[key] = helper;
+"#,
+    );
+
+    test.resolve_module(module_id);
+    test.compile();
+
+    let state = collect_commonjs_state(&test, module_id);
+    assert!(state.named_values.is_empty());
+}
