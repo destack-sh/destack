@@ -317,6 +317,9 @@ impl Parser {
             self.eat_newlines_maybe()?;
         }
 
+        // allow multiline import heads before bindings or bare targets
+        self.eat_newlines_maybe()?;
+
         // kind
         let kind = if self.should_parse_import_type_modifier() {
             self.bump(); // eat type
@@ -370,6 +373,9 @@ impl Parser {
             self.eat_keyword(Keyword::From)?;
             self.eat_newlines_maybe()?;
         }
+
+        // allow bare import targets on the next line (`import\n"foo"` and comment separated forms)
+        self.eat_newlines_maybe()?;
         let (target, target_span) = self.eat_dependency_target_with_span()?;
 
         // arguments
@@ -965,16 +971,21 @@ impl Parser {
             self.bump(); // eat default
 
             // alias
-            let (alias, alias_span) =
-                if self.is_keyword(Keyword::As) || self.peek_is(TokenType::Colon) {
-                    self.bump(); // eat `as` or `:`
-                    self.eat_newlines_maybe()?;
-                    let (alias, alias_span) =
-                        self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
-                    (Some(alias), Some(alias_span))
-                } else {
-                    (None, None)
-                };
+            let has_alias_separator = self.is_keyword(Keyword::As)
+                || self.peek_is(TokenType::Colon)
+                || self.peek_is(TokenType::Newline)
+                    && (self.is_keyword_after_newlines(Keyword::As)
+                        || self.is_token_after_newlines(self.pos(), TokenType::Colon));
+            let (alias, alias_span) = if has_alias_separator {
+                self.eat_newlines_maybe()?;
+                self.bump(); // eat `as` or `:`
+                self.eat_newlines_maybe()?;
+                let (alias, alias_span) =
+                    self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
+                (Some(alias), Some(alias_span))
+            } else {
+                (None, None)
+            };
 
             // item
             let item = self.tree.insert(
@@ -998,16 +1009,21 @@ impl Parser {
             let (name, name_span) = self.eat_dependency_item_name_with_span()?;
 
             // alias
-            let (alias, alias_span) =
-                if self.is_keyword(Keyword::As) || self.peek_is(TokenType::Colon) {
-                    self.bump(); // eat `as` or `:`
-                    self.eat_newlines_maybe()?;
-                    let (alias, alias_span) =
-                        self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
-                    (Some(alias), Some(alias_span))
-                } else {
-                    (None, None)
-                };
+            let has_alias_separator = self.is_keyword(Keyword::As)
+                || self.peek_is(TokenType::Colon)
+                || self.peek_is(TokenType::Newline)
+                    && (self.is_keyword_after_newlines(Keyword::As)
+                        || self.is_token_after_newlines(self.pos(), TokenType::Colon));
+            let (alias, alias_span) = if has_alias_separator {
+                self.eat_newlines_maybe()?;
+                self.bump(); // eat `as` or `:`
+                self.eat_newlines_maybe()?;
+                let (alias, alias_span) =
+                    self.eat_dependency_item_alias_with_span(allow_literal_alias)?;
+                (Some(alias), Some(alias_span))
+            } else {
+                (None, None)
+            };
 
             // item
             let item = self.tree.insert(
@@ -1447,6 +1463,47 @@ import {
     #[test]
     fn test_parse_import_type_empty_block() {
         let mut test = TestParser::new("import type {} from 'foo'");
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
+            assert!(items.is_empty());
+            assert_import_target_string(&parser, target, "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_import_named_alias_after_newline_comment() {
+        let mut test =
+            TestParser::new("import {\n  a\n  // keep alias on next line\n  as b\n} from 'foo'");
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
+            assert_eq!(items.len(), 1);
+            assert_import_target_string(&parser, target, "foo");
+            assert_node!(parser.tree, items[0], DependencyItem { name: Some(name), alias: Some(alias), .. } => {
+                assert_string!(parser, name.string(), "a");
+                assert_string!(parser, *alias, "b");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_bare_import_with_newline_after_comment() {
+        let mut test = TestParser::new("import // keep target on next line\n'foo'");
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { items, target, .. } => {
+            assert!(items.is_empty());
+            assert_import_target_string(&parser, target, "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_import_block_with_newline_after_comment() {
+        let mut test = TestParser::new("import // keep binding on next line\n{} from 'foo'");
         let mut parser = test.prepare();
         let import_id = parser.eat_import().unwrap();
 
