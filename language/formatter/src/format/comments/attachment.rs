@@ -11,7 +11,7 @@ use crate::format::comments::blank::blank_trivia_attachment;
 use crate::format::comments::boundary::{
     CommentAttachment, CommentAttachmentOwners, CommentSeamContext, CommentSeamData,
     CommentSeamKeyword, CommentSeamOwnerCache, comment_seam_owner, delimiters_match,
-    is_close_delimiter_token, is_open_delimiter_token,
+    is_close_delimiter_token, is_open_delimiter_token, previous_non_newline_token_index,
 };
 use crate::format::comments::declaration::try_attach_comment_declaration;
 use crate::format::comments::expression::try_attach_comment_expression;
@@ -930,7 +930,15 @@ fn try_attach_own_line_comment(
 
     let tree = context.tree;
     let parents: &NodeParentIndex = context.parents;
-    let left_owner = owners.left;
+    let left_owner = owners.left.or_else(|| {
+        context
+            .token_before
+            .and_then(|token_index| {
+                previous_non_newline_token_index(context.semantic_tokens, token_index)
+            })
+            .and_then(|token_index| context.semantic_tokens.get(token_index))
+            .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+    });
     let right_owner = owners.right;
     let token_before_span = context.token_before_span.map(|token| token.span);
     let token_after_span = context.token_after_span.map(|token| token.span);

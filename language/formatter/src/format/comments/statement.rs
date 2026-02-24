@@ -1,12 +1,12 @@
-use ast::{
+use destack_ast::{
     AnnotationPosition, Block, Expression, LocalNodeId, NodeParentIndex, NodeTree, NodeType,
     TokenType,
 };
-use destack_ast as ast;
 
 use crate::format::comments::boundary::{
     CommentAttachment, CommentAttachmentOwners, CommentSeamContext, CommentSeamData,
     CommentSeamKeyword, CommentSeamOwnerCache, comment_seam_owner,
+    previous_non_newline_token_index,
 };
 use crate::format::comments::declaration::try_attach_comment_declaration_return_type_seam;
 use crate::format::comments::ownership::{
@@ -124,27 +124,104 @@ fn control_head_line_comment_target(
     }
 }
 
-/// Return whether a semicolon guard seam should prefer the right owner.
-fn is_semicolon_guard_right_preferred_for_expression(
+/// Resolve one own-line semicolon-guard comment across both seam shapes.
+pub(crate) fn try_attach_comment_semicolon_guard_own_line(
     tree: &NodeTree,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let expression = match tree.get(expression_id) {
-        Expression::Statement(inner_id) => tree.get(*inner_id),
-        expression => expression,
-    };
+    parents: &NodeParentIndex,
+    context: &CommentSeamContext<'_>,
+    seam: &CommentSeamData,
+    owners: CommentAttachmentOwners,
+) -> Option<CommentAttachment> {
+    if !seam.has_leading_newline || !seam.comment_is_line {
+        return None;
+    }
+    if !seam.token_before_is(TokenType::Semicolon) {
+        return None;
+    }
+    if !matches!(
+        seam.token_after_type,
+        Some(TokenType::OpenBracket | TokenType::OpenParenthesis)
+    ) {
+        return None;
+    }
 
-    matches!(
-        expression,
-        Expression::If {
-            kind: ast::IfKind::If,
-            ..
-        } | Expression::While { .. }
-            | Expression::ForEach { .. }
-            | Expression::For { .. }
-            | Expression::Loop { .. }
-            | Expression::Labelled { .. }
-    )
+    let token_before_span = context.token_before_span.map(|token| token.span);
+    let token_after_span = context.token_after_span;
+    let left_owner_from_previous_non_newline_token = context
+        .token_before
+        .and_then(|token_index| {
+            previous_non_newline_token_index(context.semantic_tokens, token_index)
+        })
+        .and_then(|token_index| context.semantic_tokens.get(token_index))
+        .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span));
+    let left_semicolon_owner = owners.left.or(left_owner_from_previous_non_newline_token);
+    let right_expression_owner = token_after_span
+        .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+        .or(owners.right)
+        .and_then(|target_owner| {
+            if tree.get_node_type(target_owner) == NodeType::Expression {
+                Some(target_owner)
+            } else {
+                promote_owner_to_node_type_ancestor(
+                    tree,
+                    parents,
+                    target_owner,
+                    NodeType::Expression,
+                )
+            }
+        });
+    let left_owner_is_statement_expression = left_semicolon_owner.is_some_and(|owner| {
+        tree.get_node_type(owner) == NodeType::Expression
+            && matches!(
+                tree.get(LocalNodeId::<Expression>::new(owner)),
+                Expression::Statement(_)
+            )
+    });
+    let left_owner_is_declaration_or_member = left_semicolon_owner.is_some_and(|owner| {
+        matches!(
+            tree.get_node_type(owner),
+            NodeType::Declaration | NodeType::Member
+        ) || promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Declaration)
+            .is_some()
+            || promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member).is_some()
+    });
+    let comment_column = context
+        .file
+        .get_position(context.trivia.span.start)
+        .map_or(1, |(_, column)| column);
+    let should_keep_left_owner = left_owner_is_statement_expression
+        || left_owner_is_declaration_or_member
+        || comment_column > 1;
+
+    if let Some(target_owner) = left_semicolon_owner
+        && should_keep_left_owner
+    {
+        let mut target_owner =
+            normalize_owner_with_shared_end(tree, parents, target_owner, token_before_span);
+        if let Some(member_owner) =
+            promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Member)
+        {
+            target_owner = member_owner;
+        } else if let Some(declaration_owner) =
+            promote_owner_to_node_type_ancestor(tree, parents, target_owner, NodeType::Declaration)
+        {
+            target_owner = declaration_owner;
+        }
+
+        return Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary));
+    }
+
+    if let Some(target_owner) = right_expression_owner {
+        return Some((Some(target_owner), AnnotationPosition::BlockPrefix));
+    }
+
+    if let Some(target_owner) = left_semicolon_owner {
+        let target_owner =
+            normalize_owner_with_shared_end(tree, parents, target_owner, token_before_span);
+        return Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary));
+    }
+
+    None
 }
 
 /// Resolve statement-prefix seam comment rules.
@@ -158,8 +235,6 @@ pub(crate) fn try_attach_comment_statement_prefix(
 ) -> Option<CommentAttachment> {
     let left_owner = owners.left;
     let right_owner = owners.right;
-    let token_after_span = context.token_after_span;
-    let token_before_span = context.token_before_span.map(|token| token.span);
 
     // own line trailing separator comments before `)` should stay on the container item
     if seam.has_leading_newline
@@ -182,59 +257,11 @@ pub(crate) fn try_attach_comment_statement_prefix(
     }
 
     // own line comments before semicolon guards stay with the guarded right expression
-    if seam.has_leading_newline && seam.token_after_is(TokenType::Semicolon) {
-        let is_left_owner_right_preferred = left_owner.is_some_and(|owner| {
-            tree.get_node_type(owner) == NodeType::Expression
-                && is_semicolon_guard_right_preferred_for_expression(
-                    tree,
-                    LocalNodeId::<Expression>::new(owner),
-                )
-        });
-
-        if (is_left_owner_right_preferred || left_owner.is_none())
-            && let Some(target_owner) = token_after_span
-                .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
-                .or(right_owner)
-        {
-            let target_owner = if tree.get_node_type(target_owner) == NodeType::Expression {
-                Some(target_owner)
-            } else {
-                promote_owner_to_node_type_ancestor(
-                    tree,
-                    parents,
-                    target_owner,
-                    NodeType::Expression,
-                )
-            };
-
-            if let Some(target_owner) = target_owner {
-                return Some((Some(target_owner), AnnotationPosition::BlockPrefix));
-            }
-        }
-
-        let left_owner_is_statement_expression = left_owner.is_some_and(|owner| {
-            tree.get_node_type(owner) == NodeType::Expression
-                && matches!(
-                    tree.get(LocalNodeId::<Expression>::new(owner)),
-                    Expression::Statement(_)
-                )
-        });
-        let left_owner_is_declaration_or_member = left_owner.is_some_and(|owner| {
-            matches!(
-                tree.get_node_type(owner),
-                NodeType::Declaration | NodeType::Member
-            )
-        });
-
-        if let Some(target_owner) = left_owner {
-            if !left_owner_is_statement_expression && !left_owner_is_declaration_or_member {
-                return None;
-            }
-
-            let target_owner =
-                normalize_owner_with_shared_end(tree, parents, target_owner, token_before_span);
-            return Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary));
-        }
+    if seam.token_after_is(TokenType::Semicolon)
+        && let Some(attachment) =
+            try_attach_comment_semicolon_guard_own_line(tree, parents, context, seam, owners)
+    {
+        return Some(attachment);
     }
 
     // own line comments before switch case labels should attach to the first case expression

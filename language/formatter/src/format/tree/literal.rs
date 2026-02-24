@@ -1,6 +1,6 @@
 use crate::format::expression::{
-    Argument, DestackFormatContext, DestackFormatter, Expression, FormatResult, LocalNodeId,
-    NodeTree, ScalarLiteral, block_indent, empty_line, expand_parent,
+    Argument, Declaration, DestackFormatContext, DestackFormatter, Expression, FormatResult,
+    FunctionKind, LocalNodeId, NodeTree, ScalarLiteral, block_indent, empty_line, expand_parent,
     expression_has_static_type_arguments, format_with, group, hard_line_break, if_group_breaks,
     if_group_fits_on_line, indent, soft_block_indent, soft_line_break, soft_line_break_or_space,
     space, token, transparent_inner_expression,
@@ -150,8 +150,7 @@ fn tree_children_layout(
                     || has_multiple_tree_children
                     || has_multiple_expression_children
                     || has_tree_and_expression_children
-                    || (has_tree_child && has_braced_whitespace_child)
-                    || has_newline_whitespace_text_child));
+                    || (has_tree_child && has_braced_whitespace_child)));
     let force_break_with_fill = !context.options.language_type.is_destack()
         && force_break
         && has_tree_and_text_children
@@ -513,7 +512,7 @@ fn tree_children_render_mode(
     layout: TreeChildrenLayout,
     element_count: usize,
 ) -> TreeChildrenRenderMode {
-    if layout.force_break && !layout.force_break_with_fill && element_count > 1 {
+    if layout.force_break && !layout.force_break_with_fill {
         return TreeChildrenRenderMode::Multiline;
     }
 
@@ -653,6 +652,18 @@ pub(crate) fn tree_literal_wraps_on_break(
                         ..
                     }
             )
+        }
+        NodeType::Declaration => {
+            let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+            let is_lambda_body = matches!(
+                context.tree.get(declaration_id),
+                Declaration::Function {
+                    signature,
+                    body: Some(body_id),
+                    ..
+                } if signature.kind == FunctionKind::Lambda && body_id.id == node_id.id
+            );
+            !is_lambda_body
         }
         NodeType::Declarator => true,
         _ => true,

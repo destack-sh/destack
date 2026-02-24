@@ -926,6 +926,8 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                 let should_keep_multiline = has_parenthesized_leading_inner_comments;
                 let should_keep_multiline =
                     should_keep_multiline || expression_is_ternary_condition(f.context(), node_id);
+                let should_keep_multiline =
+                    should_keep_multiline || expression_is_ternary_branch(f.context(), node_id);
                 let should_keep_multiline = should_keep_multiline
                     || await_like_expression_prefers_multiline_wrapper(
                         f.context(),
@@ -1014,6 +1016,33 @@ fn expression_is_ternary_condition(
     };
 
     condition.id == node_id.id
+}
+
+/// Return whether one expression is a then or else branch of a ternary expression.
+fn expression_is_ternary_branch(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
+    let Expression::If {
+        kind: IfKind::Ternary,
+        then_expression,
+        else_expression,
+        ..
+    } = parent_expression
+    else {
+        return false;
+    };
+
+    then_expression.id == node_id.id
+        || else_expression.is_some_and(|else_id| else_id.id == node_id.id)
 }
 
 /// Return whether one parenthesized expression continues into a postfix chain parent.

@@ -14,8 +14,8 @@ use crate::format::expression::{
     LocalNodeId, ParenthesizedDropMode, TokenType, TypeBinaryOperator,
     expression_has_leading_prefix_comment, format_expression, format_with, group, hard_line_break,
     if_group_breaks, indent, should_drop_parenthesized, soft_line_break_or_space, space, token,
-    type_binary_is_parenthesized_new_callee, type_binary_is_parenthesized_statement_expression,
-    type_binary_is_statement_expression,
+    transparent_inner_expression, type_binary_is_parenthesized_new_callee,
+    type_binary_is_parenthesized_statement_expression, type_binary_is_statement_expression,
 };
 use crate::format::operator::{
     AnnotationPosition, NodeType, expression_is_trivial_inline_without_annotations,
@@ -172,6 +172,38 @@ pub(crate) fn expression_has_inline_block_prefix_star_comment(
     })
 }
 
+/// Return whether an expression ends with one inline postfix-boundary `/* ... */` annotation that
+/// needs binary-formatter owned spacing before the operator token.
+pub(crate) fn expression_has_inline_block_postfix_boundary_star_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(annotations) = context.annotations(expression_id) else {
+        return false;
+    };
+
+    annotations.into_iter().any(|annotation_id| {
+        let annotation = context.annotation(annotation_id);
+        let Annotation::Comment { node, position } = annotation else {
+            return false;
+        };
+        if !matches!(
+            position,
+            AnnotationPosition::LinePostfixBoundary | AnnotationPosition::BlockPostfix
+        ) {
+            return false;
+        }
+
+        let comment = context.tree.get::<Comment>(node);
+        if comment.style != CommentStyle::Star {
+            return false;
+        }
+
+        let annotation_span = context.annotation_span(annotation_id);
+        !context.has_newline(annotation_span)
+    })
+}
+
 /// Return whether one type-binary node is a static type argument under a remap path seam.
 fn type_binary_is_static_argument_under_remap_path(
     context: &DestackFormatContext<'_>,
@@ -237,9 +269,14 @@ pub(crate) fn write_space_after_binary_left_if_needed<'ast>(
     left: LocalNodeId<Expression>,
     operator: BinaryOperator,
 ) -> FormatResult<()> {
+    let allow_inline_block_postfix_star_space =
+        expression_has_inline_block_postfix_boundary_star_comment(f.context(), left);
     let allow_logical_space_after_line_comment = is_logical_binary_operator(operator)
         && expression_has_line_postfix_slash_comment(f.context(), left);
-    if f.context().has_postfix_annotation(left) && !allow_logical_space_after_line_comment {
+    if f.context().has_postfix_annotation(left)
+        && !allow_logical_space_after_line_comment
+        && !allow_inline_block_postfix_star_space
+    {
         return Ok(());
     }
 
@@ -396,10 +433,14 @@ pub(crate) fn try_format_logical_parenthesized_cases<'ast>(
     let left_has_multiline_parenthesized_tail = f.context().has_newline(left_span)
         && last_non_trivia_token_in_span(f.context(), left_span)
             .is_some_and(|token| token.token.ty == TokenType::CloseParenthesis);
-    let right_expression = f.context().tree.get(right);
     let right_is_inline_trivial =
         expression_is_trivial_inline_without_annotations(f.context(), right);
     let right_has_prefix = f.context().has_prefix_annotation(right);
+    let right_inner_expression = transparent_inner_expression(f.context(), right);
+    let right_is_tree_expression = matches!(
+        f.context().tree.get(right_inner_expression),
+        Expression::TreeExpression { .. }
+    );
 
     // parenthesized multiline left tail with short `&&` right side
     if left_has_multiline_parenthesized_tail
@@ -440,28 +481,22 @@ pub(crate) fn try_format_logical_parenthesized_cases<'ast>(
         return Ok(true);
     }
 
-    // keep tree rhs inline when the rhs is parenthesized tree
-    let is_parenthesized_tree = matches!(
-        right_expression,
-        Expression::Parenthesized { expression }
-            if matches!(f.context().tree.get(*expression), Expression::TreeExpression { .. })
-    );
-    if !is_parenthesized_tree {
-        return Ok(false);
+    // keep `&& (` and `|| (` attached for grouped and jsx-like right branches
+    if right_is_tree_expression && !right_has_prefix {
+        write!(
+            f,
+            [group(&format_args![
+                left,
+                format_with(|f| write_space_after_binary_left_if_needed(f, left, operator)),
+                operator,
+                space(),
+                right
+            ])]
+        )?;
+        return Ok(true);
     }
 
-    write!(
-        f,
-        [group(&format_args![
-            left,
-            space(),
-            operator,
-            space(),
-            right
-        ])]
-    )?;
-
-    Ok(true)
+    Ok(false)
 }
 
 /// Return whether a union expression is wrapped by transparent parenthesized ancestors.
@@ -576,7 +611,7 @@ pub(crate) fn format_leading_pipe_union<'ast>(
         for (index, operand) in operands.iter().enumerate() {
             let is_first_operand = index == 0;
 
-            // first operand: add a leading line and pipe only in broken groups
+            // first operand: print a leading `|` only in broken groups
             if is_first_operand {
                 let first_operand_has_prefix_annotations =
                     f.context().has_prefix_annotation(operand.expression);
@@ -1216,6 +1251,12 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
         is_logical_binary_operator(operand_operator)
             && expression_has_line_postfix_slash_comment(f.context(), expression_id)
     });
+    let left_inline_block_postfix_comment_allows_space =
+        previous_expression.is_some_and(|expression_id| {
+            expression_has_inline_block_postfix_boundary_star_comment(f.context(), expression_id)
+        });
+    let left_postfix_comment_allows_space =
+        left_logical_comment_allows_space || left_inline_block_postfix_comment_allows_space;
 
     // elementwise intersections with grouped multiline left operand
     if operand_operator == BinaryOperator::ElementwiseAnd
@@ -1269,7 +1310,7 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
 
     // logical operators that should trail current seams
     if current_prefers_trailing_operator {
-        if !has_postfix || left_logical_comment_allows_space {
+        if !has_postfix || left_postfix_comment_allows_space {
             write!(f, [space()])?;
         } else if previous_requires_type_grouping_break || previous_has_line_postfix_slash_comment {
             write!(f, [hard_line_break()])?;
@@ -1341,7 +1382,7 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
 
     // seams after previous prefix annotations
     if previous_has_prefix_annotation {
-        if !has_postfix || (!is_type_binary && left_logical_comment_allows_space) {
+        if !has_postfix || (!is_type_binary && left_postfix_comment_allows_space) {
             write!(f, [space()])?;
         } else if previous_requires_type_grouping_break || previous_has_line_postfix_slash_comment {
             write!(f, [hard_line_break()])?;
@@ -1387,7 +1428,7 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
                     } else {
                         write!(f, [soft_line_break_or_space()])?;
                     }
-                } else if left_logical_comment_allows_space {
+                } else if left_postfix_comment_allows_space {
                     write!(f, [space()])?;
                 } else if previous_requires_type_grouping_break
                     || previous_has_line_postfix_slash_comment
