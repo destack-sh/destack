@@ -7,7 +7,7 @@ use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{
     ImportEdgeKind, Loader, Module, ModuleSource, Package, PackageKind, ProfileId, ProfileKey,
-    Runtime, TsCompilerOptions,
+    TsCompilerOptions,
 };
 
 use crate::import::{
@@ -21,47 +21,9 @@ const BUILTIN_EXTENSIONS: &[&str] = &[
     ".d.ts", ".d.ds", ".ds", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".json", ".node",
 ];
 
-/// Node protocol alias modules mapped to destack builtin paths.
-const NODE_ALIAS_MODULES: &[(&str, &str)] = &[
-    ("assert", "assert"),
-    ("buffer", "buffer"),
-    ("console", "console"),
-    ("crypto", "crypto"),
-    ("fs", "fs"),
-    ("net", "net"),
-    ("os", "os"),
-    ("path", "path"),
-    ("process", "process"),
-    ("stream", "stream"),
-    ("timers", "timers"),
-    ("url", "url"),
-    ("util", "util"),
-    ("vm", "vm"),
-    ("worker_threads", "worker"),
-];
-
-/// Bun protocol alias modules mapped to destack builtin paths.
-const BUN_ALIAS_MODULES: &[(&str, &str)] = &[
-    ("assert", "assert"),
-    ("buffer", "buffer"),
-    ("console", "console"),
-    ("crypto", "crypto"),
-    ("fs", "fs"),
-    ("net", "net"),
-    ("os", "os"),
-    ("path", "path"),
-    ("process", "process"),
-    ("stream", "stream"),
-    ("sys", "sys"),
-    ("timers", "timers"),
-    ("url", "url"),
-    ("util", "util"),
-    ("vm", "vm"),
-    ("worker_threads", "worker"),
-];
-
-/// Deno protocol alias modules mapped to destack builtin paths.
-const DENO_ALIAS_MODULES: &[(&str, &str)] = &[];
+/// Protocol namespace roots mapped to builtin module roots.
+const BUILTIN_NAMESPACE_ROOTS: &[(&str, &str)] =
+    &[("destack", "lib/destack"), ("platform", "lib/platform")];
 
 /// Source module resolve policy derived from package and tsconfig ownership.
 #[derive(Debug, Clone)]
@@ -87,7 +49,7 @@ impl Compiler {
     /// If the module already exists, the override is ignored.
     pub fn resolve_specifier_to_module(
         &self,
-        profile_id: Option<ProfileId>,
+        profile_id: ProfileId,
         specifier: StringId,
         source_module: Option<ModuleId>,
         kind: DependencyKind,
@@ -109,28 +71,19 @@ impl Compiler {
     /// If the module already exists, the override is ignored (Option B from plan).
     pub fn resolve_specifier_to_module_with_loader(
         &self,
-        profile_id: Option<ProfileId>,
+        profile_id: ProfileId,
         specifier: StringId,
         source_module: Option<ModuleId>,
         kind: DependencyKind,
         edge_kind: ImportEdgeKind,
         loader_override: Option<Loader>,
     ) -> ImportResult<ModuleId> {
-        let profile_id = profile_id
-            .or_else(|| self.profile_id_for_resolution(source_module))
-            .unwrap_or_else(|| {
-                self.program
-                    .default_profile_id_for_module(self.program.root_module_id)
-            });
         let specifier_str = self.program.strings.get(specifier).to_string();
         let profile_key = self.program.profile(profile_id).key.clone();
-        let runtime = profile_key.runtime;
         let source_language_type = self.source_language_type_for_resolution(source_module);
 
-        // resolve protocol specifiers (destack:, node:, bun:, deno:)
-        if let Some(module_id) =
-            self.resolve_protocol_specifier(&specifier_str, runtime, &profile_key)
-        {
+        // resolve protocol specifiers (destack:, platform:)
+        if let Some(module_id) = self.resolve_protocol_specifier(&specifier_str, &profile_key) {
             return Ok(module_id);
         }
 
@@ -225,6 +178,7 @@ impl Compiler {
     /// Resolve a specifier to value and type targets with explicit edge semantics.
     pub(crate) fn resolve_specifier_to_module_resolution(
         &self,
+        profile_id: ProfileId,
         specifier: StringId,
         source_module: Option<ModuleId>,
         edge_kind: ImportEdgeKind,
@@ -239,7 +193,7 @@ impl Compiler {
         // resolve value and type targets through standard resolver options
         let value_target = self
             .resolve_specifier_to_module_with_loader(
-                None,
+                profile_id,
                 specifier,
                 source_module,
                 DependencyKind::Value,
@@ -250,7 +204,7 @@ impl Compiler {
             .map(ModuleTarget::Module);
         let mut type_target = self
             .resolve_specifier_to_module_with_loader(
-                None,
+                profile_id,
                 specifier,
                 source_module,
                 DependencyKind::Type,
@@ -392,44 +346,31 @@ impl Compiler {
         None
     }
 
-    /// Resolve a protocol specifier (destack:, node:, bun:, deno:) to a builtin module.
+    /// Resolve a protocol specifier (destack:, platform:) to a builtin module.
     fn resolve_protocol_specifier(
         &self,
         specifier: &str,
-        runtime: Runtime,
         profile_key: &destack_workspace::ProfileKey,
     ) -> Option<ModuleId> {
         let (protocol, raw_path) = specifier.split_once(':')?;
         let raw_path = raw_path.trim_start_matches('/');
-
-        let is_destack = matches!(protocol, "destack");
-        let is_alias = matches!(protocol, "node" | "bun" | "deno");
-        if !is_destack && !is_alias {
+        let Some((_, root)) = BUILTIN_NAMESPACE_ROOTS
+            .iter()
+            .find(|(namespace, _)| *namespace == protocol)
+        else {
             return None;
-        }
-
-        // protocol aliases are runtime-specific host shims
-        if is_alias && !runtime.is_native() {
-            return None;
-        }
-
-        // map protocol aliases to their destack builtin path roots
-        let alias_path = if is_destack {
-            raw_path.to_string()
-        } else {
-            Self::protocol_alias_target(protocol, raw_path)?
         };
 
-        // normalize to destack scheme
-        let path = if alias_path.is_empty() {
+        // normalize empty protocol imports to the namespace entrypoint
+        let path = if raw_path.is_empty() {
             "index".to_string()
         } else {
-            alias_path
+            raw_path.to_string()
         };
 
-        // load destack builtin lib for native runtime
+        // load the namespace builtin lib first
         let builtins = self.program.builtins.as_ref()?;
-        let lib_name = "destack";
+        let lib_name = protocol;
         builtins.load_lib(
             lib_name,
             self.program.files.clone(),
@@ -437,8 +378,8 @@ impl Compiler {
             profile_key,
         )?;
 
-        // resolve destack modules under lib/destack
-        let base_path = format!("lib/destack/{path}");
+        // resolve namespace modules under their builtin root
+        let base_path = format!("{root}/{path}");
         let base_uri = Uri::from_string(format!("builtin://{base_path}"));
 
         // try exact path
@@ -463,11 +404,6 @@ impl Compiler {
         }
 
         None
-    }
-
-    /// Resolve a profile id for protocol routing.
-    fn profile_id_for_resolution(&self, source_module: Option<ModuleId>) -> Option<ProfileId> {
-        source_module.map(|module_id| self.program.default_profile_id_for_module(module_id))
     }
 
     /// Resolve a path to a ModuleId, registering a blank module if needed.
@@ -876,31 +812,6 @@ impl Compiler {
             .and_then(|name| name.to_str())
             .unwrap_or("synthetic");
         format!("<{name}>")
-    }
-
-    /// Map one protocol alias specifier to a destack builtin path.
-    fn protocol_alias_target(protocol: &str, path: &str) -> Option<String> {
-        let (module, suffix) = path
-            .split_once('/')
-            .map_or((path, ""), |(head, tail)| (head, tail));
-        let target_module = match protocol {
-            "node" => NODE_ALIAS_MODULES
-                .iter()
-                .find_map(|(alias, target)| (*alias == module).then_some(*target)),
-            "bun" => BUN_ALIAS_MODULES
-                .iter()
-                .find_map(|(alias, target)| (*alias == module).then_some(*target)),
-            "deno" => DENO_ALIAS_MODULES
-                .iter()
-                .find_map(|(alias, target)| (*alias == module).then_some(*target)),
-            _ => None,
-        }?;
-
-        if suffix.is_empty() {
-            Some(target_module.to_string())
-        } else {
-            Some(format!("{target_module}/{suffix}"))
-        }
     }
 
     /// Normalize one triple slash `reference lib` target to a builtin lib name.

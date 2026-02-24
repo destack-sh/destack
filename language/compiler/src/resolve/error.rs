@@ -101,6 +101,52 @@ pub enum ResolveError {
         node: AnchoredGlobalNodeId,
         value: String,
     },
+
+    /// Unknown protocol scheme in an import specifier.
+    #[error(code = "ER204", message = "unknown protocol scheme '{scheme}'")]
+    UnknownProtocolScheme {
+        node: AnchoredGlobalNodeId,
+        scheme: StringId,
+    },
+
+    /// Builtin module is not available for the current runtime.
+    #[error(
+        code = "ER205",
+        message = "builtin module '{target}' is not supported for runtime '{runtime}'"
+    )]
+    UnsupportedBuiltinModule {
+        node: AnchoredGlobalNodeId,
+        target: StringId,
+        runtime: String,
+    },
+
+    /// Unknown builtin module in a recognized protocol namespace.
+    #[error(code = "ER206", message = "no such built-in module: {target}")]
+    UnknownBuiltinModule {
+        node: AnchoredGlobalNodeId,
+        target: StringId,
+    },
+
+    /// Bare builtin module import must use an explicit protocol prefix.
+    #[error(
+        code = "ER207",
+        message = "builtin module '{target}' must use the '{suggested}' protocol form"
+    )]
+    UnprefixedBuiltinModule {
+        node: AnchoredGlobalNodeId,
+        target: StringId,
+        suggested: StringId,
+    },
+
+    /// Internal protocol import is disabled by compiler policy.
+    #[error(
+        code = "ER208",
+        message = "internal module import '{target}' is disabled by compiler policy"
+    )]
+    UnsupportedInternalModule {
+        node: AnchoredGlobalNodeId,
+        target: StringId,
+    },
     // -------------------------------------------------------------------------
     // 3xx: Dependencies / cycles
     // -------------------------------------------------------------------------

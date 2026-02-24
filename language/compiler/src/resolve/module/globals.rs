@@ -439,11 +439,8 @@ impl Compiler {
                     Err(_) if module.is_builtin() && dependency.kind == DependencyKind::Type => {
                         continue;
                     }
-                    Err(_) => {
-                        self.handle_unresolved_module(ResolveError::UnresolvedModule {
-                            node: dependency.node.into_anchored(Some(profile_id)),
-                            target: dependency.target,
-                        });
+                    Err(error) => {
+                        self.handle_unresolved_module(error);
                         continue;
                     }
                 };
@@ -496,20 +493,32 @@ impl Compiler {
         // normalize triple slash reference path directives before specifier resolution
         let target =
             self.resolve_target_for_dependency_source(dependency.source, dependency.target);
-
-        // match direct resolve import edge semantics
         let source_module = self.program.modules.get(module_id);
         let source_module = source_module.read();
+        let target =
+            self.canonical_import_specifier(&source_module, profile_id, dependency.node, target)?;
+
+        // match direct resolve import edge semantics
         let is_typescript_commonjs = source_module.module_format.is_commonjs()
             && source_module.language_type.is_typescript();
         let edge_kind =
             Self::import_edge_kind_for_dependency(dependency.source, is_typescript_commonjs);
 
-        self.resolve_specifier_to_module_resolution(target, Some(module_id), edge_kind, None)
-            .map_err(|_| ResolveError::UnresolvedModule {
-                node: dependency.node.into_anchored(Some(profile_id)),
-                target: dependency.target,
-            })
+        self.resolve_specifier_to_module_resolution(
+            profile_id,
+            target,
+            Some(module_id),
+            edge_kind,
+            None,
+        )
+        .map_err(|_| {
+            self.unresolved_error_for_specifier(
+                dependency.node,
+                profile_id,
+                dependency.target,
+                target,
+            )
+        })
     }
 
     /// Collect module ids from primary and companion resolution targets.
