@@ -18,7 +18,8 @@ use indexmap::IndexMap;
 
 use crate::{
     Loader, Module, ModuleFormat, ModuleRegistry, ModuleSource, Package, PackageKind,
-    PackageRegistry, ProfileId, ProfileKey, SourceType,
+    PackageRegistry, Platform, ProfileId, ProfileKey, Runtime, SourceType, TargetArch, TargetEnv,
+    TargetVendor,
 };
 
 /// A symbol group containing type and value space entries.
@@ -112,6 +113,42 @@ pub struct WellKnownKey {
     pub member: StringId,
     /// The full global key name (like "Symbol.iterator").
     pub global_name: StringId,
+}
+
+/// Key for builtin lib and symbol data.
+/// This intentionally excludes profile diagnostic flags so runtime policy variants
+///  can reuse the same builtin lib graph and symbols, since builtins do not depend on those.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct BuiltinLibKey {
+    /// Output format for builtin selection.
+    output: OutputFormat,
+    /// Runtime for builtin selection.
+    runtime: Runtime,
+    /// Platform for builtin selection.
+    platform: Platform,
+    /// Target architecture for builtin selection.
+    target_arch: Option<TargetArch>,
+    /// Target vendor for builtin selection.
+    target_vendor: Option<TargetVendor>,
+    /// Target environment for builtin selection.
+    target_env: Option<TargetEnv>,
+    /// Normalized lib set.
+    lib: Vec<String>,
+}
+
+impl BuiltinLibKey {
+    /// Build a builtin key from a full profile key.
+    fn from_profile_key(profile_key: &ProfileKey) -> Self {
+        Self {
+            output: profile_key.output,
+            runtime: profile_key.runtime,
+            platform: profile_key.platform,
+            target_arch: profile_key.target_arch.clone(),
+            target_vendor: profile_key.target_vendor.clone(),
+            target_env: profile_key.target_env.clone(),
+            lib: profile_key.lib.clone(),
+        }
+    }
 }
 
 /// Resolved compiler-known symbols for a profile.
@@ -256,27 +293,27 @@ pub struct Builtins {
     pub prelude_module_id: ModuleId,
 
     /// Lib modules cache ((profile, "dom") -> modules).
-    pub lib_module_by_name: DashMap<(ProfileKey, String), Vec<ModuleId>>,
+    lib_module_by_name: DashMap<(BuiltinLibKey, String), Vec<ModuleId>>,
     /// Lib load markers by name.
     /// #Cleanup: can we do better than lib load markers in Builtins?
     /// (It's a little annoying fishy, but we have to protect against concurrent re-entrant loads.)
-    pub lib_loading_by_name: DashMap<(ProfileKey, String), ()>,
+    lib_loading_by_name: DashMap<(BuiltinLibKey, String), ()>,
     /// Lib name for each registered lib module.
     pub lib_name_by_module: DashMap<ModuleId, &'static str>,
     /// Ambient lib modules per profile key.
-    pub ambient_libs_by_profile: DashMap<ProfileKey, Vec<ModuleId>>,
+    ambient_libs_by_profile: DashMap<BuiltinLibKey, Vec<ModuleId>>,
 
     /// Declared lib symbols per profile key.
-    pub declared_lib_symbols_by_profile: DashMap<ProfileKey, IndexMap<StringId, SymbolGroup>>,
+    declared_lib_symbols_by_profile: DashMap<BuiltinLibKey, IndexMap<StringId, SymbolGroup>>,
     /// Ambient lib symbols per profile key (all exported symbols from ambient libs).
-    pub ambient_lib_symbols_by_profile: DashMap<ProfileKey, IndexMap<StringId, SymbolGroup>>,
+    ambient_lib_symbols_by_profile: DashMap<BuiltinLibKey, IndexMap<StringId, SymbolGroup>>,
     /// Ambient lib symbol sources per profile key (all occurrences by key and space).
-    pub ambient_lib_symbol_sources_by_profile:
-        DashMap<ProfileKey, IndexMap<AmbientLibSymbolKey, Vec<GlobalSymbolId>>>,
+    ambient_lib_symbol_sources_by_profile:
+        DashMap<BuiltinLibKey, IndexMap<AmbientLibSymbolKey, Vec<GlobalSymbolId>>>,
     /// Well-known symbols per profile key.
-    pub well_known_by_profile: DashMap<ProfileKey, WellKnownSymbols>,
+    well_known_by_profile: DashMap<BuiltinLibKey, WellKnownSymbols>,
     /// Well-known intrinsic bindings per profile key.
-    pub well_known_intrinsics_by_profile: DashMap<ProfileKey, WellKnownIntrinsics>,
+    well_known_intrinsics_by_profile: DashMap<BuiltinLibKey, WellKnownIntrinsics>,
 
     /// Resolved language items cache (ProfileId, LanguageSymbol -> GlobalSymbolId).
     pub items: DashMap<(ProfileId, LanguageSymbol), GlobalSymbolId>,
@@ -406,6 +443,47 @@ impl Builtins {
             .unwrap_or_else(|| panic!("language item {item:?} not registered"))
     }
 
+    /// Build a builtin lib key from a profile key.
+    fn lib_key(profile_key: &ProfileKey) -> BuiltinLibKey {
+        BuiltinLibKey::from_profile_key(profile_key)
+    }
+
+    /// Check whether all resolved lib caches are present for a profile key.
+    pub fn has_resolved_lib_state(&self, profile_key: &ProfileKey) -> bool {
+        let lib_key = Self::lib_key(profile_key);
+        self.ambient_libs_by_profile.contains_key(&lib_key)
+            && self.declared_lib_symbols_by_profile.contains_key(&lib_key)
+            && self.ambient_lib_symbols_by_profile.contains_key(&lib_key)
+            && self
+                .ambient_lib_symbol_sources_by_profile
+                .contains_key(&lib_key)
+            && self.well_known_by_profile.contains_key(&lib_key)
+    }
+
+    /// Get cached lib modules for a profile key and lib name.
+    pub fn cached_lib_modules_for_profile(
+        &self,
+        profile_key: &ProfileKey,
+        name: &str,
+    ) -> Option<Vec<ModuleId>> {
+        let lib_key = Self::lib_key(profile_key);
+        self.cached_lib_modules(name, &lib_key)
+    }
+
+    /// Resolve the first available type-space well-known symbol from any loaded profile.
+    pub fn first_well_known_type_symbol(
+        &self,
+        well_known: WellKnownSymbol,
+    ) -> Option<GlobalSymbolId> {
+        for entry in self.well_known_by_profile.iter() {
+            let symbols = entry.value();
+            if let Some(symbol_id) = symbols.get_type_symbol(well_known) {
+                return Some(symbol_id);
+            }
+        }
+        None
+    }
+
     /// Load a lib module set (e.g., "dom", "es2024").
     /// Returns None if the lib name is not registered.
     pub fn load_lib(
@@ -431,8 +509,11 @@ impl Builtins {
         profile_key: &ProfileKey,
         loading: &mut HashSet<String>,
     ) -> Option<Vec<ModuleId>> {
+        // derive the cache key shared across policy-only profile variants
+        let lib_cache_key = Self::lib_key(profile_key);
+
         // return cached modules when available
-        if let Some(cached) = self.cached_lib_modules(name, profile_key) {
+        if let Some(cached) = self.cached_lib_modules(name, &lib_cache_key) {
             return Some(cached);
         }
 
@@ -459,13 +540,13 @@ impl Builtins {
         }
 
         // wait if another thread is already loading this lib
-        let loading_key = (profile_key.clone(), name.to_string());
+        let loading_key = (lib_cache_key.clone(), name.to_string());
         if self
             .lib_loading_by_name
             .insert(loading_key.clone(), ())
             .is_some()
         {
-            return self.wait_for_lib_modules(name, profile_key);
+            return self.wait_for_lib_modules(name, &lib_cache_key);
         }
 
         // track this lib for the current load chain
@@ -527,8 +608,10 @@ impl Builtins {
         }
 
         // cache module ids
-        self.lib_module_by_name
-            .insert((profile_key.clone(), name.to_string()), module_ids.clone());
+        self.lib_module_by_name.insert(
+            (lib_cache_key.clone(), name.to_string()),
+            module_ids.clone(),
+        );
 
         // clear load markers
         self.lib_loading_by_name.remove(&loading_key);
@@ -538,11 +621,15 @@ impl Builtins {
     }
 
     /// Clone cached module ids and refresh lib name mappings.
-    fn cached_lib_modules(&self, name: &str, profile_key: &ProfileKey) -> Option<Vec<ModuleId>> {
+    fn cached_lib_modules(
+        &self,
+        name: &str,
+        lib_cache_key: &BuiltinLibKey,
+    ) -> Option<Vec<ModuleId>> {
         // read cached module ids
         let cached = self
             .lib_module_by_name
-            .get(&(profile_key.clone(), name.to_string()))?;
+            .get(&(lib_cache_key.clone(), name.to_string()))?;
 
         // refresh module to lib name mappings when possible
         if let Some(lib) = builtin_lib(name) {
@@ -555,17 +642,21 @@ impl Builtins {
     }
 
     /// Wait for a lib that is already loading elsewhere.
-    fn wait_for_lib_modules(&self, name: &str, profile_key: &ProfileKey) -> Option<Vec<ModuleId>> {
+    fn wait_for_lib_modules(
+        &self,
+        name: &str,
+        lib_cache_key: &BuiltinLibKey,
+    ) -> Option<Vec<ModuleId>> {
         loop {
             // return cached modules when they appear
-            if let Some(cached) = self.cached_lib_modules(name, profile_key) {
+            if let Some(cached) = self.cached_lib_modules(name, lib_cache_key) {
                 return Some(cached);
             }
 
             // stop waiting if the load marker is gone
             if !self
                 .lib_loading_by_name
-                .contains_key(&(profile_key.clone(), name.to_string()))
+                .contains_key(&(lib_cache_key.clone(), name.to_string()))
             {
                 return None;
             }
@@ -577,14 +668,15 @@ impl Builtins {
 
     /// Set the ambient lib modules for a profile key.
     pub fn set_ambient_libs(&self, profile_key: &ProfileKey, modules: Vec<ModuleId>) {
-        self.ambient_libs_by_profile
-            .insert(profile_key.clone(), modules);
+        let lib_cache_key = Self::lib_key(profile_key);
+        self.ambient_libs_by_profile.insert(lib_cache_key, modules);
     }
 
     /// Get the ambient lib modules for a profile key, if any.
     pub fn ambient_libs(&self, profile_key: &ProfileKey) -> Option<Vec<ModuleId>> {
+        let lib_cache_key = Self::lib_key(profile_key);
         self.ambient_libs_by_profile
-            .get(profile_key)
+            .get(&lib_cache_key)
             .map(|modules| modules.clone())
     }
 
@@ -594,8 +686,9 @@ impl Builtins {
         profile_key: &ProfileKey,
         name: StringId,
     ) -> Option<SymbolGroup> {
+        let lib_cache_key = Self::lib_key(profile_key);
         self.declared_lib_symbols_by_profile
-            .get(profile_key)
+            .get(&lib_cache_key)
             .and_then(|symbols| symbols.get(&name).copied())
     }
 
@@ -617,15 +710,17 @@ impl Builtins {
 
     /// Get well-known symbols for a profile key.
     pub fn well_known_symbols(&self, profile_key: &ProfileKey) -> Option<WellKnownSymbols> {
+        let lib_cache_key = Self::lib_key(profile_key);
         self.well_known_by_profile
-            .get(profile_key)
+            .get(&lib_cache_key)
             .map(|symbols| symbols.clone())
     }
 
     /// Get well-known intrinsic bindings for a profile key.
     pub fn well_known_intrinsics(&self, profile_key: &ProfileKey) -> Option<WellKnownIntrinsics> {
+        let lib_cache_key = Self::lib_key(profile_key);
         self.well_known_intrinsics_by_profile
-            .get(profile_key)
+            .get(&lib_cache_key)
             .map(|intrinsics| intrinsics.clone())
     }
 
@@ -635,8 +730,9 @@ impl Builtins {
         profile_key: &ProfileKey,
         symbols: IndexMap<StringId, SymbolGroup>,
     ) {
+        let lib_cache_key = Self::lib_key(profile_key);
         self.declared_lib_symbols_by_profile
-            .insert(profile_key.clone(), symbols);
+            .insert(lib_cache_key, symbols);
     }
 
     /// Set the ambient lib symbols for a profile key.
@@ -645,8 +741,9 @@ impl Builtins {
         profile_key: &ProfileKey,
         symbols: IndexMap<StringId, SymbolGroup>,
     ) {
+        let lib_cache_key = Self::lib_key(profile_key);
         self.ambient_lib_symbols_by_profile
-            .insert(profile_key.clone(), symbols);
+            .insert(lib_cache_key, symbols);
     }
 
     /// Set the ambient lib symbol sources for a profile key.
@@ -655,8 +752,9 @@ impl Builtins {
         profile_key: &ProfileKey,
         sources: IndexMap<AmbientLibSymbolKey, Vec<GlobalSymbolId>>,
     ) {
+        let lib_cache_key = Self::lib_key(profile_key);
         self.ambient_lib_symbol_sources_by_profile
-            .insert(profile_key.clone(), sources);
+            .insert(lib_cache_key, sources);
     }
 
     /// Get ambient lib symbol sources for a profile key, key, and space.
@@ -666,9 +764,10 @@ impl Builtins {
         key: StaticKey,
         space: SymbolSpace,
     ) -> Option<Vec<GlobalSymbolId>> {
+        let lib_cache_key = Self::lib_key(profile_key);
         let lookup = AmbientLibSymbolKey { key, space };
         self.ambient_lib_symbol_sources_by_profile
-            .get(profile_key)
+            .get(&lib_cache_key)
             .and_then(|sources| sources.get(&lookup).cloned())
     }
 
@@ -679,16 +778,17 @@ impl Builtins {
         name: StringId,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
+        let lib_cache_key = Self::lib_key(profile_key);
         self.ambient_lib_symbols_by_profile
-            .get(profile_key)
+            .get(&lib_cache_key)
             .and_then(|symbols| symbols.get(&name).copied())
             .and_then(|group| group.symbol_for_space_order(order))
     }
 
     /// Set well-known symbols for a profile key.
     pub fn set_well_known_symbols(&self, profile_key: &ProfileKey, symbols: WellKnownSymbols) {
-        self.well_known_by_profile
-            .insert(profile_key.clone(), symbols);
+        let lib_cache_key = Self::lib_key(profile_key);
+        self.well_known_by_profile.insert(lib_cache_key, symbols);
     }
 
     /// Set well-known intrinsic bindings for a profile key.
@@ -697,8 +797,9 @@ impl Builtins {
         profile_key: &ProfileKey,
         intrinsics: WellKnownIntrinsics,
     ) {
+        let lib_cache_key = Self::lib_key(profile_key);
         self.well_known_intrinsics_by_profile
-            .insert(profile_key.clone(), intrinsics);
+            .insert(lib_cache_key, intrinsics);
     }
 
     /// Get builtin modules that define intrinsic bindings.

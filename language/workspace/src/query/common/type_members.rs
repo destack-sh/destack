@@ -634,12 +634,9 @@ fn resolve_well_known_members(
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // try to find well known symbols from any profile
-    // (LSP queries don't have a specific profile context)
-    for entry in session.builtins.well_known_by_profile.iter() {
-        let well_known_symbols = entry.value();
-        if let Some(symbol_id) = well_known_symbols.get_type_symbol(well_known) {
-            return resolve_reference_members(symbol_id, session, current_module_id);
-        }
+    // (NOTE #Broken?: LSP queries don't have a specific profile context)
+    if let Some(symbol_id) = session.builtins.first_well_known_type_symbol(well_known) {
+        return resolve_reference_members(symbol_id, session, current_module_id);
     }
 
     // fall back to empty members when no well known symbol is available
