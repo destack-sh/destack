@@ -200,18 +200,13 @@ impl Compiler {
         // allow literal comparisons when values are assignable
         let is_literal_equality = self.should_use_literal_equality(
             operator,
-            tables.module,
-            ctx.profile,
-            tables.symbols,
+            &mut tables.reborrow(),
             left_ty_id,
             right_ty_id,
             left_id,
             right_id,
             &left_ty,
             &right_ty,
-            tables.tree,
-            tables.types,
-            tables.options,
         );
 
         // use builtin rules when appropriate
@@ -540,18 +535,13 @@ impl Compiler {
     fn should_use_literal_equality(
         &self,
         operator: &BinaryOperator,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        tables: &mut InferTablesContext<'_>,
         left_ty_id: LocalTypeId,
         right_ty_id: LocalTypeId,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
         left_ty: &Type,
         right_ty: &Type,
-        tree: &NodeTree,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> bool {
         // only allow equality based literal comparisons
         if !matches!(
@@ -566,23 +556,23 @@ impl Compiler {
 
         // decide whether either side is a literal value
         let left_literal_type_id = self
-            .literal_type_id_for_expression(left_id, tree, types)
+            .literal_type_id_for_expression(left_id, tables.tree, tables.types)
             .or_else(|| self.is_literal_value_type(left_ty).then_some(left_ty_id));
 
         let right_literal_type_id = self
-            .literal_type_id_for_expression(right_id, tree, types)
+            .literal_type_id_for_expression(right_id, tables.tree, tables.types)
             .or_else(|| self.is_literal_value_type(right_ty).then_some(right_ty_id));
 
         // allow comparisons when the left literal is assignable
         if let Some(left_literal_type_id) = left_literal_type_id {
             let assignable = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
+                tables.module,
+                tables.profile,
+                tables.symbols,
                 right_ty_id,
                 left_literal_type_id,
-                types,
-                options,
+                tables.types,
+                tables.options,
             );
 
             return assignable.is_assignable();
@@ -591,13 +581,13 @@ impl Compiler {
         // allow comparisons when the right literal is assignable
         if let Some(right_literal_type_id) = right_literal_type_id {
             let assignable = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
+                tables.module,
+                tables.profile,
+                tables.symbols,
                 left_ty_id,
                 right_literal_type_id,
-                types,
-                options,
+                tables.types,
+                tables.options,
             );
 
             return assignable.is_assignable();

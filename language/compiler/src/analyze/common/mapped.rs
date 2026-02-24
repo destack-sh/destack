@@ -11,7 +11,7 @@ use destack_workspace::{Module, ProfileId};
 use super::key::KeySet;
 use super::template::TemplateLiteralKeyShape;
 use crate::Compiler;
-use crate::analyze::common::{CanonicalSymbolMode, RelationMode};
+use crate::analyze::common::{CanonicalSymbolMode, RelationMode, TypeTablesContext};
 
 /// A mapped key produced when expanding mapped types.
 #[derive(Debug, Clone)]
@@ -98,24 +98,29 @@ impl Compiler {
 
         // treat unconstrained type parameters as keyof any
         if let Type::Reference { symbol, .. } = types.get_type(normalized_right) {
+            let symbol = *symbol;
             let is_static_parameter =
-                self.symbol_is_static_parameter(module, profile, *symbol, symbols, types);
-            if is_static_parameter
-                && let Some(constraint_id) = self.static_parameter_constraint_type(
-                    module, profile, *symbol, source_id, symbols, types,
-                )
-                && matches!(
-                    types.get_type(constraint_id),
-                    Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    }
-                )
-            {
-                let mut key_set = KeySet::default();
-                key_set.insert_index_kind(MappedIndexKind::String);
-                key_set.insert_index_kind(MappedIndexKind::Number);
-                key_set.insert_index_kind(MappedIndexKind::Symbol);
-                return self.key_type_id_for_key_set(source_id, key_set, types);
+                self.symbol_is_static_parameter(module, profile, symbol, symbols, types);
+            if is_static_parameter {
+                let tree = module.dir(profile).tree.read();
+                let options = self.analyze_context_options_for_module(module.id);
+                let mut type_tables =
+                    TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
+                if let Some(constraint_id) =
+                    self.static_parameter_constraint_type(&mut type_tables, symbol, source_id)
+                    && matches!(
+                        types.get_type(constraint_id),
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        }
+                    )
+                {
+                    let mut key_set = KeySet::default();
+                    key_set.insert_index_kind(MappedIndexKind::String);
+                    key_set.insert_index_kind(MappedIndexKind::Number);
+                    key_set.insert_index_kind(MappedIndexKind::Symbol);
+                    return self.key_type_id_for_key_set(source_id, key_set, types);
+                }
             }
         }
 
@@ -1876,14 +1881,17 @@ impl Compiler {
             )
         });
 
+        // build one tables context for mapped key collection
+        let tree = module.dir(profile).tree.read();
+        let options = self.analyze_context_options_for_module(module.id);
+        let mut type_tables =
+            TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
+
         // collect mapped keys from the constraint
         let mut keys = Vec::new();
         self.collect_mapped_keys_for_type(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             normalized_constraint,
-            symbols,
-            types,
             relation_mode,
             &mut keys,
         );
@@ -1895,12 +1903,14 @@ impl Compiler {
                 construct_signatures: Vec::new(),
                 index_signatures: Vec::new(),
             };
-            return types.insert_type_from_any(normalized, source_id);
+            return type_tables
+                .types
+                .insert_type_from_any(normalized, source_id);
         }
 
         // find the source type for modifier inheritance
         let source_type_id = parameter_symbol.and_then(|parameter_symbol| {
-            self.mapped_source_type_id(parameter_symbol, constraint, value, types)
+            self.mapped_source_type_id(parameter_symbol, constraint, value, type_tables.types)
         });
 
         // expand each mapped key into fields or index signatures
@@ -1914,8 +1924,8 @@ impl Compiler {
                 module,
                 profile,
                 value,
-                symbols,
-                types,
+                type_tables.symbols,
+                type_tables.types,
                 mode,
                 relation_mode,
                 visited,
@@ -1928,11 +1938,8 @@ impl Compiler {
         {
             let mut remapped = Vec::new();
             self.collect_mapped_keys_for_type(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 key_remap,
-                symbols,
-                types,
                 relation_mode,
                 &mut remapped,
             );
@@ -1953,7 +1960,12 @@ impl Compiler {
                     let (optional, readonly) = source_type_id
                         .and_then(|source| {
                             self.field_modifiers_for_key(
-                                module, profile, source, key, symbols, types,
+                                module,
+                                profile,
+                                source,
+                                key,
+                                type_tables.symbols,
+                                type_tables.types,
                             )
                         })
                         .unwrap_or((false, false));
@@ -1963,7 +1975,12 @@ impl Compiler {
                     let readonly = source_type_id
                         .and_then(|source| {
                             self.resolve_index_signature_readonly_for_kind(
-                                module, profile, source, *kind, symbols, types,
+                                module,
+                                profile,
+                                source,
+                                *kind,
+                                type_tables.symbols,
+                                type_tables.types,
                             )
                         })
                         .unwrap_or(false);
@@ -1980,14 +1997,18 @@ impl Compiler {
                     substitutions.insert(parameter_symbol, key_type_id);
                 }
                 let mut cache = HashMap::new();
-                let substituted_value =
-                    self.substitute_static_parameters(value, &substitutions, types, &mut cache);
+                let substituted_value = self.substitute_static_parameters(
+                    value,
+                    &substitutions,
+                    type_tables.types,
+                    &mut cache,
+                );
                 self.normalize_type_inner(
                     module,
                     profile,
                     substituted_value,
-                    symbols,
-                    types,
+                    type_tables.symbols,
+                    type_tables.types,
                     mode,
                     relation_mode,
                     visited,
@@ -2003,25 +2024,26 @@ impl Compiler {
                     substitutions.insert(parameter_symbol, key_type_id);
                 }
                 let mut cache = HashMap::new();
-                let substituted_remap =
-                    self.substitute_static_parameters(key_remap, &substitutions, types, &mut cache);
+                let substituted_remap = self.substitute_static_parameters(
+                    key_remap,
+                    &substitutions,
+                    type_tables.types,
+                    &mut cache,
+                );
                 let normalized_remap = self.normalize_type_inner(
                     module,
                     profile,
                     substituted_remap,
-                    symbols,
-                    types,
+                    type_tables.symbols,
+                    type_tables.types,
                     mode,
                     relation_mode,
                     visited,
                 );
                 let mut remapped = Vec::new();
                 self.collect_mapped_keys_for_type(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     normalized_remap,
-                    symbols,
-                    types,
                     relation_mode,
                     &mut remapped,
                 );
@@ -2042,7 +2064,7 @@ impl Compiler {
                             fields.iter_mut().find(|field| field.key.matches(&key))
                         {
                             if existing.ty != normalized_value {
-                                existing.ty = types.insert_type_from_type(
+                                existing.ty = type_tables.types.insert_type_from_type(
                                     Type::Union {
                                         elements: vec![existing.ty, normalized_value],
                                     },
@@ -2077,8 +2099,8 @@ impl Compiler {
         // build index signatures for mapped index keys
         let mut index_signatures = Vec::new();
         for (kind, values) in index_values {
-            let value_type_id = self.union_type_ids_from_list(values, source_id, types);
-            let key_type_id = self.key_type_id_for_index_kind(kind, source_id, types);
+            let value_type_id = self.union_type_ids_from_list(values, source_id, type_tables.types);
+            let key_type_id = self.key_type_id_for_index_kind(kind, source_id, type_tables.types);
             let is_readonly = index_readonly.get(&kind).copied().unwrap_or(false);
             index_signatures.push(TypeIndexSignature {
                 name,
@@ -2095,7 +2117,9 @@ impl Compiler {
             construct_signatures: Vec::new(),
             index_signatures,
         };
-        types.insert_type_from_any(normalized, source_id)
+        type_tables
+            .types
+            .insert_type_from_any(normalized, source_id)
     }
 
     /// Derive the source type used for modifier inheritance.
@@ -2129,22 +2153,16 @@ impl Compiler {
     /// Collect mapped keys for a constraint type.
     fn collect_mapped_keys_for_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         relation_mode: RelationMode,
         keys: &mut Vec<MappedKey>,
     ) {
         // track visited types to avoid recursion cycles
         let mut visited = HashSet::new();
         self.collect_mapped_keys_for_type_inner(
-            module,
-            profile,
+            &mut tables.reborrow(),
             type_id,
-            symbols,
-            types,
             relation_mode,
             keys,
             &mut visited,
@@ -2154,11 +2172,8 @@ impl Compiler {
     /// Collect mapped keys for a constraint type with a recursion guard.
     fn collect_mapped_keys_for_type_inner(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         relation_mode: RelationMode,
         keys: &mut Vec<MappedKey>,
         visited: &mut HashSet<LocalTypeId>,
@@ -2169,18 +2184,15 @@ impl Compiler {
         }
 
         // reuse the current type source for synthesized key types
-        let source_id = types.get_type_source(type_id);
-        let ty = types.get_type(type_id).clone();
+        let source_id = tables.types.get_type_source(type_id);
+        let ty = tables.types.get_type(type_id).clone();
         match ty {
             Type::Union { elements } => {
                 // expand each union member
                 for element_id in elements {
                     self.collect_mapped_keys_for_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         element_id,
-                        symbols,
-                        types,
                         relation_mode,
                         keys,
                         visited,
@@ -2192,70 +2204,76 @@ impl Compiler {
                 static_arguments,
             } => {
                 // follow constraint bounds for static parameter references
-                if self.symbol_is_static_parameter(module, profile, symbol, symbols, types)
-                    && let Some(constraint_id) = self.static_parameter_constraint_type(
-                        module, profile, symbol, source_id, symbols, types,
-                    )
-                {
-                    self.collect_mapped_keys_for_type_inner(
-                        module,
-                        profile,
-                        constraint_id,
-                        symbols,
-                        types,
-                        relation_mode,
-                        keys,
-                        visited,
-                    );
+                if self.symbol_is_static_parameter(
+                    tables.module,
+                    tables.profile,
+                    symbol,
+                    tables.symbols,
+                    tables.types,
+                ) {
+                    let tree = tables.module.dir(tables.profile).tree.read();
+                    let mut module_tables =
+                        tables.reborrow_for_module(tables.module, &tree, tables.symbols);
+                    if let Some(constraint_id) =
+                        self.static_parameter_constraint_type(&mut module_tables, symbol, source_id)
+                    {
+                        self.collect_mapped_keys_for_type_inner(
+                            &mut tables.reborrow(),
+                            constraint_id,
+                            relation_mode,
+                            keys,
+                            visited,
+                        );
+                    }
                 } else if static_arguments.is_none()
-                    && let Some(instance_id) = self
-                        .apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+                    && let Some(instance_id) = self.apparent_instance_type(
+                        tables.module,
+                        tables.profile,
+                        source_id,
+                        symbol,
+                        tables.symbols,
+                        tables.types,
+                    )
                 {
                     // prefer instance shapes for type parameter and alias references
                     self.collect_mapped_keys_for_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         instance_id,
-                        symbols,
-                        types,
                         relation_mode,
                         keys,
                         visited,
                     );
                 } else if symbol.ty() == SymbolType::TypeAlias
-                    && !types.is_normalization_alias_in_progress(symbol)
+                    && !tables.types.is_normalization_alias_in_progress(symbol)
                 {
                     // expand alias references to collect mapped keys from utility types
                     let mut normalize_visited = Vec::new();
                     let normalized = self.normalize_type_alias_reference_with_arguments(
-                        module,
-                        profile,
+                        tables.module,
+                        tables.profile,
                         source_id,
                         symbol,
                         static_arguments.as_deref().unwrap_or(&[]),
-                        symbols,
-                        types,
+                        tables.symbols,
+                        tables.types,
                         NormalizationMode::Assign,
                         relation_mode,
                         &mut normalize_visited,
                     );
                     if let Some(normalized) = normalized {
                         let normalized = self.normalize_type_inner(
-                            module,
-                            profile,
+                            tables.module,
+                            tables.profile,
                             normalized,
-                            symbols,
-                            types,
+                            tables.symbols,
+                            tables.types,
                             NormalizationMode::Assign,
                             relation_mode,
                             &mut Vec::new(),
                         );
                         self.collect_mapped_keys_for_type_inner(
-                            module,
-                            profile,
+                            &mut tables.reborrow(),
                             normalized,
-                            symbols,
-                            types,
                             relation_mode,
                             keys,
                             visited,
@@ -2269,29 +2287,30 @@ impl Compiler {
             } => {
                 let mut normalize_visited = Vec::new();
                 let normalized = self.normalize_keyof_type(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     source_id,
                     Some(type_id),
                     right,
-                    symbols,
-                    types,
+                    tables.symbols,
+                    tables.types,
                     NormalizationMode::Assign,
                     relation_mode,
                     &mut normalize_visited,
                 );
-                if self
-                    .type_is_deferred_keyof_projection(module, profile, normalized, symbols, types)
-                {
+                if self.type_is_deferred_keyof_projection(
+                    tables.module,
+                    tables.profile,
+                    normalized,
+                    tables.symbols,
+                    tables.types,
+                ) {
                     // avoid recursing on deferred keyof projections
                     return;
                 }
                 self.collect_mapped_keys_for_type_inner(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     normalized,
-                    symbols,
-                    types,
                     relation_mode,
                     keys,
                     visited,
@@ -2300,22 +2319,19 @@ impl Compiler {
             Type::Conditional { .. } => {
                 let mut normalize_visited = Vec::new();
                 let normalized = self.normalize_type_inner(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     type_id,
-                    symbols,
-                    types,
+                    tables.symbols,
+                    tables.types,
                     NormalizationMode::Assign,
                     relation_mode,
                     &mut normalize_visited,
                 );
                 if normalized != type_id {
                     self.collect_mapped_keys_for_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         normalized,
-                        symbols,
-                        types,
                         relation_mode,
                         keys,
                         visited,
@@ -2326,8 +2342,8 @@ impl Compiler {
                 value: TypeLiteral::ScalarLiteral(_),
             } => {
                 // literal keys map directly to field keys
-                if let Some(key) = self.static_key_from_type(type_id, types) {
-                    let key_type = self.key_type_id_for_static_key(key, source_id, types);
+                if let Some(key) = self.static_key_from_type(type_id, tables.types) {
+                    let key_type = self.key_type_id_for_static_key(key, source_id, tables.types);
                     keys.push(MappedKey::Field { key, key_type });
                 }
             }
@@ -2340,7 +2356,7 @@ impl Compiler {
                     key_type: self.key_type_id_for_index_kind(
                         MappedIndexKind::String,
                         source_id,
-                        types,
+                        tables.types,
                     ),
                 });
             }
@@ -2353,7 +2369,7 @@ impl Compiler {
                     key_type: self.key_type_id_for_index_kind(
                         MappedIndexKind::Number,
                         source_id,
-                        types,
+                        tables.types,
                     ),
                 });
             }
@@ -2368,7 +2384,7 @@ impl Compiler {
                     key_type: self.key_type_id_for_index_kind(
                         MappedIndexKind::Symbol,
                         source_id,
-                        types,
+                        tables.types,
                     ),
                 });
             }
@@ -2381,7 +2397,7 @@ impl Compiler {
                     key_type: self.key_type_id_for_index_kind(
                         MappedIndexKind::String,
                         source_id,
-                        types,
+                        tables.types,
                     ),
                 });
                 keys.push(MappedKey::Index {
@@ -2389,7 +2405,7 @@ impl Compiler {
                     key_type: self.key_type_id_for_index_kind(
                         MappedIndexKind::Number,
                         source_id,
-                        types,
+                        tables.types,
                     ),
                 });
                 keys.push(MappedKey::Index {
@@ -2397,26 +2413,23 @@ impl Compiler {
                     key_type: self.key_type_id_for_index_kind(
                         MappedIndexKind::Symbol,
                         source_id,
-                        types,
+                        tables.types,
                     ),
                 });
             }
             Type::TemplateLiteral { strings, spans } => {
                 // expand template literal keys into literal fields when possible
                 if let Some(shape) = self.template_literal_key_shape(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     &strings,
                     &spans,
-                    symbols,
-                    types,
                     relation_mode,
                 ) {
                     match shape {
                         TemplateLiteralKeyShape::Literal(literal_keys) => {
                             for key in literal_keys {
                                 let key_type =
-                                    self.key_type_id_for_static_key(key, source_id, types);
+                                    self.key_type_id_for_static_key(key, source_id, tables.types);
                                 keys.push(MappedKey::Field { key, key_type });
                             }
                         }
@@ -2426,7 +2439,7 @@ impl Compiler {
                                 key_type: self.key_type_id_for_index_kind(
                                     MappedIndexKind::String,
                                     source_id,
-                                    types,
+                                    tables.types,
                                 ),
                             });
                         }

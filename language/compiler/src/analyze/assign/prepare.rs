@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::common::TypeTablesContext;
 use destack_dir::NodeTree;
 
 #[allow(clippy::too_many_arguments)]
@@ -96,21 +97,21 @@ impl Compiler {
         let Type::Reference { symbol, .. } = types.get_type(type_id) else {
             return type_id;
         };
+        let symbol = *symbol;
 
         // only substitute actual static parameters
-        if !self.symbol_is_static_parameter(module, profile, *symbol, symbols, types) {
+        if !self.symbol_is_static_parameter(module, profile, symbol, symbols, types) {
             return type_id;
         }
 
         // resolve the declared constraint type
-        let constraint_id = self.static_parameter_constraint_type(
-            module,
-            profile,
-            *symbol,
-            types.get_type_source(type_id),
-            symbols,
-            types,
-        );
+        let tree = module.dir(profile).tree.read();
+        let options = self.analyze_context_options_for_module(module.id);
+        let mut type_tables =
+            TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
+        let source_id = type_tables.types.get_type_source(type_id);
+        let constraint_id =
+            self.static_parameter_constraint_type(&mut type_tables, symbol, source_id);
         let Some(constraint_id) = constraint_id else {
             return type_id;
         };
@@ -383,18 +384,15 @@ impl Compiler {
         }
 
         let tree = module.dir(profile).tree.read();
+        let mut type_tables =
+            TypeTablesContext::new(module, profile, options, &tree, symbols, types);
         let resolved = self
             .resolve_type_reference_static_arguments(
-                module,
-                profile,
+                &mut type_tables,
                 node_id,
                 symbol,
                 static_arguments.map(|args| args.as_slice()),
                 false,
-                options,
-                &tree,
-                symbols,
-                types,
             )
             .ok()
             .flatten();
@@ -495,18 +493,15 @@ impl Compiler {
         // resolve static arguments for substitution
         let tree = module.dir(profile).tree.read();
         let options = self.analyze_context_options_for_module(module.id);
+        let mut type_tables =
+            TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
         let resolved_arguments = self
             .resolve_type_reference_static_arguments(
-                module,
-                profile,
+                &mut type_tables,
                 source_id,
                 symbol,
-                Some(arguments),
+                Some(arguments.as_slice()),
                 false,
-                &options,
-                &tree,
-                symbols,
-                types,
             )
             .ok()
             .flatten();
@@ -517,7 +512,10 @@ impl Compiler {
 
         // substitute parameters into the alias target
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            module, profile, symbol, source_id, arguments, &tree, symbols, types,
+            &mut type_tables.reborrow(),
+            symbol,
+            source_id,
+            arguments,
         );
         if substitutions.is_empty() {
             return self.normalize_type(

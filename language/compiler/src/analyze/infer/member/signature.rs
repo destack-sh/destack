@@ -1,3 +1,4 @@
+use super::super::expression::call::SignatureStaticResolutionContext;
 use super::*;
 use crate::analyze::common::InferTablesContext;
 use destack_dir::ResolvedSignature;
@@ -226,18 +227,20 @@ impl Compiler {
         let resolved = self
             .resolve_function_static_arguments(
                 &mut tables.reborrow(),
-                expression_id.into_any(),
-                member_symbol,
-                Some(static_argument_ids),
-                None,
-                (!substitutions.is_empty()).then_some(substitutions),
-                None,
-                &static_parameters,
-                &dynamic_parameters,
-                return_type,
-                None,
-                SignatureResolutionMode::Check,
-                false,
+                SignatureStaticResolutionContext {
+                    node_id: expression_id.into_any(),
+                    owner_symbol: member_symbol,
+                    static_argument_ids: Some(static_argument_ids),
+                    prefilled_static_arguments: None,
+                    bound_substitutions: (!substitutions.is_empty()).then_some(substitutions),
+                    dynamic_argument_ids: None,
+                    static_parameter_type_ids: &static_parameters,
+                    dynamic_parameter_type_ids: &dynamic_parameters,
+                    return_type,
+                    expected_return_type: None,
+                    mode: SignatureResolutionMode::Check,
+                    allow_missing_value_arguments: false,
+                },
             )?
             .unwrap_or(ResolvedSignature {
                 dynamic_parameters,

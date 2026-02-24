@@ -1,4 +1,4 @@
-use crate::analyze::common::AnalyzeDependencyStage;
+use crate::analyze::common::{AnalyzeDependencyStage, TypeTablesContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, NodeTree,
@@ -267,15 +267,11 @@ impl Compiler {
     /// Publish declared static parameter constraints for one module.
     pub(crate) fn publish_static_parameter_constraints(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        tables: &mut TypeTablesContext<'_>,
     ) -> AnalyzeResult<()> {
-        for symbol_id in symbols.active_symbol_ids() {
-            let symbol = symbol_id.into_global(module.id);
-            let symbol_entry = symbols.get_symbol(symbol_id);
+        for symbol_id in tables.symbols.active_symbol_ids() {
+            let symbol = symbol_id.into_global(tables.module.id);
+            let symbol_entry = tables.symbols.get_symbol(symbol_id);
             if !symbol_entry.is_static_parameter() {
                 continue;
             }
@@ -283,31 +279,36 @@ impl Compiler {
             let source_id = symbol_entry
                 .primary_declaration
                 .map(|declaration| declaration.local_id)
-                .unwrap_or(module.dir(profile).anchor_node);
+                .unwrap_or(tables.module.dir(tables.profile).anchor_node);
             let published_constraint_type_id = if let Some(primary_declaration) =
                 symbol_entry.primary_declaration
-                && let Some(declared_type_id) = types.get_declared_type_id(primary_declaration)
+                && let Some(declared_type_id) =
+                    tables.types.get_declared_type_id(primary_declaration)
             {
-                if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
+                if matches!(
+                    tables.types.get_type(declared_type_id),
+                    Type::Unevaluated(_)
+                ) {
                     self.evaluate_static_parameter_constraint_type(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         declared_type_id,
-                        tree,
-                        symbols,
-                        types,
                     )?;
                 }
 
-                if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
-                    types.insert_type_from_any(Type::Error, source_id)
+                if matches!(
+                    tables.types.get_type(declared_type_id),
+                    Type::Unevaluated(_)
+                ) {
+                    tables.types.insert_type_from_any(Type::Error, source_id)
                 } else {
                     declared_type_id
                 }
             } else {
-                self.synthesize_implicit_static_parameter_constraint(source_id, types)
+                self.synthesize_implicit_static_parameter_constraint(source_id, tables.types)
             };
-            types.publish_static_parameter_constraint_type(symbol, published_constraint_type_id);
+            tables
+                .types
+                .publish_static_parameter_constraint_type(symbol, published_constraint_type_id);
         }
 
         Ok(())
@@ -525,33 +526,23 @@ impl Compiler {
     /// Resolve static parameter metadata for a symbol (in this or another module).
     pub(crate) fn resolve_static_parameter(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         symbol_id: GlobalSymbolId,
         source_id: LocalNodeIdAny,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> StaticParameter {
         // prefer parameter metadata from the owning module
         let parameter = self
             .with_module_tree_symbols_or_local_at_stage(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 symbol_id.module_id,
-                tree,
-                symbols,
+                tables.tree,
+                tables.symbols,
                 AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
-                    self.resolve_static_parameter_in_module(
-                        owner_module,
-                        profile,
-                        symbol_id,
-                        source_id,
-                        owner_tree,
-                        owner_symbols,
-                        types,
-                    )
+                    let mut type_tables =
+                        tables.reborrow_for_module(owner_module, owner_tree, owner_symbols);
+                    self.resolve_static_parameter_in_module(&mut type_tables, symbol_id, source_id)
                 },
             )
             .ok()
@@ -559,9 +550,15 @@ impl Compiler {
 
         // recover with error metadata when declaration lookup does not resolve
         parameter.unwrap_or_else(|| {
-            let kind = self
-                .static_parameter_kind_for_symbol(module, profile, symbol_id, tree, symbols, types);
-            self.synthesize_error_static_parameter(symbol_id, kind, source_id, types)
+            let kind = self.static_parameter_kind_for_symbol(
+                tables.module,
+                tables.profile,
+                symbol_id,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+            );
+            self.synthesize_error_static_parameter(symbol_id, kind, source_id, tables.types)
         })
     }
 
@@ -610,27 +607,23 @@ impl Compiler {
     /// Evaluate a static parameter constraint while preserving symbolic bounds.
     fn evaluate_static_parameter_constraint_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         declared_type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // skip when the declared type is already evaluated
-        let expression_id = match types.get_type(declared_type_id) {
+        let expression_id = match tables.types.get_type(declared_type_id) {
             Type::Unevaluated(expression_id) => *expression_id,
             _ => return Ok(()),
         };
 
         // evaluate once without resolving static arguments to keep symbolic structure
         let raw_evaluated = self.resolve_declared_type_expression_value(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             expression_id,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
             false,
             true,
             false,
@@ -638,16 +631,16 @@ impl Compiler {
         )?;
 
         // stage the raw evaluation result in the declared type slot
-        types.update_type(declared_type_id, raw_evaluated);
+        tables.types.update_type(declared_type_id, raw_evaluated);
 
         // stop here when the bound still depends on static parameters
         let mut visited = HashSet::new();
         if self.type_contains_static_parameters(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             declared_type_id,
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
             &mut visited,
         ) {
             return Ok(());
@@ -655,18 +648,18 @@ impl Compiler {
 
         // otherwise resolve static arguments now that the constraint is independent
         let resolved = self.resolve_declared_type_expression_value(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             expression_id,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
             false,
             true,
             true,
             false,
         )?;
-        types.update_type(declared_type_id, resolved);
+        tables.types.update_type(declared_type_id, resolved);
 
         Ok(())
     }
@@ -674,53 +667,78 @@ impl Compiler {
     /// Resolve a static parameter constraint into the local type table.
     pub(crate) fn static_parameter_constraint_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         symbol: GlobalSymbolId,
         source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         // reuse cached constraints when available
-        if let Some(cached) = types.get_static_parameter_constraint_type(symbol) {
+        if let Some(cached) = tables.types.get_static_parameter_constraint_type(symbol) {
             return Some(cached);
         }
 
         // resolve local constraints with local on-demand evaluation
-        let resolved = if symbol.module_id == module.id && types.module_id == module.id {
-            if types.is_static_parameter_constraint_in_progress(symbol) {
+        let resolved = if symbol.module_id == tables.module.id
+            && tables.types.module_id == tables.module.id
+        {
+            if tables
+                .types
+                .is_static_parameter_constraint_in_progress(symbol)
+            {
                 return Some(self.static_parameter_constraint_cycle_error_type(
-                    module, profile, symbol, source_id, types,
+                    tables.module,
+                    tables.profile,
+                    symbol,
+                    source_id,
+                    tables.types,
                 ));
             }
-            types.mark_static_parameter_constraint_in_progress(symbol);
+            tables
+                .types
+                .mark_static_parameter_constraint_in_progress(symbol);
 
             let local_resolved = {
-                let symbol_entry = symbols.get_symbol(symbol.local_id);
+                let symbol_entry = tables.symbols.get_symbol(symbol.local_id);
                 if !symbol_entry.is_static_parameter() {
-                    Some(self.synthesize_semantic_error_type_for_source(source_id, types))
+                    Some(self.synthesize_semantic_error_type_for_source(source_id, tables.types))
                 } else if let Some(primary_declaration) = symbol_entry.primary_declaration {
                     let declared_type_id = if let Some(declared_type_id) =
-                        types.get_declared_type_id(primary_declaration)
+                        tables.types.get_declared_type_id(primary_declaration)
                     {
                         declared_type_id
                     } else {
-                        self.synthesize_implicit_static_parameter_constraint(source_id, types)
+                        self.synthesize_implicit_static_parameter_constraint(
+                            source_id,
+                            tables.types,
+                        )
                     };
-                    if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
-                        let tree = module.dir(profile).tree.read();
+                    if matches!(
+                        tables.types.get_type(declared_type_id),
+                        Type::Unevaluated(_)
+                    ) {
+                        let tree = tables.module.dir(tables.profile).tree.read();
+                        let mut type_tables =
+                            tables.reborrow_for_module(tables.module, &tree, tables.symbols);
                         if let Err(error) = self.evaluate_static_parameter_constraint_type(
-                            module,
-                            profile,
+                            &mut type_tables,
                             declared_type_id,
-                            &tree,
-                            symbols,
-                            types,
                         ) {
                             self.error(error);
-                            Some(self.synthesize_semantic_error_type_for_source(source_id, types))
-                        } else if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
-                            Some(self.synthesize_semantic_error_type_for_source(source_id, types))
+                            Some(
+                                self.synthesize_semantic_error_type_for_source(
+                                    source_id,
+                                    tables.types,
+                                ),
+                            )
+                        } else if matches!(
+                            tables.types.get_type(declared_type_id),
+                            Type::Unevaluated(_)
+                        ) {
+                            Some(
+                                self.synthesize_semantic_error_type_for_source(
+                                    source_id,
+                                    tables.types,
+                                ),
+                            )
                         } else {
                             Some(declared_type_id)
                         }
@@ -728,14 +746,16 @@ impl Compiler {
                         Some(declared_type_id)
                     }
                 } else {
-                    Some(self.synthesize_semantic_error_type_for_source(source_id, types))
+                    Some(self.synthesize_semantic_error_type_for_source(source_id, tables.types))
                 }
             };
-            types.clear_static_parameter_constraint_in_progress(symbol);
+            tables
+                .types
+                .clear_static_parameter_constraint_in_progress(symbol);
 
             // preserve cycle-error diagnostics emitted during recursive evaluation
-            if let Some(cached_type_id) = types.get_static_parameter_constraint_type(symbol)
-                && matches!(types.get_type(cached_type_id), Type::Error)
+            if let Some(cached_type_id) = tables.types.get_static_parameter_constraint_type(symbol)
+                && matches!(tables.types.get_type(cached_type_id), Type::Error)
             {
                 return Some(cached_type_id);
             }
@@ -743,53 +763,58 @@ impl Compiler {
             local_resolved
         } else {
             self.query_declared_static_parameter_constraint(
-                module, profile, symbol, source_id, types,
+                tables.module,
+                tables.profile,
+                symbol,
+                source_id,
+                tables.types,
             )
         };
         if let Some(resolved_constraint_type_id) = resolved {
-            types.set_static_parameter_constraint_type(symbol, resolved_constraint_type_id);
+            tables
+                .types
+                .set_static_parameter_constraint_type(symbol, resolved_constraint_type_id);
             return Some(resolved_constraint_type_id);
         }
 
-        let error_type_id = self.synthesize_semantic_error_type_for_source(source_id, types);
-        types.set_static_parameter_constraint_type(symbol, error_type_id);
+        let error_type_id = self.synthesize_semantic_error_type_for_source(source_id, tables.types);
+        tables
+            .types
+            .set_static_parameter_constraint_type(symbol, error_type_id);
         Some(error_type_id)
     }
 
     /// Resolve static parameter metadata from a module.
     fn resolve_static_parameter_in_module(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         symbol_id: GlobalSymbolId,
         source_id: LocalNodeIdAny,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<StaticParameter> {
         // read the parameter declaration
-        let symbol = symbols.get_symbol(symbol_id.local_id);
+        let symbol = tables.symbols.get_symbol(symbol_id.local_id);
         let primary_declaration = symbol.primary_declaration?;
         let parameter_id = primary_declaration
             .try_into_local_typed::<Parameter>()
             .ok()?;
-        let parameter = tree.get(parameter_id);
+        let parameter = tables.tree.get(parameter_id);
 
         // resolve the declared type for the parameter
-        let declared_type_id = if module.id == types.module_id {
-            types
+        let declared_type_id = if tables.module.id == tables.types.module_id {
+            tables
+                .types
                 .get_declared_type_id(primary_declaration)
                 .unwrap_or_else(|| {
                     self.synthesize_implicit_static_parameter_constraint(
                         parameter_id.into_any(),
-                        types,
+                        tables.types,
                     )
                 })
         } else {
             // import the declared type for remote parameters when possible
             // remote modules are read-only here: do not force declaration evaluation
             let remote_declared = {
-                let remote_dir = module.dir(profile);
+                let remote_dir = tables.module.dir(tables.profile);
                 let remote_types = remote_dir.types.read();
                 match remote_types.get_declared_type_id(primary_declaration) {
                     Some(remote_declared_type_id) => Some(
@@ -815,10 +840,14 @@ impl Compiler {
                         source_id,
                         &remote_declared_type,
                         &remote_snapshot,
-                        types,
+                        tables.types,
                     ),
-                Some(None) => self.synthesize_semantic_error_type_for_source(source_id, types),
-                None => self.synthesize_implicit_static_parameter_constraint(source_id, types),
+                Some(None) => {
+                    self.synthesize_semantic_error_type_for_source(source_id, tables.types)
+                }
+                None => {
+                    self.synthesize_implicit_static_parameter_constraint(source_id, tables.types)
+                }
             }
         };
 
@@ -835,10 +864,10 @@ impl Compiler {
         // resolve the default expression for the parameter
         let default_expression = match parameter {
             Parameter::Named { default, .. } => {
-                default.map(|expression_id| expression_id.into_global(module.id))
+                default.map(|expression_id| expression_id.into_global(tables.module.id))
             }
             Parameter::Pattern { default, .. } => {
-                default.map(|expression_id| expression_id.into_global(module.id))
+                default.map(|expression_id| expression_id.into_global(tables.module.id))
             }
             Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => None,
         };

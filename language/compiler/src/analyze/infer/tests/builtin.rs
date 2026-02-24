@@ -128,13 +128,10 @@ type Alias = Pick<Person, "name">;
     // locate the es5 lib module that owns Pick
     let builtins = test.program.builtins.as_ref().expect("expected builtins");
     let profile_key = test.program.profile(profile).key.clone();
-    let es5_key = (profile_key, "es5".to_string());
     let es5_modules = builtins
-        .lib_module_by_name
-        .get(&es5_key)
+        .cached_lib_modules_for_profile(&profile_key, "es5")
         .expect("expected es5 lib modules");
     let es5_module_id = es5_modules[0];
-    drop(es5_modules);
 
     // resolve Pick and its static parameter symbols from the lib module
     let es5_module = test.program.modules.get(es5_module_id);

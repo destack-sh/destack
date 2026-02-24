@@ -886,31 +886,22 @@ impl Compiler {
     /// Instantiate one inferred expression type from infer-local instance obligations.
     fn instantiate_type_from_node_instance_obligation(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        infer: &InferTable,
-        types: &mut TypeTable,
     ) -> LocalTypeId {
-        let node_id = expression_id.into_global_any(module.id);
-        let Some((instance_symbol, instance_arguments)) =
-            self.query_instance_symbol_arguments_for_node_infer(node_id, infer, types)
+        let node_id = expression_id.into_global_any(tables.module.id);
+        let Some((instance_symbol, instance_arguments)) = self
+            .query_instance_symbol_arguments_for_node_infer(node_id, tables.infer, tables.types)
         else {
             return type_id;
         };
 
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            module,
-            profile,
+            &mut tables.type_tables_reborrow(),
             instance_symbol,
             expression_id.into_any(),
             &instance_arguments,
-            tree,
-            symbols,
-            types,
         );
         if substitutions.is_empty() {
             return type_id;
@@ -919,15 +910,15 @@ impl Compiler {
         let mut materialize_cache = TypeRewriteCache::new();
         let mut substitution_cache = HashMap::new();
         self.instantiate_type_with_substitutions(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             expression_id.into_any(),
             None,
             type_id,
             &substitutions,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
             &mut materialize_cache,
             &mut substitution_cache,
         )
@@ -1289,14 +1280,9 @@ impl Compiler {
                         let left_ty_id =
                             self.infer_expression(&mut tables.reborrow(), *left, &mut left_ctx)?;
                         let left_ty_id = self.instantiate_type_from_node_instance_obligation(
-                            tables.module,
-                            ctx.profile,
+                            &mut tables.reborrow(),
                             *left,
                             left_ty_id,
-                            tables.tree,
-                            tables.symbols,
-                            tables.infer,
-                            tables.types,
                         );
 
                         // enforce satisfies after convergence for full inferred substitutions
@@ -1320,16 +1306,11 @@ impl Compiler {
                 };
 
                 let ty = self.infer_type_binary_operation(
-                    tables.module,
-                    ctx.profile,
+                    &mut tables.type_tables_reborrow(),
                     expression_id,
                     operator,
                     left_ty_id,
                     right_ty_id,
-                    tables.symbols,
-                    tables.types,
-                    tables.infer,
-                    &ctx.options,
                 );
                 tables.types.insert_type_from(ty, expression_id)
             }
@@ -1750,18 +1731,20 @@ impl Compiler {
         let resolved = self
             .resolve_function_static_arguments(
                 &mut tables.reborrow(),
-                expression_id.into_any(),
-                owner_symbol,
-                Some(static_argument_ids),
-                None,
-                None,
-                None,
-                &static_parameters,
-                &dynamic_parameters,
-                return_type,
-                None,
-                super::SignatureResolutionMode::Check,
-                false,
+                super::call::SignatureStaticResolutionContext {
+                    node_id: expression_id.into_any(),
+                    owner_symbol,
+                    static_argument_ids: Some(static_argument_ids),
+                    prefilled_static_arguments: None,
+                    bound_substitutions: None,
+                    dynamic_argument_ids: None,
+                    static_parameter_type_ids: &static_parameters,
+                    dynamic_parameter_type_ids: &dynamic_parameters,
+                    return_type,
+                    expected_return_type: None,
+                    mode: super::SignatureResolutionMode::Check,
+                    allow_missing_value_arguments: false,
+                },
             )?
             .unwrap_or(ResolvedSignature {
                 dynamic_parameters,
@@ -1792,14 +1775,10 @@ impl Compiler {
             )
             .or_else(|| {
                 self.instance_environment_for_symbol_arguments(
-                    tables.module,
-                    tables.profile,
+                    &tables.reborrow(),
                     owner_symbol,
                     resolved.static_arguments.clone(),
                     0,
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
                 )
             });
             if let Some(environment) = environment {
@@ -2053,15 +2032,10 @@ impl Compiler {
                     ctx,
                 )?;
                 self.check_excess_object_literal_properties(
-                    tables.module,
-                    ctx.profile,
+                    &mut tables.reborrow(),
                     expression_id.into_any(),
                     expected_object_ty_id,
                     &literal_fields,
-                    &ctx.options,
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
                 )?;
 
                 // validate shapes against the expected type
@@ -2437,15 +2411,10 @@ impl Compiler {
                 let excess_check_ty_id = expected_object_ty_id.or(ctx.expected_type);
 
                 self.check_excess_object_literal_properties(
-                    tables.module,
-                    ctx.profile,
+                    &mut tables.reborrow(),
                     expression_id.into_any(),
                     excess_check_ty_id,
                     &literal_fields,
-                    &ctx.options,
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
                 )?;
                 if let Some(spread_override) = spread_override {
                     return Ok(spread_override);
@@ -3197,13 +3166,9 @@ impl Compiler {
                         }
                         if allow_pattern_infer {
                             let pattern_binding_ty_id = self.narrow_match_pattern_binding_type(
-                                tables.module,
-                                ctx.profile,
+                                &mut tables.type_tables_reborrow(),
                                 value_ty_id,
                                 *pattern,
-                                tables.tree,
-                                tables.symbols,
-                                tables.types,
                             );
                             self.infer_pattern(
                                 &mut tables.reborrow(),
@@ -4761,37 +4726,27 @@ impl Compiler {
     /// Check excess properties on an object literal against a contextual type.
     fn check_excess_object_literal_properties(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         node_id: LocalNodeIdAny,
         expected_ty_id: Option<LocalTypeId>,
         fields: &[ObjectLiteralField],
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // resolve the contextual target type for excess property checks
-        let Some(expected_ty_id) = self.expected_value_type(expected_ty_id, types) else {
+        let Some(expected_ty_id) = self.expected_value_type(expected_ty_id, tables.types) else {
             return Ok(());
         };
 
         // skip excess checks for record-like literal targets
-        if self.is_record_like_object_literal_target(profile, expected_ty_id, types) {
+        if self.is_record_like_object_literal_target(tables.profile, expected_ty_id, tables.types) {
             return Ok(());
         }
 
         let mut candidates: Vec<LocalTypeId> = Vec::new();
         let mut visited = HashSet::new();
         self.collect_object_literal_candidates(
-            module,
-            profile,
+            &mut tables.reborrow(),
             node_id,
             expected_ty_id,
-            options,
-            tree,
-            symbols,
-            types,
             &mut candidates,
             &mut visited,
         )?;
@@ -4801,7 +4756,7 @@ impl Compiler {
 
         // check if any candidate matches the fields
         for candidate in candidates.iter().copied() {
-            if self.object_literal_matches_target(fields, candidate, types) {
+            if self.object_literal_matches_target(fields, candidate, tables.types) {
                 return Ok(());
             }
         }
@@ -4810,7 +4765,7 @@ impl Compiler {
         let Some(candidate) = candidates.first().copied() else {
             return Ok(());
         };
-        let excess_fields = self.object_literal_excess_properties(fields, candidate, types);
+        let excess_fields = self.object_literal_excess_properties(fields, candidate, tables.types);
         if excess_fields.is_empty() {
             return Ok(());
         }
@@ -4818,12 +4773,12 @@ impl Compiler {
         // emit excess property diagnostics
         for (property_id, member_key) in excess_fields {
             self.report_excess_property_for_type(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 property_id.into_any(),
                 candidate,
                 member_key,
-                types,
+                tables.types,
             );
         }
 
@@ -4880,14 +4835,9 @@ impl Compiler {
     /// Collect object style candidates for excess property checks.
     fn collect_object_literal_candidates(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         node_id: LocalNodeIdAny,
         expected_ty_id: LocalTypeId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         candidates: &mut Vec<LocalTypeId>,
         visited: &mut HashSet<LocalTypeId>,
     ) -> AnalyzeResult<()> {
@@ -4896,7 +4846,7 @@ impl Compiler {
             return Ok(());
         }
 
-        match types.get_type(expected_ty_id).clone() {
+        match tables.types.get_type(expected_ty_id).clone() {
             Type::Object { .. } => {
                 candidates.push(expected_ty_id);
             }
@@ -4904,55 +4854,53 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => {
-                let instance_ty_id =
-                    self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
+                let instance_ty_id = self.resolve_instance_type_for_symbol(
+                    tables.module,
+                    tables.profile,
+                    node_id,
+                    symbol,
+                    tables.types,
+                )?;
                 if let Some(instance_ty_id) = instance_ty_id {
                     let mut candidate_id = instance_ty_id;
 
                     // specialize instance types with explicit static arguments
-                    if let Some(static_arguments) = static_arguments.as_ref()
-                        && let Some(resolved_arguments) = self
+                    if let Some(static_arguments) = static_arguments.as_ref() {
+                        let mut type_tables = tables.type_tables_reborrow();
+                        if let Some(resolved_arguments) = self
                             .resolve_type_reference_static_arguments(
-                                module,
-                                profile,
+                                &mut type_tables,
                                 node_id,
                                 symbol,
                                 Some(static_arguments.as_slice()),
                                 true,
-                                options,
-                                tree,
-                                symbols,
-                                types,
                             )?
-                        && !resolved_arguments.is_empty()
-                    {
-                        let substitutions = self.build_type_parameter_substitutions_for_symbol(
-                            module,
-                            profile,
-                            symbol,
-                            node_id,
-                            &resolved_arguments,
-                            tree,
-                            symbols,
-                            types,
-                        );
-                        if !substitutions.is_empty() {
-                            let mut cache = HashMap::new();
-                            candidate_id = self.substitute_static_parameters(
-                                instance_ty_id,
-                                &substitutions,
-                                types,
-                                &mut cache,
+                            && !resolved_arguments.is_empty()
+                        {
+                            let substitutions = self.build_type_parameter_substitutions_for_symbol(
+                                &mut tables.type_tables_reborrow(),
+                                symbol,
+                                node_id,
+                                &resolved_arguments,
                             );
+                            if !substitutions.is_empty() {
+                                let mut cache = HashMap::new();
+                                candidate_id = self.substitute_static_parameters(
+                                    instance_ty_id,
+                                    &substitutions,
+                                    tables.types,
+                                    &mut cache,
+                                );
+                            }
                         }
                     }
 
                     let normalized = self.normalize_type(
-                        module,
-                        profile,
+                        tables.module,
+                        tables.profile,
                         candidate_id,
-                        symbols,
-                        types,
+                        tables.symbols,
+                        tables.types,
                         NormalizationMode::Assign,
                     );
                     candidates.push(normalized);
@@ -4964,39 +4912,45 @@ impl Compiler {
                 value,
             } => {
                 // expand mapped types into object candidates
-                let source_id = types.get_type_source(expected_ty_id);
+                let source_id = tables.types.get_type_source(expected_ty_id);
                 let mut normalize_visited = Vec::new();
                 let normalized = self.normalize_mapped_type(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     source_id,
                     parameter,
                     modifiers,
                     value,
-                    symbols,
-                    types,
+                    tables.symbols,
+                    tables.types,
                     NormalizationMode::Assign,
                     RelationMode::OBJECT_SHAPE,
                     &mut normalize_visited,
                 );
 
                 // stop when mapped normalization does not make structural progress
-                let normalized_type = types.get_type(normalized).clone();
-                let expected_type = types.get_type(expected_ty_id).clone();
+                let normalized_type = tables.types.get_type(normalized).clone();
+                let expected_type = tables.types.get_type(expected_ty_id).clone();
                 if normalized == expected_ty_id || normalized_type == expected_type {
                     return Ok(());
                 }
 
                 self.collect_object_literal_candidates(
-                    module, profile, node_id, normalized, options, tree, symbols, types,
-                    candidates, visited,
+                    &mut tables.reborrow(),
+                    node_id,
+                    normalized,
+                    candidates,
+                    visited,
                 )?;
             }
             Type::Union { elements } => {
                 for element in elements {
                     self.collect_object_literal_candidates(
-                        module, profile, node_id, element, options, tree, symbols, types,
-                        candidates, visited,
+                        &mut tables.reborrow(),
+                        node_id,
+                        element,
+                        candidates,
+                        visited,
                     )?;
                 }
             }

@@ -566,24 +566,19 @@ impl Compiler {
     /// Infer the result type of a type binary operation.
     pub(crate) fn infer_type_binary_operation(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         operator: &TypeBinaryOperator,
         left_ty_id: LocalTypeId,
         right_ty_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        _infer: &InferTable,
-        options: &AnalyzeOptions,
     ) -> Type {
         match operator {
             TypeBinaryOperator::Cast => {
                 // type assertion: `x as T`
                 // allow explicit raw pointer casts
                 let allow_pointer_cast = {
-                    let left_ty = types.get_type(left_ty_id);
-                    let right_ty = types.get_type(right_ty_id);
+                    let left_ty = tables.types.get_type(left_ty_id);
+                    let right_ty = tables.types.get_type(right_ty_id);
 
                     matches!(
                         (left_ty, right_ty),
@@ -601,39 +596,50 @@ impl Compiler {
 
                 // allow explicit enum backing casts
                 let allow_enum_cast = {
-                    let left_ty = types.get_type(left_ty_id).clone();
-                    let right_ty = types.get_type(right_ty_id).clone();
+                    let left_ty = tables.types.get_type(left_ty_id).clone();
+                    let right_ty = tables.types.get_type(right_ty_id).clone();
 
-                    self.is_enum_backing_cast(module, profile, &left_ty, &right_ty, types)
+                    self.is_enum_backing_cast(
+                        tables.module,
+                        tables.profile,
+                        &left_ty,
+                        &right_ty,
+                        tables.types,
+                    )
                 };
-                let allow_record_cast =
-                    self.allow_record_like_cast(profile, left_ty_id, right_ty_id, types);
+                let allow_record_cast = self.allow_record_like_cast(
+                    tables.profile,
+                    left_ty_id,
+                    right_ty_id,
+                    tables.types,
+                );
 
                 // check if cast is valid (types overlap: at least one direction is assignable)
                 let left_to_right = self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    tables.module,
+                    tables.profile,
+                    tables.symbols,
                     right_ty_id,
                     left_ty_id,
-                    types,
-                    options,
+                    tables.types,
+                    tables.options,
                 );
                 let right_to_left = self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    tables.module,
+                    tables.profile,
+                    tables.symbols,
                     left_ty_id,
                     right_ty_id,
-                    types,
-                    options,
+                    tables.types,
+                    tables.options,
                 );
 
                 // reject unsafe type assertions when configured
-                if options.no_unsafe_type_assertions && matches!(module.source, ModuleSource::User)
+                if tables.options.no_unsafe_type_assertions
+                    && matches!(tables.module.source, ModuleSource::User)
                 {
                     // read the source type
-                    let left_ty = types.get_type(left_ty_id);
+                    let left_ty = tables.types.get_type(left_ty_id);
 
                     // check for any or unknown assertions
                     let is_any_or_unknown = matches!(
@@ -648,8 +654,8 @@ impl Compiler {
                     if is_unsafe_cast {
                         self.error(AnalyzeError::UnsafeTypeAssertionDisabled {
                             node: expression_id
-                                .into_global_any(module.id)
-                                .into_anchored(Some(profile)),
+                                .into_global_any(tables.module.id)
+                                .into_anchored(Some(tables.profile)),
                         });
                     }
                 }
@@ -664,54 +670,58 @@ impl Compiler {
                     // neither direction works: illegal cast
                     self.error(AnalyzeError::InvalidCast {
                         node: expression_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(profile)),
-                        from_ty: left_ty_id.into_global(module.id),
-                        to_ty: right_ty_id.into_global(module.id),
+                            .into_global_any(tables.module.id)
+                            .into_anchored(Some(tables.profile)),
+                        from_ty: left_ty_id.into_global(tables.module.id),
+                        to_ty: right_ty_id.into_global(tables.module.id),
                     });
                 }
                 // cast returns the target (right) type
-                types.get_type(right_ty_id).clone()
+                tables.types.get_type(right_ty_id).clone()
             }
             TypeBinaryOperator::Satisfies => {
                 // satisfies returns the original (left) type, not the asserted type
-                types.get_type(left_ty_id).clone()
+                tables.types.get_type(left_ty_id).clone()
             }
             TypeBinaryOperator::Is | TypeBinaryOperator::InstanceOf => {
                 // unwrap type descriptor values to the underlying type
-                let target_ty_id = match types.get_type(right_ty_id) {
+                let target_ty_id = match tables.types.get_type(right_ty_id) {
                     Type::Value { value } => *value,
                     _ => right_ty_id,
                 };
 
                 // enforce class-only instanceof targets
                 if matches!(operator, TypeBinaryOperator::InstanceOf) {
-                    let is_class_target = types
+                    let is_class_target = tables
+                        .types
                         .get_type(target_ty_id)
                         .symbol()
                         .is_some_and(|symbol| symbol.local_id.ty == SymbolType::Class);
                     if !is_class_target {
                         self.error(AnalyzeError::InvalidInstanceOfTarget {
                             node: expression_id
-                                .into_global_any(module.id)
-                                .into_anchored(Some(profile)),
+                                .into_global_any(tables.module.id)
+                                .into_anchored(Some(tables.profile)),
                         });
                     }
                 }
 
                 // record runtime check kind for guard expressions
-                let value_type_id = self.unwrap_type_value(left_ty_id, types);
+                let value_type_id = self.unwrap_type_value(left_ty_id, tables.types);
                 let runtime_check_kind = self.runtime_check_kind_for_relation(
-                    module,
-                    profile,
-                    symbols,
+                    tables.module,
+                    tables.profile,
+                    tables.symbols,
                     value_type_id,
                     target_ty_id,
-                    types,
-                    options,
+                    tables.types,
+                    tables.options,
                 );
                 if let Some(kind) = runtime_check_kind {
-                    types.set_runtime_check_kind(expression_id.into_global_any(module.id), kind);
+                    tables.types.set_runtime_check_kind(
+                        expression_id.into_global_any(tables.module.id),
+                        kind,
+                    );
                 }
 
                 Type::TypeLiteral {
@@ -720,19 +730,19 @@ impl Compiler {
             }
             TypeBinaryOperator::In => {
                 // check if the left type is a member of the right type keys
-                let left_ty_id = self.unwrap_type_value(left_ty_id, types);
-                let right_ty_id = self.unwrap_type_value(right_ty_id, types);
+                let left_ty_id = self.unwrap_type_value(left_ty_id, tables.types);
+                let right_ty_id = self.unwrap_type_value(right_ty_id, tables.types);
 
                 // compute the key space for the right type
                 let mut visited = Vec::new();
                 let key_type_id = self.normalize_keyof_type(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     expression_id.into_any(),
                     None,
                     right_ty_id,
-                    symbols,
-                    types,
+                    tables.symbols,
+                    tables.types,
                     NormalizationMode::Assign,
                     RelationMode::TYPE_OPERATOR,
                     &mut visited,
@@ -740,50 +750,50 @@ impl Compiler {
 
                 // compare the left type against the key space
                 let assignability = self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    tables.module,
+                    tables.profile,
+                    tables.symbols,
                     key_type_id,
                     left_ty_id,
-                    types,
-                    options,
+                    tables.types,
+                    tables.options,
                 );
 
                 // only emit boolean literals when the relation is static
                 let is_decidable = self.type_operator_is_decidable(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     left_ty_id,
                     right_ty_id,
-                    symbols,
-                    types,
+                    tables.symbols,
+                    tables.types,
                 );
                 self.boolean_type_for_assignability(assignability, is_decidable)
             }
             TypeBinaryOperator::Extends | TypeBinaryOperator::Implements => {
                 // check assignability for extends/implements
-                let left_ty_id = self.unwrap_type_value(left_ty_id, types);
-                let right_ty_id = self.unwrap_type_value(right_ty_id, types);
+                let left_ty_id = self.unwrap_type_value(left_ty_id, tables.types);
+                let right_ty_id = self.unwrap_type_value(right_ty_id, tables.types);
 
                 // compare the left type against the right type
                 let assignability = self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    tables.module,
+                    tables.profile,
+                    tables.symbols,
                     right_ty_id,
                     left_ty_id,
-                    types,
-                    options,
+                    tables.types,
+                    tables.options,
                 );
 
                 // only emit boolean literals when the relation is static
                 let is_decidable = self.type_operator_is_decidable(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     left_ty_id,
                     right_ty_id,
-                    symbols,
-                    types,
+                    tables.symbols,
+                    tables.types,
                 );
                 self.boolean_type_for_assignability(assignability, is_decidable)
             }

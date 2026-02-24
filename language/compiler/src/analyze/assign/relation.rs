@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::common::TypeTablesContext;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -45,6 +46,25 @@ impl Compiler {
         }
         let node = anchor.into_global(module.id).into_anchored(Some(profile));
         self.error(AnalyzeError::UnsoundVarianceDisabled { node });
+    }
+
+    /// Check if `source` type is assignable to `target` type.
+    /// Returns true if a value of type `source` can be assigned to a location of type `target`.
+    pub(crate) fn is_type_assignable_in_type_tables(
+        &self,
+        tables: &mut TypeTablesContext<'_>,
+        target_id: LocalTypeId,
+        source_id: LocalTypeId,
+    ) -> Assignability {
+        self.is_type_assignable(
+            tables.module,
+            tables.profile,
+            tables.symbols,
+            target_id,
+            source_id,
+            tables.types,
+            tables.options,
+        )
     }
 
     /// Check if `source` type is assignable to `target` type.
@@ -473,9 +493,10 @@ impl Compiler {
                     value: TypeLiteral::Primitive(PrimitiveType::String),
                 },
             ) => {
-                if self.template_literal_is_string_supertype(
-                    module, profile, &strings, &spans, symbols, types,
-                ) {
+                let tree = module.dir(profile).tree.read();
+                let mut type_tables =
+                    TypeTablesContext::new(module, profile, options, &tree, symbols, types);
+                if self.template_literal_is_string_supertype(&mut type_tables, &strings, &spans) {
                     Assignability::Assignable
                 } else {
                     Assignability::NotAssignable
@@ -488,9 +509,11 @@ impl Compiler {
                 },
             ) => {
                 let value = self.program.strings.get(string_id).to_string();
-                if self.template_literal_matches_string(
-                    module, profile, &strings, &spans, &value, symbols, types,
-                ) {
+                let tree = module.dir(profile).tree.read();
+                let mut type_tables =
+                    TypeTablesContext::new(module, profile, options, &tree, symbols, types);
+                if self.template_literal_matches_string(&mut type_tables, &strings, &spans, &value)
+                {
                     Assignability::Assignable
                 } else {
                     Assignability::NotAssignable
@@ -506,16 +529,15 @@ impl Compiler {
                     spans: source_spans,
                 },
             ) => {
+                let tree = module.dir(profile).tree.read();
+                let mut type_tables =
+                    TypeTablesContext::new(module, profile, options, &tree, symbols, types);
                 if self.template_literal_matches_template(
-                    module,
-                    profile,
+                    &mut type_tables,
                     &target_strings,
                     &target_spans,
                     &source_strings,
                     &source_spans,
-                    symbols,
-                    types,
-                    options,
                 ) {
                     Assignability::Assignable
                 } else {

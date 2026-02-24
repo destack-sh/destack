@@ -10,8 +10,8 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 
 use super::{
-    REWRITER_TAG_INFER_SUBSTITUTION, TypeRewriteCache, TypeWalkContext, TypeWalkKey,
-    rewrite_type_with_cache,
+    REWRITER_TAG_INFER_SUBSTITUTION, TypeRewriteCache, TypeTablesContext, TypeWalkContext,
+    TypeWalkKey, rewrite_type_with_cache,
 };
 use crate::Compiler;
 
@@ -388,47 +388,69 @@ impl Compiler {
             );
         }
 
-        // resolve static parameter constraints for the left side
-        if let Type::Reference { symbol, .. } = &left_type
-            && self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
+        // resolve static parameter constraints for left and right sides
         {
-            let constraint_id = self.static_parameter_constraint_type(
-                module, profile, *symbol, source_id, symbols, types,
-            );
-            if let Some(constraint_id) = constraint_id {
-                return self.infer_conditional_type_substitutions_inner(
-                    module,
-                    profile,
-                    distributive,
-                    constraint_id,
-                    right,
-                    source_id,
-                    symbols,
-                    types,
-                    visited,
-                );
-            }
-        }
+            let tree = module.dir(profile).tree.read();
+            let options = self.analyze_context_options_for_module(module.id);
+            let mut type_tables =
+                TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
 
-        // resolve static parameter constraints for the right side
-        if let Type::Reference { symbol, .. } = &right_type
-            && self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
-        {
-            let constraint_id = self.static_parameter_constraint_type(
-                module, profile, *symbol, source_id, symbols, types,
-            );
-            if let Some(constraint_id) = constraint_id {
-                return self.infer_conditional_type_substitutions_inner(
-                    module,
-                    profile,
-                    distributive,
-                    left,
-                    constraint_id,
+            if let Type::Reference { symbol, .. } = &left_type
+                && self.symbol_is_static_parameter(
+                    type_tables.module,
+                    type_tables.profile,
+                    *symbol,
+                    type_tables.symbols,
+                    type_tables.types,
+                )
+            {
+                let constraint_id = self.static_parameter_constraint_type(
+                    &mut type_tables.reborrow(),
+                    *symbol,
                     source_id,
-                    symbols,
-                    types,
-                    visited,
                 );
+                if let Some(constraint_id) = constraint_id {
+                    return self.infer_conditional_type_substitutions_inner(
+                        type_tables.module,
+                        type_tables.profile,
+                        distributive,
+                        constraint_id,
+                        right,
+                        source_id,
+                        type_tables.symbols,
+                        type_tables.types,
+                        visited,
+                    );
+                }
+            }
+
+            if let Type::Reference { symbol, .. } = &right_type
+                && self.symbol_is_static_parameter(
+                    type_tables.module,
+                    type_tables.profile,
+                    *symbol,
+                    type_tables.symbols,
+                    type_tables.types,
+                )
+            {
+                let constraint_id = self.static_parameter_constraint_type(
+                    &mut type_tables.reborrow(),
+                    *symbol,
+                    source_id,
+                );
+                if let Some(constraint_id) = constraint_id {
+                    return self.infer_conditional_type_substitutions_inner(
+                        type_tables.module,
+                        type_tables.profile,
+                        distributive,
+                        left,
+                        constraint_id,
+                        source_id,
+                        type_tables.symbols,
+                        type_tables.types,
+                        visited,
+                    );
+                }
             }
         }
 
@@ -730,8 +752,16 @@ impl Compiler {
                 Type::TemplateLiteral { strings, spans },
             ) => {
                 let value = self.program.strings.get(string_id).to_string();
+                let tree = module.dir(profile).tree.read();
+                let options = self.analyze_context_options_for_module(module.id);
+                let mut tables =
+                    TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
                 self.infer_template_substitutions_from_string(
-                    module, profile, &value, &strings, &spans, source_id, symbols, types,
+                    &mut tables,
+                    &value,
+                    &strings,
+                    &spans,
+                    source_id,
                 )
             }
             (
@@ -750,15 +780,16 @@ impl Compiler {
                     let fragment = self.program.strings.get(string_id);
                     value.push_str(fragment.as_ref());
                 }
+                let tree = module.dir(profile).tree.read();
+                let options = self.analyze_context_options_for_module(module.id);
+                let mut tables =
+                    TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
                 self.infer_template_substitutions_from_string(
-                    module,
-                    profile,
+                    &mut tables,
                     &value,
                     &right_strings,
                     &right_spans,
                     source_id,
-                    symbols,
-                    types,
                 )
             }
             (
@@ -1803,14 +1834,11 @@ impl Compiler {
     /// Infer substitutions by matching a template literal type against a string literal.
     pub(crate) fn infer_template_substitutions_from_string(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         value: &str,
         strings: &[StringId],
         spans: &[LocalTypeId],
         source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<InferSubstitutions> {
         // match template literal parts to the string
         let span_values = self.match_template_literal_to_string(strings, value)?;
@@ -1827,18 +1855,15 @@ impl Compiler {
         // apply each span constraint
         for (span_ty_id, span_value) in spans.iter().zip(span_values.iter()) {
             // resolve span type
-            let span_ty = types.get_type(*span_ty_id).clone();
+            let span_ty = tables.types.get_type(*span_ty_id).clone();
             match span_ty {
                 Type::Infer { name, constraint } => {
                     // enforce span constraints for constrained inference
                     if let Some(constraint_id) = constraint
                         && !self.template_span_matches_string(
-                            module,
-                            profile,
+                            &mut tables.reborrow(),
                             constraint_id,
                             span_value,
-                            symbols,
-                            types,
                             &mut visited,
                         )
                     {
@@ -1846,16 +1871,20 @@ impl Compiler {
                     }
 
                     // infer literal type for the span
-                    let inferred_ty =
-                        self.template_infer_literal_type(constraint, span_value, source_id, types)?;
+                    let inferred_ty = self.template_infer_literal_type(
+                        constraint,
+                        span_value,
+                        source_id,
+                        tables.types,
+                    )?;
                     if let Some(existing) = substitutions.get(&name)
                         && !self.inferred_type_ids_equivalent(
-                            module,
-                            profile,
+                            tables.module,
+                            tables.profile,
                             existing,
                             inferred_ty,
-                            symbols,
-                            types,
+                            tables.symbols,
+                            tables.types,
                         )
                     {
                         return None;
@@ -1866,12 +1895,9 @@ impl Compiler {
                 _ => {
                     // enforce non infer span constraints
                     if !self.template_span_matches_string(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         *span_ty_id,
                         span_value,
-                        symbols,
-                        types,
                         &mut visited,
                     ) {
                         return None;

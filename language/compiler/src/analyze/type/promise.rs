@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::common::TypeTablesContext;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -104,17 +105,15 @@ impl Compiler {
         {
             let options = self.analyze_context_options_for_module(module.id);
             let tree = module.dir(profile).tree.read();
+            let source_id = types.get_type_source(type_id);
+            let mut type_tables =
+                TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
             self.resolve_type_reference_static_arguments(
-                module,
-                profile,
-                types.get_type_source(type_id),
+                &mut type_tables,
+                source_id,
                 symbol,
-                Some(static_arguments),
+                Some(static_arguments.as_slice()),
                 true,
-                &options,
-                &tree,
-                symbols,
-                types,
             )
             .ok()
             .flatten()
@@ -194,18 +193,15 @@ impl Compiler {
 
         let options = self.analyze_context_options_for_module(module.id);
         let tree = module.dir(profile).tree.read();
+        let mut type_tables =
+            TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
         let resolved_arguments = self
             .resolve_type_reference_static_arguments(
-                module,
-                profile,
+                &mut type_tables,
                 source_id,
                 symbol,
                 static_arguments.as_deref(),
                 true,
-                &options,
-                &tree,
-                symbols,
-                types,
             )
             .ok()
             .flatten();

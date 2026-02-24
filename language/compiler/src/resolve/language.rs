@@ -46,18 +46,7 @@ impl Compiler {
         let profile_key = profile.key.clone();
 
         // skip when this profile key already has resolved lib caches
-        if builtins.ambient_libs(&profile_key).is_some()
-            && builtins
-                .declared_lib_symbols_by_profile
-                .contains_key(&profile_key)
-            && builtins
-                .ambient_lib_symbols_by_profile
-                .contains_key(&profile_key)
-            && builtins
-                .ambient_lib_symbol_sources_by_profile
-                .contains_key(&profile_key)
-            && builtins.well_known_symbols(&profile_key).is_some()
-        {
+        if builtins.has_resolved_lib_state(&profile_key) {
             return Ok(());
         }
 

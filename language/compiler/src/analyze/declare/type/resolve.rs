@@ -1,4 +1,6 @@
-use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode};
+use crate::analyze::common::{
+    AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode, TypeTablesContext,
+};
 use crate::analyze::{AssociatedProjectionSelection, StaticMemberSymbolKind};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
@@ -637,13 +639,16 @@ impl Compiler {
                 Type::Reference { symbol, .. } => {
                     // follow static parameter constraints when available
                     if self.symbol_is_static_parameter(module, profile, symbol, symbols, types) {
+                        let tree = module.dir(profile).tree.read();
+                        let options = self.analyze_context_options_for_module(module.id);
+                        let mut type_tables = TypeTablesContext::new(
+                            module, profile, &options, &tree, symbols, types,
+                        );
+                        let source_id = type_tables.types.get_type_source(receiver_type_id);
                         if let Some(constraint_type_id) = self.static_parameter_constraint_type(
-                            module,
-                            profile,
+                            &mut type_tables,
                             symbol,
-                            types.get_type_source(receiver_type_id),
-                            symbols,
-                            types,
+                            source_id,
                         ) {
                             receiver_type_id = constraint_type_id;
                             continue;
@@ -821,14 +826,12 @@ impl Compiler {
             return false;
         }
 
-        let Some(constraint_id) = self.static_parameter_constraint_type(
-            module,
-            profile,
-            parameter_symbol,
-            source_id,
-            symbols,
-            types,
-        ) else {
+        let options = self.analyze_context_options_for_module(module.id);
+        let mut type_tables =
+            TypeTablesContext::new(module, profile, &options, tree, symbols, types);
+        let Some(constraint_id) =
+            self.static_parameter_constraint_type(&mut type_tables, parameter_symbol, source_id)
+        else {
             return false;
         };
 
@@ -1395,17 +1398,14 @@ impl Compiler {
             None
         } else {
             let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_ARGUMENTS);
+            let mut type_tables =
+                TypeTablesContext::new(module, profile, &options, tree, symbols, types);
             self.resolve_type_reference_static_arguments(
-                module,
-                profile,
+                &mut type_tables,
                 expression_id.into_any(),
                 target_symbol,
                 static_arguments.as_deref(),
                 validate_static_argument_bounds,
-                &options,
-                tree,
-                symbols,
-                types,
             )?
         };
         let static_arguments = resolved_arguments.or(static_arguments);

@@ -3,10 +3,9 @@ use crate::analyze::common::InferTablesContext;
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
     GlobalNodeIdAny, GlobalSymbolId, InferTable, InstanceCommitObligation,
-    InstanceCommitObligationId, LocalInstanceId, LocalTypeId, NodeTree, StaticArgument,
-    StaticExpression, SymbolTable, SymbolType, Type, TypeTable,
+    InstanceCommitObligationId, LocalInstanceId, LocalTypeId, StaticArgument, StaticExpression,
+    SymbolType, Type, TypeTable,
 };
-use destack_workspace::{Module, ProfileId};
 use std::collections::HashMap;
 
 #[allow(clippy::too_many_arguments)]
@@ -48,14 +47,10 @@ impl Compiler {
 
         // compose the full environment in declaration order
         let Some(environment) = self.instance_environment_for_symbol_arguments(
-            tables.module,
-            tables.profile,
+            tables,
             symbol,
             static_arguments.to_vec(),
             0,
-            tables.tree,
-            tables.symbols,
-            tables.types,
         ) else {
             return Ok(None);
         };
@@ -88,37 +83,46 @@ impl Compiler {
     /// Query owner static parameter symbols for one member symbol.
     fn query_member_owner_static_parameter_symbols(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &InferTablesContext<'_>,
         member_symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> Vec<GlobalSymbolId> {
-        let Some(owner_symbol) =
-            self.owner_symbol_for_member_symbol(module, profile, member_symbol, symbols)
-        else {
+        let Some(owner_symbol) = self.owner_symbol_for_member_symbol(
+            tables.module,
+            tables.profile,
+            member_symbol,
+            tables.symbols,
+        ) else {
             return Vec::new();
         };
 
-        self.collect_static_parameter_symbols(module, owner_symbol, profile, tree, symbols, types)
-            .unwrap_or_default()
+        self.collect_static_parameter_symbols(
+            tables.module,
+            owner_symbol,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
+            &*tables.types,
+        )
+        .unwrap_or_default()
     }
 
     /// Build one substitution environment for one symbol and one static-argument vector.
     pub(crate) fn instance_environment_for_symbol_arguments(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &InferTablesContext<'_>,
         symbol_id: GlobalSymbolId,
         static_arguments: Vec<StaticArgument>,
         inherited_arity: usize,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> Option<StaticSubstitutionEnvironment> {
         let parameter_symbols = self
-            .collect_static_parameter_symbols(module, symbol_id, profile, tree, symbols, types)
+            .collect_static_parameter_symbols(
+                tables.module,
+                symbol_id,
+                tables.profile,
+                tables.tree,
+                tables.symbols,
+                &*tables.types,
+            )
             .unwrap_or_default();
 
         StaticSubstitutionEnvironment::from_parameter_symbols(
@@ -131,16 +135,12 @@ impl Compiler {
     /// Compose one member-instance substitution environment from owner and signature metadata.
     pub(crate) fn compose_member_instance_environment(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &InferTablesContext<'_>,
         member_symbol: GlobalSymbolId,
         base_arguments: &[StaticArgument],
         bound_substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
         resolved_arguments: &[StaticArgument],
         signature_parameter_symbols: &[GlobalSymbolId],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> Option<StaticSubstitutionEnvironment> {
         // normalize both argument sources before composition
         let base_arguments = base_arguments
@@ -153,22 +153,16 @@ impl Compiler {
             .collect::<Vec<_>>();
 
         // resolve owner parameter order for inherited arguments
-        let owner_parameter_symbols = self.query_member_owner_static_parameter_symbols(
-            module,
-            profile,
-            member_symbol,
-            tree,
-            symbols,
-            types,
-        );
+        let owner_parameter_symbols =
+            self.query_member_owner_static_parameter_symbols(tables, member_symbol);
         let effective_signature_parameter_symbols = if signature_parameter_symbols.is_empty() {
             self.collect_static_parameter_symbols(
-                module,
+                tables.module,
                 member_symbol,
-                profile,
-                tree,
-                symbols,
-                types,
+                tables.profile,
+                tables.tree,
+                tables.symbols,
+                &*tables.types,
             )
             .map(|symbols| {
                 symbols

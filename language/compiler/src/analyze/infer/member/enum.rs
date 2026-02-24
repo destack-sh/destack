@@ -72,17 +72,16 @@ impl Compiler {
             return Ok(None);
         }
 
+        let lookup = MemberLookupModuleContext::new(module.id, profile, tree, symbols, types);
+
         // resolve the member symbol from the enum declaration
         let mut visited = Vec::new();
         self.resolve_member_symbol_for_symbol(
             module,
+            &lookup,
             left_symbol,
             member_key,
             MemberLookupMode::Value,
-            profile,
-            tree,
-            symbols,
-            types,
             &mut visited,
         )
     }

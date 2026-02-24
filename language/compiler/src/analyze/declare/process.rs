@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use indexmap::IndexMap;
 
+use crate::analyze::common::TypeTablesContext;
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, ModuleCheckOptions, Task,
@@ -134,12 +135,15 @@ impl Compiler {
 
         // publish declared static parameter constraints
         let mut publish_collector = TaskResultCollector::new();
-        self.collect(
-            &mut publish_collector,
-            self.publish_static_parameter_constraints(
-                &module, profile, &tree, &symbols, &mut types,
-            ),
-        );
+        {
+            let options = self.analyze_context_options_for_module(module.id);
+            let mut type_tables =
+                TypeTablesContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+            self.collect(
+                &mut publish_collector,
+                self.publish_static_parameter_constraints(&mut type_tables),
+            );
+        }
 
         // publish declare-owned static constant values for cross-module static evaluation
         self.collect(

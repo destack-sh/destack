@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::analyze::common::{
     AnalyzeDependencyStage, CanonicalSymbolMode, REWRITER_TAG_ASSOCIATED_ALIAS, TypeRewriteCache,
-    TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
+    TypeTablesContext, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
 };
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_base::StringId;
@@ -143,15 +143,22 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
 
         // map explicit member arguments onto alias static parameters
         if let Some(member_arguments) = static_arguments.as_deref() {
-            let member_substitutions = self.compiler.build_type_parameter_substitutions_for_symbol(
+            let options = self
+                .compiler
+                .analyze_context_options_for_module(self.module.id);
+            let mut type_tables = TypeTablesContext::new(
                 self.module,
                 self.profile,
-                symbol,
-                self.source_id,
-                member_arguments,
+                &options,
                 self.tree,
                 self.symbols,
                 types,
+            );
+            let member_substitutions = self.compiler.build_type_parameter_substitutions_for_symbol(
+                &mut type_tables,
+                symbol,
+                self.source_id,
+                member_arguments,
             );
             substitutions.extend(member_substitutions);
         }
@@ -906,15 +913,14 @@ impl Compiler {
             let mapped_alias_target = if lookup_arguments.is_empty() {
                 alias_target_id
             } else {
+                let options = self.analyze_context_options_for_module(module.id);
+                let mut type_tables =
+                    TypeTablesContext::new(module, profile, &options, tree, symbols, types);
                 let substitutions = self.build_type_parameter_substitutions_for_symbol(
-                    module,
-                    profile,
+                    &mut type_tables,
                     lookup_symbol,
                     expression_id.into_any(),
                     &lookup_arguments,
-                    tree,
-                    symbols,
-                    types,
                 );
                 if substitutions.is_empty() {
                     alias_target_id
