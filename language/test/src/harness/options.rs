@@ -24,6 +24,10 @@ pub struct TestOptions {
     #[arg(long, default_value_t = 3000)]
     pub early_timeout_ms: u64,
 
+    /// Timeout in milliseconds for mdtest suites (specification and query).
+    #[arg(long, default_value_t = 15000)]
+    pub mdtest_timeout_ms: u64,
+
     /// Show verbose output including failure details inline.
     #[arg(short, long)]
     pub verbose: bool,
@@ -61,6 +65,7 @@ impl Default for TestOptions {
             jobs: num_cpus(),
             parse_timeout_ms: 1000,
             early_timeout_ms: 3000,
+            mdtest_timeout_ms: 15000,
             verbose: false,
             list: false,
             continue_on_timeout: false,
@@ -101,6 +106,11 @@ impl TestOptions {
     /// Get the early timeout as a Duration.
     pub fn early_timeout(&self) -> std::time::Duration {
         std::time::Duration::from_millis(self.early_timeout_ms.max(1))
+    }
+
+    /// Get the mdtest timeout as a Duration.
+    pub fn mdtest_timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.mdtest_timeout_ms.max(1))
     }
 }
 

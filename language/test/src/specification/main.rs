@@ -160,6 +160,8 @@ fn run_child(options: &TestOptions, filter: &str) -> std::process::ExitStatus {
     command.arg(filter);
     command.arg("--jobs");
     command.arg(options.jobs.to_string());
+    command.arg("--mdtest-timeout-ms");
+    command.arg(options.mdtest_timeout_ms.to_string());
     if options.no_parallel {
         command.arg("--no-parallel");
     }
