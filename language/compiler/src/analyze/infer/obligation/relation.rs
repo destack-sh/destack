@@ -5,6 +5,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
+use crate::analyze::common::InferTablesContext;
 use crate::{AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
 
 /// Policy for immediate unassignable diagnostics before solve convergence.
@@ -84,45 +85,41 @@ impl Compiler {
     /// Enforce one assignability relation or defer its diagnostic to post solve reporting.
     pub(crate) fn enforce_assignability_or_defer_diagnostic(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         node_id: LocalNodeIdAny,
         target_type_id: LocalTypeId,
         source_type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         options: &AnalyzeOptions,
         failure_mode: UnassignableRelationFailureMode,
     ) -> AnalyzeResult<()> {
         // defer relation diagnostics until all inference variables are solved
         if self.type_relation_requires_infer_convergence(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             target_type_id,
             source_type_id,
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
         ) {
             self.push_relation_obligation_for_captured_types(
-                module,
+                tables.module,
                 node_id,
                 target_type_id,
                 source_type_id,
                 TypeRelationObligationDiagnostic::UnassignableType,
-                infer,
+                tables.infer,
             );
             return Ok(());
         }
 
         // report immediately when the relation is fully concrete
         let assignability = self.is_type_assignable(
-            module,
-            profile,
-            symbols,
+            tables.module,
+            tables.profile,
+            tables.symbols,
             target_type_id,
             source_type_id,
-            types,
+            tables.types,
             options,
         );
         if assignability != Assignability::NotAssignable {
@@ -133,12 +130,12 @@ impl Compiler {
             // hard failure paths return the diagnostic
             UnassignableRelationFailureMode::PropagateError => {
                 if let Some(error) = self.unassignable_type_error_for_types(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     node_id,
                     target_type_id,
                     source_type_id,
-                    types,
+                    tables.types,
                 ) {
                     return Err(error);
                 }
@@ -146,12 +143,12 @@ impl Compiler {
             // soft failure paths emit the diagnostic and continue
             UnassignableRelationFailureMode::ReportAndContinue => {
                 self.emit_unassignable_type_for_types(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     node_id,
                     target_type_id,
                     source_type_id,
-                    types,
+                    tables.types,
                 );
             }
         }

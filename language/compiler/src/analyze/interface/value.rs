@@ -1,3 +1,4 @@
+use crate::analyze::common::InferTablesContext;
 use crate::{AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
 use destack_dir::{
     Constraint, Declaration, Declarator, Export, Expression, GlobalNodeIdAny, GlobalSymbolId,
@@ -258,19 +259,22 @@ impl Compiler {
             ));
         }
 
+        // infer interface declarations and initializers with one shared tables context
+        let mut tables = InferTablesContext::new(
+            module,
+            profile,
+            &base_ctx.options,
+            tree,
+            symbols,
+            types,
+            &mut infer,
+        );
+
         // infer unannotated exported function declarations
         for export in &export_declarations {
             // infer the declaration with an unconstrained expectation
             let mut ctx = base_ctx.fork().with_expected_type(None);
-            self.infer_declaration(
-                module,
-                export.declaration_id,
-                tree,
-                symbols,
-                types,
-                &mut infer,
-                &mut ctx,
-            )?;
+            self.infer_declaration(&mut tables.reborrow(), export.declaration_id, &mut ctx)?;
         }
 
         // infer initializer types and constrain export symbols
@@ -279,25 +283,25 @@ impl Compiler {
             let Some(value_id) = export.value_id else {
                 continue;
             };
-            let Some(symbol_ty_id) = types.get_value_type_id(export.export_symbol) else {
+            let Some(symbol_ty_id) = tables.types.get_value_type_id(export.export_symbol) else {
                 continue;
             };
 
             // infer the initializer with binding defaults and export expectations
             let mut ctx = base_ctx.fork().with_expected_type(Some(symbol_ty_id));
             ctx = self.binding_initializer_context(&ctx, export.binding_mutability);
-            let inferred_ty_id = self
-                .infer_expression(module, value_id, tree, symbols, types, &mut infer, &mut ctx)?;
+            let inferred_ty_id =
+                self.infer_expression(&mut tables.reborrow(), value_id, &mut ctx)?;
             let committed_ty_id = self.materialize_declarator_initializer_type(
                 module,
                 export.declarator_id,
                 value_id,
                 inferred_ty_id,
-                tree,
+                tables.tree,
                 &ctx,
-                types,
+                tables.types,
             );
-            infer.push_constraint(Constraint::Subtype {
+            tables.infer.push_constraint(Constraint::Subtype {
                 sub_type: committed_ty_id,
                 super_type: symbol_ty_id,
                 variance: None,
@@ -309,8 +313,8 @@ impl Compiler {
             module,
             profile,
             symbols,
-            &infer,
-            types,
+            tables.infer,
+            tables.types,
             &base_ctx.options,
         );
 
@@ -318,7 +322,7 @@ impl Compiler {
         if emit_unknown_warnings {
             for (ty_id, node_id) in inferred_exports {
                 if matches!(
-                    types.get_type(ty_id),
+                    tables.types.get_type(ty_id),
                     Type::TypeLiteral {
                         value: TypeLiteral::Unknown
                     }

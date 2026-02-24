@@ -354,35 +354,30 @@ impl Compiler {
         }
 
         // object, function, and interface bridge relations
-        if let Some(assignability) = self.check_object_callable_assignability(
-            module,
-            profile,
-            symbols,
-            target_id,
-            target_source_id,
-            source_source_id,
-            &target,
-            &source,
-            types,
-            options,
-        ) {
-            return assignability;
-        }
-
         // reference nominal and structural relations
-        if let Some(assignability) = self.check_reference_type_assignability(
-            module,
-            profile,
-            symbols,
-            target_id,
-            source_id,
-            target_source_id,
-            &target,
-            &source,
-            types,
-            options,
-        ) {
-            return assignability;
+        {
+            let mut relation_ctx = AssignContext::new(module, profile, symbols, types, options);
+            if let Some(assignability) = self.check_object_callable_assignability(
+                &mut relation_ctx,
+                target_id,
+                target_source_id,
+                source_source_id,
+                &target,
+                &source,
+            ) {
+                return assignability;
+            }
+
+            if let Some(assignability) = self.check_reference_type_assignability(
+                &mut relation_ctx,
+                target_id,
+                source_id,
+                target_source_id,
+                &target,
+                &source,
+            ) {
+                return assignability;
+            }
         }
 
         // structural comparison
@@ -449,15 +444,12 @@ impl Compiler {
                 };
 
                 let target_index_signatures = vec![index_signature];
+                let mut ctx = AssignContext::new(module, profile, symbols, types, options);
                 if self.is_index_signatures_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    &mut ctx,
                     &target_index_signatures,
                     &source_index_signatures,
                     &source_fields,
-                    types,
-                    options,
                 ) {
                     Assignability::Assignable
                 } else {
@@ -1320,17 +1312,18 @@ impl Compiler {
     /// Evaluate object, callable, and interface bridge relations.
     fn check_object_callable_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         target_id: LocalTypeId,
         target_source_id: LocalNodeIdAny,
         source_source_id: LocalNodeIdAny,
         target: &Type,
         source: &Type,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Option<Assignability> {
+        let module = ctx.module;
+        let profile = ctx.profile;
+        let symbols = ctx.symbols;
+        let types = &mut *ctx.types;
+
         match (target, source) {
             // objects: structural subtyping
             (
@@ -1352,10 +1345,9 @@ impl Compiler {
                     self.check_implicit_collection_conversion(module, profile, anchor);
                 }
 
+                let mut relation_ctx = ctx.reborrow();
                 Some(self.is_object_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    &mut relation_ctx,
                     target_fields,
                     target_call_signatures,
                     target_construct_signatures,
@@ -1364,8 +1356,6 @@ impl Compiler {
                     source_call_signatures,
                     source_construct_signatures,
                     source_index_signatures,
-                    types,
-                    options,
                 ))
             }
 
@@ -1390,10 +1380,9 @@ impl Compiler {
                     self.check_implicit_collection_conversion(module, profile, anchor);
                 }
 
+                let mut relation_ctx = ctx.reborrow();
                 Some(self.is_object_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    &mut relation_ctx,
                     target_fields,
                     target_call_signatures,
                     target_construct_signatures,
@@ -1402,8 +1391,6 @@ impl Compiler {
                     &source_call_signatures,
                     &source_construct_signatures,
                     &source_index_signatures,
-                    types,
-                    options,
                 ))
             }
 
@@ -1421,20 +1408,20 @@ impl Compiler {
                     return_type: source_return,
                     ..
                 },
-            ) => Some(self.is_function_type_assignable(
-                module,
-                profile,
-                symbols,
-                types.get_type_source(target_id),
-                target_params,
-                target_this,
-                target_return,
-                source_params,
-                source_this,
-                source_return,
-                types,
-                options,
-            )),
+            ) => {
+                let assignment_anchor = types.get_type_source(target_id);
+                let mut relation_ctx = ctx.reborrow();
+                Some(self.is_function_type_assignable(
+                    &mut relation_ctx,
+                    assignment_anchor,
+                    target_params,
+                    target_this,
+                    target_return,
+                    source_params,
+                    source_this,
+                    source_return,
+                ))
+            }
 
             // callable objects: function values can satisfy call signatures
             (
@@ -1456,10 +1443,9 @@ impl Compiler {
                     self.check_implicit_collection_conversion(module, profile, anchor);
                 }
 
+                let mut relation_ctx = ctx.reborrow();
                 Some(self.is_object_assignable_from_function(
-                    module,
-                    profile,
-                    symbols,
+                    &mut relation_ctx,
                     target_fields,
                     target_call_signatures,
                     target_construct_signatures,
@@ -1467,8 +1453,6 @@ impl Compiler {
                     source_params,
                     source_this,
                     source_return,
-                    types,
-                    options,
                 ))
             }
 
@@ -1484,18 +1468,18 @@ impl Compiler {
                     call_signatures: source_call_signatures,
                     ..
                 },
-            ) => Some(self.is_function_assignable_from_object(
-                module,
-                profile,
-                symbols,
-                types.get_type_source(target_id),
-                target_params,
-                target_this,
-                target_return,
-                source_call_signatures,
-                types,
-                options,
-            )),
+            ) => {
+                let assignment_anchor = types.get_type_source(target_id);
+                let mut relation_ctx = ctx.reborrow();
+                Some(self.is_function_assignable_from_object(
+                    &mut relation_ctx,
+                    assignment_anchor,
+                    target_params,
+                    target_this,
+                    target_return,
+                    source_call_signatures,
+                ))
+            }
 
             // interface target: allow structural assignability from object source
             (
@@ -1533,10 +1517,9 @@ impl Compiler {
                     index_signatures: target_index_signatures,
                 } = target_instance
                 {
+                    let mut relation_ctx = ctx.reborrow();
                     return Some(self.is_object_type_assignable(
-                        module,
-                        profile,
-                        symbols,
+                        &mut relation_ctx,
                         &target_fields,
                         &target_call_signatures,
                         &target_construct_signatures,
@@ -1545,8 +1528,6 @@ impl Compiler {
                         source_call_signatures,
                         source_construct_signatures,
                         source_index_signatures,
-                        types,
-                        options,
                     ));
                 }
 
@@ -1589,10 +1570,9 @@ impl Compiler {
                     index_signatures: source_index_signatures,
                 } = source_instance
                 {
+                    let mut relation_ctx = ctx.reborrow();
                     return Some(self.is_object_type_assignable(
-                        module,
-                        profile,
-                        symbols,
+                        &mut relation_ctx,
                         target_fields,
                         target_call_signatures,
                         target_construct_signatures,
@@ -1601,8 +1581,6 @@ impl Compiler {
                         &source_call_signatures,
                         &source_construct_signatures,
                         &source_index_signatures,
-                        types,
-                        options,
                     ));
                 }
 
@@ -1645,10 +1623,9 @@ impl Compiler {
                     index_signatures: target_index_signatures,
                 } = target_instance
                 {
+                    let mut relation_ctx = ctx.reborrow();
                     return Some(self.is_object_assignable_from_function(
-                        module,
-                        profile,
-                        symbols,
+                        &mut relation_ctx,
                         &target_fields,
                         &target_call_signatures,
                         &target_construct_signatures,
@@ -1656,8 +1633,6 @@ impl Compiler {
                         source_params,
                         source_this,
                         source_return,
-                        types,
-                        options,
                     ));
                 }
 
@@ -1698,17 +1673,15 @@ impl Compiler {
                     ..
                 } = source_instance
                 {
+                    let assignment_anchor = types.get_type_source(target_id);
+                    let mut relation_ctx = ctx.reborrow();
                     return Some(self.is_function_assignable_from_object(
-                        module,
-                        profile,
-                        symbols,
-                        types.get_type_source(target_id),
+                        &mut relation_ctx,
+                        assignment_anchor,
                         target_params,
                         target_this,
                         target_return,
                         &source_call_signatures,
-                        types,
-                        options,
                     ));
                 }
 
@@ -1722,17 +1695,19 @@ impl Compiler {
     /// Evaluate reference nominal and structural relations.
     fn check_reference_type_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         target_id: LocalTypeId,
         source_id: LocalTypeId,
         target_source_id: LocalNodeIdAny,
         target: &Type,
         source: &Type,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Option<Assignability> {
+        let module = ctx.module;
+        let profile = ctx.profile;
+        let symbols = ctx.symbols;
+        let types = &mut *ctx.types;
+        let options = ctx.options;
+
         let (
             Type::Reference {
                 symbol: target_symbol,
@@ -1794,10 +1769,9 @@ impl Compiler {
                         source_index_signatures,
                     )) = self.record_like_source_object_parts(source, types)
                 {
+                    let mut relation_ctx = ctx.reborrow();
                     return Some(self.is_object_type_assignable(
-                        module,
-                        profile,
-                        symbols,
+                        &mut relation_ctx,
                         &target_fields,
                         &target_call_signatures,
                         &target_construct_signatures,
@@ -1806,8 +1780,6 @@ impl Compiler {
                         &source_call_signatures,
                         &source_construct_signatures,
                         &source_index_signatures,
-                        types,
-                        options,
                     ));
                 }
 
@@ -1922,10 +1894,9 @@ impl Compiler {
                 index_signatures: target_index_signatures,
             } = target_instance
             {
+                let mut relation_ctx = ctx.reborrow();
                 return Some(self.is_object_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    &mut relation_ctx,
                     &target_fields,
                     &target_call_signatures,
                     &target_construct_signatures,
@@ -1934,8 +1905,6 @@ impl Compiler {
                     &source_call_signatures,
                     &source_construct_signatures,
                     &source_index_signatures,
-                    types,
-                    options,
                 ));
             }
         }

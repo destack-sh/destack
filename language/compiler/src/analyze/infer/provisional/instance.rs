@@ -1,4 +1,5 @@
 use crate::analyze::StaticSubstitutionEnvironment;
+use crate::analyze::common::InferTablesContext;
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
     GlobalNodeIdAny, GlobalSymbolId, InferTable, InstanceCommitObligation,
@@ -27,15 +28,10 @@ impl Compiler {
     /// Record one node instance for one resolved reference type when arguments are present.
     pub(crate) fn record_reference_provisional_instance(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         node_id: GlobalNodeIdAny,
         symbol: GlobalSymbolId,
         static_arguments: Option<&[StaticArgument]>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        infer: &mut InferTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalInstanceId>> {
         // skip non-instantiable symbols
         if !self.query_symbol_is_instantiable(symbol) {
@@ -52,19 +48,25 @@ impl Compiler {
 
         // compose the full environment in declaration order
         let Some(environment) = self.instance_environment_for_symbol_arguments(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             symbol,
             static_arguments.to_vec(),
             0,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         ) else {
             return Ok(None);
         };
 
-        self.record_node_provisional_instance(node_id, symbol, environment, infer, types)
+        self.record_node_provisional_instance(
+            node_id,
+            symbol,
+            environment,
+            tables.infer,
+            tables.types,
+        )
     }
 
     /// Query static parameter symbols for one function signature type.

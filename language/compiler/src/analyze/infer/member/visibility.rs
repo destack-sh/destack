@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::common::InferTablesContext;
 use destack_dir::FunctionMode;
 
 #[allow(clippy::too_many_arguments)]
@@ -6,30 +7,22 @@ impl Compiler {
     /// Check visibility constraints for a resolved member access.
     pub(crate) fn check_member_resolution_visibility(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_resolution: &MemberResolution,
         member_symbol: Option<GlobalSymbolId>,
         receiver_ty_id: LocalTypeId,
         member_key: &StaticKey,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         match member_resolution {
             MemberResolution::Dynamic { candidates } => {
                 for candidate in candidates {
                     self.check_member_visibility(
-                        module,
+                        &mut tables.reborrow(),
                         expression_id,
                         candidate.symbol,
                         candidate.receiver_ty_id,
-                        profile,
-                        tree,
-                        symbols,
-                        types,
                         ctx,
                     )?;
                 }
@@ -37,44 +30,33 @@ impl Compiler {
             _ => {
                 if let Some(member_symbol) = member_symbol {
                     self.check_member_visibility(
-                        module,
+                        &mut tables.reborrow(),
                         expression_id,
                         member_symbol,
                         receiver_ty_id,
-                        profile,
-                        tree,
-                        symbols,
-                        types,
                         ctx,
                     )?;
                     return Ok(());
                 }
 
                 let Some(receiver_symbol) =
-                    self.receiver_symbol_for_visibility(receiver_ty_id, types)
+                    self.receiver_symbol_for_visibility(receiver_ty_id, tables.types)
                 else {
                     return Ok(());
                 };
                 let Some(context) = self.parameter_property_member_context_for_key(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     receiver_symbol,
                     member_key,
-                    tree,
-                    symbols,
-                    types,
                 )?
                 else {
                     return Ok(());
                 };
                 self.check_visibility_context(
-                    module,
+                    tables,
                     expression_id,
                     receiver_symbol,
                     receiver_ty_id,
-                    profile,
-                    symbols,
-                    types,
                     ctx,
                     MemberVisibilityContext {
                         visibility: context.visibility,
@@ -166,35 +148,28 @@ impl Compiler {
     /// Enforce visibility for a resolved member symbol.
     pub(crate) fn check_member_visibility(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_symbol: GlobalSymbolId,
         receiver_ty_id: LocalTypeId,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
         ctx: &InferContext,
     ) -> AnalyzeResult<()> {
         let Some(context) = self.member_visibility_context_for_symbol(
-            module,
+            tables.module,
             member_symbol,
-            profile,
-            tree,
-            symbols,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
         )?
         else {
             return Ok(());
         };
 
         self.check_visibility_context(
-            module,
+            tables,
             expression_id,
             member_symbol,
             receiver_ty_id,
-            profile,
-            symbols,
-            types,
             ctx,
             context,
         );
@@ -205,13 +180,10 @@ impl Compiler {
     /// Enforce member visibility for a resolved visibility context.
     pub(crate) fn check_visibility_context(
         &self,
-        module: &Module,
+        tables: &InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_symbol: GlobalSymbolId,
         receiver_ty_id: LocalTypeId,
-        profile: ProfileId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
         ctx: &InferContext,
         context: MemberVisibilityContext,
     ) {
@@ -224,8 +196,8 @@ impl Compiler {
         let Some(current_class) = ctx.in_nominal_symbol else {
             self.error(AnalyzeError::InaccessibleSymbol {
                 node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
+                    .into_global_any(tables.module.id)
+                    .into_anchored(Some(tables.profile)),
                 visibility: context.visibility,
                 symbol: member_symbol,
             });
@@ -236,8 +208,8 @@ impl Compiler {
         if context.visibility == Visibility::Private && current_class != context.owner_symbol {
             self.error(AnalyzeError::InaccessibleSymbol {
                 node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
+                    .into_global_any(tables.module.id)
+                    .into_anchored(Some(tables.profile)),
                 visibility: context.visibility,
                 symbol: member_symbol,
             });
@@ -248,18 +220,18 @@ impl Compiler {
         if context.visibility == Visibility::Protected
             && current_class != context.owner_symbol
             && !self.is_type_lineage_assignable(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 current_class,
                 context.owner_symbol,
-                symbols,
-                types,
+                tables.symbols,
+                tables.types,
             )
         {
             self.error(AnalyzeError::InaccessibleSymbol {
                 node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
+                    .into_global_any(tables.module.id)
+                    .into_anchored(Some(tables.profile)),
                 visibility: context.visibility,
                 symbol: member_symbol,
             });
@@ -268,22 +240,22 @@ impl Compiler {
 
         // protected members must be accessed through the current class lineage
         if context.visibility == Visibility::Protected {
-            let receiver_symbol = self.receiver_symbol_for_visibility(receiver_ty_id, types);
+            let receiver_symbol = self.receiver_symbol_for_visibility(receiver_ty_id, tables.types);
             if let Some(receiver_symbol) = receiver_symbol
                 && receiver_symbol != current_class
                 && !self.is_type_lineage_assignable(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     receiver_symbol,
                     current_class,
-                    symbols,
-                    types,
+                    tables.symbols,
+                    tables.types,
                 )
             {
                 self.error(AnalyzeError::InaccessibleSymbol {
                     node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile)),
+                        .into_global_any(tables.module.id)
+                        .into_anchored(Some(tables.profile)),
                     visibility: context.visibility,
                     symbol: member_symbol,
                 });
@@ -294,13 +266,9 @@ impl Compiler {
     /// Resolve visibility metadata for constructor parameter properties by key.
     pub(crate) fn parameter_property_member_context_for_key(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         receiver_symbol: GlobalSymbolId,
         member_key: &StaticKey,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> AnalyzeResult<Option<ParameterPropertyMemberContext>> {
         let StaticKey::Name(member_name) = member_key else {
             return Ok(None);
@@ -311,11 +279,11 @@ impl Compiler {
         while let Some(owner_symbol) = current_symbol {
             let context = self
                 .with_module_tree_symbols_or_local_at_stage(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     owner_symbol.module_id,
-                    tree,
-                    symbols,
+                    tables.tree,
+                    tables.symbols,
                     AnalyzeDependencyStage::Declare,
                     |_, owner_tree, owner_symbols| {
                         let owner_entry = owner_symbols.get_symbol(owner_symbol.local_id);
@@ -386,10 +354,10 @@ impl Compiler {
 
             current_symbol = self
                 .with_module_types_or_local_at_stage(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     owner_symbol.module_id,
-                    types,
+                    tables.types,
                     AnalyzeDependencyStage::Declare,
                     |_, owner_types| {
                         owner_types

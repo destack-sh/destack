@@ -1,8 +1,10 @@
 use crate::analyze::StaticMemberSymbolKind;
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     AssociatedComptimeProjectionObligation, Expression, GlobalSymbolId, InferTable, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, NodeTree, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
+    LocalNodeIdAny, LocalTypeId, NodeTree, StaticKey, SymbolTable, SymbolType, Type, TypeLiteral,
+    TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::{HashMap, HashSet};
@@ -241,7 +243,11 @@ impl Compiler {
         let left = self.unwrap_parenthesized_expression(*left, tree);
 
         // recover only for projection receivers
-        if !self.is_projection_receiver_expression(module, profile, left, tree, symbols, types) {
+        let is_projection_receiver = self
+            .solve_projection_receiver_expression_for_projection_obligation(
+                module, profile, left, tree, symbols, types,
+            );
+        if !is_projection_receiver {
             return None;
         }
 
@@ -263,6 +269,73 @@ impl Compiler {
             .ok()?;
 
         selection.map(|selection| selection.target_symbol)
+    }
+
+    /// Return true when one receiver should be treated as an associated projection in solve.
+    fn solve_projection_receiver_expression_for_projection_obligation(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        receiver_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
+        if !tree
+            .get(receiver_id)
+            .static_arguments()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return false;
+        }
+
+        let symbol = self
+            .resolve_direct_receiver_symbol_for_expression(
+                module,
+                receiver_id,
+                profile,
+                tree,
+                symbols,
+            )
+            .or_else(|| {
+                let receiver_type_id = self
+                    .resolve_declared_type_expression(
+                        module,
+                        profile,
+                        receiver_id,
+                        tree,
+                        symbols,
+                        types,
+                        true,
+                        true,
+                    )
+                    .ok()?;
+                self.query_type_like_receiver_symbol_for_type_id(receiver_type_id, types)
+            });
+        let Some(symbol) = symbol else {
+            return false;
+        };
+
+        let symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        let symbol = self
+            .declaration_symbol_id(module, symbols, profile, symbol)
+            .unwrap_or(symbol);
+        matches!(
+            symbol.ty(),
+            SymbolType::Class
+                | SymbolType::Struct
+                | SymbolType::Interface
+                | SymbolType::Enum
+                | SymbolType::TypeAlias
+                | SymbolType::Newtype
+        )
     }
 
     /// Return true when one projection substitution environment remains unresolved.

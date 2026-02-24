@@ -9,6 +9,7 @@ mod signature;
 
 pub use core::Assignability;
 
+pub(crate) use crate::analyze::common::AssignContext;
 pub(crate) use core::*;
 pub(crate) use key::{
     field_key_matches_index_kind, index_key_kind_for_index, index_key_kind_for_member,

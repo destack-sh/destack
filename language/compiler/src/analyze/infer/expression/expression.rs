@@ -5,8 +5,8 @@ use super::declaration::DeclaratorConstraint;
 
 use crate::analyze::StaticSubstitutionEnvironment;
 use crate::analyze::common::{
-    CanonicalSymbolMode, ConstContext, ContextualTypingMode, LiteralFreshness, RelationMode,
-    TypeRewriteCache, WideningMode,
+    CanonicalSymbolMode, ConstContext, ContextualTypingMode, InferTablesContext, LiteralFreshness,
+    RelationMode, TypeRewriteCache, WideningMode,
 };
 use crate::timing::tags;
 use crate::{
@@ -271,22 +271,18 @@ impl Compiler {
     /// Infer optional chain receiver metadata when a maybe wrapper is present.
     pub(crate) fn infer_optional_chain_receiver(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         receiver_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<Option<OptionalChainReceiver>> {
-        let Expression::Maybe { left } = tree.get(receiver_id) else {
+        let Expression::Maybe { left } = tables.tree.get(receiver_id) else {
             return Ok(None);
         };
 
         // infer the underlying receiver expression
-        let receiver_ty_id =
-            self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
-        let (non_nullish, has_nullish) = self.strip_nullish_from_union(receiver_ty_id, types);
+        let receiver_ty_id = self.infer_expression(&mut tables.reborrow(), *left, ctx)?;
+        let (non_nullish, has_nullish) =
+            self.strip_nullish_from_union(receiver_ty_id, tables.types);
 
         Ok(Some(OptionalChainReceiver {
             receiver_id: *left,
@@ -688,31 +684,25 @@ impl Compiler {
     /// Resolve a type expression or fall back to inference when unevaluated.
     fn resolve_type_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // evaluate the type expression when possible
         let mut ty_id = self.resolve_declared_type_expression(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             expression_id,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
             true,
             true,
         )?;
 
         // fall back to inference for unevaluated types
-        if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
-            ty_id =
-                self.infer_expression(module, expression_id, tree, symbols, types, infer, ctx)?;
+        if matches!(tables.types.get_type(ty_id), Type::Unevaluated(_)) {
+            ty_id = self.infer_expression(&mut tables.reborrow(), expression_id, ctx)?;
         }
 
         Ok(ty_id)
@@ -721,46 +711,53 @@ impl Compiler {
     /// Infer a direct binding value type when none is cached yet.
     pub(crate) fn infer_direct_binding_value_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &InferContext,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // only infer local bindings
-        if symbol.module_id != module.id {
+        if symbol.module_id != tables.module.id {
             return Ok(None);
         }
 
         // keep concrete cached value types and only refine infer placeholders
-        let existing_value_type_id = types.get_value_type_id(symbol);
+        let existing_value_type_id = tables.types.get_value_type_id(symbol);
         if existing_value_type_id.is_some_and(|value_type_id| {
-            !self.is_infer_var_type(value_type_id, types)
-                && !self.unwrapped_value_type_is_unevaluated(value_type_id, types)
+            !self.is_infer_var_type(value_type_id, tables.types)
+                && !self.unwrapped_value_type_is_unevaluated(value_type_id, tables.types)
         }) {
             return Ok(None);
         }
 
         // resolve the declarator for the binding
-        let Some(declarator_id) =
-            self.direct_binding_declarator_for_symbol(module, symbol, tree, symbols)
-        else {
+        let Some(declarator_id) = self.direct_binding_declarator_for_symbol(
+            tables.module,
+            symbol,
+            tables.tree,
+            tables.symbols,
+        ) else {
             return Ok(None);
         };
 
         // reuse declared types when present
-        let declared_ty_id = types.get_declared_type_id(declarator_id.into_global_any(module.id));
+        let declared_ty_id = tables
+            .types
+            .get_declared_type_id(declarator_id.into_global_any(tables.module.id));
         if let Some(declared_ty_id) = declared_ty_id {
-            self.resolve_declared_type(module, profile, declared_ty_id, tree, symbols, types)?;
-            types.set_value_type(symbol, declared_ty_id);
+            self.resolve_declared_type(
+                tables.module,
+                tables.profile,
+                declared_ty_id,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+            )?;
+            tables.types.set_value_type(symbol, declared_ty_id);
             return Ok(Some(declared_ty_id));
         }
 
         // infer from the initializer when available
-        let declarator = tree.get(declarator_id);
+        let declarator = tables.tree.get(declarator_id);
         let Some(value_id) = declarator.value else {
             return Ok(None);
         };
@@ -770,53 +767,51 @@ impl Compiler {
             owner: symbol,
             function_id: ctx
                 .in_function
-                .map(|function_id| function_id.into_global(module.id)),
+                .map(|function_id| function_id.into_global(tables.module.id)),
         };
         let placeholder_ty_id = if let Some(existing_value_type_id) = existing_value_type_id
-            && self.is_infer_var_type(existing_value_type_id, types)
+            && self.is_infer_var_type(existing_value_type_id, tables.types)
         {
             existing_value_type_id
         } else {
             self.infer_var_type_for_symbol(
-                infer,
-                types,
+                tables.infer,
+                tables.types,
                 symbol,
                 value_id.into_any(),
-                InferOrigin::Expression(value_id.into_global_any(module.id)),
+                InferOrigin::Expression(value_id.into_global_any(tables.module.id)),
                 scope,
             )
         };
-        types.set_value_type(symbol, placeholder_ty_id);
+        tables.types.set_value_type(symbol, placeholder_ty_id);
 
         // infer the initializer with binding defaults
         let mut value_ctx = ctx
             .reset()
             .with_expected_type(None)
             .with_contextual_typing_mode(ContextualTypingMode::Default);
-        let binding_mutability = symbols.get_symbol(symbol.local_id).binding_mutability;
+        let binding_mutability = tables
+            .symbols
+            .get_symbol(symbol.local_id)
+            .binding_mutability;
         value_ctx = self.binding_initializer_context(&value_ctx, binding_mutability);
-        let inferred_ty_id = self.infer_expression(
-            module,
-            value_id,
-            tree,
-            symbols,
-            types,
-            infer,
-            &mut value_ctx,
-        )?;
+        let inferred_ty_id =
+            self.infer_expression(&mut tables.reborrow(), value_id, &mut value_ctx)?;
 
         // commit the binding type before caching it
         let committed_ty_id = self.materialize_declarator_initializer_type(
-            module,
+            tables.module,
             declarator_id,
             value_id,
             inferred_ty_id,
-            tree,
+            tables.tree,
             &value_ctx,
-            types,
+            tables.types,
         );
-        types.set_value_type(symbol, committed_ty_id);
-        infer.upsert_direct_binding_value_commit_intent(symbol, declarator_id, value_id);
+        tables.types.set_value_type(symbol, committed_ty_id);
+        tables
+            .infer
+            .upsert_direct_binding_value_commit_intent(symbol, declarator_id, value_id);
 
         Ok(Some(committed_ty_id))
     }
@@ -824,12 +819,8 @@ impl Compiler {
     /// Resolve a flow-narrowed symbol type when it is concrete enough for value inference.
     fn resolved_narrowed_type_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         ctx: &InferContext,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // skip when no narrowing is available
@@ -838,17 +829,11 @@ impl Compiler {
         };
 
         // resolve the narrowed unwrapped value type before using it
-        let narrowed_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
-            module,
-            profile,
-            narrowed_ty_id,
-            tree,
-            symbols,
-            types,
-        )?;
+        let narrowed_unwrapped_ty_id =
+            self.ensure_unwrapped_value_type_evaluated(&mut tables.reborrow(), narrowed_ty_id)?;
 
         // ignore stale or indeterminate narrowings and fall back to stable symbol commitments
-        if self.unwrapped_value_type_is_indeterminate(narrowed_unwrapped_ty_id, types) {
+        if self.unwrapped_value_type_is_indeterminate(narrowed_unwrapped_ty_id, tables.types) {
             return Ok(None);
         }
 
@@ -858,27 +843,16 @@ impl Compiler {
     /// Resolve one cached inferred type id when it is ready for runtime use.
     fn inferred_type_id_for_node_if_ready(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         node_id: GlobalNodeIdAny,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        infer: &InferTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        let Some(inferred_type_id) = infer.inferred_type_for_node(node_id) else {
+        let Some(inferred_type_id) = tables.infer.inferred_type_for_node(node_id) else {
             return Ok(None);
         };
 
-        let inferred_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
-            module,
-            profile,
-            inferred_type_id,
-            tree,
-            symbols,
-            types,
-        )?;
-        if self.unwrapped_value_type_is_unevaluated(inferred_unwrapped_ty_id, types) {
+        let inferred_unwrapped_ty_id =
+            self.ensure_unwrapped_value_type_evaluated(&mut tables.reborrow(), inferred_type_id)?;
+        if self.unwrapped_value_type_is_unevaluated(inferred_unwrapped_ty_id, tables.types) {
             return Ok(None);
         }
 
@@ -960,27 +934,28 @@ impl Compiler {
     }
 
     /// Infer an (expression) body with flow aware typing.
-    pub fn infer_body(
+    pub(crate) fn infer_body(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         body_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         context: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // build a flow graph and flow table for the function body when needed
         let previous_flow = context.flow.clone();
-        if self.expression_requires_flow(tree, body_id) {
-            let graph = FlowGraphBuilder::new(module.id, tree).build(body_id);
+        if self.expression_requires_flow(tables.tree, body_id) {
+            let graph = FlowGraphBuilder::new(tables.module.id, tables.tree).build(body_id);
             let flow = self.compute_flow_table_for_graph(
-                module, &graph, tree, symbols, types, infer, context,
+                tables.module,
+                &graph,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+                context,
             )?;
 
             // seed the inference context with flow information
             context.flow = Some(FlowContext {
-                module_id: module.id,
+                module_id: tables.module.id,
                 graph: Arc::new(graph),
                 table: Arc::new(flow),
             });
@@ -989,8 +964,7 @@ impl Compiler {
         }
 
         // infer the expression using the flow context
-        let result =
-            self.infer_expression(module, body_id, tree, symbols, types, infer, context)?;
+        let result = self.infer_expression(&mut tables.reborrow(), body_id, context)?;
 
         // restore the previous flow context
         context.flow = previous_flow;
@@ -1001,70 +975,65 @@ impl Compiler {
     /// Infer statement-like expressions that produce `void` or delegated statement results.
     fn infer_statement_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
-        let expression = tree.get(expression_id);
+        let expression = tables.tree.get(expression_id);
         let ty_id = match expression {
             // declaration: analyze the declaration
             Expression::Declaration { declaration } => {
-                if !self.declaration_requires_infer(module, *declaration, tree) {
+                if !self.declaration_requires_infer(tables.module, *declaration, tables.tree) {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Void,
                     };
-                    return Ok(types.insert_type_from(ty, expression_id));
+                    return Ok(tables.types.insert_type_from(ty, expression_id));
                 }
 
-                self.infer_declaration(module, *declaration, tree, symbols, types, infer, ctx)?;
-                let declaration = tree.get(*declaration);
+                self.infer_declaration(&mut tables.reborrow(), *declaration, ctx)?;
+                let declaration = tables.tree.get(*declaration);
 
                 // function declarations used as expressions evaluate to function values
                 if let Declaration::Function { descriptor, .. } = declaration {
-                    if let Some(value_ty_id) =
-                        types.get_value_type_id(descriptor.symbol.into_global(module.id))
+                    if let Some(value_ty_id) = tables
+                        .types
+                        .get_value_type_id(descriptor.symbol.into_global(tables.module.id))
                     {
                         value_ty_id
                     } else {
                         let ty = Type::TypeLiteral {
                             value: TypeLiteral::Void,
                         };
-                        types.insert_type_from(ty, expression_id)
+                        tables.types.insert_type_from(ty, expression_id)
                     }
                 } else {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Void,
                     };
-                    types.insert_type_from(ty, expression_id)
+                    tables.types.insert_type_from(ty, expression_id)
                 }
             }
 
             // block: analyze the block
-            Expression::Block { block } => {
-                self.infer_block(module, *block, tree, symbols, types, infer, ctx)?
-            }
+            Expression::Block { block } => self.infer_block(&mut tables.reborrow(), *block, ctx)?,
 
             // statement: analyze the statement
             Expression::Statement { statement } => {
-                self.infer_expression(module, *statement, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(&mut tables.reborrow(), *statement, ctx)?;
                 self.warn_ignored_return_value(
-                    module,
+                    tables.module,
                     ctx.profile,
                     *statement,
-                    tree,
-                    symbols,
-                    infer,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.infer,
+                    tables.types,
                 );
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
 
             // labelled statement: analyze the body with label in context
@@ -1073,12 +1042,12 @@ impl Compiler {
                 body: body_id,
                 symbol: _,
             } => {
-                self.infer_expression(module, *body_id, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(&mut tables.reborrow(), *body_id, ctx)?;
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
 
             // import / exports
@@ -1092,7 +1061,7 @@ impl Compiler {
             } => {
                 // reject dynamic imports when configured
                 if ctx.options.no_dynamic_import
-                    && matches!(module.source, ModuleSource::User)
+                    && matches!(tables.module.source, ModuleSource::User)
                     && matches!(
                         source,
                         DependencySource::ImportCall | DependencySource::RequireCall
@@ -1100,33 +1069,24 @@ impl Compiler {
                 {
                     self.error(AnalyzeError::DynamicImportDisabled {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                 }
 
                 for item_id in items {
-                    self.infer_dependency_item(module, *item_id, tree, symbols, types, infer, ctx)?;
+                    self.infer_dependency_item(&mut tables.reborrow(), *item_id, ctx)?;
                 }
                 if let Some(arguments) = arguments {
                     for argument_id in arguments {
-                        self.infer_argument(
-                            module,
-                            *argument_id,
-                            None,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            ctx,
-                        )?;
+                        self.infer_argument(&mut tables.reborrow(), *argument_id, None, ctx)?;
                     }
                 }
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
             Expression::UnresolvedImport {
                 kind: _,
@@ -1138,7 +1098,7 @@ impl Compiler {
             } => {
                 // reject dynamic imports when configured
                 if ctx.options.no_dynamic_import
-                    && matches!(module.source, ModuleSource::User)
+                    && matches!(tables.module.source, ModuleSource::User)
                     && matches!(
                         source,
                         DependencySource::ImportCall | DependencySource::RequireCall
@@ -1146,37 +1106,28 @@ impl Compiler {
                 {
                     self.error(AnalyzeError::DynamicImportDisabled {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                 }
 
                 if let ImportTarget::Expression { target } = target {
-                    self.infer_expression(module, *target, tree, symbols, types, infer, ctx)?;
+                    self.infer_expression(&mut tables.reborrow(), *target, ctx)?;
                 }
 
                 for item_id in items {
-                    self.infer_dependency_item(module, *item_id, tree, symbols, types, infer, ctx)?;
+                    self.infer_dependency_item(&mut tables.reborrow(), *item_id, ctx)?;
                 }
                 if let Some(arguments) = arguments {
                     for argument_id in arguments {
-                        self.infer_argument(
-                            module,
-                            *argument_id,
-                            None,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            ctx,
-                        )?;
+                        self.infer_argument(&mut tables.reborrow(), *argument_id, None, ctx)?;
                     }
                 }
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
             Expression::ReExport {
                 target: _,
@@ -1192,43 +1143,34 @@ impl Compiler {
                 arguments,
             } => {
                 for item_id in items {
-                    self.infer_dependency_item(module, *item_id, tree, symbols, types, infer, ctx)?;
+                    self.infer_dependency_item(&mut tables.reborrow(), *item_id, ctx)?;
                 }
                 if let Some(arguments) = arguments {
                     for argument_id in arguments {
-                        self.infer_argument(
-                            module,
-                            *argument_id,
-                            None,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            ctx,
-                        )?;
+                        self.infer_argument(&mut tables.reborrow(), *argument_id, None, ctx)?;
                     }
                 }
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
             Expression::Export { kind: _, items } => {
                 for item_id in items {
-                    self.infer_dependency_item(module, *item_id, tree, symbols, types, infer, ctx)?;
+                    self.infer_dependency_item(&mut tables.reborrow(), *item_id, ctx)?;
                 }
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
             Expression::ExportNamespace { name: _ } => {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
 
             // let
@@ -1240,14 +1182,10 @@ impl Compiler {
                 for decl_id in declarators {
                     let mut decl_ctx = ctx.fork().with_binding_mutability(*mutability);
                     self.infer_declarator(
-                        module,
+                        &mut tables.reborrow(),
                         *decl_id,
                         expression_id,
                         DeclaratorConstraint::Assignable,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         &mut decl_ctx,
                     )?;
                 }
@@ -1255,7 +1193,7 @@ impl Compiler {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
             // using
             Expression::Using {
@@ -1266,14 +1204,10 @@ impl Compiler {
                 for decl_id in declarators {
                     let mut decl_ctx = ctx.fork().with_using_binding();
                     self.infer_declarator(
-                        module,
+                        &mut tables.reborrow(),
                         *decl_id,
                         expression_id,
                         DeclaratorConstraint::Assignable,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         &mut decl_ctx,
                     )?;
                 }
@@ -1281,7 +1215,7 @@ impl Compiler {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
 
             _ => unreachable!("statement helper called with non-statement expression"),
@@ -1293,13 +1227,9 @@ impl Compiler {
     /// Infer type-operation expressions that synthesize types from type syntax.
     fn infer_type_operation_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let ty_id = match expression {
@@ -1310,26 +1240,19 @@ impl Compiler {
                 } else {
                     ctx.fork()
                 };
-                let right_ty_id = self.infer_expression(
-                    module,
-                    *right,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    &mut right_ctx,
-                )?;
+                let right_ty_id =
+                    self.infer_expression(&mut tables.reborrow(), *right, &mut right_ctx)?;
 
                 let ty = self.infer_type_unary_operation(
-                    module,
+                    tables.module,
                     ctx.profile,
                     expression_id,
                     operator,
                     right_ty_id,
-                    symbols,
-                    types,
+                    tables.symbols,
+                    tables.types,
                 );
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
             Expression::TypeBinary {
                 left,
@@ -1339,107 +1262,76 @@ impl Compiler {
                 let (left_ty_id, right_ty_id) = match operator {
                     TypeBinaryOperator::Extends | TypeBinaryOperator::Implements => {
                         let left_ty_id = self.resolve_declared_type_expression(
-                            module,
+                            tables.module,
                             ctx.profile,
                             *left,
-                            tree,
-                            symbols,
-                            types,
+                            tables.tree,
+                            tables.symbols,
+                            tables.types,
                             true,
                             true,
                         )?;
-                        let right_ty_id = self.resolve_type_expression(
-                            module,
-                            ctx.profile,
-                            *right,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            ctx,
-                        )?;
+                        let right_ty_id =
+                            self.resolve_type_expression(&mut tables.reborrow(), *right, ctx)?;
                         (left_ty_id, right_ty_id)
                     }
                     TypeBinaryOperator::Satisfies => {
-                        let right_ty_id = self.resolve_type_expression(
-                            module,
-                            ctx.profile,
-                            *right,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            ctx,
-                        )?;
-                        infer.set_inferred_type_for_node(
-                            right.into_global_any(module.id),
+                        let right_ty_id =
+                            self.resolve_type_expression(&mut tables.reborrow(), *right, ctx)?;
+                        tables.infer.set_inferred_type_for_node(
+                            right.into_global_any(tables.module.id),
                             right_ty_id,
                         );
                         let mut left_ctx = ctx
                             .fork()
                             .with_expected_type(Some(right_ty_id))
                             .with_contextual_typing_mode(ContextualTypingMode::Satisfies);
-                        let left_ty_id = self.infer_expression(
-                            module,
-                            *left,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            &mut left_ctx,
-                        )?;
+                        let left_ty_id =
+                            self.infer_expression(&mut tables.reborrow(), *left, &mut left_ctx)?;
                         let left_ty_id = self.instantiate_type_from_node_instance_obligation(
-                            module,
+                            tables.module,
                             ctx.profile,
                             *left,
                             left_ty_id,
-                            tree,
-                            symbols,
-                            infer,
-                            types,
+                            tables.tree,
+                            tables.symbols,
+                            tables.infer,
+                            tables.types,
                         );
 
                         // enforce satisfies after convergence for full inferred substitutions
                         self.push_relation_obligation_for_expression_operands(
-                            module,
+                            tables.module,
                             expression_id.into_any(),
                             *right,
                             *left,
                             TypeRelationObligationDiagnostic::UnsatisfiedType,
-                            infer,
+                            tables.infer,
                         );
                         (left_ty_id, right_ty_id)
                     }
                     _ => {
                         let left_ty_id =
-                            self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
-                        let right_ty_id = self.resolve_type_expression(
-                            module,
-                            ctx.profile,
-                            *right,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            ctx,
-                        )?;
+                            self.infer_expression(&mut tables.reborrow(), *left, ctx)?;
+                        let right_ty_id =
+                            self.resolve_type_expression(&mut tables.reborrow(), *right, ctx)?;
                         (left_ty_id, right_ty_id)
                     }
                 };
 
                 let ty = self.infer_type_binary_operation(
-                    module,
+                    tables.module,
                     ctx.profile,
                     expression_id,
                     operator,
                     left_ty_id,
                     right_ty_id,
-                    symbols,
-                    types,
-                    infer,
+                    tables.symbols,
+                    tables.types,
+                    tables.infer,
                     &ctx.options,
                 );
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
             Expression::TypeConditional { .. }
             | Expression::TypeMapped { .. }
@@ -1452,7 +1344,7 @@ impl Compiler {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
             _ => unreachable!("type-operation helper called with non type-operation expression"),
         };
@@ -1463,13 +1355,9 @@ impl Compiler {
     /// Infer cast-like expressions.
     fn infer_cast_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let ty_id = match expression {
@@ -1483,27 +1371,18 @@ impl Compiler {
                 if ctx.options.no_unsafe_type_assertions
                     && matches!(source, CastSource::Explicit)
                     && self.is_unsafe_type_assertion(*operator)
-                    && matches!(module.source, ModuleSource::User)
+                    && matches!(tables.module.source, ModuleSource::User)
                 {
                     self.error(AnalyzeError::UnsafeTypeAssertionDisabled {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                 }
 
                 // infer the source and resolve the target type
-                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
-                self.resolve_type_expression(
-                    module,
-                    ctx.profile,
-                    *target_type,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?
+                self.infer_expression(&mut tables.reborrow(), *value, ctx)?;
+                self.resolve_type_expression(&mut tables.reborrow(), *target_type, ctx)?
             }
 
             Expression::OwnershipCast {
@@ -1512,15 +1391,7 @@ impl Compiler {
                 value,
             } => {
                 let mut ownership_ctx = ctx.fork().with_explicit_ownership();
-                self.infer_expression(
-                    module,
-                    *value,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    &mut ownership_ctx,
-                )?
+                self.infer_expression(&mut tables.reborrow(), *value, &mut ownership_ctx)?
             }
             _ => unreachable!("cast helper called with non-cast expression"),
         };
@@ -1531,13 +1402,9 @@ impl Compiler {
     /// Infer value and reference ownership operation expressions.
     fn infer_value_reference_operation_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let ty_id = match expression {
@@ -1548,28 +1415,21 @@ impl Compiler {
                 right,
             } => {
                 let mut ownership_ctx = ctx.fork().with_explicit_ownership();
-                let right_ty_id = self.infer_expression(
-                    module,
-                    *right,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    &mut ownership_ctx,
-                )?;
+                let right_ty_id =
+                    self.infer_expression(&mut tables.reborrow(), *right, &mut ownership_ctx)?;
 
                 // reject ownership conversions on explicit ownership types
-                if self.type_is_explicit_ownership_wrapper(types, right_ty_id) {
+                if self.type_is_explicit_ownership_wrapper(tables.types, right_ty_id) {
                     self.error(AnalyzeError::InvalidOwnershipOperand {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
-                        actual_ty: right_ty_id.into_global(module.id),
+                        actual_ty: right_ty_id.into_global(tables.module.id),
                     });
                 }
 
                 let ty = self.infer_value_of_operation(*mutability, *variance, right_ty_id);
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
 
             // reference of operation: reference of type
@@ -1579,18 +1439,11 @@ impl Compiler {
                 right,
             } => {
                 let mut ownership_ctx = ctx.fork().with_explicit_ownership();
-                let right_ty_id = self.infer_expression(
-                    module,
-                    *right,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    &mut ownership_ctx,
-                )?;
+                let right_ty_id =
+                    self.infer_expression(&mut tables.reborrow(), *right, &mut ownership_ctx)?;
 
                 let ty = self.infer_reference_of_operation(*mutability, *variance, right_ty_id);
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
             _ => unreachable!("value/reference helper called with non ownership operation"),
         };
@@ -1601,50 +1454,46 @@ impl Compiler {
     /// Infer delete expressions.
     fn infer_delete_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // enforce strict mode delete restrictions on bindings
-        let enforce_strict_mode = module.source_type.is_module() || ctx.options.always_strict;
-        if enforce_strict_mode && matches!(module.source, ModuleSource::User) {
-            let target_id = self.unwrap_parenthesized_expression(value, tree);
+        let enforce_strict_mode =
+            tables.module.source_type.is_module() || ctx.options.always_strict;
+        if enforce_strict_mode && matches!(tables.module.source, ModuleSource::User) {
+            let target_id = self.unwrap_parenthesized_expression(value, tables.tree);
 
             // forbid delete on binding references in strict mode
             if matches!(
-                tree.get(target_id),
+                tables.tree.get(target_id),
                 Expression::LocalReference { .. }
                     | Expression::ModuleReference { .. }
                     | Expression::GlobalReference { .. }
             ) {
                 self.error(AnalyzeError::InvalidStrictDelete {
                     node: expression_id
-                        .into_global_any(module.id)
+                        .into_global_any(tables.module.id)
                         .into_anchored(Some(ctx.profile)),
                 });
             }
         }
 
         // reject delete in dynamic shape restricted mode
-        if ctx.options.no_dynamic_shapes && matches!(module.source, ModuleSource::User) {
+        if ctx.options.no_dynamic_shapes && matches!(tables.module.source, ModuleSource::User) {
             self.error(AnalyzeError::DynamicShapesDisabled {
                 node: expression_id
-                    .into_global_any(module.id)
+                    .into_global_any(tables.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
         }
-        let _value_ty_id =
-            self.infer_expression(module, value, tree, symbols, types, infer, ctx)?;
+        let _value_ty_id = self.infer_expression(&mut tables.reborrow(), value, ctx)?;
 
         let ty = Type::TypeLiteral {
             value: TypeLiteral::Void,
         };
-        Ok(types.insert_type_from(ty, expression_id))
+        Ok(tables.types.insert_type_from(ty, expression_id))
     }
 
     /// Infer special-reference and pseudo-reference expressions.
@@ -1786,41 +1635,75 @@ impl Compiler {
     /// Infer instantiation expressions.
     fn infer_instantiation_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
         static_arguments: &[LocalNodeId<Argument>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
-        let left_ty_id = self.infer_expression(module, left, tree, symbols, types, infer, ctx)?;
+        let left_ty_id = self.infer_expression(&mut tables.reborrow(), left, ctx)?;
         if static_arguments.is_empty() {
             return Ok(left_ty_id);
         }
 
         self.ensure_reference_instance_types_for_type(
-            module,
+            tables.module,
             ctx.profile,
             expression_id.into_any(),
             left_ty_id,
-            types,
+            tables.types,
         )?;
 
+        let mut owner_symbol = self.reference_symbol_for_expression(
+            tables.module,
+            left,
+            ctx.profile,
+            tables.tree,
+            tables.symbols,
+        );
+
+        if owner_symbol.is_none() {
+            let node_id = left.into_global_any(tables.module.id);
+            if let Some(resolution) =
+                self.query_resolution_for_node_infer(node_id, tables.infer, tables.types)
+            {
+                if let Resolution::Static { candidate, .. } = resolution {
+                    owner_symbol = Some(candidate.target_symbol);
+                }
+            }
+        }
+
+        self.instantiate_callable_type_with_static_arguments(
+            tables,
+            expression_id,
+            left_ty_id,
+            owner_symbol,
+            static_arguments,
+        )
+    }
+
+    /// Instantiate one callable type with static arguments and record the resulting instance.
+    fn instantiate_callable_type_with_static_arguments(
+        &self,
+        tables: &mut InferTablesContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        base_ty_id: LocalTypeId,
+        owner_symbol: Option<GlobalSymbolId>,
+        static_argument_ids: &[LocalNodeId<Argument>],
+    ) -> AnalyzeResult<LocalTypeId> {
+        // resolve one callable signature for generic instantiation
         let Some(signature_ty_id) = self
-            .call_signatures_for_type(left_ty_id, types)
+            .call_signatures_for_type(base_ty_id, &*tables.types)
             .first()
             .copied()
         else {
             self.error(AnalyzeError::InvalidStaticArgument {
                 node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
+                    .into_global_any(tables.module.id)
+                    .into_anchored(Some(tables.profile)),
                 message: "static arguments require a callable generic target".to_string(),
             });
-            return Ok(left_ty_id);
+            return Ok(base_ty_id);
         };
 
         let Type::Function {
@@ -1830,40 +1713,29 @@ impl Compiler {
             this_parameter,
             dynamic_parameters,
             return_type,
-        } = types.get_type(signature_ty_id).clone()
+        } = tables.types.get_type(signature_ty_id).clone()
         else {
             self.error(AnalyzeError::InvalidStaticArgument {
                 node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
+                    .into_global_any(tables.module.id)
+                    .into_anchored(Some(tables.profile)),
                 message: "static arguments require a callable generic target".to_string(),
             });
-            return Ok(left_ty_id);
+            return Ok(base_ty_id);
         };
 
-        let mut owner_symbol =
-            self.reference_symbol_for_expression(module, left, ctx.profile, tree, symbols);
-
-        if owner_symbol.is_none() {
-            let node_id = left.into_global_any(module.id);
-            if let Some(resolution) = self.query_resolution_for_node_infer(node_id, infer, types) {
-                if let Resolution::Static { candidate, .. } = resolution {
-                    owner_symbol = Some(candidate.target_symbol);
-                }
-            }
-        }
-
+        // ensure owner generic metadata is consistent when no signature static params are present
         if static_parameters.is_empty()
             && let Some(owner_symbol) = owner_symbol
         {
             let owner_parameter_symbols = self
                 .collect_static_parameter_symbols(
-                    module,
+                    tables.module,
                     owner_symbol,
-                    ctx.profile,
-                    tree,
-                    symbols,
-                    types,
+                    tables.profile,
+                    tables.tree,
+                    tables.symbols,
+                    &mut *tables.types,
                 )
                 .unwrap_or_default();
             if !owner_parameter_symbols.is_empty() {
@@ -1877,10 +1749,10 @@ impl Compiler {
 
         let resolved = self
             .resolve_function_static_arguments(
-                module,
+                &mut tables.reborrow(),
                 expression_id.into_any(),
                 owner_symbol,
-                Some(static_arguments),
+                Some(static_argument_ids),
                 None,
                 None,
                 None,
@@ -1890,12 +1762,6 @@ impl Compiler {
                 None,
                 super::SignatureResolutionMode::Check,
                 false,
-                ctx.profile,
-                &ctx.options,
-                tree,
-                symbols,
-                types,
-                infer,
             )?
             .unwrap_or(ResolvedSignature {
                 dynamic_parameters,
@@ -1911,11 +1777,14 @@ impl Compiler {
             dynamic_parameters: resolved.dynamic_parameters,
             return_type: resolved.return_type,
         };
-        let instantiated_ty_id = types.insert_type_from(instantiated_fn, expression_id);
+        let instantiated_ty_id = tables
+            .types
+            .insert_type_from(instantiated_fn, expression_id);
 
+        // record one provisional instance for static argument substitutions
         if let Some(owner_symbol) = owner_symbol {
             let signature_parameter_symbols =
-                self.query_signature_static_parameter_symbols(signature_ty_id, types);
+                self.query_signature_static_parameter_symbols(signature_ty_id, tables.types);
             let environment = StaticSubstitutionEnvironment::from_parameter_symbols(
                 resolved.static_arguments.clone(),
                 signature_parameter_symbols,
@@ -1923,23 +1792,23 @@ impl Compiler {
             )
             .or_else(|| {
                 self.instance_environment_for_symbol_arguments(
-                    module,
-                    ctx.profile,
+                    tables.module,
+                    tables.profile,
                     owner_symbol,
                     resolved.static_arguments.clone(),
                     0,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                 )
             });
             if let Some(environment) = environment {
                 self.record_node_provisional_instance(
-                    expression_id.into_global_any(module.id),
+                    expression_id.into_global_any(tables.module.id),
                     owner_symbol,
                     environment,
-                    infer,
-                    types,
+                    &mut *tables.infer,
+                    tables.types,
                 )?;
             }
         }
@@ -2019,13 +1888,9 @@ impl Compiler {
     /// Infer grouped expressions that forward inner expression typing.
     fn infer_grouping_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let ty_id = match expression {
@@ -2037,23 +1902,15 @@ impl Compiler {
                     if is_last {
                         let mut expr_ctx = ctx.fork().with_expected_type(ctx.expected_type);
                         last_ty = Some(self.infer_expression(
-                            module,
+                            &mut tables.reborrow(),
                             *expr_id,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
                             &mut expr_ctx,
                         )?);
                     } else {
                         let mut expr_ctx = ctx.fork().with_expected_type(None);
                         last_ty = Some(self.infer_expression(
-                            module,
+                            &mut tables.reborrow(),
                             *expr_id,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
                             &mut expr_ctx,
                         )?);
                     }
@@ -2061,7 +1918,7 @@ impl Compiler {
 
                 // return the type of the last expression, or void if empty (should not be empty)
                 last_ty.unwrap_or_else(|| {
-                    types.insert_type_from(
+                    tables.types.insert_type_from(
                         Type::TypeLiteral {
                             value: TypeLiteral::Void,
                         },
@@ -2073,7 +1930,7 @@ impl Compiler {
             // parenthesized: same type as inner
             Expression::Parenthesized {
                 expression: inner_id,
-            } => self.infer_expression(module, *inner_id, tree, symbols, types, infer, ctx)?,
+            } => self.infer_expression(&mut tables.reborrow(), *inner_id, ctx)?,
 
             _ => unreachable!("grouping helper called with non grouping expression"),
         };
@@ -2084,13 +1941,9 @@ impl Compiler {
     /// Infer tagged newtype construction expressions.
     fn infer_tagged_literal_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_LITERAL);
@@ -2098,12 +1951,12 @@ impl Compiler {
             Expression::TaggedScalarExpression { ty, value } => {
                 // resolve the tag type
                 let ty_id = self.resolve_declared_type_expression(
-                    module,
+                    tables.module,
                     ctx.profile,
                     *ty,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                     true,
                     true,
                 )?;
@@ -2111,12 +1964,12 @@ impl Compiler {
                     *ty,
                     ctx.expected_type,
                     ty_id,
-                    tree,
-                    types,
+                    tables.tree,
+                    tables.types,
                 );
 
                 // infer the value expression
-                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(&mut tables.reborrow(), *value, ctx)?;
 
                 ty_id
             }
@@ -2124,12 +1977,12 @@ impl Compiler {
             Expression::TaggedTupleExpression { ty, elements } => {
                 // resolve the tag type
                 let ty_id = self.resolve_declared_type_expression(
-                    module,
+                    tables.module,
                     ctx.profile,
                     *ty,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                     true,
                     true,
                 )?;
@@ -2137,26 +1990,22 @@ impl Compiler {
                     *ty,
                     ctx.expected_type,
                     ty_id,
-                    tree,
-                    types,
+                    tables.tree,
+                    tables.types,
                 );
 
                 // collect expected element types
                 let expected_element_types =
-                    self.expected_element_types(Some(ty_id), elements.len(), types);
+                    self.expected_element_types(Some(ty_id), elements.len(), tables.types);
 
                 // infer each element using contextual types
                 for (index, elem) in elements.iter().enumerate() {
                     let expected_element_ty_id =
                         expected_element_types.get(index).copied().flatten();
                     self.infer_argument(
-                        module,
+                        &mut tables.reborrow(),
                         *elem,
                         expected_element_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         ctx,
                     )?;
                 }
@@ -2167,12 +2016,12 @@ impl Compiler {
             Expression::TaggedObjectExpression { ty, properties } => {
                 // resolve the tag type
                 let ty_id = self.resolve_declared_type_expression(
-                    module,
+                    tables.module,
                     ctx.profile,
                     *ty,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                     true,
                     true,
                 )?;
@@ -2180,54 +2029,39 @@ impl Compiler {
                     *ty,
                     ctx.expected_type,
                     ty_id,
-                    tree,
-                    types,
+                    tables.tree,
+                    tables.types,
                 );
 
                 // derive an expected object type from the tag
-                let expected_object_ty_id = self.expected_object_type(
-                    module,
-                    ctx.profile,
-                    Some(ty_id),
-                    &ctx.options,
-                    tree,
-                    symbols,
-                    types,
-                )?;
-
-                // narrow expected object types to struct fields for tagged literals
-                let expected_object_ty_id = self.expected_tagged_object_type(
-                    module,
-                    ctx.profile,
-                    expression_id,
-                    ty_id,
-                    expected_object_ty_id,
-                    tree,
-                    symbols,
-                    types,
-                )?;
+                let expected_object_ty_id = {
+                    let expected_object_ty_id =
+                        self.expected_object_type(&mut tables.reborrow(), Some(ty_id))?;
+                    self.expected_tagged_object_type(
+                        &mut tables.reborrow(),
+                        expression_id,
+                        ty_id,
+                        expected_object_ty_id,
+                    )?
+                };
 
                 // infer object literal shapes and fields
                 let (literal_fields, shapes, spread_override) = self.infer_object_literal_shapes(
-                    module,
+                    &mut tables.reborrow(),
                     properties,
                     expected_object_ty_id,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                     ctx,
                 )?;
                 self.check_excess_object_literal_properties(
-                    module,
+                    tables.module,
                     ctx.profile,
                     expression_id.into_any(),
                     expected_object_ty_id,
                     &literal_fields,
                     &ctx.options,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                 )?;
 
                 // validate shapes against the expected type
@@ -2236,25 +2070,26 @@ impl Compiler {
                 {
                     // validate spread shapes against the explicit type
                     for shape in shapes {
-                        let shape_ty_id =
-                            types.insert_type_from(shape.into_object_type(), expression_id);
+                        let shape_ty_id = tables
+                            .types
+                            .insert_type_from(shape.into_object_type(), expression_id);
                         if self.is_type_assignable(
-                            module,
+                            tables.module,
                             ctx.profile,
-                            symbols,
+                            tables.symbols,
                             expected_object_ty_id,
                             shape_ty_id,
-                            types,
+                            tables.types,
                             &ctx.options,
                         ) == Assignability::NotAssignable
                         {
                             self.emit_unassignable_type_for_types(
-                                module,
+                                tables.module,
                                 ctx.profile,
                                 expression_id.into_any(),
                                 expected_object_ty_id,
                                 shape_ty_id,
-                                types,
+                                tables.types,
                             );
                             break;
                         }
@@ -2273,28 +2108,24 @@ impl Compiler {
     /// Infer tree expressions.
     fn infer_tree_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left: Option<LocalNodeId<Expression>>,
         arguments: Option<&[LocalNodeId<Argument>]>,
         elements: Option<&[LocalNodeId<Argument>]>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         if let Some(left) = left {
-            self.infer_expression(module, left, tree, symbols, types, infer, ctx)?;
+            self.infer_expression(&mut tables.reborrow(), left, ctx)?;
         }
         if let Some(arguments) = arguments {
             for argument in arguments {
-                self.infer_argument(module, *argument, None, tree, symbols, types, infer, ctx)?;
+                self.infer_argument(&mut tables.reborrow(), *argument, None, ctx)?;
             }
         }
         if let Some(elements) = elements {
             for element in elements {
-                self.infer_argument(module, *element, None, tree, symbols, types, infer, ctx)?;
+                self.infer_argument(&mut tables.reborrow(), *element, None, ctx)?;
             }
         }
 
@@ -2302,19 +2133,15 @@ impl Compiler {
         let ty = Type::TypeLiteral {
             value: TypeLiteral::Unknown,
         };
-        Ok(types.insert_type_from(ty, expression_id))
+        Ok(tables.types.insert_type_from(ty, expression_id))
     }
 
     /// Infer aggregate literal expressions.
     fn infer_aggregate_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_LITERAL);
@@ -2322,22 +2149,22 @@ impl Compiler {
             // array expression: infer element types and build array type
             Expression::ArrayExpression { elements } => {
                 // resolve contextual type for array literals
-                let expected_ty_id =
-                    self.expected_value_type(ctx.expected_type, types)
-                        .map(|expected_ty_id| {
-                            self.normalize_type_with_relation(
-                                module,
-                                ctx.profile,
-                                expected_ty_id,
-                                symbols,
-                                types,
-                                NormalizationMode::Assign,
-                                RelationMode::EXPECTED_TYPE,
-                            )
-                        });
+                let expected_ty_id = self
+                    .expected_value_type(ctx.expected_type, tables.types)
+                    .map(|expected_ty_id| {
+                        self.normalize_type_with_relation(
+                            tables.module,
+                            ctx.profile,
+                            expected_ty_id,
+                            tables.symbols,
+                            tables.types,
+                            NormalizationMode::Assign,
+                            RelationMode::EXPECTED_TYPE,
+                        )
+                    });
                 let expected_is_tuple = expected_ty_id.is_some_and(|expected_ty_id| {
                     matches!(
-                        types.get_type(expected_ty_id),
+                        tables.types.get_type(expected_ty_id),
                         Type::Tuple { .. } | Type::ArraySized { .. }
                     )
                 });
@@ -2346,27 +2173,27 @@ impl Compiler {
 
                 // infer element types using any contextual type
                 let mut expected_element_types =
-                    self.expected_element_types(expected_ty_id, elements.len(), types);
+                    self.expected_element_types(expected_ty_id, elements.len(), tables.types);
                 let mut expected_array_element_type =
-                    self.expected_array_element_type(expected_ty_id, types);
+                    self.expected_array_element_type(expected_ty_id, tables.types);
 
                 // allow well known array references to supply element types
                 if let Some(expected_ty_id) = expected_ty_id
                     && let Type::Reference {
                         symbol,
                         static_arguments,
-                    } = types.get_type(expected_ty_id).clone()
+                    } = tables.types.get_type(expected_ty_id).clone()
                     && let Some(well_known) = self.well_known_array_kind(ctx.profile, symbol)
                     && let Some(Type::Array { element, .. }) = self
                         .normalize_well_known_type_reference(
-                            module,
-                            symbols,
+                            tables.module,
+                            tables.symbols,
                             ctx.profile,
                             expression_id.into_any(),
                             symbol,
                             well_known,
                             static_arguments.as_deref(),
-                            types,
+                            tables.types,
                         )
                 {
                     if expected_array_element_type.is_none() {
@@ -2379,12 +2206,12 @@ impl Compiler {
 
                 // reject sparse array holes
                 for element_id in elements.iter() {
-                    let element = tree.get(*element_id);
+                    let element = tables.tree.get(*element_id);
                     let value_id = element.value();
-                    if matches!(tree.get(value_id), Expression::Stub) {
+                    if matches!(tables.tree.get(value_id), Expression::Stub) {
                         self.error(AnalyzeError::ArrayLiteralHole {
                             node: value_id
-                                .into_global_any(module.id)
+                                .into_global_any(tables.module.id)
                                 .into_anchored(Some(ctx.profile)),
                         });
                     }
@@ -2399,39 +2226,28 @@ impl Compiler {
                         .nested_literal_context()
                         .with_expected_type(expected_element_ty_id);
                     self.infer_argument(
-                        module,
+                        &mut tables.reborrow(),
                         *element_id,
                         expected_element_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         &mut element_ctx,
                     )?;
-                    let argument = tree.get(*element_id);
+                    let argument = tables.tree.get(*element_id);
                     let value_id = argument.value();
-                    let ty_id = if let Some(ty_id) =
-                        infer.inferred_type_for_node(value_id.into_global_any(module.id))
+                    let ty_id = if let Some(ty_id) = tables
+                        .infer
+                        .inferred_type_for_node(value_id.into_global_any(tables.module.id))
                     {
                         ty_id
                     } else {
-                        self.infer_expression(
-                            module,
-                            value_id,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            &mut element_ctx,
-                        )?
+                        self.infer_expression(&mut tables.reborrow(), value_id, &mut element_ctx)?
                     };
                     if matches!(argument, Argument::Spread { .. })
                         && let Some(spread_element_type_id) = self.array_spread_element_type(
-                            module,
+                            tables.module,
                             ctx.profile,
                             ty_id,
-                            symbols,
-                            types,
+                            tables.symbols,
+                            tables.types,
                         )
                     {
                         element_type_ids.push(spread_element_type_id);
@@ -2444,7 +2260,7 @@ impl Compiler {
                 let ty = if infer_tuple {
                     let mut tuple_elements = Vec::with_capacity(element_type_ids.len());
                     for (index, element_id) in elements.iter().enumerate() {
-                        let argument = tree.get(*element_id);
+                        let argument = tables.tree.get(*element_id);
                         let mut element = TypeElement::new(element_type_ids[index]);
                         if is_as_const {
                             element.is_readonly = true;
@@ -2471,7 +2287,11 @@ impl Compiler {
                         expected_array_element_type
                     } else {
                         let source_type_id = element_type_ids[0];
-                        Some(self.union_type_from_list(element_type_ids, source_type_id, types))
+                        Some(self.union_type_from_list(
+                            element_type_ids,
+                            source_type_id,
+                            tables.types,
+                        ))
                     };
 
                     Type::Array {
@@ -2480,17 +2300,17 @@ impl Compiler {
                     }
                 };
 
-                let ty_id = types.insert_type_from(ty, expression_id);
+                let ty_id = tables.types.insert_type_from(ty, expression_id);
 
                 // reject managed array types when managed memory is disabled
                 if ctx.options.no_managed
                     && !ctx.is_explicit_ownership
-                    && matches!(module.source, ModuleSource::User)
-                    && self.type_contains_managed(module, ctx.profile, ty_id, types)
+                    && matches!(tables.module.source, ModuleSource::User)
+                    && self.type_contains_managed(tables.module, ctx.profile, ty_id, tables.types)
                 {
                     self.error(AnalyzeError::ManagedMemoryDisabled {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                 }
@@ -2501,21 +2321,21 @@ impl Compiler {
             // tuple expression: preserve positional element types
             Expression::TupleExpression { elements } => {
                 // infer element types using any contextual type
-                let expected_ty_id =
-                    self.expected_value_type(ctx.expected_type, types)
-                        .map(|expected_ty_id| {
-                            self.normalize_type_with_relation(
-                                module,
-                                ctx.profile,
-                                expected_ty_id,
-                                symbols,
-                                types,
-                                NormalizationMode::Assign,
-                                RelationMode::EXPECTED_TYPE,
-                            )
-                        });
+                let expected_ty_id = self
+                    .expected_value_type(ctx.expected_type, tables.types)
+                    .map(|expected_ty_id| {
+                        self.normalize_type_with_relation(
+                            tables.module,
+                            ctx.profile,
+                            expected_ty_id,
+                            tables.symbols,
+                            tables.types,
+                            NormalizationMode::Assign,
+                            RelationMode::EXPECTED_TYPE,
+                        )
+                    });
                 let expected_element_types =
-                    self.expected_element_types(expected_ty_id, elements.len(), types);
+                    self.expected_element_types(expected_ty_id, elements.len(), tables.types);
 
                 // infer element types and collect their contextualized types
                 let mut element_tys = Vec::with_capacity(elements.len());
@@ -2527,42 +2347,31 @@ impl Compiler {
                         .nested_literal_context()
                         .with_expected_type(expected_element_ty_id);
                     self.infer_argument(
-                        module,
+                        &mut tables.reborrow(),
                         *element_id,
                         expected_element_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         &mut element_ctx,
                     )?;
-                    let element = tree.get(*element_id);
+                    let element = tables.tree.get(*element_id);
                     let value_id = element.value();
-                    let ty_id = if let Some(ty_id) =
-                        infer.inferred_type_for_node(value_id.into_global_any(module.id))
+                    let ty_id = if let Some(ty_id) = tables
+                        .infer
+                        .inferred_type_for_node(value_id.into_global_any(tables.module.id))
                     {
                         ty_id
                     } else {
-                        self.infer_expression(
-                            module,
-                            value_id,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            &mut element_ctx,
-                        )?
+                        self.infer_expression(&mut tables.reborrow(), value_id, &mut element_ctx)?
                     };
                     let contextual_ty_id =
                         if let Some(expected_element_ty_id) = expected_element_ty_id {
                             if self
                                 .is_type_assignable(
-                                    module,
+                                    tables.module,
                                     ctx.profile,
-                                    symbols,
+                                    tables.symbols,
                                     expected_element_ty_id,
                                     ty_id,
-                                    types,
+                                    tables.types,
                                     &ctx.options,
                                 )
                                 .is_assignable()
@@ -2576,8 +2385,8 @@ impl Compiler {
                         } else {
                             let materialize_ctx = ctx.for_widening_commit();
                             self.widen_scalar_literal_type_if_needed(
-                                module,
-                                types,
+                                tables.module,
+                                tables.types,
                                 ty_id,
                                 &materialize_ctx,
                                 value_id.into_any(),
@@ -2594,46 +2403,33 @@ impl Compiler {
                     elements: element_tys,
                     is_readonly: is_as_const,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
 
             // object expression: object type
             Expression::ObjectExpression { properties } => {
                 // apply contextual object type when available
-                let expected_object_ty_id = self.expected_object_type(
-                    module,
-                    ctx.profile,
-                    ctx.expected_type,
-                    &ctx.options,
-                    tree,
-                    symbols,
-                    types,
-                )?;
-                let expected_object_ty_id = expected_object_ty_id.filter(|expected_ty_id| {
-                    matches!(types.get_type(*expected_ty_id), Type::Object { .. })
-                });
-                let expected_object_ty_id = if expected_object_ty_id.is_some() {
-                    expected_object_ty_id
-                } else {
-                    self.expected_object_type_for_literal_union(
-                        module,
-                        ctx.profile,
-                        ctx.expected_type,
-                        properties,
-                        &ctx.options,
-                        tree,
-                        symbols,
-                        types,
-                    )?
+                let expected_object_ty_id = {
+                    let expected_object_ty_id =
+                        self.expected_object_type(&mut tables.reborrow(), ctx.expected_type)?;
+                    let expected_object_ty_id = expected_object_ty_id.filter(|expected_ty_id| {
+                        matches!(tables.types.get_type(*expected_ty_id), Type::Object { .. })
+                    });
+                    if expected_object_ty_id.is_some() {
+                        expected_object_ty_id
+                    } else {
+                        self.expected_object_type_for_literal_union(
+                            &mut tables.reborrow(),
+                            ctx.expected_type,
+                            properties,
+                            &ctx.options,
+                        )?
+                    }
                 };
                 let (literal_fields, shapes, spread_override) = self.infer_object_literal_shapes(
-                    module,
+                    &mut tables.reborrow(),
                     properties,
                     expected_object_ty_id,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                     ctx,
                 )?;
 
@@ -2641,15 +2437,15 @@ impl Compiler {
                 let excess_check_ty_id = expected_object_ty_id.or(ctx.expected_type);
 
                 self.check_excess_object_literal_properties(
-                    module,
+                    tables.module,
                     ctx.profile,
                     expression_id.into_any(),
                     excess_check_ty_id,
                     &literal_fields,
                     &ctx.options,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                 )?;
                 if let Some(spread_override) = spread_override {
                     return Ok(spread_override);
@@ -2658,11 +2454,15 @@ impl Compiler {
                 // synthesize the final object type from collected shapes
                 let mut shape_ids = Vec::with_capacity(shapes.len());
                 for shape in shapes {
-                    shape_ids.push(types.insert_type_from(shape.into_object_type(), expression_id));
+                    shape_ids.push(
+                        tables
+                            .types
+                            .insert_type_from(shape.into_object_type(), expression_id),
+                    );
                 }
 
                 let ty_id = match shape_ids.len() {
-                    0 => types.insert_type_from(
+                    0 => tables.types.insert_type_from(
                         Type::Object {
                             fields: Vec::new(),
                             call_signatures: Vec::new(),
@@ -2672,7 +2472,7 @@ impl Compiler {
                         expression_id,
                     ),
                     1 => shape_ids[0],
-                    _ => types.insert_type_from(
+                    _ => tables.types.insert_type_from(
                         Type::Union {
                             elements: shape_ids,
                         },
@@ -2683,12 +2483,12 @@ impl Compiler {
                 // reject managed object types when managed memory is disabled
                 if ctx.options.no_managed
                     && !ctx.is_explicit_ownership
-                    && matches!(module.source, ModuleSource::User)
-                    && self.type_contains_managed(module, ctx.profile, ty_id, types)
+                    && matches!(tables.module.source, ModuleSource::User)
+                    && self.type_contains_managed(tables.module, ctx.profile, ty_id, tables.types)
                 {
                     self.error(AnalyzeError::ManagedMemoryDisabled {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                 }
@@ -2702,22 +2502,227 @@ impl Compiler {
         Ok(ty_id)
     }
 
+    /// Infer expression variants that require infer tables context.
+    fn infer_expression_with_tables(
+        &self,
+        tables: &mut InferTablesContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        expression: &Expression,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<LocalTypeId> {
+        match expression {
+            Expression::Unary { operator, right } => self.infer_unary_expression(
+                &mut tables.reborrow(),
+                expression_id,
+                operator,
+                *right,
+                ctx,
+            ),
+            Expression::Binary {
+                left,
+                operator,
+                right,
+            } => self.infer_binary_expression(
+                &mut tables.reborrow(),
+                expression_id,
+                operator,
+                *left,
+                *right,
+                ctx,
+            ),
+            Expression::Assign { left, right } => self.infer_assign_expression(
+                &mut tables.reborrow(),
+                expression_id,
+                *left,
+                *right,
+                ctx,
+            ),
+            Expression::AssignBinary {
+                left,
+                operator,
+                right,
+            } => self.infer_assign_binary_expression(
+                &mut tables.reborrow(),
+                expression_id,
+                operator,
+                *left,
+                *right,
+                ctx,
+            ),
+            Expression::Call {
+                left,
+                static_arguments,
+                dynamic_arguments,
+            } => {
+                let return_ty_id = self.infer_call_expression(
+                    &mut tables.reborrow(),
+                    expression_id,
+                    *left,
+                    static_arguments.as_deref(),
+                    dynamic_arguments,
+                    ctx,
+                )?;
+
+                let expects_unique_symbol = ctx.expected_type.is_some_and(|expected_ty_id| {
+                    matches!(
+                        tables.types.get_type(expected_ty_id),
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
+                        }
+                    )
+                });
+                if expects_unique_symbol
+                    && let Some(callee_symbol) = self.reference_symbol_for_expression(
+                        tables.module,
+                        *left,
+                        ctx.profile,
+                        tables.tree,
+                        tables.symbols,
+                    )
+                    && self.is_well_known_symbol(
+                        ctx.profile,
+                        callee_symbol,
+                        WellKnownSymbol::Symbol,
+                    )
+                    && matches!(
+                        tables.types.get_type(return_ty_id),
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Primitive(PrimitiveType::Symbol),
+                        }
+                    )
+                {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
+                    };
+                    Ok(tables.types.insert_type_from(ty, expression_id))
+                } else {
+                    Ok(return_ty_id)
+                }
+            }
+            Expression::Member {
+                left,
+                name,
+                static_arguments,
+            } => self.infer_member_expression(
+                &mut tables.reborrow(),
+                expression_id,
+                *left,
+                *name,
+                static_arguments.as_deref(),
+                ctx,
+            ),
+            Expression::PrivateMember {
+                left,
+                name,
+                static_arguments,
+            } => {
+                let private_name = self.private_key_string_id(*name);
+                self.infer_member_expression(
+                    &mut tables.reborrow(),
+                    expression_id,
+                    *left,
+                    private_name,
+                    static_arguments.as_deref(),
+                    ctx,
+                )
+            }
+            Expression::Index { left, right } => self.infer_index_access_expression(
+                &mut tables.reborrow(),
+                expression_id,
+                *left,
+                *right,
+                ctx,
+            ),
+            Expression::New {
+                left,
+                static_arguments,
+                dynamic_arguments,
+            } => self.infer_new_expression(
+                &mut tables.reborrow(),
+                expression_id,
+                *left,
+                static_arguments.as_deref(),
+                dynamic_arguments,
+                ctx,
+            ),
+            Expression::TaggedTemplateExpression { tag, value } => {
+                let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_TEMPLATE);
+
+                self.validate_call_expression(
+                    tables.module,
+                    expression_id,
+                    *tag,
+                    tables.tree,
+                    tables.symbols,
+                    &ctx.options,
+                    ctx.profile,
+                    false,
+                );
+                self.infer_tagged_template_expression(
+                    &mut tables.reborrow(),
+                    expression_id,
+                    *tag,
+                    value,
+                    ctx,
+                )
+            }
+            Expression::ArrayExpression { .. }
+            | Expression::TupleExpression { .. }
+            | Expression::ObjectExpression { .. } => self.infer_aggregate_expression(
+                &mut tables.reborrow(),
+                expression_id,
+                expression,
+                ctx,
+            ),
+            Expression::TaggedScalarExpression { .. }
+            | Expression::TaggedTupleExpression { .. }
+            | Expression::TaggedObjectExpression { .. } => self.infer_tagged_literal_expression(
+                &mut tables.reborrow(),
+                expression_id,
+                expression,
+                ctx,
+            ),
+            Expression::TreeExpression {
+                left,
+                arguments,
+                elements,
+            } => self.infer_tree_expression(
+                &mut tables.reborrow(),
+                expression_id,
+                *left,
+                arguments.as_deref(),
+                elements.as_deref(),
+                ctx,
+            ),
+            Expression::Instantiation {
+                left,
+                static_arguments,
+            } => self.infer_instantiation_expression(
+                &mut tables.reborrow(),
+                expression_id,
+                *left,
+                static_arguments.as_slice(),
+                ctx,
+            ),
+            Expression::SequenceExpression { .. } | Expression::Parenthesized { .. } => self
+                .infer_grouping_expression(&mut tables.reborrow(), expression_id, expression, ctx),
+            _ => unreachable!("infer_expression_with_tables called with unsupported expression"),
+        }
+    }
+
     destack_base::ensure_sufficient_stack! {
     /// Infer the type of an expression.
     pub(crate) fn infer_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+
         // reuse an inferred result when caching is enabled
         let has_flow = ctx.flow.is_some();
-        let node_id = expression_id.into_global_any(module.id);
-        let expression = tree.get(expression_id);
+        let node_id = expression_id.into_global_any(tables.module.id);
+        let expression = tables.tree.get(expression_id);
         let cache_eligible_expression = !matches!(
             expression,
             Expression::Member { .. } | Expression::PrivateMember { .. }
@@ -2726,24 +2731,19 @@ impl Compiler {
             && !ctx.is_surface_inference
             && !has_flow
             && let Some(ty_id) = self.inferred_type_id_for_node_if_ready(
-                module,
-                ctx.profile,
+                &mut tables.reborrow(),
                 node_id,
-                tree,
-                symbols,
-                infer,
-                types,
             )?
-            && infer.addressability_for_node(node_id).is_some()
+            && tables.infer.addressability_for_node(node_id).is_some()
         {
-            self.ensure_expression_addressability(module, expression_id, tree, infer);
+            self.ensure_expression_addressability(tables.module, expression_id, tables.tree, tables.infer);
             return Ok(ty_id);
         }
 
         // resolve the flow environment for the node when flow typing is active
         let flow_environment = ctx.flow.as_ref().and_then(|flow_context| {
-            if flow_context.module_id != module.id {
-                // #Suspicious: flow context belongs to a different module (error?)
+            if flow_context.module_id != tables.module.id {
+                // #Suspicious: flow context belongs to a different tables.module (error?)
                 return None;
             }
             if let Some(environment_id) = flow_context.table.environment_by_node.get(&node_id) {
@@ -2775,7 +2775,7 @@ impl Compiler {
             | Expression::ExportNamespace { .. }
             | Expression::Let { .. }
             | Expression::Using { .. } => self
-                .infer_statement_expression(module, expression_id, tree, symbols, types, infer, ctx)?,
+                .infer_statement_expression(&mut tables.reborrow(), expression_id, ctx)?,
 
             // type operations
             Expression::TypeUnary { .. }
@@ -2788,111 +2788,50 @@ impl Compiler {
             | Expression::TypeInfer { .. }
             | Expression::TypePredicate { .. }
             | Expression::PointerOf { .. } => self.infer_type_operation_expression(
-                module,
+                &mut tables.reborrow(),
                 expression_id,
                 expression,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             )?,
 
             Expression::Cast { .. } | Expression::OwnershipCast { .. } => self
-                .infer_cast_expression(
-                    module,
-                    expression_id,
-                    expression,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?,
+                .infer_cast_expression(&mut tables.reborrow(), expression_id, expression, ctx)?,
 
-            // unary operations: compound type
-            Expression::Unary { operator, right } => self.infer_unary_expression(
-                module,
-                expression_id,
-                operator,
-                *right,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?,
+            // expression variants that require table context
+            Expression::Unary { .. }
+            | Expression::Binary { .. }
+            | Expression::Assign { .. }
+            | Expression::AssignBinary { .. }
+            | Expression::Call { .. }
+            | Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::Index { .. }
+            | Expression::New { .. }
+            | Expression::TaggedTemplateExpression { .. }
+            | Expression::ArrayExpression { .. }
+            | Expression::TupleExpression { .. }
+            | Expression::ObjectExpression { .. }
+            | Expression::TaggedScalarExpression { .. }
+            | Expression::TaggedTupleExpression { .. }
+            | Expression::TaggedObjectExpression { .. }
+            | Expression::TreeExpression { .. }
+            | Expression::Instantiation { .. }
+            | Expression::SequenceExpression { .. }
+            | Expression::Parenthesized { .. } => self
+                .infer_expression_with_tables(&mut tables.reborrow(), expression_id, expression, ctx)?,
 
             Expression::ValueOf { .. } | Expression::ReferenceOf { .. } => self
                 .infer_value_reference_operation_expression(
-                    module,
+                    &mut tables.reborrow(),
                     expression_id,
                     expression,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                     ctx,
                 )?,
 
-            // binary operations: compound type
-            Expression::Binary {
-                left,
-                operator,
-                right,
-            } => self.infer_binary_expression(
-                module,
-                expression_id,
-                operator,
-                *left,
-                *right,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?,
-
-            // assignment operations: void
-            Expression::Assign { left, right } => self.infer_assign_expression(
-                module,
-                expression_id,
-                *left,
-                *right,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?,
-            Expression::AssignBinary {
-                left,
-                operator,
-                right,
-            } => self.infer_assign_binary_expression(
-                module,
-                expression_id,
-                operator,
-                *left,
-                *right,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?,
-
             // delete operation: void
-            Expression::Delete { value } => self.infer_delete_expression(
-                module,
-                expression_id,
-                *value,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?,
+            Expression::Delete { value } => {
+                self.infer_delete_expression(&mut tables.reborrow(), expression_id, *value, ctx)?
+            }
 
             // references: look up symbol type
             Expression::UnresolvedPath {
@@ -2904,13 +2843,13 @@ impl Compiler {
             | Expression::ImportMeta
             | Expression::This
             | Expression::Super => self.infer_special_reference_expression(
-                module,
+                tables.module,
                 expression_id,
                 expression,
-                tree,
-                symbols,
-                types,
-                infer,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+                tables.infer,
                 ctx,
             )?,
 
@@ -2930,190 +2869,20 @@ impl Compiler {
                 target_symbol,
                 static_arguments,
             } => self.infer_reference_expression(
-                module,
+                &mut tables.reborrow(),
                 expression_id,
                 *target_symbol,
                 static_arguments.as_deref(),
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             )?,
 
             Expression::ScalarLiteral { .. }
             | Expression::TypeLiteral { .. }
             | Expression::Type { .. } => self.infer_scalar_or_type_expression(
-                module,
+                tables.module,
                 expression_id,
                 expression,
-                types,
-                ctx,
-            )?,
-
-            Expression::ArrayExpression { .. }
-            | Expression::TupleExpression { .. }
-            | Expression::ObjectExpression { .. } => self.infer_aggregate_expression(
-                module,
-                expression_id,
-                expression,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?,
-
-            Expression::SequenceExpression { .. } | Expression::Parenthesized { .. } => self
-                .infer_grouping_expression(
-                    module,
-                    expression_id,
-                    expression,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?,
-
-            // call: return type of callee
-            Expression::Call {
-                left,
-                static_arguments,
-                dynamic_arguments,
-            } => {
-                let return_ty_id = self.infer_call_expression(
-                    module,
-                    expression_id,
-                    *left,
-                    static_arguments.as_deref(),
-                    dynamic_arguments,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?;
-
-                let expects_unique_symbol = ctx.expected_type.is_some_and(|expected_ty_id| {
-                    matches!(
-                        types.get_type(expected_ty_id),
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
-                        }
-                    )
-                });
-                if expects_unique_symbol
-                    && let Some(callee_symbol) = self.reference_symbol_for_expression(
-                        module,
-                        *left,
-                        ctx.profile,
-                        tree,
-                        symbols,
-                    )
-                    && self.is_well_known_symbol(
-                        ctx.profile,
-                        callee_symbol,
-                        WellKnownSymbol::Symbol,
-                    )
-                    && matches!(
-                        types.get_type(return_ty_id),
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Primitive(PrimitiveType::Symbol),
-                        }
-                    )
-                {
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
-                    };
-                    types.insert_type_from(ty, expression_id)
-                } else {
-                    return_ty_id
-                }
-            }
-
-            Expression::Member {
-                left,
-                name,
-                static_arguments,
-            } => self.infer_member_expression(
-                module,
-                expression_id,
-                *left,
-                *name,
-                static_arguments.as_deref(),
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?,
-            Expression::PrivateMember {
-                left,
-                name,
-                static_arguments,
-            } => {
-                let private_name = self.private_key_string_id(*name);
-                self.infer_member_expression(
-                    module,
-                    expression_id,
-                    *left,
-                    private_name,
-                    static_arguments.as_deref(),
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?
-            }
-
-            // instantiation: apply static arguments to callable type
-            Expression::Instantiation {
-                left,
-                static_arguments,
-            } => self.infer_instantiation_expression(
-                module,
-                expression_id,
-                *left,
-                static_arguments.as_slice(),
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?,
-
-            // index: element type
-            Expression::Index { left, right } => {
-                self.infer_index_access_expression(
-                    module,
-                    expression_id,
-                    *left,
-                    *right,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?
-            }
-
-            // new: instance type
-            Expression::New {
-                left,
-                static_arguments,
-                dynamic_arguments,
-            } => self.infer_new_expression(
-                module,
-                expression_id,
-                *left,
-                static_arguments.as_deref(),
-                dynamic_arguments,
-                tree,
-                symbols,
-                types,
-                infer,
+                tables.types,
                 ctx,
             )?,
 
@@ -3136,13 +2905,9 @@ impl Compiler {
             | Expression::Yield { .. }
             | Expression::Maybe { .. }
             | Expression::Must { .. } => self.infer_control_expression(
-                module,
+                &mut tables.reborrow(),
                 expression_id,
                 expression,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             )?,
 
@@ -3153,71 +2918,13 @@ impl Compiler {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Primitive(PrimitiveType::String),
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
-            Expression::TaggedTemplateExpression { tag, value } => {
-                let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_TEMPLATE);
-
-                self.validate_call_expression(
-                    module,
-                    expression_id,
-                    *tag,
-                    tree,
-                    symbols,
-                    &ctx.options,
-                    ctx.profile,
-                    false,
-                );
-                self.infer_tagged_template_expression(
-                    module,
-                    expression_id,
-                    *tag,
-                    value,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?
-            }
-
-            // tagged expressions for newtype construction
-            Expression::TaggedScalarExpression { .. }
-            | Expression::TaggedTupleExpression { .. }
-            | Expression::TaggedObjectExpression { .. } => self
-                .infer_tagged_literal_expression(
-                    module,
-                    expression_id,
-                    expression,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?,
-
-            // tree expression (JSX like)
-            Expression::TreeExpression {
-                left,
-                arguments,
-                elements,
-            } => self.infer_tree_expression(
-                module,
-                expression_id,
-                *left,
-                arguments.as_deref(),
-                elements.as_deref(),
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?,
 
             // error expression: error type
             Expression::Error => {
                 let ty = Type::Error;
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
 
             // debugger: void
@@ -3225,7 +2932,7 @@ impl Compiler {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
 
             // stub: nothing to do
@@ -3233,15 +2940,15 @@ impl Compiler {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
         };
 
         // determine addressability for the expression
-        self.ensure_expression_addressability(module, expression_id, tree, infer);
+        self.ensure_expression_addressability(tables.module, expression_id, tables.tree, tables.infer);
 
         if !ctx.is_surface_inference {
-            infer.set_inferred_type_for_node(node_id, ty_id);
+            tables.infer.set_inferred_type_for_node(node_id, ty_id);
         }
 
         Ok(ty_id)
@@ -3251,13 +2958,9 @@ impl Compiler {
     /// Infer control-flow expressions and their result types.
     fn infer_control_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let ty_id = match expression {
@@ -3271,20 +2974,14 @@ impl Compiler {
                 // infer the condition
                 match condition {
                     IfCondition::Expression { condition } => {
-                        self.infer_expression(
-                            module, *condition, tree, symbols, types, infer, ctx,
-                        )?;
+                        self.infer_expression(&mut tables.reborrow(), *condition, ctx)?;
                     }
                     IfCondition::Let { declarator, .. } => {
                         self.infer_declarator(
-                            module,
+                            &mut tables.reborrow(),
                             *declarator,
                             expression_id,
                             DeclaratorConstraint::Satisfies,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
                             ctx,
                         )?;
                     }
@@ -3292,26 +2989,15 @@ impl Compiler {
 
                 // infer the then branch
                 let mut then_ctx = ctx.fork().with_expected_type(ctx.expected_type);
-                let then_ty_id = self.infer_expression(
-                    module,
-                    *then_expression,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    &mut then_ctx,
-                )?;
+                let then_ty_id =
+                    self.infer_expression(&mut tables.reborrow(), *then_expression, &mut then_ctx)?;
 
                 // infer the else branch
                 let else_ty_id = if let Some(else_expr) = else_expression {
                     let mut else_ctx = ctx.fork().with_expected_type(ctx.expected_type);
                     Some(self.infer_expression(
-                        module,
+                        &mut tables.reborrow(),
                         *else_expr,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         &mut else_ctx,
                     )?)
                 } else {
@@ -3321,9 +3007,9 @@ impl Compiler {
                 // compute the result type from the branches
                 if let Some(else_ty_id) = else_ty_id {
                     self.best_common_type_for_list(
-                        module,
-                        symbols,
-                        types,
+                        tables.module,
+                        tables.symbols,
+                        tables.types,
                         ctx,
                         expression_id.into_any(),
                         &[then_ty_id, else_ty_id],
@@ -3332,7 +3018,7 @@ impl Compiler {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Void,
                     };
-                    types.insert_type_from(ty, expression_id)
+                    tables.types.insert_type_from(ty, expression_id)
                 }
             }
 
@@ -3345,25 +3031,25 @@ impl Compiler {
                 symbol,
             } => {
                 if let Some(cond) = condition {
-                    self.infer_expression(module, *cond, tree, symbols, types, infer, ctx)?;
+                    self.infer_expression(&mut tables.reborrow(), *cond, ctx)?;
                 }
                 let loop_expected_type = ctx.expected_type;
-                let loop_symbol = symbol.into_global(module.id);
+                let loop_symbol = symbol.into_global(tables.module.id);
                 let mut ctx = ctx.fork().with_expected_type(None).in_loop_with_symbol(
                     expression_id.into_any(),
                     loop_symbol,
                     loop_expected_type,
                 );
-                self.infer_block(module, *body, tree, symbols, types, infer, &mut ctx)?;
+                self.infer_block(&mut tables.reborrow(), *body, &mut ctx)?;
                 let loop_context = ctx.pop_loop_context();
                 let (break_values, expected_type) = loop_context
                     .map(|context| (context.break_values, context.expected_type))
                     .unwrap_or_else(|| (Vec::new(), None));
                 if *kind == LoopKind::NoTest {
                     self.loop_break_result_type(
-                        module,
-                        symbols,
-                        types,
+                        tables.module,
+                        tables.symbols,
+                        tables.types,
                         &ctx,
                         expression_id.into_any(),
                         &break_values,
@@ -3373,7 +3059,7 @@ impl Compiler {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Void,
                     };
-                    types.insert_type_from(ty, expression_id)
+                    tables.types.insert_type_from(ty, expression_id)
                 }
             }
 
@@ -3388,17 +3074,13 @@ impl Compiler {
                 symbol,
             } => {
                 let iterator_ty_id =
-                    self.infer_expression(module, *iterator, tree, symbols, types, infer, ctx)?;
+                    { self.infer_expression(&mut tables.reborrow(), *iterator, ctx)? };
                 match binding {
                     ForEachBinding::Pattern { pattern, .. } => {
                         self.infer_pattern(
-                            module,
+                            &mut tables.reborrow(),
                             *pattern,
                             Some(iterator_ty_id),
-                            tree,
-                            symbols,
-                            types,
-                            infer,
                             ctx,
                         )?;
                     }
@@ -3407,30 +3089,26 @@ impl Compiler {
                         pattern,
                     } => {
                         self.infer_pattern(
-                            module,
+                            &mut tables.reborrow(),
                             *pattern,
                             Some(iterator_ty_id),
-                            tree,
-                            symbols,
-                            types,
-                            infer,
                             ctx,
                         )?;
                     }
                 }
                 let loop_expected_type = ctx.expected_type;
-                let loop_symbol = symbol.into_global(module.id);
+                let loop_symbol = symbol.into_global(tables.module.id);
                 let mut ctx = ctx.fork().with_expected_type(None).in_loop_with_symbol(
                     expression_id.into_any(),
                     loop_symbol,
                     loop_expected_type,
                 );
-                self.infer_block(module, *body, tree, symbols, types, infer, &mut ctx)?;
+                self.infer_block(&mut tables.reborrow(), *body, &mut ctx)?;
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
 
             // for: void
@@ -3443,38 +3121,30 @@ impl Compiler {
                 symbol,
             } => {
                 if let Some(initialization) = initialization {
-                    self.infer_expression(
-                        module,
-                        *initialization,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
+                    self.infer_expression(&mut tables.reborrow(), *initialization, ctx)?;
                 }
                 if let Some(condition) = condition {
-                    self.infer_expression(module, *condition, tree, symbols, types, infer, ctx)?;
+                    self.infer_expression(&mut tables.reborrow(), *condition, ctx)?;
                 }
                 if let Some(increment) = increment {
-                    self.infer_expression(module, *increment, tree, symbols, types, infer, ctx)?;
+                    self.infer_expression(&mut tables.reborrow(), *increment, ctx)?;
                 }
                 let loop_expected_type = ctx.expected_type;
-                let loop_symbol = symbol.into_global(module.id);
+                let loop_symbol = symbol.into_global(tables.module.id);
                 let mut ctx = ctx.fork().with_expected_type(None).in_loop_with_symbol(
                     expression_id.into_any(),
                     loop_symbol,
                     loop_expected_type,
                 );
-                self.infer_block(module, *body, tree, symbols, types, infer, &mut ctx)?;
+                self.infer_block(&mut tables.reborrow(), *body, &mut ctx)?;
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
 
-            // match/switch: infer case result types
+            // match/switch: tables.infer case result types
             Expression::Match {
                 kind,
                 value,
@@ -3483,8 +3153,7 @@ impl Compiler {
                 scope: _,
                 symbol: _,
             } => {
-                let value_ty_id =
-                    self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                let value_ty_id = { self.infer_expression(&mut tables.reborrow(), *value, ctx)? };
 
                 // match and switch set different break contexts
                 let mut base_ctx = ctx.fork();
@@ -3499,7 +3168,7 @@ impl Compiler {
                 let mut case_type_ids = Vec::new();
                 for case_id in cases {
                     let mut case_ctx = base_ctx.fork();
-                    let case = tree.get(*case_id);
+                    let case = tables.tree.get(*case_id);
                     let (selector, body_expr, block_body) = match case {
                         MatchCase::Expression {
                             selector,
@@ -3517,9 +3186,9 @@ impl Compiler {
                     if let MatchSelector::Pattern { pattern, guard } = selector {
                         let mut allow_pattern_infer = true;
                         if is_switch {
-                            match tree.get(*pattern) {
+                            match tables.tree.get(*pattern) {
                                 Pattern::Expression { value } => {
-                                    if self.is_invalid_switch_case_expression(tree, *value) {
+                                    if self.is_invalid_switch_case_expression(tables.tree, *value) {
                                         allow_pattern_infer = false;
                                     }
                                 }
@@ -3528,22 +3197,18 @@ impl Compiler {
                         }
                         if allow_pattern_infer {
                             let pattern_binding_ty_id = self.narrow_match_pattern_binding_type(
-                                module,
+                                tables.module,
                                 ctx.profile,
                                 value_ty_id,
                                 *pattern,
-                                tree,
-                                symbols,
-                                types,
+                                tables.tree,
+                                tables.symbols,
+                                tables.types,
                             );
                             self.infer_pattern(
-                                module,
+                                &mut tables.reborrow(),
                                 *pattern,
                                 Some(pattern_binding_ty_id),
-                                tree,
-                                symbols,
-                                types,
-                                infer,
                                 &mut case_ctx,
                             )?;
                         }
@@ -3551,12 +3216,8 @@ impl Compiler {
                             && !is_switch
                         {
                             self.infer_expression(
-                                module,
+                                &mut tables.reborrow(),
                                 *guard_expr,
-                                tree,
-                                symbols,
-                                types,
-                                infer,
                                 &mut case_ctx,
                             )?;
                         }
@@ -3572,25 +3233,9 @@ impl Compiler {
 
                     // infer the case body and collect types for matches
                     let case_ty_id = if let Some(expr) = body_expr {
-                        Some(self.infer_expression(
-                            module,
-                            expr,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            &mut case_ctx,
-                        )?)
+                        Some(self.infer_expression(&mut tables.reborrow(), expr, &mut case_ctx)?)
                     } else if let Some(body) = block_body {
-                        Some(self.infer_block(
-                            module,
-                            body,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            &mut case_ctx,
-                        )?)
+                        Some(self.infer_block(&mut tables.reborrow(), body, &mut case_ctx)?)
                     } else {
                         None
                     };
@@ -3604,20 +3249,20 @@ impl Compiler {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Void,
                     };
-                    types.insert_type_from(ty, expression_id)
+                    tables.types.insert_type_from(ty, expression_id)
                 } else {
                     match case_type_ids.len() {
                         0 => {
                             let ty = Type::TypeLiteral {
                                 value: TypeLiteral::Never,
                             };
-                            types.insert_type_from(ty, expression_id)
+                            tables.types.insert_type_from(ty, expression_id)
                         }
                         1 => case_type_ids[0],
                         _ => self.best_common_type_for_list(
-                            module,
-                            symbols,
-                            types,
+                            tables.module,
+                            tables.symbols,
+                            tables.types,
                             ctx,
                             expression_id.into_any(),
                             &case_type_ids,
@@ -3640,21 +3285,21 @@ impl Compiler {
                 if ctx.options.no_exceptions {
                     self.error(AnalyzeError::ExceptionsDisabled {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
 
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Never,
                     };
-                    return Ok(types.insert_type_from(ty, expression_id));
+                    return Ok(tables.types.insert_type_from(ty, expression_id));
                 }
 
                 // validate try shape
                 if catch_expression.is_none() && finally_expression.is_none() {
                     self.error(AnalyzeError::IncompleteTry {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                 }
@@ -3665,15 +3310,8 @@ impl Compiler {
                 // infer the try body
                 let mut try_ctx = ctx.fork().with_expected_type(ctx.expected_type);
                 try_ctx.push_try_frame(has_catch);
-                let try_ty_id = self.infer_expression(
-                    module,
-                    *try_expression,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    &mut try_ctx,
-                )?;
+                let try_ty_id =
+                    self.infer_expression(&mut tables.reborrow(), *try_expression, &mut try_ctx)?;
 
                 // capture try errors before entering catch
                 let try_error_types = try_ctx
@@ -3686,13 +3324,8 @@ impl Compiler {
                 if let Some(catch_expr) = catch_expression {
                     let catch_binding_ty_id = if let Some(catch_ty) = catch_ty {
                         Some(self.resolve_type_expression(
-                            module,
-                            ctx.profile,
+                            &mut tables.reborrow(),
                             *catch_ty,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
                             ctx,
                         )?)
                     } else {
@@ -3701,33 +3334,30 @@ impl Compiler {
 
                     if let Some(catch_pat) = catch_pattern {
                         // infer the catch error type from try branches
-                        let catch_error_type_id =
-                            if let Some(catch_binding_ty_id) = catch_binding_ty_id {
-                                catch_binding_ty_id
-                            } else if try_error_types.is_empty() {
-                                let value = if ctx.options.use_unknown_in_catch_variables {
-                                    TypeLiteral::Unknown
-                                } else {
-                                    TypeLiteral::Any
-                                };
-                                types.insert_type_from_any(
-                                    Type::TypeLiteral { value },
-                                    expression_id.into_any(),
-                                )
+                        let catch_error_type_id = if let Some(catch_binding_ty_id) =
+                            catch_binding_ty_id
+                        {
+                            catch_binding_ty_id
+                        } else if try_error_types.is_empty() {
+                            let value = if ctx.options.use_unknown_in_catch_variables {
+                                TypeLiteral::Unknown
                             } else {
-                                let source_type_id = try_error_types[0];
-                                self.union_type_from_list(try_error_types, source_type_id, types)
+                                TypeLiteral::Any
                             };
+                            tables.types.insert_type_from_any(
+                                Type::TypeLiteral { value },
+                                expression_id.into_any(),
+                            )
+                        } else {
+                            let source_type_id = try_error_types[0];
+                            self.union_type_from_list(try_error_types, source_type_id, tables.types)
+                        };
 
                         // bind the catch pattern to the error type
                         self.infer_pattern(
-                            module,
+                            &mut tables.reborrow(),
                             *catch_pat,
                             Some(catch_error_type_id),
-                            tree,
-                            symbols,
-                            types,
-                            infer,
                             ctx,
                         )?;
                     }
@@ -3735,12 +3365,8 @@ impl Compiler {
                     // infer the catch expression with contextual typing
                     let mut catch_ctx = ctx.fork().with_expected_type(ctx.expected_type);
                     catch_ty_id = Some(self.infer_expression(
-                        module,
+                        &mut tables.reborrow(),
                         *catch_expr,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         &mut catch_ctx,
                     )?);
                 }
@@ -3748,23 +3374,15 @@ impl Compiler {
                 // infer the finally expression
                 if let Some(finally_expr) = finally_expression {
                     let mut finally_ctx = ctx.fork().with_expected_type(None);
-                    self.infer_expression(
-                        module,
-                        *finally_expr,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        &mut finally_ctx,
-                    )?;
+                    self.infer_expression(&mut tables.reborrow(), *finally_expr, &mut finally_ctx)?;
                 }
 
                 // combine try and catch result types
                 if let Some(catch_ty_id) = catch_ty_id {
                     self.best_common_type_for_list(
-                        module,
-                        symbols,
-                        types,
+                        tables.module,
+                        tables.symbols,
+                        tables.types,
                         ctx,
                         expression_id.into_any(),
                         &[try_ty_id, catch_ty_id],
@@ -3775,16 +3393,9 @@ impl Compiler {
             }
 
             // return: never (control flow)
-            Expression::Return { value } => self.infer_return_expression(
-                module,
-                expression_id,
-                *value,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?,
+            Expression::Return { value } => {
+                self.infer_return_expression(&mut tables.reborrow(), expression_id, *value, ctx)?
+            }
 
             // break: never
             Expression::Break {
@@ -3796,7 +3407,7 @@ impl Compiler {
                 if !is_labelled && !ctx.can_break() {
                     self.error(AnalyzeError::InvalidBreak {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                         label: *target,
                     });
@@ -3809,19 +3420,18 @@ impl Compiler {
                 if is_switch_break && value.is_some() {
                     self.error(AnalyzeError::InvalidSwitchBreakValue {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                 }
 
                 if let Some(val) = value {
-                    let value_ty_id =
-                        self.infer_expression(module, *val, tree, symbols, types, infer, ctx)?;
+                    let value_ty_id = { self.infer_expression(&mut tables.reborrow(), *val, ctx)? };
                     if !is_switch_break {
                         ctx.record_break_value(*target_symbol, value_ty_id);
                     }
                 } else if !is_switch_break {
-                    let void_ty_id = types.insert_type_from_any(
+                    let void_ty_id = tables.types.insert_type_from_any(
                         Type::TypeLiteral {
                             value: TypeLiteral::Void,
                         },
@@ -3833,17 +3443,17 @@ impl Compiler {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
             Expression::UnresolvedBreak { target: _, value } => {
                 if let Some(val) = value {
-                    self.infer_expression(module, *val, tree, symbols, types, infer, ctx)?;
+                    self.infer_expression(&mut tables.reborrow(), *val, ctx)?;
                 }
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
 
             // continue: never
@@ -3854,7 +3464,7 @@ impl Compiler {
                 if !ctx.can_continue() {
                     self.error(AnalyzeError::InvalidContinue {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                         label: *target,
                     });
@@ -3863,13 +3473,13 @@ impl Compiler {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
             Expression::UnresolvedContinue { target } => {
                 if !ctx.can_continue() {
                     self.error(AnalyzeError::InvalidContinue {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                         label: Some(*target),
                     });
@@ -3878,7 +3488,7 @@ impl Compiler {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
 
             // throw: never (control flow)
@@ -3887,31 +3497,31 @@ impl Compiler {
                 if ctx.options.no_exceptions {
                     self.error(AnalyzeError::ExceptionsDisabled {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
 
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Never,
                     };
-                    return Ok(types.insert_type_from(ty, expression_id));
+                    return Ok(tables.types.insert_type_from(ty, expression_id));
                 }
 
-                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(&mut tables.reborrow(), *value, ctx)?;
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Never,
                 };
-                types.insert_type_from(ty, expression_id)
+                tables.types.insert_type_from(ty, expression_id)
             }
 
             // await: awaited type
             Expression::Await { expression } => {
                 // reject await when runtime is disabled
-                if ctx.options.no_runtime && matches!(module.source, ModuleSource::User) {
+                if ctx.options.no_runtime && matches!(tables.module.source, ModuleSource::User) {
                     self.error(AnalyzeError::RuntimeDisabled {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                 }
@@ -3919,27 +3529,32 @@ impl Compiler {
                 if !ctx.can_await() {
                     self.error(AnalyzeError::InvalidAwait {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                 }
                 let inner_ty_id =
-                    self.infer_expression(module, *expression, tree, symbols, types, infer, ctx)?;
+                    { self.infer_expression(&mut tables.reborrow(), *expression, ctx)? };
 
-                let awaited_ty_id =
-                    self.unwrap_awaited_type(module, symbols, ctx.profile, inner_ty_id, types);
+                let awaited_ty_id = self.unwrap_awaited_type(
+                    tables.module,
+                    tables.symbols,
+                    ctx.profile,
+                    inner_ty_id,
+                    tables.types,
+                );
                 if awaited_ty_id == inner_ty_id
-                    && !self.type_is_semantic_top_like(inner_ty_id, types)
+                    && !self.type_is_semantic_top_like(inner_ty_id, tables.types)
                     && let Some(promise_ty_id) =
-                        self.promise_type(ctx.profile, None, expression_id.into_any(), types)
+                        self.promise_type(ctx.profile, None, expression_id.into_any(), tables.types)
                 {
                     self.emit_unassignable_type_for_types(
-                        module,
+                        tables.module,
                         ctx.profile,
                         expression_id.into_any(),
                         promise_ty_id,
                         inner_ty_id,
-                        types,
+                        tables.types,
                     );
                 }
                 awaited_ty_id
@@ -3952,16 +3567,16 @@ impl Compiler {
 
             // comptime: type of body (evaluated at compile time)
             Expression::Comptime { body } => {
-                self.infer_expression(module, *body, tree, symbols, types, infer, ctx)?
+                self.infer_expression(&mut tables.reborrow(), *body, ctx)?
             }
 
             // yield: yielded type
             Expression::Yield { cardinality, value } => {
                 // reject yield when runtime is disabled
-                if ctx.options.no_runtime && matches!(module.source, ModuleSource::User) {
+                if ctx.options.no_runtime && matches!(tables.module.source, ModuleSource::User) {
                     self.error(AnalyzeError::RuntimeDisabled {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                 }
@@ -3969,63 +3584,63 @@ impl Compiler {
                 if !ctx.can_yield() {
                     self.error(AnalyzeError::InvalidYield {
                         node: expression_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                 }
                 let mut delegate_return_type = None;
                 if let Some(value_id) = value {
                     let value_ty_id =
-                        self.infer_expression(module, *value_id, tree, symbols, types, infer, ctx)?;
+                        { self.infer_expression(&mut tables.reborrow(), *value_id, ctx)? };
                     if let Some(expected_yield_ty_id) = ctx.generator_yield_type {
                         if *cardinality == YieldCardinality::Generator {
                             if let Some((yield_ty_id, return_ty_id)) = self
                                 .yield_star_delegate_types(
-                                    module,
+                                    tables.module,
                                     ctx.profile,
                                     value_ty_id,
-                                    symbols,
-                                    types,
+                                    tables.symbols,
+                                    tables.types,
                                 )
                             {
                                 delegate_return_type = return_ty_id;
                                 if self.is_type_assignable(
-                                    module,
+                                    tables.module,
                                     ctx.profile,
-                                    symbols,
+                                    tables.symbols,
                                     expected_yield_ty_id,
                                     yield_ty_id,
-                                    types,
+                                    tables.types,
                                     &ctx.options,
                                 ) == Assignability::NotAssignable
                                 {
                                     self.emit_unassignable_type_for_types(
-                                        module,
+                                        tables.module,
                                         ctx.profile,
                                         value_id.into_any(),
                                         expected_yield_ty_id,
                                         yield_ty_id,
-                                        types,
+                                        tables.types,
                                     );
                                 }
                             }
                         } else if self.is_type_assignable(
-                            module,
+                            tables.module,
                             ctx.profile,
-                            symbols,
+                            tables.symbols,
                             expected_yield_ty_id,
                             value_ty_id,
-                            types,
+                            tables.types,
                             &ctx.options,
                         ) == Assignability::NotAssignable
                         {
                             self.emit_unassignable_type_for_types(
-                                module,
+                                tables.module,
                                 ctx.profile,
                                 value_id.into_any(),
                                 expected_yield_ty_id,
                                 value_ty_id,
-                                types,
+                                tables.types,
                             );
                         }
                     }
@@ -4038,32 +3653,24 @@ impl Compiler {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
                     };
-                    types.insert_type_from(ty, expression_id)
+                    tables.types.insert_type_from(ty, expression_id)
                 }
             }
 
             // maybe unwrap: try operator
-            Expression::Maybe { left } => self.infer_try_unwrap_expression(
-                module,
-                expression_id,
-                *left,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?,
+            Expression::Maybe { left } => {
+                self.infer_try_unwrap_expression(&mut tables.reborrow(), expression_id, *left, ctx)?
+            }
 
             // must unwrap: must assertion
             Expression::Must { left } => {
-                let left_ty_id =
-                    self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
+                let left_ty_id = { self.infer_expression(&mut tables.reborrow(), *left, ctx)? };
                 let (non_nullish_ty_id, has_nullish) =
-                    self.strip_nullish_from_union(left_ty_id, types);
+                    self.strip_nullish_from_union(left_ty_id, tables.types);
                 if has_nullish {
                     // nullish only must results in never
                     non_nullish_ty_id.unwrap_or_else(|| {
-                        types.insert_type_from(
+                        tables.types.insert_type_from(
                             Type::TypeLiteral {
                                 value: TypeLiteral::Never,
                             },
@@ -4128,29 +3735,19 @@ impl Compiler {
     /// Infer a block.
     pub(crate) fn infer_block(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         block_id: LocalNodeId<Block>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        let block_node_id = block_id.into_global_any(tables.module.id);
         if !ctx.is_surface_inference
-            && let Some(ty_id) = self.inferred_type_id_for_node_if_ready(
-                module,
-                ctx.profile,
-                block_id.into_global_any(module.id),
-                tree,
-                symbols,
-                infer,
-                types,
-            )?
+            && let Some(ty_id) =
+                self.inferred_type_id_for_node_if_ready(&mut tables.reborrow(), block_node_id)?
         {
             return Ok(ty_id);
         }
 
-        let block = tree.get(block_id);
+        let block = tables.tree.get(block_id);
 
         // infer all but the last expression without contextual typing
         let last_index = block.expressions.len().saturating_sub(1);
@@ -4159,15 +3756,7 @@ impl Compiler {
                 continue;
             }
             let mut expr_ctx = ctx.fork().with_expected_type(None);
-            self.infer_expression(
-                module,
-                *expression_id,
-                tree,
-                symbols,
-                types,
-                infer,
-                &mut expr_ctx,
-            )?;
+            self.infer_expression(&mut tables.reborrow(), *expression_id, &mut expr_ctx)?;
             ctx.merge_try_error_types_from(&expr_ctx);
             ctx.merge_break_values_from(&expr_ctx);
         }
@@ -4175,15 +3764,8 @@ impl Compiler {
         // infer the last expression with contextual typing
         let ty_id = if let Some(last_expression_id) = block.expressions.last() {
             let mut last_ctx = ctx.fork().with_expected_type(ctx.expected_type);
-            let ty_id = self.infer_expression(
-                module,
-                *last_expression_id,
-                tree,
-                symbols,
-                types,
-                infer,
-                &mut last_ctx,
-            )?;
+            let ty_id =
+                self.infer_expression(&mut tables.reborrow(), *last_expression_id, &mut last_ctx)?;
             ctx.merge_try_error_types_from(&last_ctx);
             ctx.merge_break_values_from(&last_ctx);
             ty_id
@@ -4191,11 +3773,13 @@ impl Compiler {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
             };
-            types.insert_type_from(ty, block_id)
+            tables.types.insert_type_from(ty, block_id)
         };
 
         if !ctx.is_surface_inference {
-            infer.set_inferred_type_for_node(block_id.into_global_any(module.id), ty_id);
+            tables
+                .infer
+                .set_inferred_type_for_node(block_id.into_global_any(tables.module.id), ty_id);
         }
 
         Ok(ty_id)
@@ -4342,99 +3926,81 @@ impl Compiler {
     /// Infer the value type for a shorthand object literal field.
     fn infer_shorthand_property_value(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         property_id: LocalNodeId<Property>,
         name: StringId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // resolve the referenced symbol from the current scope
-        let Some(target_symbol) =
-            self.find_value_symbol_by_name(module, property_id, name, tree, symbols)
-        else {
+        let Some(target_symbol) = self.find_value_symbol_by_name(
+            tables.module,
+            property_id,
+            name,
+            tables.tree,
+            tables.symbols,
+        ) else {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            return Ok(types.insert_type_from_any(ty, property_id.into_any()));
+            return Ok(tables
+                .types
+                .insert_type_from_any(ty, property_id.into_any()));
         };
 
         // canonicalize imports before picking a type
         let canonical_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
+            tables.module,
+            tables.symbols,
             ctx.profile,
             target_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
 
         // reuse a narrowed or declared value type when possible
-        let narrowed_ty_id = self.resolved_narrowed_type_for_symbol(
-            module,
-            ctx.profile,
-            canonical_symbol,
-            tree,
-            symbols,
-            types,
-            ctx,
-        )?;
+        let narrowed_ty_id =
+            self.resolved_narrowed_type_for_symbol(&mut tables.reborrow(), canonical_symbol, ctx)?;
         let base_ty_id = if let Some(narrowed_ty_id) = narrowed_ty_id {
             narrowed_ty_id
-        } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
+        } else if let Some(value_ty_id) = tables.types.get_value_type_id(canonical_symbol) {
             value_ty_id
-        } else if let Some(inferred_ty_id) = self.infer_direct_binding_value_type(
-            module,
-            ctx.profile,
-            canonical_symbol,
-            tree,
-            symbols,
-            types,
-            infer,
-            ctx,
-        )? {
+        } else if let Some(inferred_ty_id) =
+            self.infer_direct_binding_value_type(&mut tables.reborrow(), canonical_symbol, ctx)?
+        {
             inferred_ty_id
-        } else if canonical_symbol.module_id != module.id {
+        } else if canonical_symbol.module_id != tables.module.id {
             self.resolve_remote_symbol_value_type_for_context(
-                module,
+                tables.module,
                 ctx,
                 property_id.into_any(),
                 canonical_symbol,
-                types,
+                tables.types,
             )?
         } else {
             let scope = InferScope {
                 owner: canonical_symbol,
-                function_id: ctx.in_function.map(|f| f.into_global(module.id)),
+                function_id: ctx.in_function.map(|f| f.into_global(tables.module.id)),
             };
             self.infer_var_type_for_symbol(
-                infer,
-                types,
+                tables.infer,
+                tables.types,
                 canonical_symbol,
                 property_id.into_any(),
-                InferOrigin::Expression(property_id.into_global_any(module.id)),
+                InferOrigin::Expression(property_id.into_global_any(tables.module.id)),
                 scope,
             )
         };
 
         // resolve wrapped unevaluated receiver types before using the receiver type
-        let _base_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
-            module,
-            ctx.profile,
-            base_ty_id,
-            tree,
-            symbols,
-            types,
-        )?;
+        let _base_unwrapped_ty_id =
+            self.ensure_unwrapped_value_type_evaluated(&mut tables.reborrow(), base_ty_id)?;
 
         // ensure instance types for referenced symbols
         self.ensure_reference_instance_types_for_type(
-            module,
+            tables.module,
             ctx.profile,
             property_id.into_any(),
             base_ty_id,
-            types,
+            tables.types,
         )?;
 
         Ok(base_ty_id)
@@ -4443,17 +4009,12 @@ impl Compiler {
     /// Infer a property and return its TypeField if it has a static key.
     pub(crate) fn infer_property(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         property_id: LocalNodeId<Property>,
         expected_object_ty_id: Option<LocalTypeId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<Option<ObjectLiteralField>> {
-        let options = ctx.options;
-        let property = tree.get(property_id);
+        let property = tables.tree.get(property_id);
         match property {
             Property::Field {
                 modifiers,
@@ -4464,13 +4025,19 @@ impl Compiler {
             } => {
                 // extract the static key from the dynamic key
                 let static_key = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(ctx.profile, key, tree, symbols, types)
+                    self.static_key_from_dynamic_key(
+                        ctx.profile,
+                        key,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
+                    )
                 });
 
                 // derive an expected field type from the contextual object type
-                let expected_field_ty_id = static_key
-                    .as_ref()
-                    .and_then(|key| self.expected_field_type(expected_object_ty_id, key, types));
+                let expected_field_ty_id = static_key.as_ref().and_then(|key| {
+                    self.expected_field_type(expected_object_ty_id, key, tables.types)
+                });
 
                 // infer the value type
                 let value_ty_id = if let Some(value) = value {
@@ -4486,25 +4053,13 @@ impl Compiler {
                         ctx.nested_literal_context()
                             .with_expected_type(expected_field_ty_id)
                     };
-                    self.infer_expression(
-                        module,
-                        *value,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        &mut value_ctx,
-                    )?
+                    self.infer_expression(&mut tables.reborrow(), *value, &mut value_ctx)?
                 } else if let Some(DynamicKey::Name(name)) = key {
                     // infer shorthand values from the referenced symbol
                     self.infer_shorthand_property_value(
-                        module,
+                        &mut tables.reborrow(),
                         property_id,
                         *name,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         ctx,
                     )?
                 } else {
@@ -4512,10 +4067,12 @@ impl Compiler {
                     self.error(AnalyzeError::Internal {
                         message: format!(
                             "object property missing value and shorthand binding: module={}, property={property_id:?}",
-                            module.id,
+                            tables.module.id,
                         ),
                     });
-                    types.insert_type_from_any(Type::Error, property_id.into_any())
+                    tables
+                        .types
+                        .insert_type_from_any(Type::Error, property_id.into_any())
                 };
 
                 // infer default with the same expected type
@@ -4531,15 +4088,7 @@ impl Compiler {
                         ctx.nested_literal_context()
                             .with_expected_type(expected_field_ty_id)
                     };
-                    self.infer_expression(
-                        module,
-                        *default,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        &mut default_ctx,
-                    )?;
+                    self.infer_expression(&mut tables.reborrow(), *default, &mut default_ctx)?;
                 }
 
                 // is optional
@@ -4580,13 +4129,21 @@ impl Compiler {
             } => {
                 let expected_method_ty_id = key
                     .and_then(|key| {
-                        self.static_key_from_dynamic_key(ctx.profile, key, tree, symbols, types)
+                        self.static_key_from_dynamic_key(
+                            ctx.profile,
+                            key,
+                            tables.tree,
+                            tables.symbols,
+                            tables.types,
+                        )
                     })
-                    .and_then(|key| self.expected_field_type(expected_object_ty_id, &key, types));
+                    .and_then(|key| {
+                        self.expected_field_type(expected_object_ty_id, &key, tables.types)
+                    });
 
                 // enforce runtime constraints up front
                 self.check_signature_runtime_constraints(
-                    module,
+                    tables.module,
                     ctx.profile,
                     property_id.into_any(),
                     signature,
@@ -4594,50 +4151,44 @@ impl Compiler {
                 );
 
                 // infer the method signature with contextual typing
-                let declared_signature_ty_id =
-                    types.get_signature_type_for_node(property_id.into_global_any(module.id));
+                let declared_signature_ty_id = tables
+                    .types
+                    .get_signature_type_for_node(property_id.into_global_any(tables.module.id));
                 let method_ty_id = if self.should_use_declared_signature(
-                    module,
+                    tables.module,
                     signature,
                     declared_signature_ty_id,
                     expected_method_ty_id,
-                    tree,
-                    types,
+                    tables.tree,
+                    tables.types,
                 ) {
                     let declared_signature_ty_id = self
                         .require_declared_signature_type_for_skipped_inference(
                             declared_signature_ty_id,
                         )?;
                     self.bind_declared_signature(
-                        module,
+                        &mut tables.reborrow(),
                         property_id.into_any(),
                         signature,
                         declared_signature_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         ctx,
                     )?
                 } else {
+                    let owner_symbol = symbol.into_global(tables.module.id);
                     self.infer_signature(
-                        module,
+                        &mut tables.reborrow(),
                         property_id.into_any(),
-                        symbol.into_global(module.id),
+                        owner_symbol,
                         signature,
                         expected_method_ty_id,
                         declared_signature_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         ctx,
                     )?
                 };
 
                 // body
                 if let Some(body) = body {
-                    let return_type = self.function_return_type(method_ty_id, types);
+                    let return_type = self.function_return_type(method_ty_id, tables.types);
                     let ctx = ctx
                         .reset()
                         .without_const_context()
@@ -4645,12 +4196,12 @@ impl Compiler {
                     let mut context_return_type = return_type;
                     let mut ctx = if signature.cardinality == FunctionCardinality::Generator {
                         let (yield_ty_id, return_ty_id, next_ty_id) = self.generator_context_types(
-                            module,
+                            tables.module,
                             ctx.profile,
                             property_id.into_any(),
                             return_type,
-                            symbols,
-                            types,
+                            tables.symbols,
+                            tables.types,
                         );
                         context_return_type = Some(return_ty_id);
                         ctx.with_return_type(Some(return_ty_id))
@@ -4661,44 +4212,49 @@ impl Compiler {
                     ctx = ctx.with_expected_type(context_return_type);
 
                     // infer the method body with implicit return typing
-                    let body_ty_id = self
-                        .infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
+                    let body_ty_id = self.infer_body(&mut tables.reborrow(), *body, &mut ctx)?;
 
                     // constrain implicit return types against the declared return type
                     if let Some(return_ty_id) = context_return_type
-                        && has_implicit_return(*body, tree)
+                        && has_implicit_return(*body, tables.tree)
                     {
-                        infer.push_constraint(Constraint::Subtype {
+                        tables.infer.push_constraint(Constraint::Subtype {
                             sub_type: body_ty_id,
                             super_type: return_ty_id,
                             variance: None,
                         });
 
-                        if !self.is_infer_var_type(return_ty_id, types)
-                            && !self.is_infer_var_type(body_ty_id, types)
+                        if !self.is_infer_var_type(return_ty_id, tables.types)
+                            && !self.is_infer_var_type(body_ty_id, tables.types)
                             && self.is_type_assignable(
-                                module,
+                                tables.module,
                                 ctx.profile,
-                                symbols,
+                                tables.symbols,
                                 return_ty_id,
                                 body_ty_id,
-                                types,
-                                &options,
+                                tables.types,
+                                &ctx.options,
                             ) == Assignability::NotAssignable
                         {
                             self.emit_unassignable_type_for_types(
-                                module,
+                                tables.module,
                                 ctx.profile,
                                 body.into_any(),
                                 return_ty_id,
                                 body_ty_id,
-                                types,
+                                tables.types,
                             );
                         }
                     }
                 }
                 let static_key = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(ctx.profile, key, tree, symbols, types)
+                    self.static_key_from_dynamic_key(
+                        ctx.profile,
+                        key,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
+                    )
                 });
                 let is_optional = modifiers
                     .as_ref()
@@ -4931,40 +4487,40 @@ impl Compiler {
     /// Infer a reference expression (local, module, or global).
     pub(crate) fn infer_reference_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         target_symbol: GlobalSymbolId,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_REFERENCE);
         let mut allow_type_only_reference = false;
 
         // validate local references against type-only exports
-        if target_symbol.module_id == module.id {
-            let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+        if target_symbol.module_id == tables.module.id {
+            let symbol_entry = tables.symbols.get_symbol(target_symbol.local_id);
             let dependency_id = symbol_entry
                 .primary_declaration
                 .and_then(|primary_declaration| {
                     self.dependency_item_for_symbol(
-                        tree,
+                        tables.tree,
                         primary_declaration,
                         target_symbol.local_id,
                     )
                 });
             allow_type_only_reference =
-                module.language_type.is_declaration() && dependency_id.is_some();
+                tables.module.language_type.is_declaration() && dependency_id.is_some();
 
             // reject type-only symbols used as values
             if !self.symbol_is_value_capable(ctx.profile, target_symbol)
                 && !allow_type_only_reference
             {
-                let ty_id =
-                    self.type_only_value_error_type(module, ctx.profile, expression_id, types);
+                let ty_id = self.type_only_value_error_type(
+                    tables.module,
+                    ctx.profile,
+                    expression_id,
+                    tables.types,
+                );
                 return Ok(ty_id);
             }
 
@@ -4973,14 +4529,18 @@ impl Compiler {
                 && !self.symbol_is_value_capable(ctx.profile, target)
                 && !allow_type_only_reference
             {
-                let ty_id =
-                    self.type_only_value_error_type(module, ctx.profile, expression_id, types);
+                let ty_id = self.type_only_value_error_type(
+                    tables.module,
+                    ctx.profile,
+                    expression_id,
+                    tables.types,
+                );
                 return Ok(ty_id);
             }
 
             // resolve the dependency item that introduced this symbol
             if let Some(dependency_id) = dependency_id {
-                let dependency = tree.get(dependency_id);
+                let dependency = tables.tree.get(dependency_id);
                 let dependency_kind = match dependency {
                     DependencyItem::Local { kind, .. }
                     | DependencyItem::Remote { kind, .. }
@@ -4998,15 +4558,22 @@ impl Compiler {
                     None => false,
                 };
                 if is_type_only_dependency && !allow_type_only_reference {
-                    let ty_id =
-                        self.type_only_value_error_type(module, ctx.profile, expression_id, types);
+                    let ty_id = self.type_only_value_error_type(
+                        tables.module,
+                        ctx.profile,
+                        expression_id,
+                        tables.types,
+                    );
                     return Ok(ty_id);
                 }
 
                 // reject value imports that resolve to type-only exports
                 if dependency_kind == Some(DependencyKind::Value) {
-                    let (export_name, target_module_id) =
-                        self.remote_dependency_export_target(module, ctx.profile, dependency);
+                    let (export_name, target_module_id) = self.remote_dependency_export_target(
+                        tables.module,
+                        ctx.profile,
+                        dependency,
+                    );
 
                     if let Some(export_name) = export_name
                         && let Some(target_module_id) = target_module_id
@@ -5018,10 +4585,10 @@ impl Compiler {
                         });
                         if !is_value_capable {
                             let ty_id = self.type_only_value_error_type(
-                                module,
+                                tables.module,
                                 ctx.profile,
                                 expression_id,
-                                types,
+                                tables.types,
                             );
                             return Ok(ty_id);
                         }
@@ -5036,16 +4603,20 @@ impl Compiler {
                 && self.is_type_only_export_name(target_symbol.module_id, ctx.profile, name)
                 && !allow_type_only_reference
             {
-                let ty_id =
-                    self.type_only_value_error_type(module, ctx.profile, expression_id, types);
+                let ty_id = self.type_only_value_error_type(
+                    tables.module,
+                    ctx.profile,
+                    expression_id,
+                    tables.types,
+                );
                 return Ok(ty_id);
             }
         }
 
         // resolve the canonical symbol for imported references
         let canonical_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
+            tables.module,
+            tables.symbols,
             ctx.profile,
             target_symbol,
             CanonicalSymbolMode::FollowAliases,
@@ -5055,19 +4626,24 @@ impl Compiler {
         if !self.symbol_is_value_capable(ctx.profile, canonical_symbol)
             && !allow_type_only_reference
         {
-            let ty_id = self.type_only_value_error_type(module, ctx.profile, expression_id, types);
+            let ty_id = self.type_only_value_error_type(
+                tables.module,
+                ctx.profile,
+                expression_id,
+                tables.types,
+            );
             return Ok(ty_id);
         }
 
         // reject globalThis references when configured
-        if ctx.options.no_global_this && matches!(module.source, ModuleSource::User) {
+        if ctx.options.no_global_this && matches!(tables.module.source, ModuleSource::User) {
             let global_this_name = self.program.strings.intern("globalThis");
-            if self.symbol_name_for_global(module, ctx.profile, canonical_symbol)
+            if self.symbol_name_for_global(tables.module, ctx.profile, canonical_symbol)
                 == Some(global_this_name)
             {
                 self.error(AnalyzeError::GlobalThisDisabled {
                     node: expression_id
-                        .into_global_any(module.id)
+                        .into_global_any(tables.module.id)
                         .into_anchored(Some(ctx.profile)),
                 });
             }
@@ -5075,114 +4651,97 @@ impl Compiler {
 
         // synthesize a globalThis object type on demand
         let global_this_name = self.program.strings.intern("globalThis");
-        let is_global_this = self.symbol_name_for_global(module, ctx.profile, canonical_symbol)
-            == Some(global_this_name);
+        let is_global_this =
+            self.symbol_name_for_global(tables.module, ctx.profile, canonical_symbol)
+                == Some(global_this_name);
 
         // pick the base type for the symbol by applying narrowing and inference
-        let narrowed_ty_id = self.resolved_narrowed_type_for_symbol(
-            module,
-            ctx.profile,
-            canonical_symbol,
-            tree,
-            symbols,
-            types,
-            ctx,
-        )?;
+        let narrowed_ty_id =
+            self.resolved_narrowed_type_for_symbol(&mut tables.reborrow(), canonical_symbol, ctx)?;
         let base_ty_id = if let Some(narrowed_ty_id) = narrowed_ty_id {
             narrowed_ty_id
         } else if is_global_this
             && let Some(global_this_ty_id) = self.infer_global_this_value_type(
-                module,
+                tables.module,
                 expression_id,
                 canonical_symbol,
-                tree,
-                symbols,
-                types,
-                infer,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+                tables.infer,
                 ctx,
             )?
         {
             global_this_ty_id
-        } else if canonical_symbol.module_id != module.id {
-            if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol)
-                && !self.unwrapped_value_type_is_unevaluated(value_ty_id, types)
+        } else if canonical_symbol.module_id != tables.module.id {
+            if let Some(value_ty_id) = tables.types.get_value_type_id(canonical_symbol)
+                && !self.unwrapped_value_type_is_unevaluated(value_ty_id, tables.types)
             {
                 value_ty_id
             } else {
                 self.resolve_remote_symbol_value_type_for_context(
-                    module,
+                    tables.module,
                     ctx,
                     expression_id.into_any(),
                     canonical_symbol,
-                    types,
+                    tables.types,
                 )?
             }
-        } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
-            if !self.unwrapped_value_type_is_unevaluated(value_ty_id, types) {
+        } else if let Some(value_ty_id) = tables.types.get_value_type_id(canonical_symbol) {
+            if !self.unwrapped_value_type_is_unevaluated(value_ty_id, tables.types) {
                 value_ty_id
-            } else if let Some(inferred_ty_id) = self.infer_direct_binding_value_type(
-                module,
-                ctx.profile,
-                canonical_symbol,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )? {
+            } else if let Some(inferred_ty_id) =
+                self.infer_direct_binding_value_type(&mut tables.reborrow(), canonical_symbol, ctx)?
+            {
                 inferred_ty_id
             } else {
                 value_ty_id
             }
-        } else if let Some(inferred_ty_id) = self.infer_direct_binding_value_type(
-            module,
-            ctx.profile,
-            canonical_symbol,
-            tree,
-            symbols,
-            types,
-            infer,
-            ctx,
-        )? {
+        } else if let Some(inferred_ty_id) =
+            self.infer_direct_binding_value_type(&mut tables.reborrow(), canonical_symbol, ctx)?
+        {
             inferred_ty_id
         } else {
             // local symbol without type: use InferVar for forward references
             let scope = InferScope {
                 owner: canonical_symbol,
-                function_id: ctx.in_function.map(|f| f.into_global(module.id)),
+                function_id: ctx.in_function.map(|f| f.into_global(tables.module.id)),
             };
             self.infer_var_type_for_symbol(
-                infer,
-                types,
+                tables.infer,
+                tables.types,
                 canonical_symbol,
                 expression_id.into_any(),
-                InferOrigin::Expression(expression_id.into_global_any(module.id)),
+                InferOrigin::Expression(expression_id.into_global_any(tables.module.id)),
                 scope,
             )
         };
 
         // evaluate local unevaluated types before use
-        if canonical_symbol.module_id == module.id {
-            let base_value_ty_id = types.unwrap_value_type_id(base_ty_id);
-            if matches!(types.get_type(base_value_ty_id), Type::Unevaluated(_)) {
+        if canonical_symbol.module_id == tables.module.id {
+            let base_value_ty_id = tables.types.unwrap_value_type_id(base_ty_id);
+            if matches!(
+                tables.types.get_type(base_value_ty_id),
+                Type::Unevaluated(_)
+            ) {
                 self.resolve_declared_type(
-                    module,
+                    tables.module,
                     ctx.profile,
                     base_value_ty_id,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                 )?;
             }
         }
 
         // ensure instance types for referenced symbols
         self.ensure_reference_instance_types_for_type(
-            module,
+            tables.module,
             ctx.profile,
             expression_id.into_any(),
             base_ty_id,
-            types,
+            tables.types,
         )?;
 
         // handle static arguments for generic instantiation
@@ -5190,127 +4749,13 @@ impl Compiler {
             return Ok(base_ty_id);
         };
 
-        // resolve a callable signature for generic instantiation
-        let Some(signature_ty_id) = self
-            .call_signatures_for_type(base_ty_id, types)
-            .first()
-            .copied()
-        else {
-            self.error(AnalyzeError::InvalidStaticArgument {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                message: "static arguments require a callable generic target".to_string(),
-            });
-            return Ok(base_ty_id);
-        };
-
-        let Type::Function {
-            asynchrony,
-            cardinality,
-            static_parameters,
-            this_parameter,
-            dynamic_parameters,
-            return_type,
-        } = types.get_type(signature_ty_id).clone()
-        else {
-            self.error(AnalyzeError::InvalidStaticArgument {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-                message: "static arguments require a callable generic target".to_string(),
-            });
-            return Ok(base_ty_id);
-        };
-
-        if static_parameters.is_empty() {
-            let owner_parameter_symbols = self
-                .collect_static_parameter_symbols(
-                    module,
-                    canonical_symbol,
-                    ctx.profile,
-                    tree,
-                    symbols,
-                    types,
-                )
-                .unwrap_or_default();
-            if !owner_parameter_symbols.is_empty() {
-                return Err(AnalyzeError::Internal {
-                    message: format!(
-                        "missing signature static parameters for generic owner {canonical_symbol:?}"
-                    ),
-                });
-            }
-        }
-
-        let resolved = self
-            .resolve_function_static_arguments(
-                module,
-                expression_id.into_any(),
-                Some(canonical_symbol),
-                Some(static_argument_ids),
-                None,
-                None,
-                None,
-                &static_parameters,
-                &dynamic_parameters,
-                return_type,
-                None,
-                super::SignatureResolutionMode::Check,
-                false,
-                ctx.profile,
-                &ctx.options,
-                tree,
-                symbols,
-                types,
-                infer,
-            )?
-            .unwrap_or(ResolvedSignature {
-                dynamic_parameters,
-                return_type,
-                static_arguments: Vec::new(),
-            });
-
-        let instantiated_fn = Type::Function {
-            asynchrony,
-            cardinality,
-            static_parameters: Vec::new(),
-            this_parameter,
-            dynamic_parameters: resolved.dynamic_parameters,
-            return_type: resolved.return_type,
-        };
-        let instantiated_ty_id = types.insert_type_from(instantiated_fn, expression_id);
-
-        let signature_parameter_symbols =
-            self.query_signature_static_parameter_symbols(signature_ty_id, types);
-        let environment = StaticSubstitutionEnvironment::from_parameter_symbols(
-            resolved.static_arguments.clone(),
-            signature_parameter_symbols,
-            0,
+        self.instantiate_callable_type_with_static_arguments(
+            &mut tables.reborrow(),
+            expression_id,
+            base_ty_id,
+            Some(canonical_symbol),
+            static_argument_ids,
         )
-        .or_else(|| {
-            self.instance_environment_for_symbol_arguments(
-                module,
-                ctx.profile,
-                canonical_symbol,
-                resolved.static_arguments.clone(),
-                0,
-                tree,
-                symbols,
-                types,
-            )
-        });
-        if let Some(environment) = environment {
-            self.record_node_provisional_instance(
-                expression_id.into_global_any(module.id),
-                canonical_symbol,
-                environment,
-                infer,
-                types,
-            )?;
-        }
-
-        Ok(instantiated_ty_id)
     }
 
     /// Check excess properties on an object literal against a contextual type.
@@ -5628,20 +5073,16 @@ impl Compiler {
     /// Infer a return expression and constrain it to the function return type.
     fn infer_return_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         value: Option<LocalNodeId<Expression>>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // validate return position
         if !ctx.can_return() {
             self.error(AnalyzeError::InvalidReturn {
                 node: expression_id
-                    .into_global_any(module.id)
+                    .into_global_any(tables.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
         }
@@ -5649,51 +5090,40 @@ impl Compiler {
         // infer the return value when present
         if let Some(value_id) = value {
             let mut return_ctx = ctx.fork().with_expected_type(ctx.return_type);
-            let value_ty_id = self.infer_expression(
-                module,
-                value_id,
-                tree,
-                symbols,
-                types,
-                infer,
-                &mut return_ctx,
-            )?;
+            let value_ty_id =
+                self.infer_expression(&mut tables.reborrow(), value_id, &mut return_ctx)?;
 
             if let Some(return_ty_id) = ctx.return_type {
                 // enforce explicit ownership when implicit managed values are disabled
                 self.check_no_implicit_managed_value(
-                    module,
+                    tables.module,
                     ctx.profile,
                     value_id,
                     return_ty_id,
                     value_ty_id,
-                    tree,
-                    types,
+                    tables.tree,
+                    tables.types,
                     &ctx.options,
                 );
 
                 // constrain the return value to the declared return type
                 self.constrain_return_value_type(
-                    module,
-                    ctx.profile,
+                    &mut tables.reborrow(),
                     value_id,
                     return_ty_id,
                     value_ty_id,
-                    symbols,
-                    types,
-                    infer,
                     &ctx.options,
                     ctx.is_async,
                 );
             }
         } else if let Some(return_ty_id) = ctx.return_type {
-            let void_ty_id = types.insert_type_from_any(
+            let void_ty_id = tables.types.insert_type_from_any(
                 Type::TypeLiteral {
                     value: TypeLiteral::Void,
                 },
                 expression_id.into_any(),
             );
-            infer.push_constraint(Constraint::Subtype {
+            tables.infer.push_constraint(Constraint::Subtype {
                 sub_type: void_ty_id,
                 super_type: return_ty_id,
                 variance: None,
@@ -5704,28 +5134,36 @@ impl Compiler {
         let ty = Type::TypeLiteral {
             value: TypeLiteral::Never,
         };
-        Ok(types.insert_type_from(ty, expression_id))
+        Ok(tables.types.insert_type_from(ty, expression_id))
     }
 
     /// Constrain a return value to the declared return type.
     fn constrain_return_value_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         value_id: LocalNodeId<Expression>,
         return_ty_id: LocalTypeId,
         value_ty_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         options: &AnalyzeOptions,
         is_async: bool,
     ) {
         // unwrap awaited values for async returns
         let (check_value_ty_id, check_return_ty_id) = if is_async {
             (
-                self.unwrap_awaited_type(module, symbols, profile, value_ty_id, types),
-                self.unwrap_awaited_type(module, symbols, profile, return_ty_id, types),
+                self.unwrap_awaited_type(
+                    tables.module,
+                    tables.symbols,
+                    tables.profile,
+                    value_ty_id,
+                    tables.types,
+                ),
+                self.unwrap_awaited_type(
+                    tables.module,
+                    tables.symbols,
+                    tables.profile,
+                    return_ty_id,
+                    tables.types,
+                ),
             )
         } else {
             (value_ty_id, return_ty_id)
@@ -5734,44 +5172,44 @@ impl Compiler {
         // detect return types that should skip assignability errors
         let mut static_visited = HashSet::new();
         let has_static_parameters = self.type_contains_static_parameters(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             check_return_ty_id,
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
             &mut static_visited,
         );
         let mut infer_visited = HashSet::new();
         let has_infer_vars =
-            self.type_contains_infer_vars(check_return_ty_id, types, &mut infer_visited);
+            self.type_contains_infer_vars(check_return_ty_id, tables.types, &mut infer_visited);
         let allows_fallthrough =
-            self.return_type_allows_fallthrough_infer(check_return_ty_id, types);
+            self.return_type_allows_fallthrough_infer(check_return_ty_id, tables.types);
 
         // emit the return type error when the assignment is invalid
         if !has_static_parameters
             && !has_infer_vars
             && !allows_fallthrough
             && self.is_type_assignable(
-                module,
-                profile,
-                symbols,
+                tables.module,
+                tables.profile,
+                tables.symbols,
                 check_return_ty_id,
                 check_value_ty_id,
-                types,
+                tables.types,
                 options,
             ) == Assignability::NotAssignable
         {
             self.emit_unassignable_type_for_types(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 value_id.into_any(),
                 check_return_ty_id,
                 check_value_ty_id,
-                types,
+                tables.types,
             );
         }
 
-        infer.push_constraint(Constraint::Subtype {
+        tables.infer.push_constraint(Constraint::Subtype {
             sub_type: check_value_ty_id,
             super_type: check_return_ty_id,
             variance: None,

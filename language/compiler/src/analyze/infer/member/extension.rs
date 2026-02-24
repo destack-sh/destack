@@ -1,5 +1,6 @@
 use super::*;
-use destack_dir::{InferTable, LocalInstanceId};
+use crate::analyze::common::InferTablesContext;
+use destack_dir::LocalInstanceId;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -70,18 +71,13 @@ impl Compiler {
     /// Record instance arguments for a resolved member symbol.
     pub(crate) fn record_member_instance_for_arguments(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_symbol: GlobalSymbolId,
         inherited: &InheritedStaticArguments,
         extension_context: Option<&ExtensionMemberContext>,
         resolved_arguments: &[StaticArgument],
         signature_parameter_symbols: &[GlobalSymbolId],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        infer: &mut InferTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalInstanceId>> {
         let substitutions = self.merge_member_substitutions(inherited, extension_context);
         let base_instance_arguments = if let Some(context) = extension_context {
@@ -90,27 +86,27 @@ impl Compiler {
             inherited.arguments.clone()
         };
         let environment = self.compose_member_instance_environment(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             member_symbol,
             &base_instance_arguments,
             &substitutions,
             resolved_arguments,
             signature_parameter_symbols,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         );
         let Some(environment) = environment else {
             return Ok(None);
         };
 
         self.record_node_provisional_instance(
-            expression_id.into_global_any(module.id),
+            expression_id.into_global_any(tables.module.id),
             member_symbol,
             environment,
-            infer,
-            types,
+            tables.infer,
+            tables.types,
         )
     }
 

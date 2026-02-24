@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::expression::has_implicit_return;
-use crate::analyze::common::{AnalyzeDependencyStage, TypeRewriteCache};
+use crate::analyze::common::{AnalyzeDependencyStage, InferTablesContext, TypeRewriteCache};
 use crate::analyze::{AssociatedComptimeRequirement, AssociatedTypeRequirement};
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, CanonicalSymbolMode, Compiler,
@@ -147,16 +147,12 @@ impl Compiler {
     /// Infer the type of a declaration.
     pub(crate) fn infer_declaration(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // load the declaration node
-        let declaration = tree.get(declaration_id);
+        let declaration = tables.tree.get(declaration_id);
 
         // skip inference for ambient declarations
         if declaration.descriptor().kind == DeclarationKind::Declaration {
@@ -170,7 +166,7 @@ impl Compiler {
                 descriptor: _,
                 scope: _,
                 expressions,
-            } => self.infer_expression_list(module, expressions, tree, symbols, types, infer, ctx),
+            } => self.infer_expression_list(&mut tables.reborrow(), expressions, ctx),
 
             // namespace
             Declaration::Namespace {
@@ -180,13 +176,9 @@ impl Compiler {
                 scope: _,
                 expressions,
             } => self.infer_namespace_declaration(
-                module,
+                &mut tables.reborrow(),
                 generics.where_clauses.as_deref(),
                 expressions,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             ),
 
@@ -204,16 +196,12 @@ impl Compiler {
                 members,
                 heritage,
             } => self.infer_struct_declaration(
-                module,
+                &mut tables.reborrow(),
                 declaration_id,
                 descriptor,
                 generics.where_clauses.as_deref(),
                 members,
                 heritage.implements_types.as_deref().unwrap_or(&[]),
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             ),
 
@@ -225,17 +213,13 @@ impl Compiler {
                 members,
                 heritage,
             } => self.infer_class_declaration(
-                module,
+                &mut tables.reborrow(),
                 declaration_id,
                 descriptor,
                 generics.where_clauses.as_deref(),
                 members,
                 heritage.extends_types.as_deref(),
                 heritage.implements_types.as_deref(),
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             ),
 
@@ -249,16 +233,12 @@ impl Compiler {
                 members,
                 heritage: _,
             } => self.infer_enum_declaration(
-                module,
+                &mut tables.reborrow(),
                 declaration_id,
                 descriptor,
                 generics.where_clauses.as_deref(),
                 fields,
                 members,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             ),
 
@@ -272,17 +252,13 @@ impl Compiler {
                 members,
                 heritage,
             } => self.infer_extension_declaration(
-                module,
+                &mut tables.reborrow(),
                 declaration_id,
                 generics.where_clauses.as_deref(),
                 *target_type,
                 *target_symbol,
                 members,
                 heritage.implements_types.as_deref().unwrap_or(&[]),
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             ),
 
@@ -295,15 +271,11 @@ impl Compiler {
                 members,
                 heritage: _,
             } => self.infer_interface_declaration(
-                module,
+                &mut tables.reborrow(),
                 declaration_id,
                 descriptor,
                 generics.where_clauses.as_deref(),
                 members,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             ),
 
@@ -314,15 +286,11 @@ impl Compiler {
                 scope: _,
                 body,
             } => self.infer_function_declaration(
-                module,
+                &mut tables.reborrow(),
                 declaration_id,
                 descriptor,
                 signature,
                 *body,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             ),
         }?;
@@ -333,18 +301,14 @@ impl Compiler {
     /// Infer a list of declaration-scoped expressions.
     fn infer_expression_list(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expressions: &[LocalNodeId<Expression>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // infer each expression that still requires work
         for expression_id in expressions {
-            if self.expression_requires_infer(module, *expression_id, tree) {
-                self.infer_expression(module, *expression_id, tree, symbols, types, infer, ctx)?;
+            if self.expression_requires_infer(tables.module, *expression_id, tables.tree) {
+                self.infer_expression(&mut tables.reborrow(), *expression_id, ctx)?;
             }
         }
 
@@ -354,30 +318,18 @@ impl Compiler {
     /// Infer a namespace declaration body.
     fn infer_namespace_declaration(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         where_clauses: Option<&[LocalNodeId<WhereClause>]>,
         expressions: &[LocalNodeId<Expression>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // namespace bodies disallow top-level await
         ctx.with_namespace(|ctx| -> AnalyzeResult<()> {
             // infer namespace where clauses first
-            self.infer_where_clauses_maybe(
-                module,
-                where_clauses,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?;
+            self.infer_where_clauses_maybe(&mut tables.reborrow(), where_clauses, ctx)?;
 
             // infer namespace expressions
-            self.infer_expression_list(module, expressions, tree, symbols, types, infer, ctx)?;
+            self.infer_expression_list(&mut tables.reborrow(), expressions, ctx)?;
 
             Ok(())
         })
@@ -386,24 +338,20 @@ impl Compiler {
     /// Infer a struct declaration.
     fn infer_struct_declaration(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         descriptor: &DeclarationDescriptor,
         where_clauses: Option<&[LocalNodeId<WhereClause>]>,
         members: &[LocalNodeId<Member>],
         implements_types: &[LocalNodeId<Expression>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // infer where clauses for member bodies
-        self.infer_where_clauses_maybe(module, where_clauses, tree, symbols, types, infer, ctx)?;
+        self.infer_where_clauses_maybe(&mut tables.reborrow(), where_clauses, ctx)?;
 
         // resolve the nominal type for `this`
-        let symbol = descriptor.symbol.into_global(module.id);
-        let this_ty_id = Some(types.insert_type_from(
+        let symbol = descriptor.symbol.into_global(tables.module.id);
+        let this_ty_id = Some(tables.types.insert_type_from(
             Type::Reference {
                 symbol,
                 static_arguments: None,
@@ -415,12 +363,8 @@ impl Compiler {
         let mut member_ctx = ctx.fork().in_nominal_symbol_maybe(Some(symbol));
         for member_id in members {
             self.infer_member(
-                module,
+                &mut tables.reborrow(),
                 *member_id,
-                tree,
-                symbols,
-                types,
-                infer,
                 &mut member_ctx,
                 this_ty_id,
             )?;
@@ -428,26 +372,20 @@ impl Compiler {
 
         // enforce associated type requirements
         self.infer_declaration_associated_types(
-            module,
-            member_ctx.profile,
+            &mut tables.reborrow(),
             implements_types,
             members,
             false,
-            tree,
-            symbols,
-            types,
+            member_ctx.profile,
         )?;
 
         // enforce associated comptime requirements
         self.infer_declaration_associated_comptime(
-            module,
-            member_ctx.profile,
+            &mut tables.reborrow(),
             implements_types,
             members,
             false,
-            tree,
-            symbols,
-            types,
+            member_ctx.profile,
         )?;
 
         Ok(())
@@ -456,25 +394,21 @@ impl Compiler {
     /// Infer a class declaration.
     fn infer_class_declaration(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         descriptor: &DeclarationDescriptor,
         where_clauses: Option<&[LocalNodeId<WhereClause>]>,
         members: &[LocalNodeId<Member>],
         extends_types: Option<&[LocalNodeId<Expression>]>,
         implements_types: Option<&[LocalNodeId<Expression>]>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // infer where clauses for member bodies
-        self.infer_where_clauses_maybe(module, where_clauses, tree, symbols, types, infer, ctx)?;
+        self.infer_where_clauses_maybe(&mut tables.reborrow(), where_clauses, ctx)?;
 
         // resolve the nominal type for `this`
-        let symbol = descriptor.symbol.into_global(module.id);
-        let this_ty_id = Some(types.insert_type_from(
+        let symbol = descriptor.symbol.into_global(tables.module.id);
+        let this_ty_id = Some(tables.types.insert_type_from(
             Type::Reference {
                 symbol,
                 static_arguments: None,
@@ -490,12 +424,8 @@ impl Compiler {
             .in_nominal_symbol_maybe(Some(symbol));
         for member_id in members {
             self.infer_member(
-                module,
+                &mut tables.reborrow(),
                 *member_id,
-                tree,
-                symbols,
-                types,
-                infer,
                 &mut member_ctx,
                 this_ty_id,
             )?;
@@ -512,26 +442,20 @@ impl Compiler {
 
         // enforce associated type requirements
         self.infer_declaration_associated_types(
-            module,
-            member_ctx.profile,
+            &mut tables.reborrow(),
             contract_types.as_slice(),
             members,
             is_abstract,
-            tree,
-            symbols,
-            types,
+            member_ctx.profile,
         )?;
 
         // enforce associated comptime requirements
         self.infer_declaration_associated_comptime(
-            module,
-            member_ctx.profile,
+            &mut tables.reborrow(),
             contract_types.as_slice(),
             members,
             is_abstract,
-            tree,
-            symbols,
-            types,
+            member_ctx.profile,
         )?;
 
         Ok(())
@@ -540,36 +464,34 @@ impl Compiler {
     /// Infer an enum declaration.
     fn infer_enum_declaration(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         descriptor: &DeclarationDescriptor,
         where_clauses: Option<&[LocalNodeId<WhereClause>]>,
         fields: &[LocalNodeId<EnumField>],
         members: &[LocalNodeId<Member>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // infer where clauses for member bodies
-        self.infer_where_clauses_maybe(module, where_clauses, tree, symbols, types, infer, ctx)?;
+        self.infer_where_clauses_maybe(&mut tables.reborrow(), where_clauses, ctx)?;
 
         // resolve and record enum field values
-        let enum_symbol = descriptor.symbol.into_global(module.id);
+        let enum_symbol = descriptor.symbol.into_global(tables.module.id);
         let backing_type = self.infer_enum_field_values(
-            module,
+            tables.module,
             ctx.profile,
             enum_symbol,
             fields,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         )?;
-        types.set_enum_backing_type(enum_symbol, backing_type);
+        tables
+            .types
+            .set_enum_backing_type(enum_symbol, backing_type);
 
         // resolve the nominal type for `this`
-        let this_ty_id = Some(types.insert_type_from(
+        let this_ty_id = Some(tables.types.insert_type_from(
             Type::Reference {
                 symbol: enum_symbol,
                 static_arguments: None,
@@ -581,12 +503,8 @@ impl Compiler {
         let mut member_ctx = ctx.fork().in_nominal_symbol_maybe(Some(enum_symbol));
         for member_id in members {
             self.infer_member(
-                module,
+                &mut tables.reborrow(),
                 *member_id,
-                tree,
-                symbols,
-                types,
-                infer,
                 &mut member_ctx,
                 this_ty_id,
             )?;
@@ -598,46 +516,42 @@ impl Compiler {
     /// Infer an extension declaration.
     fn infer_extension_declaration(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         where_clauses: Option<&[LocalNodeId<WhereClause>]>,
         target_type: LocalNodeId<Expression>,
         target_symbol: Option<GlobalSymbolId>,
         members: &[LocalNodeId<Member>],
         implements_types: &[LocalNodeId<Expression>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // infer where clauses for member bodies
-        self.infer_where_clauses_maybe(module, where_clauses, tree, symbols, types, infer, ctx)?;
+        self.infer_where_clauses_maybe(&mut tables.reborrow(), where_clauses, ctx)?;
 
         // assign this to the nominal target type when available
         let this_ty_id = if let Some(target) = target_symbol {
             // evaluate the target type to capture static arguments
             let target_ty_id = self.resolve_declared_type_expression(
-                module,
+                tables.module,
                 ctx.profile,
                 target_type,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
                 true,
                 true,
             )?;
-            let static_arguments = self.unwrap_type_symbol(types, target_ty_id).and_then(
-                |(symbol, static_arguments, _)| {
+            let static_arguments = self
+                .unwrap_type_symbol(tables.types, target_ty_id)
+                .and_then(|(symbol, static_arguments, _)| {
                     if symbol == target {
                         static_arguments
                     } else {
                         None
                     }
-                },
-            );
+                });
 
-            Some(types.insert_type_from(
+            Some(tables.types.insert_type_from(
                 Type::Reference {
                     symbol: target,
                     static_arguments,
@@ -650,33 +564,25 @@ impl Compiler {
 
         // infer members for the extension
         for member_id in members {
-            self.infer_member(
-                module, *member_id, tree, symbols, types, infer, ctx, this_ty_id,
-            )?;
+            self.infer_member(&mut tables.reborrow(), *member_id, ctx, this_ty_id)?;
         }
 
         // enforce associated type requirements
         self.infer_declaration_associated_types(
-            module,
-            ctx.profile,
+            &mut tables.reborrow(),
             implements_types,
             members,
             false,
-            tree,
-            symbols,
-            types,
+            ctx.profile,
         )?;
 
         // enforce associated comptime requirements
         self.infer_declaration_associated_comptime(
-            module,
-            ctx.profile,
+            &mut tables.reborrow(),
             implements_types,
             members,
             false,
-            tree,
-            symbols,
-            types,
+            ctx.profile,
         )?;
 
         Ok(())
@@ -685,23 +591,19 @@ impl Compiler {
     /// Infer an interface declaration.
     fn infer_interface_declaration(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         descriptor: &DeclarationDescriptor,
         where_clauses: Option<&[LocalNodeId<WhereClause>]>,
         members: &[LocalNodeId<Member>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // infer where clauses for member bodies
-        self.infer_where_clauses_maybe(module, where_clauses, tree, symbols, types, infer, ctx)?;
+        self.infer_where_clauses_maybe(&mut tables.reborrow(), where_clauses, ctx)?;
 
         // resolve the nominal type for `this`
-        let symbol = descriptor.symbol.into_global(module.id);
-        let this_ty_id = Some(types.insert_type_from(
+        let symbol = descriptor.symbol.into_global(tables.module.id);
+        let this_ty_id = Some(tables.types.insert_type_from(
             Type::Reference {
                 symbol,
                 static_arguments: None,
@@ -711,9 +613,7 @@ impl Compiler {
 
         // infer members under interface context
         for member_id in members {
-            self.infer_member(
-                module, *member_id, tree, symbols, types, infer, ctx, this_ty_id,
-            )?;
+            self.infer_member(&mut tables.reborrow(), *member_id, ctx, this_ty_id)?;
         }
 
         Ok(())
@@ -756,16 +656,13 @@ impl Compiler {
     /// Infer associated type contracts for declarations implementing interfaces.
     fn infer_declaration_associated_types(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         contract_types: &[LocalNodeId<Expression>],
         members: &[LocalNodeId<Member>],
         allows_deferred_associated_types: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        profile: ProfileId,
     ) -> AnalyzeResult<()> {
-        if !matches!(module.source, ModuleSource::User) {
+        if !matches!(tables.module.source, ModuleSource::User) {
             return Ok(());
         }
 
@@ -773,21 +670,24 @@ impl Compiler {
             return Ok(());
         }
 
-        let declaration_members =
-            self.collect_declaration_associated_type_members(module.id, members, tree);
+        let declaration_members = self.collect_declaration_associated_type_members(
+            tables.module.id,
+            members,
+            tables.tree,
+        );
         let mut inherited_defaults_by_name = HashMap::new();
 
         for contract_expression_id in contract_types {
             self.infer_associated_type_requirements_for_contract(
-                module,
+                tables.module,
                 profile,
                 *contract_expression_id,
                 &declaration_members,
                 &mut inherited_defaults_by_name,
                 allows_deferred_associated_types,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
             )?;
         }
 
@@ -831,16 +731,13 @@ impl Compiler {
     /// Infer associated comptime contracts for declarations implementing interfaces.
     fn infer_declaration_associated_comptime(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         contract_types: &[LocalNodeId<Expression>],
         members: &[LocalNodeId<Member>],
         allows_deferred_associated_comptime: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        profile: ProfileId,
     ) -> AnalyzeResult<()> {
-        if !matches!(module.source, ModuleSource::User) {
+        if !matches!(tables.module.source, ModuleSource::User) {
             return Ok(());
         }
 
@@ -849,20 +746,20 @@ impl Compiler {
         }
 
         let declaration_members =
-            self.collect_declaration_associated_comptime_members(members, tree);
+            self.collect_declaration_associated_comptime_members(members, tables.tree);
         let mut inherited_defaults_by_name = HashMap::new();
 
         for contract_expression_id in contract_types {
             self.infer_associated_comptime_requirements(
-                module,
+                tables.module,
                 profile,
                 *contract_expression_id,
                 &declaration_members,
                 &mut inherited_defaults_by_name,
                 allows_deferred_associated_comptime,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
             )?;
         }
 
@@ -1717,26 +1614,22 @@ impl Compiler {
     /// Infer a function declaration.
     fn infer_function_declaration(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         descriptor: &DeclarationDescriptor,
         signature: &FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // apply decorator options for this function
         let function_options = {
-            let symbol = symbols.get_symbol(descriptor.symbol);
+            let symbol = tables.symbols.get_symbol(descriptor.symbol);
             ctx.options.with_symbol_decorators(&symbol.decorators)
         };
 
         // enforce runtime constraints up front
         self.check_signature_runtime_constraints(
-            module,
+            tables.module,
             ctx.profile,
             declaration_id.into_any(),
             signature,
@@ -1744,71 +1637,65 @@ impl Compiler {
         );
 
         // infer the function signature
-        let declared_signature_ty_id =
-            types.get_signature_type_for_node(declaration_id.into_global_any(module.id));
+        let declared_signature_ty_id = tables
+            .types
+            .get_signature_type_for_node(declaration_id.into_global_any(tables.module.id));
         let mut signature_ctx = ctx.fork().with_options(function_options);
         let should_use_declared_signature = self.should_use_declared_signature(
-            module,
+            tables.module,
             signature,
             declared_signature_ty_id,
             ctx.expected_type,
-            tree,
-            types,
+            tables.tree,
+            tables.types,
         );
         let fn_ty_id = if should_use_declared_signature {
             let declared_signature_ty_id = self
                 .require_declared_signature_type_for_skipped_inference(declared_signature_ty_id)?;
             self.bind_declared_signature(
-                module,
+                &mut tables.reborrow(),
                 declaration_id.into_any(),
                 signature,
                 declared_signature_ty_id,
-                tree,
-                symbols,
-                types,
-                infer,
                 &mut signature_ctx,
             )?
         } else {
+            let owner_symbol = descriptor.symbol.into_global(tables.module.id);
             self.infer_signature(
-                module,
+                &mut tables.reborrow(),
                 declaration_id.into_any(),
-                descriptor.symbol.into_global(module.id),
+                owner_symbol,
                 signature,
                 ctx.expected_type,
                 declared_signature_ty_id,
-                tree,
-                symbols,
-                types,
-                infer,
                 &mut signature_ctx,
             )?
         };
 
         // merge the inferred signature into the symbol value type
-        let symbol_entry = symbols.get_symbol(descriptor.symbol);
-        let allow_merge = module.language_type.supports_declaration_merging()
-            || module.language_type.is_destack()
+        let symbol_entry = tables.symbols.get_symbol(descriptor.symbol);
+        let allow_merge = tables.module.language_type.supports_declaration_merging()
+            || tables.module.language_type.is_destack()
             || symbol_entry.origin.is_global_augmentation();
         self.merge_function_value_type(
-            module,
+            tables.module,
             ctx.profile,
             declaration_id,
             descriptor.symbol,
             fn_ty_id,
             declared_signature_ty_id,
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
             allow_merge,
         );
 
         // infer the body when needed
-        let should_infer_body = self.should_infer_function_body(module, signature, body);
+        let should_infer_body = self.should_infer_function_body(tables.module, signature, body);
         if let Some(body) = body
             && should_infer_body
         {
             // prepare return type tracking for the body
-            let return_type = self.function_return_type(fn_ty_id, types);
+            let return_type = self.function_return_type(fn_ty_id, tables.types);
             let ctx = ctx
                 .reset()
                 .without_const_context()
@@ -1817,12 +1704,12 @@ impl Compiler {
             let mut context_return_type = return_type;
             let mut ctx = if signature.cardinality == FunctionCardinality::Generator {
                 let (yield_ty_id, return_ty_id, next_ty_id) = self.generator_context_types(
-                    module,
+                    tables.module,
                     ctx.profile,
                     declaration_id.into_any(),
                     return_type,
-                    symbols,
-                    types,
+                    tables.symbols,
+                    tables.types,
                 );
                 context_return_type = Some(return_ty_id);
                 ctx.with_return_type(Some(return_ty_id))
@@ -1835,14 +1722,14 @@ impl Compiler {
             let mut expected_return_type = context_return_type;
             let mut constraint_return_type = context_return_type;
             if let Some(return_ty_id) = context_return_type {
-                match types.get_type(return_ty_id) {
+                match tables.types.get_type(return_ty_id) {
                     Type::Predicate { asserts: true, .. } => {
-                        let void_ty_id = self.void_type_id(types, body.into_any());
+                        let void_ty_id = self.void_type_id(tables.types, body.into_any());
                         expected_return_type = Some(void_ty_id);
                         constraint_return_type = Some(void_ty_id);
                     }
                     Type::Predicate { asserts: false, .. } => {
-                        let boolean_ty_id = self.boolean_type_id(types, body.into_any());
+                        let boolean_ty_id = self.boolean_type_id(tables.types, body.into_any());
                         expected_return_type = Some(boolean_ty_id);
                         constraint_return_type = Some(boolean_ty_id);
                     }
@@ -1854,7 +1741,7 @@ impl Compiler {
             }
 
             // only propagate return type expectations into expression bodies
-            let body_expression = !matches!(tree.get(body), Expression::Block { .. });
+            let body_expression = !matches!(tables.tree.get(body), Expression::Block { .. });
             if body_expression {
                 ctx = ctx.with_expected_type(expected_return_type);
             } else {
@@ -1862,57 +1749,56 @@ impl Compiler {
             }
 
             // infer the function body with implicit return typing
-            let body_ty_id =
-                self.infer_body(module, body, tree, symbols, types, infer, &mut ctx)?;
+            let body_ty_id = self.infer_body(&mut tables.reborrow(), body, &mut ctx)?;
 
             // commit inferred return types for widening
             let committed_body_ty_id = self.materialize_inferred_return_type(
-                module,
+                tables.module,
                 &ctx,
                 context_return_type,
                 body_ty_id,
-                infer,
-                types,
+                tables.infer,
+                tables.types,
             );
 
             // constrain implicit return types against the declared return type
             if let Some(return_ty_id) = constraint_return_type
-                && has_implicit_return(body, tree)
+                && has_implicit_return(body, tables.tree)
             {
-                infer.push_constraint(Constraint::Subtype {
+                tables.infer.push_constraint(Constraint::Subtype {
                     sub_type: committed_body_ty_id,
                     super_type: return_ty_id,
                     variance: None,
                 });
 
                 let normalized_return_ty_id = self.normalize_type_for_assignability(
-                    module,
+                    tables.module,
                     ctx.profile,
                     return_ty_id,
-                    symbols,
-                    types,
+                    tables.symbols,
+                    tables.types,
                 );
 
-                if !self.return_type_allows_fallthrough_infer(return_ty_id, types)
-                    && !self.is_infer_var_type(return_ty_id, types)
-                    && !self.is_infer_var_type(committed_body_ty_id, types)
+                if !self.return_type_allows_fallthrough_infer(return_ty_id, tables.types)
+                    && !self.is_infer_var_type(return_ty_id, tables.types)
+                    && !self.is_infer_var_type(committed_body_ty_id, tables.types)
                     && self.is_type_assignable(
-                        module,
+                        tables.module,
                         ctx.profile,
-                        symbols,
+                        tables.symbols,
                         normalized_return_ty_id,
                         committed_body_ty_id,
-                        types,
+                        tables.types,
                         &function_options,
                     ) == Assignability::NotAssignable
                 {
                     self.emit_unassignable_type_for_types(
-                        module,
+                        tables.module,
                         ctx.profile,
                         body.into_any(),
                         return_ty_id,
                         body_ty_id,
-                        types,
+                        tables.types,
                     );
                 }
             }
@@ -1981,17 +1867,13 @@ impl Compiler {
     /// Infer a member declaration.
     pub(crate) fn infer_member(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         member_id: LocalNodeId<Member>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
         this_ty_id: Option<LocalTypeId>,
     ) -> AnalyzeResult<()> {
         // capture the member node
-        let member = tree.get(member_id);
+        let member = tables.tree.get(member_id);
         // dispatch by member kind
         match member {
             Member::Type {
@@ -2004,21 +1886,18 @@ impl Compiler {
                 modifiers: _,
             } => {
                 let _name = *name;
-                let member_symbol = symbol.into_global(module.id);
+                let member_symbol = symbol.into_global(tables.module.id);
 
                 // infer associated type static parameters
                 if let Some(static_parameters) = static_parameters.as_ref() {
                     for parameter_id in static_parameters {
-                        let declared_type =
-                            types.get_declared_type_id(parameter_id.into_global_any(module.id));
+                        let declared_type = tables
+                            .types
+                            .get_declared_type_id(parameter_id.into_global_any(tables.module.id));
                         self.infer_parameter(
-                            module,
+                            &mut tables.reborrow(),
                             *parameter_id,
                             declared_type,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
                             ctx,
                         )?;
                     }
@@ -2026,24 +1905,20 @@ impl Compiler {
 
                 // infer associated type where clauses
                 self.infer_where_clauses_maybe(
-                    module,
+                    &mut tables.reborrow(),
                     where_clauses.as_deref(),
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                     ctx,
                 )?;
 
                 // evaluate associated type constraint
                 let constraint_type = if let Some(ty) = ty {
                     Some(self.resolve_declared_type_expression(
-                        module,
+                        tables.module,
                         ctx.profile,
                         *ty,
-                        tree,
-                        symbols,
-                        types,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
                         true,
                         true,
                     )?)
@@ -2054,18 +1929,20 @@ impl Compiler {
                 // evaluate and register associated type default
                 let value_type = if let Some(value) = value {
                     let value_type = self.resolve_declared_type_expression(
-                        module,
+                        tables.module,
                         ctx.profile,
                         *value,
-                        tree,
-                        symbols,
-                        types,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
                         true,
                         true,
                     )?;
 
-                    types.set_alias_target_type_id(member_symbol, value_type);
-                    types.set_instance_type(member_symbol, value_type);
+                    tables
+                        .types
+                        .set_alias_target_type_id(member_symbol, value_type);
+                    tables.types.set_instance_type(member_symbol, value_type);
                     Some(value_type)
                 } else {
                     None
@@ -2073,24 +1950,24 @@ impl Compiler {
 
                 // check associated type default against its bound
                 if let (Some(constraint_type), Some(value_type)) = (constraint_type, value_type) {
-                    let options = self.analyze_context_options_for_module(module.id);
+                    let options = self.analyze_context_options_for_module(tables.module.id);
                     let is_assignable = self.is_type_assignable(
-                        module,
+                        tables.module,
                         ctx.profile,
-                        symbols,
+                        tables.symbols,
                         constraint_type,
                         value_type,
-                        types,
+                        tables.types,
                         &options,
                     );
                     if is_assignable == Assignability::NotAssignable {
                         self.emit_unassignable_type_for_types(
-                            module,
+                            tables.module,
                             ctx.profile,
                             member_id.into_any(),
                             constraint_type,
                             value_type,
-                            types,
+                            tables.types,
                         );
                     }
                 }
@@ -2105,15 +1982,16 @@ impl Compiler {
                 name: _,
             } => {
                 // resolve the member symbol
-                let member_symbol = symbol.into_global(module.id);
+                let member_symbol = symbol.into_global(tables.module.id);
 
                 // allow missing initializers only on interface members and abstract class members
-                let parent_declaration = tree
+                let parent_declaration = tables
+                    .tree
                     .get_parent(member_id.id)
                     .filter(|parent| parent.ty == NodeType::Declaration)
                     .map(|parent| parent.into_typed::<Declaration>());
                 let is_interface_member = parent_declaration
-                    .map(|declaration_id| tree.get(declaration_id))
+                    .map(|declaration_id| tables.tree.get(declaration_id))
                     .is_some_and(|declaration| {
                         matches!(declaration, Declaration::Interface { .. })
                     });
@@ -2133,7 +2011,7 @@ impl Compiler {
                 if value.is_none() && !allows_missing_initializer {
                     self.error(AnalyzeError::InvalidStaticArgument {
                         node: member_id
-                            .into_global_any(module.id)
+                            .into_global_any(tables.module.id)
                             .into_anchored(Some(ctx.profile)),
                         message: "associated comptime constants require initializer".to_string(),
                     });
@@ -2142,12 +2020,12 @@ impl Compiler {
                 // evaluate optional annotation
                 let constraint_type = if let Some(ty) = ty {
                     Some(self.resolve_declared_type_expression(
-                        module,
+                        tables.module,
                         ctx.profile,
                         *ty,
-                        tree,
-                        symbols,
-                        types,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
                         true,
                         true,
                     )?)
@@ -2159,12 +2037,12 @@ impl Compiler {
                 let value_type = if let Some(value) = value {
                     // evaluate static value once and reuse it for validation and typing
                     let static_value = self.evaluate_static_expression_value(
-                        module,
+                        tables.module,
                         ctx.profile,
                         *value,
-                        tree,
-                        symbols,
-                        types,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
                         None,
                     )?;
 
@@ -2172,30 +2050,31 @@ impl Compiler {
                     if static_value.is_none() {
                         self.error(AnalyzeError::InvalidComptimeExpression {
                             node: value
-                                .into_global_any(module.id)
+                                .into_global_any(tables.module.id)
                                 .into_anchored(Some(ctx.profile)),
                         });
 
-                        let error_type_id =
-                            types.insert_type_from_any(Type::Error, (*value).into_any());
-                        types.set_value_type(member_symbol, error_type_id);
+                        let error_type_id = tables
+                            .types
+                            .insert_type_from_any(Type::Error, (*value).into_any());
+                        tables.types.set_value_type(member_symbol, error_type_id);
                         return Ok(());
                     }
 
                     // prefer static evaluation output for value typing
                     let mut value_type = static_value.as_ref().and_then(|value| {
-                        self.static_expression_type_id(member_id.into_any(), value, types)
+                        self.static_expression_type_id(member_id.into_any(), value, tables.types)
                     });
 
                     // fall back to declaration evaluation when static typing is unavailable
                     if value_type.is_none() {
                         value_type = Some(self.resolve_declared_type_expression(
-                            module,
+                            tables.module,
                             ctx.profile,
                             *value,
-                            tree,
-                            symbols,
-                            types,
+                            tables.tree,
+                            tables.symbols,
+                            tables.types,
                             true,
                             true,
                         )?);
@@ -2204,7 +2083,7 @@ impl Compiler {
                     let Some(value_type) = value_type else {
                         return Ok(());
                     };
-                    types.set_value_type(member_symbol, value_type);
+                    tables.types.set_value_type(member_symbol, value_type);
                     Some(value_type)
                 } else {
                     None
@@ -2214,30 +2093,30 @@ impl Compiler {
                 if let (Some(constraint_type), Some(value_type)) = (constraint_type, value_type) {
                     // defer relation checks when the initializer type cannot be resolved yet
                     if matches!(
-                        types.get_type(value_type),
+                        tables.types.get_type(value_type),
                         Type::Unevaluated(_) | Type::Error
                     ) {
                         return Ok(());
                     }
 
-                    let options = self.analyze_context_options_for_module(module.id);
+                    let options = self.analyze_context_options_for_module(tables.module.id);
                     let is_assignable = self.is_type_assignable(
-                        module,
+                        tables.module,
                         ctx.profile,
-                        symbols,
+                        tables.symbols,
                         constraint_type,
                         value_type,
-                        types,
+                        tables.types,
                         &options,
                     );
                     if is_assignable == Assignability::NotAssignable {
                         self.emit_unassignable_type_for_types(
-                            module,
+                            tables.module,
                             ctx.profile,
                             member_id.into_any(),
                             constraint_type,
                             value_type,
-                            types,
+                            tables.types,
                         );
                     }
                 }
@@ -2252,28 +2131,28 @@ impl Compiler {
                 symbol: _,
             } => {
                 // resolve the member symbol
-                let member_symbol = member.symbol().into_global(module.id);
+                let member_symbol = member.symbol().into_global(tables.module.id);
 
                 // infer index signatures and defaults
                 if let Some(DynamicKey::NamedExpression { name: _, key }) = key {
                     let _key_type = self.resolve_declared_type_expression(
-                        module,
+                        tables.module,
                         ctx.profile,
                         *key,
-                        tree,
-                        symbols,
-                        types,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
                         true,
                         true,
                     )?;
                     let _value_type = if let Some(value) = value {
                         self.resolve_declared_type_expression(
-                            module,
+                            tables.module,
                             ctx.profile,
                             *value,
-                            tree,
-                            symbols,
-                            types,
+                            tables.tree,
+                            tables.symbols,
+                            tables.types,
                             true,
                             true,
                         )?
@@ -2281,33 +2160,35 @@ impl Compiler {
                         let ty = Type::TypeLiteral {
                             value: TypeLiteral::Unknown,
                         };
-                        types.insert_type_from_any(ty, member_id.into_any())
+                        tables.types.insert_type_from_any(ty, member_id.into_any())
                     };
                     let _is_readonly = modifiers.as_ref().is_some_and(|modifiers| {
                         modifiers.mutability == Some(Mutability::Immutable)
                     });
 
                     if let Some(default) = default {
-                        self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
+                        self.infer_expression(&mut tables.reborrow(), *default, ctx)?;
                     }
 
                     // assign a placeholder value type for computed fields
-                    if types.get_value_type_id(member_symbol).is_none() {
+                    if tables.types.get_value_type_id(member_symbol).is_none() {
                         let scope = InferScope {
                             owner: member_symbol,
                             function_id: ctx
                                 .in_function
-                                .map(|function_id| function_id.into_global(module.id)),
+                                .map(|function_id| function_id.into_global(tables.module.id)),
                         };
                         let placeholder_ty_id = self.infer_var_type_for_symbol(
-                            infer,
-                            types,
+                            tables.infer,
+                            tables.types,
                             member_symbol,
                             member_id.into_any(),
-                            InferOrigin::Expression(member_id.into_global_any(module.id)),
+                            InferOrigin::Expression(member_id.into_global_any(tables.module.id)),
                             scope,
                         );
-                        types.set_value_type(member_symbol, placeholder_ty_id);
+                        tables
+                            .types
+                            .set_value_type(member_symbol, placeholder_ty_id);
                     }
 
                     return Ok(());
@@ -2315,28 +2196,33 @@ impl Compiler {
 
                 // evaluate the declared field type once and reuse the declared result in infer
                 let value_ty_id = if let Some(value) = value {
-                    let global_value_id = value.into_global_any(module.id);
-                    if let Some(declared_type_id) = types.get_declared_type_id(global_value_id) {
-                        if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
+                    let global_value_id = value.into_global_any(tables.module.id);
+                    if let Some(declared_type_id) =
+                        tables.types.get_declared_type_id(global_value_id)
+                    {
+                        if matches!(
+                            tables.types.get_type(declared_type_id),
+                            Type::Unevaluated(_)
+                        ) {
                             self.resolve_declared_type(
-                                module,
+                                tables.module,
                                 ctx.profile,
                                 declared_type_id,
-                                tree,
-                                symbols,
-                                types,
+                                tables.tree,
+                                tables.symbols,
+                                tables.types,
                             )?;
                         }
 
                         Some(declared_type_id)
                     } else {
                         Some(self.resolve_declared_type_expression(
-                            module,
+                            tables.module,
                             ctx.profile,
                             *value,
-                            tree,
-                            symbols,
-                            types,
+                            tables.tree,
+                            tables.symbols,
+                            tables.types,
                             true,
                             true,
                         )?)
@@ -2347,7 +2233,7 @@ impl Compiler {
 
                 // infer the default value when present
                 let default_ty_id = if let Some(default) = default {
-                    Some(self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?)
+                    Some(self.infer_expression(&mut tables.reborrow(), *default, ctx)?)
                 } else {
                     None
                 };
@@ -2357,7 +2243,13 @@ impl Compiler {
                     .as_ref()
                     .is_some_and(|modifiers| modifiers.anchor == Some(BindingAnchor::Static));
                 let static_key = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(ctx.profile, key, tree, symbols, types)
+                    self.static_key_from_dynamic_key(
+                        ctx.profile,
+                        key,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
+                    )
                 });
                 if is_static
                     && value_ty_id.is_none()
@@ -2381,42 +2273,44 @@ impl Compiler {
                         member_id.into_any(),
                         owner_symbol,
                         field,
-                        types,
+                        tables.types,
                     );
                 }
 
                 // infer member types from defaults when no annotation exists
                 if value_ty_id.is_none()
                     && let Some(default_ty_id) = default_ty_id
-                    && types.get_value_type_id(member_symbol).is_none()
+                    && tables.types.get_value_type_id(member_symbol).is_none()
                 {
-                    types.set_value_type(member_symbol, default_ty_id);
+                    tables.types.set_value_type(member_symbol, default_ty_id);
                 }
 
                 // attach declared member types when available
                 if let Some(value_ty_id) = value_ty_id
-                    && types.get_value_type_id(member_symbol).is_none()
+                    && tables.types.get_value_type_id(member_symbol).is_none()
                 {
-                    types.set_value_type(member_symbol, value_ty_id);
+                    tables.types.set_value_type(member_symbol, value_ty_id);
                 }
 
                 // seed an inference variable when no value type metadata exists
-                if types.get_value_type_id(member_symbol).is_none() {
+                if tables.types.get_value_type_id(member_symbol).is_none() {
                     let scope = InferScope {
                         owner: member_symbol,
                         function_id: ctx
                             .in_function
-                            .map(|function_id| function_id.into_global(module.id)),
+                            .map(|function_id| function_id.into_global(tables.module.id)),
                     };
                     let placeholder_ty_id = self.infer_var_type_for_symbol(
-                        infer,
-                        types,
+                        tables.infer,
+                        tables.types,
                         member_symbol,
                         member_id.into_any(),
-                        InferOrigin::Expression(member_id.into_global_any(module.id)),
+                        InferOrigin::Expression(member_id.into_global_any(tables.module.id)),
                         scope,
                     );
-                    types.set_value_type(member_symbol, placeholder_ty_id);
+                    tables
+                        .types
+                        .set_value_type(member_symbol, placeholder_ty_id);
                 }
 
                 Ok(())
@@ -2429,28 +2323,32 @@ impl Compiler {
                 ..
             } => {
                 // resolve the member symbol for value typing
-                let member_symbol = member.symbol().into_global(module.id);
+                let member_symbol = member.symbol().into_global(tables.module.id);
 
                 // apply decorator options for this method
                 let method_options = {
-                    let symbol = symbols.get_symbol(member.symbol());
+                    let symbol = tables.symbols.get_symbol(member.symbol());
                     ctx.options.with_symbol_decorators(&symbol.decorators)
                 };
 
                 // assign the implicit this binding type when available
                 if let Some(this_ty_id) = this_ty_id {
                     let this_name = self.program.strings.intern("this");
-                    let (_scope_id, scope, _mark) = symbols.get_scope(member_id, tree);
-                    if let Some(this_symbol) =
-                        symbols.find_active_symbol(scope, StaticKey::Name(this_name))
+                    let (_scope_id, scope, _mark) =
+                        tables.symbols.get_scope(member_id, tables.tree);
+                    if let Some(this_symbol) = tables
+                        .symbols
+                        .find_active_symbol(scope, StaticKey::Name(this_name))
                     {
-                        types.set_value_type(this_symbol.into_global(module.id), this_ty_id);
+                        tables
+                            .types
+                            .set_value_type(this_symbol.into_global(tables.module.id), this_ty_id);
                     }
                 }
 
                 // enforce runtime constraints up front
                 self.check_signature_runtime_constraints(
-                    module,
+                    tables.module,
                     ctx.profile,
                     member_id.into_any(),
                     signature,
@@ -2458,94 +2356,97 @@ impl Compiler {
                 );
 
                 // infer the method signature
-                let declared_signature_ty_id =
-                    types.get_signature_type_for_node(member_id.into_global_any(module.id));
+                let declared_signature_ty_id = tables
+                    .types
+                    .get_signature_type_for_node(member_id.into_global_any(tables.module.id));
                 let mut signature_ctx = ctx.fork().with_options(method_options);
                 let method_ty_id = if self.should_use_declared_signature(
-                    module,
+                    tables.module,
                     signature,
                     declared_signature_ty_id,
                     None,
-                    tree,
-                    types,
+                    tables.tree,
+                    tables.types,
                 ) {
                     let declared_signature_ty_id = self
                         .require_declared_signature_type_for_skipped_inference(
                             declared_signature_ty_id,
                         )?;
                     self.bind_declared_signature(
-                        module,
+                        &mut tables.reborrow(),
                         member_id.into_any(),
                         signature,
                         declared_signature_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         &mut signature_ctx,
                     )?
                 } else {
+                    let owner_symbol = member.symbol().into_global(tables.module.id);
                     self.infer_signature(
-                        module,
+                        &mut tables.reborrow(),
                         member_id.into_any(),
-                        member.symbol().into_global(module.id),
+                        owner_symbol,
                         signature,
                         None,
                         declared_signature_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         &mut signature_ctx,
                     )?
                 };
 
                 // attach the method type for member symbol lookups
                 if let Some(accessor_value_ty_id) =
-                    self.accessor_value_type_for_signature(signature, method_ty_id, types)
+                    self.accessor_value_type_for_signature(signature, method_ty_id, tables.types)
                 {
-                    types.set_value_type(member_symbol, accessor_value_ty_id);
-                } else if types.get_value_type_id(member_symbol).is_none() {
-                    types.set_value_type(member_symbol, method_ty_id);
+                    tables
+                        .types
+                        .set_value_type(member_symbol, accessor_value_ty_id);
+                } else if tables.types.get_value_type_id(member_symbol).is_none() {
+                    tables.types.set_value_type(member_symbol, method_ty_id);
                 }
 
                 // prepare the return type for body inference
-                let mut return_type = self.function_return_type(method_ty_id, types);
+                let mut return_type = self.function_return_type(method_ty_id, tables.types);
                 if let Some(this_ty_id) = this_ty_id {
                     let mut cache = HashMap::new();
 
                     // substitute this in the explicit this parameter
                     if let Some(this_parameter_id) = signature.this_parameter {
-                        let param_symbol =
-                            tree.get(this_parameter_id).symbol().into_global(module.id);
-                        if let Some(param_ty_id) = types.get_value_type_id(param_symbol) {
+                        let param_symbol = tables
+                            .tree
+                            .get(this_parameter_id)
+                            .symbol()
+                            .into_global(tables.module.id);
+                        if let Some(param_ty_id) = tables.types.get_value_type_id(param_symbol) {
                             let mapped_ty_id = self.substitute_this_type(
                                 param_ty_id,
                                 this_ty_id,
-                                types,
+                                tables.types,
                                 &mut cache,
                             );
-                            types.set_value_type(param_symbol, mapped_ty_id);
+                            tables.types.set_value_type(param_symbol, mapped_ty_id);
                         }
                     }
 
                     // substitute this in dynamic parameters
                     for parameter_id in signature.dynamic_parameters.iter() {
-                        let param_symbol = tree.get(*parameter_id).symbol().into_global(module.id);
-                        if let Some(param_ty_id) = types.get_value_type_id(param_symbol) {
+                        let param_symbol = tables
+                            .tree
+                            .get(*parameter_id)
+                            .symbol()
+                            .into_global(tables.module.id);
+                        if let Some(param_ty_id) = tables.types.get_value_type_id(param_symbol) {
                             let mapped_ty_id = self.substitute_this_type(
                                 param_ty_id,
                                 this_ty_id,
-                                types,
+                                tables.types,
                                 &mut cache,
                             );
-                            types.set_value_type(param_symbol, mapped_ty_id);
+                            tables.types.set_value_type(param_symbol, mapped_ty_id);
                         }
                     }
 
                     // substitute this in the return type
                     return_type = return_type.map(|return_type| {
-                        self.substitute_this_type(return_type, this_ty_id, types, &mut cache)
+                        self.substitute_this_type(return_type, this_ty_id, tables.types, &mut cache)
                     });
                 }
 
@@ -2559,12 +2460,12 @@ impl Compiler {
                     let mut context_return_type = return_type;
                     let mut ctx = if signature.cardinality == FunctionCardinality::Generator {
                         let (yield_ty_id, return_ty_id, next_ty_id) = self.generator_context_types(
-                            module,
+                            tables.module,
                             ctx.profile,
                             member_id.into_any(),
                             return_type,
-                            symbols,
-                            types,
+                            tables.symbols,
+                            tables.types,
                         );
                         context_return_type = Some(return_ty_id);
                         ctx.with_return_type(Some(return_ty_id))
@@ -2575,61 +2476,61 @@ impl Compiler {
                     ctx = ctx.with_expected_type(context_return_type);
 
                     // infer the method body with implicit return typing
-                    let body_ty_id = self
-                        .infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
+                    let body_ty_id =
+                        self.infer_expression(&mut tables.reborrow(), *body, &mut ctx)?;
 
                     // commit inferred return types for widening
                     let committed_body_ty_id = self.materialize_inferred_return_type(
-                        module,
+                        tables.module,
                         &ctx,
                         context_return_type,
                         body_ty_id,
-                        infer,
-                        types,
+                        tables.infer,
+                        tables.types,
                     );
 
                     // constrain implicit return types against the declared return type
                     if let Some(return_ty_id) = context_return_type
-                        && has_implicit_return(*body, tree)
+                        && has_implicit_return(*body, tables.tree)
                         && !matches!(
-                            types.get_type(return_ty_id),
+                            tables.types.get_type(return_ty_id),
                             Type::Predicate { asserts: true, .. }
                         )
                     {
-                        infer.push_constraint(Constraint::Subtype {
+                        tables.infer.push_constraint(Constraint::Subtype {
                             sub_type: committed_body_ty_id,
                             super_type: return_ty_id,
                             variance: None,
                         });
 
                         let normalized_return_ty_id = self.normalize_type_for_assignability(
-                            module,
+                            tables.module,
                             ctx.profile,
                             return_ty_id,
-                            symbols,
-                            types,
+                            tables.symbols,
+                            tables.types,
                         );
 
-                        if !self.return_type_allows_fallthrough_infer(return_ty_id, types)
-                            && !self.is_infer_var_type(return_ty_id, types)
-                            && !self.is_infer_var_type(committed_body_ty_id, types)
+                        if !self.return_type_allows_fallthrough_infer(return_ty_id, tables.types)
+                            && !self.is_infer_var_type(return_ty_id, tables.types)
+                            && !self.is_infer_var_type(committed_body_ty_id, tables.types)
                             && self.is_type_assignable(
-                                module,
+                                tables.module,
                                 ctx.profile,
-                                symbols,
+                                tables.symbols,
                                 normalized_return_ty_id,
                                 committed_body_ty_id,
-                                types,
+                                tables.types,
                                 &method_options,
                             ) == Assignability::NotAssignable
                         {
                             self.emit_unassignable_type_for_types(
-                                module,
+                                tables.module,
                                 ctx.profile,
                                 body.into_any(),
                                 return_ty_id,
                                 body_ty_id,
-                                types,
+                                tables.types,
                             );
                         }
                     }
@@ -2639,15 +2540,15 @@ impl Compiler {
             }
             Member::Embed { value, .. } => {
                 // #Incomplete: expand embedded type into member fields?
-                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(&mut tables.reborrow(), *value, ctx)?;
                 Ok(())
             }
             Member::StaticBlock { body, .. } => {
-                self.infer_expression(module, *body, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(&mut tables.reborrow(), *body, ctx)?;
                 Ok(())
             }
             Member::ComptimeBlock { body, .. } => {
-                self.infer_expression(module, *body, tree, symbols, types, infer, ctx)?;
+                self.infer_expression(&mut tables.reborrow(), *body, ctx)?;
                 Ok(())
             }
         }
@@ -2656,18 +2557,14 @@ impl Compiler {
     /// Infer where clauses when present.
     pub(crate) fn infer_where_clauses_maybe(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         clauses: Option<&[LocalNodeId<WhereClause>]>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // infer where clause expressions
         if let Some(clauses) = clauses {
             for clause_id in clauses {
-                self.infer_where_clause(module, *clause_id, tree, symbols, types, infer, ctx)?;
+                self.infer_where_clause(&mut tables.reborrow(), *clause_id, ctx)?;
             }
         }
         Ok(())
@@ -2676,21 +2573,17 @@ impl Compiler {
     /// Infer a function signature.
     pub(crate) fn infer_signature(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         node_id: LocalNodeIdAny,
         owner_symbol: GlobalSymbolId,
         signature: &FunctionSignature,
         expected_fn_ty_id: Option<LocalTypeId>,
         declared_signature_ty_id: Option<LocalTypeId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // capture options for diagnostics
         let options = ctx.options;
-        let module_options = self.analyze_context_options_for_module(module.id);
+        let module_options = self.analyze_context_options_for_module(tables.module.id);
         let enforce_decorator_no_managed = options.no_managed && !module_options.no_managed;
 
         // walk generics
@@ -2698,19 +2591,23 @@ impl Compiler {
             .generics
             .as_ref()
             .and_then(|generics| generics.where_clauses.as_deref());
-        self.infer_where_clauses_maybe(module, where_clauses, tree, symbols, types, infer, ctx)?;
+        self.infer_where_clauses_maybe(&mut tables.reborrow(), where_clauses, ctx)?;
 
         // collect static parameter placeholders
-        let static_parameters =
-            self.static_parameter_placeholders_for_signature(module, signature, tree, types);
+        let static_parameters = self.static_parameter_placeholders_for_signature(
+            tables.module,
+            signature,
+            tables.tree,
+            tables.types,
+        );
 
         // extract any contextual function signature
-        let expected_signature = self.expected_function_signature(expected_fn_ty_id, types);
+        let expected_signature = self.expected_function_signature(expected_fn_ty_id, tables.types);
 
         // collect parameter types
         let scope = InferScope {
             owner: owner_symbol,
-            function_id: Some(node_id.into_global(module.id)),
+            function_id: Some(node_id.into_global(tables.module.id)),
         };
 
         // parameter initializers run before entering async or generator execution context
@@ -2722,45 +2619,46 @@ impl Compiler {
             .and_then(|signature| signature.this_parameter);
         let this_parameter = if let Some(this_parameter_id) = signature.this_parameter {
             // resolve any declared type for the this parameter
-            let declared_ty_id =
-                types.get_declared_type_id(this_parameter_id.into_global_any(module.id));
+            let declared_ty_id = tables
+                .types
+                .get_declared_type_id(this_parameter_id.into_global_any(tables.module.id));
             let expected_ty_id = expected_this_ty_id;
 
             // report implicit this when no declared type exists
             if options.no_implicit_this
                 && declared_ty_id.is_none()
                 && expected_ty_id.is_none()
-                && !matches!(module.source, ModuleSource::Builtin(_))
+                && !matches!(tables.module.source, ModuleSource::Builtin(_))
             {
                 self.error(AnalyzeError::ImplicitThis {
                     node: this_parameter_id
-                        .into_global_any(module.id)
+                        .into_global_any(tables.module.id)
                         .into_anchored(Some(ctx.profile)),
                 });
             }
 
-            let param_symbol = tree.get(this_parameter_id).symbol().into_global(module.id);
+            let param_symbol = tables
+                .tree
+                .get(this_parameter_id)
+                .symbol()
+                .into_global(tables.module.id);
             let param_ty_id = declared_ty_id.or(expected_ty_id).unwrap_or_else(|| {
                 self.infer_var_type_for_symbol(
-                    infer,
-                    types,
+                    tables.infer,
+                    tables.types,
                     param_symbol,
                     this_parameter_id.into_any(),
-                    InferOrigin::Parameter(this_parameter_id.into_global_any(module.id)),
+                    InferOrigin::Parameter(this_parameter_id.into_global_any(tables.module.id)),
                     scope,
                 )
             });
             self.infer_parameter(
-                module,
+                &mut tables.reborrow(),
                 this_parameter_id,
                 Some(param_ty_id),
-                tree,
-                symbols,
-                types,
-                infer,
                 &mut parameter_ctx,
             )?;
-            types.set_value_type(param_symbol, param_ty_id);
+            tables.types.set_value_type(param_symbol, param_ty_id);
             Some(param_ty_id)
         } else if signature.kind == FunctionKind::Lambda {
             // contextual "this" for lambdas
@@ -2768,22 +2666,30 @@ impl Compiler {
                 let this_name = self.program.strings.intern("this");
                 let (_scope_id, scope, _mark) = match node_id.ty {
                     // use the lambda declaration scope
-                    NodeType::Declaration => {
-                        symbols.get_scope(node_id.into_typed::<Declaration>(), tree)
-                    }
+                    NodeType::Declaration => tables
+                        .symbols
+                        .get_scope(node_id.into_typed::<Declaration>(), tables.tree),
                     // use the method scope for member lambdas
-                    NodeType::Member => symbols.get_scope(node_id.into_typed::<Member>(), tree),
+                    NodeType::Member => tables
+                        .symbols
+                        .get_scope(node_id.into_typed::<Member>(), tables.tree),
                     // use the expression scope for inline lambdas
-                    NodeType::Expression => {
-                        symbols.get_scope(node_id.into_typed::<Expression>(), tree)
-                    }
+                    NodeType::Expression => tables
+                        .symbols
+                        .get_scope(node_id.into_typed::<Expression>(), tables.tree),
                     // fall back to declaration scopes for internal nodes
-                    _ => symbols.get_scope(LocalNodeId::<Declaration>::new(node_id.id), tree),
+                    _ => tables
+                        .symbols
+                        .get_scope(LocalNodeId::<Declaration>::new(node_id.id), tables.tree),
                 };
-                if let Some(this_symbol) =
-                    symbols.find_active_symbol(scope, StaticKey::Name(this_name))
+                if let Some(this_symbol) = tables
+                    .symbols
+                    .find_active_symbol(scope, StaticKey::Name(this_name))
                 {
-                    types.set_value_type(this_symbol.into_global(module.id), expected_this_ty_id);
+                    tables.types.set_value_type(
+                        this_symbol.into_global(tables.module.id),
+                        expected_this_ty_id,
+                    );
                 }
 
                 Some(expected_this_ty_id)
@@ -2798,68 +2704,74 @@ impl Compiler {
         let mut dynamic_param_types = Vec::with_capacity(signature.dynamic_parameters.len());
         for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
             // resolve declared, contextual, and default metadata
-            let declared_ty_id =
-                types.get_declared_type_id(parameter_id.into_global_any(module.id));
+            let declared_ty_id = tables
+                .types
+                .get_declared_type_id(parameter_id.into_global_any(tables.module.id));
             let expected_param_ty_id = expected_signature
                 .as_ref()
                 .and_then(|signature| signature.dynamic_parameters.get(index).copied());
-            let has_default = match tree.get(*parameter_id) {
+            let has_default = match tables.tree.get(*parameter_id) {
                 Parameter::Named { default, .. } => default.is_some(),
                 Parameter::Pattern { default, .. } => default.is_some(),
                 Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
             };
 
-            let param_symbol = tree.get(*parameter_id).symbol().into_global(module.id);
+            let param_symbol = tables
+                .tree
+                .get(*parameter_id)
+                .symbol()
+                .into_global(tables.module.id);
 
             // report implicit any when no type info is available
             self.report_implicit_any_for_parameter(
-                module,
+                tables.module,
                 ctx.profile,
                 *parameter_id,
                 param_symbol,
                 declared_ty_id,
                 expected_param_ty_id,
                 has_default,
-                symbols,
-                types,
+                tables.symbols,
+                tables.types,
             );
 
             // select the parameter type or fall back to inference
             let param_ty_id = declared_ty_id.or(expected_param_ty_id).unwrap_or_else(|| {
                 self.infer_var_type_for_symbol(
-                    infer,
-                    types,
+                    tables.infer,
+                    tables.types,
                     param_symbol,
                     parameter_id.into_any(),
-                    InferOrigin::Parameter(parameter_id.into_global_any(module.id)),
+                    InferOrigin::Parameter(parameter_id.into_global_any(tables.module.id)),
                     scope,
                 )
             });
 
             self.infer_parameter(
-                module,
+                &mut tables.reborrow(),
                 *parameter_id,
                 Some(param_ty_id),
-                tree,
-                symbols,
-                types,
-                infer,
                 &mut parameter_ctx,
             )?;
 
-            let resolved_param_ty_id = types.get_value_type_id(param_symbol).unwrap_or(param_ty_id);
-            types.set_value_type(param_symbol, resolved_param_ty_id);
+            let resolved_param_ty_id = tables
+                .types
+                .get_value_type_id(param_symbol)
+                .unwrap_or(param_ty_id);
+            tables
+                .types
+                .set_value_type(param_symbol, resolved_param_ty_id);
             dynamic_param_types.push(resolved_param_ty_id);
         }
 
         // return type
         let return_type_node_id = signature.return_type;
         let declared_return_type = declared_signature_ty_id
-            .and_then(|signature_id| self.function_return_type(signature_id, types));
+            .and_then(|signature_id| self.function_return_type(signature_id, tables.types));
         let has_concrete_declared_return = declared_return_type.is_some_and(|ty_id| {
-            !self.is_infer_var_type(ty_id, types)
+            !self.is_infer_var_type(ty_id, tables.types)
                 && !matches!(
-                    types.get_type(ty_id),
+                    tables.types.get_type(ty_id),
                     Type::TypeLiteral {
                         value: TypeLiteral::Unknown
                     }
@@ -2867,12 +2779,12 @@ impl Compiler {
         });
         let return_type = if let Some(return_type_node_id) = return_type_node_id {
             Some(self.resolve_declared_type_expression(
-                module,
+                tables.module,
                 ctx.profile,
                 return_type_node_id,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
                 true,
                 true,
             )?)
@@ -2884,10 +2796,10 @@ impl Compiler {
             declared_return_type
         } else {
             Some(self.infer_var_type_for_node(
-                infer,
-                types,
-                node_id.into_global(module.id),
-                InferOrigin::Return(node_id.into_global(module.id)),
+                tables.infer,
+                tables.types,
+                node_id.into_global(tables.module.id),
+                InferOrigin::Return(node_id.into_global(tables.module.id)),
                 scope,
             ))
         };
@@ -2895,16 +2807,16 @@ impl Compiler {
         // enforce no-managed decorators on signature types
         if enforce_decorator_no_managed {
             self.check_no_managed_signature(
-                module,
+                tables.module,
                 ctx.profile,
                 signature,
                 this_parameter,
                 &dynamic_param_types,
                 return_type,
                 return_type_node_id,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
             )?;
         }
 
@@ -2919,16 +2831,20 @@ impl Compiler {
         };
         let ty_id = if let Some(declared_ty_id) = declared_signature_ty_id {
             // update the declared signature type in place
-            types.update_type(declared_ty_id, ty);
+            tables.types.update_type(declared_ty_id, ty);
             declared_ty_id
         } else {
-            types.insert_type_from_any(ty, node_id)
+            tables.types.insert_type_from_any(ty, node_id)
         };
 
         // record signature type for lowering
         if !ctx.is_surface_inference {
-            infer.set_inferred_type_for_node(node_id.into_global(module.id), ty_id);
-            types.set_inferred_type(node_id.into_global(module.id), ty_id);
+            tables
+                .infer
+                .set_inferred_type_for_node(node_id.into_global(tables.module.id), ty_id);
+            tables
+                .types
+                .set_inferred_type(node_id.into_global(tables.module.id), ty_id);
         }
 
         Ok(ty_id)
@@ -2937,14 +2853,10 @@ impl Compiler {
     /// Bind declared signature types without inference.
     pub(crate) fn bind_declared_signature(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         node_id: LocalNodeIdAny,
         signature: &FunctionSignature,
         declared_signature_ty_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // infer where clauses to validate constraints
@@ -2952,19 +2864,24 @@ impl Compiler {
             .generics
             .as_ref()
             .and_then(|generics| generics.where_clauses.as_deref());
-        self.infer_where_clauses_maybe(module, where_clauses, tree, symbols, types, infer, ctx)?;
+        self.infer_where_clauses_maybe(&mut tables.reborrow(), where_clauses, ctx)?;
 
         let this_parameter = if let Some(this_parameter_id) = signature.this_parameter {
-            let declared_ty_id = types
-                .get_declared_type_id(this_parameter_id.into_global_any(module.id))
+            let declared_ty_id = tables
+                .types
+                .get_declared_type_id(this_parameter_id.into_global_any(tables.module.id))
                 .unwrap_or_else(|| {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
                     };
-                    types.insert_type_from(ty, this_parameter_id)
+                    tables.types.insert_type_from(ty, this_parameter_id)
                 });
-            let param_symbol = tree.get(this_parameter_id).symbol().into_global(module.id);
-            types.set_value_type(param_symbol, declared_ty_id);
+            let param_symbol = tables
+                .tree
+                .get(this_parameter_id)
+                .symbol()
+                .into_global(tables.module.id);
+            tables.types.set_value_type(param_symbol, declared_ty_id);
             Some(declared_ty_id)
         } else {
             None
@@ -2972,26 +2889,27 @@ impl Compiler {
 
         let mut dynamic_param_types = Vec::with_capacity(signature.dynamic_parameters.len());
         for parameter_id in signature.dynamic_parameters.iter() {
-            let declared_ty_id = types
-                .get_declared_type_id(parameter_id.into_global_any(module.id))
+            let declared_ty_id = tables
+                .types
+                .get_declared_type_id(parameter_id.into_global_any(tables.module.id))
                 .unwrap_or_else(|| {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
                     };
-                    types.insert_type_from(ty, *parameter_id)
+                    tables.types.insert_type_from(ty, *parameter_id)
                 });
-            let param_symbol = tree.get(*parameter_id).symbol().into_global(module.id);
-            types.set_value_type(param_symbol, declared_ty_id);
+            let param_symbol = tables
+                .tree
+                .get(*parameter_id)
+                .symbol()
+                .into_global(tables.module.id);
+            tables.types.set_value_type(param_symbol, declared_ty_id);
 
-            if matches!(tree.get(*parameter_id), Parameter::Pattern { .. }) {
+            if matches!(tables.tree.get(*parameter_id), Parameter::Pattern { .. }) {
                 self.infer_parameter(
-                    module,
+                    &mut tables.reborrow(),
                     *parameter_id,
                     Some(declared_ty_id),
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                     ctx,
                 )?;
             }
@@ -3003,36 +2921,41 @@ impl Compiler {
         let return_type_node_id = signature.return_type;
         let return_type = return_type_node_id
             .and_then(|return_type_node_id| {
-                types.get_declared_type_id(return_type_node_id.into_global_any(module.id))
+                tables
+                    .types
+                    .get_declared_type_id(return_type_node_id.into_global_any(tables.module.id))
             })
-            .or_else(|| self.function_return_type(declared_signature_ty_id, types));
+            .or_else(|| self.function_return_type(declared_signature_ty_id, tables.types));
 
         // enforce no-managed decorators on signature types
         let options = ctx.options;
-        let module_options = self.analyze_context_options_for_module(module.id);
+        let module_options = self.analyze_context_options_for_module(tables.module.id);
         let enforce_decorator_no_managed = options.no_managed && !module_options.no_managed;
         if enforce_decorator_no_managed {
             self.check_no_managed_signature(
-                module,
+                tables.module,
                 ctx.profile,
                 signature,
                 this_parameter,
                 &dynamic_param_types,
                 return_type,
                 return_type_node_id,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
             )?;
         }
 
         // record signature type for lowering
         if !ctx.is_surface_inference {
-            infer.set_inferred_type_for_node(
-                node_id.into_global(module.id),
+            tables.infer.set_inferred_type_for_node(
+                node_id.into_global(tables.module.id),
                 declared_signature_ty_id,
             );
-            types.set_inferred_type(node_id.into_global(module.id), declared_signature_ty_id);
+            tables.types.set_inferred_type(
+                node_id.into_global(tables.module.id),
+                declared_signature_ty_id,
+            );
         }
 
         Ok(declared_signature_ty_id)
@@ -3202,23 +3125,26 @@ impl Compiler {
     /// Infer a parameter.
     pub(crate) fn infer_parameter(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         parameter_id: LocalNodeId<Parameter>,
         binding_ty_id: Option<LocalTypeId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         // evaluate declared parameter types before use
         if let Some(binding_ty_id) = binding_ty_id
-            && matches!(types.get_type(binding_ty_id), Type::Unevaluated(_))
+            && matches!(tables.types.get_type(binding_ty_id), Type::Unevaluated(_))
         {
-            self.resolve_declared_type(module, ctx.profile, binding_ty_id, tree, symbols, types)?;
+            self.resolve_declared_type(
+                tables.module,
+                ctx.profile,
+                binding_ty_id,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+            )?;
         }
 
-        let parameter = tree.get(parameter_id);
+        let parameter = tables.tree.get(parameter_id);
         match parameter {
             Parameter::Named {
                 modifiers: _,
@@ -3228,25 +3154,34 @@ impl Compiler {
             } => {
                 // bind parameter symbol to its type
                 if let Some(binding_ty_id) = binding_ty_id {
-                    types.set_value_type(symbol.into_global(module.id), binding_ty_id);
+                    tables
+                        .types
+                        .set_value_type(symbol.into_global(tables.module.id), binding_ty_id);
                 }
 
                 // infer default expression and constrain to parameter type
                 if let Some(default) = default {
                     let default_ty_id =
-                        self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
+                        self.infer_expression(&mut tables.reborrow(), *default, ctx)?;
                     let binding_ty_id = if let Some(binding_ty_id) = binding_ty_id
-                        && self.is_infer_var_type(binding_ty_id, types)
+                        && self.is_infer_var_type(binding_ty_id, tables.types)
                     {
-                        let committed_ty_id =
-                            self.materialize_binding_type(module, ctx, default_ty_id, types, false);
-                        types.set_value_type(symbol.into_global(module.id), committed_ty_id);
+                        let committed_ty_id = self.materialize_binding_type(
+                            tables.module,
+                            ctx,
+                            default_ty_id,
+                            tables.types,
+                            false,
+                        );
+                        tables
+                            .types
+                            .set_value_type(symbol.into_global(tables.module.id), committed_ty_id);
                         Some(committed_ty_id)
                     } else {
                         binding_ty_id
                     };
                     if let Some(binding_ty_id) = binding_ty_id {
-                        infer.push_constraint(Constraint::Subtype {
+                        tables.infer.push_constraint(Constraint::Subtype {
                             sub_type: default_ty_id,
                             super_type: binding_ty_id,
                             variance: None,
@@ -3262,23 +3197,32 @@ impl Compiler {
             } => {
                 // bind parameter symbol to its type
                 if let Some(binding_ty_id) = binding_ty_id {
-                    types.set_value_type(symbol.into_global(module.id), binding_ty_id);
+                    tables
+                        .types
+                        .set_value_type(symbol.into_global(tables.module.id), binding_ty_id);
                 }
 
                 // infer default expression and pick a binding type
                 let default_ty_id = if let Some(default) = default {
-                    Some(self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?)
+                    Some(self.infer_expression(&mut tables.reborrow(), *default, ctx)?)
                 } else {
                     None
                 };
                 let binding_ty_id = binding_ty_id.or(default_ty_id);
                 let binding_ty_id = if let Some(binding_ty_id) = binding_ty_id
                     && let Some(default_ty_id) = default_ty_id
-                    && self.is_infer_var_type(binding_ty_id, types)
+                    && self.is_infer_var_type(binding_ty_id, tables.types)
                 {
-                    let committed_ty_id =
-                        self.materialize_binding_type(module, ctx, default_ty_id, types, false);
-                    types.set_value_type(symbol.into_global(module.id), committed_ty_id);
+                    let committed_ty_id = self.materialize_binding_type(
+                        tables.module,
+                        ctx,
+                        default_ty_id,
+                        tables.types,
+                        false,
+                    );
+                    tables
+                        .types
+                        .set_value_type(symbol.into_global(tables.module.id), committed_ty_id);
                     Some(committed_ty_id)
                 } else {
                     binding_ty_id
@@ -3286,7 +3230,7 @@ impl Compiler {
 
                 // constrain default to the binding type
                 if let (Some(default_ty_id), Some(binding_ty_id)) = (default_ty_id, binding_ty_id) {
-                    infer.push_constraint(Constraint::Subtype {
+                    tables.infer.push_constraint(Constraint::Subtype {
                         sub_type: default_ty_id,
                         super_type: binding_ty_id,
                         variance: None,
@@ -3294,16 +3238,7 @@ impl Compiler {
                 }
 
                 // infer bindings within the pattern
-                self.infer_pattern(
-                    module,
-                    *pattern,
-                    binding_ty_id,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?;
+                self.infer_pattern(&mut tables.reborrow(), *pattern, binding_ty_id, ctx)?;
             }
             Parameter::VariadicNamed {
                 modifiers: _,
@@ -3312,7 +3247,9 @@ impl Compiler {
             } => {
                 // bind variadic parameter symbol to its type
                 if let Some(binding_ty_id) = binding_ty_id {
-                    types.set_value_type(symbol.into_global(module.id), binding_ty_id);
+                    tables
+                        .types
+                        .set_value_type(symbol.into_global(tables.module.id), binding_ty_id);
                 }
             }
             Parameter::VariadicPattern {
@@ -3321,7 +3258,9 @@ impl Compiler {
                 symbol,
             } => {
                 if let Some(binding_ty_id) = binding_ty_id {
-                    types.set_value_type(symbol.into_global(module.id), binding_ty_id);
+                    tables
+                        .types
+                        .set_value_type(symbol.into_global(tables.module.id), binding_ty_id);
                 }
             }
         }
@@ -3334,15 +3273,11 @@ impl Compiler {
     /// for the local binding symbol.
     pub(crate) fn infer_dependency_item(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         item_id: LocalNodeId<DependencyItem>,
-        tree: &NodeTree,
-        _symbols: &SymbolTable,
-        types: &mut TypeTable,
-        _infer: &mut InferTable,
         _ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
-        let item = tree.get(item_id);
+        let item = tables.tree.get(item_id);
         match item {
             DependencyItem::UnresolvedRemote { .. } => {
                 // nothing to do
@@ -3368,14 +3303,17 @@ impl Compiler {
 
                 // infer from non code module targets
                 if *kind == DependencyKind::Value && !target.is_code() {
-                    let ty_id = self.infer_data_module_type(&target, item_id.into_any(), types)?;
+                    let ty_id =
+                        self.infer_data_module_type(&target, item_id.into_any(), tables.types)?;
 
                     // set the type on the remote target symbol
-                    types.set_value_type(*target_symbol, ty_id);
+                    tables.types.set_value_type(*target_symbol, ty_id);
 
                     // mirror the type onto the local alias symbol when present
                     if let Some(symbol) = symbol {
-                        types.set_value_type(symbol.into_global(module.id), ty_id);
+                        tables
+                            .types
+                            .set_value_type(symbol.into_global(tables.module.id), ty_id);
                     }
                 }
             }
@@ -3436,31 +3374,30 @@ impl Compiler {
     /// Infer where clause.
     pub(crate) fn infer_where_clause(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         clause_id: LocalNodeId<WhereClause>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
-        let clause = tree.get(clause_id);
+        let clause = tables.tree.get(clause_id);
         let constraint_ty_id = self.resolve_declared_type_expression(
-            module,
+            tables.module,
             ctx.profile,
             clause.right,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
             true,
             true,
         )?;
-        let Some(parameter_symbol) =
-            self.static_parameter_symbol_for_where_clause(module, clause_id, tree, symbols)
-        else {
+        let Some(parameter_symbol) = self.static_parameter_symbol_for_where_clause(
+            tables.module,
+            clause_id,
+            tables.tree,
+            tables.symbols,
+        ) else {
             self.error(AnalyzeError::InvalidStaticArgument {
                 node: clause_id
-                    .into_global_any(module.id)
+                    .into_global_any(tables.module.id)
                     .into_anchored(Some(ctx.profile)),
                 message: "where clause must reference a static parameter".to_string(),
             });
@@ -3468,51 +3405,56 @@ impl Compiler {
         };
 
         // merge the constraint for static argument validation
-        let constraint_ty_id = if let Some(existing_id) =
-            types.get_static_parameter_constraint_type(parameter_symbol)
+        let constraint_ty_id = if let Some(existing_id) = tables
+            .types
+            .get_static_parameter_constraint_type(parameter_symbol)
         {
             let merged_id = self.intersection_type_from_list(
                 vec![existing_id, constraint_ty_id],
                 existing_id,
-                types,
+                tables.types,
             );
-            types.set_static_parameter_constraint_type(parameter_symbol, merged_id);
+            tables
+                .types
+                .set_static_parameter_constraint_type(parameter_symbol, merged_id);
             merged_id
         } else {
-            types.set_static_parameter_constraint_type(parameter_symbol, constraint_ty_id);
+            tables
+                .types
+                .set_static_parameter_constraint_type(parameter_symbol, constraint_ty_id);
             constraint_ty_id
         };
 
         // apply constraint to the parameter when no annotation exists
-        let symbol_entry = symbols.get_symbol(parameter_symbol.local_id);
+        let symbol_entry = tables.symbols.get_symbol(parameter_symbol.local_id);
         if symbol_entry.is_static_parameter()
             && let Some(primary) = symbol_entry.primary_declaration
             && primary.local_id.ty == NodeType::Parameter
         {
-            let existing_id = types.get_declared_type_id(primary);
+            let existing_id = tables.types.get_declared_type_id(primary);
             let should_override = existing_id.is_none()
                 || existing_id.is_some_and(|ty_id| {
                     matches!(
-                        types.get_type(ty_id),
+                        tables.types.get_type(ty_id),
                         Type::TypeLiteral {
                             value: TypeLiteral::Unknown | TypeLiteral::Any
                         }
                     )
                 });
             if should_override {
-                types.set_declared_type(primary, constraint_ty_id);
+                tables.types.set_declared_type(primary, constraint_ty_id);
             }
         }
 
         // enforce the constraint during inference
-        let parameter_ty_id = types.insert_type_from(
+        let parameter_ty_id = tables.types.insert_type_from(
             Type::Reference {
                 symbol: parameter_symbol,
                 static_arguments: None,
             },
             clause_id,
         );
-        infer.push_constraint(Constraint::Subtype {
+        tables.infer.push_constraint(Constraint::Subtype {
             sub_type: parameter_ty_id,
             super_type: constraint_ty_id,
             variance: None,
@@ -3575,19 +3517,16 @@ impl Compiler {
     /// Infer a pattern, given an optional binding type of the pattern.
     pub(crate) fn infer_declarator(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         declarator_id: LocalNodeId<Declarator>,
         _let_expression_id: LocalNodeId<Expression>,
         constraint: DeclaratorConstraint,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
-        // capture options and the declarator node
         let options = ctx.options;
-        let declarator = tree.get(declarator_id);
+
+        // capture options and the declarator node
+        let declarator = tables.tree.get(declarator_id);
         let Declarator {
             pattern,
             ty: _ty,
@@ -3596,13 +3535,14 @@ impl Compiler {
 
         // infer type from value or annotation
         // declared type is now on the declarator node, not the let expression
-        let declared_annotation_ty_id =
-            types.get_declared_type_id(declarator_id.into_global(module.id).into());
+        let declared_annotation_ty_id = tables
+            .types
+            .get_declared_type_id(declarator_id.into_global(tables.module.id).into());
         let mut declared_relation_ty_id = declared_annotation_ty_id;
 
         // report implicit any when no annotation or initializer exists
         self.report_implicit_any_for_declarator(
-            module,
+            tables.module,
             ctx.profile,
             declarator_id,
             declared_annotation_ty_id,
@@ -3612,36 +3552,31 @@ impl Compiler {
         // evaluate and prepare declared types before inference
         if let Some(initial_declared_ty_id) = declared_annotation_ty_id {
             self.resolve_declared_type(
-                module,
+                tables.module,
                 ctx.profile,
                 initial_declared_ty_id,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
             )?;
             self.ensure_reference_instance_types_for_type(
-                module,
+                tables.module,
                 ctx.profile,
                 declarator_id.into_any(),
                 initial_declared_ty_id,
-                types,
+                tables.types,
             )?;
 
             // register annotation-level instances on the reference type node
             if let Some((symbol, static_arguments, source_id)) =
-                self.unwrap_type_symbol(types, initial_declared_ty_id)
+                self.unwrap_type_symbol(tables.types, initial_declared_ty_id)
             {
-                let source_node_id = source_id.into_global(module.id);
+                let source_node_id = source_id.into_global(tables.module.id);
                 let _ = self.record_reference_provisional_instance(
-                    module,
-                    ctx.profile,
+                    &mut tables.reborrow(),
                     source_node_id,
                     symbol,
                     static_arguments.as_deref(),
-                    tree,
-                    symbols,
-                    infer,
-                    types,
                 )?;
             }
 
@@ -3656,15 +3591,7 @@ impl Compiler {
             } else {
                 ctx.fork()
             };
-            Some(self.infer_expression(
-                module,
-                *value,
-                tree,
-                symbols,
-                types,
-                infer,
-                &mut value_ctx,
-            )?)
+            Some(self.infer_expression(&mut tables.reborrow(), *value, &mut value_ctx)?)
         } else {
             None
         };
@@ -3673,11 +3600,11 @@ impl Compiler {
         if let (Some(declared_ty_id), Some(value_id)) = (declared_annotation_ty_id, value) {
             // resolve the declared nominal symbol
             let declared_symbol =
-                self.unwrap_type_symbol(types, declared_ty_id)
+                self.unwrap_type_symbol(tables.types, declared_ty_id)
                     .map(|(symbol, _, _)| {
                         self.canonical_symbol_id(
-                            module,
-                            symbols,
+                            tables.module,
+                            tables.symbols,
                             ctx.profile,
                             symbol,
                             CanonicalSymbolMode::FollowAliases,
@@ -3688,36 +3615,36 @@ impl Compiler {
             if let Some(declared_symbol) = declared_symbol
                 && declared_symbol.ty() == SymbolType::Newtype
                 && let Some((tagged_symbol, tagged_type_id)) = self.tagged_initializer_type_symbol(
-                    module,
+                    tables.module,
                     ctx.profile,
                     *value_id,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                 )?
             {
                 // resolve the tagged constructor symbol for nominal comparison
                 let tagged_canonical_symbol = self.canonical_symbol_id(
-                    module,
-                    symbols,
+                    tables.module,
+                    tables.symbols,
                     ctx.profile,
                     tagged_symbol,
                     CanonicalSymbolMode::FollowAliases,
                 );
                 let same_nominal_symbol = tagged_canonical_symbol == declared_symbol;
                 let actual_initializer_ty_id = inferred_ty_id
-                    .filter(|ty_id| !self.type_blocks_cascading_diagnostic(*ty_id, types))
+                    .filter(|ty_id| !self.type_blocks_cascading_diagnostic(*ty_id, tables.types))
                     .unwrap_or(tagged_type_id);
 
                 // reject implicit wrapping through constructors outside the declared nominal symbol
                 if !same_nominal_symbol
                     && let Some(error) = self.unassignable_type_error_for_types(
-                        module,
+                        tables.module,
                         ctx.profile,
                         declarator_id.into_any(),
                         declared_ty_id,
                         actual_initializer_ty_id,
-                        types,
+                        tables.types,
                     )
                 {
                     return Err(error);
@@ -3730,13 +3657,13 @@ impl Compiler {
         let committed_binding_ty_id = if declared_annotation_ty_id.is_none() {
             if let (Some(binding_ty_id), Some(value_id)) = (binding_ty_id, value) {
                 Some(self.materialize_declarator_initializer_type(
-                    module,
+                    tables.module,
                     declarator_id,
                     *value_id,
                     binding_ty_id,
-                    tree,
+                    tables.tree,
                     ctx,
-                    types,
+                    tables.types,
                 ))
             } else {
                 binding_ty_id
@@ -3748,17 +3675,17 @@ impl Compiler {
         // assign direct binding value types from declared or inferred types
         if let Pattern::Binding {
             symbol, pattern, ..
-        } = tree.get(*pattern)
+        } = tables.tree.get(*pattern)
             && pattern.is_none()
             && let Some(binding_ty_id) = committed_binding_ty_id
         {
-            let binding_symbol = symbol.into_global(module.id);
-            types.set_value_type(binding_symbol, binding_ty_id);
+            let binding_symbol = symbol.into_global(tables.module.id);
+            tables.types.set_value_type(binding_symbol, binding_ty_id);
 
             if declared_annotation_ty_id.is_none()
                 && let Some(value_id) = value
             {
-                infer.upsert_direct_binding_value_commit_intent(
+                tables.infer.upsert_direct_binding_value_commit_intent(
                     binding_symbol,
                     declarator_id,
                     *value_id,
@@ -3770,23 +3697,23 @@ impl Compiler {
         if let (Some(inferred_ty_id), Some(value_id)) = (inferred_ty_id, value) {
             if let Some(declared_relation_ty_id) = declared_relation_ty_id {
                 self.check_no_implicit_managed_value(
-                    module,
+                    tables.module,
                     ctx.profile,
                     *value_id,
                     declared_relation_ty_id,
                     inferred_ty_id,
-                    tree,
-                    types,
+                    tables.tree,
+                    tables.types,
                     &options,
                 );
             } else {
                 self.check_no_implicit_managed_inferred(
-                    module,
+                    tables.module,
                     ctx.profile,
                     *value_id,
                     inferred_ty_id,
-                    tree,
-                    types,
+                    tables.tree,
+                    tables.types,
                     &options,
                 );
             }
@@ -3795,32 +3722,32 @@ impl Compiler {
         // type check: if both declared and inferred, check assignability
         if let (Some(declared), Some(inferred)) = (declared_relation_ty_id, inferred_ty_id) {
             let mut visited = HashSet::new();
-            let skip_assignability = self.type_contains_error(declared, types, &mut visited)
-                || self.type_contains_error(inferred, types, &mut visited);
+            let skip_assignability = self.type_contains_error(declared, tables.types, &mut visited)
+                || self.type_contains_error(inferred, tables.types, &mut visited);
 
             // resolve inference variables before assignability checks
-            let resolved_declared = if self.is_infer_var_type(declared, types) {
+            let resolved_declared = if self.is_infer_var_type(declared, tables.types) {
                 self.resolve_infer_type_for_check(
-                    module,
+                    tables.module,
                     ctx.profile,
-                    symbols,
+                    tables.symbols,
                     declared,
-                    infer,
-                    types,
+                    tables.infer,
+                    tables.types,
                     &options,
                 )
                 .unwrap_or(declared)
             } else {
                 declared
             };
-            let resolved_inferred = if self.is_infer_var_type(inferred, types) {
+            let resolved_inferred = if self.is_infer_var_type(inferred, tables.types) {
                 self.resolve_infer_type_for_check(
-                    module,
+                    tables.module,
                     ctx.profile,
-                    symbols,
+                    tables.symbols,
                     inferred,
-                    infer,
-                    types,
+                    tables.infer,
+                    tables.types,
                     &options,
                 )
                 .unwrap_or(inferred)
@@ -3829,7 +3756,7 @@ impl Compiler {
             };
             // apply inference constraints when required
             if !skip_assignability && matches!(constraint, DeclaratorConstraint::Assignable) {
-                infer.push_constraint(Constraint::Subtype {
+                tables.infer.push_constraint(Constraint::Subtype {
                     sub_type: inferred,
                     super_type: declared,
                     variance: None,
@@ -3837,37 +3764,37 @@ impl Compiler {
             }
 
             if !skip_assignability
-                && !self.is_infer_var_type(resolved_declared, types)
-                && !self.is_infer_var_type(resolved_inferred, types)
+                && !self.is_infer_var_type(resolved_declared, tables.types)
+                && !self.is_infer_var_type(resolved_inferred, tables.types)
                 && self.is_type_assignable(
-                    module,
+                    tables.module,
                     ctx.profile,
-                    symbols,
+                    tables.symbols,
                     resolved_declared,
                     resolved_inferred,
-                    types,
+                    tables.types,
                     &options,
                 ) == Assignability::NotAssignable
             {
                 if matches!(constraint, DeclaratorConstraint::Assignable) {
                     if let Some(error) = self.unassignable_type_error_for_types(
-                        module,
+                        tables.module,
                         ctx.profile,
                         declarator_id.into_any(),
                         resolved_declared,
                         resolved_inferred,
-                        types,
+                        tables.types,
                     ) {
                         return Err(error);
                     }
                 } else {
                     if let Some(error) = self.unsatisfied_type_error_for_types(
-                        module,
+                        tables.module,
                         ctx.profile,
                         declarator_id.into_any(),
                         resolved_declared,
                         resolved_inferred,
-                        types,
+                        tables.types,
                     ) {
                         return Err(error);
                     }
@@ -3877,23 +3804,19 @@ impl Compiler {
 
         // infer pattern bindings from declared or inferred type
         self.infer_pattern(
-            module,
+            &mut tables.reborrow(),
             *pattern,
             committed_binding_ty_id,
-            tree,
-            symbols,
-            types,
-            infer,
             ctx,
         )?;
 
         // ensure direct bindings always record a value type
         if let Some(binding_ty_id) = binding_ty_id
-            && let Pattern::Binding { symbol, .. } = tree.get(*pattern)
+            && let Pattern::Binding { symbol, .. } = tables.tree.get(*pattern)
         {
-            let binding_symbol = symbol.into_global(module.id);
-            if types.get_value_type_id(binding_symbol).is_none() {
-                types.set_value_type(binding_symbol, binding_ty_id);
+            let binding_symbol = symbol.into_global(tables.module.id);
+            if tables.types.get_value_type_id(binding_symbol).is_none() {
+                tables.types.set_value_type(binding_symbol, binding_ty_id);
             }
         }
 

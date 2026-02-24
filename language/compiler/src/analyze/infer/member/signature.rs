@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::common::InferTablesContext;
 use destack_dir::ResolvedSignature;
 
 #[allow(clippy::too_many_arguments)]
@@ -6,42 +7,39 @@ impl Compiler {
     /// Resolve and commit the inferred type for a resolved member symbol.
     pub(crate) fn resolve_member_access_type_for_symbol(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_symbol: Option<GlobalSymbolId>,
         member_ty_id: LocalTypeId,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> AnalyzeResult<ResolvedMemberAccessType> {
         // apply receiver and extension substitutions
         let member_ty_id = if substitutions.is_empty() {
             member_ty_id
         } else {
             let mut cache = HashMap::new();
-            self.substitute_static_parameters(member_ty_id, substitutions, types, &mut cache)
+            self.substitute_static_parameters(member_ty_id, substitutions, tables.types, &mut cache)
         };
 
         // rewrite owner scoped associated aliases after substitution
         let member_ty_id = if let Some(member_symbol) = member_symbol {
-            if let Some(owner_symbol) =
-                self.query_owner_symbol_for_member_symbol(module, profile, member_symbol, symbols)?
-            {
+            if let Some(owner_symbol) = self.query_owner_symbol_for_member_symbol(
+                tables.module,
+                tables.profile,
+                member_symbol,
+                tables.symbols,
+            )? {
                 self.rewrite_associated_aliases_for_owner(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     expression_id.into_any(),
                     owner_symbol,
                     substitutions,
                     member_ty_id,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                 )
             } else {
                 member_ty_id
@@ -58,18 +56,12 @@ impl Compiler {
                     resolved_static_arguments,
                     resolved_static_parameter_symbols,
                 ) = self.apply_member_static_arguments(
-                    module,
+                    &mut tables.reborrow(),
                     expression_id,
                     member_symbol,
                     member_ty_id,
                     static_argument_ids,
                     substitutions,
-                    profile,
-                    options,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                 )?;
                 (
                     resolved_member_ty_id,
@@ -90,34 +82,22 @@ impl Compiler {
     /// Apply static arguments to a member type when the receiver uses `receiver.member<...>`.
     pub(crate) fn apply_member_static_arguments(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_symbol: Option<GlobalSymbolId>,
         member_ty_id: LocalTypeId,
         static_argument_ids: &[LocalNodeId<Argument>],
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> AnalyzeResult<(LocalTypeId, Vec<StaticArgument>, Vec<GlobalSymbolId>)> {
-        match types.get_type(member_ty_id).clone() {
+        match tables.types.get_type(member_ty_id).clone() {
             Type::Function { .. } => {
                 let instantiated = self.instantiate_member_signature_for_static_arguments(
-                    module,
+                    &mut tables.reborrow(),
                     expression_id,
                     member_symbol,
                     member_ty_id,
                     static_argument_ids,
                     substitutions,
-                    profile,
-                    options,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                 )?;
                 Ok((
                     instantiated.type_id,
@@ -133,23 +113,17 @@ impl Compiler {
                 let mut resolved_static_parameter_symbols = Vec::new();
 
                 for signature_id in call_signatures {
-                    if !matches!(types.get_type(signature_id), Type::Function { .. }) {
+                    if !matches!(tables.types.get_type(signature_id), Type::Function { .. }) {
                         continue;
                     }
 
                     let instantiated = self.instantiate_member_signature_for_static_arguments(
-                        module,
+                        &mut tables.reborrow(),
                         expression_id,
                         member_symbol,
                         signature_id,
                         static_argument_ids,
                         substitutions,
-                        profile,
-                        options,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                     )?;
                     if resolved_static_arguments.is_empty() {
                         resolved_static_arguments = instantiated.static_arguments.clone();
@@ -160,7 +134,11 @@ impl Compiler {
                 }
 
                 if resolved_signatures.is_empty() {
-                    self.error_invalid_member_static_arguments(module, profile, expression_id);
+                    self.error_invalid_member_static_arguments(
+                        tables.module,
+                        tables.profile,
+                        expression_id,
+                    );
                     Ok((member_ty_id, Vec::new(), Vec::new()))
                 } else {
                     let overload_set = Type::Object {
@@ -169,7 +147,8 @@ impl Compiler {
                         construct_signatures: Vec::new(),
                         index_signatures: Vec::new(),
                     };
-                    let overload_set_ty_id = types.insert_type_from(overload_set, expression_id);
+                    let overload_set_ty_id =
+                        tables.types.insert_type_from(overload_set, expression_id);
                     Ok((
                         overload_set_ty_id,
                         resolved_static_arguments,
@@ -178,7 +157,11 @@ impl Compiler {
                 }
             }
             _ => {
-                self.error_invalid_member_static_arguments(module, profile, expression_id);
+                self.error_invalid_member_static_arguments(
+                    tables.module,
+                    tables.profile,
+                    expression_id,
+                );
                 Ok((member_ty_id, Vec::new(), Vec::new()))
             }
         }
@@ -187,18 +170,12 @@ impl Compiler {
     /// Instantiate one function signature for member static argument checking.
     pub(crate) fn instantiate_member_signature_for_static_arguments(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_symbol: Option<GlobalSymbolId>,
         signature_ty_id: LocalTypeId,
         static_argument_ids: &[LocalNodeId<Argument>],
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> AnalyzeResult<InstantiatedMemberSignature> {
         let Type::Function {
             asynchrony,
@@ -207,9 +184,13 @@ impl Compiler {
             this_parameter,
             dynamic_parameters,
             return_type,
-        } = types.get_type(signature_ty_id).clone()
+        } = tables.types.get_type(signature_ty_id).clone()
         else {
-            self.error_invalid_member_static_arguments(module, profile, expression_id);
+            self.error_invalid_member_static_arguments(
+                tables.module,
+                tables.profile,
+                expression_id,
+            );
             return Ok(InstantiatedMemberSignature {
                 type_id: signature_ty_id,
                 static_arguments: Vec::new(),
@@ -221,12 +202,12 @@ impl Compiler {
             if let Some(member_symbol) = member_symbol {
                 let parameter_symbols = self
                     .collect_static_parameter_symbols(
-                        module,
+                        tables.module,
                         member_symbol,
-                        profile,
-                        tree,
-                        symbols,
-                        types,
+                        tables.profile,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
                     )
                     .unwrap_or_default();
                 if !parameter_symbols.is_empty() {
@@ -240,11 +221,11 @@ impl Compiler {
         }
 
         let static_parameter_symbols =
-            self.static_parameter_symbols_for_type_ids(&static_parameters, types);
+            self.static_parameter_symbols_for_type_ids(&static_parameters, tables.types);
 
         let resolved = self
             .resolve_function_static_arguments(
-                module,
+                &mut tables.reborrow(),
                 expression_id.into_any(),
                 member_symbol,
                 Some(static_argument_ids),
@@ -257,12 +238,6 @@ impl Compiler {
                 None,
                 SignatureResolutionMode::Check,
                 false,
-                profile,
-                options,
-                tree,
-                symbols,
-                types,
-                infer,
             )?
             .unwrap_or(ResolvedSignature {
                 dynamic_parameters,
@@ -276,7 +251,7 @@ impl Compiler {
                 resolved.dynamic_parameters,
                 resolved.return_type,
                 substitutions,
-                types,
+                tables.types,
             );
 
         let instantiated_fn = Type::Function {
@@ -287,7 +262,9 @@ impl Compiler {
             dynamic_parameters: resolved_dynamic_parameters,
             return_type: resolved_return_type,
         };
-        let instantiated_type_id = types.insert_type_from(instantiated_fn, expression_id);
+        let instantiated_type_id = tables
+            .types
+            .insert_type_from(instantiated_fn, expression_id);
 
         Ok(InstantiatedMemberSignature {
             type_id: instantiated_type_id,

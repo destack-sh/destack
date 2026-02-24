@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::common::InferTablesContext;
 
 impl Compiler {
     /// Resolve the enum symbol that owns an enum field symbol.
@@ -89,34 +90,35 @@ impl Compiler {
     /// Resolve enum field member access when the receiver is an enum.
     pub(crate) fn resolve_enum_field_access(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         left_ty_id: LocalTypeId,
         left_ty: &Type,
         member_key: &StaticKey,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        infer: &mut InferTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // select the enum symbol for the receiver
         let enum_symbol = self
-            .enum_symbol_for_receiver_symbol(module, left_id, profile, tree, symbols)
-            .or_else(|| self.enum_symbol_for_type(left_ty, types));
+            .enum_symbol_for_receiver_symbol(
+                tables.module,
+                left_id,
+                tables.profile,
+                tables.tree,
+                tables.symbols,
+            )
+            .or_else(|| self.enum_symbol_for_type(left_ty, tables.types));
         let Some(enum_symbol) = enum_symbol else {
             return Ok(None);
         };
 
         // resolve the enum field symbol for the requested member key
         let enum_field_symbol = self.enum_field_symbol_for_member_key(
-            module,
+            tables.module,
             enum_symbol,
             member_key,
-            profile,
-            tree,
-            symbols,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
         )?;
         let Some(enum_field_symbol) = enum_field_symbol else {
             return Ok(None);
@@ -127,14 +129,14 @@ impl Compiler {
             symbol: enum_field_symbol,
         };
         self.record_provisional_member_resolution(
-            expression_id.into_global_any(module.id),
+            expression_id.into_global_any(tables.module.id),
             Some(left_ty_id),
             &resolution,
             None,
             None,
             true,
-            infer,
-            types,
+            tables.infer,
+            tables.types,
         );
 
         // return the nominal enum reference type
@@ -142,7 +144,9 @@ impl Compiler {
             symbol: enum_symbol,
             static_arguments: None,
         };
-        Ok(Some(types.insert_type_from(enum_reference, expression_id)))
+        Ok(Some(
+            tables.types.insert_type_from(enum_reference, expression_id),
+        ))
     }
 
     /// Resolve the value type for an enum field symbol when possible.

@@ -5,9 +5,7 @@ impl Compiler {
     /// Check object type assignability (structural subtyping).
     pub(super) fn is_object_type_assignable(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         target_fields: &[TypeField],
         target_call_signatures: &[LocalTypeId],
         target_construct_signatures: &[LocalTypeId],
@@ -16,55 +14,30 @@ impl Compiler {
         source_call_signatures: &[LocalTypeId],
         source_construct_signatures: &[LocalTypeId],
         source_index_signatures: &[TypeIndexSignature],
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Assignability {
-        if self.is_object_fields_assignable(
-            module,
-            profile,
-            symbols,
-            target_fields,
-            source_fields,
-            types,
-            options,
-        ) == Assignability::NotAssignable
+        if self.is_object_fields_assignable(ctx, target_fields, source_fields)
+            == Assignability::NotAssignable
         {
             return Assignability::NotAssignable;
         }
 
-        if !self.is_signature_set_assignable(
-            module,
-            profile,
-            symbols,
-            target_call_signatures,
-            source_call_signatures,
-            types,
-            options,
-        ) {
+        if !self.is_signature_set_assignable(ctx, target_call_signatures, source_call_signatures) {
             return Assignability::NotAssignable;
         }
 
         if !self.is_signature_set_assignable(
-            module,
-            profile,
-            symbols,
+            ctx,
             target_construct_signatures,
             source_construct_signatures,
-            types,
-            options,
         ) {
             return Assignability::NotAssignable;
         }
 
         if !self.is_index_signatures_assignable(
-            module,
-            profile,
-            symbols,
+            ctx,
             target_index_signatures,
             source_index_signatures,
             source_fields,
-            types,
-            options,
         ) {
             return Assignability::NotAssignable;
         }
@@ -75,9 +48,7 @@ impl Compiler {
     /// Check callable object assignability from a function type.
     pub(super) fn is_object_assignable_from_function(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         target_fields: &[TypeField],
         target_call_signatures: &[LocalTypeId],
         target_construct_signatures: &[LocalTypeId],
@@ -85,58 +56,27 @@ impl Compiler {
         source_params: &[LocalTypeId],
         source_this: &Option<LocalTypeId>,
         source_return: &Option<LocalTypeId>,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Assignability {
-        if self.is_object_fields_assignable(
-            module,
-            profile,
-            symbols,
-            target_fields,
-            &[],
-            types,
-            options,
-        ) == Assignability::NotAssignable
+        if self.is_object_fields_assignable(ctx, target_fields, &[]) == Assignability::NotAssignable
         {
             return Assignability::NotAssignable;
         }
 
         if !self.is_call_signatures_assignable_from_function(
-            module,
-            profile,
-            symbols,
+            ctx,
             target_call_signatures,
             source_params,
             source_this,
             source_return,
-            types,
-            options,
         ) {
             return Assignability::NotAssignable;
         }
 
-        if !self.is_signature_set_assignable(
-            module,
-            profile,
-            symbols,
-            target_construct_signatures,
-            &[],
-            types,
-            options,
-        ) {
+        if !self.is_signature_set_assignable(ctx, target_construct_signatures, &[]) {
             return Assignability::NotAssignable;
         }
 
-        if !self.is_index_signatures_assignable(
-            module,
-            profile,
-            symbols,
-            target_index_signatures,
-            &[],
-            &[],
-            types,
-            options,
-        ) {
+        if !self.is_index_signatures_assignable(ctx, target_index_signatures, &[], &[]) {
             return Assignability::NotAssignable;
         }
 
@@ -277,23 +217,19 @@ impl Compiler {
     /// Check function assignability from callable object signatures.
     pub(super) fn is_function_assignable_from_object(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         assignment_anchor: LocalNodeIdAny,
         target_params: &[LocalTypeId],
         target_this: &Option<LocalTypeId>,
         target_return: &Option<LocalTypeId>,
         source_call_signatures: &[LocalTypeId],
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Assignability {
         if source_call_signatures.is_empty() {
             return Assignability::NotAssignable;
         }
 
         for source_signature in source_call_signatures {
-            let signature = types.get_type(*source_signature).clone();
+            let signature = ctx.types.get_type(*source_signature).clone();
             let Type::Function {
                 dynamic_parameters: source_params,
                 this_parameter: source_this,
@@ -306,9 +242,7 @@ impl Compiler {
 
             if self
                 .is_function_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    ctx,
                     assignment_anchor,
                     target_params,
                     target_this,
@@ -316,8 +250,6 @@ impl Compiler {
                     &source_params,
                     &source_this,
                     &source_return,
-                    types,
-                    options,
                 )
                 .is_assignable()
             {
@@ -331,17 +263,13 @@ impl Compiler {
     /// Check object field assignability (structural subtyping).
     pub(super) fn is_object_fields_assignable(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         target_fields: &[TypeField],
         source_fields: &[TypeField],
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Assignability {
         // for each target field, find matching source field
         for target_field in target_fields {
-            let undefined_ty_id = types.insert_type_from_type(
+            let undefined_ty_id = ctx.types.insert_type_from_type(
                 Type::TypeLiteral {
                     value: TypeLiteral::Undefined,
                 },
@@ -354,21 +282,21 @@ impl Compiler {
             match source_field {
                 Some(source_field) => {
                     let target_field_ty_id = self.prepare_assignability_type(
-                        module,
-                        profile,
+                        ctx.module,
+                        ctx.profile,
                         target_field.ty,
-                        symbols,
-                        types,
+                        ctx.symbols,
+                        ctx.types,
                     );
                     let source_field_ty_id = self.prepare_assignability_type(
-                        module,
-                        profile,
+                        ctx.module,
+                        ctx.profile,
                         source_field.ty,
-                        symbols,
-                        types,
+                        ctx.symbols,
+                        ctx.types,
                     );
-                    let target_field_ty = types.get_type(target_field_ty_id);
-                    let source_field_ty = types.get_type(source_field_ty_id);
+                    let target_field_ty = ctx.types.get_type(target_field_ty_id);
+                    let source_field_ty = ctx.types.get_type(source_field_ty_id);
                     let fields_are_method_like = matches!(target_field_ty, Type::Function { .. })
                         && matches!(source_field_ty, Type::Function { .. });
 
@@ -387,40 +315,40 @@ impl Compiler {
 
                     let mut is_assignable = self
                         .is_type_assignable(
-                            module,
-                            profile,
-                            symbols,
+                            ctx.module,
+                            ctx.profile,
+                            ctx.symbols,
                             target_field_ty_id,
                             source_field_ty_id,
-                            types,
-                            options,
+                            ctx.types,
+                            ctx.options,
                         )
                         .is_assignable();
 
-                    if !options.exact_optional_property_types && target_field.is_optional {
+                    if !ctx.options.exact_optional_property_types && target_field.is_optional {
                         is_assignable |= self
                             .is_type_assignable(
-                                module,
-                                profile,
-                                symbols,
+                                ctx.module,
+                                ctx.profile,
+                                ctx.symbols,
                                 undefined_ty_id,
                                 source_field_ty_id,
-                                types,
-                                options,
+                                ctx.types,
+                                ctx.options,
                             )
                             .is_assignable();
                     }
 
-                    if !options.exact_optional_property_types && source_field.is_optional {
+                    if !ctx.options.exact_optional_property_types && source_field.is_optional {
                         let undefined_assignable = self
                             .is_type_assignable(
-                                module,
-                                profile,
-                                symbols,
+                                ctx.module,
+                                ctx.profile,
+                                ctx.symbols,
                                 target_field_ty_id,
                                 undefined_ty_id,
-                                types,
-                                options,
+                                ctx.types,
+                                ctx.options,
                             )
                             .is_assignable();
                         is_assignable &= undefined_assignable;
