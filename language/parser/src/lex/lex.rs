@@ -149,6 +149,15 @@ fn is_ascii_non_newline_whitespace_byte(byte: u8) -> bool {
 }
 
 impl Lexer {
+    /// Return whether `.e` or `.E` starts a decimal exponent after a dot.
+    #[inline]
+    fn dot_starts_decimal_exponent(&self) -> bool {
+        let exponent_marker = self.peek_next();
+        let exponent_head = self.peek_next_next();
+        (exponent_marker == 'e' || exponent_marker == 'E')
+            && (exponent_head.is_ascii_digit() || exponent_head == '+' || exponent_head == '-')
+    }
+
     /// Lex the input string into semantic tokens, side tokens, and the end-of-sequence Token.
     /// Semantic tokens are identifiers, keywords, literals, operators.
     /// Side tokens are whitespace and comments.
@@ -1463,20 +1472,24 @@ impl Lexer {
             // don't be greedy if this is actually an
             // integer literal followed by field or method access
             // (`12.foo()` and `12..toString()`)
-            '.' if self.peek_next() != '.' && !is_identifier_start(self.peek_next()) => {
+            '.' if self.peek_next() != '.'
+                && (!is_identifier_start(self.peek_next())
+                    || self.dot_starts_decimal_exponent()) =>
+            {
                 // might have stuff after the ., and if it does, it starts with a number
                 self.eat();
                 let mut is_empty_exponent = false;
+
                 if self.peek().is_ascii_digit() {
                     self.eat_decimal_digits();
-                    match self.peek() {
-                        'e' | 'E' => {
-                            self.eat();
-                            is_empty_exponent = !self.eat_float_exponent();
-                        }
-                        _ => (),
-                    }
                 }
+
+                // allow exponent forms without a fractional part (`1.e1`)
+                if self.peek() == 'e' || self.peek() == 'E' {
+                    self.eat();
+                    is_empty_exponent = !self.eat_float_exponent();
+                }
+
                 LiteralType::Float {
                     base,
                     is_empty_exponent,

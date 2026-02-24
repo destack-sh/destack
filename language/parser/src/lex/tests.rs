@@ -1520,6 +1520,30 @@ false
 }
 
 #[test]
+fn test_lex_decimal_literal_with_dot_exponent() {
+    assert_tokenize_eq_roundtrip!(
+        "1.e1 0.e60",
+        Token::new(
+            TokenType::Literal,
+            4,
+            Some(LiteralType::Float {
+                base: NumberBase::Decimal,
+                is_empty_exponent: false
+            })
+        ),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::Float {
+                base: NumberBase::Decimal,
+                is_empty_exponent: false
+            })
+        ),
+    );
+}
+
+#[test]
 fn test_lex_literals_uppercase_radix_prefixes() {
     assert_tokenize_eq_roundtrip!(
         "0B101 0O77 0XFF",
