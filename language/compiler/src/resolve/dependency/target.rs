@@ -219,7 +219,7 @@ impl Compiler {
     }
 
     /// Collect ambient modules that can contribute module bindings.
-    fn ambient_binding_module_ids(&self, profile_id: ProfileId) -> Vec<ModuleId> {
+    pub(crate) fn ambient_binding_module_ids(&self, profile_id: ProfileId) -> Vec<ModuleId> {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return Vec::new();
         };

@@ -46,6 +46,60 @@ export const value = 1;
 { "compilerOptions": { "noDynamicImport": false } }
 ```
 
+## noInternalImport
+
+### noInternalImport reports internal protocol imports when true
+
+> Internal protocol imports are rejected when noInternalImport is true.
+
+```ds:main.ds runtime=native output=native libs=default
+import "platform:fs";
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noInternalImport": true } }
+```
+
+- contains: internal module import
+
+### noInternalImport allows internal protocol imports when false
+
+> Internal protocol imports are allowed when noInternalImport is false.
+
+```ds:main.ds runtime=native output=native libs=default
+import "platform:fs";
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noInternalImport": false } }
+```
+
+### noInternalImport reports warnings for internal protocol imports when warn
+
+> Internal protocol imports emit warnings when noInternalImport is warn.
+
+```ds:main.ds runtime=native output=native libs=default
+import "platform:fs";
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noInternalImport": "warn" } }
+```
+
+- warning: contains: internal module import
+
 ## noDynamicEvaluation
 
 ### noDynamicEvaluation reports eval when true

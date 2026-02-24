@@ -332,6 +332,12 @@ impl DsConfig {
             compiler.no_dynamic_import = parent_compiler.no_dynamic_import;
         }
         if parent_compiler
+            .no_internal_import
+            .is_stricter_than(compiler.no_internal_import)
+        {
+            compiler.no_internal_import = parent_compiler.no_internal_import;
+        }
+        if parent_compiler
             .no_dynamic_shapes
             .is_stricter_than(compiler.no_dynamic_shapes)
         {

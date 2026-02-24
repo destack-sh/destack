@@ -65,6 +65,8 @@ pub struct ProfileFlags {
     pub no_global_this: bool,
     /// Forbid dynamic imports.
     pub no_dynamic_import: bool,
+    /// Forbid low level internal protocol imports (`platform:`).
+    pub no_internal_import: bool,
     /// Forbid dynamic shapes.
     pub no_dynamic_shapes: bool,
     /// Forbid computed property access.
@@ -260,6 +262,7 @@ impl From<&DsConfigCompilerOptions> for ProfileFlags {
             no_dynamic_evaluation: !options.no_dynamic_evaluation.is_allow(),
             no_global_this: !options.no_global_this.is_allow(),
             no_dynamic_import: !options.no_dynamic_import.is_allow(),
+            no_internal_import: !options.no_internal_import.is_allow(),
             no_dynamic_shapes: !options.no_dynamic_shapes.is_allow(),
             no_computed_property_access: !options.no_computed_property_access.is_allow(),
             no_proxy: !options.no_proxy.is_allow(),

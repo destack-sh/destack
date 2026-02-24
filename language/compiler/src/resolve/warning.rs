@@ -28,4 +28,15 @@ pub enum ResolveWarning {
         node: AnchoredGlobalNodeId,
         target: destack_dir::StringId,
     },
+
+    /// Unprefixed builtin module import resolved through compatibility canonicalization.
+    #[warning(
+        code = "WR104",
+        message = "unprefixed builtin module '{target}' resolved as '{suggested}'"
+    )]
+    UnprefixedBuiltinModule {
+        node: AnchoredGlobalNodeId,
+        target: destack_dir::StringId,
+        suggested: destack_dir::StringId,
+    },
 }

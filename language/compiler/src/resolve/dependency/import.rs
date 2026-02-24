@@ -570,6 +570,7 @@ impl Compiler {
 
                     // resolve the specifier to a module target
                     if let Ok(targets) = self.resolve_specifier_to_module_resolution(
+                        profile,
                         *target,
                         Some(module_id),
                         destack_workspace::ImportEdgeKind::Require,
@@ -651,6 +652,7 @@ impl Compiler {
 
                     // resolve the specifier to a module target
                     if let Ok(targets) = self.resolve_specifier_to_module_resolution(
+                        profile,
                         *target,
                         Some(module_id),
                         destack_workspace::ImportEdgeKind::Require,

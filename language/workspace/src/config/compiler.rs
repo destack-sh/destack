@@ -133,6 +133,8 @@ pub struct DsConfigCompilerOptions {
     pub no_global_this: DiagnosticPolicy,
     /// Policy for dynamic `import()` and `require()` expressions.
     pub no_dynamic_import: DiagnosticPolicy,
+    /// Policy for low level internal protocol imports (`platform:`).
+    pub no_internal_import: DiagnosticPolicy,
     /// Policy for defineProperty, prototype mutation, delete, and declaration expressions.
     pub no_dynamic_shapes: DiagnosticPolicy,
     /// Policy for computed property access `obj[expr]` where expr isn't constant.
@@ -266,6 +268,7 @@ impl Default for DsConfigCompilerOptions {
             no_dynamic_evaluation: DiagnosticPolicy::Allow,
             no_global_this: DiagnosticPolicy::Allow,
             no_dynamic_import: DiagnosticPolicy::Allow,
+            no_internal_import: DiagnosticPolicy::Allow,
             no_dynamic_shapes: DiagnosticPolicy::Allow,
             no_computed_property_access: DiagnosticPolicy::Allow,
             no_proxy: DiagnosticPolicy::Allow,
@@ -674,6 +677,8 @@ pub struct CompilerOptionsJson {
     pub no_global_this: Option<DiagnosticPolicyJson>,
     /// Policy for dynamic `import()` and `require()` expressions.
     pub no_dynamic_import: Option<DiagnosticPolicyJson>,
+    /// Policy for low level internal protocol imports (`platform:`).
+    pub no_internal_import: Option<DiagnosticPolicyJson>,
     /// Policy for defineProperty, prototype mutation, delete, and declaration expressions.
     pub no_dynamic_shapes: Option<DiagnosticPolicyJson>,
     /// Policy for computed property access `obj[expr]` where expr isn't constant.
@@ -925,6 +930,10 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
                 .no_dynamic_import
                 .map(DiagnosticPolicy::from)
                 .unwrap_or(DiagnosticPolicy::Allow),
+            no_internal_import: json
+                .no_internal_import
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
             no_dynamic_shapes: json
                 .no_dynamic_shapes
                 .map(DiagnosticPolicy::from)
@@ -1054,5 +1063,19 @@ mod tests {
         assert_eq!(options.module_resolution, ModuleResolution::Node16);
         assert!(options.resolve_package_json_exports);
         assert!(options.resolve_package_json_imports);
+    }
+
+    /// Parse no internal import policy from compiler options.
+    #[test]
+    fn test_parse_compiler_options_no_internal_import_policy() {
+        let json = CompilerOptionsJson {
+            no_internal_import: Some(super::DiagnosticPolicyJson::Value(
+                super::DiagnosticPolicyValueJson::Warn,
+            )),
+            ..CompilerOptionsJson::default()
+        };
+        let options = DsConfigCompilerOptions::from(&json);
+
+        assert!(options.no_internal_import.is_warn());
     }
 }

@@ -4,7 +4,9 @@ use destack_dir as dir;
 use destack_source::DiagnosticSeverity;
 use destack_workspace::{DiagnosticPolicy, LintSeverity};
 
-use crate::{AnalyzeError, Compiler, DiagnosticAnchor, ImportError, TaskError, TaskWarning};
+use crate::{
+    AnalyzeError, Compiler, DiagnosticAnchor, ImportError, ResolveError, TaskError, TaskWarning,
+};
 
 /// Severity override derived from a diagnostic directive decorator.
 #[derive(Debug, Clone, Copy)]
@@ -26,6 +28,12 @@ impl Compiler {
 
         if let TaskError::Import(error) = error
             && let Some(severity) = self.import_policy_severity(error)
+        {
+            return Some(severity);
+        }
+
+        if let TaskError::Resolve(error) = error
+            && let Some(severity) = self.resolve_policy_severity(error)
         {
             return Some(severity);
         }
@@ -213,6 +221,25 @@ impl Compiler {
                     None
                 }
             }
+            _ => None,
+        };
+
+        match policy.unwrap_or(DiagnosticPolicy::Allow) {
+            DiagnosticPolicy::Allow => None,
+            DiagnosticPolicy::Warn => Some(DiagnosticSeverity::Warning),
+            DiagnosticPolicy::Deny => Some(DiagnosticSeverity::Error),
+        }
+    }
+
+    /// Resolve resolve-phase error severity from policy settings.
+    fn resolve_policy_severity(&self, error: &ResolveError) -> Option<DiagnosticSeverity> {
+        let module_id = error.anchor().module_id()?;
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let policy = match error {
+            ResolveError::UnsupportedInternalModule { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_internal_import),
             _ => None,
         };
 

@@ -1,11 +1,59 @@
 use destack_ast::StringId;
 use destack_dir::{DependencyKind, DependencySource, ModuleResolution, ModuleTarget};
-use destack_workspace::{ImportEdgeKind, Module, ModuleDir, ProfileId};
+use destack_workspace::{ImportEdgeKind, Module, ModuleDir, ProfileId, Runtime};
 
 use crate::{
-    Compiler, ImportResolveContext, ResolveError, ResolveResult, ResolveWarning,
+    Compiler, ImportResolveContext, ResolveError, ResolveMode, ResolveResult, ResolveWarning,
     typescript_commonjs_default_interop_is_enabled,
 };
+
+/// Builtin namespace used by protocol specifiers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BuiltinNamespace {
+    /// Destack runtime namespace.
+    Destack,
+    /// Platform runtime namespace.
+    Platform,
+    /// Node compatibility namespace.
+    Node,
+    /// Bun compatibility namespace.
+    Bun,
+    /// Deno compatibility namespace.
+    Deno,
+}
+
+impl BuiltinNamespace {
+    /// Parse one protocol scheme into a builtin namespace.
+    fn from_scheme(scheme: &str) -> Option<Self> {
+        match scheme {
+            "destack" => Some(Self::Destack),
+            "platform" => Some(Self::Platform),
+            "node" => Some(Self::Node),
+            "bun" => Some(Self::Bun),
+            "deno" => Some(Self::Deno),
+            _ => None,
+        }
+    }
+
+    /// Return true when one namespace is available for one runtime.
+    fn is_supported_for_runtime(self, runtime: Runtime) -> bool {
+        match self {
+            Self::Destack | Self::Platform => true,
+            Self::Node => matches!(runtime, Runtime::Node | Runtime::Deno | Runtime::Bun),
+            Self::Bun => runtime == Runtime::Bun,
+            Self::Deno => runtime == Runtime::Deno,
+        }
+    }
+
+    /// Return the builtin lib name for protocol namespaces loaded through builtin libs.
+    fn protocol_lib_name(self) -> Option<&'static str> {
+        match self {
+            Self::Destack => Some("destack"),
+            Self::Platform => Some("platform"),
+            Self::Node | Self::Bun | Self::Deno => None,
+        }
+    }
+}
 
 impl Compiler {
     /// Select import edge semantics from dependency source and source module kind.
@@ -139,10 +187,10 @@ impl Compiler {
 
         // map unresolved modules to the configured diagnostic severity
         match self.options.resolve_mode {
-            crate::ResolveMode::Strict => {
+            ResolveMode::Strict => {
                 self.error(ResolveError::UnresolvedModule { node, target });
             }
-            crate::ResolveMode::Lenient => {
+            ResolveMode::Lenient => {
                 self.warning(ResolveWarning::UnresolvedModule { node, target });
             }
         }
@@ -242,6 +290,8 @@ impl Compiler {
 
         // normalize target specifiers for source-specific semantics
         let resolve_target = self.resolve_target_for_dependency_source(source, target);
+        let resolve_target =
+            self.canonical_import_specifier(module, profile, node, resolve_target)?;
 
         // prepare root context for non-relative import resolution
         if !self.is_import_relative(resolve_target) && !module.is_builtin() {
@@ -255,6 +305,7 @@ impl Compiler {
         // resolve specifier to module ids first
         let resolved_targets = self
             .resolve_specifier_to_module_resolution(
+                profile,
                 resolve_target,
                 source_module,
                 edge_kind,
@@ -308,10 +359,275 @@ impl Compiler {
             }
         }
 
-        Err(ResolveError::UnresolvedModule {
+        // retry unresolved bare node builtins through canonical `node:` form
+        if loader_override.is_none()
+            && let Some(prefixed_target) = self.ambient_node_builtin_prefixed_specifier_for_bare(
+                module.id,
+                profile,
+                resolve_target,
+            )?
+        {
+            let runtime = self.program.profile(profile).key.runtime;
+            if !self.node_bare_builtin_compat_enabled_for_runtime(runtime) {
+                return Err(ResolveError::UnprefixedBuiltinModule {
+                    node: node.into_anchored(Some(profile)),
+                    target: resolve_target,
+                    suggested: prefixed_target,
+                });
+            }
+
+            if self.options.resolve_mode == crate::ResolveMode::Lenient {
+                self.warning(ResolveWarning::UnprefixedBuiltinModule {
+                    node: node.into_anchored(Some(profile)),
+                    target: resolve_target,
+                    suggested: prefixed_target,
+                });
+            }
+
+            let remote_target = self.resolve_import_with_loader(
+                module,
+                dir,
+                profile,
+                node,
+                source,
+                prefixed_target,
+                kind,
+                loader_override,
+            )?;
+
+            // cache the bare target through the same resolved targets as the canonical target
+            let prefixed_cache_key = (source_module, prefixed_target, edge_kind, loader_override);
+            if let Some(prefixed_targets) = dir.imported_modules.read().get(&prefixed_cache_key) {
+                dir.imported_modules
+                    .write()
+                    .insert(cache_key, *prefixed_targets);
+            }
+
+            return Ok(remote_target);
+        }
+
+        Err(self.unresolved_error_for_specifier(node, profile, target, resolve_target))
+    }
+
+    /// Canonicalize one import specifier and enforce protocol policy for resolve.
+    pub(crate) fn canonical_import_specifier(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node: destack_dir::GlobalNodeIdAny,
+        target: StringId,
+    ) -> ResolveResult<StringId> {
+        // skip protocol policy rewriting inside builtin libraries
+        if module.is_builtin() {
+            return Ok(target);
+        }
+
+        let target_text = self.program.strings.get(target).to_string();
+        // reject unknown protocol schemes before filesystem resolution
+        if let Some(scheme) = self.non_builtin_protocol_scheme_for_specifier(target_text.as_str()) {
+            return Err(ResolveError::UnknownProtocolScheme {
+                node: node.into_anchored(Some(profile)),
+                scheme,
+            });
+        }
+
+        // enforce runtime support for builtin protocol namespaces
+        if let Some(namespace) = self.builtin_namespace_for_specifier(target_text.as_str()) {
+            if !self.protocol_namespace_supported_for_profile(namespace, profile) {
+                return Err(ResolveError::UnsupportedBuiltinModule {
+                    node: node.into_anchored(Some(profile)),
+                    target,
+                    runtime: self.protocol_runtime_support_description(profile),
+                });
+            }
+
+            // report internal protocol imports according to compiler policy
+            if namespace == BuiltinNamespace::Platform {
+                self.report_internal_module_import_policy(module, profile, node, target);
+            }
+
+            return Ok(target);
+        }
+
+        Ok(target)
+    }
+
+    /// Return true when one protocol namespace is supported by the active profile.
+    fn protocol_namespace_supported_for_profile(
+        &self,
+        namespace: BuiltinNamespace,
+        profile: ProfileId,
+    ) -> bool {
+        let profile_key = self.program.profile(profile).key.clone();
+        if !namespace.is_supported_for_runtime(profile_key.runtime) {
+            return false;
+        }
+
+        let Some(lib_name) = namespace.protocol_lib_name() else {
+            return true;
+        };
+        let Some(builtins) = self.program.builtins.as_ref() else {
+            return false;
+        };
+
+        builtins
+            .load_lib(
+                lib_name,
+                self.program.files.clone(),
+                self.program.modules.clone(),
+                &profile_key,
+            )
+            .is_some()
+    }
+
+    /// Describe one active target profile for protocol diagnostics.
+    fn protocol_runtime_support_description(&self, profile: ProfileId) -> String {
+        let key = self.program.profile(profile).key.clone();
+        format!("{:?}/{:?}/{:?}", key.runtime, key.output, key.platform)
+    }
+
+    /// Report one internal module import diagnostic when policy requires it.
+    fn report_internal_module_import_policy(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node: destack_dir::GlobalNodeIdAny,
+        target: StringId,
+    ) {
+        let policy = self
+            .program
+            .with_dsconfig_options(module, |ds| ds.compiler.no_internal_import);
+        let Some(policy) = policy else {
+            return;
+        };
+        if policy.is_allow() {
+            return;
+        }
+
+        self.error(ResolveError::UnsupportedInternalModule {
             node: node.into_anchored(Some(profile)),
             target,
-        })
+        });
+    }
+
+    /// Return true when bare node builtins are allowed for one runtime.
+    fn node_bare_builtin_compat_enabled_for_runtime(&self, runtime: Runtime) -> bool {
+        matches!(runtime, Runtime::Node | Runtime::Deno | Runtime::Bun)
+    }
+
+    /// Resolve the canonical `node:` target for one bare ambient node builtin.
+    fn ambient_node_builtin_prefixed_specifier_for_bare(
+        &self,
+        module_id: destack_source::ModuleId,
+        profile: ProfileId,
+        target: StringId,
+    ) -> ResolveResult<Option<StringId>> {
+        // skip relative and explicit protocol imports
+        if self.is_import_relative(target) {
+            return Ok(None);
+        }
+
+        let target_text = self.program.strings.get(target).to_string();
+        if Self::protocol_scheme_for_specifier(target_text.as_str()).is_some() {
+            return Ok(None);
+        }
+
+        // build canonical node protocol form
+        let prefixed_target = self.program.strings.intern(&format!("node:{target_text}"));
+        let has_ambient_node_binding =
+            self.module_bindings_include_ambient_module(module_id, profile, prefixed_target)?;
+        if !has_ambient_node_binding {
+            return Ok(None);
+        }
+
+        Ok(Some(prefixed_target))
+    }
+
+    /// Return true when a specifier has at least one ambient binding module.
+    fn module_bindings_include_ambient_module(
+        &self,
+        module_id: destack_source::ModuleId,
+        profile: ProfileId,
+        specifier: StringId,
+    ) -> ResolveResult<bool> {
+        let bindings = self.module_bindings_for_specifier(module_id, profile, specifier)?;
+        let Some(bindings) = bindings else {
+            return Ok(false);
+        };
+
+        let ambient_modules = self.ambient_binding_module_ids(profile);
+        Ok(bindings
+            .iter()
+            .any(|binding| ambient_modules.contains(&binding.module_id)))
+    }
+
+    /// Select the unresolved import error for one target specifier.
+    pub(crate) fn unresolved_error_for_specifier(
+        &self,
+        node: destack_dir::GlobalNodeIdAny,
+        profile: ProfileId,
+        target: StringId,
+        resolve_target: StringId,
+    ) -> ResolveError {
+        let resolve_target_text = self.program.strings.get(resolve_target);
+        if self
+            .builtin_namespace_for_specifier(resolve_target_text.as_ref())
+            .is_some()
+        {
+            return ResolveError::UnknownBuiltinModule {
+                node: node.into_anchored(Some(profile)),
+                target: resolve_target,
+            };
+        }
+
+        ResolveError::UnresolvedModule {
+            node: node.into_anchored(Some(profile)),
+            target,
+        }
+    }
+
+    /// Return one builtin namespace for an explicit protocol specifier.
+    fn builtin_namespace_for_specifier(&self, specifier: &str) -> Option<BuiltinNamespace> {
+        let scheme = Self::protocol_scheme_for_specifier(specifier)?;
+        BuiltinNamespace::from_scheme(scheme)
+    }
+
+    /// Return one non builtin protocol scheme for a specifier when applicable.
+    fn non_builtin_protocol_scheme_for_specifier(&self, specifier: &str) -> Option<StringId> {
+        let scheme = Self::protocol_scheme_for_specifier(specifier)?;
+        if BuiltinNamespace::from_scheme(scheme).is_some() {
+            return None;
+        }
+
+        Some(self.program.strings.intern(scheme))
+    }
+
+    /// Return the protocol scheme for a specifier when it has URI style syntax.
+    fn protocol_scheme_for_specifier(specifier: &str) -> Option<&str> {
+        let (scheme, rest) = specifier.split_once(':')?;
+
+        // skip windows absolute paths like c:\path and c:/path
+        if scheme.len() == 1
+            && scheme
+                .as_bytes()
+                .first()
+                .is_some_and(|byte| byte.is_ascii_alphabetic())
+            && (rest.starts_with('/') || rest.starts_with('\\'))
+        {
+            return None;
+        }
+
+        // require RFC style scheme syntax for protocol matching
+        let mut bytes = scheme.as_bytes().iter().copied();
+        let first = bytes.next()?;
+        if !first.is_ascii_alphabetic() {
+            return None;
+        }
+        if !bytes.all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'.' | b'-')) {
+            return None;
+        }
+
+        Some(scheme)
     }
 
     /// Select one module target for one dependency kind.

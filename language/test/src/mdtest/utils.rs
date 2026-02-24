@@ -7,7 +7,8 @@ use std::{io, thread};
 
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId};
 use destack_workspace::{
-    MemoryCacheStore, Platform, ProfileEnv, ProfileId, Program, Runtime, Session, Target,
+    MemoryCacheStore, OutputFormat, Platform, ProfileEnv, ProfileId, Program, Runtime, Session,
+    Target,
 };
 
 use crate::harness::{TestResult, discover_test_files, load_expected_failures};
@@ -31,6 +32,8 @@ pub enum MdTestLibs {
 /// Profile overrides for mdtest cases.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct MdTestProfileOverrides {
+    /// Output format override for profile identity and lib derivation.
+    pub output: Option<OutputFormat>,
     /// Runtime override for import.meta and lib derivation.
     pub runtime: Option<Runtime>,
     /// Runtime version override for versioned libs.
@@ -44,7 +47,10 @@ struct MdTestProfileOverrides {
 impl MdTestProfileOverrides {
     /// Return true if any override affects lib derivation.
     fn has_lib_overrides(&self) -> bool {
-        self.runtime.is_some() || self.runtime_version.is_some() || self.platform.is_some()
+        self.output.is_some()
+            || self.runtime.is_some()
+            || self.runtime_version.is_some()
+            || self.platform.is_some()
     }
 }
 
@@ -82,6 +88,9 @@ pub fn parse_mdtest_libs(test: &MdTestCase) -> Option<MdTestLibs> {
 
 /// Parse profile overrides from a mdtest case.
 fn parse_mdtest_profile_overrides(test: &MdTestCase) -> MdTestProfileOverrides {
+    // parse output format override
+    let output = option_value(&test.options, &["output"]).map(parse_output_format);
+
     // parse runtime override
     let runtime = option_value(&test.options, &["runtime"]).map(|value| {
         Runtime::parse(value).unwrap_or_else(|| panic!("invalid mdtest runtime '{value}'"))
@@ -103,6 +112,7 @@ fn parse_mdtest_profile_overrides(test: &MdTestCase) -> MdTestProfileOverrides {
     let debug = option_value(&test.options, &["debug"]).map(|value| parse_bool(value, "debug"));
 
     MdTestProfileOverrides {
+        output,
         runtime,
         runtime_version,
         platform,
@@ -129,6 +139,9 @@ pub fn select_profile_for_mdtest(
     let mut recompute_test = false;
 
     // apply runtime overrides
+    if let Some(output) = overrides.output {
+        key.output = output;
+    }
     if let Some(runtime) = overrides.runtime {
         key.runtime = runtime;
     }
@@ -210,6 +223,17 @@ fn parse_bool(value: &str, key: &str) -> bool {
         "true" => true,
         "false" => false,
         _ => panic!("invalid mdtest {key} value '{value}'"),
+    }
+}
+
+/// Parse an output format mdtest option.
+fn parse_output_format(value: &str) -> OutputFormat {
+    match value.trim().to_lowercase().as_str() {
+        "js" | "javascript" => OutputFormat::Js,
+        "ts" | "typescript" => OutputFormat::Ts,
+        "wasm" | "webassembly" => OutputFormat::Wasm,
+        "native" => OutputFormat::Native,
+        _ => panic!("invalid mdtest output value '{value}'"),
     }
 }
 

@@ -1,5 +1,7 @@
 use crate::TestProgram;
 use destack_dir::StaticKey;
+use destack_source::DiagnosticSeverity;
+use destack_workspace::{OutputFormat, Runtime};
 use std::time::Duration;
 
 /// Resolve imports from module declarations.
@@ -606,6 +608,324 @@ randomUUID();
 
     test.resolve_module(main_module_id);
     test.compile_check_clean();
+}
+
+/// Resolve `destack:` protocol imports in native runtime.
+#[test]
+fn test_protocol_destack_console_in_native_runtime() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ds",
+        r#"
+import "destack:console";
+"#,
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile_check_clean();
+}
+
+/// Resolve `platform:` protocol imports in native runtime.
+#[test]
+fn test_protocol_platform_fs_in_native_runtime() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ds",
+        r#"
+import "platform:fs";
+"#,
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile_check_clean();
+}
+
+/// Report `platform:` protocol imports as unsupported in JavaScript targets.
+#[test]
+fn test_protocol_platform_in_javascript_runtime_reports_error() {
+    let mut test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ts",
+        r#"
+import "platform:fs";
+"#,
+    );
+    test.set_module_profile(
+        main_module_id,
+        Runtime::Node,
+        OutputFormat::Js,
+        &["js", "esnext"],
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile();
+    test.check_has_diagnostic("ER205");
+}
+
+/// Report unknown platform builtins through builtin protocol diagnostics.
+#[test]
+fn test_protocol_platform_unknown_builtin_in_native_runtime_reports_error() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ds",
+        r#"
+import "platform:not_a_real_builtin";
+"#,
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile();
+    test.check_has_diagnostic("ER206");
+}
+
+/// Resolve protocol imports using the active profile, not the module default profile.
+#[test]
+fn test_protocol_platform_fs_uses_active_profile_override() {
+    let mut test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ts",
+        r#"
+import "platform:fs";
+"#,
+    );
+    test.set_module_profile(
+        main_module_id,
+        Runtime::NativeHosted,
+        OutputFormat::Native,
+        &["default"],
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile_check_clean();
+}
+
+/// Report internal platform protocol imports when noInternalImport is set to deny.
+#[test]
+fn test_protocol_platform_in_native_runtime_with_deny_internal_import_policy() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ds",
+        r#"
+import "platform:fs";
+"#,
+    );
+    test.set_module_no_internal_import_policy(main_module_id, "deny");
+
+    test.resolve_module(main_module_id);
+    test.compile();
+    test.check_has_diagnostic("ER208");
+}
+
+/// Report internal platform protocol imports as warnings when noInternalImport is warn.
+#[test]
+fn test_protocol_platform_in_native_runtime_with_warn_internal_import_policy() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ds",
+        r#"
+import "platform:fs";
+"#,
+    );
+    test.set_module_no_internal_import_policy(main_module_id, "warn");
+
+    test.resolve_module(main_module_id);
+    test.compile();
+    test.check_no_diagnostic(DiagnosticSeverity::Error);
+    test.check_has_diagnostic("ER208");
+}
+
+/// Suppress internal platform protocol diagnostics when noInternalImport is allow.
+#[test]
+fn test_protocol_platform_in_native_runtime_with_allow_internal_import_policy() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ds",
+        r#"
+import "platform:fs";
+"#,
+    );
+    test.set_module_no_internal_import_policy(main_module_id, "allow");
+
+    test.resolve_module(main_module_id);
+    test.compile_check_clean();
+}
+
+/// Report `node:` protocol imports as unsupported in native runtime.
+#[test]
+fn test_protocol_node_in_native_runtime_reports_error() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ds",
+        r#"
+import "node:events";
+"#,
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile();
+    test.check_has_diagnostic("ER205");
+}
+
+/// Resolve `bun:` protocol imports in Bun runtime.
+#[test]
+fn test_protocol_bun_in_bun_runtime() {
+    let mut test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let main_module_id = test.add_module(
+        "main.ts",
+        r#"
+import "bun:sqlite";
+"#,
+    );
+    test.set_module_profile(
+        main_module_id,
+        Runtime::Bun,
+        OutputFormat::Js,
+        &["bun.v1.3", "js", "esnext"],
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile_check_clean();
+}
+
+/// Report `bun:` protocol imports as unsupported in native runtime.
+#[test]
+fn test_protocol_bun_in_native_runtime_reports_error() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ds",
+        r#"
+import "bun:sqlite";
+"#,
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile();
+    test.check_has_diagnostic("ER205");
+}
+
+/// Report unknown bun builtins through builtin protocol diagnostics.
+#[test]
+fn test_protocol_bun_unknown_builtin_reports_error() {
+    let mut test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ts",
+        r#"
+import "bun:not_a_real_builtin";
+"#,
+    );
+    test.set_module_profile(
+        main_module_id,
+        Runtime::Bun,
+        OutputFormat::Js,
+        &["js", "esnext"],
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile();
+    test.check_has_diagnostic("ER206");
+}
+
+/// Report `deno:` protocol imports as unsupported in native runtime.
+#[test]
+fn test_protocol_deno_in_native_runtime_reports_error() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ds",
+        r#"
+import "deno:kv";
+"#,
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile();
+    test.check_has_diagnostic("ER205");
+}
+
+/// Report unknown deno builtins through builtin protocol diagnostics.
+#[test]
+fn test_protocol_deno_unknown_builtin_reports_error() {
+    let mut test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ts",
+        r#"
+import "deno:kv";
+"#,
+    );
+    test.set_module_profile(
+        main_module_id,
+        Runtime::Deno,
+        OutputFormat::Js,
+        &["js", "esnext"],
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile();
+    test.check_has_diagnostic("ER206");
+}
+
+/// Report unknown node builtins through builtin protocol diagnostics.
+#[test]
+fn test_protocol_node_unknown_builtin_reports_error() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let main_module_id = test.add_module(
+        "main.ts",
+        r#"
+import "node:not_a_real_builtin";
+"#,
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile();
+    test.check_has_diagnostic("ER206");
+}
+
+/// Prefer package resolution before bare node builtin compatibility fallback.
+#[test]
+fn test_bare_node_builtin_prefers_package_module_when_available() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    test.add_file(
+        "node_modules/fs/package.json",
+        r#"{ "name": "fs", "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } } }"#,
+    );
+    test.add_module(
+        "node_modules/fs/dist/index.js",
+        r#"
+module.exports = { packageOnlySymbol: 1 };
+"#,
+    );
+    test.add_module(
+        "node_modules/fs/dist/index.d.ts",
+        r#"
+export const packageOnlySymbol: number;
+"#,
+    );
+    let main_module_id = test.add_module(
+        "main.ts",
+        r#"
+import { packageOnlySymbol } from "fs";
+
+packageOnlySymbol;
+"#,
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile_check_clean();
+}
+
+/// Report unknown protocol schemes with dedicated diagnostics.
+#[test]
+fn test_protocol_unknown_scheme_reports_error() {
+    let test = TestProgram::memory_sequential_with_prelude();
+    let main_module_id = test.add_module(
+        "main.ds",
+        r#"
+import "custom:console";
+"#,
+    );
+
+    test.resolve_module(main_module_id);
+    test.compile();
+    test.check_has_diagnostic("ER204");
 }
 
 /// Resolve javascript default imports from node builtin modules.
