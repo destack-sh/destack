@@ -20,9 +20,8 @@ use crate::harness::{
     save_expected_failures,
 };
 use crate::mdtest::{
-    MdTestCase, TEST_TIMEOUT_SECONDS, discover_md_files, load_mdtest_expected_failures,
-    parse_mdtest_file, run_with_timeout, select_profile_for_mdtest,
-    setup_test_environment_with_session, slug,
+    MdTestCase, discover_md_files, load_mdtest_expected_failures, parse_mdtest_file,
+    run_with_timeout, select_profile_for_mdtest, setup_test_environment_with_session, slug,
 };
 
 /// Test suite for type checking specification tests.
@@ -114,7 +113,7 @@ impl Suite for SpecificationSuite {
         // select timeout and run the test
         let timeout = context
             .timeout
-            .unwrap_or_else(|| Duration::from_secs(TEST_TIMEOUT_SECONDS));
+            .unwrap_or_else(|| context.options.mdtest_timeout());
         run_with_timeout(md_test.clone(), timeout, run_specification_test)
     }
 

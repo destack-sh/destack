@@ -8,8 +8,8 @@ use crate::harness::{
     RunContext, Suite, TestCase, TestOptions, TestResult, fixtures_dir, save_expected_failures,
 };
 use crate::mdtest::{
-    MdTestCase, MdTestFile, MdTestLibs, TEST_TIMEOUT_SECONDS, discover_md_files,
-    load_mdtest_expected_failures, parse_mdtest_file, parse_mdtest_libs, run_with_timeout, slug,
+    MdTestCase, MdTestFile, MdTestLibs, discover_md_files, load_mdtest_expected_failures,
+    parse_mdtest_file, parse_mdtest_libs, run_with_timeout, slug,
 };
 use crate::query::{QueryTestSession, runner};
 use destack_source::{BatchEdit, Edit, MemoryFileSystem};
@@ -265,12 +265,12 @@ impl Suite for QuerySuite {
             let has_libs = parse_mdtest_libs(&query_test.base)
                 .map(|libs| !matches!(libs, MdTestLibs::None))
                 .unwrap_or(false);
-            let seconds = if has_libs {
-                TEST_TIMEOUT_SECONDS.saturating_mul(5)
+            let timeout_ms = if has_libs {
+                context.options.mdtest_timeout_ms.saturating_mul(5) // #Performance
             } else {
-                TEST_TIMEOUT_SECONDS
+                context.options.mdtest_timeout_ms
             };
-            Duration::from_secs(seconds)
+            Duration::from_millis(timeout_ms.max(1))
         });
         let test = query_test.clone();
         run_with_timeout(test.base.clone(), timeout, move |_| run_query_test(&test))
