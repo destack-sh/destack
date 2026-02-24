@@ -804,7 +804,7 @@ pub(crate) fn attach_trailing_comma_close_brace_property_line_comment(
     ))
 }
 
-/// Resolve one star comment before `:` by attaching to tree-expression rhs or lhs boundary owner.
+/// Resolve one star comment before `:` by attaching to tree-expression right or left boundary owner.
 pub(crate) fn attach_star_comment_before_ternary_colon(
     tree: &NodeTree,
     left_owner: Option<u32>,
@@ -984,6 +984,20 @@ fn try_attach_own_line_comment(
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+    }
+
+    // own line comments after member semicolons should stay on the enclosing member
+    if seam.token_after_is(ast::TokenType::Semicolon)
+        && let Some(target_node) = left_owner
+    {
+        let target_node =
+            normalize_owner_with_shared_end(tree, parents, target_node, token_before_span);
+        if let Some(member_owner) =
+            promote_owner_to_node_type_ancestor(tree, parents, target_node, NodeType::Member)
+        {
+            let member_owner = normalize_formatter_trivia_target_owner(tree, member_owner);
+            return Some((Some(member_owner), AnnotationPosition::BlockPostfix));
+        }
     }
 
     // own line comments before separators and closers belong to the left owner
