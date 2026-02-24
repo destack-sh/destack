@@ -4,9 +4,9 @@ use super::super::{
     AudioEventSubscriptionOptions, core as audio_core,
 };
 use super::core::{
-    DeterministicSequence, backend_event_support_rows, event_batch_kind_rows, event_batch_len,
-    event_batch_sequence_rows, harness_event_options, open_null_duplex_stream,
-    open_null_playback_stream,
+    DeterministicSequence, backend_availability_rows, backend_event_support_rows,
+    event_batch_kind_rows, event_batch_len, event_batch_sequence_rows, harness_event_options,
+    open_null_duplex_stream, open_null_playback_stream,
 };
 use super::{assert_ok_or_expected_error, assert_platform_error_code, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -409,6 +409,15 @@ fn test_audio_event_open_native_only_accepts_alsa_device_lanes_when_available() 
 #[test]
 fn test_audio_event_open_native_only_accepts_asio_device_lanes_when_available() {
     with_harness_context(|mut context| {
+        let backend_list = context.destack_audio_backend_list()?;
+        let backend_list = backend_availability_rows(&mut context, backend_list)?;
+        let asio_available = backend_list
+            .iter()
+            .any(|(backend, available)| *backend == AudioBackend::Asio && *available);
+        if !asio_available {
+            return Ok(());
+        }
+
         let mut event_options = default_event_options();
         event_options.backend = AudioBackend::Asio;
         event_options.backend_policy = AudioBackendSelectionPolicy::Strict;

@@ -222,6 +222,14 @@ static WASAPI_NOTIFICATION_CLIENT_VTABLE: WasapiNotificationClientVTable =
         on_property_value_changed: on_property_value_changed,
     };
 
+/// Return whether two COM interface identifiers are byte-for-byte equal.
+fn guid_equals(left: &GUID, right: &GUID) -> bool {
+    left.data1 == right.data1
+        && left.data2 == right.data2
+        && left.data3 == right.data3
+        && left.data4 == right.data4
+}
+
 /// Create one COM callback object for WASAPI endpoint notifications.
 fn create_notification_client() -> *mut c_void {
     let callback = Box::new(WasapiNotificationClient {
@@ -267,7 +275,9 @@ unsafe extern "system" fn query_interface(
     }
 
     let interface_id = unsafe { *interface_id };
-    if interface_id == IID_IUNKNOWN || interface_id == IID_IMM_NOTIFICATION_CLIENT {
+    if guid_equals(&interface_id, &IID_IUNKNOWN)
+        || guid_equals(&interface_id, &IID_IMM_NOTIFICATION_CLIENT)
+    {
         unsafe {
             *out_interface = this;
             let _ = add_ref(this);

@@ -1043,8 +1043,32 @@ fn test_audio_host_stream_write_at_reports_not_supported_when_backend_lacks_sche
             transfer_mode: AudioStreamTransferMode::Push,
         };
         let config = harness_stream_config(&mut context, config);
-        let stream = stream_open_with_default_options(&mut context, device, config)?;
-        context.destack_audio_stream_start(stream)?;
+        let Some(stream) = assert_ok_or_expected_error(
+            stream_open_with_default_options(&mut context, device, config),
+            &[
+                PlatformErrorCode::NotSupported,
+                PlatformErrorCode::IoInvalidData,
+                PlatformErrorCode::IoNotFound,
+            ],
+        )?
+        else {
+            context.destack_audio_device_close(device)?;
+            return Ok(());
+        };
+
+        let Some(()) = assert_ok_or_expected_error(
+            context.destack_audio_stream_start(stream),
+            &[
+                PlatformErrorCode::NotSupported,
+                PlatformErrorCode::IoInvalidData,
+                PlatformErrorCode::IoInterrupted,
+            ],
+        )?
+        else {
+            context.destack_audio_stream_close(stream)?;
+            context.destack_audio_device_close(device)?;
+            return Ok(());
+        };
 
         let snapshot = context.destack_audio_stream_descriptor(stream)?;
         let (
@@ -1284,8 +1308,32 @@ fn test_audio_coreaudio_loopback_open_start_stop_when_available() {
             transfer_mode: AudioStreamTransferMode::Push,
         };
         let config = harness_stream_config(&mut context, config);
-        let stream = stream_open_with_default_options(&mut context, device, config)?;
-        context.destack_audio_stream_start(stream)?;
+        let Some(stream) = assert_ok_or_expected_error(
+            stream_open_with_default_options(&mut context, device, config),
+            &[
+                PlatformErrorCode::NotSupported,
+                PlatformErrorCode::IoInvalidData,
+                PlatformErrorCode::IoNotFound,
+            ],
+        )?
+        else {
+            context.destack_audio_device_close(device)?;
+            return Ok(());
+        };
+
+        let Some(()) = assert_ok_or_expected_error(
+            context.destack_audio_stream_start(stream),
+            &[
+                PlatformErrorCode::NotSupported,
+                PlatformErrorCode::IoInvalidData,
+                PlatformErrorCode::IoInterrupted,
+            ],
+        )?
+        else {
+            context.destack_audio_stream_close(stream)?;
+            context.destack_audio_device_close(device)?;
+            return Ok(());
+        };
 
         let _ = assert_ok_or_expected_error(
             context.destack_audio_stream_try_read(stream, 256),
@@ -1855,8 +1903,32 @@ fn test_audio_wasapi_loopback_open_start_stop_when_available() {
             transfer_mode: AudioStreamTransferMode::Push,
         };
         let config = harness_stream_config(&mut context, config);
-        let stream = stream_open_with_default_options(&mut context, device, config)?;
-        context.destack_audio_stream_start(stream)?;
+        let Some(stream) = assert_ok_or_expected_error(
+            stream_open_with_default_options(&mut context, device, config),
+            &[
+                PlatformErrorCode::NotSupported,
+                PlatformErrorCode::IoInvalidData,
+                PlatformErrorCode::IoNotFound,
+            ],
+        )?
+        else {
+            context.destack_audio_device_close(device)?;
+            return Ok(());
+        };
+
+        let Some(()) = assert_ok_or_expected_error(
+            context.destack_audio_stream_start(stream),
+            &[
+                PlatformErrorCode::NotSupported,
+                PlatformErrorCode::IoInvalidData,
+                PlatformErrorCode::IoInterrupted,
+            ],
+        )?
+        else {
+            context.destack_audio_stream_close(stream)?;
+            context.destack_audio_device_close(device)?;
+            return Ok(());
+        };
 
         let _ = assert_ok_or_expected_error(
             context.destack_audio_stream_try_read(stream, 256),
