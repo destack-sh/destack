@@ -1301,6 +1301,124 @@ fn test_format_assignment_chain_in_call_argument_is_idempotent() {
     assert_eq!(first_output, second_output);
 }
 
+/// Inline block comments between binary operands and operators should keep stable spacing.
+#[test]
+fn test_format_binary_operator_inline_block_comment_spacing_is_idempotent() {
+    let source = r#"{
+a = b || /** Comment */
+c;
+
+a = b /** Comment */ ||
+c;
+
+a = b || /** TODO this is a very very very very long comment that makes it go > 80 columns */
+c;
+
+a = b /** TODO this is a very very very very long comment that makes it go > 80 columns */ ||
+c;
+
+a = b || /** TODO this is a very very very very long comment that makes it go > 80 columns */ c;
+
+a = b && /** Comment */
+c;
+
+a = b /** Comment */ &&
+c;
+
+a = b && /** TODO this is a very very very very long comment that makes it go > 80 columns */
+c;
+
+a = b /** TODO this is a very very very very long comment that makes it go > 80 columns */ &&
+c;
+
+a = b && /** TODO this is a very very very very long comment that makes it go > 80 columns */ c;
+
+a = b + /** Comment */
+c;
+
+a = b /** Comment */ +
+c;
+
+a = b + /** TODO this is a very very very very long comment that makes it go > 80 columns */
+c;
+
+a = b /** TODO this is a very very very very long comment that makes it go > 80 columns */ +
+c;
+
+a = b + /** TODO this is a very very very very long comment that makes it go > 80 columns */ c;
+}"#;
+    let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+
+    let (first_test, first_block) =
+        TestFormatter::parse_with_file_type(source, FileType::JavaScript, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .unwrap();
+    let first_output = first_test.format(&first_block, options.clone());
+
+    let (second_test, second_block) =
+        TestFormatter::parse_with_file_type(&first_output, FileType::JavaScript, |p| {
+            p.eat_block(destack_ast::BlockContext::Expression)
+        })
+        .unwrap();
+    let second_output = second_test.format(&second_block, options);
+    let expected = r#"{
+  a =
+    b /** Comment */ || c;
+
+  a =
+    b /** Comment */ || c;
+
+  a =
+    b /** TODO this is a very very very very long comment that makes it go > 80 columns */ || c;
+
+  a =
+    b /** TODO this is a very very very very long comment that makes it go > 80 columns */ || c;
+
+  a =
+    b ||
+    /** TODO this is a very very very very long comment that makes it go > 80 columns */ c;
+
+  a =
+    b /** Comment */ && c;
+
+  a =
+    b /** Comment */ && c;
+
+  a =
+    b /** TODO this is a very very very very long comment that makes it go > 80 columns */ && c;
+
+  a =
+    b /** TODO this is a very very very very long comment that makes it go > 80 columns */ && c;
+
+  a =
+    b &&
+    /** TODO this is a very very very very long comment that makes it go > 80 columns */ c;
+
+  a =
+    b /** Comment */ + c;
+
+  a =
+    b /** Comment */ + c;
+
+  a =
+    b /** TODO this is a very very very very long comment that makes it go > 80 columns */ + c;
+
+  a =
+    b /** TODO this is a very very very very long comment that makes it go > 80 columns */ + c;
+
+  a =
+    b
+    + /** TODO this is a very very very very long comment that makes it go > 80 columns */ c;
+}"#;
+
+    assert_eq!(first_output, expected);
+    assert_eq!(
+        first_output, second_output,
+        "first output:\n{first_output}\n\nsecond output:\n{second_output}"
+    );
+}
+
 /// Satisfies seam comments should stay on the operator seam for qualified rhs type paths.
 #[test]
 fn test_format_satisfies_seam_comment_keeps_qualified_type_argument_comment() {

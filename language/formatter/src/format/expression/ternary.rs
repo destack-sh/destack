@@ -430,7 +430,8 @@ fn format_jsx_chain_ternary<'ast>(
         return Ok(());
     };
 
-    let should_expand = ternary_chain_has_line_comment_annotation(f.context(), node_id);
+    let should_expand = ternary_chain_has_line_comment_annotation(f.context(), node_id)
+        || f.context().node_has_newline(node_id);
     let ternary_is_in_braced_tree_child_argument =
         expression_is_in_braced_tree_child_argument(f.context(), node_id);
     write!(

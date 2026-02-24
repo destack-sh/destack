@@ -1203,6 +1203,7 @@ fn parenthesized_expression_drop(
             && expression_is_decorated_class_declaration(context, inner_expression_id);
         let should_drop_declarator_tree_wrapper = parent_type == NodeType::Declarator
             && !context.has_annotation(node_id)
+            && !parenthesized_has_leading_inner_newline(context, node_id, inner_expression_id)
             && !context.node_has_newline(inner_expression_id)
             && !tree_expression_has_parenthesized_ternary_branch(context.tree, inner_expression_id)
             && matches!(

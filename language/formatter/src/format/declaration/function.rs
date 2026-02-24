@@ -370,16 +370,17 @@ pub(crate) fn format_function_declaration<'ast>(
     if let Some(body) = body {
         if signature.kind == FunctionKind::Lambda {
             let body_expression = f.context().tree.get(*body);
+            let body_transparent_expression_id =
+                crate::format::expression::transparent_inner_expression(f.context(), *body);
+            let body_transparent_expression = f.context().tree.get(body_transparent_expression_id);
             let body_is_block = matches!(body_expression, Expression::Block(_));
             let body_is_tree = matches!(body_expression, Expression::TreeExpression { .. });
-            let body_is_parenthesized_tree = matches!(
-                body_expression,
-                Expression::Parenthesized { expression: inner_id }
-                    if matches!(
-                        f.context().tree.get(*inner_id),
+            let body_is_parenthesized_tree =
+                matches!(body_expression, Expression::Parenthesized { .. })
+                    && matches!(
+                        body_transparent_expression,
                         Expression::TreeExpression { .. }
-                    )
-            );
+                    );
             let force_break =
                 crate::format::expression::lambda_expression_should_break(f.context(), node_id);
 
@@ -395,7 +396,7 @@ pub(crate) fn format_function_declaration<'ast>(
                     write!(f, [space(), body])?;
                 }
             } else if body_is_tree {
-                // tree bodies need conditional parentheses when they break
+                // keep lambda tree bodies with one conditional wrapper pair
                 let body_group_id = f.group_id("lambda_body");
                 let parenthesized_body =
                     format_with(|f| write!(f, [token("("), soft_block_indent(&body), token(")")]));
@@ -420,61 +421,60 @@ pub(crate) fn format_function_declaration<'ast>(
                     .with_id(Some(body_group_id))
                     .should_expand(force_break)]
                 )?;
+            } else if body_is_parenthesized_tree {
+                // keep `=> (` attached for already-grouped tree bodies
+                let body_break = format_with(|f| write!(f, [body]));
+                write!(
+                    f,
+                    [group(&format_args![
+                        format_with(|f| write_lambda_arrow_with_infix_annotations(f, node_id)),
+                        space(),
+                        body_break
+                    ])
+                    .should_expand(force_break)]
+                )?;
             } else {
                 // default expression body formatting
                 let body_break = format_with(|f| write!(f, [body]));
                 let inline_body_expression_id =
                     crate::format::expression::transparent_inner_expression(f.context(), *body);
+                let body_is_lambda_with_block_prefix = matches!(
+                    f.context().tree.get(inline_body_expression_id),
+                    Expression::Declaration(declaration_id)
+                        if matches!(
+                            f.context().tree.get(*declaration_id),
+                            Declaration::Function { signature, .. }
+                                if signature.kind == FunctionKind::Lambda
+                        )
+                )
+                    && expression_has_block_style_prefix_comment(
+                        f.context(),
+                        inline_body_expression_id,
+                    );
 
-                if body_is_parenthesized_tree {
+                if body_is_lambda_with_block_prefix {
                     write!(
                         f,
                         [group(&format_args![
-                            format_with(|f| write_lambda_arrow_with_infix_annotations(f, node_id)),
-                            space(),
+                            format_with(|f| {
+                                write_lambda_arrow_with_infix_annotations(f, node_id)
+                            }),
+                            soft_line_break_or_space(),
                             body_break
                         ])
                         .should_expand(force_break)]
                     )?;
-                } else {
-                    let body_is_lambda_with_block_prefix = matches!(
-                        f.context().tree.get(inline_body_expression_id),
-                        Expression::Declaration(declaration_id)
-                            if matches!(
-                                f.context().tree.get(*declaration_id),
-                                Declaration::Function { signature, .. }
-                                    if signature.kind == FunctionKind::Lambda
-                            )
-                    )
-                        && expression_has_block_style_prefix_comment(
-                            f.context(),
-                            inline_body_expression_id,
-                        );
-
-                    if body_is_lambda_with_block_prefix {
-                        write!(
-                            f,
-                            [group(&format_args![
-                                format_with(|f| {
-                                    write_lambda_arrow_with_infix_annotations(f, node_id)
-                                }),
-                                soft_line_break_or_space(),
-                                body_break
-                            ])
-                            .should_expand(force_break)]
-                        )?;
-                        return Ok(());
-                    }
-
-                    write!(
-                        f,
-                        [group(&format_args![
-                            format_with(|f| write_lambda_arrow_with_infix_annotations(f, node_id)),
-                            indent(&format_args![soft_line_break_or_space(), body_break])
-                        ])
-                        .should_expand(force_break)]
-                    )?;
+                    return Ok(());
                 }
+
+                write!(
+                    f,
+                    [group(&format_args![
+                        format_with(|f| write_lambda_arrow_with_infix_annotations(f, node_id)),
+                        indent(&format_args![soft_line_break_or_space(), body_break])
+                    ])
+                    .should_expand(force_break)]
+                )?;
             }
         } else if signature_return_type_has_line_postfix_boundary_annotation(
             f.context(),

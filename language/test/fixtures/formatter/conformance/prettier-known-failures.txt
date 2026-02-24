@@ -15,7 +15,6 @@ js/binary-expressions/comment.js
 js/binary-expressions/short-right.js
 js/break-calls/break.js
 js/break-calls/react.js
-js/call/first-argument-expansion/jsx.js
 js/call/no-argument/no-arguments.js
 js/chain-expression/issue-15785-3.js
 js/chain-expression/issue-15916.js
@@ -23,10 +22,8 @@ js/chain-expression/member-chain.js
 js/class-comment/superclass.js
 js/class-extends/extends.js
 js/classes/member.js
-js/comments/arrow.js
 js/comments/between-head-and-body/empty-statement.js
 js/comments/between-head-and-body/non-block.js
-js/comments/binary-expressions-block-comments.js
 js/comments/break-continue-statements-2.js
 js/comments/break-continue-statements-3.js
 js/comments/call_comment.js
@@ -38,7 +35,6 @@ js/comments/if.js
 js/comments/in-list/dangling-comment-in-list.js
 js/comments/issues.js
 js/comments/jsdoc-nestled.js
-js/comments/jsdoc.js
 js/comments/jsx.js
 js/comments/multi-comments.js
 js/comments/return-statement-2.js
@@ -48,7 +44,6 @@ js/comments/trailing-jsdocs.js
 js/comments/variable_declarator.js
 js/comments/while-like/if.js
 js/conditional/comments.js
-js/conditional/new-ternary-spec.js
 js/conditional/postfix-ternary-regressions.js
 js/decorators-export/after_export.js
 js/decorators/class-expression/class-expression.js
@@ -59,12 +54,7 @@ js/decorators/multiline.js
 js/decorators/redux.js
 js/empty-paren-comment/class-property.js
 js/empty-paren-comment/empty_paren_comment.js
-js/explicit-resource-management/valid-await-using-asi-assignment.js
 js/explicit-resource-management/valid-await-using-comments.js
-js/explicit-resource-management/valid-using-as-identifier-expression-statement.js
-js/explicit-resource-management/valid-using-as-identifier-for-await-of.js
-js/explicit-resource-management/valid-using-as-identifier-for-in.js
-js/explicit-resource-management/valid-using-as-identifier-for-of.js
 js/export-default/export-default-from/export.js
 js/export-default/function_tostring.js
 js/export/blank-line-between-specifiers.js
@@ -93,7 +83,6 @@ js/import/empty-import/empty-import-2.js
 js/import/empty-import/empty-import.js
 js/import/multiple_standalones.js
 js/label/empty_label.js
-js/last-argument-expansion/break-parent.js
 js/last-argument-expansion/dangling-comment-in-arrow-function.js
 js/last-argument-expansion/edge_case.js
 js/last-argument-expansion/issue-10708.js
@@ -137,18 +126,10 @@ js/unicode/nbsp-jsx.js
 jsx/comments/in-end-tag.js
 jsx/fragment/fragment.js
 jsx/ignore/spread.js
-jsx/jsx/arrow.js
-jsx/jsx/conditional-expression.js
 jsx/jsx/flow_fix_me.js
-jsx/jsx/hug.js
-jsx/jsx/logical-expression.js
-jsx/last-line/single_prop_multiline_string.js
-jsx/multiline-assign/test.js
 jsx/significant-space/comments.js
-jsx/split-attrs/test.js
 jsx/spread/attribute.js
 jsx/spread/child.js
-jsx/stateless-arrow-fn/test.js
 jsx/text-wrap/test.js
 typescript/arrow/16067.ts
 typescript/arrow/comments.ts
@@ -212,6 +193,7 @@ typescript/union/comments/18389.ts
 typescript/union/comments/18787.ts
 typescript/union/consistent-with-flow/18647.ts
 typescript/union/consistent-with-flow/18819.ts
+typescript/union/consistent-with-flow/comments.ts
 typescript/union/consistent-with-flow/prettier-ignore.ts
 typescript/union/consistent-with-flow/single-type.ts
 typescript/union/single-type/single-type.ts

@@ -22,6 +22,7 @@ use crate::format::comments::ownership::{
     promote_owner_by_shared_start, promote_owner_to_declaration_ancestor,
     promote_owner_to_node_type_ancestor, promote_owner_to_parenthesized_expression_ancestor,
 };
+use crate::format::comments::statement::try_attach_comment_semicolon_guard_own_line;
 
 /// Return the first dynamic argument owner for one call-like expression.
 fn first_dynamic_argument_owner_for_call_like(tree: &NodeTree, owner_id: u32) -> Option<u32> {
@@ -142,7 +143,6 @@ pub(crate) fn try_attach_comment_expression(
     let comment_is_star = seam.comment_is_star;
     let is_inline_star_comment = !has_leading_newline && !has_trailing_newline && comment_is_star;
     let is_trailing_line_comment = !has_leading_newline && has_trailing_newline && comment_is_line;
-    let is_own_line_line_comment = has_leading_newline && comment_is_line;
 
     let token_after_is_open_brace = seam.token_after_is(TokenType::OpenBrace);
     let token_after_is_open_parenthesis = seam.token_after_is(TokenType::OpenParenthesis);
@@ -201,6 +201,13 @@ pub(crate) fn try_attach_comment_expression(
     // decorator seams belong to declaration-specific routing.
     if token_after_is_at {
         return None;
+    }
+
+    // own-line semicolon guard comments should resolve consistently across seam shapes
+    if let Some(attachment) =
+        try_attach_comment_semicolon_guard_own_line(tree, parents, context, seam, owners)
+    {
+        return Some(attachment);
     }
 
     // line comments after label colons stay with the labelled statement owner
@@ -273,19 +280,6 @@ pub(crate) fn try_attach_comment_expression(
             AnnotationPosition::LinePrefix
         };
         return Some((Some(target_node), position));
-    }
-
-    // own-line comments between semicolon statements and array expressions stay on the rhs
-    if is_own_line_line_comment
-        && token_before_is_semicolon
-        && token_after_is_open_bracket
-        && let Some(target_node) = token_after_owner.or(right_owner)
-    {
-        let target_node = token_after_span.map_or(target_node, |token| {
-            promote_owner_by_shared_start(tree, parents, target_node, token.span.start)
-        });
-        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
     }
 
     // own-line comments after `(` should bind to the full expression that starts at the rhs token

@@ -645,14 +645,13 @@ pub(crate) fn should_force_break_tree_attributes(
             return true;
         }
 
-        // preserve explicit multiline attribute values
-        let value_span = context.span(value_id);
-        if context.has_newline(value_span) {
-            return true;
-        }
-
         // collect value signals for complexity checks
         let value_expr = tree.get(value_id);
+
+        // callback-rich expression values should break the opening tag
+        if expression_has_complex_callback(context, value_id) {
+            return true;
+        }
 
         // complex object and array values should break the element
         match value_expr {

@@ -1320,6 +1320,18 @@ pub(crate) fn write_first_annotation_spacing<'ast>(
 
     match position {
         AnnotationPosition::BlockInfix => {
+            if capture == AnnotationCapture::DeclarationArrowInfix {
+                if flow.is_inline_block_star_comment {
+                    if !flow.starts_on_own_line {
+                        write!(f, [space()])?;
+                    }
+                } else {
+                    write!(f, [hard_line_break()])?;
+                }
+
+                return Ok(());
+            }
+
             if flow.is_inline_block_star_comment {
                 if !flow.inline_block_comment_follows_opening_delimiter
                     && !flow.starts_on_own_line
@@ -1416,11 +1428,29 @@ pub(crate) fn write_annotation_trailing_spacing<'ast>(
             }
         }
         AnnotationPosition::LinePostfix => {
-            if !(flow.is_star_comment && flow.precedes_separator) {
+            let is_operator_separator = matches!(
+                flow.next_character,
+                Some('|' | '&' | '+' | '-' | '*' | '/' | '%' | '<' | '>' | '=')
+            );
+            let defer_spacing_to_operator =
+                flow.is_star_comment && !flow.starts_on_own_line && is_operator_separator;
+            let should_suppress_space =
+                flow.is_star_comment && flow.precedes_separator && !is_operator_separator;
+            if !should_suppress_space && !defer_spacing_to_operator {
                 write!(f, [space()])?;
             }
         }
         AnnotationPosition::BlockInfix => {
+            if capture == AnnotationCapture::DeclarationArrowInfix {
+                if flow.is_inline_block_star_comment {
+                    write!(f, [space()])?;
+                } else {
+                    write!(f, [hard_line_break()])?;
+                }
+
+                return Ok(());
+            }
+
             let keep_space_before_adjacent_block_comment =
                 should_keep_space_before_adjacent_block_comment(flow);
             let is_new_head_or_method_parameter_parenthesis_seam = matches!(
@@ -1428,6 +1458,10 @@ pub(crate) fn write_annotation_trailing_spacing<'ast>(
                 AnnotationCapture::DeclarationNewHead | AnnotationCapture::MethodParameterHeadInfix
             ) && flow.next_character
                 == Some('(');
+            let defer_spacing_to_operator = matches!(
+                flow.next_character,
+                Some('|' | '&' | '+' | '-' | '*' | '/' | '%' | '<' | '>' | '=')
+            );
 
             if flow.is_inline_block_star_comment {
                 let allows_tight_separator =
@@ -1436,7 +1470,9 @@ pub(crate) fn write_annotation_trailing_spacing<'ast>(
                 let should_write_space = !flow.precedes_separator
                     || !allows_tight_separator
                     || keep_space_before_adjacent_block_comment;
-                if should_write_space {
+                if should_write_space
+                    && (!defer_spacing_to_operator || keep_space_before_adjacent_block_comment)
+                {
                     write!(f, [space()])?;
                 }
             } else {
@@ -1446,13 +1482,19 @@ pub(crate) fn write_annotation_trailing_spacing<'ast>(
         AnnotationPosition::BlockPostfix => {
             let keep_space_before_adjacent_block_comment =
                 should_keep_space_before_adjacent_block_comment(flow);
+            let defer_spacing_to_operator = matches!(
+                flow.next_character,
+                Some('|' | '&' | '+' | '-' | '*' | '/' | '%' | '<' | '>' | '=')
+            );
             if flow.is_inline_delimited_block_postfix_star_comment {
                 let allows_tight_separator =
                     self::inline_block_comment_allows_tight_separator(flow.next_character);
                 let should_write_space = !flow.precedes_separator
                     || !allows_tight_separator
                     || keep_space_before_adjacent_block_comment;
-                if should_write_space {
+                if should_write_space
+                    && (!defer_spacing_to_operator || keep_space_before_adjacent_block_comment)
+                {
                     write!(f, [space()])?;
                 }
             } else {
