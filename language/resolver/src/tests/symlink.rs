@@ -116,6 +116,11 @@ fn cleanup_symlinks(temp_path: &Path) {
     _ = fs::remove_dir_all(temp_path);
 }
 
+fn remove_directory_symlink(path: &Path) {
+    _ = fs::remove_dir(path);
+    _ = fs::remove_file(path);
+}
+
 struct SymlinkFixturePaths {
     root: PathBuf,
     temp_path: PathBuf,
@@ -231,4 +236,147 @@ fn test_symlinks_circular() {
 
     _ = fs::remove_file(&link1_path);
     _ = fs::remove_file(&link2_path);
+}
+
+/// Resolve self-reference exports inside a symlinked package directory.
+#[test]
+#[cfg_attr(target_family = "wasm", ignore)]
+fn test_symlinks_self_reference_exports_resolution() {
+    let Some(SymlinkFixturePaths { root: _, temp_path }) =
+        prepare_symlinks("temp.test_symlink_self_reference_exports").unwrap()
+    else {
+        return;
+    };
+
+    let package_real_path = temp_path.join("selfpkg-real");
+    let package_link_path = temp_path.join("selfpkg-link");
+    let package_real_src_path = package_real_path.join("src");
+    let package_link_src_path = package_link_path.join("src");
+    let package_json_path = package_real_path.join("package.json");
+    let package_index_path = package_real_src_path.join("index.js");
+    let package_feature_path = package_real_src_path.join("feature.js");
+
+    _ = fs::remove_dir_all(&package_real_path);
+    remove_directory_symlink(&package_link_path);
+    if fs::create_dir_all(&package_real_src_path).is_err() {
+        return;
+    }
+    if fs::write(
+        package_json_path,
+        r#"{"name":"selfpkg","exports":{".":"./src/index.js","./feature":"./src/feature.js"}}"#,
+    )
+    .is_err()
+    {
+        _ = fs::remove_dir_all(&package_real_path);
+        return;
+    }
+    if fs::write(&package_index_path, "export {};").is_err()
+        || fs::write(&package_feature_path, "export {};").is_err()
+    {
+        _ = fs::remove_dir_all(&package_real_path);
+        return;
+    }
+    if symlink(&package_real_path, &package_link_path, FileType::Directory).is_err() {
+        _ = fs::remove_dir_all(&package_real_path);
+        return;
+    }
+
+    let resolver_without_symlinks = Resolver::physical(ResolveOptions {
+        canonicalize_symlinks: false,
+        ..ResolveOptions::default()
+    });
+    let resolver_with_symlinks = Resolver::physical(ResolveOptions::default());
+
+    let link_root_resolution = resolver_without_symlinks
+        .resolve(&package_link_src_path, "selfpkg")
+        .map(|r| r.full_path());
+    assert_eq!(
+        link_root_resolution,
+        Ok(package_link_src_path.join("index.js"))
+    );
+    let link_feature_resolution = resolver_without_symlinks
+        .resolve(&package_link_src_path, "selfpkg/feature")
+        .map(|r| r.full_path());
+    assert_eq!(
+        link_feature_resolution,
+        Ok(package_link_src_path.join("feature.js"))
+    );
+
+    let real_root_resolution = resolver_with_symlinks
+        .resolve(&package_link_src_path, "selfpkg")
+        .map(|r| r.full_path());
+    assert_eq!(
+        real_root_resolution,
+        Ok(package_real_src_path.join("index.js"))
+    );
+    let real_feature_resolution = resolver_with_symlinks
+        .resolve(&package_link_src_path, "selfpkg/feature")
+        .map(|r| r.full_path());
+    assert_eq!(
+        real_feature_resolution,
+        Ok(package_real_src_path.join("feature.js"))
+    );
+
+    remove_directory_symlink(&package_link_path);
+    _ = fs::remove_dir_all(&package_real_path);
+}
+
+/// Resolve imports mappings from a symlinked package root.
+#[test]
+#[cfg_attr(target_family = "wasm", ignore)]
+fn test_symlinks_package_imports_resolution() {
+    let Some(SymlinkFixturePaths { root: _, temp_path }) =
+        prepare_symlinks("temp.test_symlink_package_imports").unwrap()
+    else {
+        return;
+    };
+
+    let package_real_path = temp_path.join("imports-real");
+    let package_link_path = temp_path.join("imports-link");
+    let package_real_src_path = package_real_path.join("src");
+    let package_link_src_path = package_link_path.join("src");
+    let package_json_path = package_real_path.join("package.json");
+    let package_self_path = package_real_src_path.join("self.js");
+
+    _ = fs::remove_dir_all(&package_real_path);
+    remove_directory_symlink(&package_link_path);
+    if fs::create_dir_all(&package_real_src_path).is_err() {
+        return;
+    }
+    if fs::write(
+        package_json_path,
+        r##"{"name":"imports-pkg","imports":{"#self":"./src/self.js"}}"##,
+    )
+    .is_err()
+    {
+        _ = fs::remove_dir_all(&package_real_path);
+        return;
+    }
+    if fs::write(&package_self_path, "export {};").is_err() {
+        _ = fs::remove_dir_all(&package_real_path);
+        return;
+    }
+    if symlink(&package_real_path, &package_link_path, FileType::Directory).is_err() {
+        _ = fs::remove_dir_all(&package_real_path);
+        return;
+    }
+
+    let resolver_without_symlinks = Resolver::physical(ResolveOptions {
+        canonicalize_symlinks: false,
+        ..ResolveOptions::default()
+    });
+    let resolver_with_symlinks = Resolver::physical(ResolveOptions::default());
+
+    let link_resolution = resolver_without_symlinks
+        .resolve(&package_link_src_path, "#self")
+        .map(|r| r.full_path());
+    assert_eq!(link_resolution, Ok(package_link_src_path.join("self.js")));
+
+    let real_resolution = resolver_with_symlinks
+        .resolve(&package_link_src_path, "#self")
+        .map(|r| r.full_path());
+    assert_eq!(real_resolution, Ok(package_real_src_path.join("self.js")));
+
+    remove_directory_symlink(&package_link_path);
+    _ = fs::remove_dir_all(&package_real_path);
 }

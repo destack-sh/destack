@@ -46,7 +46,8 @@ impl Resolver {
         ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
         tracing::trace!(?path, ?specifier, "resolver.require");
-        ctx.check_depth()?;
+        let mut depth_guard = ctx.depth_guard()?;
+        let ctx = depth_guard.context();
 
         // parse query and fragment identifiers
         let parsed = ModuleSpecifier::parse(specifier);

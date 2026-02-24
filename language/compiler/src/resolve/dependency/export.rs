@@ -12,7 +12,7 @@ use crate::{Compiler, ResolveResult};
 
 /// A static CommonJS assignment value that can back an export target.
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum CommonjsExportValue {
+pub(crate) enum CommonjsExportValue {
     /// A value expression from an assignment.
     Expression(LocalNodeId<Expression>),
     /// A local symbol from object literal shorthand or methods.
@@ -34,13 +34,13 @@ enum CommonjsAssignmentTarget {
 
 /// Accumulated CommonJS static export state for one module.
 #[derive(Debug, Clone, PartialEq)]
-struct CommonjsExportState {
+pub(crate) struct CommonjsExportState {
     /// The latest assigned `module.exports` value expression.
-    default_value: Option<LocalNodeId<Expression>>,
+    pub(crate) default_value: Option<LocalNodeId<Expression>>,
     /// The currently visible named exports on `module.exports`.
-    named_values: IndexMap<StringId, CommonjsExportValue>,
+    pub(crate) named_values: IndexMap<StringId, CommonjsExportValue>,
     /// Whether `exports` still aliases the current `module.exports` object.
-    is_exports_alias_linked: bool,
+    pub(crate) is_exports_alias_linked: bool,
 }
 
 /// One assignment effect collected from a top-level assignment chain.
@@ -220,7 +220,7 @@ impl Compiler {
     }
 
     /// Collect static CommonJS assignment state from top-level roots.
-    fn collect_commonjs_export_state(
+    pub(crate) fn collect_commonjs_export_state(
         &self,
         module_id: ModuleId,
         namespace_scope: LocalScopeId,
@@ -1187,315 +1187,5 @@ impl Compiler {
         }
 
         fallback_symbol
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::TestProgram;
-
-    use super::{CommonjsExportState, CommonjsExportValue};
-
-    /// Collect the static CommonJS export state for one module.
-    fn collect_commonjs_state(
-        test: &TestProgram,
-        module_id: destack_source::ModuleId,
-    ) -> CommonjsExportState {
-        let module = test.program.modules.get(module_id);
-        let module = module.read();
-        let profile = test.default_profile_id(module_id);
-        let dir = module.dir(profile);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-
-        test.compiler.collect_commonjs_export_state(
-            module_id,
-            dir.namespace_scope,
-            dir.namespace_symbol.into_global(module_id),
-            &dir.roots,
-            &tree,
-            &symbols,
-        )
-    }
-
-    /// Assert a named CommonJS export points to one unresolved or resolved path name.
-    fn assert_named_export_targets_name(
-        test: &TestProgram,
-        module_id: destack_source::ModuleId,
-        state: &CommonjsExportState,
-        export_name: &str,
-        expected_target_name: &str,
-    ) {
-        let export_name_id = test.program.strings.intern(export_name);
-        let expected_name_id = test.program.strings.intern(expected_target_name);
-        let Some(value) = state.named_values.get(&export_name_id) else {
-            panic!("expected named export '{export_name}'");
-        };
-
-        match value {
-            CommonjsExportValue::Expression(expression_id) => {
-                let module = test.program.modules.get(module_id);
-                let module = module.read();
-                let profile = test.default_profile_id(module_id);
-                let tree = module.dir(profile).tree.read();
-                let expression = tree.get(*expression_id);
-
-                let path = match expression {
-                    destack_dir::Expression::UnresolvedPath { path, .. }
-                    | destack_dir::Expression::ModuleReference { path, .. }
-                    | destack_dir::Expression::GlobalReference { path, .. } => path,
-                    _ => panic!("expected path expression target, found {expression:?}"),
-                };
-                assert_eq!(path.segments.len(), 1);
-                assert_eq!(path.segments[0], expected_name_id);
-            }
-            CommonjsExportValue::Symbol(symbol_id) => {
-                let module = test.program.modules.get(module_id);
-                let module = module.read();
-                let profile = test.default_profile_id(module_id);
-                let symbols = module.dir(profile).symbols.read();
-                let symbol = symbols.get_symbol(*symbol_id);
-                let Some(symbol_name) = symbol.name() else {
-                    panic!("expected symbol name for shorthand export");
-                };
-                assert_eq!(symbol_name, expected_name_id);
-            }
-        }
-    }
-
-    /// Collect default and named state from direct and property CommonJS writes.
-    #[test]
-    fn test_collect_commonjs_state_for_default_and_named_writes() {
-        let test = TestProgram::memory_sequential_with_prelude();
-        let module_id = test.add_module(
-            "main.js",
-            r#"
-function selected() {
-    return 1;
-}
-
-function helper() {
-    return 2;
-}
-
-module.exports = selected;
-module.exports.helper = helper;
-"#,
-        );
-
-        // enqueue resolve for module
-        test.resolve_module(module_id);
-
-        // run queued tasks
-        test.compile();
-
-        // collect static CommonJS export state
-        let state = collect_commonjs_state(&test, module_id);
-
-        // assert final default and named state
-        assert!(state.default_value.is_some());
-        assert_named_export_targets_name(&test, module_id, &state, "helper", "helper");
-    }
-
-    /// Capture default value from chained assignments targeting module exports.
-    #[test]
-    fn test_collect_commonjs_state_for_chained_module_exports_assignment() {
-        let test = TestProgram::memory_sequential_with_prelude();
-        let module_id = test.add_module(
-            "main.js",
-            r#"
-const holder = {};
-
-function buildValue() {
-    return 1;
-}
-
-holder.value = module.exports = buildValue;
-"#,
-        );
-
-        // enqueue resolve for module
-        test.resolve_module(module_id);
-
-        // run queued tasks
-        test.compile();
-
-        // collect static CommonJS export state
-        let state = collect_commonjs_state(&test, module_id);
-
-        // assert chained assignment sets the default value
-        assert!(state.default_value.is_some());
-    }
-
-    /// Replace named export state when module exports is replaced with an object literal.
-    #[test]
-    fn test_collect_commonjs_state_replaces_named_values_on_module_exports_assignment() {
-        let test = TestProgram::memory_sequential_with_prelude();
-        let module_id = test.add_module(
-            "main.js",
-            r#"
-function first() {
-    return 1;
-}
-
-function second() {
-    return 2;
-}
-
-exports.first = first;
-module.exports = { second };
-"#,
-        );
-
-        // enqueue resolve for module
-        test.resolve_module(module_id);
-
-        // run queued tasks
-        test.compile();
-
-        // collect static CommonJS export state
-        let state = collect_commonjs_state(&test, module_id);
-
-        // assert replacement semantics
-        let first_id = test.program.strings.intern("first");
-        let second_id = test.program.strings.intern("second");
-        assert!(!state.named_values.contains_key(&first_id));
-        assert!(state.named_values.contains_key(&second_id));
-        assert_named_export_targets_name(&test, module_id, &state, "second", "second");
-    }
-
-    /// Drop exports alias writes after module exports replacement.
-    #[test]
-    fn test_collect_commonjs_state_drops_exports_writes_after_replacement() {
-        let test = TestProgram::memory_sequential_with_prelude();
-        let module_id = test.add_module(
-            "main.js",
-            r#"
-function selected() {
-    return 1;
-}
-
-function leaked() {
-    return 2;
-}
-
-module.exports = selected;
-exports.leaked = leaked;
-"#,
-        );
-
-        // enqueue resolve for module
-        test.resolve_module(module_id);
-
-        // run queued tasks
-        test.compile();
-
-        // collect static CommonJS export state
-        let state = collect_commonjs_state(&test, module_id);
-
-        // assert alias semantics
-        let leaked_id = test.program.strings.intern("leaked");
-        assert!(!state.named_values.contains_key(&leaked_id));
-    }
-
-    /// Keep exports property writes when relinked through explicit module exports assignment.
-    #[test]
-    fn test_collect_commonjs_state_relinks_exports_alias() {
-        let test = TestProgram::memory_sequential_with_prelude();
-        let module_id = test.add_module(
-            "main.js",
-            r#"
-function selected() {
-    return 1;
-}
-
-function helper() {
-    return 2;
-}
-
-module.exports = selected;
-exports = module.exports;
-exports.helper = helper;
-"#,
-        );
-
-        // enqueue resolve for module
-        test.resolve_module(module_id);
-
-        // run queued tasks
-        test.compile();
-
-        // collect static CommonJS export state
-        let state = collect_commonjs_state(&test, module_id);
-
-        // assert relinked alias behavior
-        let helper_id = test.program.strings.intern("helper");
-        assert!(state.named_values.contains_key(&helper_id));
-        assert_named_export_targets_name(&test, module_id, &state, "helper", "helper");
-    }
-
-    /// Ignore exports writes after assigning exports to a plain value expression.
-    #[test]
-    fn test_collect_commonjs_state_does_not_relink_exports_alias_for_value_expression() {
-        let test = TestProgram::memory_sequential_with_prelude();
-        let module_id = test.add_module(
-            "main.js",
-            r#"
-function selected() {
-    return 1;
-}
-
-function helper() {
-    return 2;
-}
-
-module.exports = selected;
-exports = selected;
-exports.helper = helper;
-"#,
-        );
-
-        // enqueue resolve for module
-        test.resolve_module(module_id);
-
-        // run queued tasks
-        test.compile();
-
-        // collect static CommonJS export state
-        let state = collect_commonjs_state(&test, module_id);
-
-        // assert non-relinked alias behavior
-        let helper_id = test.program.strings.intern("helper");
-        assert!(!state.named_values.contains_key(&helper_id));
-    }
-
-    /// Collect named exports from static numeric bracket keys.
-    #[test]
-    fn test_collect_commonjs_state_collects_numeric_bracket_property_name() {
-        let test = TestProgram::memory_sequential_with_prelude();
-        let module_id = test.add_module(
-            "main.js",
-            r#"
-function selected() {
-    return 1;
-}
-
-module.exports[1] = selected;
-"#,
-        );
-
-        // enqueue resolve for module
-        test.resolve_module(module_id);
-
-        // run queued tasks
-        test.compile();
-
-        // collect static CommonJS export state
-        let state = collect_commonjs_state(&test, module_id);
-
-        // assert numeric property key was normalized
-        let key_id = test.program.strings.intern("1");
-        assert!(state.named_values.contains_key(&key_id));
-        assert_named_export_targets_name(&test, module_id, &state, "1", "selected");
     }
 }

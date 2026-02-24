@@ -274,6 +274,10 @@ fn test_resolve_dot_spelled_out() {
 #[test]
 fn test_resolve_abnormal_relative() {
     let f = fixture_root().join("abnormal-relative-with-node_modules");
+    assert!(
+        f.join("node_modules").is_dir(),
+        "abnormal-relative-with-node_modules must contain node_modules fixture directory"
+    );
 
     let base = f.join("foo/bar/baz");
 
@@ -320,6 +324,10 @@ fn test_resolve_abnormal_relative() {
     }
 
     let f = fixture_root().join("abnormal-relative-without-node_modules");
+    assert!(
+        !f.join("node_modules").exists(),
+        "abnormal-relative-without-node_modules must not contain node_modules fixture directory"
+    );
 
     let base = f.join("foo/bar/baz");
 
@@ -945,6 +953,38 @@ fn test_resolve_self_package_name_without_exports_is_not_resolved_in_node_strict
     );
 }
 
+/// Resolve self package root and subpath imports when exports explicitly allow them.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_self_package_name_and_subpath_with_exports() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        (
+            "/repo/package.json",
+            r#"{"name":"pkg","exports":{".":"./src/main.js","./feature":"./src/feature.js"}}"#,
+        ),
+        ("/repo/src/main.js", ""),
+        ("/repo/src/feature.js", ""),
+        ("/repo/src/importer.js", ""),
+    ]));
+    let resolver = Resolver::blank(fs, ResolveOptions::default());
+
+    let root_resolution = resolver.resolve("/repo/src", "pkg").map(|r| r.full_path());
+    assert_eq!(
+        root_resolution,
+        Ok(std::path::PathBuf::from("/repo/src/main.js")),
+    );
+
+    let subpath_resolution = resolver
+        .resolve("/repo/src", "pkg/feature")
+        .map(|r| r.full_path());
+    assert_eq!(
+        subpath_resolution,
+        Ok(std::path::PathBuf::from("/repo/src/feature.js")),
+    );
+}
+
 /// Keep Node strict mode for package-name self subpath imports without exports.
 #[test]
 #[cfg(not(target_os = "windows"))]
@@ -964,6 +1004,51 @@ fn test_resolve_self_package_subpath_without_exports_is_not_resolved_in_node_str
         Err(ResolveError::NotFound {
             specifier: "pkg/lib/util.js".into()
         })
+    );
+}
+
+/// Keep percent-encoded traversal segments from escaping the importer directory.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_does_not_decode_percent_encoded_relative_traversal() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        ("/repo/secret.js", ""),
+        ("/repo/src/importer.js", ""),
+        ("/repo/src/%2e%2e/secret.js", ""),
+    ]));
+    let resolver = Resolver::blank(fs, ResolveOptions::default());
+
+    let resolution = resolver.resolve("/repo/src", "./%2e%2e/secret.js");
+    assert_eq!(
+        resolution.map(Resolution::into_path_buf),
+        Ok(std::path::PathBuf::from("/repo/src/%2e%2e/secret.js")),
+    );
+}
+
+/// Keep percent-encoded slashes from spoofing scoped package names.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_does_not_decode_percent_encoded_package_slash() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        (
+            "/repo/node_modules/@scope/pkg/package.json",
+            r#"{"name":"@scope/pkg","main":"./index.js"}"#,
+        ),
+        ("/repo/node_modules/@scope/pkg/index.js", ""),
+        ("/repo/src/importer.js", ""),
+    ]));
+    let resolver = Resolver::blank(fs, ResolveOptions::default());
+
+    let resolution = resolver.resolve("/repo/src", "@scope%2fpkg");
+    assert_eq!(
+        resolution,
+        Err(ResolveError::NotFound {
+            specifier: "@scope%2fpkg".into()
+        }),
     );
 }
 
@@ -1105,6 +1190,236 @@ fn test_resolve_types_condition_falls_back_to_runtime_package_without_types_pack
         Ok(std::path::PathBuf::from(
             "/repo/node_modules/react/index.js",
         )),
+    );
+}
+
+/// Prefer exports condition matches based on object key order, not option condition order.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_exports_conditions_follow_object_key_order() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        ("/repo/src/index.ts", ""),
+        (
+            "/repo/node_modules/pkg/package.json",
+            r#"{"name":"pkg","exports":{".":{"require":"./require.js","types":"./index.d.ts","import":"./import.js","default":"./default.js"}}}"#,
+        ),
+        ("/repo/node_modules/pkg/require.js", ""),
+        ("/repo/node_modules/pkg/import.js", ""),
+        ("/repo/node_modules/pkg/index.d.ts", ""),
+        ("/repo/node_modules/pkg/default.js", ""),
+    ]));
+
+    let resolver = Resolver::blank(
+        fs.clone(),
+        ResolveOptions {
+            conditions: vec!["types".into(), "import".into(), "require".into()],
+            ..ResolveOptions::default()
+        },
+    );
+    let resolution = resolver.resolve("/repo/src", "pkg").map(|r| r.full_path());
+    assert_eq!(
+        resolution,
+        Ok(std::path::PathBuf::from(
+            "/repo/node_modules/pkg/require.js"
+        )),
+    );
+
+    let resolver = Resolver::blank(
+        fs,
+        ResolveOptions {
+            conditions: vec!["types".into(), "import".into()],
+            ..ResolveOptions::default()
+        },
+    );
+    let resolution = resolver.resolve("/repo/src", "pkg").map(|r| r.full_path());
+    assert_eq!(
+        resolution,
+        Ok(std::path::PathBuf::from(
+            "/repo/node_modules/pkg/index.d.ts"
+        )),
+    );
+}
+
+/// Resolve extension alias targets with fully specified requests while preserving query and fragment.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_fully_specified_with_extension_alias_query_fragment() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        ("/repo/src/importer.ts", ""),
+        ("/repo/src/entry.ts", "export {};"),
+    ]));
+    let resolver = Resolver::blank(
+        fs,
+        ResolveOptions {
+            is_fully_specified: true,
+            extension_alias: IndexMap::from([(".js".into(), vec![".ts".into()])]),
+            ..ResolveOptions::default()
+        },
+    );
+
+    let resolution = resolver.resolve("/repo/src", "./entry.js?raw#module");
+    assert_eq!(
+        resolution,
+        Ok(Resolution {
+            path: std::path::PathBuf::from("/repo/src/entry.ts"),
+            query: Some("?raw".into()),
+            fragment: Some("#module".into()),
+        }),
+    );
+}
+
+/// Continue exports array fallback after invalid targets and resolve the first valid candidate.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_exports_array_fallback_continues_on_invalid_target() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        ("/repo/src/importer.js", ""),
+        (
+            "/repo/node_modules/pkg/package.json",
+            r#"{"name":"pkg","exports":{".":["../escape.js",null,"./good.js"]}}"#,
+        ),
+        ("/repo/node_modules/pkg/good.js", ""),
+    ]));
+    let resolver = Resolver::blank(fs, ResolveOptions::default());
+
+    let resolution = resolver.resolve("/repo/src", "pkg").map(|r| r.full_path());
+    assert_eq!(
+        resolution,
+        Ok(std::path::PathBuf::from("/repo/node_modules/pkg/good.js")),
+    );
+}
+
+/// Prefer query and fragment from exports targets over query and fragment from the request.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_exports_target_query_fragment_override_request_query_fragment() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        ("/repo/src/importer.js", ""),
+        (
+            "/repo/node_modules/pkg/package.json",
+            r#"{"name":"pkg","exports":{".":"./entry.js?from_exports#from_exports"}}"#,
+        ),
+        ("/repo/node_modules/pkg/entry.js", ""),
+    ]));
+    let resolver = Resolver::blank(fs, ResolveOptions::default());
+
+    let resolution = resolver.resolve("/repo/src", "pkg?from_request#from_request");
+    assert_eq!(
+        resolution,
+        Ok(Resolution {
+            path: std::path::PathBuf::from("/repo/node_modules/pkg/entry.js"),
+            query: Some("?from_exports".into()),
+            fragment: Some("#from_exports".into()),
+        }),
+    );
+}
+
+/// Resolve nested exports condition objects using object key order at each nesting level.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_exports_nested_conditions_follow_key_order() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        ("/repo/src/index.ts", ""),
+        (
+            "/repo/node_modules/pkg/package.json",
+            r#"{"name":"pkg","exports":{".":{"types":{"import":"./types-import.d.ts","default":"./types-default.d.ts"},"import":"./runtime-import.js","default":"./default.js"}}}"#,
+        ),
+        ("/repo/node_modules/pkg/types-import.d.ts", ""),
+        ("/repo/node_modules/pkg/types-default.d.ts", ""),
+        ("/repo/node_modules/pkg/runtime-import.js", ""),
+        ("/repo/node_modules/pkg/default.js", ""),
+    ]));
+    let resolver = Resolver::blank(
+        fs,
+        ResolveOptions {
+            conditions: vec!["import".into(), "types".into()],
+            ..ResolveOptions::default()
+        },
+    );
+
+    let resolution = resolver.resolve("/repo/src", "pkg").map(|r| r.full_path());
+    assert_eq!(
+        resolution,
+        Ok(std::path::PathBuf::from(
+            "/repo/node_modules/pkg/types-import.d.ts",
+        )),
+    );
+}
+
+/// Resolve self references against the nearest package scope only.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_self_reference_uses_nearest_package_scope() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        (
+            "/repo/package.json",
+            r#"{"name":"rootpkg","exports":{".":"./root.js"}}"#,
+        ),
+        ("/repo/root.js", ""),
+        (
+            "/repo/packages/inner/package.json",
+            r#"{"name":"inner","exports":{".":"./src/inner.js"}}"#,
+        ),
+        ("/repo/packages/inner/src/importer.js", ""),
+        ("/repo/packages/inner/src/inner.js", ""),
+    ]));
+    let resolver = Resolver::blank(fs, ResolveOptions::default());
+
+    let inner_resolution = resolver
+        .resolve("/repo/packages/inner/src", "inner")
+        .map(|r| r.full_path());
+    assert_eq!(
+        inner_resolution,
+        Ok(std::path::PathBuf::from(
+            "/repo/packages/inner/src/inner.js"
+        )),
+    );
+
+    let root_resolution = resolver.resolve("/repo/packages/inner/src", "rootpkg");
+    assert_eq!(
+        root_resolution,
+        Err(ResolveError::NotFound {
+            specifier: "rootpkg".into()
+        }),
+    );
+}
+
+/// Allow extension alias remapping even when fully specified and extension enforcement are enabled.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_resolve_fully_specified_with_enforce_extension_and_extension_alias() {
+    use std::sync::Arc;
+
+    let fs = Arc::new(MemoryFileSystem::from_files(&[
+        ("/repo/src/importer.ts", ""),
+        ("/repo/src/entry.ts", "export {};"),
+    ]));
+    let resolver = Resolver::blank(
+        fs,
+        ResolveOptions {
+            is_fully_specified: true,
+            enforce_extension: crate::EnforceExtension::Enabled,
+            extension_alias: IndexMap::from([(".js".into(), vec![".ts".into()])]),
+            ..ResolveOptions::default()
+        },
+    );
+
+    let resolution = resolver.resolve("/repo/src", "./entry.js");
+    assert_eq!(
+        resolution.map(Resolution::into_path_buf),
+        Ok(std::path::PathBuf::from("/repo/src/entry.ts")),
     );
 }
 

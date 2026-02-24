@@ -1,6 +1,9 @@
 use super::*;
 use destack_builtin::LanguageSymbol;
-use destack_dir::{Declarator, Expression, Pattern, ScalarLiteral, StaticKey, SymbolSpace};
+use destack_dir::{
+    Declaration, Declarator, Expression, FloatType, IntType, Pattern, PrimitiveType, ScalarLiteral,
+    StaticKey, SymbolSpace, TypeLiteral,
+};
 
 /// Resolve labeled break to outer loop.
 #[test]
@@ -1747,4 +1750,201 @@ function printType(t: Type) {
         let profile = test.default_profile_id_for_root();
         let _ = test.compiler.language_symbol(profile, item);
     }
+}
+
+/// Type alias symbols point to their aliased type target symbols.
+#[test]
+fn test_resolve_type_alias_target_symbol() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Foo {}
+type Bar = Foo;
+"#,
+    );
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    let foo_symbol_id = test.resolve_to_symbol("test.ds", "Foo").unwrap();
+    let bar_symbol_id = test.resolve_to_symbol("test.ds", "Bar").unwrap();
+    let bar_symbol = test.symbol_by_id(bar_symbol_id);
+
+    assert!(
+        bar_symbol.target_symbol.is_some(),
+        "type alias symbol should have target symbol set"
+    );
+    assert_eq!(
+        bar_symbol.target_symbol.unwrap(),
+        foo_symbol_id,
+        "type alias should point to Foo struct"
+    );
+}
+
+/// Extension declarations point to their resolved target type symbols.
+#[test]
+fn test_resolve_extension_target_symbol() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Foo {}
+extension for Foo {
+    bar() {}
+}
+"#,
+    );
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    let foo_symbol_id = test.resolve_to_symbol("test.ds", "Foo").unwrap();
+
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let profile = test.default_profile_id(module_id);
+    let tree = module.dir(profile).tree.read();
+    let extensions: Vec<_> = tree
+        .iter_node_ids_of_type::<Declaration>()
+        .into_iter()
+        .filter_map(|id| match tree.get(id) {
+            Declaration::Extension { target_symbol, .. } => Some(*target_symbol),
+            _ => None,
+        })
+        .collect();
+
+    assert_eq!(extensions.len(), 1);
+    let extension_target = extensions[0];
+    assert!(
+        extension_target.is_some(),
+        "extension target symbol should be set"
+    );
+    assert_eq!(
+        extension_target.unwrap(),
+        foo_symbol_id,
+        "extension should point to Foo struct"
+    );
+}
+
+/// Builtin type names resolve to type literal expressions in value position.
+#[test]
+fn test_resolve_builtin_types_in_value_position() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+int;
+int32;
+int64;
+int68;
+uint;
+uint8;
+uint16;
+float;
+float32;
+float64;
+boolean;
+string;
+"#,
+    );
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let profile = test.default_profile_id(module_id);
+    let dir = module.dir(profile);
+    let tree = dir.tree.read();
+    let roots = &dir.roots;
+
+    assert_node!(tree, roots[0], Expression::Statement { statement } => {
+        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+            assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))));
+        });
+    });
+    assert_node!(tree, roots[1], Expression::Statement { statement } => {
+        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+            assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))));
+        });
+    });
+    assert_node!(tree, roots[2], Expression::Statement { statement } => {
+        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+            assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int64))));
+        });
+    });
+    assert_node!(tree, roots[3], Expression::Statement { statement } => {
+        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+            assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Arbitrary { width: 68, is_signed: true }))));
+        });
+    });
+    assert_node!(tree, roots[4], Expression::Statement { statement } => {
+        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+            assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint32))));
+        });
+    });
+    assert_node!(tree, roots[5], Expression::Statement { statement } => {
+        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+            assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8))));
+        });
+    });
+    assert_node!(tree, roots[6], Expression::Statement { statement } => {
+        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+            assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint16))));
+        });
+    });
+    assert_node!(tree, roots[7], Expression::Statement { statement } => {
+        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+            assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64))));
+        });
+    });
+    assert_node!(tree, roots[8], Expression::Statement { statement } => {
+        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+            assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float32))));
+        });
+    });
+    assert_node!(tree, roots[9], Expression::Statement { statement } => {
+        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+            assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64))));
+        });
+    });
+    assert_node!(tree, roots[10], Expression::Statement { statement } => {
+        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+            assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Boolean)));
+        });
+    });
+    assert_node!(tree, roots[11], Expression::Statement { statement } => {
+        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+            assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::String)));
+        });
+    });
+}
+
+/// User bindings shadow builtin type names.
+#[test]
+fn test_variable_shadows_builtin_type() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+let string: string = "hello";
+string;
+"#,
+    );
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let profile = test.default_profile_id(module_id);
+    let dir = module.dir(profile);
+    let tree = dir.tree.read();
+    let roots = &dir.roots;
+
+    let (string_symbol_id, _) = test
+        .resolve_to_node::<Pattern>("test.ds", "string")
+        .unwrap();
+    assert_node!(tree, roots[1], Expression::Statement { statement } => {
+        assert_node!(tree, *statement, Expression::ModuleReference { target_symbol, .. } => {
+            assert_eq!(*target_symbol, string_symbol_id);
+        });
+    });
 }
