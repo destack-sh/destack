@@ -72,7 +72,7 @@ pub(crate) fn stream_clock_snapshot(
             } else if input_adc_ns > 0 {
                 input_adc_ns
             } else {
-                0
+                callback_ns
             }
         }
         AudioStreamClockDomain::Callback => {
