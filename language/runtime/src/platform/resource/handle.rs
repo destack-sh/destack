@@ -210,6 +210,18 @@ define_handle!(
     CryptoCertificateHandle
 );
 define_handle!(
+    "The handle for one cryptographic digest context.",
+    CryptoDigestHandle
+);
+define_handle!(
+    "The handle for one cryptographic message-authentication context.",
+    CryptoMacHandle
+);
+define_handle!(
+    "The handle for one cryptographic symmetric-cipher context.",
+    CryptoCipherHandle
+);
+define_handle!(
     "The handle for one cryptographic key object.",
     CryptoKeyHandle
 );

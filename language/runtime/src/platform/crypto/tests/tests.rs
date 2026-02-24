@@ -1,13 +1,35 @@
 #![cfg_attr(windows, allow(dead_code, unused_imports))]
 
+#[path = "harness.rs"]
+mod harness;
+
 use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::crypto::CryptoStoreKind;
+use crate::platform::resource::ResourceId;
+use crate::platform::{NativeSlice, NativeStringRef, VmSlice, resource};
 use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
 
-#[path = "harness.generated.rs"]
-mod harness;
+/// Key usage bit: sign.
+pub(crate) const KEY_USAGE_SIGN: u32 = 0x0000_0001;
+/// Key usage bit: verify.
+pub(crate) const KEY_USAGE_VERIFY: u32 = 0x0000_0002;
+/// Key usage bit: encrypt.
+pub(crate) const KEY_USAGE_ENCRYPT: u32 = 0x0000_0004;
+/// Key usage bit: decrypt.
+pub(crate) const KEY_USAGE_DECRYPT: u32 = 0x0000_0008;
+/// Key usage bit: wrap.
+pub(crate) const KEY_USAGE_WRAP: u32 = 0x0000_0010;
+/// Key usage bit: unwrap.
+pub(crate) const KEY_USAGE_UNWRAP: u32 = 0x0000_0020;
+/// Key usage bit: derive bits.
+pub(crate) const KEY_USAGE_DERIVE_BITS: u32 = 0x0000_0040;
+/// Key usage bit: derive keys.
+pub(crate) const KEY_USAGE_DERIVE_KEYS: u32 = 0x0000_0080;
+/// Key usage bit: export.
+pub(crate) const KEY_USAGE_EXPORT: u32 = 0x0000_0100;
 
 /// Test harness context used by tests.
 pub(crate) struct CryptoHarnessContext<'call> {
@@ -61,6 +83,7 @@ impl CryptoHarnessHandle {
     where
         F: for<'call> FnOnce(CryptoHarnessContext<'call>) -> R,
     {
+        // dispatch callback through the selected harness runtime
         match self {
             CryptoHarnessHandle::Native(harness) => {
                 harness.runtime.with_native_call_context(|call_context| {
@@ -71,6 +94,7 @@ impl CryptoHarnessHandle {
                 })
             }
             CryptoHarnessHandle::Vm(harness) => {
+                // pass one raw vm context pointer through the shared harness context
                 harness
                     .runtime
                     .with_vm_call_context(|call_context, vm_context| {
@@ -89,6 +113,7 @@ impl CryptoHarnessHandle {
     where
         F: for<'call> FnOnce(CryptoHarnessContext<'call>) -> RuntimeResult<()>,
     {
+        // execute one harness callback and fail loud on unexpected runtime errors
         self.with_context(callback)
             .expect("crypto harness call should succeed");
     }
@@ -99,8 +124,11 @@ pub(crate) fn with_harnesses<F>(mut callback: F)
 where
     F: FnMut(&CryptoHarnessHandle),
 {
+    // execute callback against native bindings
     let native = CryptoHarnessHandle::Native(NativeCryptoHarness::new());
     callback(&native);
+
+    // execute callback against vm bindings
     let vm = CryptoHarnessHandle::Vm(VmCryptoHarness::new());
     callback(&vm);
 }
@@ -110,7 +138,13 @@ pub(crate) fn with_harness_context<F>(mut callback: F)
 where
     F: for<'call> FnMut(CryptoHarnessContext<'call>) -> RuntimeResult<()>,
 {
+    // bridge harness handle dispatch into one shared callback signature
     with_harnesses(|harness| {
         harness.run(&mut callback);
     });
+}
+
+/// Return one placeholder store handle for invalid-handle tests.
+pub(crate) fn placeholder_store_handle() -> resource::CryptoStoreHandle {
+    resource::CryptoStoreHandle(ResourceId(1))
 }

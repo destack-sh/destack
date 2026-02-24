@@ -48,7 +48,7 @@ pub struct EventLoop {
     /// Timer watch dispatch table keyed by timer handle.
     timer_watches: FxHashMap<ResourceId, EventLoopWatch>,
     /// External event watch dispatch table keyed by poller token.
-    event_watches: FxHashMap<PollerToken, EventLoopWatch>,
+    poller_event_watches: FxHashMap<PollerToken, EventLoopWatch>,
     /// Host event watch dispatch table keyed by host event kind.
     host_event_watches: FxHashMap<HostEventKind, EventLoopWatch>,
     /// Configured event loop options.
@@ -208,7 +208,7 @@ impl EventLoop {
             || !self.events.is_empty()
             || !self.host_events.is_empty()
             || !self.ready_timers.is_empty()
-            || !self.event_watches.is_empty()
+            || !self.poller_event_watches.is_empty()
             || !self.host_event_watches.is_empty()
         {
             return true;
@@ -268,14 +268,14 @@ impl EventLoop {
     pub fn watch_event(&mut self, token: PollerToken, watch: EventLoopWatch) -> RuntimeResult<()> {
         // only native continuations can be cloned for repeated dispatch
         validate_watch(&watch)?;
-        self.event_watches.insert(token, watch);
+        self.poller_event_watches.insert(token, watch);
 
         Ok(())
     }
 
     /// Remove the event watch registered for one poller token.
     pub fn unwatch_event(&mut self, token: PollerToken) -> Option<EventLoopWatch> {
-        self.event_watches.remove(&token)
+        self.poller_event_watches.remove(&token)
     }
 
     /// Register one host semantic event watch.
@@ -313,7 +313,7 @@ impl EventLoop {
 
     /// Build one task for one external event watch.
     pub fn task_for_event(&mut self, event: PollerEvent) -> Option<Task> {
-        let watch = self.event_watches.get(&event.token)?;
+        let watch = self.poller_event_watches.get(&event.token)?;
         let EngineContinuation::Native(native) = watch.runnable else {
             return None;
         };

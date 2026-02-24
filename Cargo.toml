@@ -149,11 +149,19 @@ slice-group-by = "0.3.1"
 
 # general
 aho-corasick = "1.1"
+argon2 = "0.5.3"
 base64 = "0.22"
 cfg-if = "1.0.4"
+foreign-types-shared = "0.1.1"
+getrandom = "0.4.0"
+io-uring = "0.7.11"
+openssl = "0.10.74"
+openssl-sys = "0.9.111"
 regex = "1.12"
 toml = "0.9.11"
 regex-syntax = "0.8"
+rustls = "0.23.24"
+rustls-pemfile = "2.2.0"
 stacker = "0.1.22"
 crossbeam-channel = "0.5.15"
 crossbeam-deque = "0.8.6"
@@ -180,6 +188,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5.8"
 windows = { version = "0.60.0", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
+windows-sys = "0.52.0"
+zeroize = "1.8.1"
 
 # dev
 arbtest = "0.3.2"

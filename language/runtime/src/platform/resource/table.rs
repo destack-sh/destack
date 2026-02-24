@@ -76,6 +76,12 @@ pub enum ResourceKind {
     CryptoKey,
     /// Crypto certificate resources.
     CryptoCertificate,
+    /// Crypto digest resources.
+    CryptoDigest,
+    /// Crypto mac resources.
+    CryptoMac,
+    /// Crypto cipher resources.
+    CryptoCipher,
     /// TLS context resources.
     TlsContext,
     /// TLS session resources.

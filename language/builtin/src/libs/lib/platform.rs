@@ -56,10 +56,34 @@ builtin_lib_sources_targeted!(
             "stream.ds"
         ),
         (
+            LIB_PLATFORM_CRYPTO_AGREEMENT_DS,
+            "lib",
+            "platform/crypto",
+            "agreement.ds"
+        ),
+        (
+            LIB_PLATFORM_CRYPTO_ALGORITHM_DS,
+            "lib",
+            "platform/crypto",
+            "algorithm.ds"
+        ),
+        (
             LIB_PLATFORM_CRYPTO_CERTIFICATE_DS,
             "lib",
             "platform/crypto",
             "certificate.ds"
+        ),
+        (
+            LIB_PLATFORM_CRYPTO_CIPHER_DS,
+            "lib",
+            "platform/crypto",
+            "cipher.ds"
+        ),
+        (
+            LIB_PLATFORM_CRYPTO_DIGEST_DS,
+            "lib",
+            "platform/crypto",
+            "digest.ds"
         ),
         (
             LIB_PLATFORM_CRYPTO_INDEX_DS,
@@ -68,10 +92,34 @@ builtin_lib_sources_targeted!(
             "index.ds"
         ),
         (
+            LIB_PLATFORM_CRYPTO_KDF_DS,
+            "lib",
+            "platform/crypto",
+            "kdf.ds"
+        ),
+        (
             LIB_PLATFORM_CRYPTO_KEY_DS,
             "lib",
             "platform/crypto",
             "key.ds"
+        ),
+        (
+            LIB_PLATFORM_CRYPTO_MAC_DS,
+            "lib",
+            "platform/crypto",
+            "mac.ds"
+        ),
+        (
+            LIB_PLATFORM_CRYPTO_PROBE_DS,
+            "lib",
+            "platform/crypto",
+            "probe.ds"
+        ),
+        (
+            LIB_PLATFORM_CRYPTO_RANDOM_DS,
+            "lib",
+            "platform/crypto",
+            "random.ds"
         ),
         (
             LIB_PLATFORM_CRYPTO_STORE_DS,
@@ -749,9 +797,17 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_AUDIO_INDEX_DS,
         LIB_PLATFORM_AUDIO_MIDI_DS,
         LIB_PLATFORM_AUDIO_STREAM_DS,
+        LIB_PLATFORM_CRYPTO_AGREEMENT_DS,
+        LIB_PLATFORM_CRYPTO_ALGORITHM_DS,
         LIB_PLATFORM_CRYPTO_CERTIFICATE_DS,
+        LIB_PLATFORM_CRYPTO_CIPHER_DS,
+        LIB_PLATFORM_CRYPTO_DIGEST_DS,
         LIB_PLATFORM_CRYPTO_INDEX_DS,
+        LIB_PLATFORM_CRYPTO_KDF_DS,
         LIB_PLATFORM_CRYPTO_KEY_DS,
+        LIB_PLATFORM_CRYPTO_MAC_DS,
+        LIB_PLATFORM_CRYPTO_PROBE_DS,
+        LIB_PLATFORM_CRYPTO_RANDOM_DS,
         LIB_PLATFORM_CRYPTO_STORE_DS,
         LIB_PLATFORM_DEBUG_CORE_DS,
         LIB_PLATFORM_DEBUG_INDEX_DS,

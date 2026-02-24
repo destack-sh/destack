@@ -7,14 +7,27 @@
 use super::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::crypto::{
-    CryptoCertificateFormat, CryptoCertificateMetadata, CryptoCertificateMetadataVm,
-    CryptoCertificatePurpose, CryptoCertificateQuery, CryptoCertificateQueryVm,
-    CryptoCertificateValidity, CryptoCertificateValidityVm, CryptoCertificateVerifyRequest,
-    CryptoCertificateVerifyRequestVm, CryptoCertificateVerifyResult,
-    CryptoCertificateVerifyResultVm, CryptoEncryptionScheme, CryptoKeyAlgorithm, CryptoKeyFormat,
-    CryptoKeyMetadata, CryptoKeyMetadataVm, CryptoKeyQuery, CryptoKeyQueryVm, CryptoKeySpec,
-    CryptoKeySpecVm, CryptoKeyUsageMask, CryptoSignatureScheme, CryptoStoreKind,
-    CryptoStoreOptions, CryptoStoreOptionsVm, native as crypto_native, vm as crypto_vm,
+    CryptoAgreementDeriveKeyRequest, CryptoAgreementDeriveKeyRequestVm, CryptoArgon2idRequest,
+    CryptoArgon2idRequestVm, CryptoAsymmetricEncryptionAlgorithm,
+    CryptoAsymmetricEncryptionParameters, CryptoAsymmetricEncryptionParametersVm,
+    CryptoCertificateDescriptor, CryptoCertificateDescriptorVm, CryptoCertificateFormat,
+    CryptoCertificateListEntry, CryptoCertificateListEntryVm, CryptoCertificateListPage,
+    CryptoCertificateListPageVm, CryptoCertificatePurpose, CryptoCertificateQuery,
+    CryptoCertificateQueryVm, CryptoCertificateRevocationMode, CryptoCertificateValidity,
+    CryptoCertificateValidityVm, CryptoCertificateVerifyRequest, CryptoCertificateVerifyRequestVm,
+    CryptoCertificateVerifyResult, CryptoCertificateVerifyResultVm, CryptoCipherAlgorithm,
+    CryptoCipherDirection, CryptoCipherOutput, CryptoCipherOutputVm, CryptoCipherParameters,
+    CryptoCipherParametersVm, CryptoDigestAlgorithm, CryptoHkdfRequest, CryptoHkdfRequestVm,
+    CryptoKdfAlgorithm, CryptoKeyAgreementAlgorithm, CryptoKeyAlgorithm, CryptoKeyDescriptor,
+    CryptoKeyDescriptorVm, CryptoKeyFormat, CryptoKeyGenerationRequest,
+    CryptoKeyGenerationRequestVm, CryptoKeyImportRequest, CryptoKeyImportRequestVm, CryptoKeyKind,
+    CryptoKeyListEntry, CryptoKeyListEntryVm, CryptoKeyListPage, CryptoKeyListPageVm,
+    CryptoKeyPair, CryptoKeyPairVm, CryptoKeyQuery, CryptoKeyQueryVm, CryptoKeyUsageMask,
+    CryptoMacAlgorithm, CryptoMacParameters, CryptoMacParametersVm, CryptoNamedCurve,
+    CryptoPbkdf2Request, CryptoPbkdf2RequestVm, CryptoScryptRequest, CryptoScryptRequestVm,
+    CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoSignatureParametersVm,
+    CryptoStoreKind, CryptoStoreOptions, CryptoStoreOptionsVm, native as crypto_native,
+    vm as crypto_vm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
@@ -40,14 +53,114 @@ impl<'call> CryptoHarnessContext<'call> {
         HarnessValue::Vm(vm)
     }
 
+    /// Derive one symmetric key from one local private key and one peer public key.
+    ///
+    /// This operation performs key agreement and an explicit KDF stage.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-agreement and KDF provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.key.agree`, `crypto.kdf`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_agreement_derive_key(
+        &mut self,
+        privatekey: resource::CryptoKeyHandle,
+        peerpublickey: resource::CryptoKeyHandle,
+        request: HarnessValue<CryptoAgreementDeriveKeyRequest, CryptoAgreementDeriveKeyRequestVm>,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let request = request.into_vm("request")?;
+                let out = crypto_vm::destack_crypto_agreement_derive_key(
+                    self.call_context,
+                    context,
+                    privatekey,
+                    peerpublickey,
+                    request,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let request = request.into_native("request")?;
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_agreement_derive_key(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        privatekey,
+                        peerpublickey,
+                        request,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Derive one shared secret from one local private key and one peer public key.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-agreement provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.key.agree`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_agreement_derive_shared_secret(
+        &mut self,
+        privatekey: resource::CryptoKeyHandle,
+        peerpublickey: resource::CryptoKeyHandle,
+        algorithm: CryptoKeyAgreementAlgorithm,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = crypto_vm::destack_crypto_agreement_derive_shared_secret(
+                    self.call_context,
+                    context,
+                    privatekey,
+                    peerpublickey,
+                    algorithm,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_agreement_derive_shared_secret(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        privatekey,
+                        peerpublickey,
+                        algorithm,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Delete one certificate from one provider store when allowed.
     ///
     /// Remove one certificate object and invalidate the handle.
-    /// Deletion permissions and persistence are enforced by host provider policies.
+    /// Deletion permissions and persistence are enforced by runtime provider policies.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host certificate delete APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime certificate parsing, store, and chain-verification provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -71,14 +184,58 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
+    /// Return one certificate descriptor.
+    ///
+    /// Query one certificate handle and return normalized identity and validity metadata.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime certificate parsing, store, and chain-verification provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.certificate.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_certificate_descriptor(
+        &mut self,
+        handle: resource::CryptoCertificateHandle,
+    ) -> RuntimeResult<HarnessValue<CryptoCertificateDescriptor, CryptoCertificateDescriptorVm>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = crypto_vm::destack_crypto_certificate_descriptor(
+                    self.call_context,
+                    context,
+                    handle,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CryptoCertificateDescriptor>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_certificate_descriptor(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// Export one certificate from one handle.
     ///
     /// Serialize one certificate handle into the requested encoding format.
-    /// Output bytes are provider-normalized representations of the underlying certificate.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host certificate export APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime certificate parsing, store, and chain-verification provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -122,11 +279,11 @@ impl<'call> CryptoHarnessContext<'call> {
     /// Import one certificate into one provider store.
     ///
     /// Parse and import one certificate blob into one store and return one certificate handle.
-    /// Import visibility and persistence are enforced by host provider policies.
+    /// Import visibility and persistence are enforced by runtime provider policies.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host certificate import APIs for keychain and cert store backends.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime certificate parsing, store, and chain-verification provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -172,59 +329,14 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
-    /// Return metadata for one certificate.
-    ///
-    /// Query one certificate handle and return normalized identity and validity metadata.
-    /// Metadata extraction follows host parser and provider normalization behavior.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host certificate query APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `crypto.certificate.read`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_crypto_certificate_metadata(
-        &mut self,
-        handle: resource::CryptoCertificateHandle,
-    ) -> RuntimeResult<HarnessValue<CryptoCertificateMetadata, CryptoCertificateMetadataVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out = crypto_vm::destack_crypto_certificate_metadata(
-                    self.call_context,
-                    context,
-                    handle,
-                )?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<CryptoCertificateMetadata>::uninit();
-                unsafe {
-                    crypto_native::destack_crypto_certificate_metadata(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Verify one certificate chain against requested trust anchors.
+    /// Verify one certificate chain against one trust policy.
     ///
     /// Build and verify one certificate path for the requested purpose and verification time.
-    /// Chain-building and policy evaluation follow host provider trust engine behavior.
+    /// Chain building and policy evaluation follow runtime provider trust engine behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host trust engine APIs for path building and policy evaluation.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime certificate parsing, store, and chain-verification provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -265,14 +377,763 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
-    /// Decrypt one payload with one key handle.
-    ///
-    /// Decrypt one payload using one provider-backed key and one encryption scheme.
-    /// Padding and nonce requirements are provider-specific and scheme-specific.
+    /// Close one streaming cipher context.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses provider decrypt APIs over host key handles.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime symmetric cipher provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.cipher`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_cipher_close(
+        &mut self,
+        handle: resource::CryptoCipherHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                crypto_vm::destack_crypto_cipher_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                crypto_native::destack_crypto_cipher_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Decrypt one payload in one shot.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime symmetric cipher provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.cipher`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_cipher_decrypt(
+        &mut self,
+        key: resource::CryptoKeyHandle,
+        parameters: HarnessValue<CryptoCipherParameters, CryptoCipherParametersVm>,
+        argument_payload: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let parameters = parameters.into_vm("parameters")?;
+                let argument_payload = argument_payload.into_vm("argument_payload")?;
+                let out = crypto_vm::destack_crypto_cipher_decrypt(
+                    self.call_context,
+                    context,
+                    key,
+                    parameters,
+                    argument_payload,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let parameters = parameters.into_native("parameters")?;
+                let argument_payload = argument_payload.into_native("argument_payload")?;
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_cipher_decrypt(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        key,
+                        parameters,
+                        argument_payload,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Encrypt one payload in one shot.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime symmetric cipher provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.cipher`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_cipher_encrypt(
+        &mut self,
+        key: resource::CryptoKeyHandle,
+        parameters: HarnessValue<CryptoCipherParameters, CryptoCipherParametersVm>,
+        argument_payload: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<HarnessValue<CryptoCipherOutput, CryptoCipherOutputVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let parameters = parameters.into_vm("parameters")?;
+                let argument_payload = argument_payload.into_vm("argument_payload")?;
+                let out = crypto_vm::destack_crypto_cipher_encrypt(
+                    self.call_context,
+                    context,
+                    key,
+                    parameters,
+                    argument_payload,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let parameters = parameters.into_native("parameters")?;
+                let argument_payload = argument_payload.into_native("argument_payload")?;
+                let mut out = std::mem::MaybeUninit::<CryptoCipherOutput>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_cipher_encrypt(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        key,
+                        parameters,
+                        argument_payload,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Finalize one streaming cipher context.
+    ///
+    /// Provide one final payload chunk.
+    /// Return output bytes and one authentication tag when applicable.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime symmetric cipher provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.cipher`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_cipher_finish(
+        &mut self,
+        handle: resource::CryptoCipherHandle,
+        finalpayload: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<HarnessValue<CryptoCipherOutput, CryptoCipherOutputVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let finalpayload = finalpayload.into_vm("finalpayload")?;
+                let out = crypto_vm::destack_crypto_cipher_finish(
+                    self.call_context,
+                    context,
+                    handle,
+                    finalpayload,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let finalpayload = finalpayload.into_native("finalpayload")?;
+                let mut out = std::mem::MaybeUninit::<CryptoCipherOutput>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_cipher_finish(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        finalpayload,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Open one streaming cipher context.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime symmetric cipher provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.cipher`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_cipher_open(
+        &mut self,
+        key: resource::CryptoKeyHandle,
+        direction: CryptoCipherDirection,
+        parameters: HarnessValue<CryptoCipherParameters, CryptoCipherParametersVm>,
+    ) -> RuntimeResult<resource::CryptoCipherHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let parameters = parameters.into_vm("parameters")?;
+                let out = crypto_vm::destack_crypto_cipher_open(
+                    self.call_context,
+                    context,
+                    key,
+                    direction,
+                    parameters,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let parameters = parameters.into_native("parameters")?;
+                let mut out = std::mem::MaybeUninit::<resource::CryptoCipherHandle>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_cipher_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        key,
+                        direction,
+                        parameters,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Reset one streaming cipher context with new parameters.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime symmetric cipher provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.cipher`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_cipher_reset(
+        &mut self,
+        handle: resource::CryptoCipherHandle,
+        parameters: HarnessValue<CryptoCipherParameters, CryptoCipherParametersVm>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let parameters = parameters.into_vm("parameters")?;
+                crypto_vm::destack_crypto_cipher_reset(
+                    self.call_context,
+                    context,
+                    handle,
+                    parameters,
+                )
+            }
+            None => {
+                let parameters = parameters.into_native("parameters")?;
+                unsafe {
+                    crypto_native::destack_crypto_cipher_reset(
+                        self.call_context,
+                        handle,
+                        parameters,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Update one streaming cipher context with one payload chunk.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime symmetric cipher provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.cipher`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_cipher_update(
+        &mut self,
+        handle: resource::CryptoCipherHandle,
+        argument_payload: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let argument_payload = argument_payload.into_vm("argument_payload")?;
+                let out = crypto_vm::destack_crypto_cipher_update(
+                    self.call_context,
+                    context,
+                    handle,
+                    argument_payload,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let argument_payload = argument_payload.into_native("argument_payload")?;
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_cipher_update(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        argument_payload,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Update additional authenticated data for one streaming cipher context.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime symmetric cipher provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.cipher`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_cipher_update_additional_data(
+        &mut self,
+        handle: resource::CryptoCipherHandle,
+        additionaldata: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let additionaldata = additionaldata.into_vm("additionaldata")?;
+                crypto_vm::destack_crypto_cipher_update_additional_data(
+                    self.call_context,
+                    context,
+                    handle,
+                    additionaldata,
+                )
+            }
+            None => {
+                let additionaldata = additionaldata.into_native("additionaldata")?;
+                unsafe {
+                    crypto_native::destack_crypto_cipher_update_additional_data(
+                        self.call_context,
+                        handle,
+                        additionaldata,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Close one streaming digest context.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime digest provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.digest`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_digest_close(
+        &mut self,
+        handle: resource::CryptoDigestHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                crypto_vm::destack_crypto_digest_close(self.call_context, context, handle)
+            }
+            None => unsafe {
+                crypto_native::destack_crypto_digest_close(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Compute one digest in one shot.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime digest provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.digest`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_digest_compute(
+        &mut self,
+        algorithm: CryptoDigestAlgorithm,
+        argument_payload: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let argument_payload = argument_payload.into_vm("argument_payload")?;
+                let out = crypto_vm::destack_crypto_digest_compute(
+                    self.call_context,
+                    context,
+                    algorithm,
+                    argument_payload,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let argument_payload = argument_payload.into_native("argument_payload")?;
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_digest_compute(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        algorithm,
+                        argument_payload,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Finalize one streaming digest context and return one digest output.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime digest provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.digest`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_digest_finish(
+        &mut self,
+        handle: resource::CryptoDigestHandle,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    crypto_vm::destack_crypto_digest_finish(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_digest_finish(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Open one streaming digest context.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime digest provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.digest`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_digest_open(
+        &mut self,
+        algorithm: CryptoDigestAlgorithm,
+    ) -> RuntimeResult<resource::CryptoDigestHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    crypto_vm::destack_crypto_digest_open(self.call_context, context, algorithm)?;
+                Ok(out)
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<resource::CryptoDigestHandle>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_digest_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        algorithm,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Reset one streaming digest context to its initial state.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime digest provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.digest`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_digest_reset(
+        &mut self,
+        handle: resource::CryptoDigestHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                crypto_vm::destack_crypto_digest_reset(self.call_context, context, handle)
+            }
+            None => unsafe {
+                crypto_native::destack_crypto_digest_reset(self.call_context, handle)
+            },
+        }
+    }
+
+    /// Update one streaming digest context.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime digest provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.digest`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_digest_update(
+        &mut self,
+        handle: resource::CryptoDigestHandle,
+        argument_payload: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let argument_payload = argument_payload.into_vm("argument_payload")?;
+                crypto_vm::destack_crypto_digest_update(
+                    self.call_context,
+                    context,
+                    handle,
+                    argument_payload,
+                )
+            }
+            None => {
+                let argument_payload = argument_payload.into_native("argument_payload")?;
+                unsafe {
+                    crypto_native::destack_crypto_digest_update(
+                        self.call_context,
+                        handle,
+                        argument_payload,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Derive one key with Argon2id.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime KDF provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.kdf`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_kdf_argon2id(
+        &mut self,
+        request: HarnessValue<CryptoArgon2idRequest, CryptoArgon2idRequestVm>,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let request = request.into_vm("request")?;
+                let out =
+                    crypto_vm::destack_crypto_kdf_argon2id(self.call_context, context, request)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let request = request.into_native("request")?;
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_kdf_argon2id(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        request,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Derive one key with HKDF.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime KDF provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.kdf`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_kdf_hkdf(
+        &mut self,
+        request: HarnessValue<CryptoHkdfRequest, CryptoHkdfRequestVm>,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let request = request.into_vm("request")?;
+                let out = crypto_vm::destack_crypto_kdf_hkdf(self.call_context, context, request)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let request = request.into_native("request")?;
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_kdf_hkdf(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        request,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Derive one key with PBKDF2.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime KDF provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.kdf`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_kdf_pbkdf2(
+        &mut self,
+        request: HarnessValue<CryptoPbkdf2Request, CryptoPbkdf2RequestVm>,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let request = request.into_vm("request")?;
+                let out =
+                    crypto_vm::destack_crypto_kdf_pbkdf2(self.call_context, context, request)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let request = request.into_native("request")?;
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_kdf_pbkdf2(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        request,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Derive one key with scrypt.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime KDF provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.kdf`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_kdf_scrypt(
+        &mut self,
+        request: HarnessValue<CryptoScryptRequest, CryptoScryptRequestVm>,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let request = request.into_vm("request")?;
+                let out =
+                    crypto_vm::destack_crypto_kdf_scrypt(self.call_context, context, request)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let request = request.into_native("request")?;
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_kdf_scrypt(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        request,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Decrypt one payload with one asymmetric key.
+    ///
+    /// Decrypt one payload using one provider-backed private key.
+    /// Padding and label semantics are controlled by encryption parameters.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -285,22 +1146,27 @@ impl<'call> CryptoHarnessContext<'call> {
     pub(crate) fn destack_crypto_key_decrypt(
         &mut self,
         handle: resource::CryptoKeyHandle,
-        scheme: CryptoEncryptionScheme,
+        parameters: HarnessValue<
+            CryptoAsymmetricEncryptionParameters,
+            CryptoAsymmetricEncryptionParametersVm,
+        >,
         argument_payload: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
+                let parameters = parameters.into_vm("parameters")?;
                 let argument_payload = argument_payload.into_vm("argument_payload")?;
                 let out = crypto_vm::destack_crypto_key_decrypt(
                     self.call_context,
                     context,
                     handle,
-                    scheme,
+                    parameters,
                     argument_payload,
                 )?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
+                let parameters = parameters.into_native("parameters")?;
                 let argument_payload = argument_payload.into_native("argument_payload")?;
                 let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
                 unsafe {
@@ -308,7 +1174,7 @@ impl<'call> CryptoHarnessContext<'call> {
                         self.call_context,
                         out.as_mut_ptr(),
                         handle,
-                        scheme,
+                        parameters,
                         argument_payload,
                     )?;
                 }
@@ -318,14 +1184,14 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
-    /// Delete one key handle and backing key material when allowed.
+    /// Delete one key object.
     ///
-    /// Remove one provider-backed key object and invalidate this handle.
-    /// Deletion permissions and persistence policies are enforced by the host provider.
+    /// Delete one provider-backed key object and invalidate this handle.
+    /// Deletion permissions and persistence policies are enforced by the runtime provider.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses provider key delete APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -347,14 +1213,55 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
-    /// Encrypt one payload with one key handle.
+    /// Return one key descriptor.
     ///
-    /// Encrypt one payload using one provider-backed key and one encryption scheme.
-    /// Padding and nonce requirements are provider-specific and scheme-specific.
+    /// Query one provider key object and return normalized metadata fields.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses provider encrypt APIs over host key handles.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.store.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_key_descriptor(
+        &mut self,
+        handle: resource::CryptoKeyHandle,
+    ) -> RuntimeResult<HarnessValue<CryptoKeyDescriptor, CryptoKeyDescriptorVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    crypto_vm::destack_crypto_key_descriptor(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<CryptoKeyDescriptor>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_key_descriptor(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Encrypt one payload with one asymmetric key.
+    ///
+    /// Encrypt one payload using one provider-backed public key.
+    /// Padding and label semantics are controlled by encryption parameters.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -367,22 +1274,27 @@ impl<'call> CryptoHarnessContext<'call> {
     pub(crate) fn destack_crypto_key_encrypt(
         &mut self,
         handle: resource::CryptoKeyHandle,
-        scheme: CryptoEncryptionScheme,
+        parameters: HarnessValue<
+            CryptoAsymmetricEncryptionParameters,
+            CryptoAsymmetricEncryptionParametersVm,
+        >,
         argument_payload: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
+                let parameters = parameters.into_vm("parameters")?;
                 let argument_payload = argument_payload.into_vm("argument_payload")?;
                 let out = crypto_vm::destack_crypto_key_encrypt(
                     self.call_context,
                     context,
                     handle,
-                    scheme,
+                    parameters,
                     argument_payload,
                 )?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
+                let parameters = parameters.into_native("parameters")?;
                 let argument_payload = argument_payload.into_native("argument_payload")?;
                 let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
                 unsafe {
@@ -390,8 +1302,56 @@ impl<'call> CryptoHarnessContext<'call> {
                         self.call_context,
                         out.as_mut_ptr(),
                         handle,
-                        scheme,
+                        parameters,
                         argument_payload,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Export one private key.
+    ///
+    /// Export one private key representation in the requested encoding format.
+    /// The operation fails when provider policy marks this key as non-exportable.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.store.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_key_export_private(
+        &mut self,
+        handle: resource::CryptoKeyHandle,
+        format: CryptoKeyFormat,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = crypto_vm::destack_crypto_key_export_private(
+                    self.call_context,
+                    context,
+                    handle,
+                    format,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_key_export_private(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        format,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -402,12 +1362,11 @@ impl<'call> CryptoHarnessContext<'call> {
 
     /// Export one public key.
     ///
-    /// Export one public-key representation for the selected key handle in the requested format.
-    /// Exported bytes only include public material and are provider-normalized.
+    /// Export one public key representation in the requested encoding format.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host provider public-key export APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -448,14 +1407,62 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
-    /// Generate one key in one provider store.
+    /// Export one secret key.
     ///
-    /// Create one provider-backed key object with the requested algorithm and key policy.
-    /// Generated key material remains owned by the host provider unless export is explicitly allowed.
+    /// Export one symmetric or raw-secret key representation in the requested encoding format.
+    /// The operation fails when provider policy marks this key as non-exportable.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses Security.framework, CNG, or provider-backed generate-key APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.store.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_key_export_secret(
+        &mut self,
+        handle: resource::CryptoKeyHandle,
+        format: CryptoKeyFormat,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = crypto_vm::destack_crypto_key_export_secret(
+                    self.call_context,
+                    context,
+                    handle,
+                    format,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_key_export_secret(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                        format,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Generate one asymmetric key pair.
+    ///
+    /// Create one provider-backed asymmetric key pair and return public and private handles.
+    /// Generation policy and persistence semantics follow runtime provider behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -465,31 +1472,81 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Replay
     /// External, nonrecordable.
-    pub(crate) fn destack_crypto_key_generate(
+    pub(crate) fn destack_crypto_key_generate_pair(
         &mut self,
         store: resource::CryptoStoreHandle,
-        spec: HarnessValue<CryptoKeySpec, CryptoKeySpecVm>,
-    ) -> RuntimeResult<resource::CryptoKeyHandle> {
+        request: HarnessValue<CryptoKeyGenerationRequest, CryptoKeyGenerationRequestVm>,
+    ) -> RuntimeResult<HarnessValue<CryptoKeyPair, CryptoKeyPairVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let spec = spec.into_vm("spec")?;
-                let out = crypto_vm::destack_crypto_key_generate(
+                let request = request.into_vm("request")?;
+                let out = crypto_vm::destack_crypto_key_generate_pair(
                     self.call_context,
                     context,
                     store,
-                    spec,
+                    request,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let request = request.into_native("request")?;
+                let mut out = std::mem::MaybeUninit::<CryptoKeyPair>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_key_generate_pair(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        store,
+                        request,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Generate one symmetric key.
+    ///
+    /// Create one provider-backed secret key object.
+    /// Generation policy and persistence semantics follow runtime provider behavior.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.key.generate`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_key_generate_secret(
+        &mut self,
+        store: resource::CryptoStoreHandle,
+        request: HarnessValue<CryptoKeyGenerationRequest, CryptoKeyGenerationRequestVm>,
+    ) -> RuntimeResult<resource::CryptoKeyHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let request = request.into_vm("request")?;
+                let out = crypto_vm::destack_crypto_key_generate_secret(
+                    self.call_context,
+                    context,
+                    store,
+                    request,
                 )?;
                 Ok(out)
             }
             None => {
-                let spec = spec.into_native("spec")?;
+                let request = request.into_native("request")?;
                 let mut out = std::mem::MaybeUninit::<resource::CryptoKeyHandle>::uninit();
                 unsafe {
-                    crypto_native::destack_crypto_key_generate(
+                    crypto_native::destack_crypto_key_generate_secret(
                         self.call_context,
                         out.as_mut_ptr(),
                         store,
-                        spec,
+                        request,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -498,14 +1555,14 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
-    /// Import one key into one provider store.
+    /// Import one key object.
     ///
-    /// Parse and import one key blob into the selected provider store.
-    /// Key visibility and persistence follow host provider policies.
+    /// Parse and import one key blob into one provider store.
+    /// Key visibility and persistence follow runtime provider policies.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host provider key import APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -518,39 +1575,28 @@ impl<'call> CryptoHarnessContext<'call> {
     pub(crate) fn destack_crypto_key_import(
         &mut self,
         store: resource::CryptoStoreHandle,
-        format: CryptoKeyFormat,
-        argument_bytes: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
-        usagemask: CryptoKeyUsageMask,
-        label: HarnessValue<NativeStringRef, vm::StringHandle>,
+        request: HarnessValue<CryptoKeyImportRequest, CryptoKeyImportRequestVm>,
     ) -> RuntimeResult<resource::CryptoKeyHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
-                let argument_bytes = argument_bytes.into_vm("argument_bytes")?;
-                let label = label.into_vm("label")?;
+                let request = request.into_vm("request")?;
                 let out = crypto_vm::destack_crypto_key_import(
                     self.call_context,
                     context,
                     store,
-                    format,
-                    argument_bytes,
-                    usagemask,
-                    label,
+                    request,
                 )?;
                 Ok(out)
             }
             None => {
-                let argument_bytes = argument_bytes.into_native("argument_bytes")?;
-                let label = label.into_native("label")?;
+                let request = request.into_native("request")?;
                 let mut out = std::mem::MaybeUninit::<resource::CryptoKeyHandle>::uninit();
                 unsafe {
                     crypto_native::destack_crypto_key_import(
                         self.call_context,
                         out.as_mut_ptr(),
                         store,
-                        format,
-                        argument_bytes,
-                        usagemask,
-                        label,
+                        request,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -559,56 +1605,14 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
-    /// Return metadata for one key.
+    /// Sign one payload.
     ///
-    /// Query one provider key object and return normalized metadata fields.
-    /// Metadata visibility is subject to host provider permissions.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host provider key attribute queries.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `crypto.store.read`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
-    pub(crate) fn destack_crypto_key_metadata(
-        &mut self,
-        handle: resource::CryptoKeyHandle,
-    ) -> RuntimeResult<HarnessValue<CryptoKeyMetadata, CryptoKeyMetadataVm>> {
-        match self.generated_vm_context_mut() {
-            Some(context) => {
-                let out =
-                    crypto_vm::destack_crypto_key_metadata(self.call_context, context, handle)?;
-                Ok(HarnessValue::Vm(out))
-            }
-            None => {
-                let mut out = std::mem::MaybeUninit::<CryptoKeyMetadata>::uninit();
-                unsafe {
-                    crypto_native::destack_crypto_key_metadata(
-                        self.call_context,
-                        out.as_mut_ptr(),
-                        handle,
-                    )?;
-                }
-                let out = unsafe { out.assume_init() };
-                Ok(HarnessValue::Native(out))
-            }
-        }
-    }
-
-    /// Sign one message digest or payload.
-    ///
-    /// Produce one signature using one provider-backed key and one signature scheme.
-    /// Payload interpretation follows provider and scheme requirements.
+    /// Produce one signature over one payload using one provider-backed private key.
+    /// Payload hashing behavior is controlled by signature parameters.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses provider sign APIs over host key handles.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -621,22 +1625,24 @@ impl<'call> CryptoHarnessContext<'call> {
     pub(crate) fn destack_crypto_key_sign(
         &mut self,
         handle: resource::CryptoKeyHandle,
-        scheme: CryptoSignatureScheme,
+        parameters: HarnessValue<CryptoSignatureParameters, CryptoSignatureParametersVm>,
         argument_payload: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
+                let parameters = parameters.into_vm("parameters")?;
                 let argument_payload = argument_payload.into_vm("argument_payload")?;
                 let out = crypto_vm::destack_crypto_key_sign(
                     self.call_context,
                     context,
                     handle,
-                    scheme,
+                    parameters,
                     argument_payload,
                 )?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
+                let parameters = parameters.into_native("parameters")?;
                 let argument_payload = argument_payload.into_native("argument_payload")?;
                 let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
                 unsafe {
@@ -644,7 +1650,7 @@ impl<'call> CryptoHarnessContext<'call> {
                         self.call_context,
                         out.as_mut_ptr(),
                         handle,
-                        scheme,
+                        parameters,
                         argument_payload,
                     )?;
                 }
@@ -654,14 +1660,80 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
-    /// Verify one signature with one key handle.
+    /// Unwrap one key.
     ///
-    /// Verify one signature over one payload using one provider-backed key.
-    /// Verification semantics and required prehashing follow scheme and provider rules.
+    /// Decrypt and import one wrapped key object into one provider store.
+    /// Import semantics follow runtime provider policy and the import request.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses provider verify APIs over host key handles.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.key.unwrap`, `crypto.store.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_key_unwrap(
+        &mut self,
+        store: resource::CryptoStoreHandle,
+        wrappingkey: resource::CryptoKeyHandle,
+        wrappedkey: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+        parameters: HarnessValue<
+            CryptoAsymmetricEncryptionParameters,
+            CryptoAsymmetricEncryptionParametersVm,
+        >,
+        request: HarnessValue<CryptoKeyImportRequest, CryptoKeyImportRequestVm>,
+    ) -> RuntimeResult<resource::CryptoKeyHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let wrappedkey = wrappedkey.into_vm("wrappedkey")?;
+                let parameters = parameters.into_vm("parameters")?;
+                let request = request.into_vm("request")?;
+                let out = crypto_vm::destack_crypto_key_unwrap(
+                    self.call_context,
+                    context,
+                    store,
+                    wrappingkey,
+                    wrappedkey,
+                    parameters,
+                    request,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let wrappedkey = wrappedkey.into_native("wrappedkey")?;
+                let parameters = parameters.into_native("parameters")?;
+                let request = request.into_native("request")?;
+                let mut out = std::mem::MaybeUninit::<resource::CryptoKeyHandle>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_key_unwrap(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        store,
+                        wrappingkey,
+                        wrappedkey,
+                        parameters,
+                        request,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Verify one signature.
+    ///
+    /// Verify one signature over one payload using one provider-backed public key.
+    /// Payload hashing behavior is controlled by signature parameters.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -674,25 +1746,27 @@ impl<'call> CryptoHarnessContext<'call> {
     pub(crate) fn destack_crypto_key_verify(
         &mut self,
         handle: resource::CryptoKeyHandle,
-        scheme: CryptoSignatureScheme,
+        parameters: HarnessValue<CryptoSignatureParameters, CryptoSignatureParametersVm>,
         argument_payload: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
         signature: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
     ) -> RuntimeResult<bool> {
         match self.generated_vm_context_mut() {
             Some(context) => {
+                let parameters = parameters.into_vm("parameters")?;
                 let argument_payload = argument_payload.into_vm("argument_payload")?;
                 let signature = signature.into_vm("signature")?;
                 let out = crypto_vm::destack_crypto_key_verify(
                     self.call_context,
                     context,
                     handle,
-                    scheme,
+                    parameters,
                     argument_payload,
                     signature,
                 )?;
                 Ok(out)
             }
             None => {
+                let parameters = parameters.into_native("parameters")?;
                 let argument_payload = argument_payload.into_native("argument_payload")?;
                 let signature = signature.into_native("signature")?;
                 let mut out = std::mem::MaybeUninit::<bool>::uninit();
@@ -701,7 +1775,7 @@ impl<'call> CryptoHarnessContext<'call> {
                         self.call_context,
                         out.as_mut_ptr(),
                         handle,
-                        scheme,
+                        parameters,
                         argument_payload,
                         signature,
                     )?;
@@ -712,14 +1786,808 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
-    /// Close one crypto store.
+    /// Wrap one key.
     ///
-    /// Release one host provider store handle.
-    /// Open key and certificate handles remain valid according to host provider lifetime rules.
+    /// Export and encrypt one key object under one wrapping key.
+    /// Wrapping format and encryption semantics follow runtime provider behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses provider-specific store teardown semantics.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.key.wrap`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_key_wrap(
+        &mut self,
+        wrappingkey: resource::CryptoKeyHandle,
+        keytowrap: resource::CryptoKeyHandle,
+        format: CryptoKeyFormat,
+        parameters: HarnessValue<
+            CryptoAsymmetricEncryptionParameters,
+            CryptoAsymmetricEncryptionParametersVm,
+        >,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let parameters = parameters.into_vm("parameters")?;
+                let out = crypto_vm::destack_crypto_key_wrap(
+                    self.call_context,
+                    context,
+                    wrappingkey,
+                    keytowrap,
+                    format,
+                    parameters,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let parameters = parameters.into_native("parameters")?;
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_key_wrap(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        wrappingkey,
+                        keytowrap,
+                        format,
+                        parameters,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Close one streaming MAC context.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime MAC provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioNotFound, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.mac`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_mac_close(
+        &mut self,
+        handle: resource::CryptoMacHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                crypto_vm::destack_crypto_mac_close(self.call_context, context, handle)
+            }
+            None => unsafe { crypto_native::destack_crypto_mac_close(self.call_context, handle) },
+        }
+    }
+
+    /// Compute one message authentication code in one shot.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime MAC provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.mac`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_mac_compute(
+        &mut self,
+        key: resource::CryptoKeyHandle,
+        parameters: HarnessValue<CryptoMacParameters, CryptoMacParametersVm>,
+        argument_payload: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let parameters = parameters.into_vm("parameters")?;
+                let argument_payload = argument_payload.into_vm("argument_payload")?;
+                let out = crypto_vm::destack_crypto_mac_compute(
+                    self.call_context,
+                    context,
+                    key,
+                    parameters,
+                    argument_payload,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let parameters = parameters.into_native("parameters")?;
+                let argument_payload = argument_payload.into_native("argument_payload")?;
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_mac_compute(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        key,
+                        parameters,
+                        argument_payload,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Finalize one streaming MAC context and return one tag.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime MAC provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.mac`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_mac_finish(
+        &mut self,
+        handle: resource::CryptoMacHandle,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = crypto_vm::destack_crypto_mac_finish(self.call_context, context, handle)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_mac_finish(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        handle,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Open one streaming MAC context.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime MAC provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.mac`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_mac_open(
+        &mut self,
+        key: resource::CryptoKeyHandle,
+        parameters: HarnessValue<CryptoMacParameters, CryptoMacParametersVm>,
+    ) -> RuntimeResult<resource::CryptoMacHandle> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let parameters = parameters.into_vm("parameters")?;
+                let out = crypto_vm::destack_crypto_mac_open(
+                    self.call_context,
+                    context,
+                    key,
+                    parameters,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let parameters = parameters.into_native("parameters")?;
+                let mut out = std::mem::MaybeUninit::<resource::CryptoMacHandle>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_mac_open(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        key,
+                        parameters,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// Reset one streaming MAC context to its initial state.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime MAC provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.mac`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_mac_reset(
+        &mut self,
+        handle: resource::CryptoMacHandle,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                crypto_vm::destack_crypto_mac_reset(self.call_context, context, handle)
+            }
+            None => unsafe { crypto_native::destack_crypto_mac_reset(self.call_context, handle) },
+        }
+    }
+
+    /// Update one streaming MAC context.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime MAC provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.mac`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_mac_update(
+        &mut self,
+        handle: resource::CryptoMacHandle,
+        argument_payload: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let argument_payload = argument_payload.into_vm("argument_payload")?;
+                crypto_vm::destack_crypto_mac_update(
+                    self.call_context,
+                    context,
+                    handle,
+                    argument_payload,
+                )
+            }
+            None => {
+                let argument_payload = argument_payload.into_native("argument_payload")?;
+                unsafe {
+                    crypto_native::destack_crypto_mac_update(
+                        self.call_context,
+                        handle,
+                        argument_payload,
+                    )
+                }
+            }
+        }
+    }
+
+    /// Verify one message authentication code in one shot.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime MAC provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.mac`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_mac_verify(
+        &mut self,
+        key: resource::CryptoKeyHandle,
+        parameters: HarnessValue<CryptoMacParameters, CryptoMacParametersVm>,
+        argument_payload: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+        tag: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<bool> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let parameters = parameters.into_vm("parameters")?;
+                let argument_payload = argument_payload.into_vm("argument_payload")?;
+                let tag = tag.into_vm("tag")?;
+                let out = crypto_vm::destack_crypto_mac_verify(
+                    self.call_context,
+                    context,
+                    key,
+                    parameters,
+                    argument_payload,
+                    tag,
+                )?;
+                Ok(out)
+            }
+            None => {
+                let parameters = parameters.into_native("parameters")?;
+                let argument_payload = argument_payload.into_native("argument_payload")?;
+                let tag = tag.into_native("tag")?;
+                let mut out = std::mem::MaybeUninit::<bool>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_mac_verify(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        key,
+                        parameters,
+                        argument_payload,
+                        tag,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(out)
+            }
+        }
+    }
+
+    /// List supported key-agreement algorithms.
+    ///
+    /// Return key-agreement algorithms available through active host provider implementations.
+    /// Results are capability snapshots and may vary across hosts and runtime builds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime provider capability introspection over host crypto implementations.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_crypto_probe_agreement_algorithms(
+        &mut self,
+    ) -> RuntimeResult<
+        HarnessValue<
+            NativeSlice<CryptoKeyAgreementAlgorithm>,
+            VmSlice<CryptoKeyAgreementAlgorithm>,
+        >,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = crypto_vm::destack_crypto_probe_agreement_algorithms(
+                    self.call_context,
+                    context,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out =
+                    std::mem::MaybeUninit::<NativeSlice<CryptoKeyAgreementAlgorithm>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_probe_agreement_algorithms(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List supported cipher algorithms.
+    ///
+    /// Return cipher algorithms available through active host provider implementations.
+    /// Results are capability snapshots and may vary across hosts and runtime builds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime provider capability introspection over host crypto implementations.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_crypto_probe_cipher_algorithms(
+        &mut self,
+    ) -> RuntimeResult<
+        HarnessValue<NativeSlice<CryptoCipherAlgorithm>, VmSlice<CryptoCipherAlgorithm>>,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    crypto_vm::destack_crypto_probe_cipher_algorithms(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<CryptoCipherAlgorithm>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_probe_cipher_algorithms(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List supported digest algorithms.
+    ///
+    /// Return digest algorithms available through active host provider implementations.
+    /// Results are capability snapshots and may vary across hosts and runtime builds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime provider capability introspection over host crypto implementations.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_crypto_probe_digest_algorithms(
+        &mut self,
+    ) -> RuntimeResult<
+        HarnessValue<NativeSlice<CryptoDigestAlgorithm>, VmSlice<CryptoDigestAlgorithm>>,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    crypto_vm::destack_crypto_probe_digest_algorithms(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<CryptoDigestAlgorithm>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_probe_digest_algorithms(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List supported KDF algorithms.
+    ///
+    /// Return key-derivation algorithms available through active host provider implementations.
+    /// Results are capability snapshots and may vary across hosts and runtime builds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime provider capability introspection over host crypto implementations.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_crypto_probe_kdf_algorithms(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<CryptoKdfAlgorithm>, VmSlice<CryptoKdfAlgorithm>>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    crypto_vm::destack_crypto_probe_kdf_algorithms(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<CryptoKdfAlgorithm>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_probe_kdf_algorithms(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List supported key algorithm families.
+    ///
+    /// Return the key algorithm families available through the active host provider set.
+    /// Results are capability snapshots and may vary across hosts and runtime builds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime provider capability introspection over host crypto implementations.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_crypto_probe_key_algorithms(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<CryptoKeyAlgorithm>, VmSlice<CryptoKeyAlgorithm>>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    crypto_vm::destack_crypto_probe_key_algorithms(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<CryptoKeyAlgorithm>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_probe_key_algorithms(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List supported key formats.
+    ///
+    /// Return the key encoding formats supported by active host provider implementations.
+    /// Results are capability snapshots and may vary across hosts and runtime builds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime provider capability introspection over host crypto implementations.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_crypto_probe_key_formats(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<CryptoKeyFormat>, VmSlice<CryptoKeyFormat>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = crypto_vm::destack_crypto_probe_key_formats(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<CryptoKeyFormat>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_probe_key_formats(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List supported MAC algorithms.
+    ///
+    /// Return message-authentication algorithms available through active host providers.
+    /// Results are capability snapshots and may vary across hosts and runtime builds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime provider capability introspection over host crypto implementations.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_crypto_probe_mac_algorithms(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<CryptoMacAlgorithm>, VmSlice<CryptoMacAlgorithm>>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    crypto_vm::destack_crypto_probe_mac_algorithms(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<CryptoMacAlgorithm>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_probe_mac_algorithms(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List supported named curves.
+    ///
+    /// Return elliptic-curve families available through active host provider implementations.
+    /// Results are capability snapshots and may vary across hosts and runtime builds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime provider capability introspection over host crypto implementations.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_crypto_probe_named_curves(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<CryptoNamedCurve>, VmSlice<CryptoNamedCurve>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = crypto_vm::destack_crypto_probe_named_curves(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<CryptoNamedCurve>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_probe_named_curves(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List supported signature algorithms.
+    ///
+    /// Return signature algorithms available through active host provider implementations.
+    /// Results are capability snapshots and may vary across hosts and runtime builds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime provider capability introspection over host crypto implementations.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_crypto_probe_signature_algorithms(
+        &mut self,
+    ) -> RuntimeResult<
+        HarnessValue<NativeSlice<CryptoSignatureAlgorithm>, VmSlice<CryptoSignatureAlgorithm>>,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = crypto_vm::destack_crypto_probe_signature_algorithms(
+                    self.call_context,
+                    context,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out =
+                    std::mem::MaybeUninit::<NativeSlice<CryptoSignatureAlgorithm>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_probe_signature_algorithms(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Allocate one random byte vector with the requested length.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime CSPRNG provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.random`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_random_bytes(
+        &mut self,
+        length: u32,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    crypto_vm::destack_crypto_random_bytes(self.call_context, context, length)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_random_bytes(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        length,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// Fill one mutable byte slice with cryptographically secure random bytes.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime CSPRNG provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.random`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    pub(crate) fn destack_crypto_random_fill(
+        &mut self,
+        buffer: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
+    ) -> RuntimeResult<()> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let buffer = buffer.into_vm("buffer")?;
+                crypto_vm::destack_crypto_random_fill(self.call_context, context, buffer)
+            }
+            None => {
+                let buffer = buffer.into_native("buffer")?;
+                unsafe { crypto_native::destack_crypto_random_fill(self.call_context, buffer) }
+            }
+        }
+    }
+
+    /// Close one crypto store.
+    ///
+    /// Release one runtime provider store handle.
+    /// Open key and certificate handles remain valid according to runtime provider lifetime rules.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -743,12 +2611,12 @@ impl<'call> CryptoHarnessContext<'call> {
 
     /// List certificates from one store.
     ///
-    /// Enumerate certificate handles that match one query selector.
-    /// Result ordering and visibility follow host provider policies and caller permissions.
+    /// Enumerate certificate entries that match one query selector.
+    /// Result ordering and visibility follow runtime provider policies and caller permissions.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host certificate store enumeration APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -762,12 +2630,7 @@ impl<'call> CryptoHarnessContext<'call> {
         &mut self,
         handle: resource::CryptoStoreHandle,
         query: HarnessValue<CryptoCertificateQuery, CryptoCertificateQueryVm>,
-    ) -> RuntimeResult<
-        HarnessValue<
-            NativeArray<resource::CryptoCertificateHandle>,
-            VmArray<resource::CryptoCertificateHandle>,
-        >,
-    > {
+    ) -> RuntimeResult<HarnessValue<CryptoCertificateListPage, CryptoCertificateListPageVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let query = query.into_vm("query")?;
@@ -781,9 +2644,7 @@ impl<'call> CryptoHarnessContext<'call> {
             }
             None => {
                 let query = query.into_native("query")?;
-                let mut out =
-                    std::mem::MaybeUninit::<NativeArray<resource::CryptoCertificateHandle>>::uninit(
-                    );
+                let mut out = std::mem::MaybeUninit::<CryptoCertificateListPage>::uninit();
                 unsafe {
                     crypto_native::destack_crypto_store_list_certificates(
                         self.call_context,
@@ -800,12 +2661,12 @@ impl<'call> CryptoHarnessContext<'call> {
 
     /// List keys from one store.
     ///
-    /// Enumerate key handles that match one query selector.
-    /// Result ordering and visibility follow host provider policies and caller permissions.
+    /// Enumerate key entries that match one query selector.
+    /// Result ordering and visibility follow runtime provider policies and caller permissions.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host keychain and keystore enumeration APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -819,9 +2680,7 @@ impl<'call> CryptoHarnessContext<'call> {
         &mut self,
         handle: resource::CryptoStoreHandle,
         query: HarnessValue<CryptoKeyQuery, CryptoKeyQueryVm>,
-    ) -> RuntimeResult<
-        HarnessValue<NativeArray<resource::CryptoKeyHandle>, VmArray<resource::CryptoKeyHandle>>,
-    > {
+    ) -> RuntimeResult<HarnessValue<CryptoKeyListPage, CryptoKeyListPageVm>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let query = query.into_vm("query")?;
@@ -835,8 +2694,7 @@ impl<'call> CryptoHarnessContext<'call> {
             }
             None => {
                 let query = query.into_native("query")?;
-                let mut out =
-                    std::mem::MaybeUninit::<NativeArray<resource::CryptoKeyHandle>>::uninit();
+                let mut out = std::mem::MaybeUninit::<CryptoKeyListPage>::uninit();
                 unsafe {
                     crypto_native::destack_crypto_store_list_keys(
                         self.call_context,
@@ -853,12 +2711,14 @@ impl<'call> CryptoHarnessContext<'call> {
 
     /// Open one crypto store.
     ///
-    /// Create one host provider store handle for key and certificate operations.
-    /// Provider selection and access scope follow host keychain and keystore semantics.
+    /// Create one runtime provider store handle for key and certificate operations.
+    /// Provider selection and access scope follow runtime crypto store semantics.
+    /// `Ephemeral` store support is required.
+    /// Other kinds may return notSupported until host store providers are implemented.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses Security.framework on macos and ios, CNG and cert stores on Windows, and provider backends on Linux.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.

@@ -273,6 +273,46 @@ impl VmValueCodec for CryptoCertificateHandle {
     }
 }
 
+/// ABI newtype for CryptoCipherHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CryptoCipherHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CryptoCipherHandleVm = CryptoCipherHandle;
+
+impl VmValueCodec for CryptoCipherHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for CryptoDigestHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CryptoDigestHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CryptoDigestHandleVm = CryptoDigestHandle;
+
+impl VmValueCodec for CryptoDigestHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for CryptoKeyHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -284,6 +324,26 @@ pub struct CryptoKeyHandle(
 pub type CryptoKeyHandleVm = CryptoKeyHandle;
 
 impl VmValueCodec for CryptoKeyHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for CryptoMacHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CryptoMacHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type CryptoMacHandleVm = CryptoMacHandle;
+
+impl VmValueCodec for CryptoMacHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }
@@ -1653,6 +1713,26 @@ pub struct UsbDeviceHandle(
 pub type UsbDeviceHandleVm = UsbDeviceHandle;
 
 impl VmValueCodec for UsbDeviceHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
+/// ABI newtype for UsbWatchHandle.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct UsbWatchHandle(
+    /// Inner value.
+    pub ResourceId,
+);
+
+pub type UsbWatchHandleVm = UsbWatchHandle;
+
+impl VmValueCodec for UsbWatchHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
     }

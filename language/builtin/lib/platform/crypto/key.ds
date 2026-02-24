@@ -1,90 +1,138 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { CryptoKeyHandle, CryptoStoreHandle } from "../resource/index.ds";
+import {
+    CryptoAsymmetricEncryptionAlgorithm,
+    CryptoDigestAlgorithm,
+    CryptoKeyAlgorithm,
+    CryptoKeyFormat,
+    CryptoKeyKind,
+    CryptoKeyUsageMask,
+    CryptoNamedCurve,
+    CryptoSignatureAlgorithm,
+} from "./algorithm.ds";
 
-/// Key algorithm selector.
-export enum CryptoKeyAlgorithm {
-    /// Rsa key algorithm.
-    Rsa = 1,
-    /// Elliptic curve key algorithm.
-    Ec = 2,
-    /// Ed25519 key algorithm.
-    Ed25519 = 3,
-    /// X25519 key algorithm.
-    X25519 = 4,
-    /// Aes key algorithm.
-    Aes = 5,
-    /// Hmac key algorithm.
-    Hmac = 6,
-}
-
-/// Key material format.
-export enum CryptoKeyFormat {
-    /// Pkcs8 pem format.
-    Pkcs8Pem = 1,
-    /// Pkcs8 der format.
-    Pkcs8Der = 2,
-    /// Spki pem format.
-    SpkiPem = 3,
-    /// Spki der format.
-    SpkiDer = 4,
-    /// Json web key format.
-    Jwk = 5,
-    /// Raw unstructured key bytes.
-    Raw = 6,
-}
-
-/// Signature scheme selector.
-export newtype CryptoSignatureScheme = uint32;
-
-/// Encryption scheme selector.
-export newtype CryptoEncryptionScheme = uint32;
-
-/// Key usage bitmask.
-export newtype CryptoKeyUsageMask = uint32;
-
-/// Key generation options.
-export struct CryptoKeySpec {
-    /// Key algorithm.
+/// Key-generation request.
+export struct CryptoKeyGenerationRequest {
+    /// Key algorithm family.
     algorithm: CryptoKeyAlgorithm;
-    /// Key size in bits when applicable.
-    sizeBits: uint32;
+    /// Named curve for EC, EdDSA, and XDH key families.
+    namedCurve?: CryptoNamedCurve;
+    /// RSA modulus size in bits for RSA key families.
+    modulusBits?: uint32;
+    /// RSA public exponent for RSA key families.
+    publicExponent?: uint32;
+    /// Digest algorithm for RSA-PSS, RSA-OAEP, and HMAC defaults.
+    digest?: CryptoDigestAlgorithm;
+    /// Key size in bits for symmetric key families.
+    sizeBits?: uint32;
     /// Key usage mask.
+    /// Use zero for no allowed key operations.
     usageMask: CryptoKeyUsageMask;
-    /// Key label.
+    /// User-visible key label.
     label: string;
-    /// Whether key material may be exported.
+    /// Whether key material is exportable.
     extractable: boolean;
-    /// Whether hardware-backed keys are required.
+    /// Whether host hardware-backed storage is required.
     hardwareBacked: boolean;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
 }
 
-/// Key metadata.
-export struct CryptoKeyMetadata {
-    /// Key algorithm.
+/// Key import request.
+export struct CryptoKeyImportRequest {
+    /// Key material format.
+    format: CryptoKeyFormat;
+    /// Encoded key bytes.
+    bytes: Slice<uint8>;
+    /// Key algorithm family.
     algorithm: CryptoKeyAlgorithm;
-    /// Key size in bits when applicable.
-    sizeBits: uint32;
+    /// Named curve for EC, EdDSA, and XDH key families.
+    namedCurve?: CryptoNamedCurve;
+    /// Digest algorithm for RSA-PSS, RSA-OAEP, and HMAC defaults.
+    digest?: CryptoDigestAlgorithm;
     /// Key usage mask.
+    /// Use zero for no allowed key operations.
     usageMask: CryptoKeyUsageMask;
-    /// Key label.
+    /// User-visible key label.
     label: string;
-    /// Whether key material may be exported.
+    /// Whether key material is exportable.
     extractable: boolean;
-    /// Whether key is hardware-backed.
-    hardwareBacked: boolean;
+    /// Whether key material should persist beyond process lifetime.
+    persistent: boolean;
 }
 
-/// Key bindings for host provider key objects.
-declare namespace crypto {
-    /// Generate one key in one provider store.
+/// Generated key pair.
+export struct CryptoKeyPair {
+    /// Public key handle.
+    publicKey: CryptoKeyHandle;
+    /// Private key handle.
+    privateKey: CryptoKeyHandle;
+}
+
+/// Key descriptor.
+export struct CryptoKeyDescriptor {
+    /// Key object kind.
+    kind: CryptoKeyKind;
+    /// Key algorithm family.
+    algorithm: CryptoKeyAlgorithm;
+    /// Named curve for EC, EdDSA, and XDH key families.
+    namedCurve?: CryptoNamedCurve;
+    /// RSA modulus size in bits when available.
+    modulusBits?: uint32;
+    /// RSA public exponent when available.
+    publicExponent?: uint32;
+    /// Digest algorithm for RSA-PSS, RSA-OAEP, and HMAC defaults.
+    digest?: CryptoDigestAlgorithm;
+    /// Effective key size in bits when available.
+    sizeBits?: uint32;
+    /// Key usage mask.
+    /// Use zero for no allowed key operations.
+    usageMask: CryptoKeyUsageMask;
+    /// User-visible key label.
+    label: string;
+    /// Whether key material is exportable.
+    extractable: boolean;
+    /// Whether key storage is hardware-backed.
+    hardwareBacked: boolean;
+    /// Whether key material persists beyond process lifetime.
+    persistent: boolean;
+}
+
+/// Signature parameters.
+export struct CryptoSignatureParameters {
+    /// Signature algorithm.
+    algorithm: CryptoSignatureAlgorithm;
+    /// Digest algorithm.
+    digest?: CryptoDigestAlgorithm;
+    /// RSA-PSS salt length in bytes.
     ///
-    /// Create one provider-backed key object with the requested algorithm and key policy.
-    /// Generated key material remains owned by the host provider unless export is explicitly allowed.
+    /// Set to zero to use backend default salt behavior.
+    saltLengthBytes?: uint32;
+}
+
+/// Asymmetric encryption parameters.
+export struct CryptoAsymmetricEncryptionParameters {
+    /// Asymmetric encryption algorithm.
+    algorithm: CryptoAsymmetricEncryptionAlgorithm;
+    /// Digest algorithm.
+    digest?: CryptoDigestAlgorithm;
+    /// OAEP label bytes.
+    ///
+    /// Use one empty slice for no label.
+    label: Slice<uint8>;
+}
+
+/// Key bindings for runtime provider key objects.
+declare namespace crypto {
+    /// Generate one symmetric key.
+    ///
+    /// Create one provider-backed secret key object.
+    /// Generation policy and persistence semantics follow runtime provider behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses Security.framework, CNG, or provider-backed generate-key APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -95,7 +143,7 @@ declare namespace crypto {
     /// # Replay
     /// External, nonrecordable.
     @binding(
-        "destack.crypto.key.generate",
+        "destack.crypto.key.generateSecret",
         {
             effect: "external",
             replay: "nonrecordable",
@@ -105,19 +153,52 @@ declare namespace crypto {
             blocking: "sometimes",
         },
     )
-    export function keyGenerate(
+    export function keyGenerateSecret(
         store: CryptoStoreHandle,
-        spec: CryptoKeySpec,
+        request: CryptoKeyGenerationRequest,
     ): Result<CryptoKeyHandle, PlatformError>;
 
-    /// Import one key into one provider store.
+    /// Generate one asymmetric key pair.
     ///
-    /// Parse and import one key blob into the selected provider store.
-    /// Key visibility and persistence follow host provider policies.
+    /// Create one provider-backed asymmetric key pair and return public and private handles.
+    /// Generation policy and persistence semantics follow runtime provider behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host provider key import APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.key.generate`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.generatePair",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            capabilities: ["crypto.key.generate"],
+            platforms: ["windows", "unix"],
+            scope: "host",
+            blocking: "sometimes",
+        },
+    )
+    export function keyGeneratePair(
+        store: CryptoStoreHandle,
+        request: CryptoKeyGenerationRequest,
+    ): Result<CryptoKeyPair, PlatformError>;
+
+    /// Import one key object.
+    ///
+    /// Parse and import one key blob into one provider store.
+    /// Key visibility and persistence follow runtime provider policies.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -140,20 +221,16 @@ declare namespace crypto {
     )
     export function keyImport(
         store: CryptoStoreHandle,
-        format: CryptoKeyFormat,
-        bytes: Slice<uint8>,
-        usageMask: CryptoKeyUsageMask,
-        label: string,
+        request: CryptoKeyImportRequest,
     ): Result<CryptoKeyHandle, PlatformError>;
 
     /// Export one public key.
     ///
-    /// Export one public-key representation for the selected key handle in the requested format.
-    /// Exported bytes only include public material and are provider-normalized.
+    /// Export one public key representation in the requested encoding format.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host provider public-key export APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -179,14 +256,14 @@ declare namespace crypto {
         format: CryptoKeyFormat,
     ): Result<Slice<uint8>, PlatformError>;
 
-    /// Return metadata for one key.
+    /// Export one private key.
     ///
-    /// Query one provider key object and return normalized metadata fields.
-    /// Metadata visibility is subject to host provider permissions.
+    /// Export one private key representation in the requested encoding format.
+    /// The operation fails when provider policy marks this key as non-exportable.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host provider key attribute queries.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -197,7 +274,7 @@ declare namespace crypto {
     /// # Replay
     /// External, nonrecordable.
     @binding(
-        "destack.crypto.key.metadata",
+        "destack.crypto.key.exportPrivate",
         {
             effect: "external",
             replay: "nonrecordable",
@@ -207,16 +284,81 @@ declare namespace crypto {
             blocking: "sometimes",
         },
     )
-    export function keyMetadata(handle: CryptoKeyHandle): Result<CryptoKeyMetadata, PlatformError>;
+    export function keyExportPrivate(
+        handle: CryptoKeyHandle,
+        format: CryptoKeyFormat,
+    ): Result<Slice<uint8>, PlatformError>;
 
-    /// Sign one message digest or payload.
+    /// Export one secret key.
     ///
-    /// Produce one signature using one provider-backed key and one signature scheme.
-    /// Payload interpretation follows provider and scheme requirements.
+    /// Export one symmetric or raw-secret key representation in the requested encoding format.
+    /// The operation fails when provider policy marks this key as non-exportable.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses provider sign APIs over host key handles.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.store.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.exportSecret",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            capabilities: ["crypto.store.read"],
+            platforms: ["windows", "unix"],
+            scope: "host",
+            blocking: "sometimes",
+        },
+    )
+    export function keyExportSecret(
+        handle: CryptoKeyHandle,
+        format: CryptoKeyFormat,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Return one key descriptor.
+    ///
+    /// Query one provider key object and return normalized metadata fields.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.store.read`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.descriptor",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            capabilities: ["crypto.store.read"],
+            platforms: ["windows", "unix"],
+            scope: "host",
+            blocking: "sometimes",
+        },
+    )
+    export function keyDescriptor(handle: CryptoKeyHandle): Result<CryptoKeyDescriptor, PlatformError>;
+
+    /// Sign one payload.
+    ///
+    /// Produce one signature over one payload using one provider-backed private key.
+    /// Payload hashing behavior is controlled by signature parameters.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -239,18 +381,18 @@ declare namespace crypto {
     )
     export function keySign(
         handle: CryptoKeyHandle,
-        scheme: CryptoSignatureScheme,
+        parameters: CryptoSignatureParameters,
         payload: Slice<uint8>,
     ): Result<Slice<uint8>, PlatformError>;
 
-    /// Verify one signature with one key handle.
+    /// Verify one signature.
     ///
-    /// Verify one signature over one payload using one provider-backed key.
-    /// Verification semantics and required prehashing follow scheme and provider rules.
+    /// Verify one signature over one payload using one provider-backed public key.
+    /// Payload hashing behavior is controlled by signature parameters.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses provider verify APIs over host key handles.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -273,19 +415,19 @@ declare namespace crypto {
     )
     export function keyVerify(
         handle: CryptoKeyHandle,
-        scheme: CryptoSignatureScheme,
+        parameters: CryptoSignatureParameters,
         payload: Slice<uint8>,
         signature: Slice<uint8>,
     ): Result<boolean, PlatformError>;
 
-    /// Encrypt one payload with one key handle.
+    /// Encrypt one payload with one asymmetric key.
     ///
-    /// Encrypt one payload using one provider-backed key and one encryption scheme.
-    /// Padding and nonce requirements are provider-specific and scheme-specific.
+    /// Encrypt one payload using one provider-backed public key.
+    /// Padding and label semantics are controlled by encryption parameters.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses provider encrypt APIs over host key handles.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -308,18 +450,18 @@ declare namespace crypto {
     )
     export function keyEncrypt(
         handle: CryptoKeyHandle,
-        scheme: CryptoEncryptionScheme,
+        parameters: CryptoAsymmetricEncryptionParameters,
         payload: Slice<uint8>,
     ): Result<Slice<uint8>, PlatformError>;
 
-    /// Decrypt one payload with one key handle.
+    /// Decrypt one payload with one asymmetric key.
     ///
-    /// Decrypt one payload using one provider-backed key and one encryption scheme.
-    /// Padding and nonce requirements are provider-specific and scheme-specific.
+    /// Decrypt one payload using one provider-backed private key.
+    /// Padding and label semantics are controlled by encryption parameters.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses provider decrypt APIs over host key handles.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -342,18 +484,89 @@ declare namespace crypto {
     )
     export function keyDecrypt(
         handle: CryptoKeyHandle,
-        scheme: CryptoEncryptionScheme,
+        parameters: CryptoAsymmetricEncryptionParameters,
         payload: Slice<uint8>,
     ): Result<Slice<uint8>, PlatformError>;
 
-    /// Delete one key handle and backing key material when allowed.
+    /// Wrap one key.
     ///
-    /// Remove one provider-backed key object and invalidate this handle.
-    /// Deletion permissions and persistence policies are enforced by the host provider.
+    /// Export and encrypt one key object under one wrapping key.
+    /// Wrapping format and encryption semantics follow runtime provider behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses provider key delete APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.key.wrap`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.wrap",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            capabilities: ["crypto.key.wrap"],
+            platforms: ["windows", "unix"],
+            scope: "host",
+            blocking: "sometimes",
+        },
+    )
+    export function keyWrap(
+        wrappingKey: CryptoKeyHandle,
+        keyToWrap: CryptoKeyHandle,
+        format: CryptoKeyFormat,
+        parameters: CryptoAsymmetricEncryptionParameters,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Unwrap one key.
+    ///
+    /// Decrypt and import one wrapped key object into one provider store.
+    /// Import semantics follow runtime provider policy and the import request.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.key.unwrap`, `crypto.store.write`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.key.unwrap",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            capabilities: ["crypto.key.unwrap", "crypto.store.write"],
+            platforms: ["windows", "unix"],
+            scope: "host",
+            blocking: "sometimes",
+        },
+    )
+    export function keyUnwrap(
+        store: CryptoStoreHandle,
+        wrappingKey: CryptoKeyHandle,
+        wrappedKey: Slice<uint8>,
+        parameters: CryptoAsymmetricEncryptionParameters,
+        request: CryptoKeyImportRequest,
+    ): Result<CryptoKeyHandle, PlatformError>;
+
+    /// Delete one key object.
+    ///
+    /// Delete one provider-backed key object and invalidate this handle.
+    /// Deletion permissions and persistence policies are enforced by the runtime provider.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime key-management and cryptographic provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
