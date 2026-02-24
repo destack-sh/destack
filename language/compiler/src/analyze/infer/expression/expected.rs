@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
-use crate::analyze::common::RelationMode;
+use crate::analyze::common::{InferTablesContext, RelationMode};
 use crate::{AnalyzeOptions, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, Member, NodeTree,
     NormalizationMode, PrimitiveType, Property, ScalarLiteral, StaticArgument, StaticKey,
-    SymbolTable, SymbolType, Type, TypeKind, TypeLiteral, TypeTable,
+    SymbolType, Type, TypeKind, TypeLiteral, TypeTable,
 };
-use destack_workspace::{Module, ProfileId};
 
 /// Contextual function signature derived from an expected type.
 #[derive(Debug, Clone)]
@@ -47,16 +46,11 @@ impl Compiler {
     /// Derive an expected object type id from a contextual type.
     pub(crate) fn expected_object_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         expected_ty_id: Option<LocalTypeId>,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // skip when there is no contextual type
-        let expected_ty_id = self.expected_value_type(expected_ty_id, types);
+        let expected_ty_id = self.expected_value_type(expected_ty_id, tables.types);
         let Some(expected_ty_id) = expected_ty_id else {
             return Ok(None);
         };
@@ -64,26 +58,26 @@ impl Compiler {
         // normalize mapped, alias, and object shapes into concrete object types
         // NOTE #Suspicious: contextual object normalization uses type ops without apparent type checks
         let normalized_ty_id = self.normalize_type_with_relation(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             expected_ty_id,
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
             NormalizationMode::Assign,
             RelationMode::EXPECTED_TYPE,
         );
-        if matches!(types.get_type(normalized_ty_id), Type::Object { .. }) {
+        if matches!(tables.types.get_type(normalized_ty_id), Type::Object { .. }) {
             return Ok(Some(normalized_ty_id));
         }
 
         // reuse concrete object types when normalization does not change them
-        let expected_type = types.get_type(expected_ty_id).clone();
+        let expected_type = tables.types.get_type(expected_ty_id).clone();
         if matches!(expected_type, Type::Object { .. }) {
             return Ok(Some(expected_ty_id));
         }
 
         // resolve the reference symbol and arguments
-        let source_id = types.get_type_source(expected_ty_id);
+        let source_id = tables.types.get_type_source(expected_ty_id);
         let (symbol, static_arguments): (GlobalSymbolId, Option<Vec<StaticArgument>>) =
             match expected_type {
                 Type::Reference {
@@ -100,8 +94,8 @@ impl Compiler {
 
         // unwrap local nominal aliases to their declared types for tagged literals
         let mut declared_type_id = None;
-        if symbol.module_id == module.id {
-            let symbol_entry = symbols.get_symbol(symbol.local_id);
+        if symbol.module_id == tables.module.id {
+            let symbol_entry = tables.symbols.get_symbol(symbol.local_id);
             if symbol_entry.ty == SymbolType::Newtype
                 && let Some(primary_declaration) = symbol_entry.primary_declaration
                 && let Ok(declaration_id) = primary_declaration.try_into_typed::<Declaration>()
@@ -111,18 +105,18 @@ impl Compiler {
                     kind: TypeKind::Nominal,
                     value,
                     ..
-                } = tree.get(declaration_id)
+                } = tables.tree.get(declaration_id)
                 {
-                    let value_id = value.into_global_any(module.id);
-                    if let Some(value_ty_id) = types.get_declared_type_id(value_id) {
-                        if matches!(types.get_type(value_ty_id), Type::Unevaluated(_)) {
+                    let value_id = value.into_global_any(tables.module.id);
+                    if let Some(value_ty_id) = tables.types.get_declared_type_id(value_id) {
+                        if matches!(tables.types.get_type(value_ty_id), Type::Unevaluated(_)) {
                             self.resolve_declared_type(
-                                module,
-                                profile,
+                                tables.module,
+                                tables.profile,
                                 value_ty_id,
-                                tree,
-                                symbols,
-                                types,
+                                tables.tree,
+                                tables.symbols,
+                                tables.types,
                             )?;
                         }
                         declared_type_id = Some(value_ty_id);
@@ -132,8 +126,13 @@ impl Compiler {
         }
 
         // resolve the instance type for the reference
-        let instance_ty_id =
-            self.resolve_instance_type_for_symbol(module, profile, source_id, symbol, types)?;
+        let instance_ty_id = self.resolve_instance_type_for_symbol(
+            tables.module,
+            tables.profile,
+            source_id,
+            symbol,
+            tables.types,
+        )?;
         let Some(instance_ty_id) = instance_ty_id else {
             return Ok(None);
         };
@@ -146,16 +145,16 @@ impl Compiler {
 
         // resolve static arguments for substitution
         let resolved_arguments = self.resolve_type_reference_static_arguments(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             source_id,
             symbol,
             Some(static_arguments.as_slice()),
             true,
-            options,
-            tree,
-            symbols,
-            types,
+            tables.options,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         )?;
         let Some(resolved_arguments) = resolved_arguments else {
             return Ok(Some(instance_ty_id));
@@ -168,14 +167,14 @@ impl Compiler {
 
         // build substitutions for type parameters
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             symbol,
             source_id,
             &resolved_arguments,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         );
 
         // reuse instance type when no substitutions are needed
@@ -185,8 +184,12 @@ impl Compiler {
 
         // substitute parameters inside the instance type
         let mut cache = HashMap::new();
-        let substituted =
-            self.substitute_static_parameters(instance_ty_id, &substitutions, types, &mut cache);
+        let substituted = self.substitute_static_parameters(
+            instance_ty_id,
+            &substitutions,
+            tables.types,
+            &mut cache,
+        );
 
         Ok(Some(substituted))
     }
@@ -194,36 +197,32 @@ impl Compiler {
     /// Derive an expected object type for an object literal with a union context.
     pub(crate) fn expected_object_type_for_literal_union(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         expected_ty_id: Option<LocalTypeId>,
         properties: &[LocalNodeId<Property>],
         options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        let expected_ty_id = self.expected_value_type(expected_ty_id, types);
+        let expected_ty_id = self.expected_value_type(expected_ty_id, tables.types);
         let Some(expected_ty_id) = expected_ty_id else {
             return Ok(None);
         };
 
         let normalized_ty_id = self.normalize_type_with_relation(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             expected_ty_id,
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
             NormalizationMode::Assign,
             RelationMode::EXPECTED_TYPE,
         );
-        let Type::Union { elements } = types.get_type(normalized_ty_id).clone() else {
+        let Type::Union { elements } = tables.types.get_type(normalized_ty_id).clone() else {
             return Ok(None);
         };
 
         let mut literal_filters = Vec::new();
         for property_id in properties {
-            let property = tree.get(*property_id);
+            let property = tables.tree.get(*property_id);
             let Property::Field { key, value, .. } = property else {
                 continue;
             };
@@ -233,19 +232,25 @@ impl Compiler {
             let Some(value_id) = value else {
                 continue;
             };
-            let Some(static_key) =
-                self.static_key_from_dynamic_key(profile, *key, tree, symbols, types)
-            else {
+            let Some(static_key) = self.static_key_from_dynamic_key(
+                tables.profile,
+                *key,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+            ) else {
                 continue;
             };
-            let Expression::ScalarLiteral { value } = tree.get(*value_id) else {
+            let Expression::ScalarLiteral { value } = tables.tree.get(*value_id) else {
                 continue;
             };
 
             let literal_type = Type::TypeLiteral {
                 value: self.infer_scalar_literal(value),
             };
-            let literal_type_id = types.insert_type_from_any(literal_type, value_id.into_any());
+            let literal_type_id = tables
+                .types
+                .insert_type_from_any(literal_type, value_id.into_any());
             literal_filters.push((static_key, literal_type_id));
         }
         if literal_filters.is_empty() {
@@ -256,7 +261,13 @@ impl Compiler {
         'elements: for element_id in elements {
             for (key, literal_type_id) in &literal_filters {
                 let field_info = self.type_field_type_for_key(
-                    module, profile, element_id, key, tree, symbols, types,
+                    tables.module,
+                    tables.profile,
+                    element_id,
+                    key,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                 )?;
                 let Some((field_type_id, _)) = field_info else {
                     continue 'elements;
@@ -264,12 +275,12 @@ impl Compiler {
 
                 let is_assignable = self
                     .is_type_assignable(
-                        module,
-                        profile,
-                        symbols,
+                        tables.module,
+                        tables.profile,
+                        tables.symbols,
                         field_type_id,
                         *literal_type_id,
-                        types,
+                        tables.types,
                         options,
                     )
                     .is_assignable();
@@ -286,15 +297,15 @@ impl Compiler {
 
         let matched_id = matching_elements[0];
         let normalized_id = self.normalize_type_with_relation(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             matched_id,
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
             NormalizationMode::Assign,
             RelationMode::EXPECTED_TYPE,
         );
-        if matches!(types.get_type(normalized_id), Type::Object { .. }) {
+        if matches!(tables.types.get_type(normalized_id), Type::Object { .. }) {
             return Ok(Some(normalized_id));
         }
 
@@ -304,14 +315,10 @@ impl Compiler {
     /// Derive an expected object type for tagged object literals.
     pub(crate) fn expected_tagged_object_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         ty_id: LocalTypeId,
         expected_object_ty_id: Option<LocalTypeId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // skip when no contextual object type exists
         let Some(expected_object_ty_id) = expected_object_ty_id else {
@@ -319,28 +326,28 @@ impl Compiler {
         };
 
         // resolve the referenced symbol for the tagged type
-        let Type::Reference { symbol, .. } = types.get_type(ty_id) else {
+        let Type::Reference { symbol, .. } = tables.types.get_type(ty_id) else {
             return Ok(Some(expected_object_ty_id));
         };
 
         // only read local symbol tables for local reference symbols
-        if symbol.module_id != module.id {
+        if symbol.module_id != tables.module.id {
             return Ok(Some(expected_object_ty_id));
         }
 
         // resolve the primary declaration for the symbol
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let symbol_entry = tables.symbols.get_symbol(symbol.local_id);
         let Some(primary_declaration) = symbol_entry.primary_declaration else {
             return Ok(Some(expected_object_ty_id));
         };
-        if primary_declaration.module_id != module.id {
+        if primary_declaration.module_id != tables.module.id {
             return Ok(Some(expected_object_ty_id));
         }
         let Ok(primary_declaration) = primary_declaration.try_into_typed::<Declaration>() else {
             return Ok(Some(expected_object_ty_id));
         };
         let declaration_id: LocalNodeId<Declaration> = primary_declaration.into();
-        let declaration = tree.get(declaration_id);
+        let declaration = tables.tree.get(declaration_id);
 
         // ensure the declaration is a struct or class
         if !matches!(
@@ -356,19 +363,29 @@ impl Compiler {
         };
         let mut declared_field_keys = Vec::new();
         for member_id in member_ids {
-            let member = tree.get(*member_id);
+            let member = tables.tree.get(*member_id);
             match member {
                 Member::Field { key: Some(key), .. } => {
-                    if let Some(static_key) =
-                        self.static_key_from_dynamic_key(profile, *key, tree, symbols, types)
-                    {
+                    if let Some(static_key) = self.static_key_from_dynamic_key(
+                        tables.profile,
+                        *key,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
+                    ) {
                         declared_field_keys.push(static_key);
                     }
                 }
                 Member::Embed { value, .. } => {
                     // include embedded fields in tagged literal filtering
-                    let embed_shape =
-                        self.embed_member_shape(module, profile, *value, tree, symbols, types)?;
+                    let embed_shape = self.embed_member_shape(
+                        tables.module,
+                        tables.profile,
+                        *value,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
+                    )?;
                     for field in embed_shape.fields {
                         declared_field_keys.push(field.key);
                     }
@@ -386,7 +403,7 @@ impl Compiler {
             call_signatures,
             construct_signatures,
             index_signatures,
-        } = types.get_type(expected_object_ty_id).clone()
+        } = tables.types.get_type(expected_object_ty_id).clone()
         else {
             return Ok(Some(expected_object_ty_id));
         };
@@ -405,7 +422,7 @@ impl Compiler {
             construct_signatures,
             index_signatures,
         };
-        let filtered_type_id = types.insert_type_from(filtered_type, expression_id);
+        let filtered_type_id = tables.types.insert_type_from(filtered_type, expression_id);
 
         Ok(Some(filtered_type_id))
     }

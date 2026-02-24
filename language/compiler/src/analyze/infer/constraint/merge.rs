@@ -1,25 +1,20 @@
 use crate::{AnalyzeResult, Compiler, InferContext};
 use destack_dir::{
-    InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, Property, SymbolTable, Type,
-    TypeLiteral, TypeTable,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Property, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
 use super::expression::ObjectLiteralField;
-use crate::analyze::common::{NormalizationMode, ObjectShape, RelationMode};
+use crate::analyze::common::{InferTablesContext, NormalizationMode, ObjectShape, RelationMode};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Infer literal fields and spread shapes for an object literal.
     pub(crate) fn infer_object_literal_shapes(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         properties: &[LocalNodeId<Property>],
         expected_object_ty_id: Option<LocalTypeId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<(
         Vec<ObjectLiteralField>,
@@ -33,32 +28,25 @@ impl Compiler {
 
         // collect literal fields and spread shapes
         for property_id in properties {
-            let property = tree.get(*property_id);
+            let property = tables.tree.get(*property_id);
             match property {
                 Property::Spread { value, .. } => {
                     let mut spread_ctx = ctx.fork().with_expected_type(None);
-                    let spread_type = self.infer_expression(
-                        module,
-                        *value,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        &mut spread_ctx,
-                    )?;
+                    let spread_type =
+                        self.infer_expression(&mut tables.reborrow(), *value, &mut spread_ctx)?;
                     // normalize spreads before extracting shapes
                     let spread_type = self.normalize_type_with_relation(
-                        module,
+                        tables.module,
                         ctx.profile,
                         spread_type,
-                        symbols,
-                        types,
+                        tables.symbols,
+                        tables.types,
                         NormalizationMode::Assign,
                         RelationMode::OBJECT_SHAPE,
                     );
 
                     // short circuit on any or unknown spreads
-                    match types.get_type(spread_type) {
+                    match tables.types.get_type(spread_type) {
                         Type::TypeLiteral {
                             value: TypeLiteral::Any,
                         } => {
@@ -82,24 +70,20 @@ impl Compiler {
 
                     // expand spread types into object shapes
                     let spread_shapes = self.collect_object_spread_shapes(
-                        module,
+                        tables.module,
                         ctx.profile,
                         (*property_id).into_any(),
                         spread_type,
-                        symbols,
-                        types,
+                        tables.symbols,
+                        tables.types,
                     )?;
                     shapes = self.merge_object_spread_shape_sets(shapes, spread_shapes);
                 }
                 _ => {
                     if let Some(field) = self.infer_property(
-                        module,
+                        &mut tables.reborrow(),
                         *property_id,
                         expected_object_ty_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         ctx,
                     )? {
                         literal_fields.push(field.clone());

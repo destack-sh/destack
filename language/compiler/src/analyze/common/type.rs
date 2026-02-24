@@ -11,8 +11,8 @@ use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 use super::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, NormalizationMode, RelationMode, TypeWalkContext,
-    TypeWalkKey,
+    AnalyzeDependencyStage, CanonicalSymbolMode, InferTablesContext, NormalizationMode,
+    RelationMode, TypeWalkContext, TypeWalkKey,
 };
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, ElaborateError, ElaborateResult,
@@ -1230,15 +1230,18 @@ impl Compiler {
     /// Ensure one unwrapped value type id is evaluated before runtime and member reads.
     pub(crate) fn ensure_unwrapped_value_type_evaluated(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
-        let unwrapped_type_id = types.unwrap_value_type_id(type_id);
-        self.ensure_type_evaluated(module, profile, unwrapped_type_id, tree, symbols, types)
+        let unwrapped_type_id = tables.types.unwrap_value_type_id(type_id);
+        self.ensure_type_evaluated(
+            tables.module,
+            tables.profile,
+            unwrapped_type_id,
+            tables.tree,
+            tables.symbols,
+            tables.types,
+        )
     }
 
     /// Return true when one unwrapped value type id remains unevaluated.

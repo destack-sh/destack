@@ -13,6 +13,7 @@ mod managed;
 mod mapped;
 mod materialize;
 mod normalize;
+mod phase;
 mod relation;
 mod scalar;
 mod shape;
@@ -27,6 +28,7 @@ pub(crate) use context::{ConstContext, ContextualTypingMode, LiteralFreshness, W
 pub(crate) use destack_dir::NormalizationMode;
 pub(crate) use literal::evaluate_numeric_literal;
 pub(crate) use materialize::{MaterializationMode, ReadonlyMaterializer};
+pub(crate) use phase::{AssignContext, CommitContext, InferTablesContext, ModuleContext};
 pub(crate) use relation::RelationMode;
 pub(crate) use scalar::{evaluate_binary_scalar, evaluate_unary_scalar};
 pub(crate) use shape::{ObjectShape, ObjectShapeSet};

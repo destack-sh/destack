@@ -4,7 +4,7 @@ use super::obligation::relation::UnassignableRelationFailureMode;
 use super::{
     index_key_kind_for_index, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
-use crate::analyze::common::{CanonicalSymbolMode, RelationMode};
+use crate::analyze::common::{CanonicalSymbolMode, InferTablesContext, RelationMode};
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Assignability, Compiler,

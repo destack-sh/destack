@@ -1,3 +1,4 @@
+use crate::analyze::common::{CommitContext, ModuleContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -36,10 +37,11 @@ impl Compiler {
             self.discharge_instance_commit_obligations(infer, &mut types)?;
 
             // commit direct type writes that depend on solved type substitutions
-            let actions = self.collect_binding_value_commit_actions(
-                module, profile, &tree, &symbols, &mut types, infer,
-            );
-            self.apply_binding_value_commit_actions(actions, &mut types);
+            let options = self.analyze_context_options_for_module(module_id);
+            let module_ctx = ModuleContext::new(module, profile, &tree, &symbols, &options);
+            let mut commit_ctx = CommitContext::new(module_ctx, &mut types);
+            let actions = self.collect_binding_value_commit_actions(&mut commit_ctx, infer);
+            self.apply_binding_value_commit_actions(actions, &mut commit_ctx);
             Ok::<(), AnalyzeError>(())
         })
         .ok_or_else(|| self.missing_commit_infer_table_error(module_id, profile, "commit"))??;

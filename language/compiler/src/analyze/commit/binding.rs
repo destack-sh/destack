@@ -1,6 +1,6 @@
+use crate::analyze::common::CommitContext;
 use crate::{Compiler, InferContext};
-use destack_dir::{GlobalSymbolId, InferTable, LocalTypeId, NodeTree, SymbolTable, TypeTable};
-use destack_workspace::{Module, ProfileId};
+use destack_dir::{GlobalSymbolId, InferTable, LocalTypeId};
 
 /// One direct-binding value-type commit action collected after solve convergence.
 #[derive(Debug, Clone, Copy)]
@@ -15,14 +15,15 @@ impl Compiler {
     /// Collect direct-binding value-type commit actions from solved initializer intents.
     pub(super) fn collect_binding_value_commit_actions(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        ctx: &mut CommitContext<'_>,
         infer: &InferTable,
     ) -> Vec<DirectBindingValueTypeCommitAction> {
-        let options = self.analyze_context_options_for_module(module.id);
+        let module = ctx.module.module;
+        let profile = ctx.module.profile;
+        let tree = ctx.module.tree;
+        let symbols = ctx.module.symbols;
+        let types = &mut *ctx.types;
+        let options = *ctx.module.options;
 
         // consume infer-recorded write intents in deterministic symbol or node order
         let mut intents = infer
@@ -75,10 +76,10 @@ impl Compiler {
     pub(super) fn apply_binding_value_commit_actions(
         &self,
         actions: Vec<DirectBindingValueTypeCommitAction>,
-        committed_types: &mut TypeTable,
+        ctx: &mut CommitContext<'_>,
     ) {
         for action in actions {
-            committed_types.set_value_type(action.symbol_id, action.type_id);
+            ctx.types.set_value_type(action.symbol_id, action.type_id);
         }
     }
 }

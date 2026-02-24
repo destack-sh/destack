@@ -6,7 +6,7 @@ use destack_dir::{
 };
 use destack_workspace::Module;
 
-use super::{AnalyzeDependencyStage, ObjectShape};
+use super::{AnalyzeDependencyStage, InferTablesContext, ObjectShape};
 use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext};
 
 // allow wide signature for globalThis synthesis
@@ -47,6 +47,9 @@ impl Compiler {
         let Some(global_table) = global_table else {
             return Ok(None);
         };
+        let options = ctx.options;
+        let mut tables =
+            InferTablesContext::new(module, ctx.profile, &options, tree, symbols, types, infer);
 
         // collect global value bindings into a single shape
         let mut shape = ObjectShape::default();
@@ -67,26 +70,21 @@ impl Compiler {
                 }
 
                 // resolve the value type for the global binding
-                let value_ty_id = if let Some(value_ty_id) = types.get_value_type_id(*symbol_id) {
+                let value_ty_id = if let Some(value_ty_id) =
+                    tables.types.get_value_type_id(*symbol_id)
+                {
                     value_ty_id
-                } else if symbol_id.module_id != module.id {
+                } else if symbol_id.module_id != tables.module.id {
                     self.resolve_remote_symbol_value_type_for_context(
-                        module,
+                        tables.module,
                         ctx,
                         expression_id.into_any(),
                         *symbol_id,
-                        types,
+                        tables.types,
                     )?
-                } else if let Some(inferred_ty_id) = self.infer_direct_binding_value_type(
-                    module,
-                    ctx.profile,
-                    *symbol_id,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )? {
+                } else if let Some(inferred_ty_id) =
+                    self.infer_direct_binding_value_type(&mut tables.reborrow(), *symbol_id, ctx)?
+                {
                     inferred_ty_id
                 } else {
                     continue;
@@ -95,7 +93,7 @@ impl Compiler {
                 // compute readonly status from the binding mutability
                 let binding_mutability = self
                     .with_module_symbols_or_local_at_stage(
-                        module,
+                        tables.module,
                         ctx.profile,
                         symbol_id.module_id,
                         symbols,
@@ -119,8 +117,10 @@ impl Compiler {
         }
 
         // register the synthesized globalThis type
-        let ty_id = types.insert_type_from_any(shape.into_object_type(), expression_id.into_any());
-        types.set_value_type(global_this_symbol, ty_id);
+        let ty_id = tables
+            .types
+            .insert_type_from_any(shape.into_object_type(), expression_id.into_any());
+        tables.types.set_value_type(global_this_symbol, ty_id);
 
         Ok(Some(ty_id))
     }

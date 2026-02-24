@@ -1,6 +1,6 @@
 use super::member::{MemberLookupMode, MemberReceiverContext};
 use crate::Compiler;
-use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode};
+use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode, InferTablesContext};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, StaticKey, SymbolSpace,
     SymbolTable, SymbolType, Type, TypeTable,
@@ -12,15 +12,12 @@ impl Compiler {
     /// Return true when a member receiver should be evaluated as a type projection receiver.
     pub(crate) fn is_projection_receiver_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         receiver_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> bool {
-        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
-        if !tree
+        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tables.tree);
+        if !tables
+            .tree
             .get(receiver_id)
             .static_arguments()
             .is_some_and(|arguments| !arguments.is_empty())
@@ -28,52 +25,46 @@ impl Compiler {
             return false;
         }
 
-        let symbol = self.resolve_projection_receiver_symbol(
-            module,
-            profile,
-            receiver_id,
-            tree,
-            symbols,
-            types,
-        );
+        let symbol = self.resolve_projection_receiver_symbol(&mut tables.reborrow(), receiver_id);
         let Some(symbol) = symbol else {
             return false;
         };
 
-        self.query_symbol_supports_projection_receiver(module, profile, symbol, symbols)
+        self.query_symbol_supports_projection_receiver(
+            tables.module,
+            tables.profile,
+            symbol,
+            tables.symbols,
+        )
     }
 
     /// Resolve a symbol candidate for associated projection receiver inference.
     fn resolve_projection_receiver_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         receiver_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<GlobalSymbolId> {
         self.resolve_direct_receiver_symbol_for_expression(
-            module,
+            tables.module,
             receiver_id,
-            profile,
-            tree,
-            symbols,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
         )
         .or_else(|| {
             let receiver_type_id = self
                 .resolve_declared_type_expression(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     receiver_id,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                     true,
                     true,
                 )
                 .ok()?;
-            self.query_type_like_receiver_symbol_for_type_id(receiver_type_id, types)
+            self.query_type_like_receiver_symbol_for_type_id(receiver_type_id, tables.types)
         })
     }
 
@@ -204,7 +195,7 @@ impl Compiler {
     }
 
     /// Resolve a canonical direct symbol for a receiver expression.
-    fn resolve_direct_receiver_symbol_for_expression(
+    pub(crate) fn resolve_direct_receiver_symbol_for_expression(
         &self,
         module: &Module,
         receiver_id: LocalNodeId<Expression>,
@@ -259,7 +250,7 @@ impl Compiler {
     }
 
     /// Resolve a type symbol for a potentially union or intersection receiver type.
-    fn query_type_like_receiver_symbol_for_type_id(
+    pub(crate) fn query_type_like_receiver_symbol_for_type_id(
         &self,
         receiver_type_id: LocalTypeId,
         types: &TypeTable,

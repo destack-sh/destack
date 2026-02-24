@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
 use super::SignatureResolutionMode;
-use super::member::{MemberLookupMode, MemberReceiverContext, MemberResolution};
+use super::member::{MemberLookupMode, MemberResolution};
 use crate::analyze::StaticSubstitutionEnvironment;
-use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode};
+use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode, InferTablesContext};
 use crate::timing::tags;
-use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
+use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Constraint, Declaration, DispatchKey, DynamicResolutionCandidateSlotId, Expression,
     FunctionKind, FunctionMode, GlobalSymbolId, InferOrigin, InferTable, LocalInstanceId,
@@ -148,8 +148,6 @@ struct UnionMemberCallResolutionContext<'a> {
     dynamic_arguments: &'a [LocalNodeId<Argument>],
     /// The active profile.
     profile: ProfileId,
-    /// Analyze options for relation checks.
-    options: &'a AnalyzeOptions,
     /// The current module tree.
     tree: &'a NodeTree,
     /// The current module symbol table.
@@ -306,7 +304,7 @@ impl Compiler {
     /// Resolve a function signature and apply `this` substitutions when needed.
     pub(crate) fn resolve_call_signature(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         callee_symbol: Option<GlobalSymbolId>,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
@@ -318,19 +316,13 @@ impl Compiler {
         expected_return_type: Option<LocalTypeId>,
         mode: SignatureResolutionMode,
         allow_missing_value_arguments: bool,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> AnalyzeResult<Option<ResolvedSignature>> {
         let Type::Function {
             static_parameters,
             dynamic_parameters,
             return_type,
             ..
-        } = types.get_type(signature_ty_id).clone()
+        } = tables.types.get_type(signature_ty_id).clone()
         else {
             return Ok(None);
         };
@@ -341,12 +333,12 @@ impl Compiler {
             if let Some(callee_symbol) = callee_symbol {
                 let parameter_symbols = self
                     .collect_static_parameter_symbols(
-                        module,
+                        tables.module,
                         callee_symbol,
-                        profile,
-                        tree,
-                        symbols,
-                        types,
+                        tables.profile,
+                        tables.tree,
+                        tables.symbols,
+                        &mut *tables.types,
                     )
                     .unwrap_or_default();
                 if !parameter_symbols.is_empty() {
@@ -361,7 +353,7 @@ impl Compiler {
 
         let resolved = self
             .resolve_function_static_arguments(
-                module,
+                tables,
                 expression_id.into_any(),
                 callee_symbol,
                 static_arguments,
@@ -374,12 +366,6 @@ impl Compiler {
                 expected_return_type,
                 mode,
                 allow_missing_value_arguments,
-                profile,
-                options,
-                tree,
-                symbols,
-                types,
-                infer,
             )?
             .unwrap_or(ResolvedSignature {
                 dynamic_parameters,
@@ -390,15 +376,17 @@ impl Compiler {
         // substitute `this` for member calls
         if let Some(receiver_ty_id) = call_receiver_ty_id {
             let mut cache = HashMap::new();
-            let mapped_parameters = resolved
-                .dynamic_parameters
-                .iter()
-                .map(|parameter| {
-                    self.substitute_this_type(*parameter, receiver_ty_id, types, &mut cache)
-                })
-                .collect::<Vec<_>>();
+            let mut mapped_parameters = Vec::with_capacity(resolved.dynamic_parameters.len());
+            for parameter in resolved.dynamic_parameters.iter() {
+                mapped_parameters.push(self.substitute_this_type(
+                    *parameter,
+                    receiver_ty_id,
+                    tables.types,
+                    &mut cache,
+                ));
+            }
             let mapped_return = resolved.return_type.map(|return_type| {
-                self.substitute_this_type(return_type, receiver_ty_id, types, &mut cache)
+                self.substitute_this_type(return_type, receiver_ty_id, tables.types, &mut cache)
             });
 
             return Ok(Some(ResolvedSignature {
@@ -414,7 +402,7 @@ impl Compiler {
     /// Select the matching call signature overload for a call expression.
     fn select_call_signature(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         callee_symbol: Option<GlobalSymbolId>,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
@@ -424,12 +412,6 @@ impl Compiler {
         dynamic_arguments: &[LocalNodeId<Argument>],
         call_receiver_ty_id: Option<LocalTypeId>,
         mode: SignatureResolutionMode,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> AnalyzeResult<Option<(LocalTypeId, ResolvedSignature)>> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_OVERLOAD_RESOLVE);
 
@@ -442,7 +424,7 @@ impl Compiler {
         let mut candidates = Vec::new();
         for signature_ty_id in signature_ids {
             let Some(resolved) = self.resolve_call_signature(
-                module,
+                &mut tables.reborrow(),
                 expression_id,
                 callee_symbol,
                 static_arguments,
@@ -454,27 +436,15 @@ impl Compiler {
                 None,
                 mode,
                 true,
-                profile,
-                options,
-                tree,
-                symbols,
-                types,
-                infer,
             )?
             else {
                 continue;
             };
 
             if !self.is_signature_applicable(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 &resolved,
                 dynamic_arguments,
-                tree,
-                symbols,
-                types,
-                infer,
-                options,
             )? {
                 continue;
             }
@@ -483,8 +453,7 @@ impl Compiler {
         }
 
         // drop equivalent overloads introduced by declaration merging
-        let mut candidates =
-            self.dedupe_signature_candidates(module, profile, candidates, symbols, types, options);
+        let mut candidates = self.dedupe_signature_candidates(&mut tables.reborrow(), candidates);
 
         if candidates.is_empty() {
             return Ok(None);
@@ -500,20 +469,14 @@ impl Compiler {
     /// Drop duplicate overloads that resolve to equivalent shapes.
     pub(crate) fn dedupe_signature_candidates(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         candidates: Vec<(LocalTypeId, ResolvedSignature)>,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Vec<(LocalTypeId, ResolvedSignature)> {
         let mut deduped = Vec::new();
 
         for (signature_id, resolved) in candidates {
             let already_seen = deduped.iter().any(|(_, existing)| {
-                self.signature_shapes_equivalent(
-                    module, profile, &resolved, existing, symbols, types, options,
-                )
+                self.signature_shapes_equivalent(&mut tables.reborrow(), &resolved, existing)
             });
             if !already_seen {
                 deduped.push((signature_id, resolved));
@@ -526,13 +489,9 @@ impl Compiler {
     /// Check whether two resolved signatures are equivalent after normalization.
     fn signature_shapes_equivalent(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         left: &ResolvedSignature,
         right: &ResolvedSignature,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> bool {
         // compare parameter counts first
         if left.dynamic_parameters.len() != right.dynamic_parameters.len() {
@@ -546,22 +505,22 @@ impl Compiler {
             .zip(right.dynamic_parameters.iter())
         {
             let left_assignable = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
+                tables.module,
+                tables.profile,
+                tables.symbols,
                 *left_ty_id,
                 *right_ty_id,
-                types,
-                options,
+                tables.types,
+                tables.options,
             );
             let right_assignable = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
+                tables.module,
+                tables.profile,
+                tables.symbols,
                 *right_ty_id,
                 *left_ty_id,
-                types,
-                options,
+                tables.types,
+                tables.options,
             );
             if left_assignable == Assignability::NotAssignable
                 || right_assignable == Assignability::NotAssignable
@@ -575,22 +534,22 @@ impl Compiler {
             (None, None) => true,
             (Some(left_return), Some(right_return)) => {
                 let left_assignable = self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    tables.module,
+                    tables.profile,
+                    tables.symbols,
                     left_return,
                     right_return,
-                    types,
-                    options,
+                    tables.types,
+                    tables.options,
                 );
                 let right_assignable = self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    tables.module,
+                    tables.profile,
+                    tables.symbols,
                     right_return,
                     left_return,
-                    types,
-                    options,
+                    tables.types,
+                    tables.options,
                 );
                 left_assignable != Assignability::NotAssignable
                     && right_assignable != Assignability::NotAssignable
@@ -602,16 +561,10 @@ impl Compiler {
     /// Infer argument types for a resolved signature and emit subtype constraints.
     pub(crate) fn infer_invocation_arguments(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         dynamic_arguments: &[LocalNodeId<Argument>],
         parameter_types: &[LocalTypeId],
-        profile: ProfileId,
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<Vec<LocalTypeId>> {
         // infer arguments left to right, adding constraints eagerly so later contextual typing
@@ -621,53 +574,34 @@ impl Compiler {
 
             // materialize contextual expectation from the current inferred state
             let expected_arg_ty_id = parameter_ty_id.and_then(|parameter_ty_id| {
-                self.expected_parameter_type_for_inference(
-                    module,
-                    profile,
-                    parameter_ty_id,
-                    symbols,
-                    types,
-                )
+                self.expected_parameter_type_for_inference(&*tables, parameter_ty_id)
             });
             self.infer_argument(
-                module,
+                &mut tables.reborrow(),
                 *argument_id,
                 expected_arg_ty_id,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             )?;
 
             // resolve inferred argument type
-            let argument_value_id = tree.get(*argument_id).value();
-            let argument_ty_id = if let Some(argument_ty_id) =
-                infer.inferred_type_for_node(argument_value_id.into_global_any(module.id))
+            let argument_value_id = tables.tree.get(*argument_id).value();
+            let argument_ty_id = if let Some(argument_ty_id) = tables
+                .infer
+                .inferred_type_for_node(argument_value_id.into_global_any(tables.module.id))
             {
                 let argument_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     argument_ty_id,
-                    tree,
-                    symbols,
-                    types,
                 )?;
-                if self.unwrapped_value_type_is_unevaluated(argument_unwrapped_ty_id, types) {
-                    self.infer_expression(
-                        module,
-                        argument_value_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?
+                if self
+                    .unwrapped_value_type_is_unevaluated(argument_unwrapped_ty_id, &*tables.types)
+                {
+                    self.infer_expression(&mut tables.reborrow(), argument_value_id, ctx)?
                 } else {
                     argument_ty_id
                 }
             } else {
-                self.infer_expression(module, argument_value_id, tree, symbols, types, infer, ctx)?
+                self.infer_expression(&mut tables.reborrow(), argument_value_id, ctx)?
             };
             argument_ty_ids.push(argument_ty_id);
 
@@ -676,32 +610,21 @@ impl Compiler {
                 continue;
             };
             self.add_invocation_argument_constraint(
-                module,
+                &mut tables.reborrow(),
                 *argument_id,
                 argument_ty_id,
                 parameter_ty_id,
                 bound_substitutions,
-                options,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             );
         }
 
         // capture template literal inference constraints
         self.add_template_literal_inference_constraints(
-            module,
-            ctx.profile,
+            &mut tables.reborrow(),
             dynamic_arguments,
             &argument_ty_ids,
             parameter_types,
-            tree,
-            symbols,
-            types,
-            infer,
-            options,
         );
 
         Ok(argument_ty_ids)
@@ -710,19 +633,22 @@ impl Compiler {
     /// Select an expected parameter type for inference without widening type parameters.
     fn expected_parameter_type_for_inference(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &InferTablesContext<'_>,
         parameter_ty_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> Option<LocalTypeId> {
         // avoid contextual typing for type parameters
-        let expected_ty_id = self.expected_value_type(Some(parameter_ty_id), types)?;
+        let expected_ty_id = self.expected_value_type(Some(parameter_ty_id), &*tables.types)?;
         if let Type::Reference {
             symbol,
             static_arguments: None,
-        } = types.get_type(expected_ty_id)
-            && self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
+        } = tables.types.get_type(expected_ty_id)
+            && self.symbol_is_static_parameter(
+                tables.module,
+                tables.profile,
+                *symbol,
+                tables.symbols,
+                &*tables.types,
+            )
         {
             return None;
         }
@@ -732,46 +658,49 @@ impl Compiler {
     /// Add one argument constraint and static parameter bound for an invocation.
     fn add_invocation_argument_constraint(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         argument_id: LocalNodeId<Argument>,
         argument_ty_id: LocalTypeId,
         parameter_ty_id: LocalTypeId,
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &InferContext,
     ) {
         // connect argument type to parameter type
-        infer.push_constraint(Constraint::Subtype {
+        tables.infer.push_constraint(Constraint::Subtype {
             sub_type: argument_ty_id,
             super_type: parameter_ty_id,
             variance: None,
         });
 
         // enforce static parameter bounds for inferred type parameters
-        let Some(parameter_symbol) =
-            self.parameter_symbol_for_argument_constraint(types, infer, parameter_ty_id)
-        else {
+        let Some(parameter_symbol) = self.parameter_symbol_for_argument_constraint(
+            tables.types,
+            tables.infer,
+            parameter_ty_id,
+        ) else {
             return;
         };
 
         // skip non-static parameters
-        if !self.symbol_is_static_parameter(module, ctx.profile, parameter_symbol, symbols, types) {
+        if !self.symbol_is_static_parameter(
+            tables.module,
+            ctx.profile,
+            parameter_symbol,
+            tables.symbols,
+            tables.types,
+        ) {
             return;
         }
 
         // resolve the static parameter constraint
-        let argument_value_id = tree.get(argument_id).value();
+        let argument_value_id = tables.tree.get(argument_id).value();
         let constraint_id = self.static_parameter_constraint_type(
-            module,
+            tables.module,
             ctx.profile,
             parameter_symbol,
             argument_value_id.into_any(),
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
         );
         let Some(constraint_id) = constraint_id else {
             return;
@@ -782,12 +711,17 @@ impl Compiler {
             && !bound_substitutions.is_empty()
         {
             let mut cache = HashMap::new();
-            self.substitute_static_parameters(constraint_id, bound_substitutions, types, &mut cache)
+            self.substitute_static_parameters(
+                constraint_id,
+                bound_substitutions,
+                tables.types,
+                &mut cache,
+            )
         } else {
             constraint_id
         };
         if matches!(
-            types.get_type(constraint_id),
+            tables.types.get_type(constraint_id),
             Type::TypeLiteral {
                 value: TypeLiteral::Unknown | TypeLiteral::Any
             }
@@ -797,22 +731,22 @@ impl Compiler {
 
         // emit a constraint violation error when needed
         if self.is_type_assignable(
-            module,
+            tables.module,
             ctx.profile,
-            symbols,
+            tables.symbols,
             constraint_id,
             argument_ty_id,
-            types,
-            options,
+            tables.types,
+            tables.options,
         ) == Assignability::NotAssignable
         {
             self.emit_unassignable_type_for_types(
-                module,
+                tables.module,
                 ctx.profile,
                 argument_value_id.into_any(),
                 constraint_id,
                 argument_ty_id,
-                types,
+                tables.types,
             );
         }
     }
@@ -842,16 +776,11 @@ impl Compiler {
     /// Validate argument assignability for a resolved signature.
     fn check_invocation_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         dynamic_arguments: &[LocalNodeId<Argument>],
         argument_ty_ids: &[LocalTypeId],
         parameter_types: &[LocalTypeId],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> AnalyzeResult<()> {
         // check argument assignability against parameters
         for (index, (argument_ty_id, param_ty_id)) in argument_ty_ids
@@ -861,47 +790,49 @@ impl Compiler {
         {
             // enforce explicit ownership when implicit managed values are disabled
             if let Some(argument) = dynamic_arguments.get(index) {
-                let argument_value = tree.get(*argument).value();
+                let argument_value = tables.tree.get(*argument).value();
                 self.check_no_implicit_managed_value(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     argument_value,
                     *param_ty_id,
                     *argument_ty_id,
-                    tree,
-                    types,
-                    options,
+                    tables.tree,
+                    &mut *tables.types,
+                    tables.options,
                 );
             }
 
             if !self.is_type_assignable_or_deferred(
-                module,
-                profile,
-                symbols,
+                tables.module,
+                tables.profile,
+                tables.symbols,
                 *param_ty_id,
                 *argument_ty_id,
-                types,
-                options,
+                &mut *tables.types,
+                tables.options,
             ) {
                 // allow static literal arguments to flow to literal parameter types
                 if let Some(argument) = dynamic_arguments.get(index)
-                    && let Some(literal_ty_id) = self.static_literal_type_from_argument(
-                        module,
-                        profile,
-                        tree.get(*argument).value(),
-                        tree,
-                        symbols,
-                        types,
-                    )?
-                    && self.is_type_assignable(
-                        module,
-                        profile,
-                        symbols,
-                        *param_ty_id,
-                        literal_ty_id,
-                        types,
-                        options,
-                    ) != Assignability::NotAssignable
+                    && {
+                        let argument_value_id = tables.tree.get(*argument).value();
+                        let literal_ty_id = self.static_literal_type_from_argument(
+                            &mut tables.reborrow(),
+                            argument_value_id,
+                        )?;
+                        literal_ty_id
+                    }
+                    .is_some_and(|literal_ty_id| {
+                        self.is_type_assignable(
+                            tables.module,
+                            tables.profile,
+                            tables.symbols,
+                            *param_ty_id,
+                            literal_ty_id,
+                            &mut *tables.types,
+                            tables.options,
+                        ) != Assignability::NotAssignable
+                    })
                 {
                     continue;
                 }
@@ -911,12 +842,12 @@ impl Compiler {
                     .map(|id| id.into_any())
                     .unwrap_or_else(|| expression_id.into_any());
                 if let Some(error) = self.unassignable_type_error_for_types(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     argument_node,
                     *param_ty_id,
                     *argument_ty_id,
-                    types,
+                    &mut *tables.types,
                 ) {
                     return Err(error);
                 }
@@ -929,15 +860,9 @@ impl Compiler {
     /// Check if a resolved signature is applicable to the argument list.
     pub(crate) fn is_signature_applicable(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         resolved: &ResolvedSignature,
         dynamic_arguments: &[LocalNodeId<Argument>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &InferTable,
-        options: &AnalyzeOptions,
     ) -> AnalyzeResult<bool> {
         if dynamic_arguments.len() > resolved.dynamic_parameters.len() {
             return Ok(false);
@@ -949,15 +874,9 @@ impl Compiler {
             };
 
             if !self.is_signature_argument_applicable(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 *argument_id,
                 param_ty_id,
-                tree,
-                symbols,
-                types,
-                infer,
-                options,
             )? {
                 return Ok(false);
             }
@@ -969,75 +888,53 @@ impl Compiler {
     /// Check if one call argument is applicable to a signature parameter.
     fn is_signature_argument_applicable(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         argument_id: LocalNodeId<Argument>,
         param_ty_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &InferTable,
-        options: &AnalyzeOptions,
     ) -> AnalyzeResult<bool> {
-        let argument = tree.get(argument_id);
+        let argument = tables.tree.get(argument_id);
         if matches!(argument, Argument::Spread { .. }) {
             return Ok(true);
         }
 
         let argument_value_id = argument.value();
         self.ensure_reference_instance_types_for_type(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             argument_value_id.into_any(),
             param_ty_id,
-            types,
+            &mut *tables.types,
         )?;
 
         if !self.is_signature_lambda_argument_applicable(
             param_ty_id,
             argument_value_id,
-            tree,
-            types,
+            tables.tree,
+            &*tables.types,
         ) {
             return Ok(false);
         }
 
         if !self.is_signature_scalar_literal_argument_applicable(
-            module,
-            profile,
+            &mut tables.reborrow(),
             param_ty_id,
             argument_value_id,
-            tree,
-            symbols,
-            types,
-            options,
         ) {
             return Ok(false);
         }
 
         if !self.is_signature_static_literal_argument_applicable(
-            module,
-            profile,
+            &mut tables.reborrow(),
             param_ty_id,
             argument_value_id,
-            tree,
-            symbols,
-            types,
-            options,
         )? {
             return Ok(false);
         }
 
         self.is_signature_known_argument_type_applicable(
-            module,
-            profile,
+            &mut tables.reborrow(),
             param_ty_id,
             argument_value_id,
-            tree,
-            symbols,
-            types,
-            infer,
-            options,
         )
     }
 
@@ -1092,135 +989,94 @@ impl Compiler {
     /// Check scalar literal assignability for signature applicability.
     fn is_signature_scalar_literal_argument_applicable(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         param_ty_id: LocalTypeId,
         argument_value_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> bool {
-        let argument_value = tree.get(argument_value_id);
+        let argument_value = tables.tree.get(argument_value_id);
         let Expression::ScalarLiteral { value } = argument_value else {
             return true;
         };
 
         let literal_ty = self.infer_scalar_literal(value);
         let ty = Type::TypeLiteral { value: literal_ty };
-        let literal_ty_id = types.insert_type_from_any(ty, argument_value_id.into_any());
+        let literal_ty_id = tables
+            .types
+            .insert_type_from_any(ty, argument_value_id.into_any());
 
         self.is_signature_candidate_argument_assignable(
-            module,
-            profile,
-            symbols,
+            &mut tables.reborrow(),
             param_ty_id,
             literal_ty_id,
-            types,
-            options,
         )
     }
 
     /// Check static literal assignability for signature applicability.
     fn is_signature_static_literal_argument_applicable(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         param_ty_id: LocalTypeId,
         argument_value_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> AnalyzeResult<bool> {
-        let Some(literal_ty_id) = self.static_literal_type_from_argument(
-            module,
-            profile,
-            argument_value_id,
-            tree,
-            symbols,
-            types,
-        )?
+        let Some(literal_ty_id) =
+            self.static_literal_type_from_argument(&mut tables.reborrow(), argument_value_id)?
         else {
             return Ok(true);
         };
 
         Ok(self.is_signature_candidate_argument_assignable(
-            module,
-            profile,
-            symbols,
+            &mut tables.reborrow(),
             param_ty_id,
             literal_ty_id,
-            types,
-            options,
         ))
     }
 
     /// Check known argument-type assignability for signature applicability.
     fn is_signature_known_argument_type_applicable(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         param_ty_id: LocalTypeId,
         argument_value_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &InferTable,
-        options: &AnalyzeOptions,
     ) -> AnalyzeResult<bool> {
-        let argument_value = tree.get(argument_value_id);
-        let argument_ty_id = infer
-            .inferred_type_for_node(argument_value_id.into_global_any(module.id))
+        let argument_value = tables.tree.get(argument_value_id);
+        let argument_ty_id = tables
+            .infer
+            .inferred_type_for_node(argument_value_id.into_global_any(tables.module.id))
             .or_else(|| {
                 argument_value
                     .target_symbol()
-                    .and_then(|symbol| types.get_type_id_for_symbol(symbols, symbol))
+                    .and_then(|symbol| tables.types.get_type_id_for_symbol(tables.symbols, symbol))
             });
         let Some(argument_ty_id) = argument_ty_id else {
             return Ok(true);
         };
-        let argument_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
-            module,
-            profile,
-            argument_ty_id,
-            tree,
-            symbols,
-            types,
-        )?;
-        if self.unwrapped_value_type_is_unevaluated(argument_unwrapped_ty_id, types) {
+        let argument_unwrapped_ty_id =
+            self.ensure_unwrapped_value_type_evaluated(&mut tables.reborrow(), argument_ty_id)?;
+        if self.unwrapped_value_type_is_unevaluated(argument_unwrapped_ty_id, &*tables.types) {
             return Ok(true);
         }
 
         Ok(self.is_signature_candidate_argument_assignable(
-            module,
-            profile,
-            symbols,
+            &mut tables.reborrow(),
             param_ty_id,
             argument_ty_id,
-            types,
-            options,
         ))
     }
 
     /// Resolve a scalar literal type for static argument expressions when possible.
     fn static_literal_type_from_argument(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         argument_value_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // evaluate to a scalar literal when possible
         let value = self.evaluate_static_expression_value(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             argument_value_id,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            &mut *tables.types,
             None,
         )?;
         let Some(StaticExpression::ScalarLiteral { value }) = value else {
@@ -1231,66 +1087,62 @@ impl Compiler {
             value: TypeLiteral::ScalarLiteral(value),
         };
         Ok(Some(
-            types.insert_type_from_any(ty, argument_value_id.into_any()),
+            tables
+                .types
+                .insert_type_from_any(ty, argument_value_id.into_any()),
         ))
     }
 
     /// Prepare member-call typing context shared by member call resolution paths.
     fn resolve_member_call_type_context(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         receiver_expression_id: LocalNodeId<Expression>,
         receiver_ty_id: Option<LocalTypeId>,
         receiver_ty: &Type,
         member_key: &StaticKey,
         member_symbol: Option<GlobalSymbolId>,
         lookup_mode: MemberLookupMode,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        infer: &InferTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<ResolvedMemberCallTypeContext> {
         // inherit static arguments and substitutions from the receiver
         let mut inherited = self.resolve_inherited_static_arguments(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             receiver_expression_id.into_any(),
             receiver_ty_id,
             receiver_ty,
-            infer,
-            options,
-            tree,
-            symbols,
-            types,
+            &*tables.infer,
+            tables.options,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         )?;
         if let Some(member_symbol) = member_symbol {
             self.extend_owner_substitutions_from_inherited(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 receiver_expression_id.into_any(),
                 member_symbol,
                 &inherited.arguments,
                 &mut inherited.substitutions,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
             );
         }
 
         // resolve extension substitutions for member symbols
         let extension_context = if let Some(member_symbol) = member_symbol {
             self.resolve_extension_member_context(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 receiver_expression_id.into_any(),
                 member_symbol,
                 &inherited.arguments,
-                options,
-                tree,
-                symbols,
-                types,
+                tables.options,
+                tables.tree,
+                tables.symbols,
+                tables.types,
             )?
         } else {
             None
@@ -1309,14 +1161,14 @@ impl Compiler {
         // infer member type for this receiver
         let mut member_type_visited = Vec::new();
         let member_ty_id = self.infer_member_of_type(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             receiver_expression_id.into_any(),
-            symbols,
+            tables.symbols,
             receiver_ty,
             member_key,
             lookup_mode,
-            types,
+            tables.types,
             &mut member_type_visited,
         )?;
 
@@ -1326,7 +1178,12 @@ impl Compiler {
                 member_ty_id
             } else {
                 let mut cache = HashMap::new();
-                self.substitute_static_parameters(member_ty_id, &substitutions, types, &mut cache)
+                self.substitute_static_parameters(
+                    member_ty_id,
+                    &substitutions,
+                    tables.types,
+                    &mut cache,
+                )
             }
         });
 
@@ -1341,7 +1198,7 @@ impl Compiler {
     /// Resolve per variant member call candidates for a union receiver.
     fn resolve_union_member_call_candidates(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_expression_id: LocalNodeId<Expression>,
         receiver_union_ty_id: LocalTypeId,
@@ -1349,25 +1206,19 @@ impl Compiler {
         member_key: &StaticKey,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
         dynamic_arguments: &[LocalNodeId<Argument>],
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> AnalyzeResult<Option<Vec<UnionMemberCallCandidate>>> {
         // query receiver context used by per element lookup filtering
         let receiver_context = self.query_member_receiver_context_for_expression(
-            module,
+            tables.module,
             receiver_expression_id,
             Some(receiver_union_ty_id),
-            profile,
-            tree,
-            symbols,
-            types,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         );
         let context = UnionMemberCallResolutionContext {
-            module,
+            module: tables.module,
             expression_id,
             receiver_expression_id,
             receiver_union_ty_id,
@@ -1375,10 +1226,9 @@ impl Compiler {
             member_key,
             static_arguments,
             dynamic_arguments,
-            profile,
-            options,
-            tree,
-            symbols,
+            profile: tables.profile,
+            tree: tables.tree,
+            symbols: tables.symbols,
         };
 
         // resolve one candidate per union element
@@ -1386,9 +1236,8 @@ impl Compiler {
         for element_id in element_ids {
             let Some(candidate) = self.resolve_union_member_call_candidate_for_element(
                 &context,
+                &mut tables.reborrow(),
                 *element_id,
-                types,
-                infer,
             )?
             else {
                 return Ok(None);
@@ -1404,16 +1253,19 @@ impl Compiler {
     fn resolve_union_member_call_candidate_for_element(
         &self,
         context: &UnionMemberCallResolutionContext<'_>,
+        tables: &mut InferTablesContext<'_>,
         element_id: LocalTypeId,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> AnalyzeResult<Option<UnionMemberCallCandidate>> {
         // resolve the element type and target member symbol
-        let element_ty = types.get_type(element_id).clone();
-        let member_symbol =
-            self.resolve_union_member_symbol_for_element(context, element_id, &element_ty, types)?;
+        let element_ty = tables.types.get_type(element_id).clone();
+        let member_symbol = self.resolve_union_member_symbol_for_element(
+            context,
+            element_id,
+            &element_ty,
+            tables.types,
+        )?;
         let Some(member_symbol) = member_symbol else {
-            self.report_union_member_call_missing_member(context, types)?;
+            self.report_union_member_call_missing_member(context, &mut tables.reborrow())?;
             return Ok(None);
         };
 
@@ -1424,34 +1276,27 @@ impl Compiler {
             MemberLookupMode::Instance
         };
         let resolved_context = self.resolve_member_call_type_context(
-            context.module,
+            &mut tables.reborrow(),
             context.receiver_expression_id,
             Some(element_id),
             &element_ty,
             context.member_key,
             Some(member_symbol),
             lookup_mode,
-            context.profile,
-            context.options,
-            context.tree,
-            context.symbols,
-            infer,
-            types,
         )?;
         let Some(member_ty_id) = resolved_context.member_ty_id else {
-            self.report_union_member_call_missing_member(context, types)?;
+            self.report_union_member_call_missing_member(context, &mut tables.reborrow())?;
             return Ok(None);
         };
 
         // resolve one callable signature for this element member
         let resolved = self.resolve_union_member_call_candidate_signature(
             context,
+            &mut tables.reborrow(),
             element_id,
             member_symbol,
             member_ty_id,
             &resolved_context,
-            types,
-            infer,
         )?;
         let Some(resolved) = resolved else {
             return Ok(None);
@@ -1459,7 +1304,7 @@ impl Compiler {
         let (signature_ty_id, resolved_signature) = resolved;
 
         let signature_parameter_symbols =
-            self.query_signature_static_parameter_symbols(signature_ty_id, types);
+            self.query_signature_static_parameter_symbols(signature_ty_id, tables.types);
 
         // compose canonical member substitution environment from receiver and signature substitutions
         let instance_environment = self.compose_member_instance_environment(
@@ -1472,7 +1317,7 @@ impl Compiler {
             &signature_parameter_symbols,
             context.tree,
             context.symbols,
-            types,
+            tables.types,
         );
 
         Ok(Some(UnionMemberCallCandidate {
@@ -1530,22 +1375,21 @@ impl Compiler {
     fn resolve_union_member_call_candidate_signature(
         &self,
         context: &UnionMemberCallResolutionContext<'_>,
+        tables: &mut InferTablesContext<'_>,
         element_id: LocalTypeId,
         member_symbol: GlobalSymbolId,
         member_ty_id: LocalTypeId,
         resolved_context: &ResolvedMemberCallTypeContext,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> AnalyzeResult<Option<(LocalTypeId, ResolvedSignature)>> {
         // query callable signatures for the resolved member type
-        let call_signatures = self.call_signatures_for_type(member_ty_id, types);
+        let call_signatures = self.call_signatures_for_type(member_ty_id, &*tables.types);
         if call_signatures.is_empty() {
             self.emit_non_callable_for_callee_type(
                 context.module,
                 context.profile,
                 context.expression_id.into_any(),
                 context.receiver_union_ty_id,
-                types,
+                tables.types,
             );
             return Ok(None);
         }
@@ -1555,7 +1399,7 @@ impl Compiler {
             (!resolved_context.substitutions.is_empty()).then_some(&resolved_context.substitutions);
         if call_signatures.len() > 1 {
             let selection = self.select_call_signature(
-                context.module,
+                &mut tables.reborrow(),
                 context.expression_id,
                 Some(member_symbol),
                 context.static_arguments,
@@ -1565,12 +1409,6 @@ impl Compiler {
                 context.dynamic_arguments,
                 Some(element_id),
                 SignatureResolutionMode::Synthesize,
-                context.profile,
-                context.options,
-                context.tree,
-                context.symbols,
-                types,
-                infer,
             )?;
             let Some((signature_ty_id, resolved)) = selection else {
                 self.emit_no_overload_for_receiver_type(
@@ -1578,7 +1416,7 @@ impl Compiler {
                     context.profile,
                     context.expression_id.into_any(),
                     context.receiver_union_ty_id,
-                    types,
+                    tables.types,
                 );
                 return Ok(None);
             };
@@ -1589,7 +1427,7 @@ impl Compiler {
         // resolve the singleton signature directly
         let signature_ty_id = call_signatures[0];
         let resolved = self.resolve_call_signature(
-            context.module,
+            &mut tables.reborrow(),
             context.expression_id,
             Some(member_symbol),
             context.static_arguments,
@@ -1601,12 +1439,6 @@ impl Compiler {
             None,
             SignatureResolutionMode::Synthesize,
             false,
-            context.profile,
-            context.options,
-            context.tree,
-            context.symbols,
-            types,
-            infer,
         )?;
         let Some(resolved) = resolved else {
             self.emit_non_callable_for_callee_type(
@@ -1614,7 +1446,7 @@ impl Compiler {
                 context.profile,
                 context.expression_id.into_any(),
                 context.receiver_union_ty_id,
-                types,
+                tables.types,
             );
             return Ok(None);
         };
@@ -1626,16 +1458,12 @@ impl Compiler {
     fn report_union_member_call_missing_member(
         &self,
         context: &UnionMemberCallResolutionContext<'_>,
-        types: &mut TypeTable,
+        tables: &mut InferTablesContext<'_>,
     ) -> AnalyzeResult<()> {
         // allow associated blockers only for projection receivers
         let allow_associated_contract_blocker = self.is_projection_receiver_expression(
-            context.module,
-            context.profile,
+            &mut tables.reborrow(),
             context.receiver_expression_id,
-            context.tree,
-            context.symbols,
-            types,
         );
 
         self.report_missing_member_diagnostic(
@@ -1645,7 +1473,7 @@ impl Compiler {
             context.receiver_union_ty_id,
             *context.member_key,
             context.symbols,
-            types,
+            tables.types,
             allow_associated_contract_blocker,
         )?;
 
@@ -1655,40 +1483,32 @@ impl Compiler {
     /// Infer a call expression.
     pub(crate) fn infer_call_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
         dynamic_arguments: &[LocalNodeId<Argument>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_CALL);
 
         // enforce call restrictions from options
         self.validate_call_expression(
-            module,
+            tables.module,
             expression_id,
             left_id,
-            tree,
-            symbols,
-            &ctx.options,
-            ctx.profile,
+            tables.tree,
+            tables.symbols,
+            tables.options,
+            tables.profile,
             false,
         );
 
         // query and normalize the callee state
         let callee = match self.infer_call_expression_callee(
-            module,
+            &mut tables.reborrow(),
             expression_id,
             left_id,
-            tree,
-            symbols,
-            types,
-            infer,
             ctx,
         )? {
             CallExpressionCalleeQuery::EarlyType(type_id) => return Ok(type_id),
@@ -1702,79 +1522,64 @@ impl Compiler {
                 types,
             )
         };
-        let options = ctx.options;
-
         // ensure instance types for callable references
         self.ensure_reference_instance_types_for_type(
-            module,
-            ctx.profile,
+            tables.module,
+            tables.profile,
             expression_id.into_any(),
             callee.callee_ty_id,
-            types,
+            &mut *tables.types,
         )?;
 
         // resolve symbols, inherited substitutions, and member-call context
         let call = self.resolve_call_expression_target(
-            module,
+            &mut tables.reborrow(),
             expression_id,
             left_id,
             callee.callee_ty_id,
             static_arguments,
-            tree,
-            symbols,
-            types,
-            infer,
             ctx,
         )?;
 
         // resolve effective static-argument sources
         let effective_static_arguments =
             self.query_call_signature_static_arguments(static_arguments, &call);
-        let union_static_arguments =
-            self.query_union_member_signature_static_arguments(static_arguments, &call);
+        let union_static_arguments = effective_static_arguments;
 
         // handle union receiver member calls with dynamic resolution
-        if let Some(union_return_type_id) = self.infer_union_member_call_expression(
-            module,
+        let union_return_type_id = self.infer_union_member_call_expression(
+            &mut tables.reborrow(),
             expression_id,
             call.member_call_context.as_ref(),
             union_static_arguments,
             dynamic_arguments,
-            &options,
-            tree,
-            symbols,
-            types,
-            infer,
             ctx,
-        )? {
-            return Ok(finish_result(union_return_type_id, types));
+        )?;
+        if let Some(union_return_type_id) = union_return_type_id {
+            return Ok(finish_result(union_return_type_id, &mut *tables.types));
         }
 
         // query call signatures from the normalized call target
         let call_signatures = if self.expression_is_super_reference_for_call(
-            tree,
-            self.unwrap_parenthesized_expression(left_id, tree),
+            tables.tree,
+            self.unwrap_parenthesized_expression(left_id, tables.tree),
         ) {
             if let Some(super_constructor_value_ty_id) = call.super_constructor_value_ty_id {
-                self.construct_signatures_for_type(super_constructor_value_ty_id, types)
+                self.construct_signatures_for_type(super_constructor_value_ty_id, &*tables.types)
             } else {
                 Vec::new()
             }
         } else {
-            self.call_signatures_for_type(callee.callee_ty_id, types)
+            self.call_signatures_for_type(callee.callee_ty_id, &*tables.types)
         };
         let ty_id = if call_signatures.is_empty() {
             self.infer_non_callable_call_expression(
-                module,
+                &mut tables.reborrow(),
                 expression_id,
                 left_id,
                 callee.callee_ty_id,
                 &call,
                 dynamic_arguments,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             )?
         } else {
@@ -1782,7 +1587,7 @@ impl Compiler {
             let bound_substitutions =
                 (!call.inherited_substitutions.is_empty()).then_some(&call.inherited_substitutions);
             let selection = self.select_call_signature(
-                module,
+                &mut tables.reborrow(),
                 expression_id,
                 call.callee_symbol,
                 effective_static_arguments,
@@ -1792,50 +1597,35 @@ impl Compiler {
                 dynamic_arguments,
                 call.call_receiver_ty_id,
                 SignatureResolutionMode::Synthesize,
-                ctx.profile,
-                &ctx.options,
-                tree,
-                symbols,
-                types,
-                infer,
             )?;
             if let Some((signature_ty_id, resolved_signature)) = selection {
                 self.infer_resolved_call_expression(
-                    module,
+                    &mut tables.reborrow(),
                     expression_id,
                     dynamic_arguments,
                     &call,
                     signature_ty_id,
                     resolved_signature,
-                    &options,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                     ctx,
                 )?
             } else if call_signatures.len() > 1 {
                 self.emit_no_overload_for_receiver_type(
-                    module,
-                    ctx.profile,
+                    tables.module,
+                    tables.profile,
                     expression_id.into_any(),
                     callee.callee_ty_id,
-                    types,
+                    &mut *tables.types,
                 );
                 self.infer_call_arguments_without_context(
-                    module,
+                    &mut tables.reborrow(),
                     dynamic_arguments,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                     ctx,
                 )?;
-                self.synthesize_call_error_result_type(expression_id, types)
+                self.synthesize_call_error_result_type(expression_id, &mut *tables.types)
             } else {
                 let signature_ty_id = call_signatures[0];
                 let resolved = self.resolve_call_signature(
-                    module,
+                    &mut tables.reborrow(),
                     expression_id,
                     call.callee_symbol,
                     effective_static_arguments,
@@ -1847,128 +1637,88 @@ impl Compiler {
                     ctx.expected_type,
                     SignatureResolutionMode::Synthesize,
                     false,
-                    ctx.profile,
-                    &ctx.options,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                 )?;
                 if let Some(resolved_signature) = resolved {
                     self.infer_resolved_call_expression(
-                        module,
+                        &mut tables.reborrow(),
                         expression_id,
                         dynamic_arguments,
                         &call,
                         signature_ty_id,
                         resolved_signature,
-                        &options,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         ctx,
                     )?
                 } else {
-                    self.synthesize_call_error_result_type(expression_id, types)
+                    self.synthesize_call_error_result_type(expression_id, &mut *tables.types)
                 }
             }
         };
 
-        Ok(finish_result(ty_id, types))
+        Ok(finish_result(ty_id, &mut *tables.types))
     }
 
     /// Infer argument constraints, record call resolutions, and return the call result type.
     fn infer_resolved_call_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         dynamic_arguments: &[LocalNodeId<Argument>],
         call: &CallExpressionResolution,
         signature_ty_id: LocalTypeId,
         resolved_signature: ResolvedSignature,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // apply inherited substitutions from the receiver context
         let resolved_signature = self.apply_inherited_call_substitutions(
-            module,
-            ctx.profile,
+            &mut tables.reborrow(),
             resolved_signature,
             &call.inherited_substitutions,
-            tree,
-            symbols,
-            types,
         );
         let resolved_dynamic_parameters = &resolved_signature.dynamic_parameters;
 
         // infer argument types and constraints
         let argument_ty_ids = self.infer_invocation_arguments(
-            module,
+            &mut tables.reborrow(),
             dynamic_arguments,
             resolved_dynamic_parameters,
-            ctx.profile,
             (!call.inherited_substitutions.is_empty()).then_some(&call.inherited_substitutions),
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
             ctx,
         )?;
 
         // check argument assignability against parameters
         self.check_invocation_assignability(
-            module,
-            ctx.profile,
+            &mut tables.reborrow(),
             expression_id,
             dynamic_arguments,
             &argument_ty_ids,
             resolved_dynamic_parameters,
-            tree,
-            symbols,
-            types,
-            options,
         )?;
 
         let resolved_return_type = resolved_signature.return_type;
 
         // commit static or member resolution for downstream lowering
         self.record_call_expression_resolution(
-            module,
-            ctx.profile,
+            &mut tables.reborrow(),
             expression_id,
             call,
             signature_ty_id,
             resolved_signature,
-            tree,
-            symbols,
-            infer,
-            types,
         )?;
 
         Ok(resolved_return_type.unwrap_or_else(|| {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
             };
-            types.insert_type_from(ty, expression_id)
+            tables.types.insert_type_from(ty, expression_id)
         }))
     }
 
     /// Apply inherited substitutions to a resolved signature.
     fn apply_inherited_call_substitutions(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         resolved_signature: ResolvedSignature,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> ResolvedSignature {
         if substitutions.is_empty() {
             return resolved_signature;
@@ -1981,36 +1731,36 @@ impl Compiler {
             .iter()
             .map(|parameter| {
                 let materialized = self.materialize_static_arguments_in_type(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     *parameter,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    &mut *tables.types,
                     &mut materialize_cache,
                 );
                 self.substitute_static_parameters(
                     materialized,
                     substitutions,
-                    types,
+                    &mut *tables.types,
                     &mut substitute_cache,
                 )
             })
             .collect();
         let return_type = resolved_signature.return_type.map(|return_type| {
             let materialized = self.materialize_static_arguments_in_type(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 return_type,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                &mut *tables.types,
                 &mut materialize_cache,
             );
             self.substitute_static_parameters(
                 materialized,
                 substitutions,
-                types,
+                &mut *tables.types,
                 &mut substitute_cache,
             )
         });
@@ -2025,22 +1775,17 @@ impl Compiler {
     /// Record call-resolution entries after successful signature inference.
     fn record_call_expression_resolution(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         call: &CallExpressionResolution,
         signature_ty_id: LocalTypeId,
         resolved_signature: ResolvedSignature,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        infer: &mut InferTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // register the instance when the call resolves to a symbol
         let call_instance_id = if let Some(callee_symbol) = call.callee_symbol {
             if call.call_member_resolution.is_none() {
-                let signature_parameter_symbols =
-                    self.query_signature_static_parameter_symbols(signature_ty_id, types);
+                let signature_parameter_symbols = self
+                    .query_signature_static_parameter_symbols(signature_ty_id, &mut *tables.types);
                 let environment = StaticSubstitutionEnvironment::from_parameter_symbols(
                     resolved_signature.static_arguments.clone(),
                     signature_parameter_symbols,
@@ -2048,54 +1793,54 @@ impl Compiler {
                 )
                 .or_else(|| {
                     self.instance_environment_for_symbol_arguments(
-                        module,
-                        profile,
+                        tables.module,
+                        tables.profile,
                         callee_symbol,
                         resolved_signature.static_arguments.clone(),
                         0,
-                        tree,
-                        symbols,
-                        types,
+                        tables.tree,
+                        tables.symbols,
+                        &mut *tables.types,
                     )
                 });
                 if let Some(environment) = environment {
                     self.record_node_provisional_instance(
-                        expression_id.into_global_any(module.id),
+                        expression_id.into_global_any(tables.module.id),
                         callee_symbol,
                         environment,
-                        infer,
-                        types,
+                        &mut *tables.infer,
+                        &mut *tables.types,
                     )?
                 } else {
                     None
                 }
             } else {
-                let signature_parameter_symbols =
-                    self.query_signature_static_parameter_symbols(signature_ty_id, types);
+                let signature_parameter_symbols = self
+                    .query_signature_static_parameter_symbols(signature_ty_id, &mut *tables.types);
                 let base_instance_arguments = call
                     .member_instance_arguments
                     .as_deref()
                     .or(call.prefilled_static_arguments.as_deref())
                     .unwrap_or(call.inherited_static_arguments.as_slice());
                 let environment = self.compose_member_instance_environment(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     callee_symbol,
                     base_instance_arguments,
                     &call.inherited_substitutions,
                     &resolved_signature.static_arguments,
                     &signature_parameter_symbols,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    &mut *tables.types,
                 );
                 if let Some(environment) = environment {
                     self.record_node_provisional_instance(
-                        expression_id.into_global_any(module.id),
+                        expression_id.into_global_any(tables.module.id),
                         callee_symbol,
                         environment,
-                        infer,
-                        types,
+                        &mut *tables.infer,
+                        &mut *tables.types,
                     )?
                 } else {
                     None
@@ -2109,25 +1854,25 @@ impl Compiler {
         match (&call.call_member_resolution, call.callee_symbol) {
             (Some(member_resolution), _) => {
                 self.record_provisional_member_resolution(
-                    expression_id.into_global_any(module.id),
+                    expression_id.into_global_any(tables.module.id),
                     call.call_receiver_ty_id,
                     member_resolution,
                     call_instance_id,
                     Some(resolved_signature),
                     true,
-                    infer,
-                    types,
+                    &mut *tables.infer,
+                    &mut *tables.types,
                 );
             }
             (None, Some(callee_symbol)) => {
                 self.record_provisional_static_resolution(
-                    expression_id.into_global_any(module.id),
+                    expression_id.into_global_any(tables.module.id),
                     call.call_receiver_ty_id,
                     callee_symbol,
                     call_instance_id,
                     Some(resolved_signature),
-                    infer,
-                    types,
+                    &mut *tables.infer,
+                    &mut *tables.types,
                 );
             }
             _ => {}
@@ -2139,16 +1884,12 @@ impl Compiler {
     /// Infer a non-callable call expression and recover with an error type.
     fn infer_non_callable_call_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         call_target_id: LocalNodeId<Expression>,
         callee_ty_id: LocalTypeId,
         call: &CallExpressionResolution,
         dynamic_arguments: &[LocalNodeId<Argument>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // suppress secondary diagnostics when member lookup already failed
@@ -2157,70 +1898,59 @@ impl Compiler {
             Some(MemberResolution::None | MemberResolution::Unresolved)
         );
         let is_super_call = self.expression_is_super_reference_for_call(
-            tree,
-            self.unwrap_parenthesized_expression(call_target_id, tree),
+            tables.tree,
+            self.unwrap_parenthesized_expression(call_target_id, tables.tree),
         );
-        let callee_has_primary_error = self.type_blocks_cascading_diagnostic(callee_ty_id, types);
+        let callee_has_primary_error =
+            self.type_blocks_cascading_diagnostic(callee_ty_id, &*tables.types);
 
         // report non-callable callee types unless they are dynamic placeholders
         let is_dynamic_callee = has_missing_member
             || (callee_has_primary_error && !is_super_call)
             || matches!(
-                types.get_type(callee_ty_id),
+                tables.types.get_type(callee_ty_id),
                 Type::TypeLiteral {
                     value: TypeLiteral::Any
                 }
             )
-            || types.get_type(callee_ty_id).is_infer();
+            || tables.types.get_type(callee_ty_id).is_infer();
         if !is_dynamic_callee {
             if is_super_call {
                 self.error(AnalyzeError::NonCallable {
                     node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
+                        .into_global_any(tables.module.id)
+                        .into_anchored(Some(tables.profile)),
                 });
             } else {
                 self.emit_non_callable_for_callee_type(
-                    module,
-                    ctx.profile,
+                    tables.module,
+                    tables.profile,
                     expression_id.into_any(),
                     callee_ty_id,
-                    types,
+                    &mut *tables.types,
                 );
             }
         }
 
         // infer dynamic arguments without expected types
-        self.infer_call_arguments_without_context(
-            module,
-            dynamic_arguments,
-            tree,
-            symbols,
-            types,
-            infer,
-            ctx,
-        )?;
+        self.infer_call_arguments_without_context(&mut tables.reborrow(), dynamic_arguments, ctx)?;
 
         if callee_has_primary_error {
-            return Ok(types.insert_type_from(Type::Error, expression_id));
+            return Ok(tables.types.insert_type_from(Type::Error, expression_id));
         }
 
-        Ok(self.synthesize_call_error_result_type(expression_id, types))
+        Ok(self.synthesize_call_error_result_type(expression_id, &mut *tables.types))
     }
 
     /// Infer call arguments without contextual parameter types.
     fn infer_call_arguments_without_context(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         dynamic_arguments: &[LocalNodeId<Argument>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         for argument_id in dynamic_arguments {
-            self.infer_argument(module, *argument_id, None, tree, symbols, types, infer, ctx)?;
+            self.infer_argument(&mut tables.reborrow(), *argument_id, None, ctx)?;
         }
 
         Ok(())
@@ -2238,21 +1968,17 @@ impl Compiler {
     /// Infer and normalize the callee state for call-expression inference.
     fn infer_call_expression_callee(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<CallExpressionCalleeQuery> {
-        let is_optional_chain = self.is_optional_chain_call_target(tree, left_id);
-        let callee_ty_id = match tree.get(left_id) {
+        let is_optional_chain = self.is_optional_chain_call_target(tables.tree, left_id);
+        let callee_ty_id = match tables.tree.get(left_id) {
             Expression::Maybe { left } => {
-                self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?
+                self.infer_expression(&mut tables.reborrow(), *left, ctx)?
             }
-            _ => self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?,
+            _ => self.infer_expression(&mut tables.reborrow(), left_id, ctx)?,
         };
 
         if !is_optional_chain {
@@ -2262,12 +1988,12 @@ impl Compiler {
             }));
         }
 
-        let (non_nullish, has_nullish) = self.strip_nullish_from_union(callee_ty_id, types);
+        let (non_nullish, has_nullish) = self.strip_nullish_from_union(callee_ty_id, tables.types);
         let Some(non_nullish) = non_nullish else {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Undefined,
             };
-            let type_id = types.insert_type_from(ty, expression_id);
+            let type_id = tables.types.insert_type_from(ty, expression_id);
             return Ok(CallExpressionCalleeQuery::EarlyType(type_id));
         };
 
@@ -2280,50 +2006,38 @@ impl Compiler {
     /// Resolve call-target metadata used for signature and instance resolution.
     fn resolve_call_expression_target(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         callee_ty_id: LocalTypeId,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<CallExpressionResolution> {
         let call_has_static_arguments =
             static_arguments.is_some_and(|arguments| !arguments.is_empty());
-        let unwrapped_left_id = self.unwrap_parenthesized_expression(left_id, tree);
-        match tree.get(unwrapped_left_id) {
+        let unwrapped_left_id = self.unwrap_parenthesized_expression(left_id, tables.tree);
+        match tables.tree.get(unwrapped_left_id) {
             Expression::Member {
                 left: receiver_id,
                 name,
                 static_arguments: member_static_arguments,
                 ..
             } => self.resolve_member_call_expression_target(
-                module,
+                &mut tables.reborrow(),
                 expression_id,
                 unwrapped_left_id,
                 *receiver_id,
                 *name,
                 member_static_arguments.clone(),
                 call_has_static_arguments,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             ),
             _ => self.resolve_non_member_call_expression_target(
-                module,
+                &mut tables.reborrow(),
                 expression_id,
                 unwrapped_left_id,
                 callee_ty_id,
                 call_has_static_arguments,
-                tree,
-                symbols,
-                types,
-                ctx,
             ),
         }
     }
@@ -2331,32 +2045,28 @@ impl Compiler {
     /// Resolve member-call target metadata for signature and instance resolution.
     fn resolve_member_call_expression_target(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         unwrapped_left_id: LocalNodeId<Expression>,
         receiver_id: LocalNodeId<Expression>,
         member_name: StringId,
         member_static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         call_has_static_arguments: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<CallExpressionResolution> {
         // query receiver type and receiver lookup context
-        let options = ctx.options;
-        let (receiver_ty_id, receiver_ty, receiver_context) = self
-            .infer_member_call_receiver_state(
-                module,
-                receiver_id,
-                ctx.profile,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?;
+        let receiver_ty_id =
+            self.infer_member_call_receiver_type(&mut tables.reborrow(), receiver_id, ctx)?;
+        let receiver_ty = tables.types.get_type(receiver_ty_id).clone();
+        let receiver_context = self.query_member_receiver_context_for_expression(
+            tables.module,
+            receiver_id,
+            Some(receiver_ty_id),
+            tables.profile,
+            tables.tree,
+            tables.symbols,
+            &mut *tables.types,
+        );
 
         // build member-call context and inherited static substitutions
         let member_key = StaticKey::Name(member_name);
@@ -2365,67 +2075,76 @@ impl Compiler {
             receiver_ty_id,
             member_key,
         });
-        let (inherited_static_arguments, mut inherited_substitutions) = self
-            .resolve_member_call_inherited_static_context(
-                module,
-                receiver_id,
-                receiver_ty_id,
-                &receiver_ty,
-                ctx.profile,
-                &options,
-                tree,
-                symbols,
-                infer,
-                types,
-            )?;
+        let inherited = self.resolve_inherited_static_arguments(
+            tables.module,
+            tables.profile,
+            receiver_id.into_any(),
+            Some(receiver_ty_id),
+            &receiver_ty,
+            &*tables.infer,
+            tables.options,
+            tables.tree,
+            tables.symbols,
+            &mut *tables.types,
+        )?;
+        let inherited_static_arguments = inherited.arguments;
+        let mut inherited_substitutions = inherited.substitutions;
 
         // resolve the member target for receiver and lookup mode
-        let (member_resolution, member_symbol) = self.resolve_member_call_member_resolution(
-            module,
-            receiver_id,
-            &receiver_ty,
-            &receiver_context,
-            &member_key,
-            ctx.profile,
-            tree,
-            symbols,
-            types,
-        )?;
+        let (member_resolution, member_symbol) = {
+            let member_resolution = self.resolve_member_symbol_for_receiver(
+                &mut tables.reborrow(),
+                receiver_id,
+                receiver_id,
+                &receiver_ty,
+                &receiver_context,
+                &member_key,
+            )?;
+            let member_symbol = match &member_resolution {
+                MemberResolution::Static { symbol } => Some(*symbol),
+                _ => None,
+            };
+            (member_resolution, member_symbol)
+        };
         if let Some(member_symbol) = member_symbol {
             self.extend_owner_substitutions_from_inherited(
-                module,
-                ctx.profile,
+                tables.module,
+                tables.profile,
                 receiver_id.into_any(),
                 member_symbol,
                 &inherited_static_arguments,
                 &mut inherited_substitutions,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                &mut *tables.types,
             );
         }
 
         // query extension supplied static arguments for this member call
-        let prefilled_static_arguments = self.resolve_member_call_prefilled_static_arguments(
-            module,
-            receiver_id,
-            member_symbol,
-            &inherited_static_arguments,
-            ctx.profile,
-            &options,
-            tree,
-            symbols,
-            types,
-        )?;
+        let prefilled_static_arguments = if let Some(member_symbol) = member_symbol {
+            let context = self.resolve_extension_member_context(
+                tables.module,
+                tables.profile,
+                receiver_id.into_any(),
+                member_symbol,
+                &inherited_static_arguments,
+                tables.options,
+                tables.tree,
+                tables.symbols,
+                &mut *tables.types,
+            )?;
+            context.map(|context| context.arguments)
+        } else {
+            None
+        };
 
         // check static argument conflicts between call and member sites
         let member_has_static_arguments = member_static_arguments
             .as_ref()
             .is_some_and(|arguments| !arguments.is_empty());
         let has_static_argument_conflict = self.check_call_static_argument_conflict(
-            module,
+            &tables.reborrow(),
             expression_id,
-            ctx.profile,
             call_has_static_arguments,
             member_has_static_arguments,
         );
@@ -2436,10 +2155,10 @@ impl Compiler {
             None
         } else {
             self.query_instance_arguments_for_node_infer(
-                unwrapped_left_id.into_global_any(module.id),
+                unwrapped_left_id.into_global_any(tables.module.id),
                 member_symbol,
-                infer,
-                types,
+                &*tables.infer,
+                &mut *tables.types,
             )
         };
         Ok(CallExpressionResolution {
@@ -2457,170 +2176,29 @@ impl Compiler {
         })
     }
 
-    /// Infer receiver type and receiver context for a member call target.
-    fn infer_member_call_receiver_state(
-        &self,
-        module: &Module,
-        receiver_id: LocalNodeId<Expression>,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        ctx: &mut InferContext,
-    ) -> AnalyzeResult<(LocalTypeId, Type, MemberReceiverContext)> {
-        let receiver_ty_id = self.infer_member_call_receiver_type(
-            module,
-            receiver_id,
-            tree,
-            symbols,
-            types,
-            infer,
-            ctx,
-        )?;
-        let receiver_ty = types.get_type(receiver_ty_id).clone();
-        let receiver_context = self.query_member_receiver_context_for_expression(
-            module,
-            receiver_id,
-            Some(receiver_ty_id),
-            profile,
-            tree,
-            symbols,
-            types,
-        );
-
-        Ok((receiver_ty_id, receiver_ty, receiver_context))
-    }
-
-    /// Resolve inherited static arguments for a member call receiver.
-    fn resolve_member_call_inherited_static_context(
-        &self,
-        module: &Module,
-        receiver_id: LocalNodeId<Expression>,
-        receiver_ty_id: LocalTypeId,
-        receiver_ty: &Type,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        infer: &InferTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<(Vec<StaticArgument>, HashMap<GlobalSymbolId, LocalTypeId>)> {
-        let inherited = self.resolve_inherited_static_arguments(
-            module,
-            profile,
-            receiver_id.into_any(),
-            Some(receiver_ty_id),
-            receiver_ty,
-            infer,
-            options,
-            tree,
-            symbols,
-            types,
-        )?;
-
-        Ok((inherited.arguments, inherited.substitutions))
-    }
-
-    /// Resolve member lookup metadata for a member call target.
-    fn resolve_member_call_member_resolution(
-        &self,
-        module: &Module,
-        receiver_id: LocalNodeId<Expression>,
-        receiver_ty: &Type,
-        receiver_context: &MemberReceiverContext,
-        member_key: &StaticKey,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<(MemberResolution, Option<GlobalSymbolId>)> {
-        let member_resolution = self.resolve_member_symbol_for_receiver(
-            module,
-            receiver_id,
-            receiver_id,
-            receiver_ty,
-            receiver_context,
-            member_key,
-            profile,
-            tree,
-            symbols,
-            types,
-        )?;
-        let member_symbol = match &member_resolution {
-            MemberResolution::Static { symbol } => Some(*symbol),
-            _ => None,
-        };
-
-        Ok((member_resolution, member_symbol))
-    }
-
-    /// Resolve extension supplied static arguments for a member call target.
-    fn resolve_member_call_prefilled_static_arguments(
-        &self,
-        module: &Module,
-        receiver_id: LocalNodeId<Expression>,
-        member_symbol: Option<GlobalSymbolId>,
-        inherited_static_arguments: &[StaticArgument],
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
-        let Some(member_symbol) = member_symbol else {
-            return Ok(None);
-        };
-        let context = self.resolve_extension_member_context(
-            module,
-            profile,
-            receiver_id.into_any(),
-            member_symbol,
-            inherited_static_arguments,
-            options,
-            tree,
-            symbols,
-            types,
-        )?;
-
-        Ok(context.map(|context| context.arguments))
-    }
-
     /// Resolve non-member call target metadata for signature and instance resolution.
     fn resolve_non_member_call_expression_target(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         unwrapped_left_id: LocalNodeId<Expression>,
         callee_ty_id: LocalTypeId,
         call_has_static_arguments: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        ctx: &mut InferContext,
     ) -> AnalyzeResult<CallExpressionResolution> {
         let is_super_constructor_call =
-            self.expression_is_super_reference_for_call(tree, unwrapped_left_id);
+            self.expression_is_super_reference_for_call(tables.tree, unwrapped_left_id);
         if is_super_constructor_call {
             let mut super_constructor_value_ty_id = None;
-            if let Some(super_symbol) = self.super_symbol_for_type(callee_ty_id, types) {
+            if let Some(super_symbol) = self.super_symbol_for_type(callee_ty_id, &*tables.types) {
                 super_constructor_value_ty_id = self.super_constructor_value_type_for_symbol(
-                    module,
-                    ctx.profile,
+                    &mut tables.reborrow(),
                     expression_id.into_any(),
                     super_symbol,
-                    types,
                 )?;
             }
 
-            let super_symbol = self.super_constructor_symbol_from_type(
-                module,
-                ctx.profile,
-                callee_ty_id,
-                tree,
-                symbols,
-                types,
-            )?;
+            let super_symbol =
+                self.super_constructor_symbol_from_type(&mut tables.reborrow(), callee_ty_id)?;
             return Ok(CallExpressionResolution {
                 callee_symbol: super_symbol,
                 call_receiver_ty_id: None,
@@ -2637,11 +2215,11 @@ impl Compiler {
         }
 
         let callee_symbol = self.reference_symbol_for_expression(
-            module,
+            tables.module,
             unwrapped_left_id,
-            ctx.profile,
-            tree,
-            symbols,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
         );
         Ok(CallExpressionResolution {
             callee_symbol,
@@ -2661,46 +2239,35 @@ impl Compiler {
     /// Infer the receiver type for a member call target.
     fn infer_member_call_receiver_type(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         receiver_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
-        if let Expression::Maybe { left } = tree.get(receiver_id) {
-            let receiver_ty_id =
-                self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
-            let (non_nullish, _) = self.strip_nullish_from_union(receiver_ty_id, types);
+        if let Expression::Maybe { left } = tables.tree.get(receiver_id) {
+            let receiver_ty_id = self.infer_expression(&mut tables.reborrow(), *left, ctx)?;
+            let (non_nullish, _) = self.strip_nullish_from_union(receiver_ty_id, tables.types);
             return Ok(non_nullish.unwrap_or(receiver_ty_id));
         }
 
-        if let Some(receiver_ty_id) =
-            infer.inferred_type_for_node(receiver_id.into_global_any(module.id))
+        if let Some(receiver_ty_id) = tables
+            .infer
+            .inferred_type_for_node(receiver_id.into_global_any(tables.module.id))
         {
-            let receiver_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
-                module,
-                ctx.profile,
-                receiver_ty_id,
-                tree,
-                symbols,
-                types,
-            )?;
-            if !self.unwrapped_value_type_is_unevaluated(receiver_unwrapped_ty_id, types) {
+            let receiver_unwrapped_ty_id =
+                self.ensure_unwrapped_value_type_evaluated(&mut tables.reborrow(), receiver_ty_id)?;
+            if !self.unwrapped_value_type_is_unevaluated(receiver_unwrapped_ty_id, tables.types) {
                 return Ok(receiver_ty_id);
             }
         }
 
-        self.infer_expression(module, receiver_id, tree, symbols, types, infer, ctx)
+        self.infer_expression(&mut tables.reborrow(), receiver_id, ctx)
     }
 
     /// Report whether call and member static arguments conflict.
     fn check_call_static_argument_conflict(
         &self,
-        module: &Module,
+        tables: &InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        profile: ProfileId,
         call_has_static_arguments: bool,
         member_has_static_arguments: bool,
     ) -> bool {
@@ -2708,8 +2275,8 @@ impl Compiler {
         if has_static_argument_conflict {
             self.error(AnalyzeError::ConflictingStaticArguments {
                 node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
+                    .into_global_any(tables.module.id)
+                    .into_anchored(Some(tables.profile)),
             });
         }
 
@@ -2732,48 +2299,28 @@ impl Compiler {
         None
     }
 
-    /// Query effective static arguments for union member-call resolution.
-    fn query_union_member_signature_static_arguments<'a>(
-        &self,
-        static_arguments: Option<&'a [LocalNodeId<Argument>]>,
-        call: &'a CallExpressionResolution,
-    ) -> Option<&'a [LocalNodeId<Argument>]> {
-        if call.has_static_argument_conflict {
-            return None;
-        }
-        if call.call_has_static_arguments {
-            return static_arguments;
-        }
-        None
-    }
-
     /// Infer dynamic union member-call dispatch when the receiver is a union.
     fn infer_union_member_call_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_call_context: Option<&MemberCallContext>,
         union_static_arguments: Option<&[LocalNodeId<Argument>]>,
         dynamic_arguments: &[LocalNodeId<Argument>],
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         let Some(context) = member_call_context else {
             return Ok(None);
         };
         let Some(element_ids) =
-            self.query_union_member_call_element_types(context.receiver_ty_id, types)
+            self.query_union_member_call_element_types(context.receiver_ty_id, &*tables.types)
         else {
             return Ok(None);
         };
 
         // resolve union candidates for the member call
         let candidates = self.resolve_union_member_call_candidates(
-            module,
+            &mut tables.reborrow(),
             expression_id,
             context.receiver_id,
             context.receiver_ty_id,
@@ -2781,68 +2328,55 @@ impl Compiler {
             &context.member_key,
             union_static_arguments,
             dynamic_arguments,
-            ctx.profile,
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
         )?;
         let Some(candidates) = candidates else {
             self.infer_call_arguments_without_context(
-                module,
+                &mut tables.reborrow(),
                 dynamic_arguments,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             )?;
             self.record_provisional_unresolved_resolution(
-                expression_id.into_global_any(module.id),
+                expression_id.into_global_any(tables.module.id),
                 Some(context.receiver_ty_id),
                 Vec::new(),
                 Vec::new(),
-                infer,
-                types,
+                &mut *tables.infer,
+                &mut *tables.types,
             );
 
-            return Ok(Some(
-                self.synthesize_call_error_result_type(expression_id, types),
-            ));
+            return Ok(Some(self.synthesize_call_error_result_type(
+                expression_id,
+                &mut *tables.types,
+            )));
         };
 
         let argument_ty_ids = self.infer_union_member_call_argument_types(
-            module,
+            &mut tables.reborrow(),
             dynamic_arguments,
             &candidates,
-            tree,
-            symbols,
-            types,
-            infer,
             ctx,
         )?;
-        self.infer_union_member_call_argument_constraints(&candidates, &argument_ty_ids, infer);
+        self.infer_union_member_call_argument_constraints(
+            &candidates,
+            &argument_ty_ids,
+            &mut *tables.infer,
+        );
 
         if !self.check_union_member_call_argument_assignability(
-            module,
-            ctx.profile,
-            symbols,
+            &mut tables.reborrow(),
             &argument_ty_ids,
             &candidates,
-            types,
-            options,
         ) {
             self.emit_no_overload_for_receiver_type(
-                module,
-                ctx.profile,
+                tables.module,
+                tables.profile,
                 expression_id.into_any(),
                 context.receiver_ty_id,
-                types,
+                tables.types,
             );
 
             return Ok(Some(
-                self.synthesize_call_error_result_type(expression_id, types),
+                self.synthesize_call_error_result_type(expression_id, tables.types),
             ));
         }
 
@@ -2850,15 +2384,13 @@ impl Compiler {
             expression_id,
             context.receiver_ty_id,
             &candidates,
-            types,
+            &mut *tables.types,
         );
         self.record_union_member_call_resolution(
-            module,
+            &mut tables.reborrow(),
             expression_id,
             context.receiver_ty_id,
             candidates,
-            infer,
-            types,
         )?;
 
         Ok(Some(return_type_id))
@@ -2911,13 +2443,9 @@ impl Compiler {
     /// Infer argument types for one union member-call dispatch.
     fn infer_union_member_call_argument_types(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         dynamic_arguments: &[LocalNodeId<Argument>],
         candidates: &[UnionMemberCallCandidate],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<Vec<LocalTypeId>> {
         let expected_argument_types = self
@@ -2927,44 +2455,28 @@ impl Compiler {
         for (index, argument_id) in dynamic_arguments.iter().enumerate() {
             let expected_arg_ty_id = expected_argument_types.get(index).copied().flatten();
             self.infer_argument(
-                module,
+                &mut tables.reborrow(),
                 *argument_id,
                 expected_arg_ty_id,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             )?;
 
-            let argument = tree.get(*argument_id);
+            let argument = tables.tree.get(*argument_id);
             let argument_value_id = argument.value();
-            let argument_ty_id = if let Some(ty_id) =
-                infer.inferred_type_for_node(argument_value_id.into_global_any(module.id))
+            let argument_ty_id = if let Some(ty_id) = tables
+                .infer
+                .inferred_type_for_node(argument_value_id.into_global_any(tables.module.id))
             {
-                let argument_unwrapped_ty_id = self.ensure_unwrapped_value_type_evaluated(
-                    module,
-                    ctx.profile,
-                    ty_id,
-                    tree,
-                    symbols,
-                    types,
-                )?;
-                if self.unwrapped_value_type_is_unevaluated(argument_unwrapped_ty_id, types) {
-                    self.infer_expression(
-                        module,
-                        argument_value_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?
+                let argument_unwrapped_ty_id =
+                    self.ensure_unwrapped_value_type_evaluated(&mut tables.reborrow(), ty_id)?;
+                if self.unwrapped_value_type_is_unevaluated(argument_unwrapped_ty_id, tables.types)
+                {
+                    self.infer_expression(&mut tables.reborrow(), argument_value_id, ctx)?
                 } else {
                     ty_id
                 }
             } else {
-                self.infer_expression(module, argument_value_id, tree, symbols, types, infer, ctx)?
+                self.infer_expression(&mut tables.reborrow(), argument_value_id, ctx)?
             };
             argument_ty_ids.push(argument_ty_id);
         }
@@ -2996,13 +2508,9 @@ impl Compiler {
     /// Check argument assignability against every union-call candidate.
     fn check_union_member_call_argument_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        tables: &mut InferTablesContext<'_>,
         argument_ty_ids: &[LocalTypeId],
         candidates: &[UnionMemberCallCandidate],
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> bool {
         for candidate in candidates {
             for (argument_ty_id, param_ty_id) in argument_ty_ids
@@ -3010,13 +2518,9 @@ impl Compiler {
                 .zip(candidate.signature.dynamic_parameters.iter())
             {
                 if !self.is_signature_candidate_argument_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    &mut tables.reborrow(),
                     *param_ty_id,
                     *argument_ty_id,
-                    types,
-                    options,
                 ) {
                     return false;
                 }
@@ -3029,32 +2533,40 @@ impl Compiler {
     /// Check candidate argument assignability, deferring unresolved inference state during overload filtering.
     fn is_signature_candidate_argument_assignable(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        tables: &mut InferTablesContext<'_>,
         target_type_id: LocalTypeId,
         source_type_id: LocalTypeId,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> bool {
         // fast path: direct infer vars defer to solve
         if self.is_type_assignable_or_deferred(
-            module,
-            profile,
-            symbols,
+            tables.module,
+            tables.profile,
+            tables.symbols,
             target_type_id,
             source_type_id,
-            types,
-            options,
+            tables.types,
+            tables.options,
         ) {
             return true;
         }
 
         // defer relation checks that depend on unresolved convergence state
-        if self.type_requires_infer_convergence(module, profile, target_type_id, symbols, types) {
+        if self.type_requires_infer_convergence(
+            tables.module,
+            tables.profile,
+            target_type_id,
+            tables.symbols,
+            tables.types,
+        ) {
             return true;
         }
-        if self.type_requires_infer_convergence(module, profile, source_type_id, symbols, types) {
+        if self.type_requires_infer_convergence(
+            tables.module,
+            tables.profile,
+            source_type_id,
+            tables.symbols,
+            tables.types,
+        ) {
             return true;
         }
 
@@ -3099,14 +2611,12 @@ impl Compiler {
     /// Record dynamic resolution candidates for union member-call dispatch.
     fn record_union_member_call_resolution(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_ty_id: LocalTypeId,
         candidates: Vec<UnionMemberCallCandidate>,
-        infer: &mut InferTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
-        let source_node_id = expression_id.into_global_any(module.id);
+        let source_node_id = expression_id.into_global_any(tables.module.id);
         let mut deferred_candidate_attachments = Vec::new();
         let mut resolution_candidates = Vec::with_capacity(candidates.len());
         for (candidate_index, candidate) in candidates.into_iter().enumerate() {
@@ -3115,8 +2625,8 @@ impl Compiler {
                     .record_symbol_provisional_instance_with_obligation(
                         candidate.symbol,
                         environment,
-                        infer,
-                        types,
+                        tables.infer,
+                        tables.types,
                     )?;
                 if let Some(obligation_id) = obligation_id {
                     deferred_candidate_attachments.push((candidate_index, obligation_id));
@@ -3138,16 +2648,18 @@ impl Compiler {
             source_node_id,
             Some(receiver_ty_id),
             resolution_candidates,
-            infer,
-            types,
+            tables.infer,
+            tables.types,
         );
         for (candidate_index, obligation_id) in deferred_candidate_attachments {
             let candidate_slot = DynamicResolutionCandidateSlotId::new(candidate_index as u32);
-            infer.push_instance_commit_obligation_for_resolution_candidate(
-                source_node_id,
-                candidate_slot,
-                obligation_id,
-            );
+            tables
+                .infer
+                .push_instance_commit_obligation_for_resolution_candidate(
+                    source_node_id,
+                    candidate_slot,
+                    obligation_id,
+                );
         }
 
         Ok(())
@@ -3180,19 +2692,17 @@ impl Compiler {
     /// Resolve the explicit constructor symbol for a super constructor call.
     fn super_constructor_symbol_from_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         super_ty_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        let types = &*tables.types;
+
         // resolve the base symbol from the inferred super type
         let Some(base_symbol) = self.super_symbol_for_type(super_ty_id, types) else {
             return Ok(None);
         };
 
-        self.explicit_constructor_symbol_for_class(module, profile, base_symbol, tree, symbols)
+        self.explicit_constructor_symbol_for_class(tables, base_symbol)
     }
 
     /// Resolve the nominal symbol from an inferred super type.
@@ -3211,29 +2721,27 @@ impl Compiler {
     /// Resolve the value type for a super constructor target symbol.
     fn super_constructor_value_type_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         node_id: LocalNodeIdAny,
         super_symbol: GlobalSymbolId,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // reuse local value types when they are already available
-        if let Some(value_ty_id) = types.get_value_type_id(super_symbol) {
+        if let Some(value_ty_id) = tables.types.get_value_type_id(super_symbol) {
             return Ok(Some(value_ty_id));
         }
 
         // resolve local symbols from the current module table
-        if super_symbol.module_id == module.id {
-            return Ok(types.get_value_type_id(super_symbol));
+        if super_symbol.module_id == tables.module.id {
+            return Ok(tables.types.get_value_type_id(super_symbol));
         }
 
         // import remote value types on demand
         let value_ty_id = self.resolve_remote_symbol_value_type_for_interface(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             node_id,
             super_symbol,
-            types,
+            tables.types,
         )?;
 
         Ok(Some(value_ty_id))
@@ -3242,18 +2750,15 @@ impl Compiler {
     /// Resolve an explicit constructor method symbol for a class.
     fn explicit_constructor_symbol_for_class(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &InferTablesContext<'_>,
         class_symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         self.with_module_tree_symbols_or_local_at_stage(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             class_symbol.module_id,
-            tree,
-            symbols,
+            tables.tree,
+            tables.symbols,
             AnalyzeDependencyStage::Declare,
             |owner_module, owner_tree, owner_symbols| {
                 // resolve the nominal declaration for the class symbol
@@ -3292,60 +2797,44 @@ impl Compiler {
     /// Infer a constructor call expression.
     pub(crate) fn infer_new_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
         dynamic_arguments: &[LocalNodeId<Argument>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // enforce constructor restrictions from options
         self.validate_call_expression(
-            module,
+            tables.module,
             expression_id,
             left_id,
-            tree,
-            symbols,
-            &ctx.options,
-            ctx.profile,
+            tables.tree,
+            tables.symbols,
+            tables.options,
+            tables.profile,
             true,
         );
-        let options = ctx.options;
 
         // query and normalize the constructor target
-        let target = self.infer_new_expression_target(
-            module,
-            expression_id,
-            left_id,
-            tree,
-            symbols,
-            types,
-            infer,
-            ctx,
-        )?;
+        let target =
+            self.infer_new_expression_target(&mut tables.reborrow(), expression_id, left_id, ctx)?;
 
         // resolve construct signatures for the callee type
-        let construct_signatures = self.construct_signatures_for_type(target.callee_ty_id, types);
+        let construct_signatures =
+            self.construct_signatures_for_type(target.callee_ty_id, &*tables.types);
         let ty_id = if construct_signatures.is_empty() {
             self.infer_non_constructable_new_expression(
-                module,
+                &mut tables.reborrow(),
                 expression_id,
                 &target,
                 dynamic_arguments,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             )?
         } else {
             // resolve one concrete constructor signature
             let selection = self.select_call_signature(
-                module,
+                &mut tables.reborrow(),
                 expression_id,
                 target.callee_symbol,
                 static_arguments,
@@ -3355,49 +2844,34 @@ impl Compiler {
                 dynamic_arguments,
                 None,
                 SignatureResolutionMode::Synthesize,
-                ctx.profile,
-                &ctx.options,
-                tree,
-                symbols,
-                types,
-                infer,
             )?;
             if let Some((_, resolved_signature)) = selection {
                 self.infer_resolved_new_expression(
-                    module,
+                    &mut tables.reborrow(),
                     expression_id,
                     &target,
                     dynamic_arguments,
                     resolved_signature,
-                    &options,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                     ctx,
                 )?
             } else if construct_signatures.len() > 1 {
                 self.emit_no_overload_for_receiver_type(
-                    module,
-                    ctx.profile,
+                    tables.module,
+                    tables.profile,
                     expression_id.into_any(),
                     target.callee_ty_id,
-                    types,
+                    &mut *tables.types,
                 );
                 self.infer_call_arguments_without_context(
-                    module,
+                    &mut tables.reborrow(),
                     dynamic_arguments,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                     ctx,
                 )?;
-                self.synthesize_call_error_result_type(expression_id, types)
+                self.synthesize_call_error_result_type(expression_id, &mut *tables.types)
             } else {
                 let signature_ty_id = construct_signatures[0];
                 let resolved = self.resolve_call_signature(
-                    module,
+                    &mut tables.reborrow(),
                     expression_id,
                     target.callee_symbol,
                     static_arguments,
@@ -3409,29 +2883,18 @@ impl Compiler {
                     ctx.expected_type,
                     SignatureResolutionMode::Synthesize,
                     false,
-                    ctx.profile,
-                    &ctx.options,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                 )?;
                 if let Some(resolved_signature) = resolved {
                     self.infer_resolved_new_expression(
-                        module,
+                        &mut tables.reborrow(),
                         expression_id,
                         &target,
                         dynamic_arguments,
                         resolved_signature,
-                        &options,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
                         ctx,
                     )?
                 } else {
-                    self.synthesize_call_error_result_type(expression_id, types)
+                    self.synthesize_call_error_result_type(expression_id, &mut *tables.types)
                 }
             }
         };
@@ -3439,12 +2902,12 @@ impl Compiler {
         // reject managed allocations when managed memory is disabled
         if ctx.options.no_managed
             && !ctx.is_explicit_ownership
-            && matches!(module.source, ModuleSource::User)
-            && self.type_contains_managed(module, ctx.profile, ty_id, types)
+            && matches!(tables.module.source, ModuleSource::User)
+            && self.type_contains_managed(tables.module, ctx.profile, ty_id, &*tables.types)
         {
             self.error(AnalyzeError::ManagedMemoryDisabled {
                 node: expression_id
-                    .into_global_any(module.id)
+                    .into_global_any(tables.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
         }
@@ -3455,36 +2918,36 @@ impl Compiler {
     /// Infer and normalize constructor target metadata for new-expression inference.
     fn infer_new_expression_target(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<NewExpressionResolution> {
-        let callee_ty_id =
-            self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
+        let callee_ty_id = self.infer_expression(&mut tables.reborrow(), left_id, ctx)?;
 
         // ensure instance types for constructor references
         self.ensure_reference_instance_types_for_type(
-            module,
-            ctx.profile,
+            tables.module,
+            tables.profile,
             expression_id.into_any(),
             callee_ty_id,
-            types,
+            tables.types,
         )?;
 
         // resolve the constructor symbol when possible
-        let callee_id = self.unwrap_parenthesized_expression(left_id, tree);
-        let callee_symbol =
-            self.reference_symbol_for_expression(module, callee_id, ctx.profile, tree, symbols);
+        let callee_id = self.unwrap_parenthesized_expression(left_id, tables.tree);
+        let callee_symbol = self.reference_symbol_for_expression(
+            tables.module,
+            callee_id,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
+        );
         let struct_constructor_symbol = callee_symbol.map(|symbol| {
             self.canonical_symbol_id(
-                module,
-                symbols,
-                ctx.profile,
+                tables.module,
+                tables.symbols,
+                tables.profile,
                 symbol,
                 CanonicalSymbolMode::FollowAliases,
             )
@@ -3502,16 +2965,11 @@ impl Compiler {
     /// Infer constructor arguments, commit constructor resolution, and return the constructed type.
     fn infer_resolved_new_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         target: &NewExpressionResolution,
         dynamic_arguments: &[LocalNodeId<Argument>],
         resolved_signature: ResolvedSignature,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let resolved_dynamic_parameters = &resolved_signature.dynamic_parameters;
@@ -3521,52 +2979,37 @@ impl Compiler {
             && dynamic_arguments.len() != resolved_dynamic_parameters.len()
         {
             self.emit_no_overload_for_receiver_type(
-                module,
-                ctx.profile,
+                tables.module,
+                tables.profile,
                 expression_id.into_any(),
                 target.callee_ty_id,
-                types,
+                &mut *tables.types,
             );
             self.infer_call_arguments_without_context(
-                module,
+                &mut tables.reborrow(),
                 dynamic_arguments,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             )?;
 
-            return Ok(self.synthesize_call_error_result_type(expression_id, types));
+            return Ok(self.synthesize_call_error_result_type(expression_id, &mut *tables.types));
         }
 
         // infer argument types and constraints
         let argument_ty_ids = self.infer_invocation_arguments(
-            module,
+            &mut tables.reborrow(),
             dynamic_arguments,
             resolved_dynamic_parameters,
-            ctx.profile,
             None,
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
             ctx,
         )?;
 
         // check argument assignability against parameters
         self.check_invocation_assignability(
-            module,
-            ctx.profile,
+            &mut tables.reborrow(),
             expression_id,
             dynamic_arguments,
             &argument_ty_ids,
             resolved_dynamic_parameters,
-            tree,
-            symbols,
-            types,
-            options,
         )?;
 
         let resolved_return_type = resolved_signature.return_type;
@@ -3574,22 +3017,22 @@ impl Compiler {
         // register the constructor instance when static arguments were resolved
         let constructor_instance_id = if let Some(callee_symbol) = target.callee_symbol {
             let environment = self.instance_environment_for_symbol_arguments(
-                module,
-                ctx.profile,
+                tables.module,
+                tables.profile,
                 callee_symbol,
                 resolved_signature.static_arguments.clone(),
                 0,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                &mut *tables.types,
             );
             if let Some(environment) = environment {
                 self.record_node_provisional_instance(
-                    expression_id.into_global_any(module.id),
+                    expression_id.into_global_any(tables.module.id),
                     callee_symbol,
                     environment,
-                    infer,
-                    types,
+                    &mut *tables.infer,
+                    &mut *tables.types,
                 )?
             } else {
                 None
@@ -3601,45 +3044,38 @@ impl Compiler {
         // commit constructor resolution when possible
         if let Some(callee_symbol) = target.callee_symbol {
             self.record_provisional_static_resolution(
-                expression_id.into_global_any(module.id),
+                expression_id.into_global_any(tables.module.id),
                 None,
                 callee_symbol,
                 constructor_instance_id,
                 Some(resolved_signature),
-                infer,
-                types,
+                &mut *tables.infer,
+                &mut *tables.types,
             );
         }
 
-        Ok(resolved_return_type
-            .unwrap_or_else(|| self.synthesize_call_error_result_type(expression_id, types)))
+        Ok(resolved_return_type.unwrap_or_else(|| {
+            self.synthesize_call_error_result_type(expression_id, &mut *tables.types)
+        }))
     }
 
     /// Infer behavior for non-constructable new-expression targets.
     fn infer_non_constructable_new_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         target: &NewExpressionResolution,
         dynamic_arguments: &[LocalNodeId<Argument>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // reuse the instance type for class and struct constructors without signatures
         if let Some(callee_symbol) = target.callee_symbol
             && matches!(callee_symbol.ty(), SymbolType::Struct | SymbolType::Class)
-            && let Some(instance_type_id) = types.get_instance_type_id(callee_symbol)
+            && let Some(instance_type_id) = tables.types.get_instance_type_id(callee_symbol)
         {
             self.infer_call_arguments_without_context(
-                module,
+                &mut tables.reborrow(),
                 dynamic_arguments,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             )?;
 
@@ -3647,23 +3083,15 @@ impl Compiler {
         }
 
         // infer arguments and return an error type when no constructor target is available
-        self.infer_call_arguments_without_context(
-            module,
-            dynamic_arguments,
-            tree,
-            symbols,
-            types,
-            infer,
-            ctx,
-        )?;
+        self.infer_call_arguments_without_context(&mut tables.reborrow(), dynamic_arguments, ctx)?;
 
-        Ok(self.synthesize_call_error_result_type(expression_id, types))
+        Ok(self.synthesize_call_error_result_type(expression_id, &mut *tables.types))
     }
 
     /// Resolve static arguments and substitutions for a function type.
     pub(crate) fn resolve_function_static_arguments(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         node_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
         static_argument_ids: Option<&[LocalNodeId<Argument>]>,
@@ -3676,12 +3104,6 @@ impl Compiler {
         expected_return_type: Option<LocalTypeId>,
         mode: SignatureResolutionMode,
         allow_missing_value_arguments: bool,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> AnalyzeResult<Option<ResolvedSignature>> {
         // handle fast paths when there are no static parameters
         let has_static_arguments = static_argument_ids.is_some_and(|args| !args.is_empty());
@@ -3695,8 +3117,8 @@ impl Compiler {
                 for argument_id in argument_ids {
                     self.error(AnalyzeError::InvalidStaticArgument {
                         node: argument_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(profile)),
+                            .into_global_any(tables.module.id)
+                            .into_anchored(Some(tables.profile)),
                         message: "too many static arguments".to_string(),
                     });
                 }
@@ -3710,27 +3132,20 @@ impl Compiler {
         }
 
         let static_parameters = self.collect_signature_static_parameters(
-            module,
+            &mut tables.reborrow(),
             node_id,
             static_parameters,
-            profile,
-            tree,
-            symbols,
-            types,
         );
         let assigned_arguments = self.assign_signature_static_arguments(
-            module,
+            &mut tables.reborrow(),
             node_id,
             static_argument_ids,
             prefilled_static_arguments,
             &static_parameters,
             bound_substitutions,
-            profile,
-            tree,
-            symbols,
         );
         let Some(resolved_state) = self.resolve_signature_static_argument_state(
-            module,
+            tables,
             node_id,
             owner_symbol,
             &static_parameters,
@@ -3742,28 +3157,18 @@ impl Compiler {
             expected_return_type,
             mode,
             allow_missing_value_arguments,
-            profile,
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
         )?
         else {
             return Ok(None);
         };
         let (resolved_dynamic_parameters, resolved_return_type) = self
             .instantiate_signature_from_resolved_state(
-                module,
+                &mut tables.reborrow(),
                 node_id,
                 owner_symbol,
                 dynamic_parameters,
                 return_type,
                 &resolved_state,
-                profile,
-                tree,
-                symbols,
-                types,
             );
 
         Ok(Some(ResolvedSignature {
@@ -3776,45 +3181,43 @@ impl Compiler {
     /// Collect static parameter metadata for one signature.
     fn collect_signature_static_parameters(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         node_id: LocalNodeIdAny,
         static_parameter_type_ids: &[LocalTypeId],
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Vec<StaticParameter> {
         let static_parameter_symbols =
-            self.static_parameter_symbols_for_type_ids(static_parameter_type_ids, types);
+            self.static_parameter_symbols_for_type_ids(static_parameter_type_ids, tables.types);
+        let mut parameters = Vec::with_capacity(static_parameter_symbols.len());
+        for symbol_id in static_parameter_symbols {
+            parameters.push(self.resolve_static_parameter(
+                tables.module,
+                symbol_id,
+                node_id,
+                tables.profile,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+            ));
+        }
 
-        static_parameter_symbols
-            .iter()
-            .map(|symbol_id| {
-                self.resolve_static_parameter(
-                    module, *symbol_id, node_id, profile, tree, symbols, types,
-                )
-            })
-            .collect::<Vec<_>>()
+        parameters
     }
 
     /// Assign call and prefilled static arguments to signature parameters.
     fn assign_signature_static_arguments(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         node_id: LocalNodeIdAny,
         static_argument_ids: Option<&[LocalNodeId<Argument>]>,
         prefilled_static_arguments: Option<&[StaticArgument]>,
         static_parameters: &[StaticParameter],
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> Vec<Option<StaticArgument>> {
         let argument_ids = static_argument_ids.unwrap_or(&[]);
         let argument_values = argument_ids
             .iter()
             .map(|argument_id| StaticArgument::Unevaluated {
-                node: argument_id.into_global_any(module.id),
+                node: argument_id.into_global_any(tables.module.id),
             })
             .collect::<Vec<_>>();
         let prefilled_arguments = prefilled_static_arguments.unwrap_or(&[]);
@@ -3856,13 +3259,13 @@ impl Compiler {
             parameters_for_call.push(parameter.clone());
         }
         let assigned_for_call = self.assign_static_argument_values(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             node_id,
             &argument_values,
             &parameters_for_call,
-            tree,
-            symbols,
+            tables.tree,
+            tables.symbols,
         );
 
         for (index, argument) in assigned_for_call.into_iter().enumerate() {
@@ -3880,7 +3283,7 @@ impl Compiler {
     /// Resolve static arguments and substitutions for one signature.
     fn resolve_signature_static_argument_state(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         node_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
         static_parameters: &[StaticParameter],
@@ -3892,12 +3295,6 @@ impl Compiler {
         expected_return_type: Option<LocalTypeId>,
         mode: SignatureResolutionMode,
         allow_missing_value_arguments: bool,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> AnalyzeResult<Option<ResolvedStaticArgumentState>> {
         // query expected return type mapping for type parameter backfill
         let expected_return_mapping = if mode == SignatureResolutionMode::Synthesize {
@@ -3905,14 +3302,14 @@ impl Compiler {
                 (return_type, expected_return_type)
             {
                 self.static_arguments_from_expected_return_type(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     return_type,
                     expected_return_type,
-                    options,
-                    tree,
-                    symbols,
-                    types,
+                    tables.options,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                 )?
             } else {
                 None
@@ -3935,15 +3332,15 @@ impl Compiler {
                 None
             } else if let Some(dynamic_argument_ids) = dynamic_argument_ids {
                 self.infer_static_argument_from_dynamic_arguments(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     static_parameter,
                     dynamic_parameters,
                     dynamic_argument_ids,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
+                    tables.infer,
                 )?
             } else {
                 None
@@ -3960,14 +3357,14 @@ impl Compiler {
                 .cloned()
             {
                 self.resolve_static_argument(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     static_parameter,
                     Some(expected_argument),
                     true,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                 )?
             } else {
                 None
@@ -3976,14 +3373,14 @@ impl Compiler {
             // resolve one concrete static argument value for this slot
             let mut resolved_argument = if let Some(resolved_argument) = self
                 .resolve_static_argument(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     static_parameter,
                     assigned_argument,
                     true,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                 )? {
                 resolved_argument
             } else if let Some(inferred_argument) = inferred_argument {
@@ -4003,50 +3400,47 @@ impl Compiler {
                 }
 
                 self.synthesize_missing_static_argument_for_function(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     node_id,
                     owner_symbol,
                     static_parameter,
-                    infer,
-                    types,
                 )?
             };
 
             // query the error-node anchor used by type-argument validation
             let error_node = match &resolved_argument {
                 StaticArgument::Unevaluated { node } => *node,
-                StaticArgument::Evaluated { .. } => node_id.into_global(module.id),
+                StaticArgument::Evaluated { .. } => node_id.into_global(tables.module.id),
             };
 
             // validate and collect substitutions for this argument
             let materialized_substitution = if static_parameter.kind == StaticParameterKind::Type {
                 Some(self.materialize_static_type_argument(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     error_node,
                     static_parameter,
                     &resolved_argument,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                 )?)
             } else {
                 None
             };
             let substitution = self.validate_static_argument(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 error_node,
                 static_parameter,
                 &resolved_argument,
                 materialized_substitution,
                 &bound_substitutions,
-                tree,
-                symbols,
-                types,
-                Some(infer),
-                options,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+                Some(tables.infer),
+                tables.options,
             )?;
             if let Some(substitution_ty_id) = substitution {
                 substitutions.insert(static_parameter.symbol, substitution_ty_id);
@@ -4056,7 +3450,7 @@ impl Compiler {
                     substitution_ty_id,
                     resolved_argument,
                     &mut has_value_substitution,
-                    types,
+                    tables.types,
                 );
             } else if static_parameter.kind == StaticParameterKind::Type
                 && let StaticArgument::Evaluated {
@@ -4113,22 +3507,18 @@ impl Compiler {
     /// Instantiate the dynamic signature from resolved static substitutions.
     fn instantiate_signature_from_resolved_state(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         node_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
         dynamic_parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
         state: &ResolvedStaticArgumentState,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> (Vec<LocalTypeId>, Option<LocalTypeId>) {
         // apply substitutions to the dynamic signature
         let mut materialize_cache = HashMap::new();
         let mut substitute_cache = HashMap::new();
         let resolved_dynamic_parameters = if state.has_missing_value_argument {
-            let error_ty_id = types.insert_type_from_any(Type::Error, node_id);
+            let error_ty_id = tables.types.insert_type_from_any(Type::Error, node_id);
             dynamic_parameters
                 .iter()
                 .map(|_| error_ty_id)
@@ -4138,15 +3528,15 @@ impl Compiler {
                 .iter()
                 .map(|parameter| {
                     self.instantiate_signature_type(
-                        module,
-                        profile,
+                        tables.module,
+                        tables.profile,
                         node_id,
                         owner_symbol,
                         &state.substitutions,
                         *parameter,
-                        tree,
-                        symbols,
-                        types,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
                         &mut materialize_cache,
                         &mut substitute_cache,
                     )
@@ -4154,19 +3544,19 @@ impl Compiler {
                 .collect::<Vec<_>>()
         };
         let resolved_return_type = if state.has_missing_value_argument {
-            Some(types.insert_type_from_any(Type::Error, node_id))
+            Some(tables.types.insert_type_from_any(Type::Error, node_id))
         } else {
             return_type.map(|return_type| {
                 self.instantiate_signature_type(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     node_id,
                     owner_symbol,
                     &state.substitutions,
                     return_type,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                     &mut materialize_cache,
                     &mut substitute_cache,
                 )
@@ -4180,24 +3570,24 @@ impl Compiler {
                 .iter()
                 .map(|parameter| {
                     self.materialize_static_arguments_in_type(
-                        module,
-                        profile,
+                        tables.module,
+                        tables.profile,
                         *parameter,
-                        tree,
-                        symbols,
-                        types,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
                         &mut normalize_cache,
                     )
                 })
                 .collect::<Vec<_>>();
             let normalized_return_type = resolved_return_type.map(|return_type| {
                 self.materialize_static_arguments_in_type(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     return_type,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                     &mut normalize_cache,
                 )
             });
@@ -4213,29 +3603,16 @@ impl Compiler {
     /// applying inherited substitutions, and resolving the function signature.
     pub(crate) fn resolve_member_function(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_expression_id: LocalNodeId<Expression>,
         receiver_ty_id: Option<LocalTypeId>,
         receiver_ty: &Type,
         member_key: &StaticKey,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> AnalyzeResult<Option<ResolvedMemberFunction>> {
         // resolve member dispatch for the receiver type
-        let member_resolution = self.resolve_member_symbol(
-            module,
-            receiver_ty,
-            member_key,
-            profile,
-            tree,
-            symbols,
-            types,
-        )?;
+        let member_resolution =
+            self.resolve_member_symbol(&mut tables.reborrow(), receiver_ty, member_key)?;
         let member_symbol = match &member_resolution {
             MemberResolution::Static { symbol } => Some(*symbol),
             _ => None,
@@ -4243,31 +3620,25 @@ impl Compiler {
 
         // decide how to filter member lookups for this receiver
         let receiver_context = self.query_member_receiver_context_for_expression(
-            module,
+            tables.module,
             receiver_expression_id,
             receiver_ty_id,
-            profile,
-            tree,
-            symbols,
-            types,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
+            &mut *tables.types,
         );
         let lookup_mode = receiver_context.lookup_mode;
 
         // resolve member-call typing context for this receiver
         let resolved_context = self.resolve_member_call_type_context(
-            module,
+            &mut tables.reborrow(),
             receiver_expression_id,
             receiver_ty_id,
             receiver_ty,
             member_key,
             member_symbol,
             lookup_mode,
-            profile,
-            options,
-            tree,
-            symbols,
-            infer,
-            types,
         )?;
         let has_member = resolved_context.member_ty_id.is_some();
 
@@ -4294,15 +3665,15 @@ impl Compiler {
             dynamic_parameters,
             return_type,
             ..
-        } = types.get_type(member_ty_id).clone()
+        } = tables.types.get_type(member_ty_id).clone()
         else {
             return Ok(None);
         };
         let signature_static_parameter_symbols =
-            self.static_parameter_symbols_for_type_ids(&static_parameters, types);
+            self.static_parameter_symbols_for_type_ids(&static_parameters, &mut *tables.types);
         let signature = self
             .resolve_function_static_arguments(
-                module,
+                &mut tables.reborrow(),
                 expression_id.into_any(),
                 member_symbol,
                 None,
@@ -4316,12 +3687,6 @@ impl Compiler {
                 None,
                 SignatureResolutionMode::Check,
                 false,
-                profile,
-                options,
-                tree,
-                symbols,
-                types,
-                infer,
             )?
             .unwrap_or(ResolvedSignature {
                 dynamic_parameters,
@@ -4343,41 +3708,36 @@ impl Compiler {
     /// Record the member-call instance id for a resolved member invocation.
     pub(crate) fn record_member_call_instance_id(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         resolved: &ResolvedMemberFunction,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        infer: &mut InferTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalInstanceId>> {
         let Some(member_symbol) = resolved.member_symbol else {
             return Ok(None);
         };
 
         let environment = self.compose_member_instance_environment(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             member_symbol,
             &resolved.instance_arguments,
             &resolved.bound_substitutions,
             &resolved.signature.static_arguments,
             &resolved.signature_static_parameter_symbols,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         );
         let Some(environment) = environment else {
             return Ok(None);
         };
 
         self.record_node_provisional_instance(
-            expression_id.into_global_any(module.id),
+            expression_id.into_global_any(tables.module.id),
             member_symbol,
             environment,
-            infer,
-            types,
+            tables.infer,
+            tables.types,
         )
     }
 
@@ -4386,37 +3746,24 @@ impl Compiler {
     /// Returns the instance ID if one was committed.
     pub(crate) fn record_member_call_resolution(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_ty_id: LocalTypeId,
         resolved: &ResolvedMemberFunction,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        infer: &mut InferTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalInstanceId>> {
-        let instance_id = self.record_member_call_instance_id(
-            module,
-            profile,
-            expression_id,
-            resolved,
-            tree,
-            symbols,
-            infer,
-            types,
-        )?;
+        let instance_id =
+            self.record_member_call_instance_id(&mut tables.reborrow(), expression_id, resolved)?;
 
         // record member resolution
         self.record_provisional_member_resolution(
-            expression_id.into_global_any(module.id),
+            expression_id.into_global_any(tables.module.id),
             Some(receiver_ty_id),
             &resolved.member_resolution,
             instance_id,
             Some(resolved.signature.clone()),
             resolved.has_member,
-            infer,
-            types,
+            tables.infer,
+            tables.types,
         );
 
         Ok(instance_id)

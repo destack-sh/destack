@@ -15,31 +15,21 @@ struct AssignTargetBinding {
 impl Compiler {
     pub(crate) fn infer_assign_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_OPERATOR);
 
-        let options = ctx.options;
-
         // route index assignment to index set resolution
-        if let Expression::Index { left: _, right: _ } = tree.get(left_id) {
+        if let Expression::Index { left: _, right: _ } = tables.tree.get(left_id) {
             return self.infer_index_assignment_expression(
-                module,
+                tables,
                 expression_id,
                 left_id,
                 right_id,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             );
         }
@@ -47,59 +37,51 @@ impl Compiler {
         let AssignTargetBinding {
             target_id,
             target_symbol,
-        } = self.check_assignment_left_target(module, left_id, tree, symbols, types, infer, ctx)?;
+        } = self.check_assignment_left_target(&mut tables.reborrow(), left_id, ctx)?;
 
-        let left_ty_id =
-            self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
+        let left_ty_id = self.infer_expression(&mut tables.reborrow(), left_id, ctx)?;
 
         // reject assignments to associated projections in value space
         if self.assignment_target_is_associated_projection(
-            module,
+            tables.module,
             ctx.profile,
             left_id,
-            tree,
-            symbols,
-            infer,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.infer,
+            tables.types,
         )? {
             self.error(AnalyzeError::InvalidAssignmentTarget {
                 node: left_id
-                    .into_global_any(module.id)
+                    .into_global_any(tables.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
 
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
             };
-            return Ok(types.insert_type_from(ty, expression_id));
+            return Ok(tables.types.insert_type_from(ty, expression_id));
         }
 
         // use the left type as the expected type for the right expression
         let mut right_ctx = ctx.fork().with_expected_type(Some(left_ty_id));
-        let right_ty_id = self.infer_expression(
-            module,
-            right_id,
-            tree,
-            symbols,
-            types,
-            infer,
-            &mut right_ctx,
-        )?;
+        let right_ty_id =
+            self.infer_expression(&mut tables.reborrow(), right_id, &mut right_ctx)?;
 
         // enforce explicit ownership when implicit managed values are disabled
         self.check_no_implicit_managed_value(
-            module,
+            tables.module,
             ctx.profile,
             right_id,
             left_ty_id,
             right_ty_id,
-            tree,
-            types,
-            &options,
+            tables.tree,
+            tables.types,
+            tables.options,
         );
 
         // add the subtype constraint
-        infer.push_constraint(Constraint::Subtype {
+        tables.infer.push_constraint(Constraint::Subtype {
             sub_type: right_ty_id,
             super_type: left_ty_id,
             variance: None,
@@ -107,15 +89,11 @@ impl Compiler {
 
         // enforce assignment relation after convergence when needed
         self.enforce_assignability_or_defer_diagnostic(
-            module,
-            ctx.profile,
+            &mut tables.reborrow(),
             expression_id.into_any(),
             left_ty_id,
             right_ty_id,
-            symbols,
-            types,
-            infer,
-            &options,
+            &ctx.options,
             UnassignableRelationFailureMode::PropagateError,
         )?;
 
@@ -124,19 +102,20 @@ impl Compiler {
             left: coalesce_left,
             operator: BinaryOperator::Coalesce,
             right: _,
-        } = tree.get(right_id)
+        } = tables.tree.get(right_id)
             && let Some(target_symbol) = target_symbol
         {
-            let coalesce_left = self.unwrap_parenthesized_expression(*coalesce_left, tree);
+            let coalesce_left = self.unwrap_parenthesized_expression(*coalesce_left, tables.tree);
             if coalesce_left == target_id {
                 let canonical_symbol = self.canonical_symbol_id(
-                    module,
-                    symbols,
+                    tables.module,
+                    tables.symbols,
                     ctx.profile,
                     target_symbol,
                     CanonicalSymbolMode::FollowAliases,
                 );
-                let (non_nullish, has_nullish) = self.strip_nullish_from_union(left_ty_id, types);
+                let (non_nullish, has_nullish) =
+                    self.strip_nullish_from_union(left_ty_id, tables.types);
                 if has_nullish {
                     let narrowed_ty_id = non_nullish.unwrap_or(right_ty_id);
                     ctx.narrow(canonical_symbol, narrowed_ty_id);
@@ -147,34 +126,26 @@ impl Compiler {
         let ty = Type::TypeLiteral {
             value: TypeLiteral::Void,
         };
-        Ok(types.insert_type_from(ty, expression_id))
+        Ok(tables.types.insert_type_from(ty, expression_id))
     }
 
     /// Infer a compound assignment expression.
     pub(crate) fn infer_assign_binary_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         operator: &AssignOperator,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // route index assignment to index set resolution
-        if let Expression::Index { left: _, right: _ } = tree.get(left_id) {
+        if let Expression::Index { left: _, right: _ } = tables.tree.get(left_id) {
             return self.infer_index_assignment_expression(
-                module,
+                tables,
                 expression_id,
                 left_id,
                 right_id,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             );
         }
@@ -182,44 +153,36 @@ impl Compiler {
         let AssignTargetBinding {
             target_id: _,
             target_symbol,
-        } = self.check_assignment_left_target(module, left_id, tree, symbols, types, infer, ctx)?;
+        } = self.check_assignment_left_target(&mut tables.reborrow(), left_id, ctx)?;
 
         // infer left and right types
-        let left_ty_id =
-            self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
+        let left_ty_id = self.infer_expression(&mut tables.reborrow(), left_id, ctx)?;
 
         // reject assignments to associated projections in value space
         if self.assignment_target_is_associated_projection(
-            module,
+            tables.module,
             ctx.profile,
             left_id,
-            tree,
-            symbols,
-            infer,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.infer,
+            tables.types,
         )? {
             self.error(AnalyzeError::InvalidAssignmentTarget {
                 node: left_id
-                    .into_global_any(module.id)
+                    .into_global_any(tables.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
 
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,
             };
-            return Ok(types.insert_type_from(ty, expression_id));
+            return Ok(tables.types.insert_type_from(ty, expression_id));
         }
 
         let mut right_ctx = ctx.fork().with_expected_type(Some(left_ty_id));
-        let right_ty_id = self.infer_expression(
-            module,
-            right_id,
-            tree,
-            symbols,
-            types,
-            infer,
-            &mut right_ctx,
-        )?;
+        let right_ty_id =
+            self.infer_expression(&mut tables.reborrow(), right_id, &mut right_ctx)?;
 
         // enforce logical assignment semantics
         let is_logical_assignment = matches!(
@@ -227,22 +190,20 @@ impl Compiler {
             AssignOperator::AndAssign | AssignOperator::OrAssign | AssignOperator::CoalesceAssign
         );
         if is_logical_assignment {
-            let options = ctx.options;
-
             // enforce explicit ownership when implicit managed values are disabled
             self.check_no_implicit_managed_value(
-                module,
+                tables.module,
                 ctx.profile,
                 right_id,
                 left_ty_id,
                 right_ty_id,
-                tree,
-                types,
-                &options,
+                tables.tree,
+                tables.types,
+                tables.options,
             );
 
             // add the subtype constraint
-            infer.push_constraint(Constraint::Subtype {
+            tables.infer.push_constraint(Constraint::Subtype {
                 sub_type: right_ty_id,
                 super_type: left_ty_id,
                 variance: None,
@@ -250,15 +211,11 @@ impl Compiler {
 
             // enforce assignment relation after convergence when needed
             self.enforce_assignability_or_defer_diagnostic(
-                module,
-                ctx.profile,
+                &mut tables.reborrow(),
                 expression_id.into_any(),
                 left_ty_id,
                 right_ty_id,
-                symbols,
-                types,
-                infer,
-                &options,
+                &ctx.options,
                 UnassignableRelationFailureMode::PropagateError,
             )?;
 
@@ -267,13 +224,14 @@ impl Compiler {
                 && let Some(target_symbol) = target_symbol
             {
                 let canonical_symbol = self.canonical_symbol_id(
-                    module,
-                    symbols,
+                    tables.module,
+                    tables.symbols,
                     ctx.profile,
                     target_symbol,
                     CanonicalSymbolMode::FollowAliases,
                 );
-                let (non_nullish, has_nullish) = self.strip_nullish_from_union(left_ty_id, types);
+                let (non_nullish, has_nullish) =
+                    self.strip_nullish_from_union(left_ty_id, tables.types);
                 if has_nullish {
                     let narrowed_ty_id = non_nullish.unwrap_or(right_ty_id);
                     ctx.narrow(canonical_symbol, narrowed_ty_id);
@@ -284,7 +242,7 @@ impl Compiler {
         let ty = Type::TypeLiteral {
             value: TypeLiteral::Void,
         };
-        Ok(types.insert_type_from(ty, expression_id))
+        Ok(tables.types.insert_type_from(ty, expression_id))
     }
 
     /// Resolve mutability for a binding symbol when it can be derived locally.
@@ -303,27 +261,28 @@ impl Compiler {
     /// Validate assignment target mutability and readonly restrictions.
     fn check_assignment_left_target(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         left_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<AssignTargetBinding> {
         // reject assignments to immutable bindings
-        let target_id = self.unwrap_parenthesized_expression(left_id, tree);
-        let target_symbol =
-            self.reference_symbol_for_expression(module, target_id, ctx.profile, tree, symbols);
+        let target_id = self.unwrap_parenthesized_expression(left_id, tables.tree);
+        let target_symbol = self.reference_symbol_for_expression(
+            tables.module,
+            target_id,
+            ctx.profile,
+            tables.tree,
+            tables.symbols,
+        );
         if let Some(target_symbol) = target_symbol
             && matches!(
-                self.binding_mutability_for_symbol(module, target_symbol, symbols),
+                self.binding_mutability_for_symbol(tables.module, target_symbol, tables.symbols),
                 Some(Mutability::Immutable)
             )
         {
             self.error(AnalyzeError::ImmutableBindingAssignment {
                 node: target_id
-                    .into_global_any(module.id)
+                    .into_global_any(tables.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
         }
@@ -333,21 +292,17 @@ impl Compiler {
             left: receiver_id,
             name,
             static_arguments,
-        } = tree.get(left_id)
+        } = tables.tree.get(left_id)
         {
             let receiver_ty_id = self.infer_member_assignment_receiver_type(
-                module,
+                &mut tables.reborrow(),
                 *receiver_id,
-                tree,
-                symbols,
-                types,
-                infer,
                 ctx,
             )?;
-            if self.type_is_immutable_reference(receiver_ty_id, types) {
+            if self.type_is_immutable_reference(receiver_ty_id, tables.types) {
                 self.error(AnalyzeError::ImmutableReferenceAssignment {
                     node: receiver_id
-                        .into_global_any(module.id)
+                        .into_global_any(tables.module.id)
                         .into_anchored(Some(ctx.profile)),
                 });
             }
@@ -357,32 +312,28 @@ impl Compiler {
                 let member_key = self.static_key_from_dynamic_key(
                     ctx.profile,
                     DynamicKey::Name(*name),
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                 );
                 if let Some(member_key) = member_key {
                     let is_field_readonly = self
                         .field_modifiers_for_key(
-                            module,
+                            tables.module,
                             ctx.profile,
                             receiver_ty_id,
                             &member_key,
-                            symbols,
-                            types,
+                            tables.symbols,
+                            tables.types,
                         )
                         .is_some_and(|(_, is_readonly)| is_readonly);
                     let is_parameter_property_readonly = if let Some(receiver_symbol) =
-                        self.receiver_symbol_for_visibility(receiver_ty_id, types)
+                        self.receiver_symbol_for_visibility(receiver_ty_id, tables.types)
                     {
                         self.parameter_property_member_context_for_key(
-                            module,
-                            ctx.profile,
+                            &mut tables.reborrow(),
                             receiver_symbol,
                             &member_key,
-                            tree,
-                            symbols,
-                            types,
                         )?
                         .is_some_and(|context| context.is_readonly)
                     } else {
@@ -391,22 +342,21 @@ impl Compiler {
                     if is_field_readonly || is_parameter_property_readonly {
                         self.error(AnalyzeError::ReadonlyProperty {
                             node: left_id
-                                .into_global_any(module.id)
+                                .into_global_any(tables.module.id)
                                 .into_anchored(Some(ctx.profile)),
                             member_key,
                         });
                     }
                 }
             }
-        } else if let Expression::Unary { operator, right } = tree.get(left_id)
+        } else if let Expression::Unary { operator, right } = tables.tree.get(left_id)
             && matches!(operator, UnaryOperator::Dereference)
         {
-            let right_ty_id =
-                self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
-            if self.type_is_immutable_reference(right_ty_id, types) {
+            let right_ty_id = self.infer_expression(&mut tables.reborrow(), *right, ctx)?;
+            if self.type_is_immutable_reference(right_ty_id, tables.types) {
                 self.error(AnalyzeError::ImmutableReferenceAssignment {
                     node: right
-                        .into_global_any(module.id)
+                        .into_global_any(tables.module.id)
                         .into_anchored(Some(ctx.profile)),
                 });
             }
@@ -421,35 +371,26 @@ impl Compiler {
     /// Infer a member assignment receiver in value or projection mode.
     fn infer_member_assignment_receiver_type(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         receiver_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
-        if self.is_projection_receiver_expression(
-            module,
-            ctx.profile,
-            receiver_id,
-            tree,
-            symbols,
-            types,
-        ) {
+        let is_projection_receiver =
+            self.is_projection_receiver_expression(&mut tables.reborrow(), receiver_id);
+        if is_projection_receiver {
             return self.resolve_declared_type_expression(
-                module,
+                tables.module,
                 ctx.profile,
                 receiver_id,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
                 true,
                 true,
             );
         }
 
-        self.infer_expression(module, receiver_id, tree, symbols, types, infer, ctx)
+        self.infer_expression(&mut tables.reborrow(), receiver_id, ctx)
     }
 
     /// Return true when an assignment target resolves to an associated projection.

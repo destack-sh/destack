@@ -6,11 +6,11 @@ use destack_base::StringId;
 use destack_dir::{
     Argument, BinaryOperator, Declaration, DynamicKey, Expression, FlowBlock, FlowEdge,
     FlowEdgeKind, FlowEnvironment, FlowGraph, FlowGuard, FlowTable, FunctionSignature,
-    GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType,
-    NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, RuntimeCheckKind,
-    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolTable, Type,
-    TypeBinaryOperator, TypeField, TypeLiteral, TypePredicateSubject, TypeTable, TypeUnaryOperator,
-    UnaryOperator, walk_expression,
+    GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType, NodeVisitor,
+    NodeVisitorOptions, Parameter, Pattern, PatternField, RuntimeCheckKind, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeField,
+    TypeLiteral, TypePredicateSubject, TypeTable, TypeUnaryOperator, UnaryOperator,
+    walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -172,7 +172,6 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        _infer: &mut InferTable,
         context: &InferContext,
     ) -> AnalyzeResult<FlowTable> {
         // seed the flow table with the current context

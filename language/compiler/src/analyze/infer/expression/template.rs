@@ -1,11 +1,12 @@
 use std::collections::HashSet;
 
 use super::SignatureResolutionMode;
-use crate::{AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
+use crate::analyze::common::InferTablesContext;
+use crate::{AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Argument, Constraint, Expression, InferOrigin, InferScope, InferTable, InferVarId, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, NodeTree, PrimitiveType, ResolvedSignature, ScalarLiteral,
-    StringId, SymbolSpaceOrder, SymbolTable, TemplateLiteral, Type, TypeLiteral, TypeTable,
+    Argument, Constraint, Expression, InferOrigin, InferScope, InferVarId, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, PrimitiveType, ResolvedSignature, ScalarLiteral, StringId,
+    SymbolSpaceOrder, SymbolTable, TemplateLiteral, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -64,52 +65,56 @@ impl Compiler {
     /// Infer a tagged template expression.
     pub(crate) fn infer_tagged_template_expression(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         tag_id: LocalNodeId<Expression>,
         template: &TemplateLiteral,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // infer the tag expression type
-        let tag_ty_id = self.infer_expression(module, tag_id, tree, symbols, types, infer, ctx)?;
+        let tag_ty_id = self.infer_expression(&mut tables.reborrow(), tag_id, ctx)?;
 
         // assemble template arguments for call resolution
-        let template_strings_ty_id =
-            self.template_strings_argument_type(ctx.profile, expression_id.into_any(), types);
+        let template_strings_ty_id = self.template_strings_argument_type(
+            ctx.profile,
+            expression_id.into_any(),
+            tables.types,
+        );
         let template_arguments = match template {
             TemplateLiteral::String { .. } => &[][..],
             TemplateLiteral::InterpolatedString { arguments, .. } => arguments.as_slice(),
         };
 
         // require callable signatures on the tag
-        let call_signatures = self.call_signatures_for_type(tag_ty_id, types);
+        let call_signatures = self.call_signatures_for_type(tag_ty_id, tables.types);
         if call_signatures.is_empty() {
             self.emit_non_callable_for_callee_type(
-                module,
+                tables.module,
                 ctx.profile,
                 expression_id.into_any(),
                 tag_ty_id,
-                types,
+                tables.types,
             );
 
             for argument_id in template_arguments {
-                self.infer_argument(module, *argument_id, None, tree, symbols, types, infer, ctx)?;
+                self.infer_argument(&mut tables.reborrow(), *argument_id, None, ctx)?;
             }
 
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            return Ok(types.insert_type_from(ty, expression_id));
+            return Ok(tables.types.insert_type_from(ty, expression_id));
         }
 
         // prepare callee metadata for overload resolution
-        let callee_symbol =
-            self.reference_symbol_for_expression(module, tag_id, ctx.profile, tree, symbols);
-        let static_arguments = match tree.get(tag_id) {
+        let callee_symbol = self.reference_symbol_for_expression(
+            tables.module,
+            tag_id,
+            ctx.profile,
+            tables.tree,
+            tables.symbols,
+        );
+        let static_arguments = match tables.tree.get(tag_id) {
             Expression::LocalReference {
                 static_arguments, ..
             }
@@ -132,7 +137,7 @@ impl Compiler {
             let mut candidates = Vec::new();
             for signature_ty_id in call_signatures.iter() {
                 let Some(resolved) = self.resolve_call_signature(
-                    module,
+                    &mut tables.reborrow(),
                     expression_id,
                     callee_symbol,
                     static_arguments,
@@ -144,25 +149,15 @@ impl Compiler {
                     None,
                     SignatureResolutionMode::Synthesize,
                     false,
-                    ctx.profile,
-                    &ctx.options,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
                 )?
                 else {
                     continue;
                 };
 
                 let Some(resolved) = self.slice_tagged_template_signature(
-                    module,
-                    ctx.profile,
+                    &mut tables.reborrow(),
                     template_strings_ty_id,
                     resolved,
-                    symbols,
-                    types,
-                    &ctx.options,
                     true,
                 )?
                 else {
@@ -170,15 +165,9 @@ impl Compiler {
                 };
 
                 if !self.is_signature_applicable(
-                    module,
-                    ctx.profile,
+                    &mut tables.reborrow(),
                     &resolved,
                     template_arguments,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    &ctx.options,
                 )? {
                     continue;
                 }
@@ -186,46 +175,31 @@ impl Compiler {
                 candidates.push((*signature_ty_id, resolved));
             }
 
-            let mut candidates = self.dedupe_signature_candidates(
-                module,
-                ctx.profile,
-                candidates,
-                symbols,
-                types,
-                &ctx.options,
-            );
+            let mut candidates =
+                self.dedupe_signature_candidates(&mut tables.reborrow(), candidates);
             if candidates.is_empty() {
                 self.emit_no_overload_for_receiver_type(
-                    module,
+                    tables.module,
                     ctx.profile,
                     expression_id.into_any(),
                     tag_ty_id,
-                    types,
+                    tables.types,
                 );
 
                 for argument_id in template_arguments {
-                    self.infer_argument(
-                        module,
-                        *argument_id,
-                        None,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
+                    self.infer_argument(&mut tables.reborrow(), *argument_id, None, ctx)?;
                 }
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
-                return Ok(types.insert_type_from(ty, expression_id));
+                return Ok(tables.types.insert_type_from(ty, expression_id));
             }
 
             resolved_signature = Some(candidates.remove(0).1);
         } else if let Some(signature_ty_id) = call_signatures.first().copied() {
             let resolved = self.resolve_call_signature(
-                module,
+                &mut tables.reborrow(),
                 expression_id,
                 callee_symbol,
                 static_arguments,
@@ -237,22 +211,12 @@ impl Compiler {
                 None,
                 SignatureResolutionMode::Synthesize,
                 false,
-                ctx.profile,
-                &ctx.options,
-                tree,
-                symbols,
-                types,
-                infer,
             )?;
             if let Some(resolved) = resolved {
                 resolved_signature = self.slice_tagged_template_signature(
-                    module,
-                    ctx.profile,
+                    &mut tables.reborrow(),
                     template_strings_ty_id,
                     resolved,
-                    symbols,
-                    types,
-                    &ctx.options,
                     false,
                 )?;
             }
@@ -262,23 +226,16 @@ impl Compiler {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            return Ok(types.insert_type_from(ty, expression_id));
+            return Ok(tables.types.insert_type_from(ty, expression_id));
         };
 
         // infer argument types and emit invocation constraints
         let parameter_types = resolved.dynamic_parameters.clone();
-        let options = ctx.options;
         let argument_ty_ids = self.infer_invocation_arguments(
-            module,
+            &mut tables.reborrow(),
             template_arguments,
             &parameter_types,
-            ctx.profile,
             None,
-            &options,
-            tree,
-            symbols,
-            types,
-            infer,
             ctx,
         )?;
 
@@ -288,34 +245,34 @@ impl Compiler {
             .zip(argument_ty_ids.iter())
             .zip(parameter_types.iter())
         {
-            let argument = tree.get(*argument_id);
+            let argument = tables.tree.get(*argument_id);
             if matches!(argument, Argument::Spread { .. }) {
                 continue;
             }
 
             if self.is_type_assignable(
-                module,
+                tables.module,
                 ctx.profile,
-                symbols,
+                tables.symbols,
                 *param_ty_id,
                 *argument_ty_id,
-                types,
+                tables.types,
                 &ctx.options,
             ) == Assignability::NotAssignable
             {
                 self.emit_unassignable_type_for_types(
-                    module,
+                    tables.module,
                     ctx.profile,
                     argument.value().into_any(),
                     *param_ty_id,
                     *argument_ty_id,
-                    types,
+                    tables.types,
                 );
             }
         }
 
         Ok(resolved.return_type.unwrap_or_else(|| {
-            types.insert_type_from(
+            tables.types.insert_type_from(
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 },
@@ -364,13 +321,9 @@ impl Compiler {
     /// Drop the template strings parameter when resolving tagged template signatures.
     fn slice_tagged_template_signature(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         template_strings_ty_id: LocalTypeId,
         resolved: ResolvedSignature,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
         require_assignable: bool,
     ) -> AnalyzeResult<Option<ResolvedSignature>> {
         // read the template strings parameter when present
@@ -380,22 +333,22 @@ impl Compiler {
 
         // ensure instance types are materialized for the template parameter
         self.ensure_reference_instance_types_for_type(
-            module,
-            profile,
-            types.get_type_source(strings_param_ty_id),
+            tables.module,
+            tables.profile,
+            tables.types.get_type_source(strings_param_ty_id),
             strings_param_ty_id,
-            types,
+            tables.types,
         )?;
 
         // reject template strings arguments that are not assignable
         if self.is_type_assignable(
-            module,
-            profile,
-            symbols,
+            tables.module,
+            tables.profile,
+            tables.symbols,
             strings_param_ty_id,
             template_strings_ty_id,
-            types,
-            options,
+            tables.types,
+            tables.options,
         ) == Assignability::NotAssignable
         {
             if require_assignable {
@@ -403,12 +356,12 @@ impl Compiler {
             }
 
             self.emit_unassignable_type_for_types(
-                module,
-                profile,
-                types.get_type_source(strings_param_ty_id),
+                tables.module,
+                tables.profile,
+                tables.types.get_type_source(strings_param_ty_id),
                 strings_param_ty_id,
                 template_strings_ty_id,
-                types,
+                tables.types,
             );
         }
 
@@ -433,8 +386,7 @@ impl Compiler {
         strings: &[StringId],
         spans: &[LocalTypeId],
         value: &str,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
+        tables: &mut InferTablesContext<'_>,
     ) {
         // align the literal segments with the template
         let Some(span_values) = self.match_template_literal_to_string(strings, value) else {
@@ -453,8 +405,7 @@ impl Compiler {
                 context,
                 *span_ty_id,
                 span_value,
-                types,
-                infer,
+                &mut tables.reborrow(),
                 &mut visited,
             ) {
                 break;
@@ -470,12 +421,10 @@ impl Compiler {
         spans: &[LocalTypeId],
         argument_strings: &[StringId],
         argument_spans: &[LocalTypeId],
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        options: &AnalyzeOptions,
+        tables: &mut InferTablesContext<'_>,
     ) {
         // handle `${infer}` templates that capture the entire argument
-        if self.infer_template_literal_full_span(context, strings, spans, types, infer, options) {
+        if self.infer_template_literal_full_span(context, strings, spans, &mut tables.reborrow()) {
             return;
         }
 
@@ -497,9 +446,7 @@ impl Compiler {
                 context,
                 *span_ty_id,
                 *argument_span,
-                types,
-                infer,
-                options,
+                &mut tables.reborrow(),
             );
         }
     }
@@ -510,20 +457,15 @@ impl Compiler {
         context: &TemplateInferenceContext<'_>,
         span_ty_id: LocalTypeId,
         span_value: &str,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
+        tables: &mut InferTablesContext<'_>,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         // resolve the span inference target when possible
         let target = self.template_span_inference_target(
-            context.module,
-            context.profile,
+            &mut tables.reborrow(),
             span_ty_id,
             context.span_node,
             context.source_node,
-            context.symbols,
-            types,
-            infer,
         );
         let Some(target) = target else {
             return self.template_span_matches_string(
@@ -532,7 +474,7 @@ impl Compiler {
                 span_ty_id,
                 span_value,
                 context.symbols,
-                types,
+                tables.types,
                 visited,
             );
         };
@@ -545,7 +487,7 @@ impl Compiler {
                 constraint_id,
                 span_value,
                 context.symbols,
-                types,
+                tables.types,
                 visited,
             )
         {
@@ -555,7 +497,7 @@ impl Compiler {
                 context.argument_id,
                 context.param_ty_id,
                 context.argument_ty_id,
-                types,
+                tables.types,
             );
             return false;
         }
@@ -565,10 +507,10 @@ impl Compiler {
             target.constraint_id,
             span_value,
             context.source_node,
-            types,
+            tables.types,
         );
         if let Some(inferred_ty) = inferred_ty {
-            infer.push_constraint(Constraint::Equal {
+            tables.infer.push_constraint(Constraint::Equal {
                 left: target.infer_ty_id,
                 right: inferred_ty,
             });
@@ -583,20 +525,14 @@ impl Compiler {
         context: &TemplateInferenceContext<'_>,
         span_ty_id: LocalTypeId,
         argument_span: LocalTypeId,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        options: &AnalyzeOptions,
+        tables: &mut InferTablesContext<'_>,
     ) {
         // resolve the span inference target when possible
         let target = self.template_span_inference_target(
-            context.module,
-            context.profile,
+            &mut tables.reborrow(),
             span_ty_id,
             context.span_node,
             context.source_node,
-            context.symbols,
-            types,
-            infer,
         );
         let Some(target) = target else {
             return;
@@ -610,8 +546,8 @@ impl Compiler {
                 context.symbols,
                 constraint_id,
                 argument_span,
-                types,
-                options,
+                tables.types,
+                tables.options,
             ) == Assignability::NotAssignable
         {
             self.report_template_inference_unassignable(
@@ -620,13 +556,13 @@ impl Compiler {
                 context.argument_id,
                 context.param_ty_id,
                 context.argument_ty_id,
-                types,
+                tables.types,
             );
             return;
         }
 
         // record inference bindings for the span
-        infer.push_constraint(Constraint::Equal {
+        tables.infer.push_constraint(Constraint::Equal {
             left: target.infer_ty_id,
             right: argument_span,
         });
@@ -638,9 +574,7 @@ impl Compiler {
         context: &TemplateInferenceContext<'_>,
         strings: &[StringId],
         spans: &[LocalTypeId],
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        options: &AnalyzeOptions,
+        tables: &mut InferTablesContext<'_>,
     ) -> bool {
         // require a single empty span template
         if !strings
@@ -653,14 +587,10 @@ impl Compiler {
 
         // resolve the span inference target
         let target = self.template_span_inference_target(
-            context.module,
-            context.profile,
+            &mut tables.reborrow(),
             spans[0],
             context.span_node,
             context.source_node,
-            context.symbols,
-            types,
-            infer,
         );
         let Some(target) = target else {
             return true;
@@ -674,8 +604,8 @@ impl Compiler {
                 context.symbols,
                 constraint_id,
                 context.argument_ty_id,
-                types,
-                options,
+                tables.types,
+                tables.options,
             ) == Assignability::NotAssignable
         {
             self.report_template_inference_unassignable(
@@ -684,13 +614,13 @@ impl Compiler {
                 context.argument_id,
                 context.param_ty_id,
                 context.argument_ty_id,
-                types,
+                tables.types,
             );
             return true;
         }
 
         // bind the inference variable to the full argument
-        infer.push_constraint(Constraint::Equal {
+        tables.infer.push_constraint(Constraint::Equal {
             left: target.infer_ty_id,
             right: context.argument_ty_id,
         });
@@ -701,16 +631,10 @@ impl Compiler {
     /// Add inference constraints for template literal parameters.
     pub(crate) fn add_template_literal_inference_constraints(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         dynamic_arguments: &[LocalNodeId<Argument>],
         argument_ty_ids: &[LocalTypeId],
         parameter_types: &[LocalTypeId],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        options: &AnalyzeOptions,
     ) {
         // scan argument pairs for template literal inference
         for ((argument_id, argument_ty_id), param_ty_id) in dynamic_arguments
@@ -718,25 +642,25 @@ impl Compiler {
             .zip(argument_ty_ids.iter())
             .zip(parameter_types.iter())
         {
-            let (strings, spans) = match types.get_type(*param_ty_id) {
+            let (strings, spans) = match tables.types.get_type(*param_ty_id) {
                 Type::TemplateLiteral { strings, spans } => (strings.clone(), spans.clone()),
                 _ => continue,
             };
 
             // collect argument context
-            let argument_value_id = tree.get(*argument_id).value();
+            let argument_value_id = tables.tree.get(*argument_id).value();
             let source_node = argument_value_id.into_any();
             let span_node = argument_id.into_any();
-            let argument_ty = types.get_type(*argument_ty_id).clone();
+            let argument_ty = tables.types.get_type(*argument_ty_id).clone();
             let context = TemplateInferenceContext {
-                module,
-                profile,
+                module: tables.module,
+                profile: tables.profile,
                 argument_id: *argument_id,
                 argument_ty_id: *argument_ty_id,
                 param_ty_id: *param_ty_id,
                 span_node,
                 source_node,
-                symbols,
+                symbols: tables.symbols,
             };
 
             // infer from string or template literal arguments
@@ -746,12 +670,20 @@ impl Compiler {
                 } => {
                     let value = self.program.strings.get(string_id).to_string();
                     self.infer_template_literal_from_string_argument(
-                        &context, &strings, &spans, &value, types, infer,
+                        &context,
+                        &strings,
+                        &spans,
+                        &value,
+                        &mut tables.reborrow(),
                     );
                 }
                 Type::Union { elements } => {
                     self.infer_template_from_union_string_argument(
-                        &context, &strings, &spans, &elements, types, infer,
+                        &context,
+                        &strings,
+                        &spans,
+                        &elements,
+                        &mut tables.reborrow(),
                     );
                 }
                 Type::TemplateLiteral {
@@ -764,9 +696,7 @@ impl Compiler {
                         &spans,
                         &argument_strings,
                         &argument_spans,
-                        types,
-                        infer,
-                        options,
+                        &mut tables.reborrow(),
                     );
                 }
                 _ => {}
@@ -781,15 +711,14 @@ impl Compiler {
         strings: &[StringId],
         spans: &[LocalTypeId],
         elements: &[LocalTypeId],
-        types: &mut TypeTable,
-        infer: &mut InferTable,
+        tables: &mut InferTablesContext<'_>,
     ) {
         // collect span values for each union member when all members are string literals
         let mut union_span_values = Vec::with_capacity(elements.len());
         for element_ty_id in elements {
             let Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(string_id)),
-            } = types.get_type(*element_ty_id)
+            } = tables.types.get_type(*element_ty_id)
             else {
                 return;
             };
@@ -808,14 +737,10 @@ impl Compiler {
         // infer each parameter span from the union member span values
         for (span_index, span_ty_id) in spans.iter().enumerate() {
             let Some(target) = self.template_span_inference_target(
-                context.module,
-                context.profile,
+                &mut tables.reborrow(),
                 *span_ty_id,
                 context.span_node,
                 context.source_node,
-                context.symbols,
-                types,
-                infer,
             ) else {
                 continue;
             };
@@ -832,7 +757,7 @@ impl Compiler {
                         constraint_id,
                         span_value,
                         context.symbols,
-                        types,
+                        tables.types,
                         &mut visited,
                     ) {
                         self.report_template_inference_unassignable(
@@ -841,7 +766,7 @@ impl Compiler {
                             context.argument_id,
                             context.param_ty_id,
                             context.argument_ty_id,
-                            types,
+                            tables.types,
                         );
                         return;
                     }
@@ -851,7 +776,7 @@ impl Compiler {
                     target.constraint_id,
                     span_value,
                     context.source_node,
-                    types,
+                    tables.types,
                 ) {
                     inferred_span_types.push(inferred_ty);
                 }
@@ -865,14 +790,14 @@ impl Compiler {
             let inferred_span_ty_id = if inferred_span_types.len() == 1 {
                 inferred_span_types[0]
             } else {
-                types.insert_type_from_any(
+                tables.types.insert_type_from_any(
                     Type::Union {
                         elements: inferred_span_types,
                     },
                     context.source_node,
                 )
             };
-            infer.push_constraint(Constraint::Equal {
+            tables.infer.push_constraint(Constraint::Equal {
                 left: target.infer_ty_id,
                 right: inferred_span_ty_id,
             });
@@ -882,27 +807,15 @@ impl Compiler {
     /// Resolve a template span into an inference target when possible.
     fn template_span_inference_target(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         span_ty_id: LocalTypeId,
         span_node: LocalNodeIdAny,
         source_node: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> Option<TemplateSpanInferenceTarget> {
-        let (infer_var_id, infer_ty_id) = self.template_span_infer_var(
-            module, profile, span_ty_id, span_node, symbols, types, infer,
-        )?;
-        let constraint_id = self.template_span_constraint_type(
-            module,
-            profile,
-            infer_var_id,
-            source_node,
-            symbols,
-            types,
-            infer,
-        );
+        let (infer_var_id, infer_ty_id) =
+            self.template_span_infer_var(&mut tables.reborrow(), span_ty_id, span_node)?;
+        let constraint_id =
+            self.template_span_constraint_type(&mut tables.reborrow(), infer_var_id, source_node);
 
         Some(TemplateSpanInferenceTarget {
             infer_ty_id,
@@ -913,24 +826,26 @@ impl Compiler {
     /// Resolve span inference variables, including static parameter references.
     fn template_span_infer_var(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         span_ty_id: LocalTypeId,
         source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> Option<(InferVarId, LocalTypeId)> {
-        let span_ty = types.get_type(span_ty_id).clone();
+        let span_ty = tables.types.get_type(span_ty_id).clone();
         match span_ty {
             Type::InferVar { id } => Some((id, span_ty_id)),
             Type::Reference { symbol, .. } => {
-                if !self.symbol_is_static_parameter(module, profile, symbol, symbols, types) {
+                if !self.symbol_is_static_parameter(
+                    tables.module,
+                    tables.profile,
+                    symbol,
+                    tables.symbols,
+                    tables.types,
+                ) {
                     return None;
                 }
 
-                if let Some(var_id) = infer.var_by_symbol_id.get(&symbol).copied()
-                    && let Some(ty_id) = infer.type_for_var(var_id)
+                if let Some(var_id) = tables.infer.var_by_symbol_id.get(&symbol).copied()
+                    && let Some(ty_id) = tables.infer.type_for_var(var_id)
                 {
                     return Some((var_id, ty_id));
                 }
@@ -940,14 +855,14 @@ impl Compiler {
                     function_id: None,
                 };
                 let ty_id = self.infer_var_type_for_symbol(
-                    infer,
-                    types,
+                    &mut *tables.infer,
+                    &mut *tables.types,
                     symbol,
                     source_id,
                     InferOrigin::TypeParameter(symbol),
                     scope,
                 );
-                let var_id = infer.var_by_symbol_id.get(&symbol).copied()?;
+                let var_id = tables.infer.var_by_symbol_id.get(&symbol).copied()?;
                 Some((var_id, ty_id))
             }
             _ => None,
@@ -957,20 +872,27 @@ impl Compiler {
     /// Resolve the constraint type for an inference variable when possible.
     fn infer_var_constraint_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         id: InferVarId,
         source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &InferTable,
     ) -> Option<LocalTypeId> {
-        let var = infer.vars.get(id.0 as usize)?;
+        let var = tables.infer.vars.get(id.0 as usize)?;
         if let InferOrigin::TypeParameter(symbol) = var.origin
-            && self.symbol_is_static_parameter(module, profile, symbol, symbols, types)
+            && self.symbol_is_static_parameter(
+                tables.module,
+                tables.profile,
+                symbol,
+                tables.symbols,
+                tables.types,
+            )
         {
             return self.static_parameter_constraint_type(
-                module, profile, symbol, source_id, symbols, types,
+                tables.module,
+                tables.profile,
+                symbol,
+                source_id,
+                tables.symbols,
+                &mut *tables.types,
             );
         }
         None
@@ -979,27 +901,16 @@ impl Compiler {
     /// Resolve template span constraints, skipping unknown or any.
     fn template_span_constraint_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         infer_var_id: InferVarId,
         source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &InferTable,
     ) -> Option<LocalTypeId> {
-        let constraint_id = self.infer_var_constraint_type(
-            module,
-            profile,
-            infer_var_id,
-            source_id,
-            symbols,
-            types,
-            infer,
-        )?;
+        let constraint_id =
+            self.infer_var_constraint_type(&mut tables.reborrow(), infer_var_id, source_id)?;
 
         // skip unconstrained spans
         if matches!(
-            types.get_type(constraint_id),
+            tables.types.get_type(constraint_id),
             Type::TypeLiteral {
                 value: TypeLiteral::Unknown | TypeLiteral::Any
             }

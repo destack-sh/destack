@@ -1,6 +1,6 @@
 use super::*;
 use crate::analyze::StaticMemberSymbolKind;
-use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode};
+use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode, InferTablesContext};
 use crate::analyze::module::GlobalMergeCategory;
 
 #[allow(clippy::too_many_arguments)]
@@ -8,31 +8,27 @@ impl Compiler {
     /// Resolve the preferred member type for a symbol-aware lookup.
     pub(crate) fn resolve_member_type_for_symbol(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_symbol: Option<GlobalSymbolId>,
         inferred_member_ty_id: Option<LocalTypeId>,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         let Some(member_symbol) = member_symbol else {
             return Ok(inferred_member_ty_id);
         };
         let member_symbol = self.normalize_member_symbol_for_declare_reads(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             member_symbol,
-            symbols,
+            tables.symbols,
         )?;
 
         let mut member_ty_id = match (
-            types.get_value_type_id(member_symbol),
+            tables.types.get_value_type_id(member_symbol),
             inferred_member_ty_id,
         ) {
             (Some(value_ty_id), Some(inferred_member_ty_id)) => {
-                if self.is_infer_var_type(value_ty_id, types) {
+                if self.is_infer_var_type(value_ty_id, tables.types) {
                     Some(inferred_member_ty_id)
                 } else {
                     Some(value_ty_id)
@@ -44,34 +40,30 @@ impl Compiler {
         };
 
         // import remote member types when local tables have no value type yet
-        if member_ty_id.is_none() && member_symbol.module_id != module.id {
+        if member_ty_id.is_none() && member_symbol.module_id != tables.module.id {
             let member_kind = self.query_static_member_symbol_kind_for_symbol(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 member_symbol,
-                tree,
-                symbols,
+                tables.tree,
+                tables.symbols,
             )?;
             if member_kind == Some(StaticMemberSymbolKind::AssociatedComptimeConst) {
                 let associated_type_id = self.query_associated_member_type_for_symbol(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     expression_id,
                     member_symbol,
-                    tree,
-                    symbols,
-                    types,
                 )?;
                 member_ty_id = associated_type_id.or(member_ty_id);
                 return Ok(member_ty_id);
             }
 
             let remote_ty_id = self.resolve_remote_symbol_value_type_for_interface(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 expression_id.into_any(),
                 member_symbol,
-                types,
+                tables.types,
             )?;
             member_ty_id = Some(remote_ty_id);
         }
@@ -147,28 +139,26 @@ impl Compiler {
     /// Resolve one associated comptime member type without generic remote value import.
     fn query_associated_member_type_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        if member_symbol.module_id == module.id {
-            if let Some(value_type_id) = types.get_value_type_id(member_symbol) {
+        if member_symbol.module_id == tables.module.id {
+            if let Some(value_type_id) = tables.types.get_value_type_id(member_symbol) {
                 return Ok(Some(value_type_id));
             }
 
-            let symbol_entry = symbols.get_symbol(member_symbol.local_id);
+            let symbol_entry = tables.symbols.get_symbol(member_symbol.local_id);
             let Some(primary_declaration) = symbol_entry.primary_declaration else {
                 return Ok(None);
             };
-            if let Some(signature_type_id) = types.get_signature_type_for_node(primary_declaration)
+            if let Some(signature_type_id) = tables
+                .types
+                .get_signature_type_for_node(primary_declaration)
             {
                 return Ok(Some(signature_type_id));
             }
-            if let Some(declared_type_id) = types.get_declared_type_id(primary_declaration) {
+            if let Some(declared_type_id) = tables.types.get_declared_type_id(primary_declaration) {
                 return Ok(Some(declared_type_id));
             }
 
@@ -177,21 +167,21 @@ impl Compiler {
                 if let Member::ComptimeConst {
                     ty: Some(member_type),
                     ..
-                } = tree.get(member_id)
+                } = tables.tree.get(member_id)
                 {
-                    if let Some(declared_type_id) = types.get_declared_type_id(
+                    if let Some(declared_type_id) = tables.types.get_declared_type_id(
                         member_type.into_global_any(primary_declaration.module_id),
                     ) {
                         return Ok(Some(declared_type_id));
                     }
 
                     let declared_type_id = self.resolve_declared_type_expression(
-                        module,
-                        profile,
+                        tables.module,
+                        tables.profile,
                         *member_type,
-                        tree,
-                        symbols,
-                        types,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
                         true,
                         true,
                     )?;
@@ -203,15 +193,15 @@ impl Compiler {
 
         let remote_import = self
             .with_module_tree_symbols_at_stage(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 member_symbol.module_id,
                 AnalyzeDependencyStage::Declare,
                 |remote_module,
                  remote_tree,
                  remote_symbols|
                  -> AnalyzeResult<Option<(GlobalSymbolId, Type, TypeTable)>> {
-                    let remote_types = remote_module.dir(profile).types.read();
+                    let remote_types = remote_module.dir(tables.profile).types.read();
                     let mut remote_snapshot = remote_types.clone();
                     let remote_symbol_entry = remote_symbols.get_symbol(member_symbol.local_id);
                     let resolved_symbol = GlobalSymbolId::new(
@@ -247,7 +237,7 @@ impl Compiler {
                             if remote_type_id.is_none() {
                                 let evaluated_type_id = self.resolve_declared_type_expression(
                                     remote_module,
-                                    profile,
+                                    tables.profile,
                                     *member_type,
                                     remote_tree,
                                     remote_symbols,
@@ -279,7 +269,7 @@ impl Compiler {
             expression_id.into_any(),
             &remote_type,
             &remote_snapshot,
-            types,
+            tables.types,
         );
         Ok(Some(local_type_id))
     }
@@ -287,26 +277,22 @@ impl Compiler {
     /// Resolve member symbols for a receiver type when nominal dispatch is possible.
     pub(crate) fn resolve_member_symbol(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         receiver_ty: &Type,
         member_key: &StaticKey,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> AnalyzeResult<MemberResolution> {
         let resolution = match receiver_ty {
             Type::Reference { .. } => {
                 // resolve nominal members first
                 let mut visited = Vec::new();
                 let member_symbol = self.resolve_member_symbol_for_type(
-                    module,
+                    tables.module,
                     receiver_ty,
                     member_key,
-                    profile,
-                    tree,
-                    symbols,
-                    types,
+                    tables.profile,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                     &mut visited,
                     true,
                 )?;
@@ -320,13 +306,13 @@ impl Compiler {
                 // resolve implicit members for primitive and literal receivers
                 let mut visited = Vec::new();
                 let member_symbol = self.resolve_member_symbol_for_type(
-                    module,
+                    tables.module,
                     receiver_ty,
                     member_key,
-                    profile,
-                    tree,
-                    symbols,
-                    types,
+                    tables.profile,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                     &mut visited,
                     true,
                 )?;
@@ -340,31 +326,33 @@ impl Compiler {
                 // resolve member symbols for each union element
                 let mut candidates = Vec::new();
                 for element_id in elements {
-                    let element_ty = types.get_type(*element_id).clone();
+                    let element_ty = tables.types.get_type(*element_id).clone();
                     let mut visited = Vec::new();
                     let mut member_symbol = self.resolve_member_symbol_for_type(
-                        module,
+                        tables.module,
                         &element_ty,
                         member_key,
-                        profile,
-                        tree,
-                        symbols,
-                        types,
+                        tables.profile,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
                         &mut visited,
                         true,
                     )?;
                     if member_symbol.is_none() {
                         // fall back to instance type owners when possible
-                        if let Some(instance_symbol) = types.symbol_for_instance_type(*element_id) {
+                        if let Some(instance_symbol) =
+                            tables.types.symbol_for_instance_type(*element_id)
+                        {
                             member_symbol = self.resolve_member_symbol_for_symbol(
-                                module,
+                                tables.module,
                                 instance_symbol,
                                 member_key,
                                 MemberLookupMode::Instance,
-                                profile,
-                                tree,
-                                symbols,
-                                types,
+                                tables.profile,
+                                tables.tree,
+                                tables.symbols,
+                                tables.types,
                                 &mut visited,
                             )?;
                         }
@@ -391,13 +379,13 @@ impl Compiler {
                 // resolve implicit well known member resolution
                 let mut visited = Vec::new();
                 let member_symbol = self.resolve_member_symbol_for_type(
-                    module,
+                    tables.module,
                     receiver_ty,
                     member_key,
-                    profile,
-                    tree,
-                    symbols,
-                    types,
+                    tables.profile,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                     &mut visited,
                     true,
                 )?;
@@ -415,29 +403,25 @@ impl Compiler {
     /// Resolve member symbols using the receiver expression when available.
     pub(crate) fn resolve_member_symbol_for_receiver(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_id: LocalNodeId<Expression>,
         receiver_ty: &Type,
         receiver_context: &MemberReceiverContext,
         member_key: &StaticKey,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<MemberResolution> {
-        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
+        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tables.tree);
 
         // resolve namespace import member paths before receiver-type dispatch
         if let Some(namespace_symbol) = self.resolve_namespace_member_symbol(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             expression_id,
             receiver_id,
             *member_key,
-            tree,
-            symbols,
-        ) && self.symbol_is_value_capable(profile, namespace_symbol)
+            tables.tree,
+            tables.symbols,
+        ) && self.symbol_is_value_capable(tables.profile, namespace_symbol)
         {
             return Ok(MemberResolution::Static {
                 symbol: namespace_symbol,
@@ -445,15 +429,9 @@ impl Compiler {
         }
 
         // resolve value-symbol static members for direct value receivers
-        if let Some(member_symbol) = self.resolve_value_member_symbol(
-            module,
-            receiver_id,
-            member_key,
-            profile,
-            tree,
-            symbols,
-            types,
-        )? {
+        if let Some(member_symbol) =
+            self.resolve_value_member_symbol(&mut tables.reborrow(), receiver_id, member_key)?
+        {
             return Ok(MemberResolution::Static {
                 symbol: member_symbol,
             });
@@ -463,14 +441,14 @@ impl Compiler {
         let nominal_receiver = if let Some(nominal_symbol) = receiver_context.nominal_symbol {
             let mut visited = Vec::new();
             let member_symbol = self.resolve_member_symbol_for_symbol(
-                module,
+                tables.module,
                 nominal_symbol,
                 member_key,
                 MemberLookupMode::Value,
-                profile,
-                tree,
-                symbols,
-                types,
+                tables.profile,
+                tables.tree,
+                tables.symbols,
+                tables.types,
                 &mut visited,
             )?;
             if let Some(member_symbol) = member_symbol {
@@ -488,15 +466,15 @@ impl Compiler {
         // owner projections like `Owner.AssociatedComptime`
         if (receiver_context.has_static_arguments || nominal_receiver)
             && let Some(selection) = self.select_associated_projection_member_symbol(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 receiver_id,
                 receiver_id,
                 *member_key,
                 Some(StaticMemberSymbolKind::AssociatedComptimeConst),
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
                 true,
                 true,
             )?
@@ -512,56 +490,50 @@ impl Compiler {
         }
 
         // continue with regular member lookup
-        self.resolve_member_symbol(
-            module,
-            receiver_ty,
-            member_key,
-            profile,
-            tree,
-            symbols,
-            types,
-        )
+        self.resolve_member_symbol(tables, receiver_ty, member_key)
     }
 
     /// Resolve one static member symbol from one direct value receiver expression.
     fn resolve_value_member_symbol(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         receiver_id: LocalNodeId<Expression>,
         member_key: &StaticKey,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         let receiver_symbol = self
-            .reference_symbol_for_expression(module, receiver_id, profile, tree, symbols)
-            .or_else(|| tree.get(receiver_id).target_symbol());
+            .reference_symbol_for_expression(
+                tables.module,
+                receiver_id,
+                tables.profile,
+                tables.tree,
+                tables.symbols,
+            )
+            .or_else(|| tables.tree.get(receiver_id).target_symbol());
         let Some(receiver_symbol) = receiver_symbol else {
             return Ok(None);
         };
 
         let receiver_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            tables.module,
+            tables.symbols,
+            tables.profile,
             receiver_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
-        if !self.symbol_is_value_capable(profile, receiver_symbol) {
+        if !self.symbol_is_value_capable(tables.profile, receiver_symbol) {
             return Ok(None);
         }
 
         let mut visited = Vec::new();
         self.resolve_member_symbol_for_symbol(
-            module,
+            tables.module,
             receiver_symbol,
             member_key,
             MemberLookupMode::Value,
-            profile,
-            tree,
-            symbols,
-            types,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
+            tables.types,
             &mut visited,
         )
     }
@@ -602,7 +574,7 @@ impl Compiler {
     /// Resolve member access through index signatures or missing-member diagnostics.
     pub(crate) fn resolve_member_index_or_missing(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_id: LocalNodeId<Expression>,
         receiver_ty_id: LocalTypeId,
@@ -611,50 +583,47 @@ impl Compiler {
         allow_missing_member_deferral: bool,
         member_key: &StaticKey,
         member_resolution: &MemberResolution,
-        profile: ProfileId,
         is_surface_inference: bool,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
     ) -> AnalyzeResult<LocalTypeId> {
+        let allow_associated_contract_blocker =
+            self.is_projection_receiver_expression(&mut tables.reborrow(), receiver_id);
+
         // infer index signature access for missing concrete members
         let mut index_visited = Vec::new();
         let index_signature_ty_id = self.resolve_index_signature_value_type_for_key(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             expression_id.into_any(),
-            symbols,
+            tables.symbols,
             receiver_ty,
             member_key,
-            types,
+            tables.types,
             &mut index_visited,
         );
         if let Some(index_signature_ty_id) = index_signature_ty_id {
             // enforce optional noPropertyAccessFromIndexSignature policy
-            if options.no_property_access_from_index_signature
-                && !self.is_import_meta_chain_member(tree, receiver_id, "env")
+            if tables.options.no_property_access_from_index_signature
+                && !self.is_import_meta_chain_member(tables.tree, receiver_id, "env")
             {
                 self.error(AnalyzeError::PropertyAccessFromIndexSignature {
                     node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile)),
-                    receiver_ty: receiver_ty_id.into_global(module.id),
+                        .into_global_any(tables.module.id)
+                        .into_anchored(Some(tables.profile)),
+                    receiver_ty: receiver_ty_id.into_global(tables.module.id),
                     member_key: member_key.clone(),
                 });
             }
 
             // commit index-signature member resolution
             self.record_provisional_member_resolution(
-                expression_id.into_global_any(module.id),
+                expression_id.into_global_any(tables.module.id),
                 Some(receiver_ty_id),
                 member_resolution,
                 None,
                 None,
                 true,
-                infer,
-                types,
+                tables.infer,
+                tables.types,
             );
 
             return Ok(index_signature_ty_id);
@@ -663,53 +632,60 @@ impl Compiler {
         // keep surface inference diagnostics minimal until interface convergence
         if is_surface_inference {
             self.record_provisional_member_resolution(
-                expression_id.into_global_any(module.id),
+                expression_id.into_global_any(tables.module.id),
                 Some(receiver_ty_id),
                 member_resolution,
                 None,
                 None,
                 false,
-                infer,
-                types,
+                tables.infer,
+                tables.types,
             );
 
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            return Ok(types.insert_type_from(ty, expression_id));
+            return Ok(tables.types.insert_type_from(ty, expression_id));
         }
 
         // defer missing-member diagnostics while receiver typing still depends on infer convergence
-        let receiver_is_unannotated_parameter_reference =
-            self.is_unannotated_parameter_receiver(module, receiver_id, tree, symbols, types);
+        let receiver_is_unannotated_parameter_reference = self.is_unannotated_parameter_receiver(
+            tables.module,
+            receiver_id,
+            tables.tree,
+            tables.symbols,
+            tables.types,
+        );
         let receiver_is_indeterminate_for_callback_member_check = self
-            .type_is_solver_placeholder(receiver_ty_id, types)
+            .type_is_solver_placeholder(receiver_ty_id, tables.types)
             || (matches!(
-                types.get_type(receiver_ty_id),
+                tables.types.get_type(receiver_ty_id),
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 }
             ) && receiver_is_unannotated_parameter_reference);
         if allow_missing_member_deferral && receiver_requires_infer_convergence {
-            infer.push_missing_member_obligation(MissingMemberObligation {
-                expression_id: expression_id.into_global_any(module.id),
-                receiver_expression_id: receiver_id.into_global_any(module.id),
-                receiver_type_id: receiver_ty_id,
-                member_key: member_key.clone(),
-            });
+            tables
+                .infer
+                .push_missing_member_obligation(MissingMemberObligation {
+                    expression_id: expression_id.into_global_any(tables.module.id),
+                    receiver_expression_id: receiver_id.into_global_any(tables.module.id),
+                    receiver_type_id: receiver_ty_id,
+                    member_key: member_key.clone(),
+                });
 
             self.record_provisional_member_resolution(
-                expression_id.into_global_any(module.id),
+                expression_id.into_global_any(tables.module.id),
                 Some(receiver_ty_id),
                 member_resolution,
                 None,
                 None,
                 false,
-                infer,
-                types,
+                tables.infer,
+                tables.types,
             );
 
-            let deferred_type_id = types.insert_type_from(
+            let deferred_type_id = tables.types.insert_type_from(
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 },
@@ -721,53 +697,45 @@ impl Compiler {
         // keep callback-indeterminate receivers unresolved until callback inference converges
         if allow_missing_member_deferral && receiver_is_indeterminate_for_callback_member_check {
             self.record_provisional_member_resolution(
-                expression_id.into_global_any(module.id),
+                expression_id.into_global_any(tables.module.id),
                 Some(receiver_ty_id),
                 member_resolution,
                 None,
                 None,
                 false,
-                infer,
-                types,
+                tables.infer,
+                tables.types,
             );
 
-            let deferred_type_id = types.insert_type_from(Type::Error, expression_id);
+            let deferred_type_id = tables.types.insert_type_from(Type::Error, expression_id);
 
             return Ok(deferred_type_id);
         }
 
         // suppress missing-member cascades only when a primary semantic fault blocks lookup
-        let allow_associated_contract_blocker = self.is_projection_receiver_expression(
-            module,
-            profile,
-            receiver_id,
-            tree,
-            symbols,
-            types,
-        );
         let reported = self.report_missing_member_diagnostic(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             expression_id,
             receiver_ty_id,
             member_key.clone(),
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
             allow_associated_contract_blocker,
         )?;
         if !reported {
             self.record_provisional_member_resolution(
-                expression_id.into_global_any(module.id),
+                expression_id.into_global_any(tables.module.id),
                 Some(receiver_ty_id),
                 member_resolution,
                 None,
                 None,
                 false,
-                infer,
-                types,
+                tables.infer,
+                tables.types,
             );
 
-            return Ok(types.insert_type_from(Type::Error, expression_id));
+            return Ok(tables.types.insert_type_from(Type::Error, expression_id));
         }
 
         // keep unresolved member resolution for downstream consumers
@@ -775,20 +743,20 @@ impl Compiler {
 
         // commit unresolved member resolution for downstream consumers
         self.record_provisional_member_resolution(
-            expression_id.into_global_any(module.id),
+            expression_id.into_global_any(tables.module.id),
             Some(receiver_ty_id),
             member_resolution,
             None,
             None,
             false,
-            infer,
-            types,
+            tables.infer,
+            tables.types,
         );
 
         let ty = Type::TypeLiteral {
             value: TypeLiteral::Unknown,
         };
-        Ok(types.insert_type_from(ty, expression_id))
+        Ok(tables.types.insert_type_from(ty, expression_id))
     }
 
     /// Return true when one receiver expression is an unannotated local parameter reference.

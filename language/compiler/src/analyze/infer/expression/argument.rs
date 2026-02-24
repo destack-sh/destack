@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::analyze::common::{AnalyzeDependencyStage, CanonicalSymbolMode, ContextualTypingMode};
+use crate::analyze::common::{
+    AnalyzeDependencyStage, CanonicalSymbolMode, ContextualTypingMode, InferTablesContext,
+};
 use crate::analyze::module::GlobalMergeCategory;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
@@ -750,16 +752,12 @@ impl Compiler {
     /// Infer a dynamic argument value with contextual typing.
     pub(crate) fn infer_argument(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         argument_id: LocalNodeId<Argument>,
         expected_ty_id: Option<LocalTypeId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
-        let argument = tree.get(argument_id);
+        let argument = tables.tree.get(argument_id);
 
         // apply the expected type to the argument value
         let mut argument_ctx = ctx
@@ -777,52 +775,20 @@ impl Compiler {
 
         match argument {
             Argument::Positional { value, .. } => {
-                self.infer_expression(
-                    module,
-                    *value,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    &mut argument_ctx,
-                )?;
+                self.infer_expression(&mut tables.reborrow(), *value, &mut argument_ctx)?;
             }
             Argument::Named { name: _, value, .. } => {
-                self.infer_expression(
-                    module,
-                    *value,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    &mut argument_ctx,
-                )?;
+                self.infer_expression(&mut tables.reborrow(), *value, &mut argument_ctx)?;
             }
             Argument::Labeled {
                 label: _, value, ..
             } => {
-                self.infer_expression(
-                    module,
-                    *value,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    &mut argument_ctx,
-                )?;
+                self.infer_expression(&mut tables.reborrow(), *value, &mut argument_ctx)?;
             }
             Argument::Spread {
                 label: _, value, ..
             } => {
-                self.infer_expression(
-                    module,
-                    *value,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    &mut argument_ctx,
-                )?;
+                self.infer_expression(&mut tables.reborrow(), *value, &mut argument_ctx)?;
             }
         }
 
@@ -2959,13 +2925,10 @@ impl Compiler {
     /// Synthesize a missing static argument for function instantiation.
     pub(crate) fn synthesize_missing_static_argument_for_function(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut InferTablesContext<'_>,
         node_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
         static_parameter: &StaticParameter,
-        infer: &mut InferTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<StaticArgument> {
         match static_parameter.kind {
             StaticParameterKind::Type => {
@@ -2973,13 +2936,15 @@ impl Compiler {
                 let scope_owner = owner_symbol.unwrap_or(static_parameter.symbol);
                 let scope = InferScope {
                     owner: scope_owner,
-                    function_id: Some(node_id.into_global(module.id)),
+                    function_id: Some(node_id.into_global(tables.module.id)),
                 };
-                let var_id =
-                    infer.new_var(InferOrigin::TypeParameter(static_parameter.symbol), scope);
-                let inferred_ty_id =
-                    types.insert_type_from_any(Type::InferVar { id: var_id }, node_id);
-                infer.bind_type(var_id, inferred_ty_id);
+                let var_id = tables
+                    .infer
+                    .new_var(InferOrigin::TypeParameter(static_parameter.symbol), scope);
+                let inferred_ty_id = tables
+                    .types
+                    .insert_type_from_any(Type::InferVar { id: var_id }, node_id);
+                tables.infer.bind_type(var_id, inferred_ty_id);
 
                 Ok(StaticArgument::Evaluated {
                     name: static_parameter.name,
@@ -2988,9 +2953,11 @@ impl Compiler {
             }
             StaticParameterKind::Value => {
                 self.error(AnalyzeError::MissingStaticArgument {
-                    node: node_id.into_global(module.id).into_anchored(Some(profile)),
+                    node: node_id
+                        .into_global(tables.module.id)
+                        .into_anchored(Some(tables.profile)),
                 });
-                let inferred_ty_id = types.insert_type_from_any(Type::Error, node_id);
+                let inferred_ty_id = tables.types.insert_type_from_any(Type::Error, node_id);
                 Ok(StaticArgument::Evaluated {
                     name: static_parameter.name,
                     value: StaticExpression::Type { ty: inferred_ty_id },

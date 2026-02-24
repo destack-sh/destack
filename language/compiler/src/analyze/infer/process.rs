@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::analyze::common::NormalizationMode;
+use crate::analyze::common::{InferTablesContext, NormalizationMode};
 use crate::analyze::r#type::json_value_to_type;
 use crate::timing::tags;
 use crate::{
@@ -150,15 +150,9 @@ impl Compiler {
             };
             let flow = {
                 let _timing = self.timing_scope(tags::ANALYZE_FLOW_TABLE_COMPUTE);
-                let (infer_table, context) = session.parts_mut();
+                let (_, context) = session.parts_mut();
                 self.compute_flow_table_for_graph(
-                    &module,
-                    &graph,
-                    &tree,
-                    &symbols,
-                    &mut types,
-                    infer_table,
-                    context,
+                    &module, &graph, &tree, &symbols, &mut types, context,
                 )?
             };
             session.context_mut().flow = Some(FlowContext {
@@ -192,19 +186,20 @@ impl Compiler {
         // infer each root expression
         {
             let _timing = self.timing_scope(tags::ANALYZE_EXPRESSION_INFER);
+            let (infer_table, context) = session.parts_mut();
+            let mut tables = InferTablesContext::new(
+                &module,
+                profile,
+                &options,
+                &tree,
+                &symbols,
+                &mut types,
+                infer_table,
+            );
             for root_id in infer_roots.iter() {
-                let (infer_table, context) = session.parts_mut();
                 self.collect(
                     &mut collector,
-                    self.infer_expression(
-                        &module,
-                        *root_id,
-                        &tree,
-                        &symbols,
-                        &mut types,
-                        infer_table,
-                        context,
-                    ),
+                    self.infer_expression(&mut tables.reborrow(), *root_id, context),
                 );
             }
         }

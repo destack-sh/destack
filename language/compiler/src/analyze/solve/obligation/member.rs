@@ -1,10 +1,10 @@
-use crate::analyze::common::RelationMode;
+use crate::analyze::common::{CanonicalSymbolMode, InferTablesContext, RelationMode};
 use crate::analyze::infer::member::MemberResolution;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler};
 use destack_dir::{
     DispatchKey, Expression, GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId,
-    MissingMemberObligation, NormalizationMode, Resolution, ResolutionCandidate, StaticKey, Type,
-    TypeLiteral, TypeTable,
+    MissingMemberObligation, NodeTree, NormalizationMode, Resolution, ResolutionCandidate,
+    StaticKey, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::HashSet;
@@ -129,13 +129,15 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         obligations: &[MissingMemberObligation],
-        infer: &InferTable,
+        infer: &mut InferTable,
         types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> AnalyzeResult<Vec<MissingMemberObligationAction>> {
         // read module owned semantic tables once
         let tree = module.dir(profile).tree.read();
         let symbols = module.dir(profile).symbols.read();
+        let mut tables =
+            InferTablesContext::new(module, profile, options, &tree, &symbols, types, infer);
         let mut reported = HashSet::new();
         let mut actions = Vec::with_capacity(obligations.len());
 
@@ -166,13 +168,15 @@ impl Compiler {
                 })?;
 
             // skip stale obligations once the expression already has a concrete inferred type
-            if let Some(current_expression_ty_id) = infer
+            if let Some(current_expression_ty_id) = tables
+                .infer
                 .inferred_type_for_node(obligation.expression_id)
-                .or_else(|| types.get_inferred_type_id(obligation.expression_id))
+                .or_else(|| tables.types.get_inferred_type_id(obligation.expression_id))
             {
-                let current_expression_ty_id = types.unwrap_value_type_id(current_expression_ty_id);
+                let current_expression_ty_id =
+                    tables.types.unwrap_value_type_id(current_expression_ty_id);
                 if !matches!(
-                    types.get_type(current_expression_ty_id),
+                    tables.types.get_type(current_expression_ty_id),
                     Type::InferVar { .. }
                         | Type::Unevaluated(_)
                         | Type::Error
@@ -185,41 +189,48 @@ impl Compiler {
             }
 
             // recover and normalize the receiver type for discharged lookup
-            let mut receiver_ty_id = infer
+            let mut receiver_ty_id = tables
+                .infer
                 .inferred_type_for_node(obligation.receiver_expression_id)
-                .or_else(|| types.get_inferred_type_id(obligation.receiver_expression_id))
+                .or_else(|| {
+                    tables
+                        .types
+                        .get_inferred_type_id(obligation.receiver_expression_id)
+                })
                 .unwrap_or(obligation.receiver_type_id);
-            if self.type_is_solver_placeholder(receiver_ty_id, types)
-                && let Some(receiver_symbol) = tree.get(receiver_expression_id).target_symbol()
-                && let Some(symbol_type_id) =
-                    types.get_type_id_for_symbol(&symbols, receiver_symbol)
+            if self.type_is_solver_placeholder(receiver_ty_id, tables.types)
+                && let Some(receiver_symbol) =
+                    tables.tree.get(receiver_expression_id).target_symbol()
+                && let Some(symbol_type_id) = tables
+                    .types
+                    .get_type_id_for_symbol(tables.symbols, receiver_symbol)
             {
                 receiver_ty_id = symbol_type_id;
             }
             let receiver_ty_id = self.materialize_infer_type_for_check(
                 module,
                 profile,
-                &symbols,
+                tables.symbols,
                 receiver_ty_id,
-                infer,
-                types,
-                options,
+                tables.infer,
+                tables.types,
+                tables.options,
             );
             let receiver_ty_id = self.normalize_apparent_type(
                 module,
                 profile,
                 receiver_ty_id,
-                &symbols,
-                types,
+                tables.symbols,
+                tables.types,
                 NormalizationMode::Assign,
                 RelationMode::ASSIGN,
             );
-            if self.type_is_solver_placeholder(receiver_ty_id, types) {
+            if self.type_is_solver_placeholder(receiver_ty_id, tables.types) {
                 continue;
             }
 
             // suppress cascades after primary receiver failure
-            if self.type_blocks_cascading_diagnostic(receiver_ty_id, types) {
+            if self.type_blocks_cascading_diagnostic(receiver_ty_id, tables.types) {
                 continue;
             }
 
@@ -229,10 +240,10 @@ impl Compiler {
                 profile,
                 receiver_ty_id,
                 receiver_ty_id,
-                &symbols,
-                types,
+                tables.symbols,
+                tables.types,
             ) {
-                if self.type_blocks_cascading_diagnostic(receiver_ty_id, types) {
+                if self.type_blocks_cascading_diagnostic(receiver_ty_id, tables.types) {
                     continue;
                 }
 
@@ -243,27 +254,23 @@ impl Compiler {
             }
 
             // resolve member dispatch for the converged receiver
-            let receiver_ty = types.get_type(receiver_ty_id).clone();
+            let receiver_ty = tables.types.get_type(receiver_ty_id).clone();
             let receiver_context = self.query_member_receiver_context_for_expression(
                 module,
                 receiver_expression_id,
                 Some(receiver_ty_id),
                 profile,
-                &tree,
-                &symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
             );
             let member_resolution = self.resolve_member_symbol_for_receiver(
-                module,
+                &mut tables.reborrow(),
                 expression_id,
                 receiver_expression_id,
                 &receiver_ty,
                 &receiver_context,
                 &obligation.member_key,
-                profile,
-                &tree,
-                &symbols,
-                types,
             )?;
             if let Some(resolution) =
                 self.resolve_missing_member_obligation_resolution(&member_resolution)
@@ -282,10 +289,10 @@ impl Compiler {
                 module,
                 profile,
                 expression_id.into_any(),
-                &symbols,
+                tables.symbols,
                 &receiver_ty,
                 &obligation.member_key,
-                types,
+                tables.types,
                 &mut index_visited,
             );
             if index_type_id.is_some() {
@@ -303,20 +310,21 @@ impl Compiler {
             }
 
             // report missing member diagnostics for unresolved lookups
-            let allow_associated_contract_blocker = self.is_projection_receiver_expression(
-                module,
-                profile,
-                receiver_expression_id,
-                &tree,
-                &symbols,
-                types,
-            );
+            let allow_associated_contract_blocker = self
+                .solve_projection_receiver_expression_for_missing_member_obligation(
+                    module,
+                    profile,
+                    receiver_expression_id,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
+                );
             let blocker = self.should_block_missing_member_diagnostic(
                 module,
                 profile,
                 receiver_ty_id,
-                &symbols,
-                types,
+                tables.symbols,
+                tables.types,
                 allow_associated_contract_blocker,
             )?;
             if blocker.is_some() {
@@ -331,6 +339,73 @@ impl Compiler {
         }
 
         Ok(actions)
+    }
+
+    /// Return true when one receiver should be treated as an associated projection in solve.
+    fn solve_projection_receiver_expression_for_missing_member_obligation(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        receiver_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
+        if !tree
+            .get(receiver_id)
+            .static_arguments()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
+            return false;
+        }
+
+        let symbol = self
+            .resolve_direct_receiver_symbol_for_expression(
+                module,
+                receiver_id,
+                profile,
+                tree,
+                symbols,
+            )
+            .or_else(|| {
+                let receiver_type_id = self
+                    .resolve_declared_type_expression(
+                        module,
+                        profile,
+                        receiver_id,
+                        tree,
+                        symbols,
+                        types,
+                        true,
+                        true,
+                    )
+                    .ok()?;
+                self.query_type_like_receiver_symbol_for_type_id(receiver_type_id, types)
+            });
+        let Some(symbol) = symbol else {
+            return false;
+        };
+
+        let symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        let symbol = self
+            .declaration_symbol_id(module, symbols, profile, symbol)
+            .unwrap_or(symbol);
+        matches!(
+            symbol.ty(),
+            SymbolType::Class
+                | SymbolType::Struct
+                | SymbolType::Interface
+                | SymbolType::Enum
+                | SymbolType::TypeAlias
+                | SymbolType::Newtype
+        )
     }
 
     /// Apply missing-member obligation actions in solve.
