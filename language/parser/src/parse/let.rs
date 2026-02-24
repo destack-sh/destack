@@ -1,3 +1,4 @@
+use crate::parse::NonNewlineTokenCursor;
 use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
@@ -8,6 +9,68 @@ use destack_ast::{
 use destack_source::NodeSpanType;
 
 impl Parser {
+    /// Return the `using` keyword index for an async or sync using head at the current position.
+    #[inline]
+    pub(crate) fn using_keyword_index(&mut self, asynchrony: Asynchrony) -> Option<usize> {
+        if asynchrony == Asynchrony::Async {
+            if !self.is_keyword(Keyword::Await) {
+                return None;
+            }
+
+            let using_cursor = self.scanner_cursor_from(self.pos_index() + 1);
+            if using_cursor.has_line_break_before
+                || using_cursor.token_type != TokenType::Identifier
+            {
+                return None;
+            }
+
+            if self.keyword_for_index(using_cursor.index) != Some(Keyword::Using) {
+                return None;
+            }
+
+            return Some(using_cursor.index);
+        }
+
+        if self.is_keyword(Keyword::Using) {
+            return Some(self.pos_index());
+        }
+
+        None
+    }
+
+    /// Return the first declarator token after `using` when it stays on the same line.
+    #[inline]
+    pub(crate) fn using_binding_head_cursor(
+        &mut self,
+        using_index: usize,
+    ) -> Option<NonNewlineTokenCursor> {
+        let declarator_cursor = self.scanner_cursor_from(using_index + 1);
+        if declarator_cursor.has_line_break_before {
+            return None;
+        }
+
+        Some(declarator_cursor)
+    }
+
+    /// Return true when a token can start a `using` binding pattern.
+    #[inline]
+    pub(crate) fn token_can_start_using_binding_pattern(&self, token_type: TokenType) -> bool {
+        if self.language.is_destack() {
+            return matches!(
+                token_type,
+                TokenType::Identifier
+                    | TokenType::OpenParenthesis
+                    | TokenType::OpenBrace
+                    | TokenType::OpenBracket
+            );
+        }
+
+        matches!(
+            token_type,
+            TokenType::Identifier | TokenType::OpenBrace | TokenType::OpenBracket
+        )
+    }
+
     /// Return let kind and mutability for a declaration keyword.
     #[inline]
     fn let_kind_and_mutability_for_keyword(keyword: Keyword) -> Option<(LetKind, Mutability)> {

@@ -893,7 +893,7 @@ impl Parser {
             look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
         }
 
-        // mapped values require a value marker after `]`: `:`, `?:`, `+?:`, `-?:`
+        // mapped optional modifiers can appear after `]`: `?`, `+?`, `-?`
         look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
         if self.token_type_at(look_index) == TokenType::Maybe {
             look_index = self.next_non_newline_index_from(look_index.saturating_add(1));
@@ -906,7 +906,11 @@ impl Parser {
             }
         }
 
-        self.token_type_at(look_index) == TokenType::Colon
+        // mapped members can omit explicit value types in parser compatible mode
+        matches!(
+            self.token_type_at(look_index),
+            TokenType::Colon | TokenType::CloseBrace | TokenType::Semicolon | TokenType::Comma
+        )
     }
     /// Eat a type mapped expression.
     pub fn eat_type_mapped_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
@@ -968,17 +972,22 @@ impl Parser {
         let optional = self.eat_type_mapped_optional_modifier()?;
         let modifiers = TypeMappedModifiers { readonly, optional };
 
+        // mapped value type is optional in parser compatible mode
         self.eat_newlines_maybe()?;
-        self.eat_token(TokenType::Colon)?;
-        self.eat_newlines_maybe()?;
-
-        // value type
-        let value = self.eat_expression(
-            self.options
-                .not_in_position()
-                .not_in_left_precedence()
-                .in_type(),
-        )?;
+        let value = if self.peek_is(TokenType::Colon) {
+            self.bump(); // eat :
+            self.eat_newlines_maybe()?;
+            self.eat_expression(
+                self.options
+                    .not_in_position()
+                    .not_in_left_precedence()
+                    .in_type(),
+            )?
+        } else {
+            let any_span = self.peek()?.span;
+            self.tree
+                .insert(Expression::TypeLiteral(TypeLiteral::Any), any_span)
+        };
         self.eat_newlines_maybe()?;
         if self.peek_is(TokenType::Semicolon) || self.peek_is(TokenType::Comma) {
             self.bump();
@@ -2611,6 +2620,68 @@ mod tests {
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::TypeMapped { .. });
+            });
+        });
+    }
+
+    /// Parse mapped types without explicit value types.
+    #[test]
+    fn test_parse_type_mapped_expression_without_value_type() {
+        let mut test = TestParser::new("type Keys = 'a' | 'b'; type A = { [K in Keys] };");
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::TypeMapped { modifiers, value, .. } => {
+                        assert_eq!(*modifiers, TypeMappedModifiers {
+                            readonly: TypeModifier::None,
+                            optional: TypeModifier::None,
+                        });
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse mapped types with readonly and optional modifiers without explicit value types.
+    #[test]
+    fn test_parse_type_mapped_expression_without_value_type_with_modifiers() {
+        let mut test =
+            TestParser::new("type A = { +readonly [T in number]; }; type B = { [K in number]+? };");
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 2);
+
+        assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::TypeMapped { modifiers, value, .. } => {
+                        assert_eq!(*modifiers, TypeMappedModifiers {
+                            readonly: TypeModifier::Add,
+                            optional: TypeModifier::None,
+                        });
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
+                    });
+                });
+            });
+        });
+
+        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
+            assert_node!(parser.tree, *statement_id, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::TypeMapped { modifiers, value, .. } => {
+                        assert_eq!(*modifiers, TypeMappedModifiers {
+                            readonly: TypeModifier::None,
+                            optional: TypeModifier::Add,
+                        });
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
+                    });
+                });
             });
         });
     }

@@ -1289,10 +1289,7 @@ impl Parser {
                     )
                 }
                 // tree literal attribute value
-                else if self.language.supports_jsx()
-                    && self.peek_is(TokenType::LessThan)
-                    && self.peek_tree_literal().is_ok()
-                {
+                else if self.language.supports_jsx() && self.peek_is(TokenType::LessThan) {
                     self.with_options(self.options.not_in_position().in_tree_literal(), |parser| {
                         parser.eat_tree_literal()
                     })?

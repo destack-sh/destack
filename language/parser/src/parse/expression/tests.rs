@@ -2829,6 +2829,57 @@ fn test_parse_tsx_ternary_tree_attribute_typed_arrow() {
     });
 }
 
+/// Parse TSX attributes whose values are direct nested tree literals.
+#[test]
+fn test_parse_tsx_tree_attribute_direct_nested_tree_value() {
+    let mut test = TestParser::new_with_options(
+        "<Foo prop=<Bar><Baz /></Bar> />;",
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::TreeExpression { arguments, .. } => {
+        let arguments = arguments.as_ref().expect("expected tree arguments");
+        let prop_argument = arguments.iter().copied().find(|argument_id| {
+            matches!(
+                parser.tree.get(*argument_id),
+                Argument::Named { name, .. } if parser.strings.get(name.string()) == "prop"
+            )
+        });
+        let prop_argument = prop_argument.expect("expected prop argument");
+
+        assert_node!(parser.tree, prop_argument, Argument::Named { value, .. } => {
+            assert_node!(parser.tree, *value, Expression::TreeExpression { left, elements, .. } => {
+                let left = left.expect("expected nested tree path");
+                assert_expression_path!(parser, parser.tree.get(left), "Bar");
+
+                let elements = elements.as_ref().expect("expected nested children");
+                assert_eq!(elements.len(), 1);
+                assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::TreeExpression { left, .. } => {
+                        let left = left.expect("expected child tree path");
+                        assert_expression_path!(parser, parser.tree.get(left), "Baz");
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse TSX closing tags with a trailing line comment before `>`.
+#[test]
+fn test_parse_tsx_closing_tag_with_trailing_line_comment_before_greater_than() {
+    let mut test = TestParser::new_with_options("<a></a // line\n>;", LanguageType::TypeScriptXml);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::TreeExpression { left, .. } => {
+        let left = left.expect("expected tag path");
+        assert_expression_path!(parser, parser.tree.get(left), "a");
+    });
+}
+
 /// Parse a lambda function value with a body and pattern parameters.
 #[test]
 fn test_parse_lambda_function_value_with_pattern_parameters() {
@@ -6541,4 +6592,58 @@ fn test_parse_assignment_object_spread_ternary_value_javascript() {
             });
         });
     });
+}
+
+/// Reject unparenthesized cast assignment targets.
+#[test]
+fn test_reject_unparenthesized_cast_assignment_target() {
+    let mut test = TestParser::new_with_options("value as number = 2", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+
+    let result = parser.eat_expression(parser.options);
+    assert!(result.is_err());
+}
+
+/// Reject unparenthesized satisfies assignment targets.
+#[test]
+fn test_reject_unparenthesized_satisfies_assignment_target() {
+    let mut test =
+        TestParser::new_with_options("value satisfies number = 2", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+
+    let result = parser.eat_expression(parser.options);
+    assert!(result.is_err());
+}
+
+/// Parse parenthesized cast assignment targets.
+#[test]
+fn test_parse_parenthesized_cast_assignment_target() {
+    let mut test = TestParser::new_with_options("(value as number) = 2", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right } => {
+        assert_eq!(*operator, AssignOperator::Assign);
+
+        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::TypeBinary { left, operator, right } => {
+                assert_eq!(*operator, TypeBinaryOperator::Cast);
+                assert_expression_path!(parser, parser.tree.get(*left), "value");
+                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Number));
+            });
+        });
+
+        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+    });
+}
+
+/// Reject parenthesized satisfies assignment targets.
+#[test]
+fn test_reject_parenthesized_satisfies_assignment_target() {
+    let mut test =
+        TestParser::new_with_options("(value satisfies number) = 2", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+
+    let result = parser.eat_expression(parser.options);
+    assert!(result.is_err());
 }

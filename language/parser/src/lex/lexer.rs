@@ -359,15 +359,4 @@ impl Lexer {
             false
         }
     }
-
-    /// Checks if we're inside an attribute expression container for the current opening tag.
-    #[inline]
-    pub(super) fn in_tree_attribute_expression(&self) -> bool {
-        // require a tree expression entry at the current tree depth
-        if let Some(entry) = self.options.tree_expression_stack.last() {
-            entry.tree_depth == self.options.tree_state_stack.len() && !entry.from_content
-        } else {
-            false
-        }
-    }
 }
