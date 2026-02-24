@@ -258,3 +258,48 @@ class Box {
     // confirm no diagnostics after gating
     test.check_clean();
 }
+
+/// Treat missing import.meta.env keys as undefined values.
+#[test]
+fn test_static_if_missing_env_key_is_undefined() {
+    // build the test program
+    let test = test_program_js();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+@if(import.meta.env.NOT_DEFINED == undefined)
+const visible = 1;
+
+@if(import.meta.env.NOT_DEFINED == "set")
+const hidden = missing_symbol();
+"#,
+    );
+
+    // resolve the module
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+
+    // confirm the expected symbol visibility
+    assert!(test.resolve_to_symbol("test.ds", "visible").is_some());
+}
+
+/// Reject non-string import.meta.env index lookups in static if conditions.
+#[test]
+fn test_static_if_env_index_requires_string_key() {
+    // build the test program
+    let test = test_program_js();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+@if(import.meta.env[1] == "x")
+const value = 1;
+"#,
+    );
+
+    // resolve the module
+    test.resolve_module(module_id);
+    test.compile();
+
+    // confirm the static if diagnostic
+    test.check_has_diagnostic("ER901");
+}
