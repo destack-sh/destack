@@ -1068,10 +1068,10 @@ impl Parser {
         self.token_stream.in_tree_literal()
     }
 
-    /// Return true when lexing is inside a tree attribute expression.
+    /// Return true when lexing is inside any tree expression container.
     #[inline]
-    pub(crate) fn in_tree_attribute_expression(&self) -> bool {
-        self.token_stream.in_tree_attribute_expression()
+    pub(crate) fn in_tree_expression_container(&self) -> bool {
+        self.token_stream.in_tree_expression_container()
     }
 
     /// Enter tree opening tag lex mode.

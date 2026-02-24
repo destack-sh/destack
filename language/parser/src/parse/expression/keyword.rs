@@ -135,9 +135,7 @@ impl Parser {
     /// Return true when `await` may begin an `await using` declaration.
     #[inline]
     fn can_start_await_using(&mut self) -> bool {
-        let await_index = self.pos_index();
-        let using_index = self.next_non_newline_index_from(await_index + 1);
-        self.keyword_for_index(using_index) == Some(Keyword::Using)
+        self.using_keyword_index(Asynchrony::Async).is_some()
     }
 
     /// Try to parse common statement keywords without the full keyword dispatch table.

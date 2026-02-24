@@ -702,8 +702,17 @@ impl Lexer {
 
                 // static arguments inside opening tag
                 if in_tree_opening_tag {
+                    // nested tree literal attribute value: `attr=<Tag />`
+                    let follows_attribute_value_assign = self
+                        .options
+                        .last_semantic_token
+                        .is_some_and(|token| token.token.ty == TokenType::Assign);
+                    if follows_attribute_value_assign {
+                        self.push_tree_state(TreeState::OpeningTag);
+                        (TokenType::LessThan, None)
+                    }
                     // <<
-                    if self.peek() == '<' {
+                    else if self.peek() == '<' {
                         self.eat();
                         self.options.tree_tag_angle_depth += 2;
                         // <<|

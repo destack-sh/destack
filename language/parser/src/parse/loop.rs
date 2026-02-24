@@ -201,15 +201,13 @@ impl Parser {
 
     /// Eat a for each binding (pattern or using).
     fn eat_for_each_binding(&mut self) -> ParseResult<ForEachBinding> {
-        let using_asynchrony =
-            if self.is_keyword(Keyword::Await) && self.is_next_keyword(Keyword::Using) {
-                self.bump(); // eat await
-                Asynchrony::Async
-            } else {
-                Asynchrony::Sync
-            };
+        let using_asynchrony = self.for_each_using_binding_asynchrony();
 
-        if self.is_keyword(Keyword::Using) {
+        if let Some(using_asynchrony) = using_asynchrony {
+            if using_asynchrony == Asynchrony::Async {
+                self.bump(); // eat await
+            }
+
             self.bump(); // eat using
             let pattern_options = self
                 .options
@@ -256,6 +254,47 @@ impl Parser {
                 })
             }
         }
+    }
+
+    /// Return the using asynchrony when a for each header starts a using binding.
+    fn for_each_using_binding_asynchrony(&mut self) -> Option<Asynchrony> {
+        // resolve `using` with optional `await` prefix
+        let (asynchrony, using_index) =
+            if let Some(using_index) = self.using_keyword_index(Asynchrony::Async) {
+                (Asynchrony::Async, using_index)
+            } else if let Some(using_index) = self.using_keyword_index(Asynchrony::Sync) {
+                (Asynchrony::Sync, using_index)
+            } else {
+                return None;
+            };
+
+        // keep the binding head on the same line
+        let Some(declarator_cursor) = self.using_binding_head_cursor(using_index) else {
+            return None;
+        };
+
+        // using bindings start with a binding pattern shape
+        let declarator_token_type = declarator_cursor.token_type;
+        if !self.token_can_start_using_binding_pattern(declarator_token_type) {
+            return None;
+        }
+
+        // disambiguate identifier starts that should remain expression headers
+        if declarator_token_type == TokenType::Identifier {
+            let declarator_keyword = self.keyword_for_index(declarator_cursor.index);
+
+            // `for (using in ...)` should parse as identifier `using`
+            if declarator_keyword == Some(Keyword::In) {
+                return None;
+            }
+
+            // `for (using of of)` should parse as identifier `using` in js and ts
+            if declarator_keyword == Some(Keyword::Of) && asynchrony == Asynchrony::Sync {
+                return None;
+            }
+        }
+
+        Some(asynchrony)
     }
 
     /// Return the declaration keyword for a for each pattern binding.
@@ -689,6 +728,84 @@ for (using item of items) {
             assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {
                 assert_string!(parser, *name, "item");
             });
+            assert_expression_path!(parser, parser.tree.get(*iterator), "items");
+        });
+    }
+
+    #[test]
+    fn test_parse_for_loop_with_using_identifier_member_binding_in() {
+        let mut test =
+            TestParser::new_with_options("for (using().foo in items);", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { kind, binding, iterator, .. } => {
+            assert_eq!(*kind, ForEachKind::In);
+
+            assert_node!(binding, ForEachBinding::Pattern { pattern, declaration_kind } => {
+                assert!(declaration_kind.is_none());
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
+                        assert_string!(parser, *name, "foo");
+                        assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
+                            assert!(dynamic_arguments.is_empty());
+                            assert_expression_path!(parser, parser.tree.get(*left), "using");
+                        });
+                    });
+                });
+            });
+
+            assert_expression_path!(parser, parser.tree.get(*iterator), "items");
+        });
+    }
+
+    #[test]
+    fn test_parse_for_loop_with_using_identifier_member_binding_of() {
+        let mut test =
+            TestParser::new_with_options("for (using().foo of items);", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { kind, binding, iterator, .. } => {
+            assert_eq!(*kind, ForEachKind::Of);
+
+            assert_node!(binding, ForEachBinding::Pattern { pattern, declaration_kind } => {
+                assert!(declaration_kind.is_none());
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
+                        assert_string!(parser, *name, "foo");
+                        assert_node!(parser.tree, *left, Expression::Call { left, dynamic_arguments, .. } => {
+                            assert!(dynamic_arguments.is_empty());
+                            assert_expression_path!(parser, parser.tree.get(*left), "using");
+                        });
+                    });
+                });
+            });
+
+            assert_expression_path!(parser, parser.tree.get(*iterator), "items");
+        });
+    }
+
+    #[test]
+    fn test_parse_for_loop_with_await_using_of_binding() {
+        let mut test = TestParser::new_with_options(
+            "for await (await using of of items);",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { asynchrony, kind, binding, iterator, .. } => {
+            assert_eq!(*asynchrony, Asynchrony::Async);
+            assert_eq!(*kind, ForEachKind::Of);
+
+            assert_node!(binding, ForEachBinding::Using { asynchrony, pattern } => {
+                assert_eq!(*asynchrony, Asynchrony::Async);
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "of");
+                });
+            });
+
             assert_expression_path!(parser, parser.tree.get(*iterator), "items");
         });
     }

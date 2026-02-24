@@ -2369,13 +2369,40 @@ impl Compiler {
         tree: &NodeTree,
         target: LocalNodeId<Expression>,
     ) -> Option<(LocalNodeId<Expression>, StringId)> {
-        let target = self.unwrap_parenthesized_expression(target, tree);
+        let target = self.assignment_target_base(tree, target);
         let name = self.assignment_target_binding_name(tree, target)?;
         if !self.is_reserved_binding_name(name) {
             return None;
         }
 
         Some((target, name))
+    }
+
+    /// Return the wrapped assignment target base expression.
+    fn assignment_target_base(
+        &self,
+        tree: &NodeTree,
+        target: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Expression> {
+        let mut target = target;
+
+        loop {
+            // strip transparent wrapper expressions used in assignment targets
+            match tree.get(target) {
+                Expression::Parenthesized { expression } => {
+                    target = *expression;
+                }
+                Expression::Must { left, .. } => {
+                    target = *left;
+                }
+                Expression::TypeBinary { left, operator, .. }
+                    if *operator == TypeBinaryOperator::Cast =>
+                {
+                    target = *left;
+                }
+                _ => break target,
+            }
+        }
     }
 
     /// Return the binding name for assignment targets when available.
@@ -2421,6 +2448,7 @@ impl Compiler {
         tree: &NodeTree,
         target: LocalNodeId<Expression>,
     ) -> bool {
+        let target = self.assignment_target_base(tree, target);
         match tree.get(target) {
             Expression::UnresolvedPath {
                 static_arguments: None,
@@ -2447,9 +2475,6 @@ impl Compiler {
                 ..
             } => true,
             Expression::Index { .. } => true,
-            Expression::Parenthesized { expression } => {
-                self.is_valid_assignment_target(tree, *expression)
-            }
             _ => false,
         }
     }
@@ -3556,6 +3581,86 @@ cls.myFunc<ConcreteClass> = (instance) => {
 
             panic!("expected assignment expression");
         });
+        test.check_has_diagnostic("EA226");
+    }
+
+    /// Allow parenthesized cast assignment targets with assignable bases.
+    #[test]
+    fn test_allow_parenthesized_cast_assignment_target() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            r#"
+let value = 1;
+(value as number) = 2;
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA226");
+    }
+
+    /// Reject parenthesized cast assignment targets with non-assignable call bases.
+    #[test]
+    fn test_reject_parenthesized_cast_call_assignment_target() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            r#"
+const value = () => 1;
+(value() as number) = 2;
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA226");
+    }
+
+    /// Allow non-null assertion assignment targets with assignable bases.
+    #[test]
+    fn test_allow_non_null_assertion_assignment_target() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            r#"
+let value: number | undefined = 1;
+value! = 2;
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA226");
+    }
+
+    /// Reject non-null assertion assignment targets with non-assignable call bases.
+    #[test]
+    fn test_reject_non_null_assertion_call_assignment_target() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            r#"
+const value = () => 1;
+value()! = 2;
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
         test.check_has_diagnostic("EA226");
     }
 

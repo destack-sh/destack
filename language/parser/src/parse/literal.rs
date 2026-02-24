@@ -1117,7 +1117,7 @@ impl Parser {
             let unexpected_span = self.peek()?.span;
 
             // prime opening tag mode for tree literal lookahead
-            if !self.in_tree_literal() || self.in_tree_attribute_expression() {
+            if !self.in_tree_literal() || self.in_tree_expression_container() {
                 self.enter_tree_opening_tag();
             }
 
@@ -1223,10 +1223,10 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let start = self.mark_span();
         self.eat_token(TokenType::LessThan)?;
-        if !self.in_tree_literal()
-            || self.in_tree_attribute_expression()
-            || !self.options.is_in_tree_literal()
-        {
+        // enter opening-tag mode unless we are already in tag/content mode for this literal
+        let should_enter_tree_opening_tag =
+            !self.in_tree_literal() || self.in_tree_expression_container();
+        if should_enter_tree_opening_tag {
             self.enter_tree_opening_tag();
         }
         self.eat_newlines_maybe()?;
@@ -1307,36 +1307,25 @@ impl Parser {
                     // skip whitespace before checking for closing tag
                     self.skip_tree_whitespace()?;
 
-                    // stop at closing fragment (</)
+                    // stop at closing fragment or closing named tag
                     if self.peek_is(TokenType::LessThan) {
-                        let slash_index = self.next_non_newline_index_from(self.pos_index() + 1);
-                        let has_slash_after = self
-                            .token_ref_at(slash_index)
-                            .is_some_and(|token| token.token.ty == TokenType::Divide);
-                        let closes_fragment = if has_slash_after {
-                            let after_slash = self.next_non_newline_index_from(slash_index + 1);
-                            self.token_ref_at(after_slash)
-                                .is_some_and(|token| token.token.ty == TokenType::GreaterThan)
-                        } else {
-                            false
-                        };
+                        let closing_start = self.mark_rewind();
+                        self.bump(); // eat <
+                        self.eat_newlines_maybe()?;
 
-                        if !has_slash_after {
-                            // not a closing tag
-                        } else {
+                        if self.peek_is(TokenType::Divide) {
+                            self.bump(); // eat /
+                            self.eat_newlines_maybe()?;
+
                             // close fragment for fragment literals
-                            if path.is_none() && closes_fragment {
-                                self.bump(); // eat <
-                                self.eat_newlines_maybe()?;
-                                self.bump(); // eat /
-                                self.eat_newlines_maybe()?;
+                            if path.is_none() && self.peek_is(TokenType::GreaterThan) {
                                 self.bump(); // eat >
                                 found_closing = true;
                                 break;
                             }
 
                             // fragment close is invalid for non fragment tags
-                            if path.is_some() && closes_fragment {
+                            if path.is_some() && self.peek_is(TokenType::GreaterThan) {
                                 return Err(ParseError::unexpected(self.peek()?.span));
                             }
 
@@ -1345,12 +1334,8 @@ impl Parser {
                                 return Err(ParseError::unexpected(self.peek()?.span));
                             }
 
-                            // check if closing fragment has same path
+                            // check if closing tag has the same path
                             if let Some(path) = &path {
-                                self.bump(); // eat <
-                                self.eat_newlines_maybe()?;
-                                self.bump(); // eat /
-                                self.eat_newlines_maybe()?;
                                 let closing_path = self.eat_tree_literal_path()?;
 
                                 // jsx namespace names cannot be followed by member access
@@ -1358,14 +1343,18 @@ impl Parser {
                                     return Err(ParseError::unexpected(self.peek()?.span));
                                 }
 
+                                self.skip_tree_whitespace()?;
+                                self.eat_token(TokenType::GreaterThan)?;
+
                                 if closing_path == *path {
-                                    self.eat_token(TokenType::GreaterThan)?;
                                     found_closing = true;
                                     break;
                                 }
                                 return Err(ParseError::unexpected(self.peek()?.span));
                             }
                         }
+
+                        self.rewind(closing_start);
                     }
 
                     // keep eating child elements
@@ -2745,6 +2734,39 @@ mod tests {
                     assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
                         assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
                             assert_string!(parser, *string_id, "off");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse a named tree literal with text content inside an attribute expression container.
+    #[test]
+    fn test_parse_tree_named_text_in_attribute_expression() {
+        let mut test = TestParser::new_with_options(
+            r#"<ParentComponent prop={
+  <Child>
+    test
+  </Child>
+}/>;"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expr = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "ParentComponent");
+            let arguments = arguments.as_ref().expect("expected arguments");
+            assert_node!(parser.tree, arguments[0], Argument::Named { name: Name::Identifier(name), value, .. } => {
+                assert_string!(parser, *name, "prop");
+                assert_node!(parser.tree, *value, Expression::TreeExpression { left: Some(inner_left), elements, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*inner_left), "Child");
+                    let elements = elements.as_ref().expect("expected child elements");
+                    assert_eq!(elements.len(), 1);
+                    assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                            let text = parser.strings.get(*string_id);
+                            assert_eq!(text.trim(), "test");
                         });
                     });
                 });

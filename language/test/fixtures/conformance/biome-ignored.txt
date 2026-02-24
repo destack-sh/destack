@@ -40,3 +40,6 @@ ok/ts_type_parameters.ts
 # export specifiers do not allow string literal names
 ok/export_named_clause.js
 ok/export_named_from_clause.js
+
+# non standard satisfies assignment targets
+ok/ts_satisfies_assignment.ts

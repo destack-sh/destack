@@ -39,6 +39,44 @@ impl Parser {
         is_postfix_or_assign || starts_lambda_head
     }
 
+    /// Return true when assignment lhs syntax is invalid in ts/js grammar.
+    #[inline]
+    fn assignment_target_has_invalid_syntax(&self, expression_id: LocalNodeId<Expression>) -> bool {
+        let mut expression_id = expression_id;
+        let mut is_parenthesized = false;
+
+        loop {
+            match self.tree.get(expression_id) {
+                // parenthesized wrappers can legalize cast lhs forms
+                Expression::Parenthesized { expression } => {
+                    is_parenthesized = true;
+                    expression_id = *expression;
+                }
+
+                // `satisfies` is never a valid assignment lhs
+                Expression::TypeBinary {
+                    operator: TypeBinaryOperator::Satisfies,
+                    ..
+                } => {
+                    return true;
+                }
+
+                // `as` cast lhs is valid only when parenthesized
+                Expression::TypeBinary {
+                    operator: TypeBinaryOperator::Cast,
+                    ..
+                } => {
+                    return !is_parenthesized;
+                }
+
+                // all other lhs forms are handled by assignment-target validation later
+                _ => {
+                    return false;
+                }
+            }
+        }
+    }
+
     /// Parse expression continuation operators after a primary expression.
     pub(crate) fn eat_expression_continuation(
         &mut self,
@@ -630,6 +668,15 @@ impl Parser {
                     && left_precedence >= right_operator.precedence()
                 {
                     break;
+                }
+
+                // reject assignment targets that are invalid in ts/js grammar
+                if matches!(right_operator, InfixOperator::Assign(_))
+                    && self.assignment_target_has_invalid_syntax(left_expression_id)
+                {
+                    return Err(ParseError::unexpected(
+                        self.tree.get_span(left_expression_id),
+                    ));
                 }
 
                 // align parser position with scanner cursor before consuming operator tokens

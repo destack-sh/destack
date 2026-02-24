@@ -144,26 +144,18 @@ impl Parser {
 
     /// Return true when tokens can plausibly start a using declarator.
     fn can_start_using_declarator(&mut self, asynchrony: Asynchrony) -> bool {
-        // resolve the using keyword index from the current position
-        let using_index = if asynchrony == Asynchrony::Async {
-            self.next_non_newline_index_from(self.pos_index() + 1)
-        } else {
-            self.pos_index()
-        };
-        if self.keyword_for_index(using_index) != Some(Keyword::Using) {
+        // resolve the using keyword at the current position
+        let Some(using_index) = self.using_keyword_index(asynchrony) else {
             return false;
-        }
+        };
 
-        // using declarators start with a pattern like identifier, tuple, object, array
-        let declarator_index = self.next_non_newline_index_from(using_index + 1);
-        let declarator_token_type = self.token_type_at(declarator_index);
-        matches!(
-            declarator_token_type,
-            TokenType::Identifier
-                | TokenType::OpenParenthesis
-                | TokenType::OpenBrace
-                | TokenType::OpenBracket
-        )
+        // keep declarators on the same line as `using`
+        let Some(declarator_cursor) = self.using_binding_head_cursor(using_index) else {
+            return false;
+        };
+
+        // using declarations require lexical binding heads
+        self.token_can_start_using_binding_pattern(declarator_cursor.token_type)
     }
 
     /// Return true when a using declarator has a required initializer.
@@ -226,14 +218,14 @@ impl Parser {
             return false;
         }
 
-        let using_index = if asynchrony == Asynchrony::Async {
-            self.next_non_newline_index_from(self.pos_index() + 1)
-        } else {
-            self.pos_index()
+        let Some(using_index) = self.using_keyword_index(asynchrony) else {
+            return false;
         };
-        let declarator_index = self.next_non_newline_index_from(using_index + 1);
+        let Some(declarator_cursor) = self.using_binding_head_cursor(using_index) else {
+            return false;
+        };
 
-        self.using_declarator_has_required_initializer(declarator_index)
+        self.using_declarator_has_required_initializer(declarator_cursor.index)
     }
 
     /// Eat declaration modifiers and return a descriptor or a parsed expression.
