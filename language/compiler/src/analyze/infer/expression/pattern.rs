@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::member::MemberLookupMode;
 
-use crate::analyze::common::{CanonicalSymbolMode, InferTablesContext};
+use crate::analyze::common::{CanonicalSymbolMode, InferTablesContext, TypeTablesContext};
 use crate::{AnalyzeResult, Compiler, InferContext};
 use destack_dir::{
     Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, NormalizationMode,
@@ -120,14 +120,8 @@ impl Compiler {
             }
             Pattern::TaggedTuple { ty, fields } => {
                 // prefer union variants from the binding type when available
-                let mut ty_id = self.evaluate_pattern_tag_type(
-                    tables.module,
-                    *ty,
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
-                    ctx,
-                )?;
+                let mut ty_id =
+                    self.evaluate_pattern_tag_type(&mut tables.type_tables_reborrow(), *ty, ctx)?;
                 if let Some(binding_ty_id) = binding_ty_id
                     && let Some(union_ty_id) = self.select_union_variant_for_tagged_pattern(
                         tables.types,
@@ -176,13 +170,9 @@ impl Compiler {
                 // reject bare object patterns against nominal object values
                 if let Some(binding_ty_id) = binding_ty_id
                     && self.is_nominal_object_pattern_target(
-                        tables.module,
-                        ctx.profile,
+                        &mut tables.type_tables_reborrow(),
                         pattern_id,
                         binding_ty_id,
-                        tables.tree,
-                        tables.symbols,
-                        tables.types,
                     )?
                 {
                     let object_ty_id = tables.types.insert_type_from_any(
@@ -212,14 +202,8 @@ impl Compiler {
             }
             Pattern::TaggedObject { ty, fields } => {
                 // prefer union variants from the binding type when available
-                let mut ty_id = self.evaluate_pattern_tag_type(
-                    tables.module,
-                    *ty,
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
-                    ctx,
-                )?;
+                let mut ty_id =
+                    self.evaluate_pattern_tag_type(&mut tables.type_tables_reborrow(), *ty, ctx)?;
                 if let Some(binding_ty_id) = binding_ty_id
                     && let Some(union_ty_id) = self.select_union_variant_for_tagged_pattern(
                         tables.types,
@@ -246,55 +230,43 @@ impl Compiler {
     /// Narrow a match pattern binding type using union member compatibility.
     pub(crate) fn narrow_match_pattern_binding_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         binding_ty_id: LocalTypeId,
         pattern_id: LocalNodeId<Pattern>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> LocalTypeId {
         // keep the original type when we cannot narrow it
         let original_ty_id = binding_ty_id;
 
         // try both flow and assign normalization modes to preserve compatibility
         let normalized_flow_ty_id = self.normalize_type(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             binding_ty_id,
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
             NormalizationMode::Flow,
         );
         let normalized_assign_ty_id = self.normalize_type(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             binding_ty_id,
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
             NormalizationMode::Assign,
         );
 
         // narrow against union members using the match pattern shape
         let narrowed_members = self
             .pattern_filter_union_members_for_match_pattern(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 pattern_id,
                 normalized_flow_ty_id,
-                tree,
-                symbols,
-                types,
             )
             .or_else(|| {
                 self.pattern_filter_union_members_for_match_pattern(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     pattern_id,
                     normalized_assign_ty_id,
-                    tree,
-                    symbols,
-                    types,
                 )
             });
 
@@ -312,22 +284,19 @@ impl Compiler {
         }
 
         // materialize the narrowed union for downstream pattern inference
-        self.union_type_from_list(narrowed_members, original_ty_id, types)
+        self.union_type_from_list(narrowed_members, original_ty_id, tables.types)
     }
 
     /// Filter union members that are compatible with a match pattern.
     fn pattern_filter_union_members_for_match_pattern(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
         binding_ty_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<Vec<LocalTypeId>> {
         // only union-like bindings can be narrowed by member filtering
-        let union_members = self.pattern_union_member_types_for_binding(binding_ty_id, types)?;
+        let union_members =
+            self.pattern_union_member_types_for_binding(binding_ty_id, tables.types)?;
         if union_members.is_empty() {
             return None;
         }
@@ -336,13 +305,9 @@ impl Compiler {
         let mut narrowed_members = Vec::new();
         for member_ty_id in union_members {
             if self.pattern_matches_type_for_narrowing(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 pattern_id,
                 member_ty_id,
-                tree,
-                symbols,
-                types,
             ) {
                 narrowed_members.push(member_ty_id);
             }
@@ -377,15 +342,11 @@ impl Compiler {
     /// Check whether a pattern can match a specific candidate type.
     fn pattern_matches_type_for_narrowing(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
         candidate_ty_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> bool {
-        let pattern = tree.get(pattern_id);
+        let pattern = tables.tree.get(pattern_id);
         match pattern {
             // wildcard and binding patterns accept every candidate
             Pattern::Wildcard | Pattern::Binding { .. } => true,
@@ -400,26 +361,32 @@ impl Compiler {
                 mutability: _,
                 right: pattern_id,
             } => self.pattern_matches_type_for_narrowing(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 *pattern_id,
                 candidate_ty_id,
-                tree,
-                symbols,
-                types,
             ),
 
             // expression patterns narrow by literal or reference symbol identity
             Pattern::Expression { value } => {
-                if let Some(literal) = self.pattern_scalar_literal_for_expression(*value, tree) {
-                    self.pattern_type_contains_scalar_literal(candidate_ty_id, &literal, types)
-                } else if let Some(pattern_symbol) =
-                    self.reference_symbol_for_expression(module, *value, profile, tree, symbols)
+                if let Some(literal) =
+                    self.pattern_scalar_literal_for_expression(*value, tables.tree)
                 {
+                    self.pattern_type_contains_scalar_literal(
+                        candidate_ty_id,
+                        &literal,
+                        tables.types,
+                    )
+                } else if let Some(pattern_symbol) = self.reference_symbol_for_expression(
+                    tables.module,
+                    *value,
+                    tables.profile,
+                    tables.tree,
+                    tables.symbols,
+                ) {
                     self.pattern_type_contains_reference_symbol(
                         candidate_ty_id,
                         pattern_symbol,
-                        types,
+                        tables.types,
                     )
                 } else {
                     true
@@ -429,36 +396,24 @@ impl Compiler {
             // union patterns match when any branch matches
             Pattern::Union { patterns } => patterns.iter().any(|pattern_id| {
                 self.pattern_matches_type_for_narrowing(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     *pattern_id,
                     candidate_ty_id,
-                    tree,
-                    symbols,
-                    types,
                 )
             }),
 
             // tuple patterns narrow tuple-like candidate types
             Pattern::Tuple { fields } => self.pattern_tuple_fields_match_type_for_narrowing(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 fields,
                 candidate_ty_id,
-                tree,
-                symbols,
-                types,
             ),
 
             // object patterns narrow object-like candidate types by field patterns
             Pattern::Object { fields } => self.pattern_object_fields_match_type_for_narrowing(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 fields,
                 candidate_ty_id,
-                tree,
-                symbols,
-                types,
             ),
 
             // tagged patterns are handled by downstream tagged pattern inference
@@ -526,36 +481,28 @@ impl Compiler {
     /// Check tuple pattern compatibility for a candidate type.
     fn pattern_tuple_fields_match_type_for_narrowing(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         fields: &[LocalNodeId<PatternField>],
         candidate_ty_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> bool {
         let Some(element_types) =
-            self.pattern_fixed_tuple_element_types_for_narrowing(candidate_ty_id, types)
+            self.pattern_fixed_tuple_element_types_for_narrowing(candidate_ty_id, tables.types)
         else {
             return false;
         };
 
         let mut tuple_index = 0;
         for field_id in fields {
-            let field = tree.get(*field_id);
+            let field = tables.tree.get(*field_id);
             match field {
                 PatternField::Positional { pattern, .. } => {
                     let Some(field_ty_id) = element_types.get(tuple_index).copied() else {
                         return false;
                     };
                     if !self.pattern_matches_type_for_narrowing(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         *pattern,
                         field_ty_id,
-                        tree,
-                        symbols,
-                        types,
                     ) {
                         return false;
                     }
@@ -601,16 +548,12 @@ impl Compiler {
     /// Check object pattern compatibility for a candidate type.
     fn pattern_object_fields_match_type_for_narrowing(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         fields: &[LocalNodeId<PatternField>],
         candidate_ty_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> bool {
         for field_id in fields {
-            let field = tree.get(*field_id);
+            let field = tables.tree.get(*field_id);
             match field {
                 PatternField::Named {
                     name,
@@ -619,25 +562,21 @@ impl Compiler {
                     mutability: _,
                 } => {
                     let Some(field_ty_id) = self.pattern_member_type_for_narrowing(
-                        module,
-                        profile,
+                        tables.module,
+                        tables.profile,
                         *field_id,
                         candidate_ty_id,
                         StaticKey::Name(*name),
-                        symbols,
-                        types,
+                        tables.symbols,
+                        tables.types,
                     ) else {
                         return false;
                     };
                     if let Some(pattern_id) = pattern
                         && !self.pattern_matches_type_for_narrowing(
-                            module,
-                            profile,
+                            &mut tables.reborrow(),
                             *pattern_id,
                             field_ty_id,
-                            tree,
-                            symbols,
-                            types,
                         )
                     {
                         return false;
@@ -652,13 +591,13 @@ impl Compiler {
                 } => {
                     if self
                         .pattern_member_type_for_narrowing(
-                            module,
-                            profile,
+                            tables.module,
+                            tables.profile,
                             *field_id,
                             candidate_ty_id,
                             StaticKey::Name(*name),
-                            symbols,
-                            types,
+                            tables.symbols,
+                            tables.types,
                         )
                         .is_none()
                     {
@@ -735,15 +674,11 @@ impl Compiler {
     /// Check whether a binding type is a nominal object for untagged patterns.
     fn is_nominal_object_pattern_target(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
         binding_ty_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<bool> {
-        let binding_ty = types.get_type(binding_ty_id);
+        let binding_ty = tables.types.get_type(binding_ty_id);
         if self.is_definitely_struct_type(binding_ty) {
             return Ok(true);
         }
@@ -757,19 +692,25 @@ impl Compiler {
 
         // resolve the underlying newtype target to determine object shape
         let Some(target_ty_id) = self.alias_target_type_id_for_symbol(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             *symbol,
             pattern_id.into_any(),
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
         ) else {
             return Ok(false);
         };
-        let target_ty_id =
-            self.ensure_type_evaluated(module, profile, target_ty_id, tree, symbols, types)?;
+        let target_ty_id = self.ensure_type_evaluated(
+            tables.module,
+            tables.profile,
+            target_ty_id,
+            tables.tree,
+            tables.symbols,
+            tables.types,
+        )?;
 
-        let target_ty = types.get_type(target_ty_id);
+        let target_ty = tables.types.get_type(target_ty_id);
         let is_object = matches!(target_ty, Type::Object { .. });
         let is_struct_ref = matches!(
             target_ty,
@@ -1415,27 +1356,24 @@ impl Compiler {
     /// Resolve a tagged pattern target type from an expression.
     fn evaluate_pattern_tag_type(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         ctx: &InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // evaluate the tag expression as a type
         let ty_id = self.resolve_declared_type_expression(
-            module,
+            tables.module,
             ctx.profile,
             expression_id,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
             true,
             true,
         )?;
 
         // unwrap type-as-value wrappers when present
-        let ty_id = match types.get_type(ty_id) {
+        let ty_id = match tables.types.get_type(ty_id) {
             Type::Value { value } => *value,
             _ => ty_id,
         };
@@ -1444,18 +1382,18 @@ impl Compiler {
         let Type::Reference {
             symbol,
             static_arguments,
-        } = types.get_type(ty_id).clone()
+        } = tables.types.get_type(ty_id).clone()
         else {
             return Ok(ty_id);
         };
 
         // skip remote symbols
-        if symbol.module_id != module.id {
+        if symbol.module_id != tables.module.id {
             return Ok(ty_id);
         }
 
         // skip non-newtype symbols
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let symbol_entry = tables.symbols.get_symbol(symbol.local_id);
         if symbol_entry.ty != SymbolType::Newtype {
             return Ok(ty_id);
         }
@@ -1464,7 +1402,7 @@ impl Compiler {
         let Some(primary_declaration) = symbol_entry.primary_declaration else {
             return Ok(ty_id);
         };
-        if primary_declaration.module_id != module.id {
+        if primary_declaration.module_id != tables.module.id {
             return Ok(ty_id);
         }
         let Ok(declaration_id) = primary_declaration.try_into_typed::<Declaration>() else {
@@ -1475,58 +1413,56 @@ impl Compiler {
             kind: TypeKind::Nominal,
             value,
             ..
-        } = tree.get(declaration_id)
+        } = tables.tree.get(declaration_id)
         else {
             return Ok(ty_id);
         };
 
         // resolve the declared type for the nominal alias
-        let value_id = value.into_global_any(module.id);
-        let Some(declared_ty_id) = types.get_declared_type_id(value_id) else {
+        let value_id = value.into_global_any(tables.module.id);
+        let Some(declared_ty_id) = tables.types.get_declared_type_id(value_id) else {
             return Ok(ty_id);
         };
 
         // evaluate unevaluated declared types
-        if matches!(types.get_type(declared_ty_id), Type::Unevaluated(_)) {
-            self.resolve_declared_type(module, ctx.profile, declared_ty_id, tree, symbols, types)?;
+        if matches!(tables.types.get_type(declared_ty_id), Type::Unevaluated(_)) {
+            self.resolve_declared_type(
+                tables.module,
+                ctx.profile,
+                declared_ty_id,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+            )?;
         }
 
         let mut declared_ty_id = declared_ty_id;
 
         // apply static arguments when provided
         if let Some(static_arguments) = static_arguments {
-            let source_id = types.get_type_source(ty_id);
+            let source_id = tables.types.get_type_source(ty_id);
             let resolved_arguments = self.resolve_type_reference_static_arguments(
-                module,
-                ctx.profile,
+                &mut tables.reborrow(),
                 source_id,
                 symbol,
                 Some(static_arguments.as_slice()),
                 true,
-                &ctx.options,
-                tree,
-                symbols,
-                types,
             )?;
             if let Some(resolved_arguments) = resolved_arguments
                 && !resolved_arguments.is_empty()
             {
                 let substitutions = self.build_type_parameter_substitutions_for_symbol(
-                    module,
-                    ctx.profile,
+                    &mut tables.reborrow(),
                     symbol,
                     source_id,
                     &resolved_arguments,
-                    tree,
-                    symbols,
-                    types,
                 );
                 if !substitutions.is_empty() {
                     let mut cache = HashMap::new();
                     declared_ty_id = self.substitute_static_parameters(
                         declared_ty_id,
                         &substitutions,
-                        types,
+                        tables.types,
                         &mut cache,
                     );
                 }

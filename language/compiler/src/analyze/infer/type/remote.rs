@@ -21,6 +21,19 @@ struct RemoteValueTypeLookupResult {
     saw_interface_published_symbol: bool,
 }
 
+/// One immutable remote module snapshot used for cross-module value type reads.
+#[derive(Debug, Clone, Copy)]
+struct RemoteModuleSnapshot<'a> {
+    /// The remote module handle.
+    remote_module: &'a Module,
+    /// The remote syntax tree snapshot.
+    remote_tree: &'a NodeTree,
+    /// The remote symbol table snapshot.
+    remote_symbols: &'a SymbolTable,
+    /// The remote type table snapshot.
+    remote_types: &'a TypeTable,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve one remote value type for the current infer context ownership mode.
@@ -160,10 +173,12 @@ impl Compiler {
                             error_node,
                             candidate_symbol,
                             read_domain,
-                            remote_module,
-                            remote_tree,
-                            remote_symbols,
-                            &remote_types,
+                            RemoteModuleSnapshot {
+                                remote_module,
+                                remote_tree,
+                                remote_symbols,
+                                remote_types: &remote_types,
+                            },
                             types,
                         )
                     },
@@ -201,11 +216,8 @@ impl Compiler {
         error_node: AnchoredGlobalNodeId,
         candidate_symbol: GlobalSymbolId,
         read_domain: RemoteValueTypeReadDomain,
-        remote_module: &Module,
-        remote_tree: &NodeTree,
-        remote_symbols: &SymbolTable,
-        remote_types: &TypeTable,
-        types: &mut TypeTable,
+        remote: RemoteModuleSnapshot<'_>,
+        local_type_table: &mut TypeTable,
     ) -> AnalyzeResult<RemoteValueTypeLookupResult> {
         let mut lookup = RemoteValueTypeLookupResult::default();
         let mut local_pending_symbols = vec![candidate_symbol];
@@ -216,23 +228,23 @@ impl Compiler {
                 continue;
             }
 
-            if local_symbol.module_id != remote_module.id {
+            if local_symbol.module_id != remote.remote_module.id {
                 lookup.forwarded_symbols.push(local_symbol);
                 continue;
             }
 
-            let local_entry = remote_symbols.get_symbol(local_symbol.local_id);
+            let local_entry = remote.remote_symbols.get_symbol(local_symbol.local_id);
             let resolved_symbol = GlobalSymbolId::new(
-                remote_module.id,
+                remote.remote_module.id,
                 local_symbol.local_id.with_type(local_entry.ty),
             );
             let is_value_capable = self.symbol_entry_is_value_capable(local_entry);
 
             if is_value_capable {
                 let is_interface_published_value = self.remote_symbol_is_interface_published_value(
-                    remote_module,
+                    remote.remote_module,
                     profile,
-                    remote_symbols,
+                    remote.remote_symbols,
                     resolved_symbol,
                 );
                 if read_domain == RemoteValueTypeReadDomain::Interface
@@ -244,27 +256,27 @@ impl Compiler {
 
                 let remote_type_id = match read_domain {
                     RemoteValueTypeReadDomain::Surface => self.query_remote_surface_value_type_id(
-                        remote_module,
+                        remote.remote_module,
                         resolved_symbol,
-                        remote_tree,
-                        remote_symbols,
-                        remote_types,
+                        remote.remote_tree,
+                        remote.remote_symbols,
+                        remote.remote_types,
                     ),
                     RemoteValueTypeReadDomain::Interface => {
                         if is_interface_published_value && resolved_symbol.ty() != SymbolType::Void
                         {
                             Some(self.require_remote_interface_value_type_id(
                                 resolved_symbol,
-                                remote_symbols,
-                                remote_types,
+                                remote.remote_symbols,
+                                remote.remote_types,
                             )?)
                         } else {
                             self.query_remote_surface_value_type_id(
-                                remote_module,
+                                remote.remote_module,
                                 resolved_symbol,
-                                remote_tree,
-                                remote_symbols,
-                                remote_types,
+                                remote.remote_tree,
+                                remote.remote_symbols,
+                                remote.remote_types,
                             )
                         }
                     }
@@ -272,9 +284,9 @@ impl Compiler {
                 if let Some(remote_type_id) = remote_type_id {
                     lookup.imported_type_id = Some(self.import_remote_type_for_node(
                         node_id,
-                        remote_types.get_type(remote_type_id),
-                        remote_types,
-                        types,
+                        remote.remote_types.get_type(remote_type_id),
+                        remote.remote_types,
+                        local_type_table,
                     ));
                     lookup.forwarded_symbols.clear();
                     return Ok(lookup);
@@ -286,7 +298,7 @@ impl Compiler {
                 &mut local_pending_symbols,
                 local_symbol,
                 local_entry,
-                remote_tree,
+                remote.remote_tree,
             );
             let has_forward_links = local_pending_symbols.len() > pending_count_before;
             if !is_value_capable && !has_forward_links {

@@ -138,17 +138,19 @@ impl Compiler {
             for signature_ty_id in call_signatures.iter() {
                 let Some(resolved) = self.resolve_call_signature(
                     &mut tables.reborrow(),
-                    expression_id,
-                    callee_symbol,
-                    static_arguments,
-                    None,
-                    None,
-                    None,
                     *signature_ty_id,
-                    None,
-                    None,
-                    SignatureResolutionMode::Synthesize,
-                    false,
+                    super::call::CallSignatureResolutionContext {
+                        expression_id,
+                        callee_symbol,
+                        static_arguments,
+                        prefilled_static_arguments: None,
+                        bound_substitutions: None,
+                        dynamic_arguments: None,
+                        call_receiver_ty_id: None,
+                        expected_return_type: None,
+                        mode: SignatureResolutionMode::Synthesize,
+                        allow_missing_value_arguments: false,
+                    },
                 )?
                 else {
                     continue;
@@ -200,17 +202,19 @@ impl Compiler {
         } else if let Some(signature_ty_id) = call_signatures.first().copied() {
             let resolved = self.resolve_call_signature(
                 &mut tables.reborrow(),
-                expression_id,
-                callee_symbol,
-                static_arguments,
-                None,
-                None,
-                None,
                 signature_ty_id,
-                None,
-                None,
-                SignatureResolutionMode::Synthesize,
-                false,
+                super::call::CallSignatureResolutionContext {
+                    expression_id,
+                    callee_symbol,
+                    static_arguments,
+                    prefilled_static_arguments: None,
+                    bound_substitutions: None,
+                    dynamic_arguments: None,
+                    call_receiver_ty_id: None,
+                    expected_return_type: None,
+                    mode: SignatureResolutionMode::Synthesize,
+                    allow_missing_value_arguments: false,
+                },
             )?;
             if let Some(resolved) = resolved {
                 resolved_signature = self.slice_tagged_template_signature(
@@ -469,12 +473,9 @@ impl Compiler {
         );
         let Some(target) = target else {
             return self.template_span_matches_string(
-                context.module,
-                context.profile,
+                &mut tables.type_tables_reborrow(),
                 span_ty_id,
                 span_value,
-                context.symbols,
-                tables.types,
                 visited,
             );
         };
@@ -482,12 +483,9 @@ impl Compiler {
         // reject spans that violate the constraint
         if let Some(constraint_id) = target.constraint_id
             && !self.template_span_matches_string(
-                context.module,
-                context.profile,
+                &mut tables.type_tables_reborrow(),
                 constraint_id,
                 span_value,
-                context.symbols,
-                tables.types,
                 visited,
             )
         {
@@ -752,12 +750,9 @@ impl Compiler {
                 if let Some(constraint_id) = target.constraint_id {
                     let mut visited = HashSet::new();
                     if !self.template_span_matches_string(
-                        context.module,
-                        context.profile,
+                        &mut tables.type_tables_reborrow(),
                         constraint_id,
                         span_value,
-                        context.symbols,
-                        tables.types,
                         &mut visited,
                     ) {
                         self.report_template_inference_unassignable(
@@ -887,12 +882,9 @@ impl Compiler {
             )
         {
             return self.static_parameter_constraint_type(
-                tables.module,
-                tables.profile,
+                &mut tables.type_tables_reborrow(),
                 symbol,
                 source_id,
-                tables.symbols,
-                &mut *tables.types,
             );
         }
         None

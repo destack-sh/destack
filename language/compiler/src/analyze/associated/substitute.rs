@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::resolve::{AssociatedAliasProjectionRewriter, ProjectionEnvironment};
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode, TypeRewriteCache,
+    AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode, TypeRewriteCache, TypeTablesContext,
 };
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler};
 use destack_dir::{
@@ -73,15 +73,14 @@ impl Compiler {
         let owner_symbol = self
             .declaration_symbol_id(module, symbols, profile, owner_symbol)
             .unwrap_or(owner_symbol);
+        let options = self.analyze_context_options_for_module(module.id);
+        let mut type_tables =
+            TypeTablesContext::new(module, profile, &options, tree, symbols, types);
         let receiver_substitutions = self.build_type_parameter_substitutions_for_symbol(
-            module,
-            profile,
+            &mut type_tables,
             canonical_receiver_symbol,
             source_id,
             receiver_arguments,
-            tree,
-            symbols,
-            types,
         );
 
         let mut visited_symbols = HashSet::new();
@@ -122,13 +121,14 @@ impl Compiler {
         }
 
         if static_parameter_symbol.module_id == module.id {
+            let tree = module.dir(profile).tree.read();
+            let options = self.analyze_context_options_for_module(module.id);
+            let mut type_tables =
+                TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
             let constraint_type_id = self.static_parameter_constraint_type(
-                module,
-                profile,
+                &mut type_tables,
                 static_parameter_symbol,
                 source_id,
-                symbols,
-                types,
             );
             return Ok(constraint_type_id);
         }
@@ -159,6 +159,7 @@ impl Compiler {
         if !visited_symbols.insert(current_symbol) {
             return Ok(None);
         }
+        let options = self.analyze_context_options_for_module(module.id);
 
         // follow static parameter constraints before declaration heritage traversal
         if self.symbol_is_static_parameter(module, profile, current_symbol, symbols, types) {
@@ -206,15 +207,13 @@ impl Compiler {
                         .declaration_symbol_id(module, symbols, profile, next_symbol)
                         .unwrap_or(next_symbol);
 
+                    let mut type_tables =
+                        TypeTablesContext::new(module, profile, &options, tree, symbols, types);
                     let next_substitutions = self.build_type_parameter_substitutions_for_symbol(
-                        module,
-                        profile,
+                        &mut type_tables,
                         next_symbol,
                         source_id,
                         next_arguments.as_deref().unwrap_or_default(),
-                        tree,
-                        symbols,
-                        types,
                     );
                     if let Some(substitutions) = self
                         .associated_projection_receiver_substitutions_inner(
@@ -370,18 +369,21 @@ impl Compiler {
                                 let evaluated_arguments = evaluated_arguments.unwrap_or_default();
                                 let options =
                                     self.analyze_context_options_for_module(owner_module.id);
+                                let mut type_tables = TypeTablesContext::new(
+                                    owner_module,
+                                    profile,
+                                    &options,
+                                    owner_tree,
+                                    owner_symbols,
+                                    types,
+                                );
                                 let resolved_static_arguments = self
                                     .resolve_type_reference_static_arguments(
-                                        owner_module,
-                                        profile,
+                                        &mut type_tables,
                                         source_id,
                                         target_symbol,
                                         Some(evaluated_arguments.as_slice()),
                                         true,
-                                        &options,
-                                        owner_tree,
-                                        owner_symbols,
-                                        types,
                                     )?;
                                 resolved_arguments =
                                     resolved_static_arguments.unwrap_or(evaluated_arguments);
@@ -399,15 +401,13 @@ impl Compiler {
             };
 
             // map the resolved arguments onto the next symbol parameters
+            let mut type_tables =
+                TypeTablesContext::new(module, profile, &options, tree, symbols, types);
             let next_substitutions = self.build_type_parameter_substitutions_for_symbol(
-                module,
-                profile,
+                &mut type_tables,
                 next_symbol,
                 source_id,
                 &next_arguments,
-                tree,
-                symbols,
-                types,
             );
             if let Some(substitutions) = self.associated_projection_receiver_substitutions_inner(
                 module,
@@ -623,16 +623,20 @@ impl Compiler {
                             return Ok(None);
                         };
 
+                        let mut type_tables = TypeTablesContext::new(
+                            owner_module,
+                            profile,
+                            options,
+                            owner_tree,
+                            owner_symbols,
+                            types,
+                        );
                         let receiver_substitutions =
                             self.build_type_parameter_substitutions_for_symbol(
-                                owner_module,
-                                profile,
+                                &mut type_tables,
                                 extension_symbol,
                                 source_id,
                                 receiver_arguments,
-                                owner_tree,
-                                owner_symbols,
-                                types,
                             );
 
                         self.interface_substitutions_for_implements_types(
@@ -700,15 +704,19 @@ impl Compiler {
                 };
 
                 // resolve receiver substitutions from projection arguments
-                let receiver_substitutions = self.build_type_parameter_substitutions_for_symbol(
+                let mut type_tables = TypeTablesContext::new(
                     owner_module,
                     profile,
-                    receiver_symbol,
-                    source_id,
-                    receiver_arguments,
+                    options,
                     owner_tree,
                     owner_symbols,
                     types,
+                );
+                let receiver_substitutions = self.build_type_parameter_substitutions_for_symbol(
+                    &mut type_tables,
+                    receiver_symbol,
+                    source_id,
+                    receiver_arguments,
                 );
 
                 self.interface_substitutions_for_implements_types(
@@ -780,29 +788,28 @@ impl Compiler {
                 types,
             )?;
             let evaluated_static_arguments = evaluated_static_arguments.unwrap_or_default();
-            let resolved_static_arguments = self.resolve_type_reference_static_arguments(
+            let mut type_tables = TypeTablesContext::new(
                 owner_module,
                 profile,
-                source_id,
-                canonical_target,
-                Some(evaluated_static_arguments.as_slice()),
-                true,
                 options,
                 owner_tree,
                 owner_symbols,
                 types,
+            );
+            let resolved_static_arguments = self.resolve_type_reference_static_arguments(
+                &mut type_tables,
+                source_id,
+                canonical_target,
+                Some(evaluated_static_arguments.as_slice()),
+                true,
             )?;
             let interface_arguments =
                 resolved_static_arguments.unwrap_or(evaluated_static_arguments);
             let mut substitutions = self.build_type_parameter_substitutions_for_symbol(
-                owner_module,
-                profile,
+                &mut type_tables.reborrow(),
                 canonical_target,
                 source_id,
                 &interface_arguments,
-                owner_tree,
-                owner_symbols,
-                types,
             );
             // apply receiver substitutions to inherited interface arguments
             if !receiver_substitutions.is_empty() {
@@ -961,34 +968,28 @@ impl Compiler {
             substitutions.extend(owner_comptime_substitutions);
         }
 
+        // construct shared tables for extension/member static-argument resolution
+        let mut type_tables =
+            TypeTablesContext::new(module, profile, options, tree, symbols, types);
+
         // map extension substitutions when the member is extension-owned
         if let Ok(Some(extension_context)) = self.resolve_extension_member_context(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             source_id,
             target_symbol,
             receiver_arguments,
-            options,
-            tree,
-            symbols,
-            types,
         ) {
             substitutions.extend(extension_context.substitutions);
         }
 
         // resolve member static arguments under the projection context
         let resolved_member_arguments = self.resolve_type_reference_static_arguments_with_bounds(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             source_id,
             target_symbol,
             explicit_member_arguments,
             true,
-            options,
             Some(&substitutions),
-            tree,
-            symbols,
-            types,
         )?;
         if let Some((member_argument_symbol, member_arguments)) = self
             .projection_member_argument_source_for_environment(
@@ -999,14 +1000,10 @@ impl Compiler {
             )
         {
             let member_substitutions = self.build_type_parameter_substitutions_for_symbol(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 member_argument_symbol,
                 source_id,
                 member_arguments,
-                tree,
-                symbols,
-                types,
             );
             substitutions.extend(member_substitutions);
         }

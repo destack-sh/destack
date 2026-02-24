@@ -9,7 +9,7 @@ use crate::{
 };
 use destack_dir::{
     Declaration, Declarator, Expression, FlowGraphBuilder, IntType, LocalNodeId, NodeTree,
-    PrimitiveType, SymbolTable, Type, TypeLiteral, TypeTable,
+    PrimitiveType, Type, TypeLiteral,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{Module, ModuleContent, ModuleSource, ModuleType, ProfileId};
@@ -129,11 +129,6 @@ impl Compiler {
         // initialize infer session state
         let mut session = InferSession::new(profile, options);
 
-        // resolve declarator annotation types before runtime root inference
-        self.prepare_declarator_annotation_types_for_infer(
-            &module, profile, &tree, &symbols, &mut types,
-        )?;
-
         // build a module level flow graph and flow table when needed
         let flow_roots = {
             let _timing = self.timing_scope(tags::ANALYZE_FLOW_REQUIREMENTS);
@@ -196,6 +191,10 @@ impl Compiler {
                 &mut types,
                 infer_table,
             );
+
+            // resolve declarator annotation types before runtime root inference
+            self.prepare_declarator_annotation_types_for_infer(&mut tables.reborrow())?;
+
             for root_id in infer_roots.iter() {
                 self.collect(
                     &mut collector,
@@ -235,63 +234,69 @@ impl Compiler {
     /// Resolve and normalize concrete declarator annotations before expression inference.
     fn prepare_declarator_annotation_types_for_infer(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        tables: &mut InferTablesContext<'_>,
     ) -> AnalyzeResult<()> {
-        for (declarator_id, declarator) in tree.iter_nodes_of_type::<Declarator>() {
-            if !self.is_node_active(tree, symbols, declarator_id.into_any()) {
+        for (declarator_id, declarator) in tables.tree.iter_nodes_of_type::<Declarator>() {
+            if !self.is_node_active(tables.tree, tables.symbols, declarator_id.into_any()) {
                 continue;
             }
             let Some(annotation_id) = declarator.ty else {
                 continue;
             };
-            let declarator_node_id = declarator_id.into_global_any(module.id);
+            let declarator_node_id = declarator_id.into_global_any(tables.module.id);
 
             // register one declared type id for all annotated declarators
-            let annotation_ty_id =
-                if let Some(annotation_ty_id) = types.get_declared_type_id(declarator_node_id) {
-                    annotation_ty_id
-                } else {
-                    let annotation_ty_id = self.resolve_declared_type_expression(
-                        module,
-                        profile,
-                        annotation_id,
-                        tree,
-                        symbols,
-                        types,
-                        true,
-                        true,
-                    )?;
-                    types.set_declared_type(declarator_node_id, annotation_ty_id);
-                    annotation_ty_id
-                };
+            let annotation_ty_id = if let Some(annotation_ty_id) =
+                tables.types.get_declared_type_id(declarator_node_id)
+            {
+                annotation_ty_id
+            } else {
+                let annotation_ty_id = self.resolve_declared_type_expression(
+                    tables.module,
+                    tables.profile,
+                    annotation_id,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
+                    true,
+                    true,
+                )?;
+                tables
+                    .types
+                    .set_declared_type(declarator_node_id, annotation_ty_id);
+                annotation_ty_id
+            };
 
-            self.resolve_declared_type(module, profile, annotation_ty_id, tree, symbols, types)?;
+            self.resolve_declared_type(
+                tables.module,
+                tables.profile,
+                annotation_ty_id,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+            )?;
 
             if declarator.value.is_some() {
                 continue;
             }
 
             if self.type_contains_static_parameters(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 annotation_ty_id,
-                symbols,
-                types,
+                tables.symbols,
+                tables.types,
                 &mut HashSet::new(),
             ) {
                 continue;
             }
 
             let _ = self.normalize_type(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 annotation_ty_id,
-                symbols,
-                types,
+                tables.symbols,
+                tables.types,
                 NormalizationMode::Assign,
             );
         }

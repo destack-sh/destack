@@ -144,17 +144,13 @@ impl Compiler {
         };
 
         // resolve static arguments for substitution
+        let mut type_tables = tables.type_tables_reborrow();
         let resolved_arguments = self.resolve_type_reference_static_arguments(
-            tables.module,
-            tables.profile,
+            &mut type_tables,
             source_id,
             symbol,
             Some(static_arguments.as_slice()),
             true,
-            tables.options,
-            tables.tree,
-            tables.symbols,
-            tables.types,
         )?;
         let Some(resolved_arguments) = resolved_arguments else {
             return Ok(Some(instance_ty_id));
@@ -167,14 +163,10 @@ impl Compiler {
 
         // build substitutions for type parameters
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             symbol,
             source_id,
             &resolved_arguments,
-            tables.tree,
-            tables.symbols,
-            tables.types,
         );
 
         // reuse instance type when no substitutions are needed

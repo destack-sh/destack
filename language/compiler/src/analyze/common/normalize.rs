@@ -7,7 +7,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
-use super::{AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode};
+use super::{AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode, TypeTablesContext};
 use crate::timing::tags;
 use crate::{AnalyzeError, Compiler};
 
@@ -246,18 +246,15 @@ impl Compiler {
         // resolve static arguments for substitution
         let tree = module.dir(profile).tree.read();
         let options = self.analyze_context_options_for_module(module.id);
+        let mut type_tables =
+            TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
         let resolved_arguments = self
             .resolve_type_reference_static_arguments(
-                module,
-                profile,
+                &mut type_tables,
                 source_id,
                 symbol,
-                Some(arguments),
+                Some(arguments.as_slice()),
                 false,
-                &options,
-                &tree,
-                symbols,
-                types,
             )
             .ok()
             .flatten();
@@ -265,7 +262,10 @@ impl Compiler {
 
         // substitute parameters into the alias target
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            module, profile, symbol, source_id, arguments, &tree, symbols, types,
+            &mut type_tables.reborrow(),
+            symbol,
+            source_id,
+            arguments,
         );
         if substitutions.is_empty() {
             return self.normalize_type(
@@ -1247,6 +1247,8 @@ impl Compiler {
         types.push_normalization_dependency_scope();
 
         let normalized = (|| {
+            let options = self.analyze_context_options_for_module(module.id);
+
             // ensure remote declarations are ready before reading instance types
             if symbol.module_id != module.id {
                 let _ = self.require_analyze_module_declare(symbol.module_id, profile);
@@ -1258,9 +1260,17 @@ impl Compiler {
             )?;
 
             // select the static arguments to substitute
-            let resolved_arguments = self.resolved_static_arguments_for_normalization(
-                module, profile, source_id, symbol, arguments, symbols, types,
-            );
+            let resolved_arguments = {
+                let tree = module.dir(profile).tree.read();
+                let mut type_tables =
+                    TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
+                self.resolved_static_arguments_for_normalization(
+                    &mut type_tables,
+                    source_id,
+                    symbol,
+                    arguments,
+                )
+            };
 
             // materialize unevaluated alias targets before normalization
             let materialized_instance = self.materialize_alias_instance_for_normalization(
@@ -1286,15 +1296,13 @@ impl Compiler {
 
             // build type parameter substitutions
             let tree = module.dir(profile).tree.read();
+            let mut type_tables =
+                TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
             let substitutions = self.build_type_parameter_substitutions_for_symbol(
-                module,
-                profile,
+                &mut type_tables,
                 symbol,
                 source_id,
                 &resolved_arguments,
-                &tree,
-                symbols,
-                types,
             );
             if substitutions.is_empty() {
                 // normalize the instance type (even when no substitutions are available)
@@ -1373,20 +1381,17 @@ impl Compiler {
     /// Resolve the static arguments used for alias normalization.
     fn resolved_static_arguments_for_normalization(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         arguments: &[StaticArgument],
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Vec<StaticArgument> {
         // prefer resolved instance arguments when no arguments are present
         if arguments.is_empty()
             && let Some(resolved) = self.query_instance_arguments_for_node(
-                source_id.into_global(module.id),
+                source_id.into_global(tables.module.id),
                 Some(symbol),
-                types,
+                tables.types,
             )
         {
             return resolved;
@@ -1398,27 +1403,27 @@ impl Compiler {
             .any(|argument| matches!(argument, StaticArgument::Unevaluated { .. }))
         {
             // resolve unevaluated arguments using the full reference resolver
-            let options = self.analyze_context_options_for_module(module.id);
-            let tree = module.dir(profile).tree.read();
             if let Ok(Some(resolved)) = self.resolve_type_reference_static_arguments(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 source_id,
                 symbol,
                 Some(arguments),
                 false,
-                &options,
-                &tree,
-                symbols,
-                types,
             ) {
                 return resolved;
             }
 
             // fall back to local materialization when resolution is incomplete
-            let tree = module.dir(profile).tree.read();
+            let tree = tables.module.dir(tables.profile).tree.read();
             let resolved = self.materialize_static_arguments_for_reference(
-                module, profile, symbol, source_id, arguments, &tree, symbols, types,
+                tables.module,
+                tables.profile,
+                symbol,
+                source_id,
+                arguments,
+                &tree,
+                tables.symbols,
+                tables.types,
             );
             if resolved != arguments {
                 return resolved;
@@ -1426,9 +1431,9 @@ impl Compiler {
 
             return self
                 .query_instance_arguments_for_node(
-                    source_id.into_global(module.id),
+                    source_id.into_global(tables.module.id),
                     Some(symbol),
-                    types,
+                    tables.types,
                 )
                 .unwrap_or_else(|| arguments.to_vec());
         }

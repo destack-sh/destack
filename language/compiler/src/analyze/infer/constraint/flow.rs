@@ -15,9 +15,9 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 
 use super::r#type::TypeGuardTarget;
-use crate::analyze::common::NormalizationMode;
+use crate::analyze::common::{NormalizationMode, TypeTablesContext};
 
-use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext};
 
 /// Track whether a tree walk encounters flow sensitive constructs.
 #[derive(Debug, Default)]
@@ -176,6 +176,14 @@ impl Compiler {
     ) -> AnalyzeResult<FlowTable> {
         // seed the flow table with the current context
         let mut flow = FlowTable::new();
+        let mut tables = TypeTablesContext::new(
+            module,
+            context.profile,
+            &context.options,
+            tree,
+            symbols,
+            types,
+        );
         let base_environment_id =
             flow.push_environment(self.flow_environment_from_context(context));
         let block_count = graph.blocks.len();
@@ -202,11 +210,8 @@ impl Compiler {
 
             // compute the exit environment for the block
             let mut exit_environment = self.flow_environment_after_block_nodes(
-                module,
+                &mut tables.reborrow(),
                 &graph.blocks[block_index],
-                tree,
-                symbols,
-                types,
                 &entry_environment,
                 context,
             )?;
@@ -231,11 +236,8 @@ impl Compiler {
             // propagate environments over outgoing edges
             for edge in &graph.blocks[block_index].successors {
                 let edge_environment = self.flow_environment_for_edge(
-                    module,
+                    &mut tables.reborrow(),
                     edge,
-                    tree,
-                    symbols,
-                    types,
                     &exit_environment,
                     context,
                 )?;
@@ -253,7 +255,7 @@ impl Compiler {
                         &existing_environment,
                         &edge_environment,
                         Some(&existing_environment),
-                        types,
+                        tables.types,
                     );
 
                     if self.flow_environment_equals(&existing_environment, &merged_environment) {
@@ -292,11 +294,8 @@ impl Compiler {
                 .cloned()
                 .unwrap_or_else(|| FlowEnvironment::new(false));
             self.map_flow_environment_for_block_nodes(
-                module,
+                &mut tables.reborrow(),
                 block,
-                tree,
-                symbols,
-                types,
                 &entry_environment,
                 context,
                 &mut flow,
@@ -314,11 +313,8 @@ impl Compiler {
     /// Compute the exit environment for a block with assertion-aware narrowing.
     fn flow_environment_after_block_nodes(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         block: &FlowBlock,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<FlowEnvironment> {
@@ -331,11 +327,8 @@ impl Compiler {
         let mut current_environment = environment.clone();
         for node_id in &block.nodes {
             if let Some(updated) = self.flow_environment_after_node(
-                module,
+                &mut tables.reborrow(),
                 *node_id,
-                tree,
-                symbols,
-                types,
                 &current_environment,
                 context,
             )? {
@@ -349,11 +342,8 @@ impl Compiler {
     /// Record per node environments for a block with assertion-aware narrowing.
     fn map_flow_environment_for_block_nodes(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         block: &FlowBlock,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
         flow: &mut FlowTable,
@@ -364,16 +354,13 @@ impl Compiler {
 
         // walk nodes and apply assertion call updates
         for node_id in &block.nodes {
-            let node_global = (*node_id).into_global(module.id);
+            let node_global = (*node_id).into_global(tables.module.id);
             flow.environment_by_node
                 .insert(node_global, current_environment_id);
 
             if let Some(updated) = self.flow_environment_after_node(
-                module,
+                &mut tables.reborrow(),
                 *node_id,
-                tree,
-                symbols,
-                types,
                 &current_environment,
                 context,
             )? && !self.flow_environment_equals(&current_environment, &updated)
@@ -389,11 +376,8 @@ impl Compiler {
     /// Apply assertion call narrowings for a single node when applicable.
     fn flow_environment_after_node(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         node_id: LocalNodeIdAny,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<Option<FlowEnvironment>> {
@@ -403,7 +387,7 @@ impl Compiler {
         }
 
         // only apply assertion call narrowings for block expressions
-        let parent = tree.get_parent(node_id.id);
+        let parent = tables.tree.get_parent(node_id.id);
         let is_block_expression = parent
             .map(|parent| parent.ty == NodeType::Block)
             .unwrap_or(true);
@@ -413,7 +397,7 @@ impl Compiler {
 
         let mut expression_id = node_id.into_typed::<Expression>();
         loop {
-            match tree.get(expression_id) {
+            match tables.tree.get(expression_id) {
                 Expression::Statement { statement } => {
                     expression_id = *statement;
                 }
@@ -424,7 +408,7 @@ impl Compiler {
             }
         }
 
-        let expression = tree.get(expression_id);
+        let expression = tables.tree.get(expression_id);
         let Expression::Call {
             left,
             dynamic_arguments,
@@ -435,13 +419,10 @@ impl Compiler {
         };
 
         self.narrow_environment_for_assertion_call(
-            module,
+            &mut tables.reborrow(),
             expression_id,
             *left,
             dynamic_arguments,
-            tree,
-            symbols,
-            types,
             environment,
             context,
         )
@@ -450,13 +431,10 @@ impl Compiler {
     /// Apply assertion narrowing for a call expression when possible.
     fn narrow_environment_for_assertion_call(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         call_id: LocalNodeId<Expression>,
         callee_id: LocalNodeId<Expression>,
         dynamic_arguments: &[LocalNodeId<Argument>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<Option<FlowEnvironment>> {
@@ -466,20 +444,30 @@ impl Compiler {
         }
 
         // resolve the callee symbol
-        let callee_id = self.unwrap_parenthesized_expression(callee_id, tree);
-        let callee_symbol =
-            self.reference_symbol_for_expression(module, callee_id, context.profile, tree, symbols);
+        let callee_id = self.unwrap_parenthesized_expression(callee_id, tables.tree);
+        let callee_symbol = self.reference_symbol_for_expression(
+            tables.module,
+            callee_id,
+            context.profile,
+            tables.tree,
+            tables.symbols,
+        );
         let Some(callee_symbol) = callee_symbol else {
             return Ok(None);
         };
 
         // skip remote signatures until we can translate predicate types across modules
-        if callee_symbol.module_id != module.id {
+        if callee_symbol.module_id != tables.module.id {
             return Ok(None);
         }
 
         // resolve the guard signature for parameter mapping
-        let signature = self.guard_signature_for_symbol(module, callee_symbol, tree, symbols);
+        let signature = self.guard_signature_for_symbol(
+            tables.module,
+            callee_symbol,
+            tables.tree,
+            tables.symbols,
+        );
         let Some(signature) = signature else {
             return Ok(None);
         };
@@ -487,12 +475,12 @@ impl Compiler {
         // resolve the predicate return type for the call
         let return_type_id = if let Some(return_type) = signature.return_type {
             Some(self.resolve_declared_type_expression(
-                module,
+                tables.module,
                 context.profile,
                 return_type,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
                 true,
                 true,
             )?)
@@ -506,7 +494,7 @@ impl Compiler {
             asserts,
             subject,
             target,
-        } = types.get_type(return_type_id)
+        } = tables.types.get_type(return_type_id)
         else {
             return Ok(None);
         };
@@ -516,10 +504,11 @@ impl Compiler {
         let Some(target_type_id) = *target else {
             return Ok(None);
         };
-        let target_type_id = self.unwrap_type_value(target_type_id, types);
+        let target_type_id = self.unwrap_type_value(target_type_id, tables.types);
 
         // find the argument expression for the asserted subject
-        let parameter = self.guard_parameter_for_subject(module, *subject, &signature, tree);
+        let parameter =
+            self.guard_parameter_for_subject(tables.module, *subject, &signature, tables.tree);
         let Some((parameter_index, parameter_name)) = parameter else {
             return Ok(None);
         };
@@ -527,18 +516,18 @@ impl Compiler {
             parameter_index,
             parameter_name,
             dynamic_arguments,
-            tree,
+            tables.tree,
         );
         let Some(argument_value) = argument_value else {
             return Ok(None);
         };
-        let argument_value = self.unwrap_parenthesized_expression(argument_value, tree);
+        let argument_value = self.unwrap_parenthesized_expression(argument_value, tables.tree);
         let argument_symbol = self.reference_symbol_for_expression(
-            module,
+            tables.module,
             argument_value,
             context.profile,
-            tree,
-            symbols,
+            tables.tree,
+            tables.symbols,
         );
         let Some(argument_symbol) = argument_symbol else {
             return Ok(None);
@@ -546,40 +535,35 @@ impl Compiler {
 
         // resolve the base type for the symbol
         let base_type_id = self.symbol_type_for_guard(
-            module,
+            tables.module,
             call_id,
             argument_symbol,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
             environment,
             context,
         )?;
 
         // compute runtime check kind for guard validity
         let runtime_check_kind = self.runtime_check_kind_for_relation(
-            module,
+            tables.module,
             context.profile,
-            symbols,
+            tables.symbols,
             base_type_id,
             target_type_id,
-            types,
+            tables.types,
             &context.options,
         );
         if let Some(kind) = runtime_check_kind {
-            types.set_runtime_check_kind(call_id.into_global_any(module.id), kind);
+            tables
+                .types
+                .set_runtime_check_kind(call_id.into_global_any(tables.module.id), kind);
         }
 
         // compute the asserted type
-        let (true_type_id, _) = self.type_guard_types(
-            module,
-            context.profile,
-            symbols,
-            base_type_id,
-            target_type_id,
-            types,
-            &context.options,
-        );
+        let (true_type_id, _) =
+            self.type_guard_types(&mut tables.reborrow(), base_type_id, target_type_id);
         let Some(true_type_id) = true_type_id else {
             return Ok(None);
         };
@@ -629,11 +613,8 @@ impl Compiler {
     /// Compute a flow environment for a control flow edge.
     fn flow_environment_for_edge(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         edge: &FlowEdge,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<FlowEnvironment> {
@@ -650,11 +631,8 @@ impl Compiler {
         match edge.kind {
             FlowEdgeKind::True => {
                 let (true_environment, _) = self.narrow_environment_for_guard(
-                    module,
+                    &mut tables.reborrow(),
                     guard,
-                    tree,
-                    symbols,
-                    types,
                     environment,
                     context,
                 )?;
@@ -662,11 +640,8 @@ impl Compiler {
             }
             FlowEdgeKind::False => {
                 let (_, false_environment) = self.narrow_environment_for_guard(
-                    module,
+                    &mut tables.reborrow(),
                     guard,
-                    tree,
-                    symbols,
-                    types,
                     environment,
                     context,
                 )?;
@@ -674,11 +649,8 @@ impl Compiler {
             }
             FlowEdgeKind::Case | FlowEdgeKind::Guard => {
                 let (guard_environment, _) = self.narrow_environment_for_guard(
-                    module,
+                    &mut tables.reborrow(),
                     guard,
-                    tree,
-                    symbols,
-                    types,
                     environment,
                     context,
                 )?;
@@ -866,28 +838,22 @@ impl Compiler {
     }
 
     /// Split the environment based on a guard expression.
-    pub fn narrow_environment_for_guard(
+    fn narrow_environment_for_guard(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         guard: FlowGuard,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<(FlowEnvironment, FlowEnvironment)> {
         match guard {
             FlowGuard::Expression(guard_id) => {
                 // apply narrowing for recognized guard shapes
-                let guard_id = self.unwrap_parenthesized_expression(guard_id, tree);
+                let guard_id = self.unwrap_parenthesized_expression(guard_id, tables.tree);
 
-                match tree.get(guard_id) {
+                match tables.tree.get(guard_id) {
                     Expression::Comptime { body } => self.narrow_environment_for_guard(
-                        module,
+                        &mut tables.reborrow(),
                         FlowGuard::Expression(*body),
-                        tree,
-                        symbols,
-                        types,
                         environment,
                         context,
                     ),
@@ -897,11 +863,8 @@ impl Compiler {
                     } => {
                         let (true_environment, false_environment) = self
                             .narrow_environment_for_guard(
-                                module,
+                                &mut tables.reborrow(),
                                 FlowGuard::Expression(*right),
-                                tree,
-                                symbols,
-                                types,
                                 environment,
                                 context,
                             )?;
@@ -915,13 +878,10 @@ impl Compiler {
                         BinaryOperator::InstanceOf => {
                             // narrow using class identity guard
                             if let Some(environments) = self.narrow_environment_for_type_guard(
-                                module,
+                                &mut tables.reborrow(),
                                 guard_id,
                                 *left,
                                 *right,
-                                tree,
-                                symbols,
-                                types,
                                 environment,
                                 context,
                             )? {
@@ -932,13 +892,10 @@ impl Compiler {
                         BinaryOperator::In => {
                             // narrow using a key in guard
                             if let Some(environments) = self.narrow_environment_for_in_guard(
-                                module,
+                                &mut tables.reborrow(),
                                 guard_id,
                                 *left,
                                 *right,
-                                tree,
-                                symbols,
-                                types,
                                 environment,
                                 context,
                             )? {
@@ -949,21 +906,15 @@ impl Compiler {
                         BinaryOperator::And => {
                             // evaluate the left guard first
                             let (left_true, left_false) = self.narrow_environment_for_guard(
-                                module,
+                                &mut tables.reborrow(),
                                 FlowGuard::Expression(*left),
-                                tree,
-                                symbols,
-                                types,
                                 environment,
                                 context,
                             )?;
                             // evaluate the right guard using the true environment
                             let (right_true, right_false) = self.narrow_environment_for_guard(
-                                module,
+                                &mut tables.reborrow(),
                                 FlowGuard::Expression(*right),
-                                tree,
-                                symbols,
-                                types,
                                 &left_true,
                                 context,
                             )?;
@@ -972,28 +923,22 @@ impl Compiler {
                                 &left_false,
                                 &right_false,
                                 Some(environment),
-                                types,
+                                tables.types,
                             );
                             Ok((right_true, false_environment))
                         }
                         BinaryOperator::Or => {
                             // evaluate the left guard first
                             let (left_true, left_false) = self.narrow_environment_for_guard(
-                                module,
+                                &mut tables.reborrow(),
                                 FlowGuard::Expression(*left),
-                                tree,
-                                symbols,
-                                types,
                                 environment,
                                 context,
                             )?;
                             // evaluate the right guard using the false environment
                             let (right_true, right_false) = self.narrow_environment_for_guard(
-                                module,
+                                &mut tables.reborrow(),
                                 FlowGuard::Expression(*right),
-                                tree,
-                                symbols,
-                                types,
                                 &left_false,
                                 context,
                             )?;
@@ -1002,7 +947,7 @@ impl Compiler {
                                 &left_true,
                                 &right_true,
                                 Some(environment),
-                                types,
+                                tables.types,
                             );
                             Ok((true_environment, right_false))
                         }
@@ -1016,14 +961,11 @@ impl Compiler {
                                 BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict
                             );
                             if let Some(environments) = self.narrow_environment_for_typeof_guard(
-                                module,
+                                &mut tables.reborrow(),
                                 guard_id,
                                 *left,
                                 *right,
                                 is_negated,
-                                tree,
-                                symbols,
-                                types,
                                 environment,
                                 context,
                             )? {
@@ -1036,15 +978,12 @@ impl Compiler {
                                 BinaryOperator::EqualStrict | BinaryOperator::NotEqualStrict
                             );
                             if let Some(environments) = self.narrow_environment_for_nullish_guard(
-                                module,
+                                &mut tables.reborrow(),
                                 guard_id,
                                 *left,
                                 *right,
                                 is_strict,
                                 is_negated,
-                                tree,
-                                symbols,
-                                types,
                                 environment,
                                 context,
                             )? {
@@ -1054,14 +993,11 @@ impl Compiler {
                             // narrow based on discriminant equality
                             if let Some(environments) = self
                                 .narrow_environment_for_discriminant_guard(
-                                    module,
+                                    &mut tables.reborrow(),
                                     guard_id,
                                     *left,
                                     *right,
                                     is_negated,
-                                    tree,
-                                    symbols,
-                                    types,
                                     environment,
                                     context,
                                 )?
@@ -1081,13 +1017,10 @@ impl Compiler {
                         TypeBinaryOperator::Extends | TypeBinaryOperator::Implements => {
                             if let Some(environments) = self
                                 .narrow_environment_for_comptime_relation_guard(
-                                    module,
+                                    &mut tables.reborrow(),
                                     guard_id,
                                     *left,
                                     *right,
-                                    tree,
-                                    symbols,
-                                    types,
                                     environment,
                                     context,
                                 )?
@@ -1099,13 +1032,10 @@ impl Compiler {
                         TypeBinaryOperator::Is => {
                             // narrow using an `x is T` guard
                             if let Some(environments) = self.narrow_environment_for_is_guard(
-                                module,
+                                &mut tables.reborrow(),
                                 guard_id,
                                 *left,
                                 *right,
-                                tree,
-                                symbols,
-                                types,
                                 environment,
                                 context,
                             )? {
@@ -1127,12 +1057,9 @@ impl Compiler {
                 }
             }
             FlowGuard::Pattern { value, pattern } => self.narrow_environment_for_pattern_guard(
-                module,
+                &mut tables.reborrow(),
                 value,
                 pattern,
-                tree,
-                symbols,
-                types,
                 environment,
                 context,
             ),
@@ -1151,50 +1078,52 @@ impl Compiler {
     /// Split the environment based on a pattern guard.
     fn narrow_environment_for_pattern_guard(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         value_id: LocalNodeId<Expression>,
         pattern_id: LocalNodeId<Pattern>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<(FlowEnvironment, FlowEnvironment)> {
-        let value_id = self.unwrap_parenthesized_expression(value_id, tree);
-        let symbol =
-            self.reference_symbol_for_expression(module, value_id, context.profile, tree, symbols);
+        let value_id = self.unwrap_parenthesized_expression(value_id, tables.tree);
+        let symbol = self.reference_symbol_for_expression(
+            tables.module,
+            value_id,
+            context.profile,
+            tables.tree,
+            tables.symbols,
+        );
         let Some(symbol) = symbol else {
             return Ok((environment.clone(), environment.clone()));
         };
 
         let base_type_id = self.symbol_type_for_guard(
-            module,
+            tables.module,
             value_id,
             symbol,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
             environment,
             context,
         )?;
 
         // treat irrefutable patterns as non narrowing guards
         if self.is_irrefutable_pattern_for_type(
-            module,
+            tables.module,
             context.profile,
             pattern_id,
             base_type_id,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         ) {
             return Ok((environment.clone(), environment.clone()));
         }
 
         // narrow must patterns by stripping nullish values
-        if matches!(tree.get(pattern_id), Pattern::Must(_)) {
+        if matches!(tables.tree.get(pattern_id), Pattern::Must(_)) {
             let (nullish_type_id, non_nullish_type_id) =
-                self.nullish_guard_types(NullishGuardKind::Nullish, base_type_id, types);
+                self.nullish_guard_types(NullishGuardKind::Nullish, base_type_id, tables.types);
             let mut true_environment = environment.clone();
             let mut false_environment = environment.clone();
             if let Some(type_id) = non_nullish_type_id {
@@ -1206,27 +1135,14 @@ impl Compiler {
             return Ok((true_environment, false_environment));
         }
 
-        let Some(target_type_id) = self.pattern_guard_target_type(
-            module,
-            context.profile,
-            pattern_id,
-            tree,
-            symbols,
-            types,
-        )?
+        let Some(target_type_id) =
+            self.pattern_guard_target_type(&mut tables.reborrow(), pattern_id)?
         else {
             return Ok((environment.clone(), environment.clone()));
         };
 
-        let (true_type_id, false_type_id) = self.type_guard_types(
-            module,
-            context.profile,
-            symbols,
-            base_type_id,
-            target_type_id,
-            types,
-            &context.options,
-        );
+        let (true_type_id, false_type_id) =
+            self.type_guard_types(&mut tables.reborrow(), base_type_id, target_type_id);
 
         let mut true_environment = environment.clone();
         if let Some(type_id) = true_type_id {
@@ -1243,18 +1159,14 @@ impl Compiler {
     /// Resolve the target type used for pattern-based guards.
     fn pattern_guard_target_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        match tree.get(pattern_id) {
+        match tables.tree.get(pattern_id) {
             Pattern::Expression { value } => {
-                if let Some(literal) = self.scalar_literal_for_expression(tree, *value) {
+                if let Some(literal) = self.scalar_literal_for_expression(tables.tree, *value) {
                     let literal_type = self.infer_scalar_literal(&literal);
-                    let type_id = types.insert_type_from(
+                    let type_id = tables.types.insert_type_from(
                         Type::TypeLiteral {
                             value: literal_type,
                         },
@@ -1264,30 +1176,33 @@ impl Compiler {
                 }
 
                 let target_type = self.resolve_declared_type_expression_value(
-                    module, profile, *value, tree, symbols, types, true, true, true, true,
+                    tables.module,
+                    tables.profile,
+                    *value,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
+                    true,
+                    true,
+                    true,
+                    true,
                 )?;
                 if matches!(target_type, Type::Unevaluated(_)) {
                     return Ok(None);
                 }
-                let type_id = types.insert_type_from(target_type, *value);
-                Ok(Some(self.unwrap_type_value(type_id, types)))
+                let type_id = tables.types.insert_type_from(target_type, *value);
+                Ok(Some(self.unwrap_type_value(type_id, tables.types)))
             }
             Pattern::TaggedTuple { ty, .. } | Pattern::TaggedObject { ty, .. } => {
-                let target_type_id =
-                    self.guard_target_type(module, profile, *ty, tree, symbols, types)?;
-                Ok(Some(self.unwrap_type_value(target_type_id, types)))
+                let target_type_id = self.guard_target_type(&mut tables.reborrow(), *ty)?;
+                Ok(Some(self.unwrap_type_value(target_type_id, tables.types)))
             }
             Pattern::Union { patterns } => {
                 let mut target_types = Vec::new();
                 for pattern_id in patterns {
-                    if let Some(target_type_id) = self.pattern_guard_target_type(
-                        module,
-                        profile,
-                        *pattern_id,
-                        tree,
-                        symbols,
-                        types,
-                    )? {
+                    if let Some(target_type_id) =
+                        self.pattern_guard_target_type(&mut tables.reborrow(), *pattern_id)?
+                    {
                         target_types.push(target_type_id);
                     }
                 }
@@ -1297,7 +1212,7 @@ impl Compiler {
                 let target_type_id = if target_types.len() == 1 {
                     target_types[0]
                 } else {
-                    types.insert_type_from(
+                    tables.types.insert_type_from(
                         Type::Union {
                             elements: target_types,
                         },
@@ -1309,7 +1224,7 @@ impl Compiler {
             Pattern::Object { fields } => {
                 let mut type_fields = Vec::new();
                 for field_id in fields {
-                    let field = tree.get(*field_id);
+                    let field = tables.tree.get(*field_id);
                     let (key, pattern) = match field {
                         PatternField::Named { name, pattern, .. } => {
                             (Some(StaticKey::Name(*name)), *pattern)
@@ -1317,11 +1232,11 @@ impl Compiler {
                         PatternField::Alias { name, .. } => (Some(StaticKey::Name(*name)), None),
                         PatternField::Computed { key, pattern, .. } => (
                             self.static_key_from_dynamic_key(
-                                profile,
+                                tables.profile,
                                 DynamicKey::Expression(*key),
-                                tree,
-                                symbols,
-                                types,
+                                tables.tree,
+                                tables.symbols,
+                                tables.types,
                             ),
                             *pattern,
                         ),
@@ -1333,11 +1248,9 @@ impl Compiler {
                         continue;
                     };
                     let field_type_id = if let Some(pattern_id) = pattern {
-                        self.pattern_guard_field_type(
-                            module, profile, pattern_id, tree, symbols, types,
-                        )?
+                        self.pattern_guard_field_type(&mut tables.reborrow(), pattern_id)?
                     } else {
-                        types.insert_type_from_any(
+                        tables.types.insert_type_from_any(
                             Type::TypeLiteral {
                                 value: TypeLiteral::Unknown,
                             },
@@ -1360,7 +1273,7 @@ impl Compiler {
                     construct_signatures: Vec::new(),
                     index_signatures: Vec::new(),
                 };
-                Ok(Some(types.insert_type_from(target_type, pattern_id)))
+                Ok(Some(tables.types.insert_type_from(target_type, pattern_id)))
             }
             _ => Ok(None),
         }
@@ -1368,19 +1281,15 @@ impl Compiler {
 
     fn pattern_guard_field_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         if let Some(target_type_id) =
-            self.pattern_guard_target_type(module, profile, pattern_id, tree, symbols, types)?
+            self.pattern_guard_target_type(&mut tables.reborrow(), pattern_id)?
         {
             return Ok(target_type_id);
         }
-        Ok(types.insert_type_from_any(
+        Ok(tables.types.insert_type_from_any(
             Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             },
@@ -1388,33 +1297,119 @@ impl Compiler {
         ))
     }
 
+    /// Resolve the current base type for a guard symbol.
+    fn guard_base_type_for_symbol(
+        &self,
+        tables: &mut TypeTablesContext<'_>,
+        guard_id: LocalNodeId<Expression>,
+        symbol: GlobalSymbolId,
+        environment: &FlowEnvironment,
+        context: &InferContext,
+    ) -> AnalyzeResult<LocalTypeId> {
+        self.symbol_type_for_guard(
+            tables.module,
+            guard_id,
+            symbol,
+            tables.tree,
+            tables.symbols,
+            tables.types,
+            environment,
+            context,
+        )
+    }
+
+    /// Build true and false environments for one symbol narrowing.
+    fn narrowed_environments_for_symbol(
+        &self,
+        environment: &FlowEnvironment,
+        symbol: GlobalSymbolId,
+        true_type_id: Option<LocalTypeId>,
+        false_type_id: Option<LocalTypeId>,
+        is_negated: bool,
+    ) -> (FlowEnvironment, FlowEnvironment) {
+        let mut true_environment = environment.clone();
+        let mut false_environment = environment.clone();
+        if let Some(type_id) = true_type_id {
+            true_environment.bindings.insert(symbol, type_id);
+        }
+        if let Some(type_id) = false_type_id {
+            false_environment.bindings.insert(symbol, type_id);
+        }
+        if is_negated {
+            (false_environment, true_environment)
+        } else {
+            (true_environment, false_environment)
+        }
+    }
+
+    /// Resolve one guard base type and its union elements before narrowing.
+    fn resolve_guard_base_union_types(
+        &self,
+        tables: &mut TypeTablesContext<'_>,
+        context: &InferContext,
+        base_type_id: LocalTypeId,
+    ) -> AnalyzeResult<()> {
+        self.resolve_declared_type(
+            tables.module,
+            context.profile,
+            base_type_id,
+            tables.tree,
+            tables.symbols,
+            tables.types,
+        )?;
+
+        let mut union_elements = Vec::new();
+        if let Type::Union { elements } = tables.types.get_type(base_type_id) {
+            union_elements.extend(elements.iter().copied());
+        }
+        for element_id in union_elements {
+            self.resolve_declared_type(
+                tables.module,
+                context.profile,
+                element_id,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+            )?;
+        }
+
+        Ok(())
+    }
+
     /// Split the environment based on a nullish equality guard.
     fn narrow_environment_for_nullish_guard(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         guard_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
         is_strict: bool,
         is_negated: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
         // normalize the guard expressions for matching
-        let left_id = self.unwrap_parenthesized_expression(left_id, tree);
-        let right_id = self.unwrap_parenthesized_expression(right_id, tree);
+        let left_id = self.unwrap_parenthesized_expression(left_id, tables.tree);
+        let right_id = self.unwrap_parenthesized_expression(right_id, tables.tree);
 
         // resolve symbols and literal kinds for both sides
-        let left_symbol =
-            self.reference_symbol_for_expression(module, left_id, context.profile, tree, symbols);
-        let right_symbol =
-            self.reference_symbol_for_expression(module, right_id, context.profile, tree, symbols);
+        let left_symbol = self.reference_symbol_for_expression(
+            tables.module,
+            left_id,
+            context.profile,
+            tables.tree,
+            tables.symbols,
+        );
+        let right_symbol = self.reference_symbol_for_expression(
+            tables.module,
+            right_id,
+            context.profile,
+            tables.tree,
+            tables.symbols,
+        );
 
-        let left_literal = self.nullish_literal_kind(tree, left_id);
-        let right_literal = self.nullish_literal_kind(tree, right_id);
+        let left_literal = self.nullish_literal_kind(tables.tree, left_id);
+        let right_literal = self.nullish_literal_kind(tables.tree, right_id);
 
         // select the symbol and literal to narrow
         let (symbol, literal_kind) = match (left_symbol, right_literal, right_symbol, left_literal)
@@ -1432,64 +1427,47 @@ impl Compiler {
         };
 
         // resolve the base type to narrow
-        let base_type_id = self.symbol_type_for_guard(
-            module,
+        let base_type_id = self.guard_base_type_for_symbol(
+            &mut tables.reborrow(),
             guard_id,
             symbol,
-            tree,
-            symbols,
-            types,
             environment,
             context,
         )?;
 
-        // build the true and false environments
-        let mut true_environment = environment.clone();
-        let mut false_environment = environment.clone();
-
         let (true_type_id, false_type_id) =
-            self.nullish_guard_types(guard_kind, base_type_id, types);
+            self.nullish_guard_types(guard_kind, base_type_id, tables.types);
 
-        // apply the narrowings for each branch
-        if let Some(type_id) = true_type_id {
-            true_environment.bindings.insert(symbol, type_id);
-        }
-        if let Some(type_id) = false_type_id {
-            false_environment.bindings.insert(symbol, type_id);
-        }
-
-        // flip environments when the guard is negated
-        if is_negated {
-            return Ok(Some((false_environment, true_environment)));
-        }
-
-        Ok(Some((true_environment, false_environment)))
+        Ok(Some(self.narrowed_environments_for_symbol(
+            environment,
+            symbol,
+            true_type_id,
+            false_type_id,
+            is_negated,
+        )))
     }
 
     /// Split the environment based on a typeof equality guard.
     fn narrow_environment_for_typeof_guard(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         guard_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
         is_negated: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
         // normalize both sides for matching
-        let left_id = self.unwrap_parenthesized_expression(left_id, tree);
-        let right_id = self.unwrap_parenthesized_expression(right_id, tree);
+        let left_id = self.unwrap_parenthesized_expression(left_id, tables.tree);
+        let right_id = self.unwrap_parenthesized_expression(right_id, tables.tree);
 
         // identify the typeof expression and the string literal
         let (typeof_id, literal_id) = match (
-            self.typeof_expression_id(tree, left_id),
-            self.string_literal_id(tree, right_id),
-            self.typeof_expression_id(tree, right_id),
-            self.string_literal_id(tree, left_id),
+            self.typeof_expression_id(tables.tree, left_id),
+            self.string_literal_id(tables.tree, right_id),
+            self.typeof_expression_id(tables.tree, right_id),
+            self.string_literal_id(tables.tree, left_id),
         ) {
             (Some(typeof_id), Some(literal_id), _, _) => (typeof_id, literal_id),
             (_, _, Some(typeof_id), Some(literal_id)) => (typeof_id, literal_id),
@@ -1497,109 +1475,97 @@ impl Compiler {
         };
 
         // resolve the guard symbol from the typeof argument
-        let typeof_id = self.unwrap_parenthesized_expression(typeof_id, tree);
-        let right_id = match tree.get(typeof_id) {
+        let typeof_id = self.unwrap_parenthesized_expression(typeof_id, tables.tree);
+        let right_id = match tables.tree.get(typeof_id) {
             Expression::TypeUnary {
                 operator: TypeUnaryOperator::Typeof,
                 right,
-            } => self.unwrap_parenthesized_expression(*right, tree),
+            } => self.unwrap_parenthesized_expression(*right, tables.tree),
             Expression::Unary {
                 operator: UnaryOperator::Typeof,
                 right,
-            } => self.unwrap_parenthesized_expression(*right, tree),
+            } => self.unwrap_parenthesized_expression(*right, tables.tree),
             _ => return Ok(None),
         };
-        let symbol =
-            self.reference_symbol_for_expression(module, right_id, context.profile, tree, symbols);
+        let symbol = self.reference_symbol_for_expression(
+            tables.module,
+            right_id,
+            context.profile,
+            tables.tree,
+            tables.symbols,
+        );
         let Some(symbol) = symbol else {
             return Ok(None);
         };
 
         // resolve the typeof guard target
-        let Some(target) =
-            self.type_guard_target_for_typeof_string(literal_id, typeof_id.into_any(), types)
-        else {
+        let Some(target) = self.type_guard_target_for_typeof_string(
+            literal_id,
+            typeof_id.into_any(),
+            tables.types,
+        ) else {
             return Ok(None);
         };
 
         // resolve the base type for the symbol
-        let base_type_id = self.symbol_type_for_guard(
-            module,
+        let base_type_id = self.guard_base_type_for_symbol(
+            &mut tables.reborrow(),
             guard_id,
             symbol,
-            tree,
-            symbols,
-            types,
             environment,
             context,
         )?;
 
-        // evaluate unevaluated types before applying typeof narrowing
-        self.resolve_declared_type(module, context.profile, base_type_id, tree, symbols, types)?;
-        // clone union elements to avoid holding a borrow across evaluation
-        let mut union_elements = Vec::new();
-        if let Type::Union { elements } = types.get_type(base_type_id) {
-            union_elements.extend(elements.iter().copied());
-        }
-        for element_id in union_elements {
-            self.resolve_declared_type(module, context.profile, element_id, tree, symbols, types)?;
-        }
+        self.resolve_guard_base_union_types(&mut tables.reborrow(), context, base_type_id)?;
 
         // compute narrowed types for each branch
-        let (true_type_id, false_type_id) = self.type_guard_target_types(
-            module,
-            context.profile,
-            symbols,
-            base_type_id,
-            target,
-            types,
-            &context.options,
-        );
+        let (true_type_id, false_type_id) =
+            self.type_guard_target_types(&mut tables.reborrow(), base_type_id, target);
 
-        // apply the narrowings for each branch
-        let mut true_environment = environment.clone();
-        let mut false_environment = environment.clone();
-        if let Some(type_id) = true_type_id {
-            true_environment.bindings.insert(symbol, type_id);
-        }
-        if let Some(type_id) = false_type_id {
-            false_environment.bindings.insert(symbol, type_id);
-        }
-
-        // flip environments when the guard is negated
-        if is_negated {
-            return Ok(Some((false_environment, true_environment)));
-        }
-
-        Ok(Some((true_environment, false_environment)))
+        Ok(Some(self.narrowed_environments_for_symbol(
+            environment,
+            symbol,
+            true_type_id,
+            false_type_id,
+            is_negated,
+        )))
     }
 
     /// Split the environment based on a discriminant equality guard.
     fn narrow_environment_for_discriminant_guard(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         guard_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
         is_negated: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
         // normalize both sides for matching
-        let left_id = self.unwrap_parenthesized_expression(left_id, tree);
-        let right_id = self.unwrap_parenthesized_expression(right_id, tree);
+        let left_id = self.unwrap_parenthesized_expression(left_id, tables.tree);
+        let right_id = self.unwrap_parenthesized_expression(right_id, tables.tree);
 
         // identify the discriminant access and literal
         let (symbol, key, literal) = match (
-            self.discriminant_access_for_expression(module, left_id, tree, symbols, types, context),
-            self.scalar_literal_for_expression(tree, right_id),
             self.discriminant_access_for_expression(
-                module, right_id, tree, symbols, types, context,
+                tables.module,
+                left_id,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+                context,
             ),
-            self.scalar_literal_for_expression(tree, left_id),
+            self.scalar_literal_for_expression(tables.tree, right_id),
+            self.discriminant_access_for_expression(
+                tables.module,
+                right_id,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+                context,
+            ),
+            self.scalar_literal_for_expression(tables.tree, left_id),
         ) {
             (Some((symbol, key)), Some(literal), _, _) => (symbol, key, literal),
             (_, _, Some((symbol, key)), Some(literal)) => (symbol, key, literal),
@@ -1607,84 +1573,56 @@ impl Compiler {
         };
 
         // resolve the base type for the symbol
-        let base_type_id = self.symbol_type_for_guard(
-            module,
+        let base_type_id = self.guard_base_type_for_symbol(
+            &mut tables.reborrow(),
             guard_id,
             symbol,
-            tree,
-            symbols,
-            types,
             environment,
             context,
         )?;
 
-        // evaluate unevaluated types before applying discriminant narrowing
-        self.resolve_declared_type(module, context.profile, base_type_id, tree, symbols, types)?;
-        // clone union elements to avoid holding a borrow across evaluation
-        let mut union_elements = Vec::new();
-        if let Type::Union { elements } = types.get_type(base_type_id) {
-            union_elements.extend(elements.iter().copied());
-        }
-        for element_id in union_elements {
-            self.resolve_declared_type(module, context.profile, element_id, tree, symbols, types)?;
-        }
+        self.resolve_guard_base_union_types(&mut tables.reborrow(), context, base_type_id)?;
 
         // compute narrowed types for each branch
-        let (true_type_id, false_type_id) = self.discriminant_guard_types(
-            module,
-            context.profile,
-            base_type_id,
-            &key,
-            literal,
-            tree,
-            symbols,
-            types,
-            &context.options,
-        )?;
+        let (true_type_id, false_type_id) =
+            self.discriminant_guard_types(&mut tables.reborrow(), base_type_id, &key, literal)?;
 
-        // apply the narrowings for each branch
-        let mut true_environment = environment.clone();
-        let mut false_environment = environment.clone();
-        if let Some(type_id) = true_type_id {
-            true_environment.bindings.insert(symbol, type_id);
-        }
-        if let Some(type_id) = false_type_id {
-            false_environment.bindings.insert(symbol, type_id);
-        }
-
-        // flip environments when the guard is negated
-        if is_negated {
-            return Ok(Some((false_environment, true_environment)));
-        }
-
-        Ok(Some((true_environment, false_environment)))
+        Ok(Some(self.narrowed_environments_for_symbol(
+            environment,
+            symbol,
+            true_type_id,
+            false_type_id,
+            is_negated,
+        )))
     }
 
     /// Split the environment based on an `x in y` guard.
     fn narrow_environment_for_in_guard(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         guard_id: LocalNodeId<Expression>,
         key_id: LocalNodeId<Expression>,
         target_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
         // normalize the guard expressions
-        let key_id = self.unwrap_parenthesized_expression(key_id, tree);
-        let target_id = self.unwrap_parenthesized_expression(target_id, tree);
+        let key_id = self.unwrap_parenthesized_expression(key_id, tables.tree);
+        let target_id = self.unwrap_parenthesized_expression(target_id, tables.tree);
 
         // only narrow for string literal keys
-        let Some(key) = self.string_literal_id(tree, key_id) else {
+        let Some(key) = self.string_literal_id(tables.tree, key_id) else {
             return Ok(None);
         };
 
         // resolve the target symbol
-        let symbol =
-            self.reference_symbol_for_expression(module, target_id, context.profile, tree, symbols);
+        let symbol = self.reference_symbol_for_expression(
+            tables.module,
+            target_id,
+            context.profile,
+            tables.tree,
+            tables.symbols,
+        );
         let Some(symbol) = symbol else {
             return Ok(None);
         };
@@ -1693,13 +1631,10 @@ impl Compiler {
         let key = StaticKey::Name(key);
 
         // resolve the base type for the symbol
-        let base_type_id = self.symbol_type_for_guard(
-            module,
+        let base_type_id = self.guard_base_type_for_symbol(
+            &mut tables.reborrow(),
             guard_id,
             symbol,
-            tree,
-            symbols,
-            types,
             environment,
             context,
         )?;
@@ -1707,14 +1642,10 @@ impl Compiler {
         // ensure sound property narrowing when requested
         if context.options.no_unsound_narrowing {
             let is_required = self.type_has_required_property(
-                module,
-                context.profile,
+                &mut tables.reborrow(),
                 base_type_id,
                 &key,
                 guard_id.into_any(),
-                tree,
-                symbols,
-                types,
             )?;
             if !is_required {
                 return Ok(None);
@@ -1722,131 +1653,60 @@ impl Compiler {
         }
 
         // compute narrowed types for each branch
-        let (true_type_id, false_type_id) =
-            self.property_guard_types(module, context.profile, base_type_id, &key, symbols, types);
+        let (true_type_id, false_type_id) = self.property_guard_types(
+            tables.module,
+            context.profile,
+            base_type_id,
+            &key,
+            tables.symbols,
+            tables.types,
+        );
 
-        // apply the narrowings for each branch
-        let mut true_environment = environment.clone();
-        let mut false_environment = environment.clone();
-        if let Some(type_id) = true_type_id {
-            true_environment.bindings.insert(symbol, type_id);
-        }
-        if let Some(type_id) = false_type_id {
-            false_environment.bindings.insert(symbol, type_id);
-        }
-
-        Ok(Some((true_environment, false_environment)))
+        Ok(Some(self.narrowed_environments_for_symbol(
+            environment,
+            symbol,
+            true_type_id,
+            false_type_id,
+            false,
+        )))
     }
 
     /// Split the environment based on an `x is T` guard.
     fn narrow_environment_for_is_guard(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         guard_id: LocalNodeId<Expression>,
         value_id: LocalNodeId<Expression>,
         target_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
-        // resolve the target symbol
-        let value_id = self.unwrap_parenthesized_expression(value_id, tree);
-        let symbol =
-            self.reference_symbol_for_expression(module, value_id, context.profile, tree, symbols);
-        let Some(symbol) = symbol else {
-            return Ok(None);
-        };
-
-        // resolve the target type
-        let target_type_id = self.guard_target_type(
-            module,
-            context.profile,
-            self.unwrap_parenthesized_expression(target_id, tree),
-            tree,
-            symbols,
-            types,
-        )?;
-        let target_type_id = self.unwrap_type_value(target_type_id, types);
-
-        // resolve the base type for the symbol
-        let base_type_id = self.symbol_type_for_guard(
-            module,
+        self.narrow_environment_for_runtime_type_guard(
+            &mut tables.reborrow(),
             guard_id,
-            symbol,
-            tree,
-            symbols,
-            types,
+            value_id,
+            target_id,
             environment,
             context,
-        )?;
-
-        // compute runtime check kind for guard validity
-        let runtime_check_kind = self.runtime_check_kind_for_relation(
-            module,
-            context.profile,
-            symbols,
-            base_type_id,
-            target_type_id,
-            types,
-            &context.options,
-        );
-        if let Some(kind) = runtime_check_kind {
-            types.set_runtime_check_kind(guard_id.into_global_any(module.id), kind);
-        }
-
-        // skip unsound narrowing when runtime checks are unavailable
-        let is_sound_narrowing = matches!(
-            runtime_check_kind,
-            Some(RuntimeCheckKind::UnionTag)
-                | Some(RuntimeCheckKind::Constant(_))
-                | Some(RuntimeCheckKind::TypeDescriptor)
-        );
-        if context.options.no_unsound_narrowing && !is_sound_narrowing {
-            return Ok(None);
-        }
-
-        // compute narrowed types for each branch
-        let (true_type_id, false_type_id) = self.type_guard_types(
-            module,
-            context.profile,
-            symbols,
-            base_type_id,
-            target_type_id,
-            types,
-            &context.options,
-        );
-
-        // apply the narrowings for each branch
-        let mut true_environment = environment.clone();
-        let mut false_environment = environment.clone();
-        if let Some(type_id) = true_type_id {
-            true_environment.bindings.insert(symbol, type_id);
-        }
-        if let Some(type_id) = false_type_id {
-            false_environment.bindings.insert(symbol, type_id);
-        }
-
-        Ok(Some((true_environment, false_environment)))
+        )
     }
 
     /// Split the environment for one comptime type relation guard.
     fn narrow_environment_for_comptime_relation_guard(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         guard_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
         // resolve the comptime relation observation from the guard syntax
         let Some(relation) = self.comptime_extends_relation_observation_for_guard(
-            module, left_id, right_id, tree, symbols, types, context,
+            &mut tables.reborrow(),
+            left_id,
+            right_id,
+            context,
         )?
         else {
             return Ok(None);
@@ -1856,12 +1716,12 @@ impl Compiler {
 
         // collect candidate value bindings for relation narrowing
         let mut binding_symbols = environment.bindings.keys().copied().collect::<Vec<_>>();
-        for candidate_local_id in symbols.active_symbol_ids() {
-            let candidate_symbol = candidate_local_id.into_global(module.id);
+        for candidate_local_id in tables.symbols.active_symbol_ids() {
+            let candidate_symbol = candidate_local_id.into_global(tables.module.id);
             if binding_symbols.contains(&candidate_symbol) {
                 continue;
             }
-            if types.get_value_type_id(candidate_symbol).is_some() {
+            if tables.types.get_value_type_id(candidate_symbol).is_some() {
                 binding_symbols.push(candidate_symbol);
             }
         }
@@ -1872,30 +1732,28 @@ impl Compiler {
         let mut did_narrow = false;
 
         for binding_symbol in binding_symbols {
-            let base_type_id = self.symbol_type_for_guard(
-                module,
+            let base_type_id = self.guard_base_type_for_symbol(
+                &mut tables.reborrow(),
                 guard_id,
                 binding_symbol,
-                tree,
-                symbols,
-                types,
                 environment,
                 context,
             )?;
             let mut visited = Vec::new();
-            if !self.type_references_symbol(base_type_id, relation_symbol, types, &mut visited) {
+            if !self.type_references_symbol(
+                base_type_id,
+                relation_symbol,
+                tables.types,
+                &mut visited,
+            ) {
                 continue;
             }
             let relation_base_type_id = base_type_id;
 
             let (true_type_id, false_type_id) = self.type_guard_types(
-                module,
-                context.profile,
-                symbols,
+                &mut tables.reborrow(),
                 relation_base_type_id,
                 target_type_id,
-                types,
-                &context.options,
             );
             if let Some(type_id) = true_type_id {
                 true_environment.bindings.insert(binding_symbol, type_id);
@@ -1916,53 +1774,44 @@ impl Compiler {
     /// Resolve one comptime extends relation observation from guard syntax.
     fn comptime_extends_relation_observation_for_guard(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         context: &InferContext,
     ) -> AnalyzeResult<Option<ComptimeExtendsRelationObservation>> {
         // unwrap comptime wrappers around the relation operand
-        let mut relation_expression_id = self.unwrap_parenthesized_expression(left_id, tree);
-        while let Expression::Comptime { body } = tree.get(relation_expression_id) {
-            relation_expression_id = self.unwrap_parenthesized_expression(*body, tree);
+        let mut relation_expression_id = self.unwrap_parenthesized_expression(left_id, tables.tree);
+        while let Expression::Comptime { body } = tables.tree.get(relation_expression_id) {
+            relation_expression_id = self.unwrap_parenthesized_expression(*body, tables.tree);
         }
 
         // resolve the static parameter symbol directly from the relation operand
         let relation_symbol = self
             .reference_symbol_for_expression(
-                module,
+                tables.module,
                 relation_expression_id,
                 context.profile,
-                tree,
-                symbols,
+                tables.tree,
+                tables.symbols,
             )
-            .or_else(|| tree.get(relation_expression_id).target_symbol());
+            .or_else(|| tables.tree.get(relation_expression_id).target_symbol());
         let Some(relation_symbol) = relation_symbol else {
             return Ok(None);
         };
         if !self.symbol_is_static_parameter(
-            module,
+            tables.module,
             context.profile,
             relation_symbol,
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
         ) {
             return Ok(None);
         }
 
         // resolve the right-hand target type
-        let target_type_id = self.guard_target_type(
-            module,
-            context.profile,
-            self.unwrap_parenthesized_expression(right_id, tree),
-            tree,
-            symbols,
-            types,
-        )?;
-        let target_type_id = self.unwrap_type_value(target_type_id, types);
+        let right_id = self.unwrap_parenthesized_expression(right_id, tables.tree);
+        let target_type_id = self.guard_target_type(&mut tables.reborrow(), right_id)?;
+        let target_type_id = self.unwrap_type_value(target_type_id, tables.types);
 
         Ok(Some(ComptimeExtendsRelationObservation {
             relation_symbol,
@@ -1973,59 +1822,74 @@ impl Compiler {
     /// Split the environment based on a class identity guard.
     fn narrow_environment_for_type_guard(
         &self,
-        module: &Module,
+        tables: &mut TypeTablesContext<'_>,
         guard_id: LocalNodeId<Expression>,
         value_id: LocalNodeId<Expression>,
         target_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        environment: &FlowEnvironment,
+        context: &InferContext,
+    ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
+        self.narrow_environment_for_runtime_type_guard(
+            &mut tables.reborrow(),
+            guard_id,
+            value_id,
+            target_id,
+            environment,
+            context,
+        )
+    }
+
+    /// Split the environment based on one runtime type relation guard.
+    fn narrow_environment_for_runtime_type_guard(
+        &self,
+        tables: &mut TypeTablesContext<'_>,
+        guard_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        target_id: LocalNodeId<Expression>,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
         // resolve the target symbol
-        let value_id = self.unwrap_parenthesized_expression(value_id, tree);
-        let symbol =
-            self.reference_symbol_for_expression(module, value_id, context.profile, tree, symbols);
+        let value_id = self.unwrap_parenthesized_expression(value_id, tables.tree);
+        let symbol = self.reference_symbol_for_expression(
+            tables.module,
+            value_id,
+            context.profile,
+            tables.tree,
+            tables.symbols,
+        );
         let Some(symbol) = symbol else {
             return Ok(None);
         };
 
         // resolve the target type
-        let target_type_id = self.guard_target_type(
-            module,
-            context.profile,
-            self.unwrap_parenthesized_expression(target_id, tree),
-            tree,
-            symbols,
-            types,
-        )?;
-        let target_type_id = self.unwrap_type_value(target_type_id, types);
+        let target_id = self.unwrap_parenthesized_expression(target_id, tables.tree);
+        let target_type_id = self.guard_target_type(&mut tables.reborrow(), target_id)?;
+        let target_type_id = self.unwrap_type_value(target_type_id, tables.types);
 
         // resolve the base type for the symbol
-        let base_type_id = self.symbol_type_for_guard(
-            module,
+        let base_type_id = self.guard_base_type_for_symbol(
+            &mut tables.reborrow(),
             guard_id,
             symbol,
-            tree,
-            symbols,
-            types,
             environment,
             context,
         )?;
 
         // compute runtime check kind for guard validity
         let runtime_check_kind = self.runtime_check_kind_for_relation(
-            module,
+            tables.module,
             context.profile,
-            symbols,
+            tables.symbols,
             base_type_id,
             target_type_id,
-            types,
+            tables.types,
             &context.options,
         );
         if let Some(kind) = runtime_check_kind {
-            types.set_runtime_check_kind(guard_id.into_global_any(module.id), kind);
+            tables
+                .types
+                .set_runtime_check_kind(guard_id.into_global_any(tables.module.id), kind);
         }
 
         // skip unsound narrowing when runtime checks are unavailable
@@ -2040,47 +1904,39 @@ impl Compiler {
         }
 
         // compute narrowed types for each branch
-        let (true_type_id, false_type_id) = self.type_guard_types(
-            module,
-            context.profile,
-            symbols,
-            base_type_id,
-            target_type_id,
-            types,
-            &context.options,
-        );
+        let (true_type_id, false_type_id) =
+            self.type_guard_types(&mut tables.reborrow(), base_type_id, target_type_id);
 
-        // apply the narrowings for each branch
-        let mut true_environment = environment.clone();
-        let mut false_environment = environment.clone();
-        if let Some(type_id) = true_type_id {
-            true_environment.bindings.insert(symbol, type_id);
-        }
-        if let Some(type_id) = false_type_id {
-            false_environment.bindings.insert(symbol, type_id);
-        }
-
-        Ok(Some((true_environment, false_environment)))
+        Ok(Some(self.narrowed_environments_for_symbol(
+            environment,
+            symbol,
+            true_type_id,
+            false_type_id,
+            false,
+        )))
     }
 
     /// Determine the target type for a guard expression.
     fn guard_target_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         target_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         // prefer explicit type nodes
-        if let Expression::Type { value } = tree.get(target_id) {
+        if let Expression::Type { value } = tables.tree.get(target_id) {
             return Ok(*value);
         }
 
         // fall back to evaluating the expression as a type
         self.resolve_declared_type_expression(
-            module, profile, target_id, tree, symbols, types, true, true,
+            tables.module,
+            tables.profile,
+            target_id,
+            tables.tree,
+            tables.symbols,
+            tables.types,
+            true,
+            true,
         )
     }
 
@@ -2206,17 +2062,13 @@ impl Compiler {
     /// Derive guard types for a symbol based on a target type.
     fn type_guard_types(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        tables: &mut TypeTablesContext<'_>,
         base_type_id: LocalTypeId,
         target_type_id: LocalTypeId,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> (Option<LocalTypeId>, Option<LocalTypeId>) {
         // handle union and non union cases separately
         // filter union members that satisfy the target guard
-        let base_type = types.get_type(base_type_id).clone();
+        let base_type = tables.types.get_type(base_type_id).clone();
         let true_type_id = match base_type {
             Type::Union { elements } => {
                 let mut matching_elements = Vec::new();
@@ -2224,14 +2076,10 @@ impl Compiler {
                 // collect assignable union members
                 for element_id in elements {
                     let is_assignable = self
-                        .is_type_assignable(
-                            module,
-                            profile,
-                            symbols,
+                        .is_type_assignable_in_type_tables(
+                            &mut tables.reborrow(),
                             target_type_id,
                             element_id,
-                            types,
-                            options,
                         )
                         .is_assignable();
                     if is_assignable {
@@ -2242,7 +2090,7 @@ impl Compiler {
                 match matching_elements.len() {
                     0 => None,
                     1 => Some(matching_elements[0]),
-                    _ => Some(types.insert_type_from_type(
+                    _ => Some(tables.types.insert_type_from_type(
                         Type::Union {
                             elements: matching_elements,
                         },
@@ -2253,25 +2101,17 @@ impl Compiler {
             _ => {
                 // keep the base type when it is already narrow enough
                 let base_is_assignable = self
-                    .is_type_assignable(
-                        module,
-                        profile,
-                        symbols,
+                    .is_type_assignable_in_type_tables(
+                        &mut tables.reborrow(),
                         target_type_id,
                         base_type_id,
-                        types,
-                        options,
                     )
                     .is_assignable();
                 let target_is_assignable = self
-                    .is_type_assignable(
-                        module,
-                        profile,
-                        symbols,
+                    .is_type_assignable_in_type_tables(
+                        &mut tables.reborrow(),
                         base_type_id,
                         target_type_id,
-                        types,
-                        options,
                     )
                     .is_assignable();
 
@@ -2280,7 +2120,7 @@ impl Compiler {
                 } else if target_is_assignable {
                     Some(target_type_id)
                 } else {
-                    Some(types.insert_type_from_type(
+                    Some(tables.types.insert_type_from_type(
                         Type::Intersection {
                             elements: vec![base_type_id, target_type_id],
                         },
@@ -2291,15 +2131,8 @@ impl Compiler {
         };
 
         // drop assignable types for the false branch
-        let (false_type_id, _) = self.strip_assignable_from_union(
-            module,
-            profile,
-            symbols,
-            base_type_id,
-            target_type_id,
-            types,
-            options,
-        );
+        let (false_type_id, _) =
+            self.strip_assignable_from_union(&mut tables.reborrow(), base_type_id, target_type_id);
 
         (true_type_id, false_type_id)
     }
@@ -2307,33 +2140,35 @@ impl Compiler {
     /// Derive guard types for a typed guard target.
     fn type_guard_target_types(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        tables: &mut TypeTablesContext<'_>,
         base_type_id: LocalTypeId,
         target: TypeGuardTarget,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> (Option<LocalTypeId>, Option<LocalTypeId>) {
         // route guard targets to their narrowing strategy
         match target {
-            TypeGuardTarget::TypeId(target_type_id) => self.type_guard_types(
-                module,
-                profile,
-                symbols,
-                base_type_id,
-                target_type_id,
-                types,
-                options,
-            ),
+            TypeGuardTarget::TypeId(target_type_id) => {
+                self.type_guard_types(&mut tables.reborrow(), base_type_id, target_type_id)
+            }
             TypeGuardTarget::ObjectLike => {
-                self.predicate_guard_types(base_type_id, types, |type_id, types| {
-                    self.type_is_object_like(module, profile, type_id, symbols, types)
+                self.predicate_guard_types(base_type_id, tables.types, |type_id, types| {
+                    self.type_is_object_like(
+                        tables.module,
+                        tables.profile,
+                        type_id,
+                        tables.symbols,
+                        types,
+                    )
                 })
             }
             TypeGuardTarget::FunctionLike => {
-                self.predicate_guard_types(base_type_id, types, |type_id, types| {
-                    self.type_is_function_like(module, profile, type_id, symbols, types)
+                self.predicate_guard_types(base_type_id, tables.types, |type_id, types| {
+                    self.type_is_function_like(
+                        tables.module,
+                        tables.profile,
+                        type_id,
+                        tables.symbols,
+                        types,
+                    )
                 })
             }
         }
@@ -2342,24 +2177,19 @@ impl Compiler {
     /// Derive guard types for a discriminant equality check.
     fn discriminant_guard_types(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         base_type_id: LocalTypeId,
         key: &StaticKey,
         literal: ScalarLiteral,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> AnalyzeResult<(Option<LocalTypeId>, Option<LocalTypeId>)> {
         // avoid narrowing any or unknown types
-        if self.type_is_semantic_top_like(base_type_id, types) {
+        if self.type_is_semantic_top_like(base_type_id, tables.types) {
             return Ok((Some(base_type_id), Some(base_type_id)));
         }
 
         // build a literal type for assignability checks
         let literal_type = self.infer_scalar_literal(&literal);
-        let literal_type_id = types.insert_type_from_type(
+        let literal_type_id = tables.types.insert_type_from_type(
             Type::TypeLiteral {
                 value: literal_type.clone(),
             },
@@ -2367,13 +2197,13 @@ impl Compiler {
         );
 
         // split union and non union targets
-        let base_type = types.get_type(base_type_id).clone();
+        let base_type = tables.types.get_type(base_type_id).clone();
         match base_type {
             Type::Union { elements } => {
                 // avoid narrowing unions with any or unknown members
                 if elements
                     .iter()
-                    .any(|element_id| self.type_is_semantic_top_like(*element_id, types))
+                    .any(|element_id| self.type_is_semantic_top_like(*element_id, tables.types))
                 {
                     return Ok((Some(base_type_id), Some(base_type_id)));
                 }
@@ -2384,7 +2214,13 @@ impl Compiler {
                 // collect union members based on discriminant compatibility
                 for element_id in elements {
                     let field_info = self.type_field_type_for_key(
-                        module, profile, element_id, key, tree, symbols, types,
+                        tables.module,
+                        tables.profile,
+                        element_id,
+                        key,
+                        tables.tree,
+                        tables.symbols,
+                        tables.types,
                     )?;
 
                     let Some((field_type_id, is_optional)) = field_info else {
@@ -2393,14 +2229,10 @@ impl Compiler {
                     };
 
                     let is_assignable = self
-                        .is_type_assignable(
-                            module,
-                            profile,
-                            symbols,
+                        .is_type_assignable_in_type_tables(
+                            &mut tables.reborrow(),
                             field_type_id,
                             literal_type_id,
-                            types,
-                            options,
                         )
                         .is_assignable();
 
@@ -2413,8 +2245,11 @@ impl Compiler {
                         continue;
                     }
 
-                    let (remaining_literal, _) =
-                        self.strip_literal_from_union(field_type_id, types, literal_type.clone());
+                    let (remaining_literal, _) = self.strip_literal_from_union(
+                        field_type_id,
+                        tables.types,
+                        literal_type.clone(),
+                    );
                     if is_optional || remaining_literal.is_some() {
                         remaining_elements.push(element_id);
                     }
@@ -2423,7 +2258,7 @@ impl Compiler {
                 let true_type_id = match matching_elements.len() {
                     0 => None,
                     1 => Some(matching_elements[0]),
-                    _ => Some(types.insert_type_from_type(
+                    _ => Some(tables.types.insert_type_from_type(
                         Type::Union {
                             elements: matching_elements,
                         },
@@ -2433,7 +2268,7 @@ impl Compiler {
                 let false_type_id = match remaining_elements.len() {
                     0 => None,
                     1 => Some(remaining_elements[0]),
-                    _ => Some(types.insert_type_from_type(
+                    _ => Some(tables.types.insert_type_from_type(
                         Type::Union {
                             elements: remaining_elements,
                         },
@@ -2445,27 +2280,23 @@ impl Compiler {
             }
             _ => {
                 let Some((field_type_id, is_optional)) = self.type_field_type_for_key(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     base_type_id,
                     key,
-                    tree,
-                    symbols,
-                    types,
+                    tables.tree,
+                    tables.symbols,
+                    tables.types,
                 )?
                 else {
                     return Ok((Some(base_type_id), Some(base_type_id)));
                 };
 
                 let is_assignable = self
-                    .is_type_assignable(
-                        module,
-                        profile,
-                        symbols,
+                    .is_type_assignable_in_type_tables(
+                        &mut tables.reborrow(),
                         field_type_id,
                         literal_type_id,
-                        types,
-                        options,
                     )
                     .is_assignable();
 
@@ -2474,7 +2305,7 @@ impl Compiler {
                 }
 
                 let (remaining_literal, _) =
-                    self.strip_literal_from_union(field_type_id, types, literal_type);
+                    self.strip_literal_from_union(field_type_id, tables.types, literal_type);
                 if is_optional || remaining_literal.is_some() {
                     Ok((Some(base_type_id), Some(base_type_id)))
                 } else {
@@ -2620,24 +2451,34 @@ impl Compiler {
     /// Check whether a property guard is guaranteed by the type.
     fn type_has_required_property(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
         key: &StaticKey,
         anchor_node: LocalNodeIdAny,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<bool> {
         // avoid soundness gaps when index signatures accept the key
-        if self.type_has_index_signature(module, profile, type_id, key, anchor_node, symbols, types)
-        {
+        if self.type_has_index_signature(
+            tables.module,
+            tables.profile,
+            type_id,
+            key,
+            anchor_node,
+            tables.symbols,
+            tables.types,
+        ) {
             return Ok(false);
         }
 
         // read the field and ensure it is required
-        let Some((_, is_optional)) =
-            self.type_field_type_for_key(module, profile, type_id, key, tree, symbols, types)?
+        let Some((_, is_optional)) = self.type_field_type_for_key(
+            tables.module,
+            tables.profile,
+            type_id,
+            key,
+            tables.tree,
+            tables.symbols,
+            tables.types,
+        )?
         else {
             return Ok(false);
         };
@@ -2682,16 +2523,12 @@ impl Compiler {
     /// Strip assignable elements from a union for guard negation.
     fn strip_assignable_from_union(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
         target_type_id: LocalTypeId,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> (Option<LocalTypeId>, bool) {
         // split unions from non union types
-        let type_value = types.get_type(type_id).clone();
+        let type_value = tables.types.get_type(type_id).clone();
         match type_value {
             Type::Union { elements } => {
                 let mut filtered_elements = Vec::new();
@@ -2700,14 +2537,10 @@ impl Compiler {
                 // drop assignable elements while tracking removals
                 for element_id in elements {
                     let is_assignable = self
-                        .is_type_assignable(
-                            module,
-                            profile,
-                            symbols,
+                        .is_type_assignable_in_type_tables(
+                            &mut tables.reborrow(),
                             target_type_id,
                             element_id,
-                            types,
-                            options,
                         )
                         .is_assignable();
                     if is_assignable {
@@ -2726,7 +2559,7 @@ impl Compiler {
                 let filtered_type_id = match filtered_elements.len() {
                     0 => None,
                     1 => Some(filtered_elements[0]),
-                    _ => Some(types.insert_type_from_type(
+                    _ => Some(tables.types.insert_type_from_type(
                         Type::Union {
                             elements: filtered_elements,
                         },
@@ -2739,14 +2572,10 @@ impl Compiler {
             _ => {
                 // remove the type when it is assignable to the target
                 let is_assignable = self
-                    .is_type_assignable(
-                        module,
-                        profile,
-                        symbols,
+                    .is_type_assignable_in_type_tables(
+                        &mut tables.reborrow(),
                         target_type_id,
                         type_id,
-                        types,
-                        options,
                     )
                     .is_assignable();
                 if is_assignable {

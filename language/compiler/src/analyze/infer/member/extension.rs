@@ -1,5 +1,5 @@
 use super::*;
-use crate::analyze::common::InferTablesContext;
+use crate::analyze::common::{InferTablesContext, TypeTablesContext};
 use destack_dir::LocalInstanceId;
 
 #[allow(clippy::too_many_arguments)]
@@ -7,15 +7,11 @@ impl Compiler {
     /// Extend substitutions with owner-parameter slots derived from inherited arguments.
     pub(crate) fn extend_owner_substitutions_from_inherited(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         member_symbol: GlobalSymbolId,
         inherited_arguments: &[StaticArgument],
         substitutions: &mut HashMap<GlobalSymbolId, LocalTypeId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) {
         // skip when no inherited arguments are available
         if inherited_arguments.is_empty() {
@@ -23,18 +19,21 @@ impl Compiler {
         }
 
         // resolve owner static parameters for the member symbol
-        let Some(owner_symbol) =
-            self.owner_symbol_for_member_symbol(module, profile, member_symbol, symbols)
-        else {
+        let Some(owner_symbol) = self.owner_symbol_for_member_symbol(
+            tables.module,
+            tables.profile,
+            member_symbol,
+            tables.symbols,
+        ) else {
             return;
         };
         let Some(owner_parameters) = self.collect_static_parameter_symbols(
-            module,
+            tables.module,
             owner_symbol,
-            profile,
-            tree,
-            symbols,
-            types,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         ) else {
             return;
         };
@@ -48,7 +47,8 @@ impl Compiler {
             if substitutions.contains_key(parameter_symbol) {
                 continue;
             }
-            let argument_type_id = self.convert_static_argument_type(argument, source_id, types);
+            let argument_type_id =
+                self.convert_static_argument_type(argument, source_id, tables.types);
             substitutions.insert(*parameter_symbol, argument_type_id);
         }
     }
@@ -86,16 +86,12 @@ impl Compiler {
             inherited.arguments.clone()
         };
         let environment = self.compose_member_instance_environment(
-            tables.module,
-            tables.profile,
+            &tables.reborrow(),
             member_symbol,
             &base_instance_arguments,
             &substitutions,
             resolved_arguments,
             signature_parameter_symbols,
-            tables.tree,
-            tables.symbols,
-            tables.types,
         );
         let Some(environment) = environment else {
             return Ok(None);
@@ -113,39 +109,46 @@ impl Compiler {
     /// Resolve extension arguments and substitutions for a member lookup.
     pub(crate) fn resolve_extension_member_context(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         member_symbol: GlobalSymbolId,
         inherited_arguments: &[StaticArgument],
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<ExtensionMemberContext>> {
         // locate the extension symbol that owns the member
-        let extension_symbol =
-            self.extension_symbol_for_member(module, profile, member_symbol, symbols)?;
+        let extension_symbol = self.extension_symbol_for_member(
+            tables.module,
+            tables.profile,
+            member_symbol,
+            tables.symbols,
+        )?;
         let Some(extension_symbol) = extension_symbol else {
             return Ok(None);
         };
 
         // ensure extension instance types are available for parameter kind resolution
-        if types.get_instance_type_id(extension_symbol).is_none()
-            && extension_symbol.module_id != module.id
+        if tables
+            .types
+            .get_instance_type_id(extension_symbol)
+            .is_none()
+            && extension_symbol.module_id != tables.module.id
         {
-            self.import_instance_type_for_symbol(profile, source_id, extension_symbol, types)?;
+            self.import_instance_type_for_symbol(
+                tables.profile,
+                source_id,
+                extension_symbol,
+                tables.types,
+            )?;
         }
 
         // resolve extension static parameter symbols
         let extension_parameters = self
             .collect_static_parameter_symbols(
-                module,
+                tables.module,
                 extension_symbol,
-                profile,
-                tree,
-                symbols,
-                types,
+                tables.profile,
+                tables.tree,
+                tables.symbols,
+                tables.types,
             )
             .unwrap_or_default();
 
@@ -170,7 +173,7 @@ impl Compiler {
             extension_symbol,
             &extension_parameters,
             inherited_arguments,
-            profile,
+            tables.profile,
         );
         if positional_arguments.is_empty() {
             positional_arguments = inherited_arguments.to_vec();
@@ -186,29 +189,20 @@ impl Compiler {
         // resolve arguments and defaults against extension parameters
         let resolved_arguments: Option<Vec<StaticArgument>> = self
             .resolve_type_reference_static_arguments(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 source_id,
                 extension_symbol,
-                Some(&positional_arguments),
+                Some(positional_arguments.as_slice()),
                 true,
-                options,
-                tree,
-                symbols,
-                types,
             )?;
         let resolved_arguments = resolved_arguments.unwrap_or_default();
 
         // build substitutions for extension type parameters
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            module,
-            profile,
+            &mut tables.reborrow(),
             extension_symbol,
             source_id,
             &resolved_arguments,
-            tree,
-            symbols,
-            types,
         );
 
         Ok(Some(ExtensionMemberContext {

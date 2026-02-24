@@ -1,7 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use super::expression::has_implicit_return;
-use crate::analyze::common::{AnalyzeDependencyStage, InferTablesContext, TypeRewriteCache};
+use crate::analyze::common::{
+    AnalyzeDependencyStage, InferTablesContext, TypeRewriteCache, TypeTablesContext,
+};
 use crate::analyze::{AssociatedComptimeRequirement, AssociatedTypeRequirement};
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, CanonicalSymbolMode, Compiler,
@@ -376,7 +378,6 @@ impl Compiler {
             implements_types,
             members,
             false,
-            member_ctx.profile,
         )?;
 
         // enforce associated comptime requirements
@@ -385,7 +386,6 @@ impl Compiler {
             implements_types,
             members,
             false,
-            member_ctx.profile,
         )?;
 
         Ok(())
@@ -446,7 +446,6 @@ impl Compiler {
             contract_types.as_slice(),
             members,
             is_abstract,
-            member_ctx.profile,
         )?;
 
         // enforce associated comptime requirements
@@ -455,7 +454,6 @@ impl Compiler {
             contract_types.as_slice(),
             members,
             is_abstract,
-            member_ctx.profile,
         )?;
 
         Ok(())
@@ -573,7 +571,6 @@ impl Compiler {
             implements_types,
             members,
             false,
-            ctx.profile,
         )?;
 
         // enforce associated comptime requirements
@@ -582,7 +579,6 @@ impl Compiler {
             implements_types,
             members,
             false,
-            ctx.profile,
         )?;
 
         Ok(())
@@ -660,7 +656,6 @@ impl Compiler {
         contract_types: &[LocalNodeId<Expression>],
         members: &[LocalNodeId<Member>],
         allows_deferred_associated_types: bool,
-        profile: ProfileId,
     ) -> AnalyzeResult<()> {
         if !matches!(tables.module.source, ModuleSource::User) {
             return Ok(());
@@ -679,15 +674,11 @@ impl Compiler {
 
         for contract_expression_id in contract_types {
             self.infer_associated_type_requirements_for_contract(
-                tables.module,
-                profile,
+                &mut tables.type_tables_reborrow(),
                 *contract_expression_id,
                 &declaration_members,
                 &mut inherited_defaults_by_name,
                 allows_deferred_associated_types,
-                tables.tree,
-                tables.symbols,
-                tables.types,
             )?;
         }
 
@@ -735,7 +726,6 @@ impl Compiler {
         contract_types: &[LocalNodeId<Expression>],
         members: &[LocalNodeId<Member>],
         allows_deferred_associated_comptime: bool,
-        profile: ProfileId,
     ) -> AnalyzeResult<()> {
         if !matches!(tables.module.source, ModuleSource::User) {
             return Ok(());
@@ -751,15 +741,11 @@ impl Compiler {
 
         for contract_expression_id in contract_types {
             self.infer_associated_comptime_requirements(
-                tables.module,
-                profile,
+                &mut tables.type_tables_reborrow(),
                 *contract_expression_id,
                 &declaration_members,
                 &mut inherited_defaults_by_name,
                 allows_deferred_associated_comptime,
-                tables.tree,
-                tables.symbols,
-                tables.types,
             )?;
         }
 
@@ -797,33 +783,25 @@ impl Compiler {
     /// Enforce associated comptime requirements for one inherited contract.
     fn infer_associated_comptime_requirements(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         contract_expression_id: LocalNodeId<Expression>,
         declaration_members: &HashMap<StringId, DeclarationAssociatedComptimeMember>,
         inherited_defaults_by_name: &mut HashMap<StringId, LocalTypeId>,
         allows_deferred_associated_comptime: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         let Some(contract_context) = self.associated_contract_context_for_expression(
-            module,
-            profile,
+            &mut tables.reborrow(),
             contract_expression_id,
-            tree,
-            symbols,
-            types,
         )?
         else {
             return Ok(());
         };
         let requirements = self.collect_contract_associated_comptime_requirements(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             contract_context.contract_symbol,
-            tree,
-            symbols,
+            tables.tree,
+            tables.symbols,
         )?;
 
         for requirement in requirements {
@@ -831,8 +809,8 @@ impl Compiler {
                 // require explicit implementations for abstract members
                 if requirement.requires_implementation && !allows_deferred_associated_comptime {
                     let node = contract_expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile));
+                        .into_global_any(tables.module.id)
+                        .into_anchored(Some(tables.profile));
                     self.error(AnalyzeError::InvalidStaticArgument {
                         node,
                         message: "missing associated comptime implementation".to_string(),
@@ -842,15 +820,11 @@ impl Compiler {
 
                 // validate that inherited defaults do not conflict by name
                 self.validate_inherited_associated_comptime_default(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     contract_expression_id,
                     &requirement,
                     &contract_context.substitutions,
                     inherited_defaults_by_name,
-                    symbols,
-                    tree,
-                    types,
                 )?;
                 continue;
             };
@@ -865,53 +839,57 @@ impl Compiler {
             let Some(requirement_type_node) = requirement.type_node else {
                 continue;
             };
-            let Some(mut requirement_type_id) =
-                self.declared_type_for_node(module, profile, requirement_type_node, types)?
+            let Some(mut requirement_type_id) = self.declared_type_for_node(
+                tables.module,
+                tables.profile,
+                requirement_type_node,
+                tables.types,
+            )?
             else {
                 continue;
             };
             requirement_type_id = self.substitute_and_materialize_contract_type(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 requirement_type_id,
                 &contract_context.substitutions,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
             );
 
             // resolve the declaration member type from annotation or initializer
             let Some(declaration_type_id) = self.associated_comptime_member_type_id(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 declaration_member,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
             )?
             else {
                 continue;
             };
 
             // enforce assignability from declaration member type to contract requirement
-            let options = self.analyze_context_options_for_module(module.id);
+            let options = self.analyze_context_options_for_module(tables.module.id);
             let is_assignable = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
+                tables.module,
+                tables.profile,
+                tables.symbols,
                 requirement_type_id,
                 declaration_type_id,
-                types,
+                tables.types,
                 &options,
             );
             if is_assignable == Assignability::NotAssignable {
                 self.emit_unassignable_type_for_types(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     declaration_member.member_id.into_any(),
                     requirement_type_id,
                     declaration_type_id,
-                    types,
+                    tables.types,
                 );
             }
         }
@@ -922,15 +900,11 @@ impl Compiler {
     /// Validate that inherited associated comptime defaults agree across implemented interfaces.
     fn validate_inherited_associated_comptime_default(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         contract_expression_id: LocalNodeId<Expression>,
         requirement: &AssociatedComptimeRequirement,
         interface_substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
         inherited_defaults_by_name: &mut HashMap<StringId, LocalTypeId>,
-        symbols: &SymbolTable,
-        tree: &NodeTree,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // skip non default requirements
         if requirement.requires_implementation {
@@ -940,12 +914,12 @@ impl Compiler {
         // resolve and substitute the inherited default value
         let mut visited_symbols = HashSet::new();
         let Some(default_value) = self.resolve_static_constant_reference_instantiated(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             requirement.symbol,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
             interface_substitutions,
             &mut visited_symbols,
         )?
@@ -955,19 +929,16 @@ impl Compiler {
         let Some(default_ty_id) = self.static_expression_type_id(
             contract_expression_id.into_any(),
             &default_value,
-            types,
+            tables.types,
         ) else {
             return Ok(());
         };
         self.register_or_validate_inherited_default(
-            module,
-            profile,
+            &mut tables.reborrow(),
             contract_expression_id,
             requirement.name,
             default_ty_id,
             inherited_defaults_by_name,
-            symbols,
-            types,
             "incompatible associated comptime defaults across inherited contracts",
         );
         Ok(())
@@ -1001,33 +972,25 @@ impl Compiler {
     /// Enforce associated type requirements for one inherited contract.
     fn infer_associated_type_requirements_for_contract(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         contract_expression_id: LocalNodeId<Expression>,
         declaration_members: &HashMap<StringId, DeclarationAssociatedTypeMember<'_>>,
         inherited_defaults_by_name: &mut HashMap<StringId, LocalTypeId>,
         allows_deferred_associated_types: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         let Some(contract_context) = self.associated_contract_context_for_expression(
-            module,
-            profile,
+            &mut tables.reborrow(),
             contract_expression_id,
-            tree,
-            symbols,
-            types,
         )?
         else {
             return Ok(());
         };
         let requirements = self.collect_contract_associated_type_requirements(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             contract_context.contract_symbol,
-            tree,
-            symbols,
+            tables.tree,
+            tables.symbols,
         )?;
 
         for requirement in requirements {
@@ -1035,8 +998,8 @@ impl Compiler {
                 // require explicit implementations for abstract members
                 if requirement.requires_implementation && !allows_deferred_associated_types {
                     let node = contract_expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile));
+                        .into_global_any(tables.module.id)
+                        .into_anchored(Some(tables.profile));
                     self.error(AnalyzeError::InvalidStaticArgument {
                         node,
                         message: "missing associated type implementation".to_string(),
@@ -1046,22 +1009,18 @@ impl Compiler {
 
                 // validate that inherited defaults do not conflict by name
                 self.validate_inherited_associated_default(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     contract_expression_id,
                     &requirement,
                     &contract_context.substitutions,
                     inherited_defaults_by_name,
-                    symbols,
-                    tree,
-                    types,
                 );
                 continue;
             };
 
             if !self.enforce_associated_type_parameter_arity(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 requirement.parameter_symbols.len(),
                 declaration_member.member_parameters,
                 declaration_member.member_id,
@@ -1070,26 +1029,26 @@ impl Compiler {
             }
 
             if !self.enforce_associated_type_parameter_kinds(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 requirement.parameter_symbols.as_slice(),
                 declaration_member.member_parameters,
                 declaration_member.member_id,
-                tree,
-                symbols,
-                types,
+                tables.tree,
+                tables.symbols,
+                tables.types,
             ) {
                 continue;
             }
 
             self.enforce_associated_type_bound_assignability(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 &requirement,
                 declaration_member,
                 &contract_context.substitutions,
-                symbols,
-                types,
+                tables.symbols,
+                tables.types,
             )?;
         }
 
@@ -1099,45 +1058,38 @@ impl Compiler {
     /// Validate that inherited associated defaults agree across implemented interfaces.
     fn validate_inherited_associated_default(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         contract_expression_id: LocalNodeId<Expression>,
         requirement: &AssociatedTypeRequirement,
         interface_substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
         inherited_defaults_by_name: &mut HashMap<StringId, LocalTypeId>,
-        symbols: &SymbolTable,
-        tree: &NodeTree,
-        types: &mut TypeTable,
     ) {
         // resolve and substitute the inherited default target
         let Some(default_ty_id) = self.alias_target_type_id_for_symbol(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             requirement.symbol,
             contract_expression_id.into_any(),
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
         ) else {
             return;
         };
         let default_ty_id = self.substitute_and_materialize_contract_type(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             default_ty_id,
             interface_substitutions,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         );
         self.register_or_validate_inherited_default(
-            module,
-            profile,
+            &mut tables.reborrow(),
             contract_expression_id,
             requirement.name,
             default_ty_id,
             inherited_defaults_by_name,
-            symbols,
-            types,
             "incompatible associated type defaults across inherited contracts",
         );
     }
@@ -1145,35 +1097,34 @@ impl Compiler {
     /// Resolve one associated contract context from one heritage contract expression.
     fn associated_contract_context_for_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         contract_expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<AssociatedContractContext>> {
         let contract_type_id = self.inferred_or_evaluated_type_for_expression(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             contract_expression_id,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         )?;
         let Some((contract_symbol, contract_arguments)) = self
             .resolve_contract_reference_for_associated_type(
-                module,
-                profile,
-                symbols,
+                tables.module,
+                tables.profile,
+                tables.symbols,
                 contract_type_id,
-                types,
+                tables.types,
             )
         else {
             return Ok(None);
         };
-        let Some(contract_symbol) =
-            self.declaration_symbol_id(module, symbols, profile, contract_symbol)
-        else {
+        let Some(contract_symbol) = self.declaration_symbol_id(
+            tables.module,
+            tables.symbols,
+            tables.profile,
+            contract_symbol,
+        ) else {
             return Ok(None);
         };
         if !matches!(
@@ -1184,14 +1135,10 @@ impl Compiler {
         }
 
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            module,
-            profile,
+            &mut tables.reborrow(),
             contract_symbol,
             contract_expression_id.into_any(),
             &contract_arguments,
-            tree,
-            symbols,
-            types,
         );
         Ok(Some(AssociatedContractContext {
             contract_symbol,
@@ -1307,14 +1254,11 @@ impl Compiler {
     /// Register one inherited default or validate it against the existing default.
     fn register_or_validate_inherited_default(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         contract_expression_id: LocalNodeId<Expression>,
         name: StringId,
         default_ty_id: LocalTypeId,
         inherited_defaults_by_name: &mut HashMap<StringId, LocalTypeId>,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         incompatibility_message: &str,
     ) {
         let Some(existing_default_id) = inherited_defaults_by_name.get(&name).copied() else {
@@ -1322,19 +1266,16 @@ impl Compiler {
             return;
         };
         if self.types_are_bidirectionally_assignable(
-            module,
-            profile,
+            &mut tables.reborrow(),
             existing_default_id,
             default_ty_id,
-            symbols,
-            types,
         ) {
             return;
         }
 
         let node = contract_expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(tables.module.id)
+            .into_anchored(Some(tables.profile));
         self.error(AnalyzeError::InvalidStaticArgument {
             node,
             message: incompatibility_message.to_string(),
@@ -1344,18 +1285,29 @@ impl Compiler {
     /// Return true when two types are assignable to each other.
     fn types_are_bidirectionally_assignable(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         left_id: LocalTypeId,
         right_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> bool {
-        let options = self.analyze_context_options_for_module(module.id);
-        let left_to_right =
-            self.is_type_assignable(module, profile, symbols, left_id, right_id, types, &options);
-        let right_to_left =
-            self.is_type_assignable(module, profile, symbols, right_id, left_id, types, &options);
+        let options = self.analyze_context_options_for_module(tables.module.id);
+        let left_to_right = self.is_type_assignable(
+            tables.module,
+            tables.profile,
+            tables.symbols,
+            left_id,
+            right_id,
+            tables.types,
+            &options,
+        );
+        let right_to_left = self.is_type_assignable(
+            tables.module,
+            tables.profile,
+            tables.symbols,
+            right_id,
+            left_id,
+            tables.types,
+            &options,
+        );
         left_to_right != Assignability::NotAssignable
             && right_to_left != Assignability::NotAssignable
     }
@@ -2807,16 +2759,12 @@ impl Compiler {
         // enforce no-managed decorators on signature types
         if enforce_decorator_no_managed {
             self.check_no_managed_signature(
-                tables.module,
-                ctx.profile,
+                &mut tables.type_tables_reborrow(),
                 signature,
                 this_parameter,
                 &dynamic_param_types,
                 return_type,
                 return_type_node_id,
-                tables.tree,
-                tables.symbols,
-                tables.types,
             )?;
         }
 
@@ -2933,16 +2881,12 @@ impl Compiler {
         let enforce_decorator_no_managed = options.no_managed && !module_options.no_managed;
         if enforce_decorator_no_managed {
             self.check_no_managed_signature(
-                tables.module,
-                ctx.profile,
+                &mut tables.type_tables_reborrow(),
                 signature,
                 this_parameter,
                 &dynamic_param_types,
                 return_type,
                 return_type_node_id,
-                tables.tree,
-                tables.symbols,
-                tables.types,
             )?;
         }
 
@@ -3031,34 +2975,27 @@ impl Compiler {
     /// Enforce no-managed decorators on function signatures.
     fn check_no_managed_signature(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         signature: &FunctionSignature,
         this_parameter: Option<LocalTypeId>,
         dynamic_param_types: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
         return_type_node_id: Option<LocalNodeId<Expression>>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // only enforce for user modules
-        if !matches!(module.source, ModuleSource::User) {
+        if !matches!(tables.module.source, ModuleSource::User) {
             return Ok(());
         }
+        let module_id = tables.module.id;
 
         // enforce this parameter types when present
         if let Some(this_parameter_id) = signature.this_parameter
             && let Some(this_ty_id) = this_parameter
         {
             self.check_no_managed_signature_type(
-                module,
-                profile,
-                this_parameter_id.into_global_any(module.id),
+                &mut tables.reborrow(),
+                this_parameter_id.into_global_any(module_id),
                 this_ty_id,
-                tree,
-                symbols,
-                types,
             )?;
         }
 
@@ -3068,13 +3005,9 @@ impl Compiler {
                 continue;
             };
             self.check_no_managed_signature_type(
-                module,
-                profile,
-                parameter_id.into_global_any(module.id),
+                &mut tables.reborrow(),
+                parameter_id.into_global_any(module_id),
                 param_ty_id,
-                tree,
-                symbols,
-                types,
             )?;
         }
 
@@ -3083,13 +3016,9 @@ impl Compiler {
             (return_type_node_id, return_type)
         {
             self.check_no_managed_signature_type(
-                module,
-                profile,
-                return_type_node_id.into_global_any(module.id),
+                &mut tables.reborrow(),
+                return_type_node_id.into_global_any(module_id),
                 return_type_id,
-                tree,
-                symbols,
-                types,
             )?;
         }
 
@@ -3099,23 +3028,26 @@ impl Compiler {
     /// Enforce no-managed decorators on a single signature type.
     fn check_no_managed_signature_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         node_id: GlobalNodeIdAny,
         ty_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // resolve unevaluated types before checking managed usage
-        if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
-            self.resolve_declared_type(module, profile, ty_id, tree, symbols, types)?;
+        if matches!(tables.types.get_type(ty_id), Type::Unevaluated(_)) {
+            self.resolve_declared_type(
+                tables.module,
+                tables.profile,
+                ty_id,
+                tables.tree,
+                tables.symbols,
+                tables.types,
+            )?;
         }
 
         // report managed types in signatures
-        if self.type_contains_managed(module, profile, ty_id, types) {
+        if self.type_contains_managed(tables.module, tables.profile, ty_id, tables.types) {
             self.error(AnalyzeError::ManagedMemoryDisabled {
-                node: node_id.into_anchored(Some(profile)),
+                node: node_id.into_anchored(Some(tables.profile)),
             });
         }
 

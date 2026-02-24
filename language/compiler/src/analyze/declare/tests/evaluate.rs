@@ -1,3 +1,4 @@
+use crate::analyze::TypeTablesContext;
 use crate::analyze::declare::TypeMemberResolution;
 use destack_dir::{
     Expression, LocalScopeMark, LocalTypeId, PrimitiveType, ScalarLiteral, StaticArgument,
@@ -764,15 +765,14 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
         name: None,
         value: StaticExpression::Type { ty: string_type_id },
     }];
+    let options = test.compiler.analyze_context_options_for_module(module.id);
+    let mut type_tables =
+        TypeTablesContext::new(&module, profile, &options, &tree, &symbols, &mut types);
     let substitutions = test.compiler.build_type_parameter_substitutions_for_symbol(
-        &module,
-        profile,
+        &mut type_tables,
         segment_plan_symbol,
         dir.roots[0].into_any(),
         &receiver_arguments,
-        &tree,
-        &symbols,
-        &mut types,
     );
     let mut visited = std::collections::HashSet::new();
     let direct_projection = test

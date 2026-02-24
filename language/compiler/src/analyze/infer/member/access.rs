@@ -649,16 +649,10 @@ impl Compiler {
 
         // inherit static arguments and substitutions from the receiver
         let mut inherited = self.resolve_inherited_static_arguments(
-            tables.module,
-            ctx.profile,
+            &mut tables.reborrow(),
             receiver.receiver_id.into_any(),
             Some(receiver.receiver_ty_id),
             &receiver.receiver_ty,
-            tables.infer,
-            &ctx.options,
-            tables.tree,
-            tables.symbols,
-            tables.types,
         )?;
 
         // classify receiver semantics once for all member lookup paths
@@ -716,15 +710,11 @@ impl Compiler {
         )?;
         if let Some(member_symbol) = member_symbol {
             self.extend_owner_substitutions_from_inherited(
-                tables.module,
-                tables.profile,
+                &mut tables.type_tables_reborrow(),
                 expression_id.into_any(),
                 member_symbol,
                 &inherited.arguments,
                 &mut inherited.substitutions,
-                tables.tree,
-                tables.symbols,
-                tables.types,
             );
         }
         let enum_field_value_ty_id = self.enum_field_value_type_for_symbol(
@@ -738,15 +728,10 @@ impl Compiler {
         // resolve extension substitutions for member symbols
         let extension_context = if let Some(member_symbol) = member_symbol {
             self.resolve_extension_member_context(
-                tables.module,
-                tables.profile,
+                &mut tables.type_tables_reborrow(),
                 expression_id.into_any(),
                 member_symbol,
                 &inherited.arguments,
-                &ctx.options,
-                tables.tree,
-                tables.symbols,
-                tables.types,
             )?
         } else {
             None
@@ -843,15 +828,18 @@ impl Compiler {
             } else {
                 self.resolve_member_index_or_missing(
                     &mut tables.reborrow(),
-                    expression_id,
-                    receiver.receiver_id,
-                    receiver.receiver_ty_id,
-                    &receiver.receiver_ty,
-                    receiver.receiver_requires_infer_convergence,
-                    receiver.allow_missing_member_deferral,
-                    &lookup.member_key,
-                    &lookup.resolution,
-                    ctx.is_surface_inference,
+                    super::resolve::MissingMemberResolutionContext {
+                        expression_id,
+                        receiver_id: receiver.receiver_id,
+                        receiver_ty_id: receiver.receiver_ty_id,
+                        receiver_ty: &receiver.receiver_ty,
+                        receiver_requires_infer_convergence: receiver
+                            .receiver_requires_infer_convergence,
+                        allow_missing_member_deferral: receiver.allow_missing_member_deferral,
+                        member_key: &lookup.member_key,
+                        member_resolution: &lookup.resolution,
+                        is_surface_inference: ctx.is_surface_inference,
+                    },
                 )?
             };
 
@@ -866,14 +854,10 @@ impl Compiler {
             )
         };
         resolved_member_ty_id = self.materialize_associated_member_access_type(
-            tables.module,
+            &mut tables.reborrow(),
             expression_id,
             resolved_member_ty_id,
             lookup,
-            ctx.profile,
-            tables.tree,
-            tables.symbols,
-            &mut *tables.types,
         )?;
 
         // register associated comptime obligations until post infer convergence
@@ -958,25 +942,21 @@ impl Compiler {
     /// Materialize one associated comptime member access after receiver substitution.
     fn materialize_associated_member_access_type(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         member_ty_id: LocalTypeId,
         lookup: &MemberAccessLookup,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         let Some(member_symbol) = lookup.member_symbol else {
             return Ok(member_ty_id);
         };
 
         let kind = self.query_static_member_symbol_kind_for_symbol(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             member_symbol,
-            tree,
-            symbols,
+            tables.tree,
+            tables.symbols,
         )?;
         if kind != Some(StaticMemberSymbolKind::AssociatedComptimeConst) {
             return Ok(member_ty_id);
@@ -985,31 +965,33 @@ impl Compiler {
         // defer projection materialization until receiver static arguments converge
         // unresolved obligations are reported after infer convergence
         if self.receiver_projection_arguments_require_deferral(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             &lookup.inherited.arguments,
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
         ) {
             return Ok(member_ty_id);
         }
 
-        let member_ty = types.get_type(member_ty_id).clone();
+        let member_ty = tables.types.get_type(member_ty_id).clone();
         let materialized_ty = self.materialize_associated_member_projection(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             expression_id.into_any(),
             member_symbol,
             lookup.receiver_context.nominal_symbol,
             &lookup.inherited.arguments,
             None,
             member_ty,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         )?;
 
-        Ok(types.insert_type_from_type(materialized_ty, member_ty_id))
+        Ok(tables
+            .types
+            .insert_type_from_type(materialized_ty, member_ty_id))
     }
     /// Return the member access type for `any` receivers.
     pub(crate) fn any_member_access_type(

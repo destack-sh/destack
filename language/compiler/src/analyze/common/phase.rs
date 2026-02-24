@@ -97,6 +97,73 @@ impl<'a> AssignContext<'a> {
     }
 }
 
+/// Shared mutable type-resolution context for tree, symbols, and types.
+#[derive(Debug)]
+pub(crate) struct TypeTablesContext<'a> {
+    /// The module under analysis.
+    pub module: &'a Module,
+    /// The active profile.
+    pub profile: ProfileId,
+    /// The active analysis options.
+    pub options: &'a AnalyzeOptions,
+    /// The analyzed syntax tree.
+    pub tree: &'a NodeTree,
+    /// The symbol table for the active module.
+    pub symbols: &'a SymbolTable,
+    /// The mutable type table for type-resolution operations.
+    pub types: &'a mut TypeTable,
+}
+
+impl<'a> TypeTablesContext<'a> {
+    /// Construct a type-resolution context for table-driven operations.
+    pub(crate) fn new(
+        module: &'a Module,
+        profile: ProfileId,
+        options: &'a AnalyzeOptions,
+        tree: &'a NodeTree,
+        symbols: &'a SymbolTable,
+        types: &'a mut TypeTable,
+    ) -> Self {
+        Self {
+            module,
+            profile,
+            options,
+            tree,
+            symbols,
+            types,
+        }
+    }
+
+    /// Reborrow this context for one nested call chain.
+    pub(crate) fn reborrow(&mut self) -> TypeTablesContext<'_> {
+        TypeTablesContext {
+            module: self.module,
+            profile: self.profile,
+            options: self.options,
+            tree: self.tree,
+            symbols: self.symbols,
+            types: self.types,
+        }
+    }
+
+    /// Reborrow this context for one module-local symbol and tree view.
+    pub(crate) fn reborrow_for_module<'b>(
+        &'b mut self,
+        module: &'b Module,
+        tree: &'b NodeTree,
+        symbols: &'b SymbolTable,
+    ) -> TypeTablesContext<'b> {
+        TypeTablesContext {
+            module,
+            profile: self.profile,
+            options: self.options,
+            tree,
+            symbols,
+            types: self.types,
+        }
+    }
+}
+
 /// Shared mutable infer context for tree, symbols, types, and infer tables.
 #[derive(Debug)]
 pub(crate) struct InferTablesContext<'a> {
@@ -149,5 +216,34 @@ impl<'a> InferTablesContext<'a> {
             types: self.types,
             infer: self.infer,
         }
+    }
+
+    /// Reborrow this context as a type-resolution context.
+    pub(crate) fn type_tables_reborrow(&mut self) -> TypeTablesContext<'_> {
+        TypeTablesContext {
+            module: self.module,
+            profile: self.profile,
+            options: self.options,
+            tree: self.tree,
+            symbols: self.symbols,
+            types: self.types,
+        }
+    }
+
+    /// Split this infer context into type tables and infer table borrows.
+    pub(crate) fn split_type_tables_and_infer(
+        &mut self,
+    ) -> (TypeTablesContext<'_>, &mut InferTable) {
+        (
+            TypeTablesContext {
+                module: self.module,
+                profile: self.profile,
+                options: self.options,
+                tree: self.tree,
+                symbols: self.symbols,
+                types: self.types,
+            },
+            self.infer,
+        )
     }
 }

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
     CanonicalSymbolMode, MaterializationMode, REWRITER_TAG_STATIC_ARGUMENT, TypeRewriteCache,
-    TypeWalkContext, rewrite_type_with_cache,
+    TypeTablesContext, TypeWalkContext, rewrite_type_with_cache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeResult, Compiler};
@@ -1089,13 +1089,14 @@ impl Compiler {
                 continue;
             }
 
+            let tree = module.dir(profile).tree.read();
+            let options = self.analyze_context_options_for_module(module.id);
+            let mut type_tables =
+                TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
             let Some(constraint_type_id) = self.static_parameter_constraint_type(
-                module,
-                profile,
+                &mut type_tables,
                 *parameter_symbol,
                 source_id,
-                symbols,
-                types,
             ) else {
                 continue;
             };
@@ -1504,15 +1505,20 @@ impl Compiler {
         // map parameter names to their resolved kinds
         let mut parameter_kinds = Vec::with_capacity(parameter_symbols.len());
         let mut parameter_name_kinds = HashMap::new();
+        let options = self.analyze_context_options_for_module(argument_module.id);
+        let mut parameter_tables = TypeTablesContext::new(
+            argument_module,
+            profile,
+            &options,
+            argument_tree,
+            argument_symbols,
+            types,
+        );
         for parameter_symbol in parameter_symbols {
             let parameter = self.resolve_static_parameter(
-                argument_module,
+                &mut parameter_tables.reborrow(),
                 parameter_symbol,
                 source_id,
-                profile,
-                argument_tree,
-                argument_symbols,
-                types,
             );
             let kind = parameter.kind;
             if let Some(name) = parameter.name {

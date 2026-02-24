@@ -1,5 +1,5 @@
 use crate::analyze::AssociatedProjectionSelection;
-use crate::analyze::common::{CanonicalSymbolMode, RelationMode};
+use crate::analyze::common::{CanonicalSymbolMode, RelationMode, TypeTablesContext};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
@@ -830,17 +830,14 @@ impl Compiler {
             symbols,
             types,
         )?;
+        let mut type_tables =
+            TypeTablesContext::new(module, profile, &options, tree, symbols, types);
         let resolved_arguments = self.resolve_type_reference_static_arguments(
-            module,
-            profile,
+            &mut type_tables,
             span_id.into_any(),
             target_symbol,
             static_arguments.as_deref(),
             validate_static_argument_bounds,
-            &options,
-            tree,
-            symbols,
-            types,
         )?;
 
         let ty = Type::Reference {

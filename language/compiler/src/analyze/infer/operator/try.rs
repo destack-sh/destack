@@ -360,16 +360,10 @@ impl Compiler {
     ) -> AnalyzeResult<Option<(LocalTypeId, LocalTypeId)>> {
         // resolve static arguments for the receiver reference
         let inherited = self.resolve_inherited_static_arguments(
-            tables.module,
-            tables.profile,
+            &mut tables.reborrow(),
             receiver_id,
             Some(receiver_ty_id),
             receiver_ty,
-            tables.infer,
-            tables.options,
-            tables.tree,
-            tables.symbols,
-            tables.types,
         )?;
 
         // require at least two static arguments for Try value and error types
@@ -450,17 +444,13 @@ impl Compiler {
                 let try_branch_symbol =
                     self.language_symbol(tables.profile, LanguageSymbol::TryBranch);
                 if canonical_symbol == try_branch_symbol {
+                    let mut type_tables = tables.type_tables_reborrow();
                     let resolved_arguments = self.resolve_type_reference_static_arguments(
-                        tables.module,
-                        tables.profile,
+                        &mut type_tables,
                         expression_id.into_any(),
                         canonical_symbol,
                         static_arguments.as_deref(),
                         true,
-                        tables.options,
-                        tables.tree,
-                        tables.symbols,
-                        tables.types,
                     )?;
                     let arguments = resolved_arguments
                         .as_deref()
@@ -501,17 +491,13 @@ impl Compiler {
                     return Ok(None);
                 };
 
+                let mut type_tables = tables.type_tables_reborrow();
                 let resolved_arguments = self.resolve_type_reference_static_arguments(
-                    tables.module,
-                    tables.profile,
+                    &mut type_tables,
                     expression_id.into_any(),
                     canonical_symbol,
                     static_arguments.as_deref(),
                     true,
-                    tables.options,
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
                 )?;
                 let arguments = resolved_arguments
                     .as_deref()
@@ -522,14 +508,10 @@ impl Compiler {
                     alias_target_id
                 } else {
                     let substitutions = self.build_type_parameter_substitutions_for_symbol(
-                        tables.module,
-                        tables.profile,
+                        &mut tables.type_tables_reborrow(),
                         canonical_symbol,
                         expression_id.into_any(),
                         arguments,
-                        tables.tree,
-                        tables.symbols,
-                        tables.types,
                     );
                     if substitutions.is_empty() {
                         alias_target_id
@@ -937,6 +919,8 @@ impl Compiler {
         receiver_ty_id: LocalTypeId,
         receiver_ty: &Type,
     ) -> AnalyzeResult<()> {
+        let lookup = MemberLookupModuleContext::from_infer_tables(&*tables);
+
         // resolve the fromError key once
         let from_error_key = StaticKey::Name(self.program.strings.intern("fromError"));
 
@@ -947,13 +931,10 @@ impl Compiler {
                 let mut visited = Vec::new();
                 let member = self.resolve_member_symbol_for_symbol(
                     tables.module,
+                    &lookup,
                     *symbol,
                     &from_error_key,
                     MemberLookupMode::Value,
-                    tables.profile,
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
                     &mut visited,
                 )?;
                 if member.is_none() {
@@ -967,13 +948,10 @@ impl Compiler {
                         let mut visited = Vec::new();
                         let member = self.resolve_member_symbol_for_symbol(
                             tables.module,
+                            &lookup,
                             *symbol,
                             &from_error_key,
                             MemberLookupMode::Value,
-                            tables.profile,
-                            tables.tree,
-                            tables.symbols,
-                            tables.types,
                             &mut visited,
                         )?;
                         if member.is_none() {
