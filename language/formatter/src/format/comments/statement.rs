@@ -54,7 +54,7 @@ fn try_attach_parameter_or_argument_separator_comment(
     Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary))
 }
 
-/// Resolve one own-line case/default prefix comment target.
+/// Resolve one own line case/default prefix comment target.
 fn case_or_default_prefix_target(
     tree: &NodeTree,
     context: &CommentSeamContext<'_>,
@@ -124,6 +124,29 @@ fn control_head_line_comment_target(
     }
 }
 
+/// Return whether a semicolon guard seam should prefer the right owner.
+fn is_semicolon_guard_right_preferred_for_expression(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression = match tree.get(expression_id) {
+        Expression::Statement(inner_id) => tree.get(*inner_id),
+        expression => expression,
+    };
+
+    matches!(
+        expression,
+        Expression::If {
+            kind: ast::IfKind::If,
+            ..
+        } | Expression::While { .. }
+            | Expression::ForEach { .. }
+            | Expression::For { .. }
+            | Expression::Loop { .. }
+            | Expression::Labelled { .. }
+    )
+}
+
 /// Resolve statement-prefix seam comment rules.
 pub(crate) fn try_attach_comment_statement_prefix(
     tree: &NodeTree,
@@ -138,7 +161,7 @@ pub(crate) fn try_attach_comment_statement_prefix(
     let token_after_span = context.token_after_span;
     let token_before_span = context.token_before_span.map(|token| token.span);
 
-    // own-line trailing separator comments before `)` should stay on the container item
+    // own line trailing separator comments before `)` should stay on the container item
     if seam.has_leading_newline
         && let Some(attachment) =
             try_attach_parameter_or_argument_separator_comment(tree, parents, seam, left_owner)
@@ -146,8 +169,49 @@ pub(crate) fn try_attach_comment_statement_prefix(
         return Some(attachment);
     }
 
-    // own-line comments before semicolon guards stay with the guarded rhs expression
+    // own line line comments after control heads should stay before the body statement
+    if seam.has_leading_newline
+        && seam.comment_is_line
+        && seam.token_before_is(TokenType::CloseParenthesis)
+        && !seam.token_after_is(TokenType::Semicolon)
+        && !seam.token_after_is_case_or_default()
+        && let Some(attachment) =
+            control_head_line_comment_target(tree, parents, left_owner, right_owner)
+    {
+        return Some(attachment);
+    }
+
+    // own line comments before semicolon guards stay with the guarded right expression
     if seam.has_leading_newline && seam.token_after_is(TokenType::Semicolon) {
+        let is_left_owner_right_preferred = left_owner.is_some_and(|owner| {
+            tree.get_node_type(owner) == NodeType::Expression
+                && is_semicolon_guard_right_preferred_for_expression(
+                    tree,
+                    LocalNodeId::<Expression>::new(owner),
+                )
+        });
+
+        if (is_left_owner_right_preferred || left_owner.is_none())
+            && let Some(target_owner) = token_after_span
+                .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
+                .or(right_owner)
+        {
+            let target_owner = if tree.get_node_type(target_owner) == NodeType::Expression {
+                Some(target_owner)
+            } else {
+                promote_owner_to_node_type_ancestor(
+                    tree,
+                    parents,
+                    target_owner,
+                    NodeType::Expression,
+                )
+            };
+
+            if let Some(target_owner) = target_owner {
+                return Some((Some(target_owner), AnnotationPosition::BlockPrefix));
+            }
+        }
+
         let left_owner_is_statement_expression = left_owner.is_some_and(|owner| {
             tree.get_node_type(owner) == NodeType::Expression
                 && matches!(
@@ -155,34 +219,25 @@ pub(crate) fn try_attach_comment_statement_prefix(
                     Expression::Statement(_)
                 )
         });
-
-        if (left_owner_is_statement_expression || left_owner.is_none())
-            && let Some(mut target_owner) = token_after_span
-                .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span))
-                .or(right_owner)
-        {
-            if tree.get_node_type(target_owner) != NodeType::Expression
-                && let Some(expression_target) = promote_owner_to_node_type_ancestor(
-                    tree,
-                    parents,
-                    target_owner,
-                    NodeType::Expression,
-                )
-            {
-                target_owner = expression_target;
-            }
-
-            return Some((Some(target_owner), AnnotationPosition::BlockPrefix));
-        }
+        let left_owner_is_declaration_or_member = left_owner.is_some_and(|owner| {
+            matches!(
+                tree.get_node_type(owner),
+                NodeType::Declaration | NodeType::Member
+            )
+        });
 
         if let Some(target_owner) = left_owner {
+            if !left_owner_is_statement_expression && !left_owner_is_declaration_or_member {
+                return None;
+            }
+
             let target_owner =
                 normalize_owner_with_shared_end(tree, parents, target_owner, token_before_span);
             return Some((Some(target_owner), AnnotationPosition::LinePostfixBoundary));
         }
     }
 
-    // own-line comments before switch case labels should attach to the first case expression
+    // own line comments before switch case labels should attach to the first case expression
     if seam.has_leading_newline
         && seam.token_after_is_case_or_default()
         && let Some(attachment) =
@@ -228,6 +283,7 @@ pub(crate) fn try_attach_comment_statement_suffix(
         && seam.has_trailing_newline
         && seam.comment_is_line
         && seam.token_before_is(TokenType::CloseParenthesis)
+        && !seam.token_after_is(TokenType::Semicolon)
         && !seam.token_after_is_case_or_default()
         && let Some(attachment) =
             control_head_line_comment_target(tree, parents, left_owner, right_owner)

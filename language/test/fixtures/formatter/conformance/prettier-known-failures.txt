@@ -48,7 +48,6 @@ js/comments/template-literal.js
 js/comments/trailing-jsdocs.js
 js/comments/variable_declarator.js
 js/comments/while-like/if.js
-js/comments/while-like/while.js
 js/conditional/comments.js
 js/conditional/new-ternary-spec.js
 js/conditional/postfix-ternary-regressions.js
@@ -84,9 +83,7 @@ js/identifier/parentheses/let.js
 js/if/condition-break/boolean-expression.js
 js/if/condition-break/unary-expression.js
 js/if/expr_and_same_line_comments.js
-js/if/if_comments.js
 js/if/issue-15168.js
-js/if/non-block.js
 js/ignore/issue-10661.js
 js/ignore/issue-9335.js
 js/import-assertions/empty.js

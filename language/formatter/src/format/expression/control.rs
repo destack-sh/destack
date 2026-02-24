@@ -275,6 +275,10 @@ pub(crate) fn format_if_else_chain<'ast>(
 
                 // then block
                 let then_expression = f.context().tree.get(*then_expression_id);
+                let then_is_empty_statement = matches!(
+                    then_expression,
+                    Expression::Block(block_id) if is_empty_statement_block(f.context(), *block_id)
+                );
                 match then_expression {
                     Expression::Block(block_id) => {
                         write!(f, [f.context().any_prefix_annotations(*then_expression_id)])?;
@@ -308,6 +312,7 @@ pub(crate) fn format_if_else_chain<'ast>(
                     if else_has_effective_prefix_annotation
                         || if_has_postfix_annotation
                         || then_has_postfix_annotation
+                        || then_is_empty_statement
                     {
                         write!(f, [hard_line_break()])?;
                     } else {
