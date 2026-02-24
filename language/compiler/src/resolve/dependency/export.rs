@@ -67,7 +67,7 @@ impl CommonjsExportState {
 
 impl Compiler {
     /// Insert static named CommonJS exports into one module export table.
-    pub(super) fn insert_commonjs_named_exports(
+    pub(crate) fn insert_commonjs_named_exports(
         &self,
         module_id: ModuleId,
         namespace_scope: LocalScopeId,
@@ -114,7 +114,7 @@ impl Compiler {
     }
 
     /// Resolve a CommonJS default export symbol from `module.exports = ...` assignments.
-    pub(super) fn resolve_commonjs_default_export_symbol(
+    pub(crate) fn resolve_commonjs_default_export_symbol(
         &self,
         origin_module_id: ModuleId,
         target: ModuleTarget,

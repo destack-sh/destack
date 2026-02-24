@@ -10,7 +10,7 @@ use destack_workspace::{
     Target, TargetDiscovery, TargetId,
 };
 
-use crate::resolve::cache::ResolveScopeIndexCache;
+use crate::resolve::binding::cache::ResolveScopeIndexCache;
 use crate::{Compiler, ResolveError, ResolveResult, TargetDiscoveryIssue, TaskDependencyError};
 
 /// Track dependency targets while scanning module trees.
@@ -29,7 +29,7 @@ struct DependencyTarget {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Prepare the global symbol table for a module and profile.
-    pub(super) fn require_global_symbol_table(
+    pub(crate) fn require_global_symbol_table(
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
@@ -56,7 +56,7 @@ impl Compiler {
     }
 
     /// Resolve a path against the global symbol table.
-    pub(super) fn resolve_global_path(
+    pub(crate) fn resolve_global_path(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -333,8 +333,10 @@ impl Compiler {
 
         // select the entry module and target id for the key
         let entry_module = (!has_targets).then_some(module_id);
-        let target_id = if has_targets {
-            self.select_default_target_for_package(package_id)?.0
+        let target_id = if let Some((target_id, _)) =
+            self.select_target_for_global_symbol_table(module_id, profile_id)?
+        {
+            target_id
         } else {
             TargetId::new(package_id, "default")
         };
@@ -365,7 +367,7 @@ impl Compiler {
 
     /// Select the global symbol table roots for a module.
     /// Returns the cache key and root module list.
-    pub(super) fn select_global_symbol_table(
+    pub(crate) fn select_global_symbol_table(
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
@@ -391,7 +393,9 @@ impl Compiler {
         }
 
         // prefer roots based on the package target discovery rules
-        let (target_id, target) = self.select_default_target_for_package(package_id)?;
+        let (target_id, target) = self
+            .select_target_for_global_symbol_table(module_id, profile_id)?
+            .expect("checked has_targets");
         let roots = match target.discovery {
             TargetDiscovery::Entry => self
                 .discover_entry_modules(package_id, &package_path, &target, &target_id)
@@ -406,6 +410,90 @@ impl Compiler {
             entry_module: None,
         };
         Ok((key, roots))
+    }
+
+    /// Select the target policy used for global symbol table selection.
+    fn select_target_for_global_symbol_table(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> ResolveResult<Option<(TargetId, Target)>> {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let package_id = module.package_id;
+        let package = self.program.packages.get(package_id);
+        let package = package.read();
+
+        if package.targets.is_empty() {
+            return Ok(None);
+        }
+        drop(package);
+
+        if let Some(target) = self.select_target_for_module_profile(module_id, profile_id)? {
+            return Ok(Some(target));
+        }
+
+        self.select_default_target_for_package(package_id).map(Some)
+    }
+
+    /// Select a target for one module/profile pair when one profile mapping can be chosen.
+    fn select_target_for_module_profile(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> ResolveResult<Option<(TargetId, Target)>> {
+        // load package metadata for target inspection
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let package_id = module.package_id;
+        let package = self.program.packages.get(package_id);
+        let package = package.read();
+
+        // skip packages without configured targets
+        if package.targets.is_empty() {
+            return Ok(None);
+        }
+
+        // collect targets that resolve to the requested profile for this module
+        let mut matching_targets: Vec<(TargetId, Target)> = package
+            .targets
+            .iter()
+            .filter_map(|(target_id, target)| {
+                let candidate_profile = self.program.profile_id_for_target(module_id, target_id)?;
+                if candidate_profile == profile_id {
+                    Some((target_id.clone(), target.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        // no profile match: caller must fall back to default target selection
+        if matching_targets.is_empty() {
+            return Ok(None);
+        }
+
+        // one profile match: use it directly
+        if matching_targets.len() == 1 {
+            return Ok(Some(matching_targets.remove(0)));
+        }
+
+        // multiple profile matches: prefer explicit default target when available
+        if let Some(dsconfig) = package.dsconfig.as_ref()
+            && let Some(default_target) = dsconfig.options.default_target.as_ref()
+        {
+            let default_target_id = TargetId::new(package_id, default_target);
+            if let Some((target_id, target)) = matching_targets
+                .iter()
+                .find(|(target_id, _)| *target_id == default_target_id)
+            {
+                return Ok(Some((target_id.clone(), target.clone())));
+            }
+        }
+
+        // keep deterministic behavior for ambiguous profile-target mappings
+        matching_targets.sort_by(|(left_id, _), (right_id, _)| left_id.name.cmp(&right_id.name));
+        Ok(Some(matching_targets.remove(0)))
     }
 
     /// Select the default target for a package.
@@ -487,7 +575,7 @@ impl Compiler {
 
     /// Build a global symbol cache for freestanding modules.
     /// This collects all global symbols from the given modules in one go.
-    pub(super) fn build_global_symbol_table_freestanding(
+    pub(crate) fn build_global_symbol_table_freestanding(
         &self,
         modules: &[ModuleId],
         profile_id: ProfileId,
@@ -833,280 +921,5 @@ impl Compiler {
             }
         }
         targets
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use destack_dir::{DependencySource, StaticKey};
-
-    use crate::TestProgram;
-
-    /// Test that symbols inside `declare global { }` blocks are collected as globals.
-    #[test]
-    fn test_collect_global_symbols_declare_global() {
-        let test = TestProgram::memory_sequential();
-        let module_id = test.add_module(
-            "test.d.ts",
-            r#"
-declare global {
-    var TestGlobal: string;
-    function testGlobalFn(): void;
-    interface TestGlobalInterface {}
-}
-export {};
-"#,
-        );
-        test.resolve_module(module_id);
-        test.compile_check_clean();
-
-        let profile = test.default_profile_id(module_id);
-        let cache = test
-            .compiler
-            .build_global_symbol_table_freestanding(&[module_id], profile)
-            .unwrap();
-
-        // check that the global symbols were collected
-        let test_global_key = StaticKey::Name(test.program.strings.intern("TestGlobal"));
-        assert!(cache.symbols.contains_key(&test_global_key),);
-        let test_fn_key = StaticKey::Name(test.program.strings.intern("testGlobalFn"));
-        assert!(cache.symbols.contains_key(&test_fn_key),);
-        let test_iface_key = StaticKey::Name(test.program.strings.intern("TestGlobalInterface"));
-        assert!(cache.symbols.contains_key(&test_iface_key),);
-    }
-
-    /// Resolve `export as namespace` globals in both value and type spaces.
-    #[test]
-    fn test_collect_export_namespace_globals_in_type_space() {
-        let test = TestProgram::memory_sequential();
-        test.add_module(
-            "a.d.ts",
-            r#"
-export as namespace babel;
-
-export namespace types {
-    export interface Expression {
-        kind: string;
-    }
-}
-"#,
-        );
-        let module_id = test.add_module(
-            "main.ts",
-            r#"
-import { types } from "./a";
-
-type Expression = babel.types.Expression;
-const expression: types.Expression = { kind: "ok" };
-"#,
-        );
-        test.resolve_module(module_id);
-        test.compile_check_clean();
-    }
-
-    /// Resolve triple slash path directives to same-directory declaration modules.
-    #[test]
-    fn test_collect_global_symbols_from_triple_slash_declaration_script() {
-        let test = TestProgram::memory_sequential();
-
-        // normalize one bare reference path target to same-directory relative form
-        let bare_target = test.program.strings.intern("global.d.ts");
-        let normalized_target = test.compiler.resolve_target_for_dependency_source(
-            DependencySource::ReferencePathDirective,
-            bare_target,
-        );
-        let normalized_text = test.program.strings.get(normalized_target);
-        assert_eq!(normalized_text.as_ref(), "./global.d.ts");
-
-        // keep explicit relative path targets unchanged
-        let explicit_target = test.program.strings.intern("./global.d.ts");
-        let explicit_result = test.compiler.resolve_target_for_dependency_source(
-            DependencySource::ReferencePathDirective,
-            explicit_target,
-        );
-        assert_eq!(explicit_result, explicit_target);
-    }
-
-    /// Resolve triple slash type package directives through @types package lookup.
-
-    #[test]
-    fn test_collect_global_symbols_from_triple_slash_types_package() {
-        let test = TestProgram::memory_sequential();
-        test.add_module(
-            "node_modules/@types/runner-types/package.json",
-            r#"{
-  "name": "@types/runner-types",
-  "types": "./index.d.ts"
-}"#,
-        );
-        test.add_module(
-            "node_modules/@types/runner-types/index.d.ts",
-            r#"
-interface RunnerGlobal {
-    id: string;
-}
-"#,
-        );
-        test.add_module(
-            "ambient.d.ts",
-            r#"
-/// <reference types="runner-types" />
-
-export interface Markup {
-    value: RunnerGlobal;
-}
-"#,
-        );
-        let module_id = test.add_module(
-            "main.ts",
-            r#"
-import type { Markup } from "./ambient";
-
-const markup: Markup = {
-    value: {
-        id: "ok",
-    },
-};
-"#,
-        );
-        test.resolve_module(module_id);
-        test.compile_check_clean();
-    }
-
-    /// Resolve triple slash lib directives through builtin library loading.
-    #[test]
-    fn test_collect_global_symbols_from_triple_slash_lib_directive() {
-        let test = TestProgram::memory_sequential();
-        test.add_module(
-            "ambient.d.ts",
-            r#"
-/// <reference lib="esnext.disposable" />
-
-export interface ResourceHolder {
-    resource: Disposable;
-}
-"#,
-        );
-        let module_id = test.add_module(
-            "main.ts",
-            r#"
-import type { ResourceHolder } from "./ambient";
-
-declare const holder: ResourceHolder;
-holder.resource;
-"#,
-        );
-        test.resolve_module(module_id);
-        test.compile_check_clean();
-    }
-
-    /// Resolve export-namespace globals when value imports use declaration companions.
-    #[test]
-    fn test_collect_export_namespace_globals_from_companion_type_target() {
-        let test = TestProgram::memory_sequential();
-        test.add_module(
-            "babel.js",
-            r#"
-export const types = {};
-"#,
-        );
-        test.add_module(
-            "babel.d.ts",
-            r#"
-export as namespace babel;
-
-export namespace types {
-    export interface Expression {
-        kind: string;
-    }
-
-    export interface V8IntrinsicIdentifier {
-        intrinsic: string;
-    }
-}
-"#,
-        );
-        let module_id = test.add_module(
-            "main.ts",
-            r#"
-import "./babel.js";
-
-type BabelType = babel.types.Expression | babel.types.V8IntrinsicIdentifier;
-const value: BabelType | null = null;
-"#,
-        );
-        test.resolve_module(module_id);
-        test.compile_check_clean();
-    }
-
-    /// Resolve export-namespace globals when members are export aliases.
-    #[test]
-    fn test_collect_export_namespace_globals_from_export_alias() {
-        let test = TestProgram::memory_sequential();
-        test.add_module(
-            "types.d.ts",
-            r#"
-export interface Expression {
-    kind: string;
-}
-
-export interface V8IntrinsicIdentifier {
-    intrinsic: string;
-}
-"#,
-        );
-        test.add_module(
-            "babel.js",
-            r#"
-export {};
-"#,
-        );
-        test.add_module(
-            "babel.d.ts",
-            r#"
-import * as t from "./types";
-
-export { t as types };
-export as namespace babel;
-"#,
-        );
-        let module_id = test.add_module(
-            "main.ts",
-            r#"
-import "./babel.js";
-
-type BabelType = babel.types.Expression | babel.types.V8IntrinsicIdentifier;
-const value: BabelType | null = null;
-"#,
-        );
-        test.resolve_module(module_id);
-        test.compile_check_clean();
-    }
-
-    /// Test that symbols inside nested `declare module "x" { global { } }` are collected.
-    #[test]
-    fn test_collect_global_symbols_nested_in_module() {
-        let test = TestProgram::memory_sequential();
-        let module_id = test.add_module(
-            "test.d.ts",
-            r#"
-declare module "buffer" {
-    global {
-        var Buffer: string;
-    }
-}
-"#,
-        );
-        test.resolve_module(module_id);
-        test.compile_check_clean();
-
-        let profile = test.default_profile_id(module_id);
-        let cache = test
-            .compiler
-            .build_global_symbol_table_freestanding(&[module_id], profile)
-            .unwrap();
-
-        let buffer_key = StaticKey::Name(test.program.strings.intern("Buffer"));
-        assert!(cache.symbols.contains_key(&buffer_key),);
     }
 }

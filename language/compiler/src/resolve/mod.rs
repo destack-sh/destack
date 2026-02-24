@@ -1,26 +1,15 @@
-mod active;
-mod cache;
-mod declaration;
-mod decorator;
+mod binding;
 mod dependency;
-mod discover;
 mod error;
-mod export;
-mod expression;
-mod globals;
 mod language;
-mod loader;
 mod module;
-mod operator;
 mod process;
-mod r#static;
-mod symbol;
-mod target;
-mod r#type;
+#[cfg(test)]
+mod tests;
 mod warning;
 
+pub use binding::OperatorLanguageSymbolExt;
 pub(crate) use destack_workspace::TargetDiscoveryIssue;
 pub use error::*;
-pub use operator::*;
 pub use process::*;
 pub use warning::*;

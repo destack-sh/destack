@@ -2,8 +2,8 @@ use destack_dir::{
     DependencySource, Expression, LocalNodeId, NodeTree, NodeType, SymbolTable, UnaryOperator,
 };
 
-use crate::resolve::cache::{ResolveExpressionCache, ResolvePathCacheKey};
-use crate::resolve::loader::LoaderAttribute;
+use crate::resolve::binding::cache::{ResolveExpressionCache, ResolvePathCacheKey};
+use crate::resolve::dependency::loader::LoaderAttribute;
 use crate::{Compiler, ResolveError, ResolveResult};
 
 use destack_workspace::{Module, ModuleDir, ProfileId};
@@ -59,7 +59,7 @@ impl Compiler {
     }
 
     /// Resolve an Expression.
-    pub(super) fn resolve_expression(
+    pub(crate) fn resolve_expression(
         &self,
         module: &Module,
         dir: &ModuleDir,

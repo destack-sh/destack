@@ -6,12 +6,12 @@ use destack_dir::{
 
 use destack_workspace::{Module, ModuleDir, ProfileId};
 
-use crate::resolve::cache::ResolveExpressionCache;
+use crate::resolve::binding::cache::ResolveExpressionCache;
 use crate::{Compiler, ResolveResult};
 
 impl Compiler {
     /// Resolve a Declaration node (updates target_symbol if applicable).
-    pub(super) fn resolve_declaration(
+    pub(crate) fn resolve_declaration(
         &self,
         module: &Module,
         dir: &ModuleDir,

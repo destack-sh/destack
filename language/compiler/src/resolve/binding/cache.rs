@@ -1,17 +1,12 @@
 use destack_dir::{
-    DependencyItem, DependencyKind, Export, Expression, GlobalScopeId, GlobalSymbolId, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleBindingExports,
-    ModuleTarget, NamespaceExport, NodeTree, Scope, StaticKey, StringId, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable,
+    Expression, GlobalScopeId, LocalScopeId, LocalScopeMark, LocalSymbolId, Scope, StaticKey,
+    StringId, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
-use destack_source::ModuleId;
-use destack_workspace::ModuleDir;
-use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
 /// Cache resolve results for expressions and scopes.
 #[derive(Debug, Default)]
-pub(super) struct ResolveExpressionCache {
+pub(crate) struct ResolveExpressionCache {
     /// The absolute symbol cache.
     absolute_symbols: FxHashMap<ResolveAbsoluteSymbolCacheKey, LocalSymbolId>,
     /// The resolved root expression cache.
@@ -22,7 +17,7 @@ pub(super) struct ResolveExpressionCache {
 
 impl ResolveExpressionCache {
     /// Return the cached absolute symbol for a key.
-    pub(super) fn absolute_symbol(
+    pub(crate) fn absolute_symbol(
         &self,
         key: ResolveAbsoluteSymbolCacheKey,
     ) -> Option<LocalSymbolId> {
@@ -30,7 +25,7 @@ impl ResolveExpressionCache {
     }
 
     /// Store a resolved absolute symbol.
-    pub(super) fn insert_absolute_symbol(
+    pub(crate) fn insert_absolute_symbol(
         &mut self,
         key: ResolveAbsoluteSymbolCacheKey,
         symbol_id: LocalSymbolId,
@@ -39,180 +34,24 @@ impl ResolveExpressionCache {
     }
 
     /// Return the cached root expression for a key.
-    pub(super) fn path_root(&self, key: ResolvePathCacheKey) -> Option<Expression> {
+    pub(crate) fn path_root(&self, key: ResolvePathCacheKey) -> Option<Expression> {
         self.path_roots.get(&key).cloned()
     }
 
     /// Store a resolved root expression.
-    pub(super) fn insert_path_root(&mut self, key: ResolvePathCacheKey, value: Expression) {
+    pub(crate) fn insert_path_root(&mut self, key: ResolvePathCacheKey, value: Expression) {
         self.path_roots.insert(key, value);
     }
 
     /// Return the scope index cache for mutation.
-    pub(super) fn scope_indices(&mut self) -> &mut ResolveScopeIndexCache {
+    pub(crate) fn scope_indices(&mut self) -> &mut ResolveScopeIndexCache {
         &mut self.scope_indices
     }
-}
-
-/// Cache for dependency resolution within a module.
-#[derive(Debug, Default)]
-pub(super) struct ResolveDependencyItemCache {
-    /// Cached remote symbol resolutions by target, key, and kind.
-    pub(super) remote_symbols: FxHashMap<RemoteSymbolCacheKey, (GlobalSymbolId, DependencyKind)>,
-    /// Cached reexport chain lookups by target, space, and key.
-    pub(super) reexport_chain_symbols: FxHashMap<ReexportChainCacheKey, Option<GlobalSymbolId>>,
-    /// Cached dependency item ids by module.
-    dependency_item_ids: FxHashMap<ModuleId, Vec<LocalNodeId<DependencyItem>>>,
-    /// Cached export tables for resolved modules.
-    module_exports: FxHashMap<ModuleId, IndexMap<(SymbolSpace, StaticKey), Export>>,
-    /// Cached export tables for module bindings.
-    pub(super) binding_exports: FxHashMap<BindingExportCacheKey, Option<ModuleBindingExports>>,
-    /// Cached namespace symbol lookups.
-    pub(super) namespace_symbols: FxHashMap<NamespaceSymbolCacheKey, Option<GlobalSymbolId>>,
-    /// Cached namespace exports grouped by scope.
-    pub(super) namespace_exports_by_scope:
-        FxHashMap<ModuleId, FxHashMap<LocalScopeId, Vec<NamespaceExport>>>,
-    /// Cached namespace export lists by target.
-    pub(super) namespace_exports: FxHashMap<TargetCacheKey, Vec<(ModuleId, NamespaceExport)>>,
-    /// Cached namespace export resolutions by target.
-    pub(super) namespace_export_symbols:
-        FxHashMap<NamespaceExportSymbolCacheKey, (GlobalSymbolId, SymbolSpace)>,
-    /// Cached export assignment targets by target.
-    pub(super) export_assignment_targets: FxHashMap<TargetCacheKey, Option<ExportAssignmentTarget>>,
-    /// Cached import redirect targets by scope and name.
-    pub(super) import_redirects_by_scope:
-        FxHashMap<ModuleId, FxHashMap<LocalScopeId, FxHashMap<StringId, ModuleTarget>>>,
-    /// Cached scope symbol indices for name lookups.
-    scope_indices: ResolveScopeIndexCache,
-}
-
-impl ResolveDependencyItemCache {
-    /// Return the scope index cache for name lookups.
-    pub(super) fn scope_indices(&mut self) -> &mut ResolveScopeIndexCache {
-        &mut self.scope_indices
-    }
-
-    /// Return cached dependency item ids or compute them once.
-    pub(super) fn dependency_item_ids_for(
-        &mut self,
-        module_id: ModuleId,
-        tree: &NodeTree,
-    ) -> Vec<LocalNodeId<DependencyItem>> {
-        if let Some(item_ids) = self.dependency_item_ids.get(&module_id) {
-            return item_ids.clone();
-        }
-
-        // collect and cache the dependency item ids
-        let item_ids = tree.iter_node_ids_of_type::<DependencyItem>();
-        self.dependency_item_ids.insert(module_id, item_ids.clone());
-
-        item_ids
-    }
-
-    /// Ensure module exports are cached for fast lookups.
-    pub(super) fn ensure_module_exports(&mut self, module_id: ModuleId, dir: &ModuleDir) {
-        if self.module_exports.contains_key(&module_id) {
-            return;
-        }
-
-        // cache the export table once per module
-        let exports = dir.exported_symbols.read();
-        self.module_exports.insert(module_id, exports.clone());
-    }
-
-    /// Return the cached module exports, inserting when missing.
-    pub(super) fn module_exports_for(
-        &mut self,
-        module_id: ModuleId,
-        dir: &ModuleDir,
-    ) -> &mut IndexMap<(SymbolSpace, StaticKey), Export> {
-        self.module_exports.entry(module_id).or_insert_with(|| {
-            let exports = dir.exported_symbols.read();
-            exports.clone()
-        })
-    }
-}
-
-/// Target of an export assignment resolution.
-#[derive(Debug, Clone, Copy)]
-pub(super) enum ExportAssignmentTarget {
-    /// Redirect to another module's exports.
-    Module(ModuleTarget),
-    /// Look in a namespace symbol's members.
-    Namespace(GlobalSymbolId),
-}
-
-/// Cache key for remote symbol memoization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) struct RemoteSymbolCacheKey {
-    /// The resolved module target.
-    pub(super) target: ModuleTarget,
-    /// The dependency kind being resolved.
-    pub(super) kind: DependencyKind,
-    /// The exported symbol key.
-    pub(super) key: StaticKey,
-    /// The origin module when resolving module bindings.
-    pub(super) origin_module_id: Option<ModuleId>,
-}
-
-/// Cache key for reexport chain memoization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) struct ReexportChainCacheKey {
-    /// The resolved module target.
-    pub(super) target: ModuleTarget,
-    /// The export space being searched.
-    pub(super) space: SymbolSpace,
-    /// The exported symbol key.
-    pub(super) key: StaticKey,
-    /// The origin module when resolving module bindings.
-    pub(super) origin_module_id: Option<ModuleId>,
-}
-
-/// Cache key for target based cache entries.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) struct TargetCacheKey {
-    /// The resolved module target.
-    pub(super) target: ModuleTarget,
-    /// The origin module when resolving module bindings.
-    pub(super) origin_module_id: Option<ModuleId>,
-}
-
-/// Cache key for namespace export resolution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) struct NamespaceExportSymbolCacheKey {
-    /// The resolved module target.
-    pub(super) target: ModuleTarget,
-    /// The origin module when resolving module bindings.
-    pub(super) origin_module_id: Option<ModuleId>,
-    /// The dependency kind being resolved.
-    pub(super) kind: DependencyKind,
-    /// The exported symbol key.
-    pub(super) key: StaticKey,
-}
-
-/// Cache key for module binding export table memoization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) struct BindingExportCacheKey {
-    /// The module that owns the binding.
-    pub(super) module_id: ModuleId,
-    /// The binding declaration node id.
-    pub(super) declaration: LocalNodeIdAny,
-}
-
-/// Cache key for namespace symbol memoization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) struct NamespaceSymbolCacheKey {
-    /// The namespace symbol being queried.
-    pub(super) symbol: GlobalSymbolId,
-    /// The dependency kind being resolved.
-    pub(super) kind: DependencyKind,
-    /// The exported symbol key.
-    pub(super) key: StaticKey,
 }
 
 /// Cache key for absolute symbol resolution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) struct ResolveAbsoluteSymbolCacheKey {
+pub(crate) struct ResolveAbsoluteSymbolCacheKey {
     /// The module id to resolve within.
     module_id: destack_source::ModuleId,
     /// The local scope id to resolve within.
@@ -227,7 +66,7 @@ pub(super) struct ResolveAbsoluteSymbolCacheKey {
 
 impl ResolveAbsoluteSymbolCacheKey {
     /// Build a cache key for absolute symbol resolution.
-    pub(super) fn new(
+    pub(crate) fn new(
         module_id: destack_source::ModuleId,
         scope_id: LocalScopeId,
         scope_mark: LocalScopeMark,
@@ -246,31 +85,31 @@ impl ResolveAbsoluteSymbolCacheKey {
 
 /// Cache key for root path resolution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) struct ResolvePathCacheKey {
+pub(crate) struct ResolvePathCacheKey {
     /// The module id to resolve within.
-    pub(super) module_id: destack_source::ModuleId,
+    pub(crate) module_id: destack_source::ModuleId,
     /// The local scope id to resolve within.
-    pub(super) scope_id: LocalScopeId,
+    pub(crate) scope_id: LocalScopeId,
     /// The scope mark to resolve within.
-    pub(super) scope_mark: LocalScopeMark,
+    pub(crate) scope_mark: LocalScopeMark,
     /// The module binding scope id for global resolution.
-    pub(super) module_binding_scope_id: Option<LocalScopeId>,
+    pub(crate) module_binding_scope_id: Option<LocalScopeId>,
     /// The root name to resolve.
-    pub(super) name: StringId,
+    pub(crate) name: StringId,
     /// The preferred space order.
-    pub(super) space_order: SymbolSpaceOrder,
+    pub(crate) space_order: SymbolSpaceOrder,
 }
 
 /// Cache scope symbol indices for fast name lookups.
 #[derive(Debug, Default)]
-pub(super) struct ResolveScopeIndexCache {
+pub(crate) struct ResolveScopeIndexCache {
     /// The cached scope indices.
     scopes: FxHashMap<GlobalScopeId, ScopeSymbolIndex>,
 }
 
 impl ResolveScopeIndexCache {
     /// Return the symbol index for a scope, building it when missing.
-    pub(super) fn scope_index<'a>(
+    pub(crate) fn scope_index<'a>(
         &'a mut self,
         scope_id: LocalScopeId,
         scope: &Scope,
@@ -296,10 +135,10 @@ struct ScopeSymbolEntry {
 
 /// A cached index of symbols for a single scope.
 #[derive(Debug, Default)]
-pub(super) struct ScopeSymbolIndex {
+pub(crate) struct ScopeSymbolIndex {
     /// The map of name keys to scoped symbol entries.
     entries: FxHashMap<StaticKey, Vec<ScopeSymbolEntry>>,
-    /// The cached lookup results for end-of-scope queries.
+    /// The cached lookup results for end of scope queries.
     resolved_end:
         FxHashMap<(StaticKey, SymbolSpaceOrder), (Option<LocalSymbolId>, Option<LocalSymbolId>)>,
 }
@@ -326,7 +165,7 @@ impl ScopeSymbolIndex {
     }
 
     /// Lookup the preferred and fallback symbols for a key within a scope mark.
-    pub(super) fn lookup(
+    pub(crate) fn lookup(
         &mut self,
         key: StaticKey,
         mark: LocalScopeMark,
