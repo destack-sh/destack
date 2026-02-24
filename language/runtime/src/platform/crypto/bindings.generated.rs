@@ -6,17 +6,28 @@
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::crypto::{
-    CryptoCertificateFormat, CryptoCertificateMetadata, CryptoCertificateMetadataVm,
-    CryptoCertificatePurpose, CryptoCertificateQuery, CryptoCertificateQueryVm,
+    CryptoAgreementDeriveKeyRequest, CryptoAgreementDeriveKeyRequestVm, CryptoArgon2idRequest,
+    CryptoArgon2idRequestVm, CryptoAsymmetricEncryptionAlgorithm,
+    CryptoAsymmetricEncryptionParameters, CryptoAsymmetricEncryptionParametersVm,
+    CryptoCertificateDescriptor, CryptoCertificateDescriptorVm, CryptoCertificateFormat,
+    CryptoCertificateListPage, CryptoCertificateListPageVm, CryptoCertificatePurpose,
+    CryptoCertificateQuery, CryptoCertificateQueryVm, CryptoCertificateRevocationMode,
     CryptoCertificateVerifyRequest, CryptoCertificateVerifyRequestVm,
-    CryptoCertificateVerifyResult, CryptoCertificateVerifyResultVm, CryptoEncryptionScheme,
-    CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyMetadata, CryptoKeyMetadataVm, CryptoKeyQuery,
-    CryptoKeyQueryVm, CryptoKeySpec, CryptoKeySpecVm, CryptoKeyUsageMask, CryptoSignatureScheme,
-    CryptoStoreKind, CryptoStoreOptions, CryptoStoreOptionsVm,
+    CryptoCertificateVerifyResult, CryptoCertificateVerifyResultVm, CryptoCipherAlgorithm,
+    CryptoCipherDirection, CryptoCipherOutput, CryptoCipherOutputVm, CryptoCipherParameters,
+    CryptoCipherParametersVm, CryptoDigestAlgorithm, CryptoHkdfRequest, CryptoHkdfRequestVm,
+    CryptoKdfAlgorithm, CryptoKeyAgreementAlgorithm, CryptoKeyAlgorithm, CryptoKeyDescriptor,
+    CryptoKeyDescriptorVm, CryptoKeyFormat, CryptoKeyGenerationRequest,
+    CryptoKeyGenerationRequestVm, CryptoKeyImportRequest, CryptoKeyImportRequestVm,
+    CryptoKeyListPage, CryptoKeyListPageVm, CryptoKeyPair, CryptoKeyPairVm, CryptoKeyQuery,
+    CryptoKeyQueryVm, CryptoKeyUsageMask, CryptoMacAlgorithm, CryptoMacParameters,
+    CryptoMacParametersVm, CryptoNamedCurve, CryptoPbkdf2Request, CryptoPbkdf2RequestVm,
+    CryptoScryptRequest, CryptoScryptRequestVm, CryptoSignatureAlgorithm,
+    CryptoSignatureParameters, CryptoSignatureParametersVm, CryptoStoreKind, CryptoStoreOptions,
+    CryptoStoreOptionsVm,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeSlice, PlatformError, RuntimeStatus, VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
@@ -27,7 +38,9 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::binding;
-use crate::runtime::with_binding_call_context;
+use crate::runtime::{BindingCallContext, with_binding_call_context};
+
+use serde::{Deserialize, Serialize};
 
 use crate::platform::crypto::simulation::{
     native as platform_simulation_native, vm as platform_simulation_vm,
@@ -134,6 +147,167 @@ fn decode_slice<T>(
     VmSlice::<T>::from_value(context, value, name, expected)
 }
 
+/// Decode arguments for destack.crypto.agreement.deriveKey.
+#[inline]
+fn decode_destack_crypto_agreement_derive_key_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::CryptoKeyHandle,
+    resource::CryptoKeyHandle,
+    CryptoAgreementDeriveKeyRequestVm,
+)> {
+    let privatekey_value = arg_value(args, 0, "privatekey", "CryptoKeyHandle")?;
+    let privatekey_inner_inner = decode_uint64(
+        privatekey_value,
+        "privatekey_inner_inner",
+        "CryptoKeyHandle",
+    )?;
+    let privatekey_inner = resource::ResourceId(privatekey_inner_inner);
+    let privatekey = resource::CryptoKeyHandle(privatekey_inner);
+    let peerpublickey_value = arg_value(args, 1, "peerpublickey", "CryptoKeyHandle")?;
+    let peerpublickey_inner_inner = decode_uint64(
+        peerpublickey_value,
+        "peerpublickey_inner_inner",
+        "CryptoKeyHandle",
+    )?;
+    let peerpublickey_inner = resource::ResourceId(peerpublickey_inner_inner);
+    let peerpublickey = resource::CryptoKeyHandle(peerpublickey_inner);
+    let request_value = arg_value(args, 2, "request", "CryptoAgreementDeriveKeyRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "CryptoAgreementDeriveKeyRequest",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let request_algorithm_raw = decode_uint8(slots[0], "request_algorithm_raw", "algorithm")?;
+        let request_algorithm = match request_algorithm_raw {
+            0u8 => CryptoKeyAgreementAlgorithm::Unknown,
+            1u8 => CryptoKeyAgreementAlgorithm::Ecdh,
+            2u8 => CryptoKeyAgreementAlgorithm::X25519,
+            3u8 => CryptoKeyAgreementAlgorithm::X448,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_algorithm",
+                    "unknown CryptoKeyAgreementAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let request_digest_raw = decode_uint8(slots[1], "request_digest_raw", "digest")?;
+        let request_digest = match request_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let request_salt = decode_slice::<u8>(context, slots[2], "request_salt", "salt")?;
+        let request_info = decode_slice::<u8>(context, slots[3], "request_info", "info")?;
+        let request_output_length =
+            decode_uint32(slots[4], "request_output_length", "outputLength")?;
+        CryptoAgreementDeriveKeyRequestVm {
+            algorithm: request_algorithm,
+            digest: request_digest,
+            salt: request_salt,
+            info: request_info,
+            output_length: request_output_length,
+        }
+    };
+    Ok((privatekey, peerpublickey, request))
+}
+
+/// Encode the result for destack.crypto.agreement.deriveKey.
+#[inline]
+fn encode_destack_crypto_agreement_derive_key_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.agreement.deriveSharedSecret.
+#[inline]
+fn decode_destack_crypto_agreement_derive_shared_secret_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::CryptoKeyHandle,
+    resource::CryptoKeyHandle,
+    CryptoKeyAgreementAlgorithm,
+)> {
+    let privatekey_value = arg_value(args, 0, "privatekey", "CryptoKeyHandle")?;
+    let privatekey_inner_inner = decode_uint64(
+        privatekey_value,
+        "privatekey_inner_inner",
+        "CryptoKeyHandle",
+    )?;
+    let privatekey_inner = resource::ResourceId(privatekey_inner_inner);
+    let privatekey = resource::CryptoKeyHandle(privatekey_inner);
+    let peerpublickey_value = arg_value(args, 1, "peerpublickey", "CryptoKeyHandle")?;
+    let peerpublickey_inner_inner = decode_uint64(
+        peerpublickey_value,
+        "peerpublickey_inner_inner",
+        "CryptoKeyHandle",
+    )?;
+    let peerpublickey_inner = resource::ResourceId(peerpublickey_inner_inner);
+    let peerpublickey = resource::CryptoKeyHandle(peerpublickey_inner);
+    let algorithm_value = arg_value(args, 2, "algorithm", "CryptoKeyAgreementAlgorithm")?;
+    let algorithm_raw = decode_uint8(
+        algorithm_value,
+        "algorithm_raw",
+        "CryptoKeyAgreementAlgorithm",
+    )?;
+    let algorithm = match algorithm_raw {
+        0u8 => CryptoKeyAgreementAlgorithm::Unknown,
+        1u8 => CryptoKeyAgreementAlgorithm::Ecdh,
+        2u8 => CryptoKeyAgreementAlgorithm::X25519,
+        3u8 => CryptoKeyAgreementAlgorithm::X448,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "algorithm",
+                "unknown CryptoKeyAgreementAlgorithm value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((privatekey, peerpublickey, algorithm))
+}
+
+/// Encode the result for destack.crypto.agreement.deriveSharedSecret.
+#[inline]
+fn encode_destack_crypto_agreement_derive_shared_secret_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
 /// Decode arguments for destack.crypto.certificate.delete.
 #[inline]
 fn decode_destack_crypto_certificate_delete_args(
@@ -158,6 +332,48 @@ fn encode_destack_crypto_certificate_delete_result(
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.crypto.certificate.descriptor.
+#[inline]
+fn decode_destack_crypto_certificate_descriptor_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoCertificateHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoCertificateHandle")?;
+    let handle_inner_inner = decode_uint64(
+        handle_value,
+        "handle_inner_inner",
+        "CryptoCertificateHandle",
+    )?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoCertificateHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.crypto.certificate.descriptor.
+#[inline]
+fn encode_destack_crypto_certificate_descriptor_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CryptoCertificateDescriptorVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.subject.value();
+        let field_1 = value.issuer.value();
+        let field_2 = value.serial_number.value();
+        let field_3 = value.subject_alternative_names.to_value(context);
+        let field_4 = value.fingerprint_sha256.to_value(context);
+        let field_5 = {
+            let field_0 = vm::Value::uint(value.validity.not_before_unix_seconds, 64);
+            let field_1 = vm::Value::uint(value.validity.not_after_unix_seconds, 64);
+            context.allocate_aggregate(vec![field_0, field_1])
+        };
+        let field_6 = vm::Value::bool(value.is_certificate_authority);
+        let field_7 = vm::Value::uint(value.key_usage_mask as u64, 32);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+        ])
+    })
 }
 
 /// Decode arguments for destack.crypto.certificate.export.
@@ -241,44 +457,6 @@ fn encode_destack_crypto_certificate_import_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.crypto.certificate.metadata.
-#[inline]
-fn decode_destack_crypto_certificate_metadata_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::CryptoCertificateHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "CryptoCertificateHandle")?;
-    let handle_inner_inner = decode_uint64(
-        handle_value,
-        "handle_inner_inner",
-        "CryptoCertificateHandle",
-    )?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::CryptoCertificateHandle(handle_inner);
-    Ok((handle,))
-}
-
-/// Encode the result for destack.crypto.certificate.metadata.
-#[inline]
-fn encode_destack_crypto_certificate_metadata_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<CryptoCertificateMetadataVm>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = value.subject.value();
-        let field_1 = value.issuer.value();
-        let field_2 = value.serial_number.value();
-        let field_3 = value.subject_alternative_names.to_value(context);
-        let field_4 = value.fingerprint_sha256.to_value(context);
-        let field_5 = {
-            let field_0 = vm::Value::uint(value.validity.not_before_unix_seconds, 64);
-            let field_1 = vm::Value::uint(value.validity.not_after_unix_seconds, 64);
-            context.allocate_aggregate(vec![field_0, field_1])
-        };
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
-    })
-}
-
 /// Decode arguments for destack.crypto.certificate.verify.
 #[inline]
 fn decode_destack_crypto_certificate_verify_args(
@@ -297,10 +475,10 @@ fn decode_destack_crypto_certificate_verify_args(
         let slots = context
             .aggregate_slots(request_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        if slots.len() != 8 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "request",
-                "expected 6 fields",
+                "expected 8 fields",
             ))
             .boxed());
         }
@@ -319,7 +497,12 @@ fn decode_destack_crypto_certificate_verify_args(
             "request_trust_anchors",
             "trustAnchors",
         )?;
-        let request_purpose_raw = decode_uint8(slots[3], "request_purpose_raw", "purpose")?;
+        let request_use_system_trust_anchors = decode_bool(
+            slots[3],
+            "request_use_system_trust_anchors",
+            "useSystemTrustAnchors",
+        )?;
+        let request_purpose_raw = decode_uint8(slots[4], "request_purpose_raw", "purpose")?;
         let request_purpose = match request_purpose_raw {
             1u8 => CryptoCertificatePurpose::ServerAuth,
             2u8 => CryptoCertificatePurpose::ClientAuth,
@@ -333,19 +516,35 @@ fn decode_destack_crypto_certificate_verify_args(
                 .boxed());
             }
         };
-        let request_server_name = decode_string(slots[4], "request_server_name", "serverName")?;
+        let request_server_name = decode_string(slots[5], "request_server_name", "serverName")?;
         let request_verification_unix_seconds = decode_uint64(
-            slots[5],
+            slots[6],
             "request_verification_unix_seconds",
             "verificationUnixSeconds",
         )?;
+        let request_revocation_mode_raw =
+            decode_uint8(slots[7], "request_revocation_mode_raw", "revocationMode")?;
+        let request_revocation_mode = match request_revocation_mode_raw {
+            1u8 => CryptoCertificateRevocationMode::Default,
+            2u8 => CryptoCertificateRevocationMode::Strict,
+            3u8 => CryptoCertificateRevocationMode::Disabled,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_revocation_mode",
+                    "unknown CryptoCertificateRevocationMode value",
+                ))
+                .boxed());
+            }
+        };
         CryptoCertificateVerifyRequestVm {
             leaf: request_leaf,
             intermediates: request_intermediates,
             trust_anchors: request_trust_anchors,
+            use_system_trust_anchors: request_use_system_trust_anchors,
             purpose: request_purpose,
             server_name: request_server_name,
             verification_unix_seconds: request_verification_unix_seconds,
+            revocation_mode: request_revocation_mode,
         }
     };
     Ok((request,))
@@ -360,8 +559,918 @@ fn encode_destack_crypto_certificate_verify_result(
     result.map(|value| {
         let field_0 = vm::Value::bool(value.valid);
         let field_1 = vm::Value::uint(value.error_code as u64, 32);
+        let field_2 = vm::Value::uint(value.chain_length as u64, 32);
+        let field_3 = vm::Value::bool(value.used_system_trust_anchor);
+        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+    })
+}
+
+/// Decode arguments for destack.crypto.cipher.close.
+#[inline]
+fn decode_destack_crypto_cipher_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoCipherHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoCipherHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CryptoCipherHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoCipherHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.crypto.cipher.close.
+#[inline]
+fn encode_destack_crypto_cipher_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.crypto.cipher.decrypt.
+#[inline]
+fn decode_destack_crypto_cipher_decrypt_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::CryptoKeyHandle,
+    CryptoCipherParametersVm,
+    VmSlice<u8>,
+)> {
+    let key_value = arg_value(args, 0, "key", "CryptoKeyHandle")?;
+    let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "CryptoKeyHandle")?;
+    let key_inner = resource::ResourceId(key_inner_inner);
+    let key = resource::CryptoKeyHandle(key_inner);
+    let parameters_value = arg_value(args, 1, "parameters", "CryptoCipherParameters")?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "parameters",
+                "CryptoCipherParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(parameters_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "parameters",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let parameters_algorithm_raw =
+            decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
+        let parameters_algorithm = match parameters_algorithm_raw {
+            0u8 => CryptoCipherAlgorithm::Unknown,
+            1u8 => CryptoCipherAlgorithm::AesGcm,
+            2u8 => CryptoCipherAlgorithm::AesCtr,
+            3u8 => CryptoCipherAlgorithm::AesCbc,
+            4u8 => CryptoCipherAlgorithm::ChaCha20Poly1305,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_algorithm",
+                    "unknown CryptoCipherAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_nonce = decode_slice::<u8>(context, slots[1], "parameters_nonce", "nonce")?;
+        let parameters_additional_data = decode_slice::<u8>(
+            context,
+            slots[2],
+            "parameters_additional_data",
+            "additionalData",
+        )?;
+        let parameters_tag = decode_slice::<u8>(context, slots[3], "parameters_tag", "tag")?;
+        let parameters_tag_length_bytes =
+            decode_uint32(slots[4], "parameters_tag_length_bytes", "tagLengthBytes")?;
+        CryptoCipherParametersVm {
+            algorithm: parameters_algorithm,
+            nonce: parameters_nonce,
+            additional_data: parameters_additional_data,
+            tag: parameters_tag,
+            tag_length_bytes: parameters_tag_length_bytes,
+        }
+    };
+    let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
+    let argument_payload = decode_slice::<u8>(
+        context,
+        argument_payload_value,
+        "argument_payload",
+        "Slice<uint8>",
+    )?;
+    Ok((key, parameters, argument_payload))
+}
+
+/// Encode the result for destack.crypto.cipher.decrypt.
+#[inline]
+fn encode_destack_crypto_cipher_decrypt_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.cipher.encrypt.
+#[inline]
+fn decode_destack_crypto_cipher_encrypt_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::CryptoKeyHandle,
+    CryptoCipherParametersVm,
+    VmSlice<u8>,
+)> {
+    let key_value = arg_value(args, 0, "key", "CryptoKeyHandle")?;
+    let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "CryptoKeyHandle")?;
+    let key_inner = resource::ResourceId(key_inner_inner);
+    let key = resource::CryptoKeyHandle(key_inner);
+    let parameters_value = arg_value(args, 1, "parameters", "CryptoCipherParameters")?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "parameters",
+                "CryptoCipherParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(parameters_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "parameters",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let parameters_algorithm_raw =
+            decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
+        let parameters_algorithm = match parameters_algorithm_raw {
+            0u8 => CryptoCipherAlgorithm::Unknown,
+            1u8 => CryptoCipherAlgorithm::AesGcm,
+            2u8 => CryptoCipherAlgorithm::AesCtr,
+            3u8 => CryptoCipherAlgorithm::AesCbc,
+            4u8 => CryptoCipherAlgorithm::ChaCha20Poly1305,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_algorithm",
+                    "unknown CryptoCipherAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_nonce = decode_slice::<u8>(context, slots[1], "parameters_nonce", "nonce")?;
+        let parameters_additional_data = decode_slice::<u8>(
+            context,
+            slots[2],
+            "parameters_additional_data",
+            "additionalData",
+        )?;
+        let parameters_tag = decode_slice::<u8>(context, slots[3], "parameters_tag", "tag")?;
+        let parameters_tag_length_bytes =
+            decode_uint32(slots[4], "parameters_tag_length_bytes", "tagLengthBytes")?;
+        CryptoCipherParametersVm {
+            algorithm: parameters_algorithm,
+            nonce: parameters_nonce,
+            additional_data: parameters_additional_data,
+            tag: parameters_tag,
+            tag_length_bytes: parameters_tag_length_bytes,
+        }
+    };
+    let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
+    let argument_payload = decode_slice::<u8>(
+        context,
+        argument_payload_value,
+        "argument_payload",
+        "Slice<uint8>",
+    )?;
+    Ok((key, parameters, argument_payload))
+}
+
+/// Encode the result for destack.crypto.cipher.encrypt.
+#[inline]
+fn encode_destack_crypto_cipher_encrypt_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CryptoCipherOutputVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.bytes.to_value(context);
+        let field_1 = value.tag.to_value(context);
         context.allocate_aggregate(vec![field_0, field_1])
     })
+}
+
+/// Decode arguments for destack.crypto.cipher.finish.
+#[inline]
+fn decode_destack_crypto_cipher_finish_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoCipherHandle, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoCipherHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CryptoCipherHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoCipherHandle(handle_inner);
+    let finalpayload_value = arg_value(args, 1, "finalpayload", "Slice<uint8>")?;
+    let finalpayload =
+        decode_slice::<u8>(context, finalpayload_value, "finalpayload", "Slice<uint8>")?;
+    Ok((handle, finalpayload))
+}
+
+/// Encode the result for destack.crypto.cipher.finish.
+#[inline]
+fn encode_destack_crypto_cipher_finish_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CryptoCipherOutputVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = value.bytes.to_value(context);
+        let field_1 = value.tag.to_value(context);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.crypto.cipher.open.
+#[inline]
+fn decode_destack_crypto_cipher_open_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::CryptoKeyHandle,
+    CryptoCipherDirection,
+    CryptoCipherParametersVm,
+)> {
+    let key_value = arg_value(args, 0, "key", "CryptoKeyHandle")?;
+    let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "CryptoKeyHandle")?;
+    let key_inner = resource::ResourceId(key_inner_inner);
+    let key = resource::CryptoKeyHandle(key_inner);
+    let direction_value = arg_value(args, 1, "direction", "CryptoCipherDirection")?;
+    let direction_raw = decode_uint8(direction_value, "direction_raw", "CryptoCipherDirection")?;
+    let direction = match direction_raw {
+        1u8 => CryptoCipherDirection::Encrypt,
+        2u8 => CryptoCipherDirection::Decrypt,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "direction",
+                "unknown CryptoCipherDirection value",
+            ))
+            .boxed());
+        }
+    };
+    let parameters_value = arg_value(args, 2, "parameters", "CryptoCipherParameters")?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "parameters",
+                "CryptoCipherParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(parameters_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "parameters",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let parameters_algorithm_raw =
+            decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
+        let parameters_algorithm = match parameters_algorithm_raw {
+            0u8 => CryptoCipherAlgorithm::Unknown,
+            1u8 => CryptoCipherAlgorithm::AesGcm,
+            2u8 => CryptoCipherAlgorithm::AesCtr,
+            3u8 => CryptoCipherAlgorithm::AesCbc,
+            4u8 => CryptoCipherAlgorithm::ChaCha20Poly1305,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_algorithm",
+                    "unknown CryptoCipherAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_nonce = decode_slice::<u8>(context, slots[1], "parameters_nonce", "nonce")?;
+        let parameters_additional_data = decode_slice::<u8>(
+            context,
+            slots[2],
+            "parameters_additional_data",
+            "additionalData",
+        )?;
+        let parameters_tag = decode_slice::<u8>(context, slots[3], "parameters_tag", "tag")?;
+        let parameters_tag_length_bytes =
+            decode_uint32(slots[4], "parameters_tag_length_bytes", "tagLengthBytes")?;
+        CryptoCipherParametersVm {
+            algorithm: parameters_algorithm,
+            nonce: parameters_nonce,
+            additional_data: parameters_additional_data,
+            tag: parameters_tag,
+            tag_length_bytes: parameters_tag_length_bytes,
+        }
+    };
+    Ok((key, direction, parameters))
+}
+
+/// Encode the result for destack.crypto.cipher.open.
+#[inline]
+fn encode_destack_crypto_cipher_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::CryptoCipherHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.crypto.cipher.reset.
+#[inline]
+fn decode_destack_crypto_cipher_reset_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoCipherHandle, CryptoCipherParametersVm)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoCipherHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CryptoCipherHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoCipherHandle(handle_inner);
+    let parameters_value = arg_value(args, 1, "parameters", "CryptoCipherParameters")?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "parameters",
+                "CryptoCipherParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(parameters_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "parameters",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let parameters_algorithm_raw =
+            decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
+        let parameters_algorithm = match parameters_algorithm_raw {
+            0u8 => CryptoCipherAlgorithm::Unknown,
+            1u8 => CryptoCipherAlgorithm::AesGcm,
+            2u8 => CryptoCipherAlgorithm::AesCtr,
+            3u8 => CryptoCipherAlgorithm::AesCbc,
+            4u8 => CryptoCipherAlgorithm::ChaCha20Poly1305,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_algorithm",
+                    "unknown CryptoCipherAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_nonce = decode_slice::<u8>(context, slots[1], "parameters_nonce", "nonce")?;
+        let parameters_additional_data = decode_slice::<u8>(
+            context,
+            slots[2],
+            "parameters_additional_data",
+            "additionalData",
+        )?;
+        let parameters_tag = decode_slice::<u8>(context, slots[3], "parameters_tag", "tag")?;
+        let parameters_tag_length_bytes =
+            decode_uint32(slots[4], "parameters_tag_length_bytes", "tagLengthBytes")?;
+        CryptoCipherParametersVm {
+            algorithm: parameters_algorithm,
+            nonce: parameters_nonce,
+            additional_data: parameters_additional_data,
+            tag: parameters_tag,
+            tag_length_bytes: parameters_tag_length_bytes,
+        }
+    };
+    Ok((handle, parameters))
+}
+
+/// Encode the result for destack.crypto.cipher.reset.
+#[inline]
+fn encode_destack_crypto_cipher_reset_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.crypto.cipher.update.
+#[inline]
+fn decode_destack_crypto_cipher_update_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoCipherHandle, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoCipherHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CryptoCipherHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoCipherHandle(handle_inner);
+    let argument_payload_value = arg_value(args, 1, "argument_payload", "Slice<uint8>")?;
+    let argument_payload = decode_slice::<u8>(
+        context,
+        argument_payload_value,
+        "argument_payload",
+        "Slice<uint8>",
+    )?;
+    Ok((handle, argument_payload))
+}
+
+/// Encode the result for destack.crypto.cipher.update.
+#[inline]
+fn encode_destack_crypto_cipher_update_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.cipher.updateAdditionalData.
+#[inline]
+fn decode_destack_crypto_cipher_update_additional_data_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoCipherHandle, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoCipherHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CryptoCipherHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoCipherHandle(handle_inner);
+    let additionaldata_value = arg_value(args, 1, "additionaldata", "Slice<uint8>")?;
+    let additionaldata = decode_slice::<u8>(
+        context,
+        additionaldata_value,
+        "additionaldata",
+        "Slice<uint8>",
+    )?;
+    Ok((handle, additionaldata))
+}
+
+/// Encode the result for destack.crypto.cipher.updateAdditionalData.
+#[inline]
+fn encode_destack_crypto_cipher_update_additional_data_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.crypto.digest.close.
+#[inline]
+fn decode_destack_crypto_digest_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoDigestHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoDigestHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CryptoDigestHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoDigestHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.crypto.digest.close.
+#[inline]
+fn encode_destack_crypto_digest_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.crypto.digest.compute.
+#[inline]
+fn decode_destack_crypto_digest_compute_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(CryptoDigestAlgorithm, VmSlice<u8>)> {
+    let algorithm_value = arg_value(args, 0, "algorithm", "CryptoDigestAlgorithm")?;
+    let algorithm_raw = decode_uint8(algorithm_value, "algorithm_raw", "CryptoDigestAlgorithm")?;
+    let algorithm = match algorithm_raw {
+        0u8 => CryptoDigestAlgorithm::Unknown,
+        1u8 => CryptoDigestAlgorithm::Sha1,
+        2u8 => CryptoDigestAlgorithm::Sha224,
+        3u8 => CryptoDigestAlgorithm::Sha256,
+        4u8 => CryptoDigestAlgorithm::Sha384,
+        5u8 => CryptoDigestAlgorithm::Sha512,
+        6u8 => CryptoDigestAlgorithm::Sha3_256,
+        7u8 => CryptoDigestAlgorithm::Sha3_384,
+        8u8 => CryptoDigestAlgorithm::Sha3_512,
+        9u8 => CryptoDigestAlgorithm::Blake2b512,
+        10u8 => CryptoDigestAlgorithm::Blake2s256,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "algorithm",
+                "unknown CryptoDigestAlgorithm value",
+            ))
+            .boxed());
+        }
+    };
+    let argument_payload_value = arg_value(args, 1, "argument_payload", "Slice<uint8>")?;
+    let argument_payload = decode_slice::<u8>(
+        context,
+        argument_payload_value,
+        "argument_payload",
+        "Slice<uint8>",
+    )?;
+    Ok((algorithm, argument_payload))
+}
+
+/// Encode the result for destack.crypto.digest.compute.
+#[inline]
+fn encode_destack_crypto_digest_compute_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.digest.finish.
+#[inline]
+fn decode_destack_crypto_digest_finish_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoDigestHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoDigestHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CryptoDigestHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoDigestHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.crypto.digest.finish.
+#[inline]
+fn encode_destack_crypto_digest_finish_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.digest.open.
+#[inline]
+fn decode_destack_crypto_digest_open_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(CryptoDigestAlgorithm,)> {
+    let algorithm_value = arg_value(args, 0, "algorithm", "CryptoDigestAlgorithm")?;
+    let algorithm_raw = decode_uint8(algorithm_value, "algorithm_raw", "CryptoDigestAlgorithm")?;
+    let algorithm = match algorithm_raw {
+        0u8 => CryptoDigestAlgorithm::Unknown,
+        1u8 => CryptoDigestAlgorithm::Sha1,
+        2u8 => CryptoDigestAlgorithm::Sha224,
+        3u8 => CryptoDigestAlgorithm::Sha256,
+        4u8 => CryptoDigestAlgorithm::Sha384,
+        5u8 => CryptoDigestAlgorithm::Sha512,
+        6u8 => CryptoDigestAlgorithm::Sha3_256,
+        7u8 => CryptoDigestAlgorithm::Sha3_384,
+        8u8 => CryptoDigestAlgorithm::Sha3_512,
+        9u8 => CryptoDigestAlgorithm::Blake2b512,
+        10u8 => CryptoDigestAlgorithm::Blake2s256,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "algorithm",
+                "unknown CryptoDigestAlgorithm value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((algorithm,))
+}
+
+/// Encode the result for destack.crypto.digest.open.
+#[inline]
+fn encode_destack_crypto_digest_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::CryptoDigestHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.crypto.digest.reset.
+#[inline]
+fn decode_destack_crypto_digest_reset_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoDigestHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoDigestHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CryptoDigestHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoDigestHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.crypto.digest.reset.
+#[inline]
+fn encode_destack_crypto_digest_reset_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.crypto.digest.update.
+#[inline]
+fn decode_destack_crypto_digest_update_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoDigestHandle, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoDigestHandle")?;
+    let handle_inner_inner =
+        decode_uint64(handle_value, "handle_inner_inner", "CryptoDigestHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoDigestHandle(handle_inner);
+    let argument_payload_value = arg_value(args, 1, "argument_payload", "Slice<uint8>")?;
+    let argument_payload = decode_slice::<u8>(
+        context,
+        argument_payload_value,
+        "argument_payload",
+        "Slice<uint8>",
+    )?;
+    Ok((handle, argument_payload))
+}
+
+/// Encode the result for destack.crypto.digest.update.
+#[inline]
+fn encode_destack_crypto_digest_update_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.crypto.kdf.argon2id.
+#[inline]
+fn decode_destack_crypto_kdf_argon2id_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(CryptoArgon2idRequestVm,)> {
+    let request_value = arg_value(args, 0, "request", "CryptoArgon2idRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "CryptoArgon2idRequest",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 8 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 8 fields",
+            ))
+            .boxed());
+        }
+        let request_password =
+            decode_slice::<u8>(context, slots[0], "request_password", "password")?;
+        let request_salt = decode_slice::<u8>(context, slots[1], "request_salt", "salt")?;
+        let request_associated_data = decode_slice::<u8>(
+            context,
+            slots[2],
+            "request_associated_data",
+            "associatedData",
+        )?;
+        let request_secret = decode_slice::<u8>(context, slots[3], "request_secret", "secret")?;
+        let request_iterations = decode_uint32(slots[4], "request_iterations", "iterations")?;
+        let request_memory_ki_b = decode_uint32(slots[5], "request_memory_ki_b", "memoryKiB")?;
+        let request_parallelism = decode_uint32(slots[6], "request_parallelism", "parallelism")?;
+        let request_length = decode_uint32(slots[7], "request_length", "length")?;
+        CryptoArgon2idRequestVm {
+            password: request_password,
+            salt: request_salt,
+            associated_data: request_associated_data,
+            secret: request_secret,
+            iterations: request_iterations,
+            memory_ki_b: request_memory_ki_b,
+            parallelism: request_parallelism,
+            length: request_length,
+        }
+    };
+    Ok((request,))
+}
+
+/// Encode the result for destack.crypto.kdf.argon2id.
+#[inline]
+fn encode_destack_crypto_kdf_argon2id_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.kdf.hkdf.
+#[inline]
+fn decode_destack_crypto_kdf_hkdf_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(CryptoHkdfRequestVm,)> {
+    let request_value = arg_value(args, 0, "request", "CryptoHkdfRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "CryptoHkdfRequest",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let request_digest_raw = decode_uint8(slots[0], "request_digest_raw", "digest")?;
+        let request_digest = match request_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let request_input_key_material = decode_slice::<u8>(
+            context,
+            slots[1],
+            "request_input_key_material",
+            "inputKeyMaterial",
+        )?;
+        let request_salt = decode_slice::<u8>(context, slots[2], "request_salt", "salt")?;
+        let request_info = decode_slice::<u8>(context, slots[3], "request_info", "info")?;
+        let request_length = decode_uint32(slots[4], "request_length", "length")?;
+        CryptoHkdfRequestVm {
+            digest: request_digest,
+            input_key_material: request_input_key_material,
+            salt: request_salt,
+            info: request_info,
+            length: request_length,
+        }
+    };
+    Ok((request,))
+}
+
+/// Encode the result for destack.crypto.kdf.hkdf.
+#[inline]
+fn encode_destack_crypto_kdf_hkdf_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.kdf.pbkdf2.
+#[inline]
+fn decode_destack_crypto_kdf_pbkdf2_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(CryptoPbkdf2RequestVm,)> {
+    let request_value = arg_value(args, 0, "request", "CryptoPbkdf2Request")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "CryptoPbkdf2Request",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let request_digest_raw = decode_uint8(slots[0], "request_digest_raw", "digest")?;
+        let request_digest = match request_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let request_password =
+            decode_slice::<u8>(context, slots[1], "request_password", "password")?;
+        let request_salt = decode_slice::<u8>(context, slots[2], "request_salt", "salt")?;
+        let request_iterations = decode_uint32(slots[3], "request_iterations", "iterations")?;
+        let request_length = decode_uint32(slots[4], "request_length", "length")?;
+        CryptoPbkdf2RequestVm {
+            digest: request_digest,
+            password: request_password,
+            salt: request_salt,
+            iterations: request_iterations,
+            length: request_length,
+        }
+    };
+    Ok((request,))
+}
+
+/// Encode the result for destack.crypto.kdf.pbkdf2.
+#[inline]
+fn encode_destack_crypto_kdf_pbkdf2_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.kdf.scrypt.
+#[inline]
+fn decode_destack_crypto_kdf_scrypt_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(CryptoScryptRequestVm,)> {
+    let request_value = arg_value(args, 0, "request", "CryptoScryptRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "CryptoScryptRequest",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let request_password =
+            decode_slice::<u8>(context, slots[0], "request_password", "password")?;
+        let request_salt = decode_slice::<u8>(context, slots[1], "request_salt", "salt")?;
+        let request_cost = decode_uint32(slots[2], "request_cost", "cost")?;
+        let request_block_size = decode_uint32(slots[3], "request_block_size", "blockSize")?;
+        let request_parallelization =
+            decode_uint32(slots[4], "request_parallelization", "parallelization")?;
+        let request_max_memory_bytes =
+            decode_uint64(slots[5], "request_max_memory_bytes", "maxMemoryBytes")?;
+        let request_length = decode_uint32(slots[6], "request_length", "length")?;
+        CryptoScryptRequestVm {
+            password: request_password,
+            salt: request_salt,
+            cost: request_cost,
+            block_size: request_block_size,
+            parallelization: request_parallelization,
+            max_memory_bytes: request_max_memory_bytes,
+            length: request_length,
+        }
+    };
+    Ok((request,))
+}
+
+/// Encode the result for destack.crypto.kdf.scrypt.
+#[inline]
+fn encode_destack_crypto_kdf_scrypt_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
 }
 
 /// Decode arguments for destack.crypto.key.decrypt.
@@ -371,16 +1480,79 @@ fn decode_destack_crypto_key_decrypt_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
-    CryptoEncryptionScheme,
+    CryptoAsymmetricEncryptionParametersVm,
     VmSlice<u8>,
 )> {
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CryptoKeyHandle(handle_inner);
-    let scheme_value = arg_value(args, 1, "scheme", "CryptoEncryptionScheme")?;
-    let scheme_inner = decode_uint32(scheme_value, "scheme_inner", "CryptoEncryptionScheme")?;
-    let scheme = CryptoEncryptionScheme(scheme_inner);
+    let parameters_value = arg_value(
+        args,
+        1,
+        "parameters",
+        "CryptoAsymmetricEncryptionParameters",
+    )?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "parameters",
+                "CryptoAsymmetricEncryptionParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(parameters_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "parameters",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let parameters_algorithm_raw =
+            decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
+        let parameters_algorithm = match parameters_algorithm_raw {
+            0u8 => CryptoAsymmetricEncryptionAlgorithm::Unknown,
+            1u8 => CryptoAsymmetricEncryptionAlgorithm::RsaPkcs1v15,
+            2u8 => CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_algorithm",
+                    "unknown CryptoAsymmetricEncryptionAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_digest_raw = decode_uint8(slots[1], "parameters_digest_raw", "digest")?;
+        let parameters_digest = match parameters_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_label = decode_slice::<u8>(context, slots[2], "parameters_label", "label")?;
+        CryptoAsymmetricEncryptionParametersVm {
+            algorithm: parameters_algorithm,
+            digest: parameters_digest,
+            label: parameters_label,
+        }
+    };
     let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
     let argument_payload = decode_slice::<u8>(
         context,
@@ -388,7 +1560,7 @@ fn decode_destack_crypto_key_decrypt_args(
         "argument_payload",
         "Slice<uint8>",
     )?;
-    Ok((handle, scheme, argument_payload))
+    Ok((handle, parameters, argument_payload))
 }
 
 /// Encode the result for destack.crypto.key.decrypt.
@@ -422,6 +1594,45 @@ fn encode_destack_crypto_key_delete_result(
     result.map(|_| vm::Value::VOID)
 }
 
+/// Decode arguments for destack.crypto.key.descriptor.
+#[inline]
+fn decode_destack_crypto_key_descriptor_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoKeyHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoKeyHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.crypto.key.descriptor.
+#[inline]
+fn encode_destack_crypto_key_descriptor_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CryptoKeyDescriptorVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = vm::Value::uint(value.algorithm as u8 as u64, 8);
+        let field_2 = vm::Value::uint(value.named_curve as u8 as u64, 8);
+        let field_3 = vm::Value::uint(value.modulus_bits as u64, 32);
+        let field_4 = vm::Value::uint(value.public_exponent as u64, 32);
+        let field_5 = vm::Value::uint(value.digest as u8 as u64, 8);
+        let field_6 = vm::Value::uint(value.size_bits as u64, 32);
+        let field_7 = vm::Value::uint(value.usage_mask.0 as u64, 32);
+        let field_8 = value.label.value();
+        let field_9 = vm::Value::bool(value.extractable);
+        let field_10 = vm::Value::bool(value.hardware_backed);
+        let field_11 = vm::Value::bool(value.persistent);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11,
+        ])
+    })
+}
+
 /// Decode arguments for destack.crypto.key.encrypt.
 #[inline]
 fn decode_destack_crypto_key_encrypt_args(
@@ -429,16 +1640,79 @@ fn decode_destack_crypto_key_encrypt_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
-    CryptoEncryptionScheme,
+    CryptoAsymmetricEncryptionParametersVm,
     VmSlice<u8>,
 )> {
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CryptoKeyHandle(handle_inner);
-    let scheme_value = arg_value(args, 1, "scheme", "CryptoEncryptionScheme")?;
-    let scheme_inner = decode_uint32(scheme_value, "scheme_inner", "CryptoEncryptionScheme")?;
-    let scheme = CryptoEncryptionScheme(scheme_inner);
+    let parameters_value = arg_value(
+        args,
+        1,
+        "parameters",
+        "CryptoAsymmetricEncryptionParameters",
+    )?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "parameters",
+                "CryptoAsymmetricEncryptionParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(parameters_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "parameters",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let parameters_algorithm_raw =
+            decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
+        let parameters_algorithm = match parameters_algorithm_raw {
+            0u8 => CryptoAsymmetricEncryptionAlgorithm::Unknown,
+            1u8 => CryptoAsymmetricEncryptionAlgorithm::RsaPkcs1v15,
+            2u8 => CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_algorithm",
+                    "unknown CryptoAsymmetricEncryptionAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_digest_raw = decode_uint8(slots[1], "parameters_digest_raw", "digest")?;
+        let parameters_digest = match parameters_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_label = decode_slice::<u8>(context, slots[2], "parameters_label", "label")?;
+        CryptoAsymmetricEncryptionParametersVm {
+            algorithm: parameters_algorithm,
+            digest: parameters_digest,
+            label: parameters_label,
+        }
+    };
     let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
     let argument_payload = decode_slice::<u8>(
         context,
@@ -446,12 +1720,54 @@ fn decode_destack_crypto_key_encrypt_args(
         "argument_payload",
         "Slice<uint8>",
     )?;
-    Ok((handle, scheme, argument_payload))
+    Ok((handle, parameters, argument_payload))
 }
 
 /// Encode the result for destack.crypto.key.encrypt.
 #[inline]
 fn encode_destack_crypto_key_encrypt_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.key.exportPrivate.
+#[inline]
+fn decode_destack_crypto_key_export_private_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoKeyHandle, CryptoKeyFormat)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoKeyHandle(handle_inner);
+    let format_value = arg_value(args, 1, "format", "CryptoKeyFormat")?;
+    let format_raw = decode_uint8(format_value, "format_raw", "CryptoKeyFormat")?;
+    let format = match format_raw {
+        0u8 => CryptoKeyFormat::Unknown,
+        1u8 => CryptoKeyFormat::Pkcs8Pem,
+        2u8 => CryptoKeyFormat::Pkcs8Der,
+        3u8 => CryptoKeyFormat::SpkiPem,
+        4u8 => CryptoKeyFormat::SpkiDer,
+        5u8 => CryptoKeyFormat::Jwk,
+        6u8 => CryptoKeyFormat::Raw,
+        7u8 => CryptoKeyFormat::Sec1Pem,
+        8u8 => CryptoKeyFormat::Sec1Der,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "format",
+                "unknown CryptoKeyFormat value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((handle, format))
+}
+
+/// Encode the result for destack.crypto.key.exportPrivate.
+#[inline]
+fn encode_destack_crypto_key_export_private_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
@@ -471,12 +1787,15 @@ fn decode_destack_crypto_key_export_public_args(
     let format_value = arg_value(args, 1, "format", "CryptoKeyFormat")?;
     let format_raw = decode_uint8(format_value, "format_raw", "CryptoKeyFormat")?;
     let format = match format_raw {
+        0u8 => CryptoKeyFormat::Unknown,
         1u8 => CryptoKeyFormat::Pkcs8Pem,
         2u8 => CryptoKeyFormat::Pkcs8Der,
         3u8 => CryptoKeyFormat::SpkiPem,
         4u8 => CryptoKeyFormat::SpkiDer,
         5u8 => CryptoKeyFormat::Jwk,
         6u8 => CryptoKeyFormat::Raw,
+        7u8 => CryptoKeyFormat::Sec1Pem,
+        8u8 => CryptoKeyFormat::Sec1Der,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "format",
@@ -497,72 +1816,302 @@ fn encode_destack_crypto_key_export_public_result(
     result.map(|value| value.to_value(context))
 }
 
-/// Decode arguments for destack.crypto.key.generate.
+/// Decode arguments for destack.crypto.key.exportSecret.
 #[inline]
-fn decode_destack_crypto_key_generate_args(
+fn decode_destack_crypto_key_export_secret_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoKeyHandle, CryptoKeyFormat)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoKeyHandle(handle_inner);
+    let format_value = arg_value(args, 1, "format", "CryptoKeyFormat")?;
+    let format_raw = decode_uint8(format_value, "format_raw", "CryptoKeyFormat")?;
+    let format = match format_raw {
+        0u8 => CryptoKeyFormat::Unknown,
+        1u8 => CryptoKeyFormat::Pkcs8Pem,
+        2u8 => CryptoKeyFormat::Pkcs8Der,
+        3u8 => CryptoKeyFormat::SpkiPem,
+        4u8 => CryptoKeyFormat::SpkiDer,
+        5u8 => CryptoKeyFormat::Jwk,
+        6u8 => CryptoKeyFormat::Raw,
+        7u8 => CryptoKeyFormat::Sec1Pem,
+        8u8 => CryptoKeyFormat::Sec1Der,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "format",
+                "unknown CryptoKeyFormat value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((handle, format))
+}
+
+/// Encode the result for destack.crypto.key.exportSecret.
+#[inline]
+fn encode_destack_crypto_key_export_secret_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.key.generatePair.
+#[inline]
+fn decode_destack_crypto_key_generate_pair_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoKeySpecVm)> {
+) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoKeyGenerationRequestVm)> {
     let store_value = arg_value(args, 0, "store", "CryptoStoreHandle")?;
     let store_inner_inner = decode_uint64(store_value, "store_inner_inner", "CryptoStoreHandle")?;
     let store_inner = resource::ResourceId(store_inner_inner);
     let store = resource::CryptoStoreHandle(store_inner);
-    let spec_value = arg_value(args, 1, "spec", "CryptoKeySpec")?;
-    let spec = {
-        if spec_value.tag() != vm::ValueTag::Aggregate {
+    let request_value = arg_value(args, 1, "request", "CryptoKeyGenerationRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "spec",
-                "CryptoKeySpec",
+                "request",
+                "CryptoKeyGenerationRequest",
             ))
             .boxed());
         }
         let slots = context
-            .aggregate_slots(spec_value)
+            .aggregate_slots(request_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "spec",
-                "expected 6 fields",
+                "request",
+                "expected 11 fields",
             ))
             .boxed());
         }
-        let spec_algorithm_raw = decode_uint8(slots[0], "spec_algorithm_raw", "algorithm")?;
-        let spec_algorithm = match spec_algorithm_raw {
+        let request_algorithm_raw = decode_uint8(slots[0], "request_algorithm_raw", "algorithm")?;
+        let request_algorithm = match request_algorithm_raw {
+            0u8 => CryptoKeyAlgorithm::Unknown,
             1u8 => CryptoKeyAlgorithm::Rsa,
             2u8 => CryptoKeyAlgorithm::Ec,
             3u8 => CryptoKeyAlgorithm::Ed25519,
-            4u8 => CryptoKeyAlgorithm::X25519,
-            5u8 => CryptoKeyAlgorithm::Aes,
-            6u8 => CryptoKeyAlgorithm::Hmac,
+            4u8 => CryptoKeyAlgorithm::Ed448,
+            5u8 => CryptoKeyAlgorithm::X25519,
+            6u8 => CryptoKeyAlgorithm::X448,
+            7u8 => CryptoKeyAlgorithm::Aes,
+            8u8 => CryptoKeyAlgorithm::ChaCha20,
+            9u8 => CryptoKeyAlgorithm::Hmac,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "spec_algorithm",
+                    "request_algorithm",
                     "unknown CryptoKeyAlgorithm value",
                 ))
                 .boxed());
             }
         };
-        let spec_size_bits = decode_uint32(slots[1], "spec_size_bits", "sizeBits")?;
-        let spec_usage_mask_inner = decode_uint32(slots[2], "spec_usage_mask_inner", "usageMask")?;
-        let spec_usage_mask = CryptoKeyUsageMask(spec_usage_mask_inner);
-        let spec_label = decode_string(slots[3], "spec_label", "label")?;
-        let spec_extractable = decode_bool(slots[4], "spec_extractable", "extractable")?;
-        let spec_hardware_backed = decode_bool(slots[5], "spec_hardware_backed", "hardwareBacked")?;
-        CryptoKeySpecVm {
-            algorithm: spec_algorithm,
-            size_bits: spec_size_bits,
-            usage_mask: spec_usage_mask,
-            label: spec_label,
-            extractable: spec_extractable,
-            hardware_backed: spec_hardware_backed,
+        let request_named_curve_raw =
+            decode_uint8(slots[1], "request_named_curve_raw", "namedCurve")?;
+        let request_named_curve = match request_named_curve_raw {
+            0u8 => CryptoNamedCurve::Unknown,
+            1u8 => CryptoNamedCurve::P256,
+            2u8 => CryptoNamedCurve::P384,
+            3u8 => CryptoNamedCurve::P521,
+            4u8 => CryptoNamedCurve::Secp256k1,
+            5u8 => CryptoNamedCurve::X25519,
+            6u8 => CryptoNamedCurve::X448,
+            7u8 => CryptoNamedCurve::Ed25519,
+            8u8 => CryptoNamedCurve::Ed448,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_named_curve",
+                    "unknown CryptoNamedCurve value",
+                ))
+                .boxed());
+            }
+        };
+        let request_modulus_bits = decode_uint32(slots[2], "request_modulus_bits", "modulusBits")?;
+        let request_public_exponent =
+            decode_uint32(slots[3], "request_public_exponent", "publicExponent")?;
+        let request_digest_raw = decode_uint8(slots[4], "request_digest_raw", "digest")?;
+        let request_digest = match request_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let request_size_bits = decode_uint32(slots[5], "request_size_bits", "sizeBits")?;
+        let request_usage_mask_inner =
+            decode_uint32(slots[6], "request_usage_mask_inner", "usageMask")?;
+        let request_usage_mask = CryptoKeyUsageMask(request_usage_mask_inner);
+        let request_label = decode_string(slots[7], "request_label", "label")?;
+        let request_extractable = decode_bool(slots[8], "request_extractable", "extractable")?;
+        let request_hardware_backed =
+            decode_bool(slots[9], "request_hardware_backed", "hardwareBacked")?;
+        let request_persistent = decode_bool(slots[10], "request_persistent", "persistent")?;
+        CryptoKeyGenerationRequestVm {
+            algorithm: request_algorithm,
+            named_curve: request_named_curve,
+            modulus_bits: request_modulus_bits,
+            public_exponent: request_public_exponent,
+            digest: request_digest,
+            size_bits: request_size_bits,
+            usage_mask: request_usage_mask,
+            label: request_label,
+            extractable: request_extractable,
+            hardware_backed: request_hardware_backed,
+            persistent: request_persistent,
         }
     };
-    Ok((store, spec))
+    Ok((store, request))
 }
 
-/// Encode the result for destack.crypto.key.generate.
+/// Encode the result for destack.crypto.key.generatePair.
 #[inline]
-fn encode_destack_crypto_key_generate_result(
+fn encode_destack_crypto_key_generate_pair_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CryptoKeyPairVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.public_key.0.0, 64);
+        let field_1 = vm::Value::uint(value.private_key.0.0, 64);
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
+}
+
+/// Decode arguments for destack.crypto.key.generateSecret.
+#[inline]
+fn decode_destack_crypto_key_generate_secret_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoKeyGenerationRequestVm)> {
+    let store_value = arg_value(args, 0, "store", "CryptoStoreHandle")?;
+    let store_inner_inner = decode_uint64(store_value, "store_inner_inner", "CryptoStoreHandle")?;
+    let store_inner = resource::ResourceId(store_inner_inner);
+    let store = resource::CryptoStoreHandle(store_inner);
+    let request_value = arg_value(args, 1, "request", "CryptoKeyGenerationRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "CryptoKeyGenerationRequest",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 11 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 11 fields",
+            ))
+            .boxed());
+        }
+        let request_algorithm_raw = decode_uint8(slots[0], "request_algorithm_raw", "algorithm")?;
+        let request_algorithm = match request_algorithm_raw {
+            0u8 => CryptoKeyAlgorithm::Unknown,
+            1u8 => CryptoKeyAlgorithm::Rsa,
+            2u8 => CryptoKeyAlgorithm::Ec,
+            3u8 => CryptoKeyAlgorithm::Ed25519,
+            4u8 => CryptoKeyAlgorithm::Ed448,
+            5u8 => CryptoKeyAlgorithm::X25519,
+            6u8 => CryptoKeyAlgorithm::X448,
+            7u8 => CryptoKeyAlgorithm::Aes,
+            8u8 => CryptoKeyAlgorithm::ChaCha20,
+            9u8 => CryptoKeyAlgorithm::Hmac,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_algorithm",
+                    "unknown CryptoKeyAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let request_named_curve_raw =
+            decode_uint8(slots[1], "request_named_curve_raw", "namedCurve")?;
+        let request_named_curve = match request_named_curve_raw {
+            0u8 => CryptoNamedCurve::Unknown,
+            1u8 => CryptoNamedCurve::P256,
+            2u8 => CryptoNamedCurve::P384,
+            3u8 => CryptoNamedCurve::P521,
+            4u8 => CryptoNamedCurve::Secp256k1,
+            5u8 => CryptoNamedCurve::X25519,
+            6u8 => CryptoNamedCurve::X448,
+            7u8 => CryptoNamedCurve::Ed25519,
+            8u8 => CryptoNamedCurve::Ed448,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_named_curve",
+                    "unknown CryptoNamedCurve value",
+                ))
+                .boxed());
+            }
+        };
+        let request_modulus_bits = decode_uint32(slots[2], "request_modulus_bits", "modulusBits")?;
+        let request_public_exponent =
+            decode_uint32(slots[3], "request_public_exponent", "publicExponent")?;
+        let request_digest_raw = decode_uint8(slots[4], "request_digest_raw", "digest")?;
+        let request_digest = match request_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let request_size_bits = decode_uint32(slots[5], "request_size_bits", "sizeBits")?;
+        let request_usage_mask_inner =
+            decode_uint32(slots[6], "request_usage_mask_inner", "usageMask")?;
+        let request_usage_mask = CryptoKeyUsageMask(request_usage_mask_inner);
+        let request_label = decode_string(slots[7], "request_label", "label")?;
+        let request_extractable = decode_bool(slots[8], "request_extractable", "extractable")?;
+        let request_hardware_backed =
+            decode_bool(slots[9], "request_hardware_backed", "hardwareBacked")?;
+        let request_persistent = decode_bool(slots[10], "request_persistent", "persistent")?;
+        CryptoKeyGenerationRequestVm {
+            algorithm: request_algorithm,
+            named_curve: request_named_curve,
+            modulus_bits: request_modulus_bits,
+            public_exponent: request_public_exponent,
+            digest: request_digest,
+            size_bits: request_size_bits,
+            usage_mask: request_usage_mask,
+            label: request_label,
+            extractable: request_extractable,
+            hardware_backed: request_hardware_backed,
+            persistent: request_persistent,
+        }
+    };
+    Ok((store, request))
+}
+
+/// Encode the result for destack.crypto.key.generateSecret.
+#[inline]
+fn encode_destack_crypto_key_generate_secret_result(
     _context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<resource::CryptoKeyHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -574,47 +2123,130 @@ fn encode_destack_crypto_key_generate_result(
 fn decode_destack_crypto_key_import_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(
-    resource::CryptoStoreHandle,
-    CryptoKeyFormat,
-    VmSlice<u8>,
-    CryptoKeyUsageMask,
-    vm::StringHandle,
-)> {
+) -> RuntimeResult<(resource::CryptoStoreHandle, CryptoKeyImportRequestVm)> {
     let store_value = arg_value(args, 0, "store", "CryptoStoreHandle")?;
     let store_inner_inner = decode_uint64(store_value, "store_inner_inner", "CryptoStoreHandle")?;
     let store_inner = resource::ResourceId(store_inner_inner);
     let store = resource::CryptoStoreHandle(store_inner);
-    let format_value = arg_value(args, 1, "format", "CryptoKeyFormat")?;
-    let format_raw = decode_uint8(format_value, "format_raw", "CryptoKeyFormat")?;
-    let format = match format_raw {
-        1u8 => CryptoKeyFormat::Pkcs8Pem,
-        2u8 => CryptoKeyFormat::Pkcs8Der,
-        3u8 => CryptoKeyFormat::SpkiPem,
-        4u8 => CryptoKeyFormat::SpkiDer,
-        5u8 => CryptoKeyFormat::Jwk,
-        6u8 => CryptoKeyFormat::Raw,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "format",
-                "unknown CryptoKeyFormat value",
+    let request_value = arg_value(args, 1, "request", "CryptoKeyImportRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "CryptoKeyImportRequest",
             ))
             .boxed());
         }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 9 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 9 fields",
+            ))
+            .boxed());
+        }
+        let request_format_raw = decode_uint8(slots[0], "request_format_raw", "format")?;
+        let request_format = match request_format_raw {
+            0u8 => CryptoKeyFormat::Unknown,
+            1u8 => CryptoKeyFormat::Pkcs8Pem,
+            2u8 => CryptoKeyFormat::Pkcs8Der,
+            3u8 => CryptoKeyFormat::SpkiPem,
+            4u8 => CryptoKeyFormat::SpkiDer,
+            5u8 => CryptoKeyFormat::Jwk,
+            6u8 => CryptoKeyFormat::Raw,
+            7u8 => CryptoKeyFormat::Sec1Pem,
+            8u8 => CryptoKeyFormat::Sec1Der,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_format",
+                    "unknown CryptoKeyFormat value",
+                ))
+                .boxed());
+            }
+        };
+        let request_bytes = decode_slice::<u8>(context, slots[1], "request_bytes", "bytes")?;
+        let request_algorithm_raw = decode_uint8(slots[2], "request_algorithm_raw", "algorithm")?;
+        let request_algorithm = match request_algorithm_raw {
+            0u8 => CryptoKeyAlgorithm::Unknown,
+            1u8 => CryptoKeyAlgorithm::Rsa,
+            2u8 => CryptoKeyAlgorithm::Ec,
+            3u8 => CryptoKeyAlgorithm::Ed25519,
+            4u8 => CryptoKeyAlgorithm::Ed448,
+            5u8 => CryptoKeyAlgorithm::X25519,
+            6u8 => CryptoKeyAlgorithm::X448,
+            7u8 => CryptoKeyAlgorithm::Aes,
+            8u8 => CryptoKeyAlgorithm::ChaCha20,
+            9u8 => CryptoKeyAlgorithm::Hmac,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_algorithm",
+                    "unknown CryptoKeyAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let request_named_curve_raw =
+            decode_uint8(slots[3], "request_named_curve_raw", "namedCurve")?;
+        let request_named_curve = match request_named_curve_raw {
+            0u8 => CryptoNamedCurve::Unknown,
+            1u8 => CryptoNamedCurve::P256,
+            2u8 => CryptoNamedCurve::P384,
+            3u8 => CryptoNamedCurve::P521,
+            4u8 => CryptoNamedCurve::Secp256k1,
+            5u8 => CryptoNamedCurve::X25519,
+            6u8 => CryptoNamedCurve::X448,
+            7u8 => CryptoNamedCurve::Ed25519,
+            8u8 => CryptoNamedCurve::Ed448,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_named_curve",
+                    "unknown CryptoNamedCurve value",
+                ))
+                .boxed());
+            }
+        };
+        let request_digest_raw = decode_uint8(slots[4], "request_digest_raw", "digest")?;
+        let request_digest = match request_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let request_usage_mask_inner =
+            decode_uint32(slots[5], "request_usage_mask_inner", "usageMask")?;
+        let request_usage_mask = CryptoKeyUsageMask(request_usage_mask_inner);
+        let request_label = decode_string(slots[6], "request_label", "label")?;
+        let request_extractable = decode_bool(slots[7], "request_extractable", "extractable")?;
+        let request_persistent = decode_bool(slots[8], "request_persistent", "persistent")?;
+        CryptoKeyImportRequestVm {
+            format: request_format,
+            bytes: request_bytes,
+            algorithm: request_algorithm,
+            named_curve: request_named_curve,
+            digest: request_digest,
+            usage_mask: request_usage_mask,
+            label: request_label,
+            extractable: request_extractable,
+            persistent: request_persistent,
+        }
     };
-    let argument_bytes_value = arg_value(args, 2, "argument_bytes", "Slice<uint8>")?;
-    let argument_bytes = decode_slice::<u8>(
-        context,
-        argument_bytes_value,
-        "argument_bytes",
-        "Slice<uint8>",
-    )?;
-    let usagemask_value = arg_value(args, 3, "usagemask", "CryptoKeyUsageMask")?;
-    let usagemask_inner = decode_uint32(usagemask_value, "usagemask_inner", "CryptoKeyUsageMask")?;
-    let usagemask = CryptoKeyUsageMask(usagemask_inner);
-    let label_value = arg_value(args, 4, "label", "string")?;
-    let label = decode_string(label_value, "label", "string")?;
-    Ok((store, format, argument_bytes, usagemask, label))
+    Ok((store, request))
 }
 
 /// Encode the result for destack.crypto.key.import.
@@ -626,36 +2258,6 @@ fn encode_destack_crypto_key_import_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.crypto.key.metadata.
-#[inline]
-fn decode_destack_crypto_key_metadata_args(
-    _context: &mut vm::ExternalCallContext<'_>,
-    args: &[vm::Value],
-) -> RuntimeResult<(resource::CryptoKeyHandle,)> {
-    let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
-    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
-    let handle_inner = resource::ResourceId(handle_inner_inner);
-    let handle = resource::CryptoKeyHandle(handle_inner);
-    Ok((handle,))
-}
-
-/// Encode the result for destack.crypto.key.metadata.
-#[inline]
-fn encode_destack_crypto_key_metadata_result(
-    context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<CryptoKeyMetadataVm>,
-) -> RuntimeResult<vm::Value> {
-    result.map(|value| {
-        let field_0 = vm::Value::uint(value.algorithm as u8 as u64, 8);
-        let field_1 = vm::Value::uint(value.size_bits as u64, 32);
-        let field_2 = vm::Value::uint(value.usage_mask.0 as u64, 32);
-        let field_3 = value.label.value();
-        let field_4 = vm::Value::bool(value.extractable);
-        let field_5 = vm::Value::bool(value.hardware_backed);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
-    })
-}
-
 /// Decode arguments for destack.crypto.key.sign.
 #[inline]
 fn decode_destack_crypto_key_sign_args(
@@ -663,16 +2265,78 @@ fn decode_destack_crypto_key_sign_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
-    CryptoSignatureScheme,
+    CryptoSignatureParametersVm,
     VmSlice<u8>,
 )> {
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CryptoKeyHandle(handle_inner);
-    let scheme_value = arg_value(args, 1, "scheme", "CryptoSignatureScheme")?;
-    let scheme_inner = decode_uint32(scheme_value, "scheme_inner", "CryptoSignatureScheme")?;
-    let scheme = CryptoSignatureScheme(scheme_inner);
+    let parameters_value = arg_value(args, 1, "parameters", "CryptoSignatureParameters")?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "parameters",
+                "CryptoSignatureParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(parameters_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "parameters",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let parameters_algorithm_raw =
+            decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
+        let parameters_algorithm = match parameters_algorithm_raw {
+            0u8 => CryptoSignatureAlgorithm::Unknown,
+            1u8 => CryptoSignatureAlgorithm::RsaPkcs1v15,
+            2u8 => CryptoSignatureAlgorithm::RsaPss,
+            3u8 => CryptoSignatureAlgorithm::Ecdsa,
+            4u8 => CryptoSignatureAlgorithm::Ed25519,
+            5u8 => CryptoSignatureAlgorithm::Ed448,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_algorithm",
+                    "unknown CryptoSignatureAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_digest_raw = decode_uint8(slots[1], "parameters_digest_raw", "digest")?;
+        let parameters_digest = match parameters_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_salt_length_bytes =
+            decode_uint32(slots[2], "parameters_salt_length_bytes", "saltLengthBytes")?;
+        CryptoSignatureParametersVm {
+            algorithm: parameters_algorithm,
+            digest: parameters_digest,
+            salt_length_bytes: parameters_salt_length_bytes,
+        }
+    };
     let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
     let argument_payload = decode_slice::<u8>(
         context,
@@ -680,7 +2344,7 @@ fn decode_destack_crypto_key_sign_args(
         "argument_payload",
         "Slice<uint8>",
     )?;
-    Ok((handle, scheme, argument_payload))
+    Ok((handle, parameters, argument_payload))
 }
 
 /// Encode the result for destack.crypto.key.sign.
@@ -692,6 +2356,228 @@ fn encode_destack_crypto_key_sign_result(
     result.map(|value| value.to_value(context))
 }
 
+/// Decode arguments for destack.crypto.key.unwrap.
+#[inline]
+fn decode_destack_crypto_key_unwrap_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::CryptoStoreHandle,
+    resource::CryptoKeyHandle,
+    VmSlice<u8>,
+    CryptoAsymmetricEncryptionParametersVm,
+    CryptoKeyImportRequestVm,
+)> {
+    let store_value = arg_value(args, 0, "store", "CryptoStoreHandle")?;
+    let store_inner_inner = decode_uint64(store_value, "store_inner_inner", "CryptoStoreHandle")?;
+    let store_inner = resource::ResourceId(store_inner_inner);
+    let store = resource::CryptoStoreHandle(store_inner);
+    let wrappingkey_value = arg_value(args, 1, "wrappingkey", "CryptoKeyHandle")?;
+    let wrappingkey_inner_inner = decode_uint64(
+        wrappingkey_value,
+        "wrappingkey_inner_inner",
+        "CryptoKeyHandle",
+    )?;
+    let wrappingkey_inner = resource::ResourceId(wrappingkey_inner_inner);
+    let wrappingkey = resource::CryptoKeyHandle(wrappingkey_inner);
+    let wrappedkey_value = arg_value(args, 2, "wrappedkey", "Slice<uint8>")?;
+    let wrappedkey = decode_slice::<u8>(context, wrappedkey_value, "wrappedkey", "Slice<uint8>")?;
+    let parameters_value = arg_value(
+        args,
+        3,
+        "parameters",
+        "CryptoAsymmetricEncryptionParameters",
+    )?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "parameters",
+                "CryptoAsymmetricEncryptionParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(parameters_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "parameters",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let parameters_algorithm_raw =
+            decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
+        let parameters_algorithm = match parameters_algorithm_raw {
+            0u8 => CryptoAsymmetricEncryptionAlgorithm::Unknown,
+            1u8 => CryptoAsymmetricEncryptionAlgorithm::RsaPkcs1v15,
+            2u8 => CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_algorithm",
+                    "unknown CryptoAsymmetricEncryptionAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_digest_raw = decode_uint8(slots[1], "parameters_digest_raw", "digest")?;
+        let parameters_digest = match parameters_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_label = decode_slice::<u8>(context, slots[2], "parameters_label", "label")?;
+        CryptoAsymmetricEncryptionParametersVm {
+            algorithm: parameters_algorithm,
+            digest: parameters_digest,
+            label: parameters_label,
+        }
+    };
+    let request_value = arg_value(args, 4, "request", "CryptoKeyImportRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "CryptoKeyImportRequest",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 9 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 9 fields",
+            ))
+            .boxed());
+        }
+        let request_format_raw = decode_uint8(slots[0], "request_format_raw", "format")?;
+        let request_format = match request_format_raw {
+            0u8 => CryptoKeyFormat::Unknown,
+            1u8 => CryptoKeyFormat::Pkcs8Pem,
+            2u8 => CryptoKeyFormat::Pkcs8Der,
+            3u8 => CryptoKeyFormat::SpkiPem,
+            4u8 => CryptoKeyFormat::SpkiDer,
+            5u8 => CryptoKeyFormat::Jwk,
+            6u8 => CryptoKeyFormat::Raw,
+            7u8 => CryptoKeyFormat::Sec1Pem,
+            8u8 => CryptoKeyFormat::Sec1Der,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_format",
+                    "unknown CryptoKeyFormat value",
+                ))
+                .boxed());
+            }
+        };
+        let request_bytes = decode_slice::<u8>(context, slots[1], "request_bytes", "bytes")?;
+        let request_algorithm_raw = decode_uint8(slots[2], "request_algorithm_raw", "algorithm")?;
+        let request_algorithm = match request_algorithm_raw {
+            0u8 => CryptoKeyAlgorithm::Unknown,
+            1u8 => CryptoKeyAlgorithm::Rsa,
+            2u8 => CryptoKeyAlgorithm::Ec,
+            3u8 => CryptoKeyAlgorithm::Ed25519,
+            4u8 => CryptoKeyAlgorithm::Ed448,
+            5u8 => CryptoKeyAlgorithm::X25519,
+            6u8 => CryptoKeyAlgorithm::X448,
+            7u8 => CryptoKeyAlgorithm::Aes,
+            8u8 => CryptoKeyAlgorithm::ChaCha20,
+            9u8 => CryptoKeyAlgorithm::Hmac,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_algorithm",
+                    "unknown CryptoKeyAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let request_named_curve_raw =
+            decode_uint8(slots[3], "request_named_curve_raw", "namedCurve")?;
+        let request_named_curve = match request_named_curve_raw {
+            0u8 => CryptoNamedCurve::Unknown,
+            1u8 => CryptoNamedCurve::P256,
+            2u8 => CryptoNamedCurve::P384,
+            3u8 => CryptoNamedCurve::P521,
+            4u8 => CryptoNamedCurve::Secp256k1,
+            5u8 => CryptoNamedCurve::X25519,
+            6u8 => CryptoNamedCurve::X448,
+            7u8 => CryptoNamedCurve::Ed25519,
+            8u8 => CryptoNamedCurve::Ed448,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_named_curve",
+                    "unknown CryptoNamedCurve value",
+                ))
+                .boxed());
+            }
+        };
+        let request_digest_raw = decode_uint8(slots[4], "request_digest_raw", "digest")?;
+        let request_digest = match request_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let request_usage_mask_inner =
+            decode_uint32(slots[5], "request_usage_mask_inner", "usageMask")?;
+        let request_usage_mask = CryptoKeyUsageMask(request_usage_mask_inner);
+        let request_label = decode_string(slots[6], "request_label", "label")?;
+        let request_extractable = decode_bool(slots[7], "request_extractable", "extractable")?;
+        let request_persistent = decode_bool(slots[8], "request_persistent", "persistent")?;
+        CryptoKeyImportRequestVm {
+            format: request_format,
+            bytes: request_bytes,
+            algorithm: request_algorithm,
+            named_curve: request_named_curve,
+            digest: request_digest,
+            usage_mask: request_usage_mask,
+            label: request_label,
+            extractable: request_extractable,
+            persistent: request_persistent,
+        }
+    };
+    Ok((store, wrappingkey, wrappedkey, parameters, request))
+}
+
+/// Encode the result for destack.crypto.key.unwrap.
+#[inline]
+fn encode_destack_crypto_key_unwrap_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::CryptoKeyHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
 /// Decode arguments for destack.crypto.key.verify.
 #[inline]
 fn decode_destack_crypto_key_verify_args(
@@ -699,7 +2585,7 @@ fn decode_destack_crypto_key_verify_args(
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::CryptoKeyHandle,
-    CryptoSignatureScheme,
+    CryptoSignatureParametersVm,
     VmSlice<u8>,
     VmSlice<u8>,
 )> {
@@ -707,9 +2593,71 @@ fn decode_destack_crypto_key_verify_args(
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CryptoKeyHandle(handle_inner);
-    let scheme_value = arg_value(args, 1, "scheme", "CryptoSignatureScheme")?;
-    let scheme_inner = decode_uint32(scheme_value, "scheme_inner", "CryptoSignatureScheme")?;
-    let scheme = CryptoSignatureScheme(scheme_inner);
+    let parameters_value = arg_value(args, 1, "parameters", "CryptoSignatureParameters")?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "parameters",
+                "CryptoSignatureParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(parameters_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "parameters",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let parameters_algorithm_raw =
+            decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
+        let parameters_algorithm = match parameters_algorithm_raw {
+            0u8 => CryptoSignatureAlgorithm::Unknown,
+            1u8 => CryptoSignatureAlgorithm::RsaPkcs1v15,
+            2u8 => CryptoSignatureAlgorithm::RsaPss,
+            3u8 => CryptoSignatureAlgorithm::Ecdsa,
+            4u8 => CryptoSignatureAlgorithm::Ed25519,
+            5u8 => CryptoSignatureAlgorithm::Ed448,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_algorithm",
+                    "unknown CryptoSignatureAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_digest_raw = decode_uint8(slots[1], "parameters_digest_raw", "digest")?;
+        let parameters_digest = match parameters_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_salt_length_bytes =
+            decode_uint32(slots[2], "parameters_salt_length_bytes", "saltLengthBytes")?;
+        CryptoSignatureParametersVm {
+            algorithm: parameters_algorithm,
+            digest: parameters_digest,
+            salt_length_bytes: parameters_salt_length_bytes,
+        }
+    };
     let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
     let argument_payload = decode_slice::<u8>(
         context,
@@ -719,7 +2667,7 @@ fn decode_destack_crypto_key_verify_args(
     )?;
     let signature_value = arg_value(args, 3, "signature", "Slice<uint8>")?;
     let signature = decode_slice::<u8>(context, signature_value, "signature", "Slice<uint8>")?;
-    Ok((handle, scheme, argument_payload, signature))
+    Ok((handle, parameters, argument_payload, signature))
 }
 
 /// Encode the result for destack.crypto.key.verify.
@@ -729,6 +2677,618 @@ fn encode_destack_crypto_key_verify_result(
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Value> {
     result.map(vm::Value::bool)
+}
+
+/// Decode arguments for destack.crypto.key.wrap.
+#[inline]
+fn decode_destack_crypto_key_wrap_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::CryptoKeyHandle,
+    resource::CryptoKeyHandle,
+    CryptoKeyFormat,
+    CryptoAsymmetricEncryptionParametersVm,
+)> {
+    let wrappingkey_value = arg_value(args, 0, "wrappingkey", "CryptoKeyHandle")?;
+    let wrappingkey_inner_inner = decode_uint64(
+        wrappingkey_value,
+        "wrappingkey_inner_inner",
+        "CryptoKeyHandle",
+    )?;
+    let wrappingkey_inner = resource::ResourceId(wrappingkey_inner_inner);
+    let wrappingkey = resource::CryptoKeyHandle(wrappingkey_inner);
+    let keytowrap_value = arg_value(args, 1, "keytowrap", "CryptoKeyHandle")?;
+    let keytowrap_inner_inner =
+        decode_uint64(keytowrap_value, "keytowrap_inner_inner", "CryptoKeyHandle")?;
+    let keytowrap_inner = resource::ResourceId(keytowrap_inner_inner);
+    let keytowrap = resource::CryptoKeyHandle(keytowrap_inner);
+    let format_value = arg_value(args, 2, "format", "CryptoKeyFormat")?;
+    let format_raw = decode_uint8(format_value, "format_raw", "CryptoKeyFormat")?;
+    let format = match format_raw {
+        0u8 => CryptoKeyFormat::Unknown,
+        1u8 => CryptoKeyFormat::Pkcs8Pem,
+        2u8 => CryptoKeyFormat::Pkcs8Der,
+        3u8 => CryptoKeyFormat::SpkiPem,
+        4u8 => CryptoKeyFormat::SpkiDer,
+        5u8 => CryptoKeyFormat::Jwk,
+        6u8 => CryptoKeyFormat::Raw,
+        7u8 => CryptoKeyFormat::Sec1Pem,
+        8u8 => CryptoKeyFormat::Sec1Der,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "format",
+                "unknown CryptoKeyFormat value",
+            ))
+            .boxed());
+        }
+    };
+    let parameters_value = arg_value(
+        args,
+        3,
+        "parameters",
+        "CryptoAsymmetricEncryptionParameters",
+    )?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "parameters",
+                "CryptoAsymmetricEncryptionParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(parameters_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "parameters",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let parameters_algorithm_raw =
+            decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
+        let parameters_algorithm = match parameters_algorithm_raw {
+            0u8 => CryptoAsymmetricEncryptionAlgorithm::Unknown,
+            1u8 => CryptoAsymmetricEncryptionAlgorithm::RsaPkcs1v15,
+            2u8 => CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_algorithm",
+                    "unknown CryptoAsymmetricEncryptionAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_digest_raw = decode_uint8(slots[1], "parameters_digest_raw", "digest")?;
+        let parameters_digest = match parameters_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_label = decode_slice::<u8>(context, slots[2], "parameters_label", "label")?;
+        CryptoAsymmetricEncryptionParametersVm {
+            algorithm: parameters_algorithm,
+            digest: parameters_digest,
+            label: parameters_label,
+        }
+    };
+    Ok((wrappingkey, keytowrap, format, parameters))
+}
+
+/// Encode the result for destack.crypto.key.wrap.
+#[inline]
+fn encode_destack_crypto_key_wrap_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.mac.close.
+#[inline]
+fn decode_destack_crypto_mac_close_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoMacHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoMacHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoMacHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoMacHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.crypto.mac.close.
+#[inline]
+fn encode_destack_crypto_mac_close_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.crypto.mac.compute.
+#[inline]
+fn decode_destack_crypto_mac_compute_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::CryptoKeyHandle,
+    CryptoMacParametersVm,
+    VmSlice<u8>,
+)> {
+    let key_value = arg_value(args, 0, "key", "CryptoKeyHandle")?;
+    let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "CryptoKeyHandle")?;
+    let key_inner = resource::ResourceId(key_inner_inner);
+    let key = resource::CryptoKeyHandle(key_inner);
+    let parameters_value = arg_value(args, 1, "parameters", "CryptoMacParameters")?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "parameters",
+                "CryptoMacParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(parameters_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "parameters",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let parameters_algorithm_raw =
+            decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
+        let parameters_algorithm = match parameters_algorithm_raw {
+            0u8 => CryptoMacAlgorithm::Unknown,
+            1u8 => CryptoMacAlgorithm::Hmac,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_algorithm",
+                    "unknown CryptoMacAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_digest_raw = decode_uint8(slots[1], "parameters_digest_raw", "digest")?;
+        let parameters_digest = match parameters_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_tag_length_bytes =
+            decode_uint32(slots[2], "parameters_tag_length_bytes", "tagLengthBytes")?;
+        CryptoMacParametersVm {
+            algorithm: parameters_algorithm,
+            digest: parameters_digest,
+            tag_length_bytes: parameters_tag_length_bytes,
+        }
+    };
+    let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
+    let argument_payload = decode_slice::<u8>(
+        context,
+        argument_payload_value,
+        "argument_payload",
+        "Slice<uint8>",
+    )?;
+    Ok((key, parameters, argument_payload))
+}
+
+/// Encode the result for destack.crypto.mac.compute.
+#[inline]
+fn encode_destack_crypto_mac_compute_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.mac.finish.
+#[inline]
+fn decode_destack_crypto_mac_finish_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoMacHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoMacHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoMacHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoMacHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.crypto.mac.finish.
+#[inline]
+fn encode_destack_crypto_mac_finish_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.mac.open.
+#[inline]
+fn decode_destack_crypto_mac_open_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoKeyHandle, CryptoMacParametersVm)> {
+    let key_value = arg_value(args, 0, "key", "CryptoKeyHandle")?;
+    let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "CryptoKeyHandle")?;
+    let key_inner = resource::ResourceId(key_inner_inner);
+    let key = resource::CryptoKeyHandle(key_inner);
+    let parameters_value = arg_value(args, 1, "parameters", "CryptoMacParameters")?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "parameters",
+                "CryptoMacParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(parameters_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "parameters",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let parameters_algorithm_raw =
+            decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
+        let parameters_algorithm = match parameters_algorithm_raw {
+            0u8 => CryptoMacAlgorithm::Unknown,
+            1u8 => CryptoMacAlgorithm::Hmac,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_algorithm",
+                    "unknown CryptoMacAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_digest_raw = decode_uint8(slots[1], "parameters_digest_raw", "digest")?;
+        let parameters_digest = match parameters_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_tag_length_bytes =
+            decode_uint32(slots[2], "parameters_tag_length_bytes", "tagLengthBytes")?;
+        CryptoMacParametersVm {
+            algorithm: parameters_algorithm,
+            digest: parameters_digest,
+            tag_length_bytes: parameters_tag_length_bytes,
+        }
+    };
+    Ok((key, parameters))
+}
+
+/// Encode the result for destack.crypto.mac.open.
+#[inline]
+fn encode_destack_crypto_mac_open_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<resource::CryptoMacHandle>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.crypto.mac.reset.
+#[inline]
+fn decode_destack_crypto_mac_reset_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoMacHandle,)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoMacHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoMacHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoMacHandle(handle_inner);
+    Ok((handle,))
+}
+
+/// Encode the result for destack.crypto.mac.reset.
+#[inline]
+fn encode_destack_crypto_mac_reset_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.crypto.mac.update.
+#[inline]
+fn decode_destack_crypto_mac_update_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::CryptoMacHandle, VmSlice<u8>)> {
+    let handle_value = arg_value(args, 0, "handle", "CryptoMacHandle")?;
+    let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoMacHandle")?;
+    let handle_inner = resource::ResourceId(handle_inner_inner);
+    let handle = resource::CryptoMacHandle(handle_inner);
+    let argument_payload_value = arg_value(args, 1, "argument_payload", "Slice<uint8>")?;
+    let argument_payload = decode_slice::<u8>(
+        context,
+        argument_payload_value,
+        "argument_payload",
+        "Slice<uint8>",
+    )?;
+    Ok((handle, argument_payload))
+}
+
+/// Encode the result for destack.crypto.mac.update.
+#[inline]
+fn encode_destack_crypto_mac_update_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.crypto.mac.verify.
+#[inline]
+fn decode_destack_crypto_mac_verify_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::CryptoKeyHandle,
+    CryptoMacParametersVm,
+    VmSlice<u8>,
+    VmSlice<u8>,
+)> {
+    let key_value = arg_value(args, 0, "key", "CryptoKeyHandle")?;
+    let key_inner_inner = decode_uint64(key_value, "key_inner_inner", "CryptoKeyHandle")?;
+    let key_inner = resource::ResourceId(key_inner_inner);
+    let key = resource::CryptoKeyHandle(key_inner);
+    let parameters_value = arg_value(args, 1, "parameters", "CryptoMacParameters")?;
+    let parameters = {
+        if parameters_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "parameters",
+                "CryptoMacParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(parameters_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "parameters",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let parameters_algorithm_raw =
+            decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
+        let parameters_algorithm = match parameters_algorithm_raw {
+            0u8 => CryptoMacAlgorithm::Unknown,
+            1u8 => CryptoMacAlgorithm::Hmac,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_algorithm",
+                    "unknown CryptoMacAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_digest_raw = decode_uint8(slots[1], "parameters_digest_raw", "digest")?;
+        let parameters_digest = match parameters_digest_raw {
+            0u8 => CryptoDigestAlgorithm::Unknown,
+            1u8 => CryptoDigestAlgorithm::Sha1,
+            2u8 => CryptoDigestAlgorithm::Sha224,
+            3u8 => CryptoDigestAlgorithm::Sha256,
+            4u8 => CryptoDigestAlgorithm::Sha384,
+            5u8 => CryptoDigestAlgorithm::Sha512,
+            6u8 => CryptoDigestAlgorithm::Sha3_256,
+            7u8 => CryptoDigestAlgorithm::Sha3_384,
+            8u8 => CryptoDigestAlgorithm::Sha3_512,
+            9u8 => CryptoDigestAlgorithm::Blake2b512,
+            10u8 => CryptoDigestAlgorithm::Blake2s256,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters_digest",
+                    "unknown CryptoDigestAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let parameters_tag_length_bytes =
+            decode_uint32(slots[2], "parameters_tag_length_bytes", "tagLengthBytes")?;
+        CryptoMacParametersVm {
+            algorithm: parameters_algorithm,
+            digest: parameters_digest,
+            tag_length_bytes: parameters_tag_length_bytes,
+        }
+    };
+    let argument_payload_value = arg_value(args, 2, "argument_payload", "Slice<uint8>")?;
+    let argument_payload = decode_slice::<u8>(
+        context,
+        argument_payload_value,
+        "argument_payload",
+        "Slice<uint8>",
+    )?;
+    let tag_value = arg_value(args, 3, "tag", "Slice<uint8>")?;
+    let tag = decode_slice::<u8>(context, tag_value, "tag", "Slice<uint8>")?;
+    Ok((key, parameters, argument_payload, tag))
+}
+
+/// Encode the result for destack.crypto.mac.verify.
+#[inline]
+fn encode_destack_crypto_mac_verify_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<bool>,
+) -> RuntimeResult<vm::Value> {
+    result.map(vm::Value::bool)
+}
+
+/// Encode the result for destack.crypto.probe.agreementAlgorithms.
+#[inline]
+fn encode_destack_crypto_probe_agreement_algorithms_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<CryptoKeyAgreementAlgorithm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Encode the result for destack.crypto.probe.cipherAlgorithms.
+#[inline]
+fn encode_destack_crypto_probe_cipher_algorithms_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<CryptoCipherAlgorithm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Encode the result for destack.crypto.probe.digestAlgorithms.
+#[inline]
+fn encode_destack_crypto_probe_digest_algorithms_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<CryptoDigestAlgorithm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Encode the result for destack.crypto.probe.kdfAlgorithms.
+#[inline]
+fn encode_destack_crypto_probe_kdf_algorithms_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<CryptoKdfAlgorithm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Encode the result for destack.crypto.probe.keyAlgorithms.
+#[inline]
+fn encode_destack_crypto_probe_key_algorithms_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<CryptoKeyAlgorithm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Encode the result for destack.crypto.probe.keyFormats.
+#[inline]
+fn encode_destack_crypto_probe_key_formats_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<CryptoKeyFormat>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Encode the result for destack.crypto.probe.macAlgorithms.
+#[inline]
+fn encode_destack_crypto_probe_mac_algorithms_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<CryptoMacAlgorithm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Encode the result for destack.crypto.probe.namedCurves.
+#[inline]
+fn encode_destack_crypto_probe_named_curves_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<CryptoNamedCurve>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Encode the result for destack.crypto.probe.signatureAlgorithms.
+#[inline]
+fn encode_destack_crypto_probe_signature_algorithms_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<CryptoSignatureAlgorithm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.random.bytes.
+#[inline]
+fn decode_destack_crypto_random_bytes_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(u32,)> {
+    let length_value = arg_value(args, 0, "length", "uint32")?;
+    let length = decode_uint32(length_value, "length", "uint32")?;
+    Ok((length,))
+}
+
+/// Encode the result for destack.crypto.random.bytes.
+#[inline]
+fn encode_destack_crypto_random_bytes_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<u8>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Decode arguments for destack.crypto.random.fill.
+#[inline]
+fn decode_destack_crypto_random_fill_args(
+    context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(VmSlice<u8>,)> {
+    let buffer_value = arg_value(args, 0, "buffer", "Slice<uint8>")?;
+    let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
+    Ok((buffer,))
+}
+
+/// Encode the result for destack.crypto.random.fill.
+#[inline]
+fn encode_destack_crypto_random_fill_result(
+    _context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|_| vm::Value::VOID)
 }
 
 /// Decode arguments for destack.crypto.store.close.
@@ -777,10 +3337,10 @@ fn decode_destack_crypto_store_list_certificates_args(
         let slots = context
             .aggregate_slots(query_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "query",
-                "expected 3 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
@@ -793,10 +3353,14 @@ fn decode_destack_crypto_store_list_certificates_args(
             "query_subject_alternative_name",
             "subjectAlternativeName",
         )?;
+        let query_cursor = decode_string(slots[3], "query_cursor", "cursor")?;
+        let query_limit = decode_uint32(slots[4], "query_limit", "limit")?;
         CryptoCertificateQueryVm {
             subject_contains: query_subject_contains,
             issuer_contains: query_issuer_contains,
             subject_alternative_name: query_subject_alternative_name,
+            cursor: query_cursor,
+            limit: query_limit,
         }
     };
     Ok((handle, query))
@@ -806,9 +3370,13 @@ fn decode_destack_crypto_store_list_certificates_args(
 #[inline]
 fn encode_destack_crypto_store_list_certificates_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmArray<resource::CryptoCertificateHandle>>,
+    result: RuntimeResult<CryptoCertificateListPageVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.map(|value| {
+        let field_0 = value.entries.to_value(context);
+        let field_1 = value.next_cursor.value();
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
 }
 
 /// Decode arguments for destack.crypto.store.listKeys.
@@ -834,20 +3402,45 @@ fn decode_destack_crypto_store_list_keys_args(
         let slots = context
             .aggregate_slots(query_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 5 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "query",
-                "expected 3 fields",
+                "expected 5 fields",
             ))
             .boxed());
         }
         let query_label_prefix = decode_string(slots[0], "query_label_prefix", "labelPrefix")?;
-        let query_algorithm = decode_string(slots[1], "query_algorithm", "algorithm")?;
-        let query_usage_mask = decode_uint32(slots[2], "query_usage_mask", "usageMask")?;
+        let query_algorithm_raw = decode_uint8(slots[1], "query_algorithm_raw", "algorithm")?;
+        let query_algorithm = match query_algorithm_raw {
+            0u8 => CryptoKeyAlgorithm::Unknown,
+            1u8 => CryptoKeyAlgorithm::Rsa,
+            2u8 => CryptoKeyAlgorithm::Ec,
+            3u8 => CryptoKeyAlgorithm::Ed25519,
+            4u8 => CryptoKeyAlgorithm::Ed448,
+            5u8 => CryptoKeyAlgorithm::X25519,
+            6u8 => CryptoKeyAlgorithm::X448,
+            7u8 => CryptoKeyAlgorithm::Aes,
+            8u8 => CryptoKeyAlgorithm::ChaCha20,
+            9u8 => CryptoKeyAlgorithm::Hmac,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "query_algorithm",
+                    "unknown CryptoKeyAlgorithm value",
+                ))
+                .boxed());
+            }
+        };
+        let query_usage_mask_inner =
+            decode_uint32(slots[2], "query_usage_mask_inner", "usageMask")?;
+        let query_usage_mask = CryptoKeyUsageMask(query_usage_mask_inner);
+        let query_cursor = decode_string(slots[3], "query_cursor", "cursor")?;
+        let query_limit = decode_uint32(slots[4], "query_limit", "limit")?;
         CryptoKeyQueryVm {
             label_prefix: query_label_prefix,
             algorithm: query_algorithm,
             usage_mask: query_usage_mask,
+            cursor: query_cursor,
+            limit: query_limit,
         }
     };
     Ok((handle, query))
@@ -857,9 +3450,13 @@ fn decode_destack_crypto_store_list_keys_args(
 #[inline]
 fn encode_destack_crypto_store_list_keys_result(
     context: &mut vm::ExternalCallContext<'_>,
-    result: RuntimeResult<VmArray<resource::CryptoKeyHandle>>,
+    result: RuntimeResult<CryptoKeyListPageVm>,
 ) -> RuntimeResult<vm::Value> {
-    result.map(|value| value.to_value(context))
+    result.map(|value| {
+        let field_0 = value.entries.to_value(context);
+        let field_1 = value.next_cursor.value();
+        context.allocate_aggregate(vec![field_0, field_1])
+    })
 }
 
 /// Decode arguments for destack.crypto.store.open.
@@ -880,10 +3477,10 @@ fn decode_destack_crypto_store_open_args(
         let slots = context
             .aggregate_slots(options_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        if slots.len() != 3 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "options",
-                "expected 2 fields",
+                "expected 3 fields",
             ))
             .boxed());
         }
@@ -893,6 +3490,7 @@ fn decode_destack_crypto_store_open_args(
             1u8 => CryptoStoreKind::User,
             2u8 => CryptoStoreKind::Machine,
             3u8 => CryptoStoreKind::Provider,
+            4u8 => CryptoStoreKind::Ephemeral,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "options_kind",
@@ -903,9 +3501,11 @@ fn decode_destack_crypto_store_open_args(
         };
         let options_provider_name =
             decode_string(slots[1], "options_provider_name", "providerName")?;
+        let options_namespace = decode_string(slots[2], "options_namespace", "namespace")?;
         CryptoStoreOptionsVm {
             kind: options_kind,
             provider_name: options_provider_name,
+            namespace: options_namespace,
         }
     };
     Ok((options,))
@@ -920,6 +3520,93 @@ fn encode_destack_crypto_store_open_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
+/// Replay payload for destack.crypto.probe.agreementAlgorithms.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CryptoProbeAgreementAlgorithmsReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<CryptoKeyAgreementAlgorithm>, PlatformError>,
+}
+
+/// Replay payload for destack.crypto.probe.cipherAlgorithms.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CryptoProbeCipherAlgorithmsReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<CryptoCipherAlgorithm>, PlatformError>,
+}
+
+/// Replay payload for destack.crypto.probe.digestAlgorithms.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CryptoProbeDigestAlgorithmsReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<CryptoDigestAlgorithm>, PlatformError>,
+}
+
+/// Replay payload for destack.crypto.probe.kdfAlgorithms.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CryptoProbeKdfAlgorithmsReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<CryptoKdfAlgorithm>, PlatformError>,
+}
+
+/// Replay payload for destack.crypto.probe.keyAlgorithms.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CryptoProbeKeyAlgorithmsReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<CryptoKeyAlgorithm>, PlatformError>,
+}
+
+/// Replay payload for destack.crypto.probe.keyFormats.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CryptoProbeKeyFormatsReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<CryptoKeyFormat>, PlatformError>,
+}
+
+/// Replay payload for destack.crypto.probe.macAlgorithms.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CryptoProbeMacAlgorithmsReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<CryptoMacAlgorithm>, PlatformError>,
+}
+
+/// Replay payload for destack.crypto.probe.namedCurves.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CryptoProbeNamedCurvesReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<CryptoNamedCurve>, PlatformError>,
+}
+
+/// Replay payload for destack.crypto.probe.signatureAlgorithms.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CryptoProbeSignatureAlgorithmsReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<CryptoSignatureAlgorithm>, PlatformError>,
+}
+
+/// Binding descriptor for destack.crypto.agreement.deriveKey.
+pub const CRYPTO_AGREEMENT_DERIVE_KEY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.agreement.deriveKey",
+    "export function agreementDeriveKey(privateKey: CryptoKeyHandle, peerPublicKey: CryptoKeyHandle, request: CryptoAgreementDeriveKeyRequest): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.kdf", "crypto.key.agree"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.agreement.deriveSharedSecret.
+pub const CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.agreement.deriveSharedSecret",
+    "export function agreementDeriveSharedSecret(privateKey: CryptoKeyHandle, peerPublicKey: CryptoKeyHandle, algorithm: CryptoKeyAgreementAlgorithm): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.key.agree"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.crypto.certificate.delete.
 pub const CRYPTO_CERTIFICATE_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.certificate.delete",
@@ -927,6 +3614,18 @@ pub const CRYPTO_CERTIFICATE_DELETE: BindingDescriptor = BindingDescriptor::exte
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.certificate.write"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.certificate.descriptor.
+pub const CRYPTO_CERTIFICATE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.certificate.descriptor",
+    "export function certificateDescriptor(handle: CryptoCertificateHandle): Result<CryptoCertificateDescriptor, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.certificate.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
@@ -956,18 +3655,6 @@ pub const CRYPTO_CERTIFICATE_IMPORT: BindingDescriptor = BindingDescriptor::exte
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.crypto.certificate.metadata.
-pub const CRYPTO_CERTIFICATE_METADATA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.crypto.certificate.metadata",
-    "export function certificateMetadata(handle: CryptoCertificateHandle): Result<CryptoCertificateMetadata, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::Regular,
-    &["crypto.certificate.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
 /// Binding descriptor for destack.crypto.certificate.verify.
 pub const CRYPTO_CERTIFICATE_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.certificate.verify",
@@ -980,10 +3667,282 @@ pub const CRYPTO_CERTIFICATE_VERIFY: BindingDescriptor = BindingDescriptor::exte
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.crypto.cipher.close.
+pub const CRYPTO_CIPHER_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.cipher.close",
+        "export function cipherClose(handle: CryptoCipherHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["crypto.cipher"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.cipher.decrypt.
+pub const CRYPTO_CIPHER_DECRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.cipher.decrypt",
+    "export function cipherDecrypt(key: CryptoKeyHandle, parameters: CryptoCipherParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.cipher"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.cipher.encrypt.
+pub const CRYPTO_CIPHER_ENCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.cipher.encrypt",
+    "export function cipherEncrypt(key: CryptoKeyHandle, parameters: CryptoCipherParameters, payload: Slice<uint8>): Result<CryptoCipherOutput, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.cipher"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.cipher.finish.
+pub const CRYPTO_CIPHER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.cipher.finish",
+    "export function cipherFinish(handle: CryptoCipherHandle, finalPayload: Slice<uint8>): Result<CryptoCipherOutput, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.cipher"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.cipher.open.
+pub const CRYPTO_CIPHER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.cipher.open",
+    "export function cipherOpen(key: CryptoKeyHandle, direction: CryptoCipherDirection, parameters: CryptoCipherParameters): Result<CryptoCipherHandle, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.cipher"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.cipher.reset.
+pub const CRYPTO_CIPHER_RESET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.cipher.reset",
+    "export function cipherReset(handle: CryptoCipherHandle, parameters: CryptoCipherParameters): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.cipher"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.cipher.update.
+pub const CRYPTO_CIPHER_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.cipher.update",
+    "export function cipherUpdate(handle: CryptoCipherHandle, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.cipher"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.cipher.updateAdditionalData.
+pub const CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.cipher.updateAdditionalData",
+    "export function cipherUpdateAdditionalData(handle: CryptoCipherHandle, additionalData: Slice<uint8>): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.cipher"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.digest.close.
+pub const CRYPTO_DIGEST_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.digest.close",
+        "export function digestClose(handle: CryptoDigestHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["crypto.digest"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.digest.compute.
+pub const CRYPTO_DIGEST_COMPUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.digest.compute",
+    "export function digestCompute(algorithm: CryptoDigestAlgorithm, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.digest"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.digest.finish.
+pub const CRYPTO_DIGEST_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.digest.finish",
+    "export function digestFinish(handle: CryptoDigestHandle): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.digest"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.digest.open.
+pub const CRYPTO_DIGEST_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.digest.open",
+    "export function digestOpen(algorithm: CryptoDigestAlgorithm): Result<CryptoDigestHandle, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.digest"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.digest.reset.
+pub const CRYPTO_DIGEST_RESET: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.digest.reset",
+        "export function digestReset(handle: CryptoDigestHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["crypto.digest"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.digest.update.
+pub const CRYPTO_DIGEST_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.digest.update",
+    "export function digestUpdate(handle: CryptoDigestHandle, payload: Slice<uint8>): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.digest"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.kdf.argon2id.
+pub const CRYPTO_KDF_ARGON2ID: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.kdf.argon2id",
+    "export function kdfArgon2id(request: CryptoArgon2idRequest): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.kdf"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.kdf.hkdf.
+pub const CRYPTO_KDF_HKDF: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.kdf.hkdf",
+        "export function kdfHkdf(request: CryptoHkdfRequest): Result<Slice<uint8>, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["crypto.kdf"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.kdf.pbkdf2.
+pub const CRYPTO_KDF_PBKDF2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.kdf.pbkdf2",
+    "export function kdfPbkdf2(request: CryptoPbkdf2Request): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.kdf"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.kdf.scrypt.
+pub const CRYPTO_KDF_SCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.kdf.scrypt",
+    "export function kdfScrypt(request: CryptoScryptRequest): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.kdf"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.crypto.key.decrypt.
 pub const CRYPTO_KEY_DECRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.decrypt",
-    "export function keyDecrypt(handle: CryptoKeyHandle, scheme: CryptoEncryptionScheme, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
+    "export function keyDecrypt(handle: CryptoKeyHandle, parameters: CryptoAsymmetricEncryptionParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.key.decrypt"],
@@ -1018,13 +3977,37 @@ pub const CRYPTO_KEY_DELETE: BindingDescriptor =
         "windows",
     ]);
 
+/// Binding descriptor for destack.crypto.key.descriptor.
+pub const CRYPTO_KEY_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.descriptor",
+    "export function keyDescriptor(handle: CryptoKeyHandle): Result<CryptoKeyDescriptor, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.store.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.crypto.key.encrypt.
 pub const CRYPTO_KEY_ENCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.encrypt",
-    "export function keyEncrypt(handle: CryptoKeyHandle, scheme: CryptoEncryptionScheme, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
+    "export function keyEncrypt(handle: CryptoKeyHandle, parameters: CryptoAsymmetricEncryptionParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.key.encrypt"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.key.exportPrivate.
+pub const CRYPTO_KEY_EXPORT_PRIVATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.exportPrivate",
+    "export function keyExportPrivate(handle: CryptoKeyHandle, format: CryptoKeyFormat): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.store.read"],
     BindingScope::Host,
     BindingBlocking::Sometimes,
 )
@@ -1042,10 +4025,34 @@ pub const CRYPTO_KEY_EXPORT_PUBLIC: BindingDescriptor = BindingDescriptor::exter
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.crypto.key.generate.
-pub const CRYPTO_KEY_GENERATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.crypto.key.generate",
-    "export function keyGenerate(store: CryptoStoreHandle, spec: CryptoKeySpec): Result<CryptoKeyHandle, PlatformError>",
+/// Binding descriptor for destack.crypto.key.exportSecret.
+pub const CRYPTO_KEY_EXPORT_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.exportSecret",
+    "export function keyExportSecret(handle: CryptoKeyHandle, format: CryptoKeyFormat): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.store.read"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.key.generatePair.
+pub const CRYPTO_KEY_GENERATE_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.generatePair",
+    "export function keyGeneratePair(store: CryptoStoreHandle, request: CryptoKeyGenerationRequest): Result<CryptoKeyPair, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.key.generate"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.key.generateSecret.
+pub const CRYPTO_KEY_GENERATE_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.generateSecret",
+    "export function keyGenerateSecret(store: CryptoStoreHandle, request: CryptoKeyGenerationRequest): Result<CryptoKeyHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.key.generate"],
@@ -1057,7 +4064,7 @@ pub const CRYPTO_KEY_GENERATE: BindingDescriptor = BindingDescriptor::external_w
 /// Binding descriptor for destack.crypto.key.import.
 pub const CRYPTO_KEY_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.import",
-    "export function keyImport(store: CryptoStoreHandle, format: CryptoKeyFormat, bytes: Slice<uint8>, usageMask: CryptoKeyUsageMask, label: string): Result<CryptoKeyHandle, PlatformError>",
+    "export function keyImport(store: CryptoStoreHandle, request: CryptoKeyImportRequest): Result<CryptoKeyHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.store.write"],
@@ -1066,22 +4073,10 @@ pub const CRYPTO_KEY_IMPORT: BindingDescriptor = BindingDescriptor::external_wit
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
-/// Binding descriptor for destack.crypto.key.metadata.
-pub const CRYPTO_KEY_METADATA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
-    "destack.crypto.key.metadata",
-    "export function keyMetadata(handle: CryptoKeyHandle): Result<CryptoKeyMetadata, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
-    BindingReplayKind::Regular,
-    &["crypto.store.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-)
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
-
 /// Binding descriptor for destack.crypto.key.sign.
 pub const CRYPTO_KEY_SIGN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.sign",
-    "export function keySign(handle: CryptoKeyHandle, scheme: CryptoSignatureScheme, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
+    "export function keySign(handle: CryptoKeyHandle, parameters: CryptoSignatureParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.key.sign"],
@@ -1090,10 +4085,22 @@ pub const CRYPTO_KEY_SIGN: BindingDescriptor = BindingDescriptor::external_with_
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.crypto.key.unwrap.
+pub const CRYPTO_KEY_UNWRAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.unwrap",
+    "export function keyUnwrap(store: CryptoStoreHandle, wrappingKey: CryptoKeyHandle, wrappedKey: Slice<uint8>, parameters: CryptoAsymmetricEncryptionParameters, request: CryptoKeyImportRequest): Result<CryptoKeyHandle, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.key.unwrap", "crypto.store.write"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
 /// Binding descriptor for destack.crypto.key.verify.
 pub const CRYPTO_KEY_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.verify",
-    "export function keyVerify(handle: CryptoKeyHandle, scheme: CryptoSignatureScheme, payload: Slice<uint8>, signature: Slice<uint8>): Result<boolean, PlatformError>",
+    "export function keyVerify(handle: CryptoKeyHandle, parameters: CryptoSignatureParameters, payload: Slice<uint8>, signature: Slice<uint8>): Result<boolean, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.key.verify"],
@@ -1101,6 +4108,374 @@ pub const CRYPTO_KEY_VERIFY: BindingDescriptor = BindingDescriptor::external_wit
     BindingBlocking::Sometimes,
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.key.wrap.
+pub const CRYPTO_KEY_WRAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.key.wrap",
+    "export function keyWrap(wrappingKey: CryptoKeyHandle, keyToWrap: CryptoKeyHandle, format: CryptoKeyFormat, parameters: CryptoAsymmetricEncryptionParameters): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.key.wrap"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.mac.close.
+pub const CRYPTO_MAC_CLOSE: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.mac.close",
+        "export function macClose(handle: CryptoMacHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["crypto.mac"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.mac.compute.
+pub const CRYPTO_MAC_COMPUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.mac.compute",
+    "export function macCompute(key: CryptoKeyHandle, parameters: CryptoMacParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.mac"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.mac.finish.
+pub const CRYPTO_MAC_FINISH: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.mac.finish",
+        "export function macFinish(handle: CryptoMacHandle): Result<Slice<uint8>, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["crypto.mac"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.mac.open.
+pub const CRYPTO_MAC_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.mac.open",
+    "export function macOpen(key: CryptoKeyHandle, parameters: CryptoMacParameters): Result<CryptoMacHandle, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.mac"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.mac.reset.
+pub const CRYPTO_MAC_RESET: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.mac.reset",
+        "export function macReset(handle: CryptoMacHandle): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["crypto.mac"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.mac.update.
+pub const CRYPTO_MAC_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.mac.update",
+    "export function macUpdate(handle: CryptoMacHandle, payload: Slice<uint8>): Result<void, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.mac"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.mac.verify.
+pub const CRYPTO_MAC_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.mac.verify",
+    "export function macVerify(key: CryptoKeyHandle, parameters: CryptoMacParameters, payload: Slice<uint8>, tag: Slice<uint8>): Result<boolean, PlatformError>",
+    BindingReplayPolicy::NonRecordable,
+    BindingReplayKind::Regular,
+    &["crypto.mac"],
+    BindingScope::Host,
+    BindingBlocking::Sometimes,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.probe.agreementAlgorithms.
+pub const CRYPTO_PROBE_AGREEMENT_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.probe.agreementAlgorithms",
+    "export function probeAgreementAlgorithms(): Result<Slice<CryptoKeyAgreementAlgorithm>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["crypto.probe"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.probe.cipherAlgorithms.
+pub const CRYPTO_PROBE_CIPHER_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.probe.cipherAlgorithms",
+    "export function probeCipherAlgorithms(): Result<Slice<CryptoCipherAlgorithm>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["crypto.probe"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.probe.digestAlgorithms.
+pub const CRYPTO_PROBE_DIGEST_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.probe.digestAlgorithms",
+    "export function probeDigestAlgorithms(): Result<Slice<CryptoDigestAlgorithm>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["crypto.probe"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.probe.kdfAlgorithms.
+pub const CRYPTO_PROBE_KDF_ALGORITHMS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.probe.kdfAlgorithms",
+        "export function probeKdfAlgorithms(): Result<Slice<CryptoKdfAlgorithm>, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["crypto.probe"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.probe.keyAlgorithms.
+pub const CRYPTO_PROBE_KEY_ALGORITHMS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.probe.keyAlgorithms",
+        "export function probeKeyAlgorithms(): Result<Slice<CryptoKeyAlgorithm>, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["crypto.probe"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.probe.keyFormats.
+pub const CRYPTO_PROBE_KEY_FORMATS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.probe.keyFormats",
+        "export function probeKeyFormats(): Result<Slice<CryptoKeyFormat>, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["crypto.probe"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.probe.macAlgorithms.
+pub const CRYPTO_PROBE_MAC_ALGORITHMS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.probe.macAlgorithms",
+        "export function probeMacAlgorithms(): Result<Slice<CryptoMacAlgorithm>, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["crypto.probe"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.probe.namedCurves.
+pub const CRYPTO_PROBE_NAMED_CURVES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.probe.namedCurves",
+        "export function probeNamedCurves(): Result<Slice<CryptoNamedCurve>, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["crypto.probe"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.probe.signatureAlgorithms.
+pub const CRYPTO_PROBE_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.probe.signatureAlgorithms",
+    "export function probeSignatureAlgorithms(): Result<Slice<CryptoSignatureAlgorithm>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["crypto.probe"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.random.bytes.
+pub const CRYPTO_RANDOM_BYTES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.random.bytes",
+        "export function randomBytes(length: uint32): Result<Slice<uint8>, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["crypto.random"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.random.fill.
+pub const CRYPTO_RANDOM_FILL: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.random.fill",
+        "export function randomFill(buffer: Slice<uint8>): Result<void, PlatformError>",
+        BindingReplayPolicy::NonRecordable,
+        BindingReplayKind::Regular,
+        &["crypto.random"],
+        BindingScope::Host,
+        BindingBlocking::Sometimes,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
 
 /// Binding descriptor for destack.crypto.store.close.
 pub const CRYPTO_STORE_CLOSE: BindingDescriptor =
@@ -1131,7 +4506,7 @@ pub const CRYPTO_STORE_CLOSE: BindingDescriptor =
 /// Binding descriptor for destack.crypto.store.listCertificates.
 pub const CRYPTO_STORE_LIST_CERTIFICATES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.store.listCertificates",
-    "export function storeListCertificates(handle: CryptoStoreHandle, query: CryptoCertificateQuery): Result<CryptoCertificateHandle[], PlatformError>",
+    "export function storeListCertificates(handle: CryptoStoreHandle, query: CryptoCertificateQuery): Result<CryptoCertificateListPage, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.store.read"],
@@ -1143,7 +4518,7 @@ pub const CRYPTO_STORE_LIST_CERTIFICATES: BindingDescriptor = BindingDescriptor:
 /// Binding descriptor for destack.crypto.store.listKeys.
 pub const CRYPTO_STORE_LIST_KEYS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.store.listKeys",
-    "export function storeListKeys(handle: CryptoStoreHandle, query: CryptoKeyQuery): Result<CryptoKeyHandle[], PlatformError>",
+    "export function storeListKeys(handle: CryptoStoreHandle, query: CryptoKeyQuery): Result<CryptoKeyListPage, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.store.read"],
@@ -1166,20 +4541,63 @@ pub const CRYPTO_STORE_OPEN: BindingDescriptor = BindingDescriptor::external_wit
 
 /// Binding descriptors for crypto.
 pub const BINDINGS: &[BindingDescriptor] = &[
+    CRYPTO_AGREEMENT_DERIVE_KEY,
+    CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET,
     CRYPTO_CERTIFICATE_DELETE,
+    CRYPTO_CERTIFICATE_DESCRIPTOR,
     CRYPTO_CERTIFICATE_EXPORT,
     CRYPTO_CERTIFICATE_IMPORT,
-    CRYPTO_CERTIFICATE_METADATA,
     CRYPTO_CERTIFICATE_VERIFY,
+    CRYPTO_CIPHER_CLOSE,
+    CRYPTO_CIPHER_DECRYPT,
+    CRYPTO_CIPHER_ENCRYPT,
+    CRYPTO_CIPHER_FINISH,
+    CRYPTO_CIPHER_OPEN,
+    CRYPTO_CIPHER_RESET,
+    CRYPTO_CIPHER_UPDATE,
+    CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA,
+    CRYPTO_DIGEST_CLOSE,
+    CRYPTO_DIGEST_COMPUTE,
+    CRYPTO_DIGEST_FINISH,
+    CRYPTO_DIGEST_OPEN,
+    CRYPTO_DIGEST_RESET,
+    CRYPTO_DIGEST_UPDATE,
+    CRYPTO_KDF_ARGON2ID,
+    CRYPTO_KDF_HKDF,
+    CRYPTO_KDF_PBKDF2,
+    CRYPTO_KDF_SCRYPT,
     CRYPTO_KEY_DECRYPT,
     CRYPTO_KEY_DELETE,
+    CRYPTO_KEY_DESCRIPTOR,
     CRYPTO_KEY_ENCRYPT,
+    CRYPTO_KEY_EXPORT_PRIVATE,
     CRYPTO_KEY_EXPORT_PUBLIC,
-    CRYPTO_KEY_GENERATE,
+    CRYPTO_KEY_EXPORT_SECRET,
+    CRYPTO_KEY_GENERATE_PAIR,
+    CRYPTO_KEY_GENERATE_SECRET,
     CRYPTO_KEY_IMPORT,
-    CRYPTO_KEY_METADATA,
     CRYPTO_KEY_SIGN,
+    CRYPTO_KEY_UNWRAP,
     CRYPTO_KEY_VERIFY,
+    CRYPTO_KEY_WRAP,
+    CRYPTO_MAC_CLOSE,
+    CRYPTO_MAC_COMPUTE,
+    CRYPTO_MAC_FINISH,
+    CRYPTO_MAC_OPEN,
+    CRYPTO_MAC_RESET,
+    CRYPTO_MAC_UPDATE,
+    CRYPTO_MAC_VERIFY,
+    CRYPTO_PROBE_AGREEMENT_ALGORITHMS,
+    CRYPTO_PROBE_CIPHER_ALGORITHMS,
+    CRYPTO_PROBE_DIGEST_ALGORITHMS,
+    CRYPTO_PROBE_KDF_ALGORITHMS,
+    CRYPTO_PROBE_KEY_ALGORITHMS,
+    CRYPTO_PROBE_KEY_FORMATS,
+    CRYPTO_PROBE_MAC_ALGORITHMS,
+    CRYPTO_PROBE_NAMED_CURVES,
+    CRYPTO_PROBE_SIGNATURE_ALGORITHMS,
+    CRYPTO_RANDOM_BYTES,
+    CRYPTO_RANDOM_FILL,
     CRYPTO_STORE_CLOSE,
     CRYPTO_STORE_LIST_CERTIFICATES,
     CRYPTO_STORE_LIST_KEYS,
@@ -1191,9 +4609,24 @@ pub const CRYPTO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "crypto",
     bindings: &[
         NativeBinding::new(
+            CRYPTO_AGREEMENT_DERIVE_KEY,
+            "destack.crypto.agreement.deriveKey",
+            destack_crypto_agreement_derive_key as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET,
+            "destack.crypto.agreement.deriveSharedSecret",
+            destack_crypto_agreement_derive_shared_secret as *const (),
+        ),
+        NativeBinding::new(
             CRYPTO_CERTIFICATE_DELETE,
             "destack.crypto.certificate.delete",
             destack_crypto_certificate_delete as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_CERTIFICATE_DESCRIPTOR,
+            "destack.crypto.certificate.descriptor",
+            destack_crypto_certificate_descriptor as *const (),
         ),
         NativeBinding::new(
             CRYPTO_CERTIFICATE_EXPORT,
@@ -1206,14 +4639,99 @@ pub const CRYPTO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_crypto_certificate_import as *const (),
         ),
         NativeBinding::new(
-            CRYPTO_CERTIFICATE_METADATA,
-            "destack.crypto.certificate.metadata",
-            destack_crypto_certificate_metadata as *const (),
-        ),
-        NativeBinding::new(
             CRYPTO_CERTIFICATE_VERIFY,
             "destack.crypto.certificate.verify",
             destack_crypto_certificate_verify as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_CIPHER_CLOSE,
+            "destack.crypto.cipher.close",
+            destack_crypto_cipher_close as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_CIPHER_DECRYPT,
+            "destack.crypto.cipher.decrypt",
+            destack_crypto_cipher_decrypt as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_CIPHER_ENCRYPT,
+            "destack.crypto.cipher.encrypt",
+            destack_crypto_cipher_encrypt as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_CIPHER_FINISH,
+            "destack.crypto.cipher.finish",
+            destack_crypto_cipher_finish as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_CIPHER_OPEN,
+            "destack.crypto.cipher.open",
+            destack_crypto_cipher_open as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_CIPHER_RESET,
+            "destack.crypto.cipher.reset",
+            destack_crypto_cipher_reset as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_CIPHER_UPDATE,
+            "destack.crypto.cipher.update",
+            destack_crypto_cipher_update as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA,
+            "destack.crypto.cipher.updateAdditionalData",
+            destack_crypto_cipher_update_additional_data as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_DIGEST_CLOSE,
+            "destack.crypto.digest.close",
+            destack_crypto_digest_close as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_DIGEST_COMPUTE,
+            "destack.crypto.digest.compute",
+            destack_crypto_digest_compute as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_DIGEST_FINISH,
+            "destack.crypto.digest.finish",
+            destack_crypto_digest_finish as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_DIGEST_OPEN,
+            "destack.crypto.digest.open",
+            destack_crypto_digest_open as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_DIGEST_RESET,
+            "destack.crypto.digest.reset",
+            destack_crypto_digest_reset as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_DIGEST_UPDATE,
+            "destack.crypto.digest.update",
+            destack_crypto_digest_update as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_KDF_ARGON2ID,
+            "destack.crypto.kdf.argon2id",
+            destack_crypto_kdf_argon2id as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_KDF_HKDF,
+            "destack.crypto.kdf.hkdf",
+            destack_crypto_kdf_hkdf as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_KDF_PBKDF2,
+            "destack.crypto.kdf.pbkdf2",
+            destack_crypto_kdf_pbkdf2 as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_KDF_SCRYPT,
+            "destack.crypto.kdf.scrypt",
+            destack_crypto_kdf_scrypt as *const (),
         ),
         NativeBinding::new(
             CRYPTO_KEY_DECRYPT,
@@ -1226,9 +4744,19 @@ pub const CRYPTO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_crypto_key_delete as *const (),
         ),
         NativeBinding::new(
+            CRYPTO_KEY_DESCRIPTOR,
+            "destack.crypto.key.descriptor",
+            destack_crypto_key_descriptor as *const (),
+        ),
+        NativeBinding::new(
             CRYPTO_KEY_ENCRYPT,
             "destack.crypto.key.encrypt",
             destack_crypto_key_encrypt as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_KEY_EXPORT_PRIVATE,
+            "destack.crypto.key.exportPrivate",
+            destack_crypto_key_export_private as *const (),
         ),
         NativeBinding::new(
             CRYPTO_KEY_EXPORT_PUBLIC,
@@ -1236,9 +4764,19 @@ pub const CRYPTO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_crypto_key_export_public as *const (),
         ),
         NativeBinding::new(
-            CRYPTO_KEY_GENERATE,
-            "destack.crypto.key.generate",
-            destack_crypto_key_generate as *const (),
+            CRYPTO_KEY_EXPORT_SECRET,
+            "destack.crypto.key.exportSecret",
+            destack_crypto_key_export_secret as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_KEY_GENERATE_PAIR,
+            "destack.crypto.key.generatePair",
+            destack_crypto_key_generate_pair as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_KEY_GENERATE_SECRET,
+            "destack.crypto.key.generateSecret",
+            destack_crypto_key_generate_secret as *const (),
         ),
         NativeBinding::new(
             CRYPTO_KEY_IMPORT,
@@ -1246,19 +4784,114 @@ pub const CRYPTO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_crypto_key_import as *const (),
         ),
         NativeBinding::new(
-            CRYPTO_KEY_METADATA,
-            "destack.crypto.key.metadata",
-            destack_crypto_key_metadata as *const (),
-        ),
-        NativeBinding::new(
             CRYPTO_KEY_SIGN,
             "destack.crypto.key.sign",
             destack_crypto_key_sign as *const (),
         ),
         NativeBinding::new(
+            CRYPTO_KEY_UNWRAP,
+            "destack.crypto.key.unwrap",
+            destack_crypto_key_unwrap as *const (),
+        ),
+        NativeBinding::new(
             CRYPTO_KEY_VERIFY,
             "destack.crypto.key.verify",
             destack_crypto_key_verify as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_KEY_WRAP,
+            "destack.crypto.key.wrap",
+            destack_crypto_key_wrap as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_MAC_CLOSE,
+            "destack.crypto.mac.close",
+            destack_crypto_mac_close as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_MAC_COMPUTE,
+            "destack.crypto.mac.compute",
+            destack_crypto_mac_compute as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_MAC_FINISH,
+            "destack.crypto.mac.finish",
+            destack_crypto_mac_finish as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_MAC_OPEN,
+            "destack.crypto.mac.open",
+            destack_crypto_mac_open as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_MAC_RESET,
+            "destack.crypto.mac.reset",
+            destack_crypto_mac_reset as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_MAC_UPDATE,
+            "destack.crypto.mac.update",
+            destack_crypto_mac_update as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_MAC_VERIFY,
+            "destack.crypto.mac.verify",
+            destack_crypto_mac_verify as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_PROBE_AGREEMENT_ALGORITHMS,
+            "destack.crypto.probe.agreementAlgorithms",
+            destack_crypto_probe_agreement_algorithms as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_PROBE_CIPHER_ALGORITHMS,
+            "destack.crypto.probe.cipherAlgorithms",
+            destack_crypto_probe_cipher_algorithms as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_PROBE_DIGEST_ALGORITHMS,
+            "destack.crypto.probe.digestAlgorithms",
+            destack_crypto_probe_digest_algorithms as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_PROBE_KDF_ALGORITHMS,
+            "destack.crypto.probe.kdfAlgorithms",
+            destack_crypto_probe_kdf_algorithms as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_PROBE_KEY_ALGORITHMS,
+            "destack.crypto.probe.keyAlgorithms",
+            destack_crypto_probe_key_algorithms as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_PROBE_KEY_FORMATS,
+            "destack.crypto.probe.keyFormats",
+            destack_crypto_probe_key_formats as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_PROBE_MAC_ALGORITHMS,
+            "destack.crypto.probe.macAlgorithms",
+            destack_crypto_probe_mac_algorithms as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_PROBE_NAMED_CURVES,
+            "destack.crypto.probe.namedCurves",
+            destack_crypto_probe_named_curves as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_PROBE_SIGNATURE_ALGORITHMS,
+            "destack.crypto.probe.signatureAlgorithms",
+            destack_crypto_probe_signature_algorithms as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_RANDOM_BYTES,
+            "destack.crypto.random.bytes",
+            destack_crypto_random_bytes as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_RANDOM_FILL,
+            "destack.crypto.random.fill",
+            destack_crypto_random_fill as *const (),
         ),
         NativeBinding::new(
             CRYPTO_STORE_CLOSE,
@@ -1283,7 +4916,707 @@ pub const CRYPTO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     ],
 };
 
+/// Native replay implementations for crypto bindings.
+#[inline]
+fn destack_crypto_probe_agreement_algorithms_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<CryptoKeyAgreementAlgorithm>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        CRYPTO_PROBE_AGREEMENT_ALGORITHMS,
+        context.replay_payload_for(CRYPTO_PROBE_AGREEMENT_ALGORITHMS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_crypto_probe_agreement_algorithms(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_crypto_probe_agreement_algorithms(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeAgreementAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeAgreementAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_crypto_probe_cipher_algorithms_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<CryptoCipherAlgorithm>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        CRYPTO_PROBE_CIPHER_ALGORITHMS,
+        context.replay_payload_for(CRYPTO_PROBE_CIPHER_ALGORITHMS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_crypto_probe_cipher_algorithms(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_crypto_probe_cipher_algorithms(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeCipherAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeCipherAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_crypto_probe_digest_algorithms_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<CryptoDigestAlgorithm>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        CRYPTO_PROBE_DIGEST_ALGORITHMS,
+        context.replay_payload_for(CRYPTO_PROBE_DIGEST_ALGORITHMS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_crypto_probe_digest_algorithms(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_crypto_probe_digest_algorithms(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeDigestAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeDigestAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_crypto_probe_kdf_algorithms_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<CryptoKdfAlgorithm>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        CRYPTO_PROBE_KDF_ALGORITHMS,
+        context.replay_payload_for(CRYPTO_PROBE_KDF_ALGORITHMS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_crypto_probe_kdf_algorithms(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_crypto_probe_kdf_algorithms(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeKdfAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeKdfAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_crypto_probe_key_algorithms_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<CryptoKeyAlgorithm>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        CRYPTO_PROBE_KEY_ALGORITHMS,
+        context.replay_payload_for(CRYPTO_PROBE_KEY_ALGORITHMS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_crypto_probe_key_algorithms(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_crypto_probe_key_algorithms(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeKeyAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeKeyAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_crypto_probe_key_formats_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<CryptoKeyFormat>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        CRYPTO_PROBE_KEY_FORMATS,
+        context.replay_payload_for(CRYPTO_PROBE_KEY_FORMATS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_crypto_probe_key_formats(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_crypto_probe_key_formats(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeKeyFormatsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeKeyFormatsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_crypto_probe_mac_algorithms_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<CryptoMacAlgorithm>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        CRYPTO_PROBE_MAC_ALGORITHMS,
+        context.replay_payload_for(CRYPTO_PROBE_MAC_ALGORITHMS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_crypto_probe_mac_algorithms(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_crypto_probe_mac_algorithms(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeMacAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeMacAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_crypto_probe_named_curves_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<CryptoNamedCurve>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        CRYPTO_PROBE_NAMED_CURVES,
+        context.replay_payload_for(CRYPTO_PROBE_NAMED_CURVES)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_crypto_probe_named_curves(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_crypto_probe_named_curves(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeNamedCurvesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeNamedCurvesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_crypto_probe_signature_algorithms_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<CryptoSignatureAlgorithm>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        CRYPTO_PROBE_SIGNATURE_ALGORITHMS,
+        context.replay_payload_for(CRYPTO_PROBE_SIGNATURE_ALGORITHMS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_crypto_probe_signature_algorithms(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_crypto_probe_signature_algorithms(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeSignatureAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeSignatureAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
 /// Native export wrappers for crypto bindings.
+#[unsafe(export_name = "destack.crypto.agreement.deriveKey")]
+pub unsafe extern "C" fn destack_crypto_agreement_derive_key(
+    out: *mut NativeSlice<u8>,
+    privatekey: resource::CryptoKeyHandle,
+    peerpublickey: resource::CryptoKeyHandle,
+    request: CryptoAgreementDeriveKeyRequest,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &privatekey, &peerpublickey, &request);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_AGREEMENT_DERIVE_KEY)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_agreement_derive_key(
+                        context,
+                        out,
+                        privatekey,
+                        peerpublickey,
+                        request,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_agreement_derive_key(
+                        context,
+                        out,
+                        privatekey,
+                        peerpublickey,
+                        request,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.agreement.deriveSharedSecret")]
+pub unsafe extern "C" fn destack_crypto_agreement_derive_shared_secret(
+    out: *mut NativeSlice<u8>,
+    privatekey: resource::CryptoKeyHandle,
+    peerpublickey: resource::CryptoKeyHandle,
+    algorithm: CryptoKeyAgreementAlgorithm,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &privatekey, &peerpublickey, &algorithm);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_agreement_derive_shared_secret(
+                        context,
+                        out,
+                        privatekey,
+                        peerpublickey,
+                        algorithm,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_agreement_derive_shared_secret(
+                        context,
+                        out,
+                        privatekey,
+                        peerpublickey,
+                        algorithm,
+                    )
+                },
+            }
+        }
+    })
+}
+
 #[unsafe(export_name = "destack.crypto.certificate.delete")]
 pub unsafe extern "C" fn destack_crypto_certificate_delete(
     handle: resource::CryptoCertificateHandle,
@@ -1299,6 +5632,33 @@ pub unsafe extern "C" fn destack_crypto_certificate_delete(
                 },
                 RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_crypto_certificate_delete(context, handle)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.certificate.descriptor")]
+pub unsafe extern "C" fn destack_crypto_certificate_descriptor(
+    out: *mut CryptoCertificateDescriptor,
+    handle: resource::CryptoCertificateHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_CERTIFICATE_DESCRIPTOR)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_certificate_descriptor(context, out, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_certificate_descriptor(
+                        context, out, handle,
+                    )
                 },
             }
         }
@@ -1372,33 +5732,6 @@ pub unsafe extern "C" fn destack_crypto_certificate_import(
     })
 }
 
-#[unsafe(export_name = "destack.crypto.certificate.metadata")]
-pub unsafe extern "C" fn destack_crypto_certificate_metadata(
-    out: *mut CryptoCertificateMetadata,
-    handle: resource::CryptoCertificateHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle);
-
-        {
-            let world = context.check_and_resolve_world(CRYPTO_CERTIFICATE_METADATA)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_crypto_certificate_metadata(context, out, handle)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_crypto_certificate_metadata(
-                        context, out, handle,
-                    )
-                },
-            }
-        }
-    })
-}
-
 #[unsafe(export_name = "destack.crypto.certificate.verify")]
 pub unsafe extern "C" fn destack_crypto_certificate_verify(
     out: *mut CryptoCertificateVerifyResult,
@@ -1426,18 +5759,528 @@ pub unsafe extern "C" fn destack_crypto_certificate_verify(
     })
 }
 
-#[unsafe(export_name = "destack.crypto.key.decrypt")]
-pub unsafe extern "C" fn destack_crypto_key_decrypt(
+#[unsafe(export_name = "destack.crypto.cipher.close")]
+pub unsafe extern "C" fn destack_crypto_cipher_close(
+    handle: resource::CryptoCipherHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_CIPHER_CLOSE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_cipher_close(context, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_cipher_close(context, handle)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.cipher.decrypt")]
+pub unsafe extern "C" fn destack_crypto_cipher_decrypt(
     out: *mut NativeSlice<u8>,
-    handle: resource::CryptoKeyHandle,
-    scheme: CryptoEncryptionScheme,
+    key: resource::CryptoKeyHandle,
+    parameters: CryptoCipherParameters,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle, &scheme, &argument_payload);
+        let _ = (&out, &key, &parameters, &argument_payload);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_CIPHER_DECRYPT)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_cipher_decrypt(
+                        context,
+                        out,
+                        key,
+                        parameters,
+                        argument_payload,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_cipher_decrypt(
+                        context,
+                        out,
+                        key,
+                        parameters,
+                        argument_payload,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.cipher.encrypt")]
+pub unsafe extern "C" fn destack_crypto_cipher_encrypt(
+    out: *mut CryptoCipherOutput,
+    key: resource::CryptoKeyHandle,
+    parameters: CryptoCipherParameters,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &key, &parameters, &argument_payload);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_CIPHER_ENCRYPT)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_cipher_encrypt(
+                        context,
+                        out,
+                        key,
+                        parameters,
+                        argument_payload,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_cipher_encrypt(
+                        context,
+                        out,
+                        key,
+                        parameters,
+                        argument_payload,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.cipher.finish")]
+pub unsafe extern "C" fn destack_crypto_cipher_finish(
+    out: *mut CryptoCipherOutput,
+    handle: resource::CryptoCipherHandle,
+    finalpayload: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &finalpayload);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_CIPHER_FINISH)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_cipher_finish(
+                        context,
+                        out,
+                        handle,
+                        finalpayload,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_cipher_finish(
+                        context,
+                        out,
+                        handle,
+                        finalpayload,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.cipher.open")]
+pub unsafe extern "C" fn destack_crypto_cipher_open(
+    out: *mut resource::CryptoCipherHandle,
+    key: resource::CryptoKeyHandle,
+    direction: CryptoCipherDirection,
+    parameters: CryptoCipherParameters,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &key, &direction, &parameters);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_CIPHER_OPEN)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_cipher_open(
+                        context, out, key, direction, parameters,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_cipher_open(
+                        context, out, key, direction, parameters,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.cipher.reset")]
+pub unsafe extern "C" fn destack_crypto_cipher_reset(
+    handle: resource::CryptoCipherHandle,
+    parameters: CryptoCipherParameters,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &parameters);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_CIPHER_RESET)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_cipher_reset(context, handle, parameters)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_cipher_reset(
+                        context, handle, parameters,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.cipher.update")]
+pub unsafe extern "C" fn destack_crypto_cipher_update(
+    out: *mut NativeSlice<u8>,
+    handle: resource::CryptoCipherHandle,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &argument_payload);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_CIPHER_UPDATE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_cipher_update(
+                        context,
+                        out,
+                        handle,
+                        argument_payload,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_cipher_update(
+                        context,
+                        out,
+                        handle,
+                        argument_payload,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.cipher.updateAdditionalData")]
+pub unsafe extern "C" fn destack_crypto_cipher_update_additional_data(
+    handle: resource::CryptoCipherHandle,
+    additionaldata: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &additionaldata);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_cipher_update_additional_data(
+                        context,
+                        handle,
+                        additionaldata,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_cipher_update_additional_data(
+                        context,
+                        handle,
+                        additionaldata,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.digest.close")]
+pub unsafe extern "C" fn destack_crypto_digest_close(
+    handle: resource::CryptoDigestHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_DIGEST_CLOSE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_digest_close(context, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_digest_close(context, handle)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.digest.compute")]
+pub unsafe extern "C" fn destack_crypto_digest_compute(
+    out: *mut NativeSlice<u8>,
+    algorithm: CryptoDigestAlgorithm,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &algorithm, &argument_payload);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_DIGEST_COMPUTE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_digest_compute(
+                        context,
+                        out,
+                        algorithm,
+                        argument_payload,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_digest_compute(
+                        context,
+                        out,
+                        algorithm,
+                        argument_payload,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.digest.finish")]
+pub unsafe extern "C" fn destack_crypto_digest_finish(
+    out: *mut NativeSlice<u8>,
+    handle: resource::CryptoDigestHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_DIGEST_FINISH)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_digest_finish(context, out, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_digest_finish(context, out, handle)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.digest.open")]
+pub unsafe extern "C" fn destack_crypto_digest_open(
+    out: *mut resource::CryptoDigestHandle,
+    algorithm: CryptoDigestAlgorithm,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &algorithm);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_DIGEST_OPEN)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_digest_open(context, out, algorithm)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_digest_open(context, out, algorithm)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.digest.reset")]
+pub unsafe extern "C" fn destack_crypto_digest_reset(
+    handle: resource::CryptoDigestHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_DIGEST_RESET)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_digest_reset(context, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_digest_reset(context, handle)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.digest.update")]
+pub unsafe extern "C" fn destack_crypto_digest_update(
+    handle: resource::CryptoDigestHandle,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &argument_payload);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_DIGEST_UPDATE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_digest_update(context, handle, argument_payload)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_digest_update(
+                        context,
+                        handle,
+                        argument_payload,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.kdf.argon2id")]
+pub unsafe extern "C" fn destack_crypto_kdf_argon2id(
+    out: *mut NativeSlice<u8>,
+    request: CryptoArgon2idRequest,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &request);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_KDF_ARGON2ID)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_kdf_argon2id(context, out, request)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_kdf_argon2id(context, out, request)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.kdf.hkdf")]
+pub unsafe extern "C" fn destack_crypto_kdf_hkdf(
+    out: *mut NativeSlice<u8>,
+    request: CryptoHkdfRequest,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &request);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_KDF_HKDF)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_kdf_hkdf(context, out, request)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_kdf_hkdf(context, out, request)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.kdf.pbkdf2")]
+pub unsafe extern "C" fn destack_crypto_kdf_pbkdf2(
+    out: *mut NativeSlice<u8>,
+    request: CryptoPbkdf2Request,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &request);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_KDF_PBKDF2)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_kdf_pbkdf2(context, out, request)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_kdf_pbkdf2(context, out, request)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.kdf.scrypt")]
+pub unsafe extern "C" fn destack_crypto_kdf_scrypt(
+    out: *mut NativeSlice<u8>,
+    request: CryptoScryptRequest,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &request);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_KDF_SCRYPT)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_kdf_scrypt(context, out, request)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_kdf_scrypt(context, out, request)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.key.decrypt")]
+pub unsafe extern "C" fn destack_crypto_key_decrypt(
+    out: *mut NativeSlice<u8>,
+    handle: resource::CryptoKeyHandle,
+    parameters: CryptoAsymmetricEncryptionParameters,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &parameters, &argument_payload);
 
         {
             let world = context.check_and_resolve_world(CRYPTO_KEY_DECRYPT)?;
@@ -1447,7 +6290,7 @@ pub unsafe extern "C" fn destack_crypto_key_decrypt(
                         context,
                         out,
                         handle,
-                        scheme,
+                        parameters,
                         argument_payload,
                     )
                 },
@@ -1456,7 +6299,7 @@ pub unsafe extern "C" fn destack_crypto_key_decrypt(
                         context,
                         out,
                         handle,
-                        scheme,
+                        parameters,
                         argument_payload,
                     )
                 },
@@ -1486,18 +6329,43 @@ pub unsafe extern "C" fn destack_crypto_key_delete(
     })
 }
 
+#[unsafe(export_name = "destack.crypto.key.descriptor")]
+pub unsafe extern "C" fn destack_crypto_key_descriptor(
+    out: *mut CryptoKeyDescriptor,
+    handle: resource::CryptoKeyHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_KEY_DESCRIPTOR)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_key_descriptor(context, out, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_key_descriptor(context, out, handle)
+                },
+            }
+        }
+    })
+}
+
 #[unsafe(export_name = "destack.crypto.key.encrypt")]
 pub unsafe extern "C" fn destack_crypto_key_encrypt(
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
-    scheme: CryptoEncryptionScheme,
+    parameters: CryptoAsymmetricEncryptionParameters,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle, &scheme, &argument_payload);
+        let _ = (&out, &handle, &parameters, &argument_payload);
 
         {
             let world = context.check_and_resolve_world(CRYPTO_KEY_ENCRYPT)?;
@@ -1507,7 +6375,7 @@ pub unsafe extern "C" fn destack_crypto_key_encrypt(
                         context,
                         out,
                         handle,
-                        scheme,
+                        parameters,
                         argument_payload,
                     )
                 },
@@ -1516,8 +6384,36 @@ pub unsafe extern "C" fn destack_crypto_key_encrypt(
                         context,
                         out,
                         handle,
-                        scheme,
+                        parameters,
                         argument_payload,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.key.exportPrivate")]
+pub unsafe extern "C" fn destack_crypto_key_export_private(
+    out: *mut NativeSlice<u8>,
+    handle: resource::CryptoKeyHandle,
+    format: CryptoKeyFormat,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle, &format);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_KEY_EXPORT_PRIVATE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_key_export_private(context, out, handle, format)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_key_export_private(
+                        context, out, handle, format,
                     )
                 },
             }
@@ -1553,27 +6449,85 @@ pub unsafe extern "C" fn destack_crypto_key_export_public(
     })
 }
 
-#[unsafe(export_name = "destack.crypto.key.generate")]
-pub unsafe extern "C" fn destack_crypto_key_generate(
-    out: *mut resource::CryptoKeyHandle,
-    store: resource::CryptoStoreHandle,
-    spec: CryptoKeySpec,
+#[unsafe(export_name = "destack.crypto.key.exportSecret")]
+pub unsafe extern "C" fn destack_crypto_key_export_secret(
+    out: *mut NativeSlice<u8>,
+    handle: resource::CryptoKeyHandle,
+    format: CryptoKeyFormat,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &store, &spec);
+        let _ = (&out, &handle, &format);
 
         {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_GENERATE)?;
+            let world = context.check_and_resolve_world(CRYPTO_KEY_EXPORT_SECRET)?;
             match world {
                 RuntimeWorld::Host => unsafe {
-                    platform_native::destack_crypto_key_generate(context, out, store, spec)
+                    platform_native::destack_crypto_key_export_secret(context, out, handle, format)
                 },
                 RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_crypto_key_generate(
-                        context, out, store, spec,
+                    platform_simulation_native::destack_crypto_key_export_secret(
+                        context, out, handle, format,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.key.generatePair")]
+pub unsafe extern "C" fn destack_crypto_key_generate_pair(
+    out: *mut CryptoKeyPair,
+    store: resource::CryptoStoreHandle,
+    request: CryptoKeyGenerationRequest,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &store, &request);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_KEY_GENERATE_PAIR)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_key_generate_pair(context, out, store, request)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_key_generate_pair(
+                        context, out, store, request,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.key.generateSecret")]
+pub unsafe extern "C" fn destack_crypto_key_generate_secret(
+    out: *mut resource::CryptoKeyHandle,
+    store: resource::CryptoStoreHandle,
+    request: CryptoKeyGenerationRequest,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &store, &request);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_KEY_GENERATE_SECRET)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_key_generate_secret(
+                        context, out, store, request,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_key_generate_secret(
+                        context, out, store, request,
                     )
                 },
             }
@@ -1585,66 +6539,24 @@ pub unsafe extern "C" fn destack_crypto_key_generate(
 pub unsafe extern "C" fn destack_crypto_key_import(
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
-    format: CryptoKeyFormat,
-    argument_bytes: NativeSlice<u8>,
-    usagemask: CryptoKeyUsageMask,
-    label: NativeStringRef,
+    request: CryptoKeyImportRequest,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &store, &format, &argument_bytes, &usagemask, &label);
+        let _ = (&out, &store, &request);
 
         {
             let world = context.check_and_resolve_world(CRYPTO_KEY_IMPORT)?;
             match world {
                 RuntimeWorld::Host => unsafe {
-                    platform_native::destack_crypto_key_import(
-                        context,
-                        out,
-                        store,
-                        format,
-                        argument_bytes,
-                        usagemask,
-                        label,
-                    )
+                    platform_native::destack_crypto_key_import(context, out, store, request)
                 },
                 RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_crypto_key_import(
-                        context,
-                        out,
-                        store,
-                        format,
-                        argument_bytes,
-                        usagemask,
-                        label,
+                        context, out, store, request,
                     )
-                },
-            }
-        }
-    })
-}
-
-#[unsafe(export_name = "destack.crypto.key.metadata")]
-pub unsafe extern "C" fn destack_crypto_key_metadata(
-    out: *mut CryptoKeyMetadata,
-    handle: resource::CryptoKeyHandle,
-) -> RuntimeStatus {
-    native_call(|context| {
-        if out.is_null() {
-            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-        }
-        let _ = (&out, &handle);
-
-        {
-            let world = context.check_and_resolve_world(CRYPTO_KEY_METADATA)?;
-            match world {
-                RuntimeWorld::Host => unsafe {
-                    platform_native::destack_crypto_key_metadata(context, out, handle)
-                },
-                RuntimeWorld::Simulation => unsafe {
-                    platform_simulation_native::destack_crypto_key_metadata(context, out, handle)
                 },
             }
         }
@@ -1655,14 +6567,14 @@ pub unsafe extern "C" fn destack_crypto_key_metadata(
 pub unsafe extern "C" fn destack_crypto_key_sign(
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
-    scheme: CryptoSignatureScheme,
+    parameters: CryptoSignatureParameters,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle, &scheme, &argument_payload);
+        let _ = (&out, &handle, &parameters, &argument_payload);
 
         {
             let world = context.check_and_resolve_world(CRYPTO_KEY_SIGN)?;
@@ -1672,7 +6584,7 @@ pub unsafe extern "C" fn destack_crypto_key_sign(
                         context,
                         out,
                         handle,
-                        scheme,
+                        parameters,
                         argument_payload,
                     )
                 },
@@ -1681,8 +6593,60 @@ pub unsafe extern "C" fn destack_crypto_key_sign(
                         context,
                         out,
                         handle,
-                        scheme,
+                        parameters,
                         argument_payload,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.key.unwrap")]
+pub unsafe extern "C" fn destack_crypto_key_unwrap(
+    out: *mut resource::CryptoKeyHandle,
+    store: resource::CryptoStoreHandle,
+    wrappingkey: resource::CryptoKeyHandle,
+    wrappedkey: NativeSlice<u8>,
+    parameters: CryptoAsymmetricEncryptionParameters,
+    request: CryptoKeyImportRequest,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (
+            &out,
+            &store,
+            &wrappingkey,
+            &wrappedkey,
+            &parameters,
+            &request,
+        );
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_KEY_UNWRAP)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_key_unwrap(
+                        context,
+                        out,
+                        store,
+                        wrappingkey,
+                        wrappedkey,
+                        parameters,
+                        request,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_key_unwrap(
+                        context,
+                        out,
+                        store,
+                        wrappingkey,
+                        wrappedkey,
+                        parameters,
+                        request,
                     )
                 },
             }
@@ -1694,7 +6658,7 @@ pub unsafe extern "C" fn destack_crypto_key_sign(
 pub unsafe extern "C" fn destack_crypto_key_verify(
     out: *mut bool,
     handle: resource::CryptoKeyHandle,
-    scheme: CryptoSignatureScheme,
+    parameters: CryptoSignatureParameters,
     argument_payload: NativeSlice<u8>,
     signature: NativeSlice<u8>,
 ) -> RuntimeStatus {
@@ -1702,7 +6666,7 @@ pub unsafe extern "C" fn destack_crypto_key_verify(
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle, &scheme, &argument_payload, &signature);
+        let _ = (&out, &handle, &parameters, &argument_payload, &signature);
 
         {
             let world = context.check_and_resolve_world(CRYPTO_KEY_VERIFY)?;
@@ -1712,7 +6676,7 @@ pub unsafe extern "C" fn destack_crypto_key_verify(
                         context,
                         out,
                         handle,
-                        scheme,
+                        parameters,
                         argument_payload,
                         signature,
                     )
@@ -1722,10 +6686,433 @@ pub unsafe extern "C" fn destack_crypto_key_verify(
                         context,
                         out,
                         handle,
-                        scheme,
+                        parameters,
                         argument_payload,
                         signature,
                     )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.key.wrap")]
+pub unsafe extern "C" fn destack_crypto_key_wrap(
+    out: *mut NativeSlice<u8>,
+    wrappingkey: resource::CryptoKeyHandle,
+    keytowrap: resource::CryptoKeyHandle,
+    format: CryptoKeyFormat,
+    parameters: CryptoAsymmetricEncryptionParameters,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &wrappingkey, &keytowrap, &format, &parameters);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_KEY_WRAP)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_key_wrap(
+                        context,
+                        out,
+                        wrappingkey,
+                        keytowrap,
+                        format,
+                        parameters,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_key_wrap(
+                        context,
+                        out,
+                        wrappingkey,
+                        keytowrap,
+                        format,
+                        parameters,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.mac.close")]
+pub unsafe extern "C" fn destack_crypto_mac_close(
+    handle: resource::CryptoMacHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_MAC_CLOSE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_mac_close(context, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_mac_close(context, handle)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.mac.compute")]
+pub unsafe extern "C" fn destack_crypto_mac_compute(
+    out: *mut NativeSlice<u8>,
+    key: resource::CryptoKeyHandle,
+    parameters: CryptoMacParameters,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &key, &parameters, &argument_payload);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_MAC_COMPUTE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_mac_compute(
+                        context,
+                        out,
+                        key,
+                        parameters,
+                        argument_payload,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_mac_compute(
+                        context,
+                        out,
+                        key,
+                        parameters,
+                        argument_payload,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.mac.finish")]
+pub unsafe extern "C" fn destack_crypto_mac_finish(
+    out: *mut NativeSlice<u8>,
+    handle: resource::CryptoMacHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &handle);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_MAC_FINISH)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_mac_finish(context, out, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_mac_finish(context, out, handle)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.mac.open")]
+pub unsafe extern "C" fn destack_crypto_mac_open(
+    out: *mut resource::CryptoMacHandle,
+    key: resource::CryptoKeyHandle,
+    parameters: CryptoMacParameters,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &key, &parameters);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_MAC_OPEN)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_mac_open(context, out, key, parameters)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_mac_open(
+                        context, out, key, parameters,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.mac.reset")]
+pub unsafe extern "C" fn destack_crypto_mac_reset(
+    handle: resource::CryptoMacHandle,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &handle;
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_MAC_RESET)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_mac_reset(context, handle)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_mac_reset(context, handle)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.mac.update")]
+pub unsafe extern "C" fn destack_crypto_mac_update(
+    handle: resource::CryptoMacHandle,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = (&handle, &argument_payload);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_MAC_UPDATE)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_mac_update(context, handle, argument_payload)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_mac_update(
+                        context,
+                        handle,
+                        argument_payload,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.mac.verify")]
+pub unsafe extern "C" fn destack_crypto_mac_verify(
+    out: *mut bool,
+    key: resource::CryptoKeyHandle,
+    parameters: CryptoMacParameters,
+    argument_payload: NativeSlice<u8>,
+    tag: NativeSlice<u8>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &key, &parameters, &argument_payload, &tag);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_MAC_VERIFY)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_mac_verify(
+                        context,
+                        out,
+                        key,
+                        parameters,
+                        argument_payload,
+                        tag,
+                    )
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_mac_verify(
+                        context,
+                        out,
+                        key,
+                        parameters,
+                        argument_payload,
+                        tag,
+                    )
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.probe.agreementAlgorithms")]
+pub unsafe extern "C" fn destack_crypto_probe_agreement_algorithms(
+    out: *mut NativeSlice<CryptoKeyAgreementAlgorithm>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(CRYPTO_PROBE_AGREEMENT_ALGORITHMS)?;
+        destack_crypto_probe_agreement_algorithms_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.probe.cipherAlgorithms")]
+pub unsafe extern "C" fn destack_crypto_probe_cipher_algorithms(
+    out: *mut NativeSlice<CryptoCipherAlgorithm>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(CRYPTO_PROBE_CIPHER_ALGORITHMS)?;
+        destack_crypto_probe_cipher_algorithms_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.probe.digestAlgorithms")]
+pub unsafe extern "C" fn destack_crypto_probe_digest_algorithms(
+    out: *mut NativeSlice<CryptoDigestAlgorithm>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(CRYPTO_PROBE_DIGEST_ALGORITHMS)?;
+        destack_crypto_probe_digest_algorithms_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.probe.kdfAlgorithms")]
+pub unsafe extern "C" fn destack_crypto_probe_kdf_algorithms(
+    out: *mut NativeSlice<CryptoKdfAlgorithm>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(CRYPTO_PROBE_KDF_ALGORITHMS)?;
+        destack_crypto_probe_kdf_algorithms_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.probe.keyAlgorithms")]
+pub unsafe extern "C" fn destack_crypto_probe_key_algorithms(
+    out: *mut NativeSlice<CryptoKeyAlgorithm>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(CRYPTO_PROBE_KEY_ALGORITHMS)?;
+        destack_crypto_probe_key_algorithms_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.probe.keyFormats")]
+pub unsafe extern "C" fn destack_crypto_probe_key_formats(
+    out: *mut NativeSlice<CryptoKeyFormat>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(CRYPTO_PROBE_KEY_FORMATS)?;
+        destack_crypto_probe_key_formats_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.probe.macAlgorithms")]
+pub unsafe extern "C" fn destack_crypto_probe_mac_algorithms(
+    out: *mut NativeSlice<CryptoMacAlgorithm>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(CRYPTO_PROBE_MAC_ALGORITHMS)?;
+        destack_crypto_probe_mac_algorithms_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.probe.namedCurves")]
+pub unsafe extern "C" fn destack_crypto_probe_named_curves(
+    out: *mut NativeSlice<CryptoNamedCurve>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(CRYPTO_PROBE_NAMED_CURVES)?;
+        destack_crypto_probe_named_curves_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.probe.signatureAlgorithms")]
+pub unsafe extern "C" fn destack_crypto_probe_signature_algorithms(
+    out: *mut NativeSlice<CryptoSignatureAlgorithm>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(CRYPTO_PROBE_SIGNATURE_ALGORITHMS)?;
+        destack_crypto_probe_signature_algorithms_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.random.bytes")]
+pub unsafe extern "C" fn destack_crypto_random_bytes(
+    out: *mut NativeSlice<u8>,
+    length: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &length);
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_RANDOM_BYTES)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_random_bytes(context, out, length)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_random_bytes(context, out, length)
+                },
+            }
+        }
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.random.fill")]
+pub unsafe extern "C" fn destack_crypto_random_fill(buffer: NativeSlice<u8>) -> RuntimeStatus {
+    native_call(|context| {
+        let _ = &buffer;
+
+        {
+            let world = context.check_and_resolve_world(CRYPTO_RANDOM_FILL)?;
+            match world {
+                RuntimeWorld::Host => unsafe {
+                    platform_native::destack_crypto_random_fill(context, buffer)
+                },
+                RuntimeWorld::Simulation => unsafe {
+                    platform_simulation_native::destack_crypto_random_fill(context, buffer)
                 },
             }
         }
@@ -1755,7 +7142,7 @@ pub unsafe extern "C" fn destack_crypto_store_close(
 
 #[unsafe(export_name = "destack.crypto.store.listCertificates")]
 pub unsafe extern "C" fn destack_crypto_store_list_certificates(
-    out: *mut NativeArray<resource::CryptoCertificateHandle>,
+    out: *mut CryptoCertificateListPage,
     handle: resource::CryptoStoreHandle,
     query: CryptoCertificateQuery,
 ) -> RuntimeStatus {
@@ -1785,7 +7172,7 @@ pub unsafe extern "C" fn destack_crypto_store_list_certificates(
 
 #[unsafe(export_name = "destack.crypto.store.listKeys")]
 pub unsafe extern "C" fn destack_crypto_store_list_keys(
-    out: *mut NativeArray<resource::CryptoKeyHandle>,
+    out: *mut CryptoKeyListPage,
     handle: resource::CryptoStoreHandle,
     query: CryptoKeyQuery,
 ) -> RuntimeStatus {
@@ -1836,8 +7223,849 @@ pub unsafe extern "C" fn destack_crypto_store_open(
     })
 }
 
+/// VM replay implementations for crypto bindings.
+#[inline]
+fn destack_crypto_probe_agreement_algorithms_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        CRYPTO_PROBE_AGREEMENT_ALGORITHMS,
+        runtime.replay_payload_for(CRYPTO_PROBE_AGREEMENT_ALGORITHMS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_crypto_probe_agreement_algorithms(runtime, context)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_crypto_probe_agreement_algorithms(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<CryptoKeyAgreementAlgorithm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_raw = decode_uint8(
+                        result_recorded_item_value,
+                        "result_recorded_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_item = match result_recorded_item_raw {
+                        0u8 => CryptoKeyAgreementAlgorithm::Unknown,
+                        1u8 => CryptoKeyAgreementAlgorithm::Ecdh,
+                        2u8 => CryptoKeyAgreementAlgorithm::X25519,
+                        3u8 => CryptoKeyAgreementAlgorithm::X448,
+                        _ => {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "unknown CryptoKeyAgreementAlgorithm value",
+                            ))
+                            .boxed());
+                        }
+                    };
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeAgreementAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeAgreementAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_crypto_probe_agreement_algorithms_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_crypto_probe_cipher_algorithms_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        CRYPTO_PROBE_CIPHER_ALGORITHMS,
+        runtime.replay_payload_for(CRYPTO_PROBE_CIPHER_ALGORITHMS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_crypto_probe_cipher_algorithms(runtime, context)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_crypto_probe_cipher_algorithms(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<CryptoCipherAlgorithm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_raw = decode_uint8(
+                        result_recorded_item_value,
+                        "result_recorded_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_item = match result_recorded_item_raw {
+                        0u8 => CryptoCipherAlgorithm::Unknown,
+                        1u8 => CryptoCipherAlgorithm::AesGcm,
+                        2u8 => CryptoCipherAlgorithm::AesCtr,
+                        3u8 => CryptoCipherAlgorithm::AesCbc,
+                        4u8 => CryptoCipherAlgorithm::ChaCha20Poly1305,
+                        _ => {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "unknown CryptoCipherAlgorithm value",
+                            ))
+                            .boxed());
+                        }
+                    };
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeCipherAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeCipherAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_crypto_probe_cipher_algorithms_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_crypto_probe_digest_algorithms_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        CRYPTO_PROBE_DIGEST_ALGORITHMS,
+        runtime.replay_payload_for(CRYPTO_PROBE_DIGEST_ALGORITHMS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_crypto_probe_digest_algorithms(runtime, context)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_crypto_probe_digest_algorithms(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<CryptoDigestAlgorithm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_raw = decode_uint8(
+                        result_recorded_item_value,
+                        "result_recorded_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_item = match result_recorded_item_raw {
+                        0u8 => CryptoDigestAlgorithm::Unknown,
+                        1u8 => CryptoDigestAlgorithm::Sha1,
+                        2u8 => CryptoDigestAlgorithm::Sha224,
+                        3u8 => CryptoDigestAlgorithm::Sha256,
+                        4u8 => CryptoDigestAlgorithm::Sha384,
+                        5u8 => CryptoDigestAlgorithm::Sha512,
+                        6u8 => CryptoDigestAlgorithm::Sha3_256,
+                        7u8 => CryptoDigestAlgorithm::Sha3_384,
+                        8u8 => CryptoDigestAlgorithm::Sha3_512,
+                        9u8 => CryptoDigestAlgorithm::Blake2b512,
+                        10u8 => CryptoDigestAlgorithm::Blake2s256,
+                        _ => {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "unknown CryptoDigestAlgorithm value",
+                            ))
+                            .boxed());
+                        }
+                    };
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeDigestAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeDigestAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_crypto_probe_digest_algorithms_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_crypto_probe_kdf_algorithms_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        CRYPTO_PROBE_KDF_ALGORITHMS,
+        runtime.replay_payload_for(CRYPTO_PROBE_KDF_ALGORITHMS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_crypto_probe_kdf_algorithms(runtime, context)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_crypto_probe_kdf_algorithms(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<CryptoKdfAlgorithm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_raw = decode_uint8(
+                        result_recorded_item_value,
+                        "result_recorded_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_item = match result_recorded_item_raw {
+                        0u8 => CryptoKdfAlgorithm::Unknown,
+                        1u8 => CryptoKdfAlgorithm::Hkdf,
+                        2u8 => CryptoKdfAlgorithm::Pbkdf2,
+                        3u8 => CryptoKdfAlgorithm::Scrypt,
+                        4u8 => CryptoKdfAlgorithm::Argon2id,
+                        _ => {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "unknown CryptoKdfAlgorithm value",
+                            ))
+                            .boxed());
+                        }
+                    };
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeKdfAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeKdfAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_crypto_probe_kdf_algorithms_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_crypto_probe_key_algorithms_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        CRYPTO_PROBE_KEY_ALGORITHMS,
+        runtime.replay_payload_for(CRYPTO_PROBE_KEY_ALGORITHMS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_crypto_probe_key_algorithms(runtime, context)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_crypto_probe_key_algorithms(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<CryptoKeyAlgorithm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_raw = decode_uint8(
+                        result_recorded_item_value,
+                        "result_recorded_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_item = match result_recorded_item_raw {
+                        0u8 => CryptoKeyAlgorithm::Unknown,
+                        1u8 => CryptoKeyAlgorithm::Rsa,
+                        2u8 => CryptoKeyAlgorithm::Ec,
+                        3u8 => CryptoKeyAlgorithm::Ed25519,
+                        4u8 => CryptoKeyAlgorithm::Ed448,
+                        5u8 => CryptoKeyAlgorithm::X25519,
+                        6u8 => CryptoKeyAlgorithm::X448,
+                        7u8 => CryptoKeyAlgorithm::Aes,
+                        8u8 => CryptoKeyAlgorithm::ChaCha20,
+                        9u8 => CryptoKeyAlgorithm::Hmac,
+                        _ => {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "unknown CryptoKeyAlgorithm value",
+                            ))
+                            .boxed());
+                        }
+                    };
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeKeyAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeKeyAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_crypto_probe_key_algorithms_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_crypto_probe_key_formats_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        CRYPTO_PROBE_KEY_FORMATS,
+        runtime.replay_payload_for(CRYPTO_PROBE_KEY_FORMATS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_crypto_probe_key_formats(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_crypto_probe_key_formats(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<CryptoKeyFormat> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_raw = decode_uint8(
+                        result_recorded_item_value,
+                        "result_recorded_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_item = match result_recorded_item_raw {
+                        0u8 => CryptoKeyFormat::Unknown,
+                        1u8 => CryptoKeyFormat::Pkcs8Pem,
+                        2u8 => CryptoKeyFormat::Pkcs8Der,
+                        3u8 => CryptoKeyFormat::SpkiPem,
+                        4u8 => CryptoKeyFormat::SpkiDer,
+                        5u8 => CryptoKeyFormat::Jwk,
+                        6u8 => CryptoKeyFormat::Raw,
+                        7u8 => CryptoKeyFormat::Sec1Pem,
+                        8u8 => CryptoKeyFormat::Sec1Der,
+                        _ => {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "unknown CryptoKeyFormat value",
+                            ))
+                            .boxed());
+                        }
+                    };
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeKeyFormatsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeKeyFormatsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_crypto_probe_key_formats_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_crypto_probe_mac_algorithms_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        CRYPTO_PROBE_MAC_ALGORITHMS,
+        runtime.replay_payload_for(CRYPTO_PROBE_MAC_ALGORITHMS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_crypto_probe_mac_algorithms(runtime, context)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_crypto_probe_mac_algorithms(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<CryptoMacAlgorithm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_raw = decode_uint8(
+                        result_recorded_item_value,
+                        "result_recorded_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_item = match result_recorded_item_raw {
+                        0u8 => CryptoMacAlgorithm::Unknown,
+                        1u8 => CryptoMacAlgorithm::Hmac,
+                        _ => {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "unknown CryptoMacAlgorithm value",
+                            ))
+                            .boxed());
+                        }
+                    };
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeMacAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeMacAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_crypto_probe_mac_algorithms_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_crypto_probe_named_curves_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        CRYPTO_PROBE_NAMED_CURVES,
+        runtime.replay_payload_for(CRYPTO_PROBE_NAMED_CURVES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_crypto_probe_named_curves(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_crypto_probe_named_curves(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<CryptoNamedCurve> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_raw = decode_uint8(
+                        result_recorded_item_value,
+                        "result_recorded_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_item = match result_recorded_item_raw {
+                        0u8 => CryptoNamedCurve::Unknown,
+                        1u8 => CryptoNamedCurve::P256,
+                        2u8 => CryptoNamedCurve::P384,
+                        3u8 => CryptoNamedCurve::P521,
+                        4u8 => CryptoNamedCurve::Secp256k1,
+                        5u8 => CryptoNamedCurve::X25519,
+                        6u8 => CryptoNamedCurve::X448,
+                        7u8 => CryptoNamedCurve::Ed25519,
+                        8u8 => CryptoNamedCurve::Ed448,
+                        _ => {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "unknown CryptoNamedCurve value",
+                            ))
+                            .boxed());
+                        }
+                    };
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeNamedCurvesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeNamedCurvesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_crypto_probe_named_curves_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_crypto_probe_signature_algorithms_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        CRYPTO_PROBE_SIGNATURE_ALGORITHMS,
+        runtime.replay_payload_for(CRYPTO_PROBE_SIGNATURE_ALGORITHMS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_crypto_probe_signature_algorithms(runtime, context)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_crypto_probe_signature_algorithms(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<CryptoSignatureAlgorithm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_raw = decode_uint8(
+                        result_recorded_item_value,
+                        "result_recorded_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_item = match result_recorded_item_raw {
+                        0u8 => CryptoSignatureAlgorithm::Unknown,
+                        1u8 => CryptoSignatureAlgorithm::RsaPkcs1v15,
+                        2u8 => CryptoSignatureAlgorithm::RsaPss,
+                        3u8 => CryptoSignatureAlgorithm::Ecdsa,
+                        4u8 => CryptoSignatureAlgorithm::Ed25519,
+                        5u8 => CryptoSignatureAlgorithm::Ed448,
+                        _ => {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "unknown CryptoSignatureAlgorithm value",
+                            ))
+                            .boxed());
+                        }
+                    };
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeSignatureAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeSignatureAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_crypto_probe_signature_algorithms_result(context, result)?;
+    Ok(result)
+}
+
 /// Register VM bindings for crypto.
 pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_AGREEMENT_DERIVE_KEY,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (privatekey, peerpublickey, request) =
+                        decode_destack_crypto_agreement_derive_key_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_AGREEMENT_DERIVE_KEY)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_agreement_derive_key(
+                                runtime,
+                                context,
+                                privatekey,
+                                peerpublickey,
+                                request,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_agreement_derive_key(
+                                    runtime,
+                                    context,
+                                    privatekey,
+                                    peerpublickey,
+                                    request,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_agreement_derive_key_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                // decode args
+                let (privatekey, peerpublickey, algorithm) = decode_destack_crypto_agreement_derive_shared_secret_args(context, args)?;
+
+                // execute binding
+                let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_agreement_derive_shared_secret(runtime, context, privatekey, peerpublickey, algorithm),
+                            RuntimeWorld::Simulation => platform_simulation_vm::destack_crypto_agreement_derive_shared_secret(runtime, context, privatekey, peerpublickey, algorithm),
+                        }
+                    };
+                encode_destack_crypto_agreement_derive_shared_secret_result(context, result)
+            })
+            .map_err(Into::into)
+            }
+        );
+    }
     {
         binding!(
             registry,
@@ -1863,6 +8091,40 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         }
                     };
                     encode_destack_crypto_certificate_delete_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_CERTIFICATE_DESCRIPTOR,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) =
+                        decode_destack_crypto_certificate_descriptor_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world =
+                            runtime.check_and_resolve_world(CRYPTO_CERTIFICATE_DESCRIPTOR)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_crypto_certificate_descriptor(
+                                    runtime, context, handle,
+                                )
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_certificate_descriptor(
+                                    runtime, context, handle,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_certificate_descriptor_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -1942,36 +8204,6 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         binding!(
             registry,
             isolate,
-            CRYPTO_CERTIFICATE_METADATA,
-            move |context, args| {
-                with_binding_call_context(|runtime| {
-                    // decode args
-                    let (handle,) = decode_destack_crypto_certificate_metadata_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_CERTIFICATE_METADATA)?;
-                        match world {
-                            RuntimeWorld::Host => platform_vm::destack_crypto_certificate_metadata(
-                                runtime, context, handle,
-                            ),
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_crypto_certificate_metadata(
-                                    runtime, context, handle,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_crypto_certificate_metadata_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
-        binding!(
-            registry,
-            isolate,
             CRYPTO_CERTIFICATE_VERIFY,
             move |context, args| {
                 with_binding_call_context(|runtime| {
@@ -2002,11 +8234,588 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         binding!(
             registry,
             isolate,
+            CRYPTO_CIPHER_CLOSE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_crypto_cipher_close_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_CLOSE)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_crypto_cipher_close(runtime, context, handle)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_cipher_close(
+                                    runtime, context, handle,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_cipher_close_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_CIPHER_DECRYPT,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (key, parameters, argument_payload) =
+                        decode_destack_crypto_cipher_decrypt_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_DECRYPT)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_cipher_decrypt(
+                                runtime,
+                                context,
+                                key,
+                                parameters,
+                                argument_payload,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_cipher_decrypt(
+                                    runtime,
+                                    context,
+                                    key,
+                                    parameters,
+                                    argument_payload,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_cipher_decrypt_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_CIPHER_ENCRYPT,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (key, parameters, argument_payload) =
+                        decode_destack_crypto_cipher_encrypt_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_ENCRYPT)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_cipher_encrypt(
+                                runtime,
+                                context,
+                                key,
+                                parameters,
+                                argument_payload,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_cipher_encrypt(
+                                    runtime,
+                                    context,
+                                    key,
+                                    parameters,
+                                    argument_payload,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_cipher_encrypt_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_CIPHER_FINISH,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, finalpayload) =
+                        decode_destack_crypto_cipher_finish_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_FINISH)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_cipher_finish(
+                                runtime,
+                                context,
+                                handle,
+                                finalpayload,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_cipher_finish(
+                                    runtime,
+                                    context,
+                                    handle,
+                                    finalpayload,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_cipher_finish_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_CIPHER_OPEN,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (key, direction, parameters) =
+                        decode_destack_crypto_cipher_open_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_OPEN)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_cipher_open(
+                                runtime, context, key, direction, parameters,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_cipher_open(
+                                    runtime, context, key, direction, parameters,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_cipher_open_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_CIPHER_RESET,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, parameters) =
+                        decode_destack_crypto_cipher_reset_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_RESET)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_cipher_reset(
+                                runtime, context, handle, parameters,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_cipher_reset(
+                                    runtime, context, handle, parameters,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_cipher_reset_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_CIPHER_UPDATE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, argument_payload) =
+                        decode_destack_crypto_cipher_update_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_UPDATE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_cipher_update(
+                                runtime,
+                                context,
+                                handle,
+                                argument_payload,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_cipher_update(
+                                    runtime,
+                                    context,
+                                    handle,
+                                    argument_payload,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_cipher_update_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                // decode args
+                let (handle, additionaldata) = decode_destack_crypto_cipher_update_additional_data_args(context, args)?;
+
+                // execute binding
+                let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_cipher_update_additional_data(runtime, context, handle, additionaldata),
+                            RuntimeWorld::Simulation => platform_simulation_vm::destack_crypto_cipher_update_additional_data(runtime, context, handle, additionaldata),
+                        }
+                    };
+                encode_destack_crypto_cipher_update_additional_data_result(context, result)
+            })
+            .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_DIGEST_CLOSE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_crypto_digest_close_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_DIGEST_CLOSE)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_crypto_digest_close(runtime, context, handle)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_digest_close(
+                                    runtime, context, handle,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_digest_close_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_DIGEST_COMPUTE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (algorithm, argument_payload) =
+                        decode_destack_crypto_digest_compute_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_DIGEST_COMPUTE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_digest_compute(
+                                runtime,
+                                context,
+                                algorithm,
+                                argument_payload,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_digest_compute(
+                                    runtime,
+                                    context,
+                                    algorithm,
+                                    argument_payload,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_digest_compute_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_DIGEST_FINISH,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_crypto_digest_finish_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_DIGEST_FINISH)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_crypto_digest_finish(runtime, context, handle)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_digest_finish(
+                                    runtime, context, handle,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_digest_finish_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_DIGEST_OPEN,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (algorithm,) = decode_destack_crypto_digest_open_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_DIGEST_OPEN)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_crypto_digest_open(runtime, context, algorithm)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_digest_open(
+                                    runtime, context, algorithm,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_digest_open_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_DIGEST_RESET,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_crypto_digest_reset_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_DIGEST_RESET)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_crypto_digest_reset(runtime, context, handle)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_digest_reset(
+                                    runtime, context, handle,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_digest_reset_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_DIGEST_UPDATE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, argument_payload) =
+                        decode_destack_crypto_digest_update_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_DIGEST_UPDATE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_digest_update(
+                                runtime,
+                                context,
+                                handle,
+                                argument_payload,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_digest_update(
+                                    runtime,
+                                    context,
+                                    handle,
+                                    argument_payload,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_digest_update_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_KDF_ARGON2ID,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (request,) = decode_destack_crypto_kdf_argon2id_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_KDF_ARGON2ID)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_crypto_kdf_argon2id(runtime, context, request)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_kdf_argon2id(
+                                    runtime, context, request,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_kdf_argon2id_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, CRYPTO_KDF_HKDF, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (request,) = decode_destack_crypto_kdf_hkdf_args(context, args)?;
+
+                // execute binding
+                let result = {
+                    let world = runtime.check_and_resolve_world(CRYPTO_KDF_HKDF)?;
+                    match world {
+                        RuntimeWorld::Host => {
+                            platform_vm::destack_crypto_kdf_hkdf(runtime, context, request)
+                        }
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_crypto_kdf_hkdf(
+                                runtime, context, request,
+                            )
+                        }
+                    }
+                };
+                encode_destack_crypto_kdf_hkdf_result(context, result)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_KDF_PBKDF2,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (request,) = decode_destack_crypto_kdf_pbkdf2_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_KDF_PBKDF2)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_crypto_kdf_pbkdf2(runtime, context, request)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_kdf_pbkdf2(
+                                    runtime, context, request,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_kdf_pbkdf2_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_KDF_SCRYPT,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (request,) = decode_destack_crypto_kdf_scrypt_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_KDF_SCRYPT)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_crypto_kdf_scrypt(runtime, context, request)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_kdf_scrypt(
+                                    runtime, context, request,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_kdf_scrypt_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             CRYPTO_KEY_DECRYPT,
             move |context, args| {
                 with_binding_call_context(|runtime| {
                     // decode args
-                    let (handle, scheme, argument_payload) =
+                    let (handle, parameters, argument_payload) =
                         decode_destack_crypto_key_decrypt_args(context, args)?;
 
                     // execute binding
@@ -2017,7 +8826,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime,
                                 context,
                                 handle,
-                                scheme,
+                                parameters,
                                 argument_payload,
                             ),
                             RuntimeWorld::Simulation => {
@@ -2025,7 +8834,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                     runtime,
                                     context,
                                     handle,
-                                    scheme,
+                                    parameters,
                                     argument_payload,
                                 )
                             }
@@ -2071,11 +8880,41 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         binding!(
             registry,
             isolate,
+            CRYPTO_KEY_DESCRIPTOR,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_crypto_key_descriptor_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_DESCRIPTOR)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_crypto_key_descriptor(runtime, context, handle)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_key_descriptor(
+                                    runtime, context, handle,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_key_descriptor_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             CRYPTO_KEY_ENCRYPT,
             move |context, args| {
                 with_binding_call_context(|runtime| {
                     // decode args
-                    let (handle, scheme, argument_payload) =
+                    let (handle, parameters, argument_payload) =
                         decode_destack_crypto_key_encrypt_args(context, args)?;
 
                     // execute binding
@@ -2086,7 +8925,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime,
                                 context,
                                 handle,
-                                scheme,
+                                parameters,
                                 argument_payload,
                             ),
                             RuntimeWorld::Simulation => {
@@ -2094,13 +8933,44 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                     runtime,
                                     context,
                                     handle,
-                                    scheme,
+                                    parameters,
                                     argument_payload,
                                 )
                             }
                         }
                     };
                     encode_destack_crypto_key_encrypt_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_KEY_EXPORT_PRIVATE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, format) =
+                        decode_destack_crypto_key_export_private_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_EXPORT_PRIVATE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_key_export_private(
+                                runtime, context, handle, format,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_key_export_private(
+                                    runtime, context, handle, format,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_key_export_private_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -2141,27 +9011,90 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         binding!(
             registry,
             isolate,
-            CRYPTO_KEY_GENERATE,
+            CRYPTO_KEY_EXPORT_SECRET,
             move |context, args| {
                 with_binding_call_context(|runtime| {
                     // decode args
-                    let (store, spec) = decode_destack_crypto_key_generate_args(context, args)?;
+                    let (handle, format) =
+                        decode_destack_crypto_key_export_secret_args(context, args)?;
 
                     // execute binding
                     let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_GENERATE)?;
+                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_EXPORT_SECRET)?;
                         match world {
-                            RuntimeWorld::Host => platform_vm::destack_crypto_key_generate(
-                                runtime, context, store, spec,
+                            RuntimeWorld::Host => platform_vm::destack_crypto_key_export_secret(
+                                runtime, context, handle, format,
                             ),
                             RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_crypto_key_generate(
-                                    runtime, context, store, spec,
+                                platform_simulation_vm::destack_crypto_key_export_secret(
+                                    runtime, context, handle, format,
                                 )
                             }
                         }
                     };
-                    encode_destack_crypto_key_generate_result(context, result)
+                    encode_destack_crypto_key_export_secret_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_KEY_GENERATE_PAIR,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (store, request) =
+                        decode_destack_crypto_key_generate_pair_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_GENERATE_PAIR)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_key_generate_pair(
+                                runtime, context, store, request,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_key_generate_pair(
+                                    runtime, context, store, request,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_key_generate_pair_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_KEY_GENERATE_SECRET,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (store, request) =
+                        decode_destack_crypto_key_generate_secret_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_GENERATE_SECRET)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_key_generate_secret(
+                                runtime, context, store, request,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_key_generate_secret(
+                                    runtime, context, store, request,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_key_generate_secret_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -2175,31 +9108,18 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, args| {
                 with_binding_call_context(|runtime| {
                     // decode args
-                    let (store, format, argument_bytes, usagemask, label) =
-                        decode_destack_crypto_key_import_args(context, args)?;
+                    let (store, request) = decode_destack_crypto_key_import_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let world = runtime.check_and_resolve_world(CRYPTO_KEY_IMPORT)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_import(
-                                runtime,
-                                context,
-                                store,
-                                format,
-                                argument_bytes,
-                                usagemask,
-                                label,
+                                runtime, context, store, request,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_crypto_key_import(
-                                    runtime,
-                                    context,
-                                    store,
-                                    format,
-                                    argument_bytes,
-                                    usagemask,
-                                    label,
+                                    runtime, context, store, request,
                                 )
                             }
                         }
@@ -2211,40 +9131,10 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         );
     }
     {
-        binding!(
-            registry,
-            isolate,
-            CRYPTO_KEY_METADATA,
-            move |context, args| {
-                with_binding_call_context(|runtime| {
-                    // decode args
-                    let (handle,) = decode_destack_crypto_key_metadata_args(context, args)?;
-
-                    // execute binding
-                    let result = {
-                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_METADATA)?;
-                        match world {
-                            RuntimeWorld::Host => {
-                                platform_vm::destack_crypto_key_metadata(runtime, context, handle)
-                            }
-                            RuntimeWorld::Simulation => {
-                                platform_simulation_vm::destack_crypto_key_metadata(
-                                    runtime, context, handle,
-                                )
-                            }
-                        }
-                    };
-                    encode_destack_crypto_key_metadata_result(context, result)
-                })
-                .map_err(Into::into)
-            }
-        );
-    }
-    {
         binding!(registry, isolate, CRYPTO_KEY_SIGN, move |context, args| {
             with_binding_call_context(|runtime| {
                 // decode args
-                let (handle, scheme, argument_payload) =
+                let (handle, parameters, argument_payload) =
                     decode_destack_crypto_key_sign_args(context, args)?;
 
                 // execute binding
@@ -2255,7 +9145,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                             runtime,
                             context,
                             handle,
-                            scheme,
+                            parameters,
                             argument_payload,
                         ),
                         RuntimeWorld::Simulation => {
@@ -2263,7 +9153,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime,
                                 context,
                                 handle,
-                                scheme,
+                                parameters,
                                 argument_payload,
                             )
                         }
@@ -2278,11 +9168,54 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         binding!(
             registry,
             isolate,
+            CRYPTO_KEY_UNWRAP,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (store, wrappingkey, wrappedkey, parameters, request) =
+                        decode_destack_crypto_key_unwrap_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_KEY_UNWRAP)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_key_unwrap(
+                                runtime,
+                                context,
+                                store,
+                                wrappingkey,
+                                wrappedkey,
+                                parameters,
+                                request,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_key_unwrap(
+                                    runtime,
+                                    context,
+                                    store,
+                                    wrappingkey,
+                                    wrappedkey,
+                                    parameters,
+                                    request,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_key_unwrap_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
             CRYPTO_KEY_VERIFY,
             move |context, args| {
                 with_binding_call_context(|runtime| {
                     // decode args
-                    let (handle, scheme, argument_payload, signature) =
+                    let (handle, parameters, argument_payload, signature) =
                         decode_destack_crypto_key_verify_args(context, args)?;
 
                     // execute binding
@@ -2293,7 +9226,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                 runtime,
                                 context,
                                 handle,
-                                scheme,
+                                parameters,
                                 argument_payload,
                                 signature,
                             ),
@@ -2302,7 +9235,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                                     runtime,
                                     context,
                                     handle,
-                                    scheme,
+                                    parameters,
                                     argument_payload,
                                     signature,
                                 )
@@ -2310,6 +9243,461 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         }
                     };
                     encode_destack_crypto_key_verify_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, CRYPTO_KEY_WRAP, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (wrappingkey, keytowrap, format, parameters) =
+                    decode_destack_crypto_key_wrap_args(context, args)?;
+
+                // execute binding
+                let result = {
+                    let world = runtime.check_and_resolve_world(CRYPTO_KEY_WRAP)?;
+                    match world {
+                        RuntimeWorld::Host => platform_vm::destack_crypto_key_wrap(
+                            runtime,
+                            context,
+                            wrappingkey,
+                            keytowrap,
+                            format,
+                            parameters,
+                        ),
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_crypto_key_wrap(
+                                runtime,
+                                context,
+                                wrappingkey,
+                                keytowrap,
+                                format,
+                                parameters,
+                            )
+                        }
+                    }
+                };
+                encode_destack_crypto_key_wrap_result(context, result)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, CRYPTO_MAC_CLOSE, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (handle,) = decode_destack_crypto_mac_close_args(context, args)?;
+
+                // execute binding
+                let result = {
+                    let world = runtime.check_and_resolve_world(CRYPTO_MAC_CLOSE)?;
+                    match world {
+                        RuntimeWorld::Host => {
+                            platform_vm::destack_crypto_mac_close(runtime, context, handle)
+                        }
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_crypto_mac_close(
+                                runtime, context, handle,
+                            )
+                        }
+                    }
+                };
+                encode_destack_crypto_mac_close_result(context, result)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_MAC_COMPUTE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (key, parameters, argument_payload) =
+                        decode_destack_crypto_mac_compute_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_MAC_COMPUTE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_mac_compute(
+                                runtime,
+                                context,
+                                key,
+                                parameters,
+                                argument_payload,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_mac_compute(
+                                    runtime,
+                                    context,
+                                    key,
+                                    parameters,
+                                    argument_payload,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_mac_compute_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_MAC_FINISH,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle,) = decode_destack_crypto_mac_finish_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_MAC_FINISH)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_crypto_mac_finish(runtime, context, handle)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_mac_finish(
+                                    runtime, context, handle,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_mac_finish_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(registry, isolate, CRYPTO_MAC_OPEN, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (key, parameters) = decode_destack_crypto_mac_open_args(context, args)?;
+
+                // execute binding
+                let result = {
+                    let world = runtime.check_and_resolve_world(CRYPTO_MAC_OPEN)?;
+                    match world {
+                        RuntimeWorld::Host => {
+                            platform_vm::destack_crypto_mac_open(runtime, context, key, parameters)
+                        }
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_crypto_mac_open(
+                                runtime, context, key, parameters,
+                            )
+                        }
+                    }
+                };
+                encode_destack_crypto_mac_open_result(context, result)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, CRYPTO_MAC_RESET, move |context, args| {
+            with_binding_call_context(|runtime| {
+                // decode args
+                let (handle,) = decode_destack_crypto_mac_reset_args(context, args)?;
+
+                // execute binding
+                let result = {
+                    let world = runtime.check_and_resolve_world(CRYPTO_MAC_RESET)?;
+                    match world {
+                        RuntimeWorld::Host => {
+                            platform_vm::destack_crypto_mac_reset(runtime, context, handle)
+                        }
+                        RuntimeWorld::Simulation => {
+                            platform_simulation_vm::destack_crypto_mac_reset(
+                                runtime, context, handle,
+                            )
+                        }
+                    }
+                };
+                encode_destack_crypto_mac_reset_result(context, result)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_MAC_UPDATE,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (handle, argument_payload) =
+                        decode_destack_crypto_mac_update_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_MAC_UPDATE)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_mac_update(
+                                runtime,
+                                context,
+                                handle,
+                                argument_payload,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_mac_update(
+                                    runtime,
+                                    context,
+                                    handle,
+                                    argument_payload,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_mac_update_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_MAC_VERIFY,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (key, parameters, argument_payload, tag) =
+                        decode_destack_crypto_mac_verify_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_MAC_VERIFY)?;
+                        match world {
+                            RuntimeWorld::Host => platform_vm::destack_crypto_mac_verify(
+                                runtime,
+                                context,
+                                key,
+                                parameters,
+                                argument_payload,
+                                tag,
+                            ),
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_mac_verify(
+                                    runtime,
+                                    context,
+                                    key,
+                                    parameters,
+                                    argument_payload,
+                                    tag,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_mac_verify_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_PROBE_AGREEMENT_ALGORITHMS,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world =
+                        runtime.check_and_resolve_world(CRYPTO_PROBE_AGREEMENT_ALGORITHMS)?;
+                    destack_crypto_probe_agreement_algorithms_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_PROBE_CIPHER_ALGORITHMS,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_CIPHER_ALGORITHMS)?;
+                    destack_crypto_probe_cipher_algorithms_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_PROBE_DIGEST_ALGORITHMS,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_DIGEST_ALGORITHMS)?;
+                    destack_crypto_probe_digest_algorithms_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_PROBE_KDF_ALGORITHMS,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_KDF_ALGORITHMS)?;
+                    destack_crypto_probe_kdf_algorithms_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_PROBE_KEY_ALGORITHMS,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_KEY_ALGORITHMS)?;
+                    destack_crypto_probe_key_algorithms_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_PROBE_KEY_FORMATS,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_KEY_FORMATS)?;
+                    destack_crypto_probe_key_formats_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_PROBE_MAC_ALGORITHMS,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_MAC_ALGORITHMS)?;
+                    destack_crypto_probe_mac_algorithms_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_PROBE_NAMED_CURVES,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_NAMED_CURVES)?;
+                    destack_crypto_probe_named_curves_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_PROBE_SIGNATURE_ALGORITHMS,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world =
+                        runtime.check_and_resolve_world(CRYPTO_PROBE_SIGNATURE_ALGORITHMS)?;
+                    destack_crypto_probe_signature_algorithms_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_RANDOM_BYTES,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (length,) = decode_destack_crypto_random_bytes_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_RANDOM_BYTES)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_crypto_random_bytes(runtime, context, length)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_random_bytes(
+                                    runtime, context, length,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_random_bytes_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_RANDOM_FILL,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (buffer,) = decode_destack_crypto_random_fill_args(context, args)?;
+
+                    // execute binding
+                    let result = {
+                        let world = runtime.check_and_resolve_world(CRYPTO_RANDOM_FILL)?;
+                        match world {
+                            RuntimeWorld::Host => {
+                                platform_vm::destack_crypto_random_fill(runtime, context, buffer)
+                            }
+                            RuntimeWorld::Simulation => {
+                                platform_simulation_vm::destack_crypto_random_fill(
+                                    runtime, context, buffer,
+                                )
+                            }
+                        }
+                    };
+                    encode_destack_crypto_random_fill_result(context, result)
                 })
                 .map_err(Into::into)
             }

@@ -1,0 +1,59 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+
+/// Cryptographic random bindings.
+declare namespace crypto {
+    /// Fill one mutable byte slice with cryptographically secure random bytes.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime CSPRNG provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.random`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.random.fill",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            capabilities: ["crypto.random"],
+            platforms: ["windows", "unix"],
+            scope: "host",
+            blocking: "sometimes",
+        },
+    )
+    export function randomFill(buffer: Slice<uint8>): Result<void, PlatformError>;
+
+    /// Allocate one random byte vector with the requested length.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime CSPRNG provider primitives.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioWouldBlock, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.random`.
+    ///
+    /// # Replay
+    /// External, nonrecordable.
+    @binding(
+        "destack.crypto.random.bytes",
+        {
+            effect: "external",
+            replay: "nonrecordable",
+            capabilities: ["crypto.random"],
+            platforms: ["windows", "unix"],
+            scope: "host",
+            blocking: "sometimes",
+        },
+    )
+    export function randomBytes(length: uint32): Result<Slice<uint8>, PlatformError>;
+}

@@ -1,0 +1,261 @@
+use crate::diagnostic::RuntimeResult;
+use crate::platform::NativeSlice;
+use crate::platform::crypto::{
+    CryptoCipherAlgorithm, CryptoDigestAlgorithm, CryptoKdfAlgorithm, CryptoKeyAgreementAlgorithm,
+    CryptoKeyAlgorithm, CryptoKeyFormat, CryptoMacAlgorithm, CryptoNamedCurve,
+    CryptoSignatureAlgorithm, core as crypto_core,
+};
+use crate::runtime::BindingCallContext;
+
+use super::core::write_out_value;
+
+/// List supported key algorithm families.
+///
+/// Return the key algorithm families available through the active host provider set.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_key_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoKeyAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe {
+        write_out_value(
+            out,
+            context.store_slice(crypto_core::probe_key_algorithms()),
+        )
+    }
+}
+
+/// List supported key formats.
+///
+/// Return the key encoding formats supported by active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_key_formats(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoKeyFormat>,
+) -> RuntimeResult<()> {
+    unsafe { write_out_value(out, context.store_slice(crypto_core::probe_key_formats())) }
+}
+
+/// List supported digest algorithms.
+///
+/// Return digest algorithms available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_digest_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoDigestAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe {
+        write_out_value(
+            out,
+            context.store_slice(crypto_core::probe_digest_algorithms()),
+        )
+    }
+}
+
+/// List supported signature algorithms.
+///
+/// Return signature algorithms available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_signature_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoSignatureAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe {
+        write_out_value(
+            out,
+            context.store_slice(crypto_core::probe_signature_algorithms()),
+        )
+    }
+}
+
+/// List supported cipher algorithms.
+///
+/// Return cipher algorithms available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_cipher_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoCipherAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe {
+        write_out_value(
+            out,
+            context.store_slice(crypto_core::probe_cipher_algorithms()),
+        )
+    }
+}
+
+/// List supported MAC algorithms.
+///
+/// Return message-authentication algorithms available through active host providers.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_mac_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoMacAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe {
+        write_out_value(
+            out,
+            context.store_slice(crypto_core::probe_mac_algorithms()),
+        )
+    }
+}
+
+/// List supported KDF algorithms.
+///
+/// Return key-derivation algorithms available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_kdf_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoKdfAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe {
+        write_out_value(
+            out,
+            context.store_slice(crypto_core::probe_kdf_algorithms()),
+        )
+    }
+}
+
+/// List supported key-agreement algorithms.
+///
+/// Return key-agreement algorithms available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_agreement_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoKeyAgreementAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe {
+        write_out_value(
+            out,
+            context.store_slice(crypto_core::probe_agreement_algorithms()),
+        )
+    }
+}
+
+/// List supported named curves.
+///
+/// Return elliptic-curve families available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_named_curves(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoNamedCurve>,
+) -> RuntimeResult<()> {
+    unsafe { write_out_value(out, context.store_slice(crypto_core::probe_named_curves())) }
+}

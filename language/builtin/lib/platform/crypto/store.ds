@@ -1,17 +1,24 @@
 import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { CryptoCertificateHandle, CryptoKeyHandle, CryptoStoreHandle } from "../resource/index.ds";
+import { CryptoKeyAlgorithm, CryptoKeyUsageMask } from "./algorithm.ds";
 
 /// Crypto store backend kind.
 export enum CryptoStoreKind {
-    /// Use the host default trust and key provider.
+    /// Host default trust and key provider.
+    /// May return notSupported when host store integration is unavailable.
     System = 0,
-    /// Use one user-scoped host key and certificate store.
+    /// User-scoped host key and certificate store.
+    /// May return notSupported when host store integration is unavailable.
     User = 1,
-    /// Use one machine-scoped host key and certificate store.
+    /// Machine-scoped host key and certificate store.
+    /// May return notSupported when host store integration is unavailable.
     Machine = 2,
-    /// Use one named provider backend.
+    /// Provider-scoped host key and certificate store.
+    /// May return notSupported when host store integration is unavailable.
     Provider = 3,
+    /// Process-scoped ephemeral key and certificate store.
+    Ephemeral = 4,
 }
 
 /// Crypto store options.
@@ -19,17 +26,23 @@ export struct CryptoStoreOptions {
     /// Store backend kind.
     kind: CryptoStoreKind;
     /// Provider name for provider-backed stores.
-    providerName: string;
+    providerName?: string;
+    /// Optional logical namespace.
+    namespace?: string;
 }
 
 /// Key query selector for store enumeration.
 export struct CryptoKeyQuery {
     /// Label prefix filter.
     labelPrefix: string;
-    /// Algorithm filter name.
-    algorithm: string;
+    /// Key algorithm filter.
+    algorithm?: CryptoKeyAlgorithm;
     /// Required key usage mask bits.
-    usageMask: uint32;
+    usageMask?: CryptoKeyUsageMask;
+    /// Pagination cursor.
+    cursor?: string;
+    /// Maximum returned entries.
+    limit?: uint32;
 }
 
 /// Certificate query selector for store enumeration.
@@ -38,20 +51,70 @@ export struct CryptoCertificateQuery {
     subjectContains: string;
     /// Issuer substring filter.
     issuerContains: string;
-    /// Required subject alternative name entry.
+    /// Subject alternative name exact-match filter.
     subjectAlternativeName: string;
+    /// Pagination cursor.
+    cursor?: string;
+    /// Maximum returned entries.
+    limit?: uint32;
 }
 
-/// Crypto store bindings for host provider stores.
+/// Key list entry.
+export struct CryptoKeyListEntry {
+    /// Key handle.
+    handle: CryptoKeyHandle;
+    /// User-visible key label.
+    label: string;
+    /// Key algorithm family.
+    algorithm: CryptoKeyAlgorithm;
+    /// Key usage mask.
+    usageMask: CryptoKeyUsageMask;
+}
+
+/// Key list page.
+export struct CryptoKeyListPage {
+    /// Page entries.
+    entries: Array<CryptoKeyListEntry>;
+    /// Continuation cursor.
+    ///
+    /// Use one empty string when there is no next page.
+    nextCursor?: string;
+}
+
+/// Certificate list entry.
+export struct CryptoCertificateListEntry {
+    /// Certificate handle.
+    handle: CryptoCertificateHandle;
+    /// Subject name string.
+    subject: string;
+    /// Issuer name string.
+    issuer: string;
+    /// Serial number string.
+    serialNumber: string;
+}
+
+/// Certificate list page.
+export struct CryptoCertificateListPage {
+    /// Page entries.
+    entries: Array<CryptoCertificateListEntry>;
+    /// Continuation cursor.
+    ///
+    /// Use one empty string when there is no next page.
+    nextCursor?: string;
+}
+
+/// Crypto store bindings for runtime provider stores.
 declare namespace crypto {
     /// Open one crypto store.
     ///
-    /// Create one host provider store handle for key and certificate operations.
-    /// Provider selection and access scope follow host keychain and keystore semantics.
+    /// Create one runtime provider store handle for key and certificate operations.
+    /// Provider selection and access scope follow runtime crypto store semantics.
+    /// `Ephemeral` store support is required.
+    /// Other kinds may return notSupported until host store providers are implemented.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses Security.framework on macos and ios, CNG and cert stores on Windows, and provider backends on Linux.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -76,12 +139,12 @@ declare namespace crypto {
 
     /// Close one crypto store.
     ///
-    /// Release one host provider store handle.
-    /// Open key and certificate handles remain valid according to host provider lifetime rules.
+    /// Release one runtime provider store handle.
+    /// Open key and certificate handles remain valid according to runtime provider lifetime rules.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses provider-specific store teardown semantics.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -106,12 +169,12 @@ declare namespace crypto {
 
     /// List keys from one store.
     ///
-    /// Enumerate key handles that match one query selector.
-    /// Result ordering and visibility follow host provider policies and caller permissions.
+    /// Enumerate key entries that match one query selector.
+    /// Result ordering and visibility follow runtime provider policies and caller permissions.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host keychain and keystore enumeration APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -135,16 +198,16 @@ declare namespace crypto {
     export function storeListKeys(
         handle: CryptoStoreHandle,
         query: CryptoKeyQuery,
-    ): Result<Array<CryptoKeyHandle>, PlatformError>;
+    ): Result<CryptoKeyListPage, PlatformError>;
 
     /// List certificates from one store.
     ///
-    /// Enumerate certificate handles that match one query selector.
-    /// Result ordering and visibility follow host provider policies and caller permissions.
+    /// Enumerate certificate entries that match one query selector.
+    /// Result ordering and visibility follow runtime provider policies and caller permissions.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host certificate store enumeration APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -168,5 +231,5 @@ declare namespace crypto {
     export function storeListCertificates(
         handle: CryptoStoreHandle,
         query: CryptoCertificateQuery,
-    ): Result<Array<CryptoCertificateHandle>, PlatformError>;
+    ): Result<CryptoCertificateListPage, PlatformError>;
 }

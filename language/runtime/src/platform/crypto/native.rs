@@ -1,30 +1,92 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
-#![allow(clippy::missing_safety_doc)]
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::crypto::bindings_generated as bindings;
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
-
-use crate::runtime::BindingCallContext;
-use bindings::*;
-
+use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
-    CryptoCertificateFormat, CryptoCertificateMetadata, CryptoCertificatePurpose,
-    CryptoCertificateQuery, CryptoCertificateValidity, CryptoCertificateVerifyRequest,
-    CryptoCertificateVerifyResult, CryptoEncryptionScheme, CryptoKeyAlgorithm, CryptoKeyFormat,
-    CryptoKeyMetadata, CryptoKeyQuery, CryptoKeySpec, CryptoKeyUsageMask, CryptoSignatureScheme,
-    CryptoStoreKind, CryptoStoreOptions,
+    CryptoAgreementDeriveKeyRequest, CryptoArgon2idRequest, CryptoAsymmetricEncryptionParameters,
+    CryptoCertificateDescriptor, CryptoCertificateFormat, CryptoCertificateListPage,
+    CryptoCertificateQuery, CryptoCertificateVerifyRequest, CryptoCertificateVerifyResult,
+    CryptoCipherAlgorithm, CryptoCipherDirection, CryptoCipherOutput, CryptoCipherParameters,
+    CryptoDigestAlgorithm, CryptoHkdfRequest, CryptoKdfAlgorithm, CryptoKeyAgreementAlgorithm,
+    CryptoKeyAlgorithm, CryptoKeyDescriptor, CryptoKeyFormat, CryptoKeyGenerationRequest,
+    CryptoKeyImportRequest, CryptoKeyListPage, CryptoKeyPair, CryptoKeyQuery, CryptoMacAlgorithm,
+    CryptoMacParameters, CryptoNamedCurve, CryptoPbkdf2Request, CryptoScryptRequest,
+    CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreOptions, host as host_crypto,
 };
-use crate::platform::resource;
+use crate::platform::{NativeSlice, resource};
+use crate::runtime::BindingCallContext;
+
+/// Derive one symmetric key from one local private key and one peer public key.
+///
+/// This operation performs key agreement and an explicit KDF stage.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-agreement and KDF provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.key.agree`, `crypto.kdf`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_agreement_derive_key(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    privatekey: resource::CryptoKeyHandle,
+    peerpublickey: resource::CryptoKeyHandle,
+    request: CryptoAgreementDeriveKeyRequest,
+) -> RuntimeResult<()> {
+    unsafe {
+        host_crypto::destack_crypto_agreement_derive_key(
+            context,
+            out,
+            privatekey,
+            peerpublickey,
+            request,
+        )
+    }
+}
+
+/// Derive one shared secret from one local private key and one peer public key.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-agreement provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.key.agree`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_agreement_derive_shared_secret(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    privatekey: resource::CryptoKeyHandle,
+    peerpublickey: resource::CryptoKeyHandle,
+    algorithm: CryptoKeyAgreementAlgorithm,
+) -> RuntimeResult<()> {
+    unsafe {
+        host_crypto::destack_crypto_agreement_derive_shared_secret(
+            context,
+            out,
+            privatekey,
+            peerpublickey,
+            algorithm,
+        )
+    }
+}
 
 /// Delete one certificate from one provider store when allowed.
 ///
 /// Remove one certificate object and invalidate the handle.
-/// Deletion permissions and persistence are enforced by host provider policies.
+/// Deletion permissions and persistence are enforced by runtime provider policies.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host certificate delete APIs.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime certificate parsing, store, and chain-verification provider primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -35,25 +97,43 @@ use crate::platform::resource;
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_delete(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
+    unsafe { host_crypto::destack_crypto_certificate_delete(context, handle) }
+}
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.crypto.certificate.delete",
-    ))
-    .boxed())
+/// Return one certificate descriptor.
+///
+/// Query one certificate handle and return normalized identity and validity metadata.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime certificate parsing, store, and chain-verification provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.certificate.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_certificate_descriptor(
+    context: &BindingCallContext,
+    out: *mut CryptoCertificateDescriptor,
+    handle: resource::CryptoCertificateHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_certificate_descriptor(context, out, handle) }
 }
 
 /// Export one certificate from one handle.
 ///
 /// Serialize one certificate handle into the requested encoding format.
-/// Output bytes are provider-normalized representations of the underlying certificate.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host certificate export APIs.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime certificate parsing, store, and chain-verification provider primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -64,30 +144,22 @@ pub(crate) unsafe fn destack_crypto_certificate_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_export(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoCertificateHandle,
     format: CryptoCertificateFormat,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle, format);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.crypto.certificate.export",
-    ))
-    .boxed())
+    unsafe { host_crypto::destack_crypto_certificate_export(context, out, handle, format) }
 }
 
 /// Import one certificate into one provider store.
 ///
 /// Parse and import one certificate blob into one store and return one certificate handle.
-/// Import visibility and persistence are enforced by host provider policies.
+/// Import visibility and persistence are enforced by runtime provider policies.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host certificate import APIs for keychain and cert store backends.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime certificate parsing, store, and chain-verification provider primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -98,64 +170,25 @@ pub(crate) unsafe fn destack_crypto_certificate_export(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_import(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut resource::CryptoCertificateHandle,
     store: resource::CryptoStoreHandle,
     format: CryptoCertificateFormat,
     certificate: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    unsafe {
+        host_crypto::destack_crypto_certificate_import(context, out, store, format, certificate)
     }
-    let _ = (out, store, format, certificate);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.crypto.certificate.import",
-    ))
-    .boxed())
 }
 
-/// Return metadata for one certificate.
-///
-/// Query one certificate handle and return normalized identity and validity metadata.
-/// Metadata extraction follows host parser and provider normalization behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host certificate query APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.certificate.read`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_crypto_certificate_metadata(
-    _context: &BindingCallContext,
-    out: *mut CryptoCertificateMetadata,
-    handle: resource::CryptoCertificateHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.crypto.certificate.metadata",
-    ))
-    .boxed())
-}
-
-/// Verify one certificate chain against requested trust anchors.
+/// Verify one certificate chain against one trust policy.
 ///
 /// Build and verify one certificate path for the requested purpose and verification time.
-/// Chain-building and policy evaluation follow host provider trust engine behavior.
+/// Chain building and policy evaluation follow runtime provider trust engine behavior.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host trust engine APIs for path building and policy evaluation.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime certificate parsing, store, and chain-verification provider primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -166,29 +199,432 @@ pub(crate) unsafe fn destack_crypto_certificate_metadata(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_certificate_verify(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut CryptoCertificateVerifyResult,
     request: CryptoCertificateVerifyRequest,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, request);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.crypto.certificate.verify",
-    ))
-    .boxed())
+    unsafe { host_crypto::destack_crypto_certificate_verify(context, out, request) }
 }
 
-/// Decrypt one payload with one key handle.
-///
-/// Decrypt one payload using one provider-backed key and one encryption scheme.
-/// Padding and nonce requirements are provider-specific and scheme-specific.
+/// Close one streaming cipher context.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses provider decrypt APIs over host key handles.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime symmetric cipher provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `crypto.cipher`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_cipher_close(
+    context: &BindingCallContext,
+    handle: resource::CryptoCipherHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_cipher_close(context, handle) }
+}
+
+/// Decrypt one payload in one shot.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime symmetric cipher provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.cipher`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_cipher_decrypt(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    key: resource::CryptoKeyHandle,
+    parameters: CryptoCipherParameters,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    unsafe {
+        host_crypto::destack_crypto_cipher_decrypt(context, out, key, parameters, argument_payload)
+    }
+}
+
+/// Encrypt one payload in one shot.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime symmetric cipher provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.cipher`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_cipher_encrypt(
+    context: &BindingCallContext,
+    out: *mut CryptoCipherOutput,
+    key: resource::CryptoKeyHandle,
+    parameters: CryptoCipherParameters,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    unsafe {
+        host_crypto::destack_crypto_cipher_encrypt(context, out, key, parameters, argument_payload)
+    }
+}
+
+/// Finalize one streaming cipher context.
+///
+/// Provide one final payload chunk.
+/// Return output bytes and one authentication tag when applicable.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime symmetric cipher provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.cipher`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_cipher_finish(
+    context: &BindingCallContext,
+    out: *mut CryptoCipherOutput,
+    handle: resource::CryptoCipherHandle,
+    finalpayload: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_cipher_finish(context, out, handle, finalpayload) }
+}
+
+/// Open one streaming cipher context.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime symmetric cipher provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.cipher`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_cipher_open(
+    context: &BindingCallContext,
+    out: *mut resource::CryptoCipherHandle,
+    key: resource::CryptoKeyHandle,
+    direction: CryptoCipherDirection,
+    parameters: CryptoCipherParameters,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_cipher_open(context, out, key, direction, parameters) }
+}
+
+/// Reset one streaming cipher context with new parameters.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime symmetric cipher provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.cipher`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_cipher_reset(
+    context: &BindingCallContext,
+    handle: resource::CryptoCipherHandle,
+    parameters: CryptoCipherParameters,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_cipher_reset(context, handle, parameters) }
+}
+
+/// Update one streaming cipher context with one payload chunk.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime symmetric cipher provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.cipher`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_cipher_update(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    handle: resource::CryptoCipherHandle,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_cipher_update(context, out, handle, argument_payload) }
+}
+
+/// Update additional authenticated data for one streaming cipher context.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime symmetric cipher provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.cipher`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_cipher_update_additional_data(
+    context: &BindingCallContext,
+    handle: resource::CryptoCipherHandle,
+    additionaldata: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    unsafe {
+        host_crypto::destack_crypto_cipher_update_additional_data(context, handle, additionaldata)
+    }
+}
+
+/// Close one streaming digest context.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime digest provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `crypto.digest`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_digest_close(
+    context: &BindingCallContext,
+    handle: resource::CryptoDigestHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_digest_close(context, handle) }
+}
+
+/// Compute one digest in one shot.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime digest provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.digest`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_digest_compute(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    algorithm: CryptoDigestAlgorithm,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_digest_compute(context, out, algorithm, argument_payload) }
+}
+
+/// Finalize one streaming digest context and return one digest output.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime digest provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.digest`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_digest_finish(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    handle: resource::CryptoDigestHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_digest_finish(context, out, handle) }
+}
+
+/// Open one streaming digest context.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime digest provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.digest`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_digest_open(
+    context: &BindingCallContext,
+    out: *mut resource::CryptoDigestHandle,
+    algorithm: CryptoDigestAlgorithm,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_digest_open(context, out, algorithm) }
+}
+
+/// Reset one streaming digest context to its initial state.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime digest provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.digest`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_digest_reset(
+    context: &BindingCallContext,
+    handle: resource::CryptoDigestHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_digest_reset(context, handle) }
+}
+
+/// Update one streaming digest context.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime digest provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.digest`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_digest_update(
+    context: &BindingCallContext,
+    handle: resource::CryptoDigestHandle,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_digest_update(context, handle, argument_payload) }
+}
+
+/// Derive one key with Argon2id.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime KDF provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.kdf`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_kdf_argon2id(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    request: CryptoArgon2idRequest,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_kdf_argon2id(context, out, request) }
+}
+
+/// Derive one key with HKDF.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime KDF provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.kdf`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_kdf_hkdf(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    request: CryptoHkdfRequest,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_kdf_hkdf(context, out, request) }
+}
+
+/// Derive one key with PBKDF2.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime KDF provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.kdf`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_kdf_pbkdf2(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    request: CryptoPbkdf2Request,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_kdf_pbkdf2(context, out, request) }
+}
+
+/// Derive one key with scrypt.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime KDF provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.kdf`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_kdf_scrypt(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    request: CryptoScryptRequest,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_kdf_scrypt(context, out, request) }
+}
+
+/// Decrypt one payload with one asymmetric key.
+///
+/// Decrypt one payload using one provider-backed private key.
+/// Padding and label semantics are controlled by encryption parameters.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -199,28 +635,25 @@ pub(crate) unsafe fn destack_crypto_certificate_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_decrypt(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
-    scheme: CryptoEncryptionScheme,
+    parameters: CryptoAsymmetricEncryptionParameters,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    unsafe {
+        host_crypto::destack_crypto_key_decrypt(context, out, handle, parameters, argument_payload)
     }
-    let _ = (out, handle, scheme, argument_payload);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.decrypt")).boxed())
 }
 
-/// Delete one key handle and backing key material when allowed.
+/// Delete one key object.
 ///
-/// Remove one provider-backed key object and invalidate this handle.
-/// Deletion permissions and persistence policies are enforced by the host provider.
+/// Delete one provider-backed key object and invalidate this handle.
+/// Deletion permissions and persistence policies are enforced by the runtime provider.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses provider key delete APIs.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -231,22 +664,44 @@ pub(crate) unsafe fn destack_crypto_key_decrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_delete(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.delete")).boxed())
+    unsafe { host_crypto::destack_crypto_key_delete(context, handle) }
 }
 
-/// Encrypt one payload with one key handle.
+/// Return one key descriptor.
 ///
-/// Encrypt one payload using one provider-backed key and one encryption scheme.
-/// Padding and nonce requirements are provider-specific and scheme-specific.
+/// Query one provider key object and return normalized metadata fields.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses provider encrypt APIs over host key handles.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.store.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_key_descriptor(
+    context: &BindingCallContext,
+    out: *mut CryptoKeyDescriptor,
+    handle: resource::CryptoKeyHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_key_descriptor(context, out, handle) }
+}
+
+/// Encrypt one payload with one asymmetric key.
+///
+/// Encrypt one payload using one provider-backed public key.
+/// Padding and label semantics are controlled by encryption parameters.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -257,28 +712,50 @@ pub(crate) unsafe fn destack_crypto_key_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_encrypt(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
-    scheme: CryptoEncryptionScheme,
+    parameters: CryptoAsymmetricEncryptionParameters,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    unsafe {
+        host_crypto::destack_crypto_key_encrypt(context, out, handle, parameters, argument_payload)
     }
-    let _ = (out, handle, scheme, argument_payload);
+}
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.encrypt")).boxed())
+/// Export one private key.
+///
+/// Export one private key representation in the requested encoding format.
+/// The operation fails when provider policy marks this key as non-exportable.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.store.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_key_export_private(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    handle: resource::CryptoKeyHandle,
+    format: CryptoKeyFormat,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_key_export_private(context, out, handle, format) }
 }
 
 /// Export one public key.
 ///
-/// Export one public-key representation for the selected key handle in the requested format.
-/// Exported bytes only include public material and are provider-normalized.
+/// Export one public key representation in the requested encoding format.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host provider public-key export APIs.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -289,30 +766,48 @@ pub(crate) unsafe fn destack_crypto_key_encrypt(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_export_public(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle, format);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.crypto.key.exportPublic",
-    ))
-    .boxed())
+    unsafe { host_crypto::destack_crypto_key_export_public(context, out, handle, format) }
 }
 
-/// Generate one key in one provider store.
+/// Export one secret key.
 ///
-/// Create one provider-backed key object with the requested algorithm and key policy.
-/// Generated key material remains owned by the host provider unless export is explicitly allowed.
+/// Export one symmetric or raw-secret key representation in the requested encoding format.
+/// The operation fails when provider policy marks this key as non-exportable.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses Security.framework, CNG, or provider-backed generate-key APIs.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.store.read`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_key_export_secret(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    handle: resource::CryptoKeyHandle,
+    format: CryptoKeyFormat,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_key_export_secret(context, out, handle, format) }
+}
+
+/// Generate one asymmetric key pair.
+///
+/// Create one provider-backed asymmetric key pair and return public and private handles.
+/// Generation policy and persistence semantics follow runtime provider behavior.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -322,28 +817,49 @@ pub(crate) unsafe fn destack_crypto_key_export_public(
 ///
 /// # Replay
 /// External, nonrecordable.
-pub(crate) unsafe fn destack_crypto_key_generate(
-    _context: &BindingCallContext,
-    out: *mut resource::CryptoKeyHandle,
+pub(crate) unsafe fn destack_crypto_key_generate_pair(
+    context: &BindingCallContext,
+    out: *mut CryptoKeyPair,
     store: resource::CryptoStoreHandle,
-    spec: CryptoKeySpec,
+    request: CryptoKeyGenerationRequest,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, store, spec);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.generate")).boxed())
+    unsafe { host_crypto::destack_crypto_key_generate_pair(context, out, store, request) }
 }
 
-/// Import one key into one provider store.
+/// Generate one symmetric key.
 ///
-/// Parse and import one key blob into the selected provider store.
-/// Key visibility and persistence follow host provider policies.
+/// Create one provider-backed secret key object.
+/// Generation policy and persistence semantics follow runtime provider behavior.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host provider key import APIs.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.key.generate`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_key_generate_secret(
+    context: &BindingCallContext,
+    out: *mut resource::CryptoKeyHandle,
+    store: resource::CryptoStoreHandle,
+    request: CryptoKeyGenerationRequest,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_key_generate_secret(context, out, store, request) }
+}
+
+/// Import one key object.
+///
+/// Parse and import one key blob into one provider store.
+/// Key visibility and persistence follow runtime provider policies.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -354,60 +870,22 @@ pub(crate) unsafe fn destack_crypto_key_generate(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_import(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut resource::CryptoKeyHandle,
     store: resource::CryptoStoreHandle,
-    format: CryptoKeyFormat,
-    argument_bytes: NativeSlice<u8>,
-    usagemask: CryptoKeyUsageMask,
-    label: NativeStringRef,
+    request: CryptoKeyImportRequest,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, store, format, argument_bytes, usagemask, label);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.import")).boxed())
+    unsafe { host_crypto::destack_crypto_key_import(context, out, store, request) }
 }
 
-/// Return metadata for one key.
+/// Sign one payload.
 ///
-/// Query one provider key object and return normalized metadata fields.
-/// Metadata visibility is subject to host provider permissions.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host provider key attribute queries.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.read`.
-///
-/// # Replay
-/// External, nonrecordable.
-pub(crate) unsafe fn destack_crypto_key_metadata(
-    _context: &BindingCallContext,
-    out: *mut CryptoKeyMetadata,
-    handle: resource::CryptoKeyHandle,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.metadata")).boxed())
-}
-
-/// Sign one message digest or payload.
-///
-/// Produce one signature using one provider-backed key and one signature scheme.
-/// Payload interpretation follows provider and scheme requirements.
+/// Produce one signature over one payload using one provider-backed private key.
+/// Payload hashing behavior is controlled by signature parameters.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses provider sign APIs over host key handles.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -418,28 +896,64 @@ pub(crate) unsafe fn destack_crypto_key_metadata(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_sign(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
-    scheme: CryptoSignatureScheme,
+    parameters: CryptoSignatureParameters,
     argument_payload: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    unsafe {
+        host_crypto::destack_crypto_key_sign(context, out, handle, parameters, argument_payload)
     }
-    let _ = (out, handle, scheme, argument_payload);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.sign")).boxed())
 }
 
-/// Verify one signature with one key handle.
+/// Unwrap one key.
 ///
-/// Verify one signature over one payload using one provider-backed key.
-/// Verification semantics and required prehashing follow scheme and provider rules.
+/// Decrypt and import one wrapped key object into one provider store.
+/// Import semantics follow runtime provider policy and the import request.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses provider verify APIs over host key handles.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.key.unwrap`, `crypto.store.write`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_key_unwrap(
+    context: &BindingCallContext,
+    out: *mut resource::CryptoKeyHandle,
+    store: resource::CryptoStoreHandle,
+    wrappingkey: resource::CryptoKeyHandle,
+    wrappedkey: NativeSlice<u8>,
+    parameters: CryptoAsymmetricEncryptionParameters,
+    request: CryptoKeyImportRequest,
+) -> RuntimeResult<()> {
+    unsafe {
+        host_crypto::destack_crypto_key_unwrap(
+            context,
+            out,
+            store,
+            wrappingkey,
+            wrappedkey,
+            parameters,
+            request,
+        )
+    }
+}
+
+/// Verify one signature.
+///
+/// Verify one signature over one payload using one provider-backed public key.
+/// Payload hashing behavior is controlled by signature parameters.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -450,29 +964,491 @@ pub(crate) unsafe fn destack_crypto_key_sign(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_verify(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut bool,
     handle: resource::CryptoKeyHandle,
-    scheme: CryptoSignatureScheme,
+    parameters: CryptoSignatureParameters,
     argument_payload: NativeSlice<u8>,
     signature: NativeSlice<u8>,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    unsafe {
+        host_crypto::destack_crypto_key_verify(
+            context,
+            out,
+            handle,
+            parameters,
+            argument_payload,
+            signature,
+        )
     }
-    let _ = (out, handle, scheme, argument_payload, signature);
+}
 
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.key.verify")).boxed())
+/// Wrap one key.
+///
+/// Export and encrypt one key object under one wrapping key.
+/// Wrapping format and encryption semantics follow runtime provider behavior.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime key-management and cryptographic provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.key.wrap`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_key_wrap(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    wrappingkey: resource::CryptoKeyHandle,
+    keytowrap: resource::CryptoKeyHandle,
+    format: CryptoKeyFormat,
+    parameters: CryptoAsymmetricEncryptionParameters,
+) -> RuntimeResult<()> {
+    unsafe {
+        host_crypto::destack_crypto_key_wrap(
+            context,
+            out,
+            wrappingkey,
+            keytowrap,
+            format,
+            parameters,
+        )
+    }
+}
+
+/// Close one streaming MAC context.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime MAC provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioNotFound, notSupported.
+///
+/// # Security
+/// Requires `crypto.mac`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_mac_close(
+    context: &BindingCallContext,
+    handle: resource::CryptoMacHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_mac_close(context, handle) }
+}
+
+/// Compute one message authentication code in one shot.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime MAC provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.mac`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_mac_compute(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    key: resource::CryptoKeyHandle,
+    parameters: CryptoMacParameters,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    unsafe {
+        host_crypto::destack_crypto_mac_compute(context, out, key, parameters, argument_payload)
+    }
+}
+
+/// Finalize one streaming MAC context and return one tag.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime MAC provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.mac`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_mac_finish(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    handle: resource::CryptoMacHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_mac_finish(context, out, handle) }
+}
+
+/// Open one streaming MAC context.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime MAC provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.mac`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_mac_open(
+    context: &BindingCallContext,
+    out: *mut resource::CryptoMacHandle,
+    key: resource::CryptoKeyHandle,
+    parameters: CryptoMacParameters,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_mac_open(context, out, key, parameters) }
+}
+
+/// Reset one streaming MAC context to its initial state.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime MAC provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.mac`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_mac_reset(
+    context: &BindingCallContext,
+    handle: resource::CryptoMacHandle,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_mac_reset(context, handle) }
+}
+
+/// Update one streaming MAC context.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime MAC provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.mac`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_mac_update(
+    context: &BindingCallContext,
+    handle: resource::CryptoMacHandle,
+    argument_payload: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_mac_update(context, handle, argument_payload) }
+}
+
+/// Verify one message authentication code in one shot.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime MAC provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.mac`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_mac_verify(
+    context: &BindingCallContext,
+    out: *mut bool,
+    key: resource::CryptoKeyHandle,
+    parameters: CryptoMacParameters,
+    argument_payload: NativeSlice<u8>,
+    tag: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    unsafe {
+        host_crypto::destack_crypto_mac_verify(context, out, key, parameters, argument_payload, tag)
+    }
+}
+
+/// List supported key-agreement algorithms.
+///
+/// Return key-agreement algorithms available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_agreement_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoKeyAgreementAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_probe_agreement_algorithms(context, out) }
+}
+
+/// List supported cipher algorithms.
+///
+/// Return cipher algorithms available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_cipher_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoCipherAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_probe_cipher_algorithms(context, out) }
+}
+
+/// List supported digest algorithms.
+///
+/// Return digest algorithms available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_digest_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoDigestAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_probe_digest_algorithms(context, out) }
+}
+
+/// List supported KDF algorithms.
+///
+/// Return key-derivation algorithms available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_kdf_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoKdfAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_probe_kdf_algorithms(context, out) }
+}
+
+/// List supported key algorithm families.
+///
+/// Return the key algorithm families available through the active host provider set.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_key_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoKeyAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_probe_key_algorithms(context, out) }
+}
+
+/// List supported key formats.
+///
+/// Return the key encoding formats supported by active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_key_formats(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoKeyFormat>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_probe_key_formats(context, out) }
+}
+
+/// List supported MAC algorithms.
+///
+/// Return message-authentication algorithms available through active host providers.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_mac_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoMacAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_probe_mac_algorithms(context, out) }
+}
+
+/// List supported named curves.
+///
+/// Return elliptic-curve families available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_named_curves(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoNamedCurve>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_probe_named_curves(context, out) }
+}
+
+/// List supported signature algorithms.
+///
+/// Return signature algorithms available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime provider capability introspection over host crypto implementations.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_signature_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoSignatureAlgorithm>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_probe_signature_algorithms(context, out) }
+}
+
+/// Allocate one random byte vector with the requested length.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime CSPRNG provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.random`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_random_bytes(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<u8>,
+    length: u32,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_random_bytes(context, out, length) }
+}
+
+/// Fill one mutable byte slice with cryptographically secure random bytes.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime CSPRNG provider primitives.
+///
+/// # Errors
+/// Returns invalidArgument, ioWouldBlock, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.random`.
+///
+/// # Replay
+/// External, nonrecordable.
+pub(crate) unsafe fn destack_crypto_random_fill(
+    context: &BindingCallContext,
+    buffer: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    unsafe { host_crypto::destack_crypto_random_fill(context, buffer) }
 }
 
 /// Close one crypto store.
 ///
-/// Release one host provider store handle.
-/// Open key and certificate handles remain valid according to host provider lifetime rules.
+/// Release one runtime provider store handle.
+/// Open key and certificate handles remain valid according to runtime provider lifetime rules.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses provider-specific store teardown semantics.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.
@@ -483,22 +1459,20 @@ pub(crate) unsafe fn destack_crypto_key_verify(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_close(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     handle: resource::CryptoStoreHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.store.close")).boxed())
+    unsafe { host_crypto::destack_crypto_store_close(context, handle) }
 }
 
 /// List certificates from one store.
 ///
-/// Enumerate certificate handles that match one query selector.
-/// Result ordering and visibility follow host provider policies and caller permissions.
+/// Enumerate certificate entries that match one query selector.
+/// Result ordering and visibility follow runtime provider policies and caller permissions.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host certificate store enumeration APIs.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -509,30 +1483,22 @@ pub(crate) unsafe fn destack_crypto_store_close(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_list_certificates(
-    _context: &BindingCallContext,
-    out: *mut NativeArray<resource::CryptoCertificateHandle>,
+    context: &BindingCallContext,
+    out: *mut CryptoCertificateListPage,
     handle: resource::CryptoStoreHandle,
     query: CryptoCertificateQuery,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle, query);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.crypto.store.listCertificates",
-    ))
-    .boxed())
+    unsafe { host_crypto::destack_crypto_store_list_certificates(context, out, handle, query) }
 }
 
 /// List keys from one store.
 ///
-/// Enumerate key handles that match one query selector.
-/// Result ordering and visibility follow host provider policies and caller permissions.
+/// Enumerate key entries that match one query selector.
+/// Result ordering and visibility follow runtime provider policies and caller permissions.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses host keychain and keystore enumeration APIs.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -543,30 +1509,24 @@ pub(crate) unsafe fn destack_crypto_store_list_certificates(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_list_keys(
-    _context: &BindingCallContext,
-    out: *mut NativeArray<resource::CryptoKeyHandle>,
+    context: &BindingCallContext,
+    out: *mut CryptoKeyListPage,
     handle: resource::CryptoStoreHandle,
     query: CryptoKeyQuery,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, handle, query);
-
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.crypto.store.listKeys",
-    ))
-    .boxed())
+    unsafe { host_crypto::destack_crypto_store_list_keys(context, out, handle, query) }
 }
 
 /// Open one crypto store.
 ///
-/// Create one host provider store handle for key and certificate operations.
-/// Provider selection and access scope follow host keychain and keystore semantics.
+/// Create one runtime provider store handle for key and certificate operations.
+/// Provider selection and access scope follow runtime crypto store semantics.
+/// `Ephemeral` store support is required.
+/// Other kinds may return notSupported until host store providers are implemented.
 ///
 /// # Platform
-/// Unix and Windows.
-/// Uses Security.framework on macos and ios, CNG and cert stores on Windows, and provider backends on Linux.
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -577,14 +1537,9 @@ pub(crate) unsafe fn destack_crypto_store_list_keys(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_open(
-    _context: &BindingCallContext,
+    context: &BindingCallContext,
     out: *mut resource::CryptoStoreHandle,
     options: CryptoStoreOptions,
 ) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let _ = (out, options);
-
-    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.store.open")).boxed())
+    unsafe { host_crypto::destack_crypto_store_open(context, out, options) }
 }

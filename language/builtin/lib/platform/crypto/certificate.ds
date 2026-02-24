@@ -4,17 +4,17 @@ import { CryptoCertificateHandle, CryptoStoreHandle } from "../resource/index.ds
 
 /// Certificate encoding format.
 export enum CryptoCertificateFormat {
-    /// Pem encoded certificate bytes.
+    /// PEM encoded certificate bytes.
     Pem = 1,
-    /// Der encoded certificate bytes.
+    /// DER encoded certificate bytes.
     Der = 2,
 }
 
 /// Certificate verification purpose.
 export enum CryptoCertificatePurpose {
-    /// Server tls authentication.
+    /// Server TLS authentication.
     ServerAuth = 1,
-    /// Client tls authentication.
+    /// Client TLS authentication.
     ClientAuth = 2,
     /// Code signing validation.
     CodeSigning = 3,
@@ -22,16 +22,26 @@ export enum CryptoCertificatePurpose {
     EmailProtection = 4,
 }
 
+/// Revocation policy for certificate verification.
+export enum CryptoCertificateRevocationMode {
+    /// Use host default revocation behavior.
+    Default = 1,
+    /// Require successful revocation checks.
+    Strict = 2,
+    /// Skip revocation checks.
+    Disabled = 3,
+}
+
 /// Certificate validity window.
 export struct CryptoCertificateValidity {
-    /// Not before timestamp in unix seconds.
+    /// Not-before timestamp in Unix seconds.
     notBeforeUnixSeconds: uint64;
-    /// Not after timestamp in unix seconds.
+    /// Not-after timestamp in Unix seconds.
     notAfterUnixSeconds: uint64;
 }
 
-/// Certificate metadata fields.
-export struct CryptoCertificateMetadata {
+/// Certificate descriptor fields.
+export struct CryptoCertificateDescriptor {
     /// Distinguished subject name.
     subject: string;
     /// Distinguished issuer name.
@@ -40,11 +50,42 @@ export struct CryptoCertificateMetadata {
     serialNumber: string;
     /// Subject alternative names.
     subjectAlternativeNames: Array<string>;
-    /// Sha256 fingerprint bytes.
+    /// SHA-256 fingerprint bytes.
     fingerprintSha256: Slice<uint8>;
     /// Certificate validity window.
     validity: CryptoCertificateValidity;
+    /// Whether this certificate is a certificate authority.
+    isCertificateAuthority: boolean;
+    /// Key-usage bitmask.
+    keyUsageMask: uint32;
 }
+
+/// Certificate key usage: digital signature.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_DIGITAL_SIGNATURE: uint32 = 1 << 0;
+
+/// Certificate key usage: non-repudiation.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_NON_REPUDIATION: uint32 = 1 << 1;
+
+/// Certificate key usage: key encipherment.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_KEY_ENCIPHERMENT: uint32 = 1 << 2;
+
+/// Certificate key usage: data encipherment.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_DATA_ENCIPHERMENT: uint32 = 1 << 3;
+
+/// Certificate key usage: key agreement.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_KEY_AGREEMENT: uint32 = 1 << 4;
+
+/// Certificate key usage: certificate signing.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_CERTIFICATE_SIGN: uint32 = 1 << 5;
+
+/// Certificate key usage: crl signing.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_CRL_SIGN: uint32 = 1 << 6;
+
+/// Certificate key usage: encipher only.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_ENCIPHER_ONLY: uint32 = 1 << 7;
+
+/// Certificate key usage: decipher only.
+export const CRYPTO_CERTIFICATE_KEY_USAGE_DECIPHER_ONLY: uint32 = 1 << 8;
 
 /// Certificate chain verify request.
 export struct CryptoCertificateVerifyRequest {
@@ -54,12 +95,18 @@ export struct CryptoCertificateVerifyRequest {
     intermediates: Slice<CryptoCertificateHandle>;
     /// Trust anchor certificate handles.
     trustAnchors: Slice<CryptoCertificateHandle>;
+    /// Whether host system trust anchors should be included.
+    useSystemTrustAnchors: boolean;
     /// Verification purpose.
     purpose: CryptoCertificatePurpose;
-    /// Optional dns name for server identity verification.
-    serverName: string;
-    /// Verification time in unix seconds.
-    verificationUnixSeconds: uint64;
+    /// Optional DNS name for server identity verification.
+    ///
+    /// Use one empty string when no server name check is needed.
+    serverName?: string;
+    /// Verification time in Unix seconds.
+    verificationUnixSeconds?: uint64;
+    /// Revocation policy.
+    revocationMode: CryptoCertificateRevocationMode;
 }
 
 /// Certificate chain verify result.
@@ -68,18 +115,22 @@ export struct CryptoCertificateVerifyResult {
     valid: boolean;
     /// Provider or runtime error code when validation fails.
     errorCode: uint32;
+    /// Number of certificates in the verified chain.
+    chainLength: uint32;
+    /// Whether one system trust anchor was used.
+    usedSystemTrustAnchor: boolean;
 }
 
-/// Certificate bindings for host provider certificate stores.
+/// Certificate bindings for runtime provider certificate stores.
 declare namespace crypto {
     /// Import one certificate into one provider store.
     ///
     /// Parse and import one certificate blob into one store and return one certificate handle.
-    /// Import visibility and persistence are enforced by host provider policies.
+    /// Import visibility and persistence are enforced by runtime provider policies.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host certificate import APIs for keychain and cert store backends.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime certificate parsing, store, and chain-verification provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -109,11 +160,10 @@ declare namespace crypto {
     /// Export one certificate from one handle.
     ///
     /// Serialize one certificate handle into the requested encoding format.
-    /// Output bytes are provider-normalized representations of the underlying certificate.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host certificate export APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime certificate parsing, store, and chain-verification provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -139,14 +189,13 @@ declare namespace crypto {
         format: CryptoCertificateFormat,
     ): Result<Slice<uint8>, PlatformError>;
 
-    /// Return metadata for one certificate.
+    /// Return one certificate descriptor.
     ///
     /// Query one certificate handle and return normalized identity and validity metadata.
-    /// Metadata extraction follows host parser and provider normalization behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host certificate query APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime certificate parsing, store, and chain-verification provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -157,7 +206,7 @@ declare namespace crypto {
     /// # Replay
     /// External, nonrecordable.
     @binding(
-        "destack.crypto.certificate.metadata",
+        "destack.crypto.certificate.descriptor",
         {
             effect: "external",
             replay: "nonrecordable",
@@ -167,16 +216,18 @@ declare namespace crypto {
             blocking: "sometimes",
         },
     )
-    export function certificateMetadata(handle: CryptoCertificateHandle): Result<CryptoCertificateMetadata, PlatformError>;
+    export function certificateDescriptor(
+        handle: CryptoCertificateHandle,
+    ): Result<CryptoCertificateDescriptor, PlatformError>;
 
-    /// Verify one certificate chain against requested trust anchors.
+    /// Verify one certificate chain against one trust policy.
     ///
     /// Build and verify one certificate path for the requested purpose and verification time.
-    /// Chain-building and policy evaluation follow host provider trust engine behavior.
+    /// Chain building and policy evaluation follow runtime provider trust engine behavior.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host trust engine APIs for path building and policy evaluation.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime certificate parsing, store, and chain-verification provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -204,11 +255,11 @@ declare namespace crypto {
     /// Delete one certificate from one provider store when allowed.
     ///
     /// Remove one certificate object and invalidate the handle.
-    /// Deletion permissions and persistence are enforced by host provider policies.
+    /// Deletion permissions and persistence are enforced by runtime provider policies.
     ///
     /// # Platform
-    /// Unix and Windows.
-    /// Uses host certificate delete APIs.
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime certificate parsing, store, and chain-verification provider primitives.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.

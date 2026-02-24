@@ -1,5 +1,22 @@
-#[path = "../unsupported.rs"]
-mod unsupported;
+mod agreement;
+mod certificate;
+mod cipher;
+mod core;
+mod digest;
+mod kdf;
+mod key;
+mod mac;
+mod probe;
+mod random;
+mod store;
 
-#[allow(unused_imports)]
-pub(crate) use unsupported::*;
+pub(crate) use agreement::*;
+pub(crate) use certificate::*;
+pub(crate) use cipher::*;
+pub(crate) use digest::*;
+pub(crate) use kdf::*;
+pub(crate) use key::*;
+pub(crate) use mac::*;
+pub(crate) use probe::*;
+pub(crate) use random::*;
+pub(crate) use store::*;

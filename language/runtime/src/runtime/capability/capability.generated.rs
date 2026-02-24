@@ -25,6 +25,14 @@ pub enum PlatformCapability {
     CryptoCertificateRead,
     /// `crypto.certificate.write`.
     CryptoCertificateWrite,
+    /// `crypto.cipher`.
+    CryptoCipher,
+    /// `crypto.digest`.
+    CryptoDigest,
+    /// `crypto.kdf`.
+    CryptoKdf,
+    /// `crypto.key.agree`.
+    CryptoKeyAgree,
     /// `crypto.key.decrypt`.
     CryptoKeyDecrypt,
     /// `crypto.key.encrypt`.
@@ -33,8 +41,18 @@ pub enum PlatformCapability {
     CryptoKeyGenerate,
     /// `crypto.key.sign`.
     CryptoKeySign,
+    /// `crypto.key.unwrap`.
+    CryptoKeyUnwrap,
     /// `crypto.key.verify`.
     CryptoKeyVerify,
+    /// `crypto.key.wrap`.
+    CryptoKeyWrap,
+    /// `crypto.mac`.
+    CryptoMac,
+    /// `crypto.probe`.
+    CryptoProbe,
+    /// `crypto.random`.
+    CryptoRandom,
     /// `crypto.store.read`.
     CryptoStoreRead,
     /// `crypto.store.write`.
@@ -440,11 +458,20 @@ impl PlatformCapability {
         Self::AudioStream,
         Self::CryptoCertificateRead,
         Self::CryptoCertificateWrite,
+        Self::CryptoCipher,
+        Self::CryptoDigest,
+        Self::CryptoKdf,
+        Self::CryptoKeyAgree,
         Self::CryptoKeyDecrypt,
         Self::CryptoKeyEncrypt,
         Self::CryptoKeyGenerate,
         Self::CryptoKeySign,
+        Self::CryptoKeyUnwrap,
         Self::CryptoKeyVerify,
+        Self::CryptoKeyWrap,
+        Self::CryptoMac,
+        Self::CryptoProbe,
+        Self::CryptoRandom,
         Self::CryptoStoreRead,
         Self::CryptoStoreWrite,
         Self::DisplayMode,
@@ -655,11 +682,20 @@ impl PlatformCapability {
             Self::AudioStream => "audio.stream",
             Self::CryptoCertificateRead => "crypto.certificate.read",
             Self::CryptoCertificateWrite => "crypto.certificate.write",
+            Self::CryptoCipher => "crypto.cipher",
+            Self::CryptoDigest => "crypto.digest",
+            Self::CryptoKdf => "crypto.kdf",
+            Self::CryptoKeyAgree => "crypto.key.agree",
             Self::CryptoKeyDecrypt => "crypto.key.decrypt",
             Self::CryptoKeyEncrypt => "crypto.key.encrypt",
             Self::CryptoKeyGenerate => "crypto.key.generate",
             Self::CryptoKeySign => "crypto.key.sign",
+            Self::CryptoKeyUnwrap => "crypto.key.unwrap",
             Self::CryptoKeyVerify => "crypto.key.verify",
+            Self::CryptoKeyWrap => "crypto.key.wrap",
+            Self::CryptoMac => "crypto.mac",
+            Self::CryptoProbe => "crypto.probe",
+            Self::CryptoRandom => "crypto.random",
             Self::CryptoStoreRead => "crypto.store.read",
             Self::CryptoStoreWrite => "crypto.store.write",
             Self::DisplayMode => "display.mode",
@@ -876,11 +912,20 @@ impl PlatformCapability {
             "audio.stream" => Some(Self::AudioStream),
             "crypto.certificate.read" => Some(Self::CryptoCertificateRead),
             "crypto.certificate.write" => Some(Self::CryptoCertificateWrite),
+            "crypto.cipher" => Some(Self::CryptoCipher),
+            "crypto.digest" => Some(Self::CryptoDigest),
+            "crypto.kdf" => Some(Self::CryptoKdf),
+            "crypto.key.agree" => Some(Self::CryptoKeyAgree),
             "crypto.key.decrypt" => Some(Self::CryptoKeyDecrypt),
             "crypto.key.encrypt" => Some(Self::CryptoKeyEncrypt),
             "crypto.key.generate" => Some(Self::CryptoKeyGenerate),
             "crypto.key.sign" => Some(Self::CryptoKeySign),
+            "crypto.key.unwrap" => Some(Self::CryptoKeyUnwrap),
             "crypto.key.verify" => Some(Self::CryptoKeyVerify),
+            "crypto.key.wrap" => Some(Self::CryptoKeyWrap),
+            "crypto.mac" => Some(Self::CryptoMac),
+            "crypto.probe" => Some(Self::CryptoProbe),
+            "crypto.random" => Some(Self::CryptoRandom),
             "crypto.store.read" => Some(Self::CryptoStoreRead),
             "crypto.store.write" => Some(Self::CryptoStoreWrite),
             "display.mode" => Some(Self::DisplayMode),

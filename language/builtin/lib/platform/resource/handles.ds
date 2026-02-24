@@ -60,6 +60,15 @@ export newtype CryptoKeyHandle = ResourceId;
 /// Handle for one cryptographic certificate object.
 export newtype CryptoCertificateHandle = ResourceId;
 
+/// Handle for one cryptographic digest context.
+export newtype CryptoDigestHandle = ResourceId;
+
+/// Handle for one cryptographic message-authentication context.
+export newtype CryptoMacHandle = ResourceId;
+
+/// Handle for one cryptographic symmetric-cipher context.
+export newtype CryptoCipherHandle = ResourceId;
+
 /// Handle for one TLS context.
 export newtype TlsContextHandle = ResourceId;
 

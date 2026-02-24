@@ -1,0 +1,188 @@
+use openssl::derive::Deriver;
+use zeroize::Zeroize;
+
+use crate::diagnostic::RuntimeResult;
+use crate::platform::crypto::{
+    CryptoAgreementDeriveKeyRequest, CryptoKeyAgreementAlgorithm, CryptoKeyAlgorithm,
+    CryptoKeyKind, CryptoNamedCurve,
+};
+use crate::platform::resource;
+use crate::runtime::BindingCallContext;
+
+use super::core::{
+    CryptoKeyMaterial, KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, decode_native_bytes,
+    invalid_argument, openssl_error, resolve_key_resource,
+};
+use super::kdf::hkdf_expand;
+use super::key::require_key_usage;
+
+/// Derive one shared secret.
+pub(crate) fn agreement_derive_shared_secret(
+    context: &BindingCallContext,
+    private_key: resource::CryptoKeyHandle,
+    peer_public_key: resource::CryptoKeyHandle,
+    algorithm: CryptoKeyAgreementAlgorithm,
+) -> RuntimeResult<Vec<u8>> {
+    // enforce derive bits usage on the private key
+    require_key_usage(
+        context,
+        private_key,
+        KEY_USAGE_DERIVE_BITS,
+        "destack.crypto.agreement.deriveSharedSecret",
+    )?;
+
+    // reject unknown algorithm early
+    if algorithm == CryptoKeyAgreementAlgorithm::Unknown {
+        return Err(invalid_argument(
+            "algorithm",
+            "key agreement algorithm must not be Unknown",
+        ));
+    }
+
+    // resolve and validate private key handle
+    let private_resource = resolve_key_resource(
+        context,
+        private_key,
+        "destack.crypto.agreement.deriveSharedSecret",
+    )?;
+    let private_resource = private_resource.lock();
+
+    if private_resource.kind != CryptoKeyKind::Private {
+        return Err(invalid_argument(
+            "privateKey",
+            "privateKey handle does not reference one private key",
+        ));
+    }
+
+    // resolve and validate peer public key handle
+    let peer_resource = resolve_key_resource(
+        context,
+        peer_public_key,
+        "destack.crypto.agreement.deriveSharedSecret",
+    )?;
+    let peer_resource = peer_resource.lock();
+
+    if peer_resource.kind != CryptoKeyKind::Public {
+        return Err(invalid_argument(
+            "peerPublicKey",
+            "peerPublicKey handle does not reference one public key",
+        ));
+    }
+
+    // enforce algorithm families and curve compatibility
+    match algorithm {
+        CryptoKeyAgreementAlgorithm::Ecdh => {
+            if private_resource.algorithm != CryptoKeyAlgorithm::Ec
+                || peer_resource.algorithm != CryptoKeyAlgorithm::Ec
+            {
+                return Err(invalid_argument(
+                    "algorithm",
+                    "ECDH requires EC private and public keys",
+                ));
+            }
+            if private_resource.named_curve == CryptoNamedCurve::Unknown
+                || peer_resource.named_curve == CryptoNamedCurve::Unknown
+                || private_resource.named_curve != peer_resource.named_curve
+            {
+                return Err(invalid_argument(
+                    "peerPublicKey",
+                    "EC key agreement requires matching named curves",
+                ));
+            }
+        }
+        CryptoKeyAgreementAlgorithm::X25519 => {
+            if private_resource.algorithm != CryptoKeyAlgorithm::X25519
+                || peer_resource.algorithm != CryptoKeyAlgorithm::X25519
+            {
+                return Err(invalid_argument(
+                    "algorithm",
+                    "X25519 agreement requires X25519 private and public keys",
+                ));
+            }
+        }
+        CryptoKeyAgreementAlgorithm::X448 => {
+            if private_resource.algorithm != CryptoKeyAlgorithm::X448
+                || peer_resource.algorithm != CryptoKeyAlgorithm::X448
+            {
+                return Err(invalid_argument(
+                    "algorithm",
+                    "X448 agreement requires X448 private and public keys",
+                ));
+            }
+        }
+        CryptoKeyAgreementAlgorithm::Unknown => {
+            return Err(invalid_argument(
+                "algorithm",
+                "key agreement algorithm must not be Unknown",
+            ));
+        }
+    }
+
+    // clone provider key objects and release locks before derive
+    let private = match &private_resource.material {
+        CryptoKeyMaterial::Private(private_key) => private_key.clone(),
+        _ => {
+            return Err(invalid_argument(
+                "privateKey",
+                "privateKey handle does not reference one private key",
+            ));
+        }
+    };
+    let peer = match &peer_resource.material {
+        CryptoKeyMaterial::Public(peer_key) => peer_key.clone(),
+        _ => {
+            return Err(invalid_argument(
+                "peerPublicKey",
+                "peerPublicKey handle does not reference one public key",
+            ));
+        }
+    };
+    drop(private_resource);
+    drop(peer_resource);
+
+    // derive the shared secret through openssl
+    let mut deriver = Deriver::new(&private)
+        .map_err(|error| openssl_error("destack.crypto.agreement.deriveSharedSecret", error))?;
+    deriver
+        .set_peer(&peer)
+        .map_err(|error| openssl_error("destack.crypto.agreement.deriveSharedSecret", error))?;
+    deriver
+        .derive_to_vec()
+        .map_err(|error| openssl_error("destack.crypto.agreement.deriveSharedSecret", error))
+}
+
+/// Derive one shared secret and run one HKDF stage.
+pub(crate) fn agreement_derive_key(
+    context: &BindingCallContext,
+    private_key: resource::CryptoKeyHandle,
+    peer_public_key: resource::CryptoKeyHandle,
+    request: CryptoAgreementDeriveKeyRequest,
+) -> RuntimeResult<Vec<u8>> {
+    // enforce derive keys usage on the private key
+    require_key_usage(
+        context,
+        private_key,
+        KEY_USAGE_DERIVE_KEYS,
+        "destack.crypto.agreement.deriveKey",
+    )?;
+
+    // derive raw secret first
+    let mut shared =
+        agreement_derive_shared_secret(context, private_key, peer_public_key, request.algorithm)?;
+
+    // decode hkdf context inputs
+    let salt = decode_native_bytes(request.salt, "request.salt")?;
+    let info = decode_native_bytes(request.info, "request.info")?;
+
+    // expand into the requested output and scrub the raw shared secret
+    let output = hkdf_expand(
+        request.digest,
+        &shared,
+        &salt,
+        &info,
+        request.output_length as usize,
+        "destack.crypto.agreement.deriveKey",
+    );
+    shared.zeroize();
+    output
+}
