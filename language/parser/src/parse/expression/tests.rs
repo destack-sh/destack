@@ -5770,40 +5770,41 @@ fn test_parse_labelled_statement_with_newline_before_target() {
     });
 }
 
-/// Parse newline-separated parenthesized assertion starters as separate statements.
+/// Parse newline-separated parenthesized assertion starters as a continued call.
 #[test]
-fn test_parse_statement_newline_before_parenthesized_assertion_prevents_call_continuation() {
+fn test_parse_statement_newline_before_parenthesized_assertion_continues_call() {
     let mut test = TestParser::new_with_options(
-        "(foo.bar as Baz) = value\n(foo.bar as any)++",
+        "(foo.bar as Baz)\n(foo.bar as any)",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
-    let expressions = parser.parse();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    assert!(
-        parser.errors.is_empty(),
-        "unexpected parser errors: {:?}",
-        parser.errors
-    );
-    assert_eq!(expressions.len(), 2);
+    // (foo.bar as Baz) (foo.bar as any)
+    assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_eq!(dynamic_arguments.len(), 1);
 
-    let first_expression_id = parser.unwrap_statement_expression(expressions[0]);
-    assert_node!(parser.tree, first_expression_id, Expression::Assign { left, operator, right } => {
-        assert_eq!(*operator, AssignOperator::Assign);
+        // (foo.bar as Baz)
         assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
-            assert_node!(parser.tree, *expression, Expression::TypeBinary { operator, .. } => {
+            // foo.bar as Baz
+            assert_node!(parser.tree, *expression, Expression::TypeBinary { left, operator, right } => {
                 assert_eq!(*operator, TypeBinaryOperator::Cast);
+                // foo.bar
+                assert_expression_path!(parser, parser.tree.get(*left), "foo.bar");
+                // Baz
+                assert_expression_path!(parser, parser.tree.get(*right), "Baz");
             });
         });
-        assert_expression_path!(parser, parser.tree.get(*right), "value");
-    });
 
-    let second_expression_id = parser.unwrap_statement_expression(expressions[1]);
-    assert_node!(parser.tree, second_expression_id, Expression::Unary { operator, right } => {
-        assert_eq!(*operator, UnaryOperator::PostIncrement);
-        assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
-            assert_node!(parser.tree, *expression, Expression::TypeBinary { operator, .. } => {
+        // (foo.bar as any)
+        assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+            // foo.bar as any
+            assert_node!(parser.tree, *value, Expression::TypeBinary { left, operator, right } => {
                 assert_eq!(*operator, TypeBinaryOperator::Cast);
+                // foo.bar
+                assert_expression_path!(parser, parser.tree.get(*left), "foo.bar");
+                // any
+                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Any));
             });
         });
     });

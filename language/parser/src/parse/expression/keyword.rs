@@ -618,7 +618,14 @@ impl Parser {
             }
             // function or method declaration
             Keyword::Function | Keyword::Abstract | Keyword::Override => {
-                if matches!(keyword, Keyword::Abstract | Keyword::Override) && next_has_line_break {
+                // keep multiline `abstract new (...) => ...` construct signatures valid in type context
+                let is_multiline_abstract_construct_signature = keyword == Keyword::Abstract
+                    && self.options.is_in_type()
+                    && next_keyword == Some(Keyword::New);
+                if matches!(keyword, Keyword::Abstract | Keyword::Override)
+                    && next_has_line_break
+                    && !is_multiline_abstract_construct_signature
+                {
                     return Ok(None);
                 }
 

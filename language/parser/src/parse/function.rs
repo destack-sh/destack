@@ -100,6 +100,27 @@ impl Parser {
             && *descriptor == DeclarationDescriptor::default()
     }
 
+    /// Return the `new` keyword index when the current position starts a construct signature head.
+    #[inline]
+    fn construct_signature_new_index_maybe(&mut self) -> Option<usize> {
+        let new_index = self.next_non_newline_index_from(self.pos_index());
+        let has_new_keyword = self.token_type_at(new_index) == TokenType::Identifier
+            && self.keyword_for_index(new_index) == Some(Keyword::New);
+        if !has_new_keyword {
+            return None;
+        }
+
+        let after_new_index = self.next_non_newline_index_from(new_index.saturating_add(1));
+        let has_construct_signature_head = self.token_type_at(after_new_index)
+            == TokenType::LessThan
+            || self.token_type_at(after_new_index) == TokenType::OpenParenthesis;
+        if !has_construct_signature_head {
+            return None;
+        }
+
+        Some(new_index)
+    }
+
     /// Parse a lambda body after the arrow.
     fn eat_plain_lambda_body(
         &mut self,
@@ -773,10 +794,10 @@ impl Parser {
         };
 
         // new
-        let mode = if self.is_keyword(Keyword::New)
-            && (self.peek_next_is(TokenType::LessThan)
-                || self.peek_next_is(TokenType::OpenParenthesis))
-        {
+        let mode = if let Some(new_index) = self.construct_signature_new_index_maybe() {
+            if new_index != self.pos_index() {
+                self.advance_to(new_index);
+            }
             self.bump(); // eat new keyword
             Some(FunctionMode::New)
         } else {
@@ -1118,8 +1139,8 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, Asynchrony, BinaryOperator, CommentStyle, Declaration, DeclarationDescriptor,
-        Expression, FunctionCardinality, FunctionKind, FunctionMode, IntType, Parameter,
-        ScalarLiteral, TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
+        Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, IntType,
+        Parameter, ScalarLiteral, TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
     };
 
     use destack_source::LanguageType;
@@ -1459,6 +1480,27 @@ function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
             assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, .. } => {
                 assert_string!(parser, *name, "data");
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_abstract_new_type_with_newline() {
+        let mut test = TestParser::new("abstract\nnew (): T");
+        let mut parser = test.prepare();
+        parser.options.set_in_type(true);
+
+        let start = parser.mark();
+        let function_id = parser
+            .eat_function(&start, DeclarationDescriptor::default(), false, false)
+            .unwrap();
+
+        // abstract\nnew (): T
+        assert_node!(parser.tree, function_id, Declaration::Function { signature, .. } => {
+            assert_eq!(signature.abstraction, FunctionAbstraction::Abstract);
+            assert_eq!(signature.mode, Some(FunctionMode::New));
+            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert!(signature.dynamic_parameters.is_empty());
+            assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
         });
     }
 
