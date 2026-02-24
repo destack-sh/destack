@@ -1,9 +1,9 @@
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
     CryptoCertificateListPage, CryptoCertificateQuery, CryptoKeyListPage, CryptoKeyQuery,
-    CryptoStoreOptions, core as crypto_core,
+    CryptoStoreCapability, CryptoStoreKind, CryptoStoreOptions, core as crypto_core,
 };
-use crate::platform::resource;
+use crate::platform::{NativeArray, NativeStringRef, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core::write_out_value;
@@ -12,8 +12,9 @@ use super::core::write_out_value;
 ///
 /// Create one runtime provider store handle for key and certificate operations.
 /// Provider selection and access scope follow runtime crypto store semantics.
-/// `Ephemeral` store support is required.
-/// Other kinds may return notSupported until host store providers are implemented.
+/// `Ephemeral` and `Provider` store support is required.
+/// Host-backed `System`, `User`, and `Machine` support is host dependent.
+/// Host-backed lanes may expose certificate reads while rejecting key or certificate writes.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
@@ -112,4 +113,54 @@ pub(crate) unsafe fn destack_crypto_store_list_certificates(
 ) -> RuntimeResult<()> {
     let page = crypto_core::store_list_certificates(context, handle, query)?;
     unsafe { write_out_value(out, page) }
+}
+
+/// Return capabilities for one store backend lane.
+///
+/// Query one store kind and optional provider name and return effective capability policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store provider capability introspection.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_store_probe_capability(
+    context: &BindingCallContext,
+    out: *mut CryptoStoreCapability,
+    kind: CryptoStoreKind,
+    providername: NativeStringRef,
+) -> RuntimeResult<()> {
+    let capability = crypto_core::store_probe_capability(context, kind, providername)?;
+    unsafe { write_out_value(out, capability) }
+}
+
+/// List store backend kinds that are currently available.
+///
+/// Return one runtime capability snapshot for store backends that can be opened.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store provider capability introspection.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_store_probe_kinds(
+    context: &BindingCallContext,
+    out: *mut NativeArray<CryptoStoreKind>,
+) -> RuntimeResult<()> {
+    let kinds = crypto_core::store_probe_kinds(context)?;
+    unsafe { write_out_value(out, context.store_array(kinds)) }
 }

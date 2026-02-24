@@ -8,19 +8,40 @@ use crate::platform::crypto::{
     CryptoCertificateQuery, CryptoCertificateQueryVm, CryptoCertificateVerifyRequest,
     CryptoCertificateVerifyRequestVm, CryptoCipherOutput, CryptoCipherOutputVm,
     CryptoCipherParameters, CryptoCipherParametersVm, CryptoHkdfRequest, CryptoHkdfRequestVm,
-    CryptoKeyAlgorithm, CryptoKeyDescriptor, CryptoKeyDescriptorVm, CryptoKeyGenerationRequest,
-    CryptoKeyGenerationRequestVm, CryptoKeyImportRequest, CryptoKeyImportRequestVm,
-    CryptoKeyListPage, CryptoKeyListPageVm, CryptoKeyQuery, CryptoKeyQueryVm, CryptoMacParameters,
-    CryptoPbkdf2Request, CryptoPbkdf2RequestVm, CryptoScryptRequest, CryptoScryptRequestVm,
-    CryptoSignatureParameters, CryptoStoreOptions, CryptoStoreOptionsVm,
+    CryptoKeyAlgorithm, CryptoKeyDescriptor, CryptoKeyDescriptorVm, CryptoKeyFormat,
+    CryptoKeyGenerationRequest, CryptoKeyGenerationRequestVm, CryptoKeyImportRequest,
+    CryptoKeyImportRequestVm, CryptoKeyListPage, CryptoKeyListPageVm, CryptoKeyQuery,
+    CryptoKeyQueryVm, CryptoMacParameters, CryptoPbkdf2Request, CryptoPbkdf2RequestVm,
+    CryptoScryptRequest, CryptoScryptRequestVm, CryptoSignatureParameters, CryptoStoreCapability,
+    CryptoStoreCapabilityVm, CryptoStoreKind, CryptoStoreOptions, CryptoStoreOptionsVm,
 };
-use crate::platform::{PlatformError, VmValueCodec};
+use crate::platform::{NativeArray, PlatformError, VmArray, VmValueCodec, resource};
 
 #[path = "harness.generated.rs"]
 mod generated;
 
 #[allow(unused_imports)]
 pub(crate) use generated::*;
+
+/// Decoded store capability values.
+pub(crate) struct HarnessStoreCapability {
+    /// Store backend kind lane.
+    pub(crate) kind: CryptoStoreKind,
+    /// Provider-name lane.
+    pub(crate) provider_name: String,
+    /// Availability lane.
+    pub(crate) is_available: bool,
+    /// Hardware-backed policy lane.
+    pub(crate) supports_hardware_backed: bool,
+    /// Persistence policy lane.
+    pub(crate) supports_persistent: bool,
+    /// Key export policy lane.
+    pub(crate) supports_key_export: bool,
+    /// Supported key algorithms lane.
+    pub(crate) supported_key_algorithms: Vec<CryptoKeyAlgorithm>,
+    /// Supported key formats lane.
+    pub(crate) supported_key_formats: Vec<CryptoKeyFormat>,
+}
 
 /// Convert one native string into one VM string handle.
 fn vm_string_from_native(
@@ -185,6 +206,31 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
+    /// Decode one backend-specific typed array into values.
+    pub(crate) fn values_from_array<T: Copy + VmValueCodec>(
+        &self,
+        value: HarnessValue<NativeArray<T>, VmArray<T>>,
+    ) -> RuntimeResult<Vec<T>> {
+        // decode values from native or vm array representation
+        match value {
+            HarnessValue::Native(value) => {
+                let value = unsafe { value.as_slice()? };
+                Ok(value.to_vec())
+            }
+            HarnessValue::Vm(value) => {
+                // vm decoding requires one vm call context
+                let context = self.vm_context_mut().ok_or_else(|| {
+                    RuntimeError::from(PlatformError::invalid_argument_value(
+                        "context",
+                        "vm context is required for vm array values",
+                    ))
+                    .boxed()
+                })?;
+                value.read_values(context)
+            }
+        }
+    }
+
     /// Decode one cipher output into byte and tag vectors.
     pub(crate) fn cipher_output_from_value(
         &self,
@@ -255,6 +301,46 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
+    /// Decode one certificate descriptor store provenance tuple.
+    pub(crate) fn certificate_descriptor_store_provenance_from_value(
+        &self,
+        value: HarnessValue<CryptoCertificateDescriptor, CryptoCertificateDescriptorVm>,
+    ) -> RuntimeResult<(CryptoStoreKind, String, String)> {
+        // decode store provenance from native or vm certificate descriptor values
+        match value {
+            HarnessValue::Native(value) => {
+                let provider_name = unsafe { value.store_provenance.provider_name.as_str()? };
+                let namespace = unsafe { value.store_provenance.namespace.as_str()? };
+                Ok((
+                    value.store_provenance.kind,
+                    provider_name.to_string(),
+                    namespace.to_string(),
+                ))
+            }
+            HarnessValue::Vm(value) => {
+                // vm decoding requires one vm call context
+                let context = self.vm_context_mut().ok_or_else(|| {
+                    RuntimeError::from(PlatformError::invalid_argument_value(
+                        "context",
+                        "vm context is required for vm certificate descriptors",
+                    ))
+                    .boxed()
+                })?;
+                let provider_name = context
+                    .string_ref(value.store_provenance.provider_name)
+                    .map_err(|error| RuntimeError::from(error).boxed())?
+                    .as_str()
+                    .to_string();
+                let namespace = context
+                    .string_ref(value.store_provenance.namespace)
+                    .map_err(|error| RuntimeError::from(error).boxed())?
+                    .as_str()
+                    .to_string();
+                Ok((value.store_provenance.kind, provider_name, namespace))
+            }
+        }
+    }
+
     /// Decode one key descriptor algorithm.
     pub(crate) fn key_algorithm_from_value(
         &self,
@@ -264,6 +350,46 @@ impl<'call> CryptoHarnessContext<'call> {
         match value {
             HarnessValue::Native(value) => value.algorithm,
             HarnessValue::Vm(value) => value.algorithm,
+        }
+    }
+
+    /// Decode one key descriptor store provenance tuple.
+    pub(crate) fn key_descriptor_store_provenance_from_value(
+        &self,
+        value: HarnessValue<CryptoKeyDescriptor, CryptoKeyDescriptorVm>,
+    ) -> RuntimeResult<(CryptoStoreKind, String, String)> {
+        // decode store provenance from native or vm key descriptor values
+        match value {
+            HarnessValue::Native(value) => {
+                let provider_name = unsafe { value.store_provenance.provider_name.as_str()? };
+                let namespace = unsafe { value.store_provenance.namespace.as_str()? };
+                Ok((
+                    value.store_provenance.kind,
+                    provider_name.to_string(),
+                    namespace.to_string(),
+                ))
+            }
+            HarnessValue::Vm(value) => {
+                // vm decoding requires one vm call context
+                let context = self.vm_context_mut().ok_or_else(|| {
+                    RuntimeError::from(PlatformError::invalid_argument_value(
+                        "context",
+                        "vm context is required for vm key descriptors",
+                    ))
+                    .boxed()
+                })?;
+                let provider_name = context
+                    .string_ref(value.store_provenance.provider_name)
+                    .map_err(|error| RuntimeError::from(error).boxed())?
+                    .as_str()
+                    .to_string();
+                let namespace = context
+                    .string_ref(value.store_provenance.namespace)
+                    .map_err(|error| RuntimeError::from(error).boxed())?
+                    .as_str()
+                    .to_string();
+                Ok((value.store_provenance.kind, provider_name, namespace))
+            }
         }
     }
 
@@ -293,6 +419,42 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
+    /// Decode one key-list page into key handles.
+    pub(crate) fn key_list_handles(
+        &self,
+        value: HarnessValue<CryptoKeyListPage, CryptoKeyListPageVm>,
+    ) -> RuntimeResult<Vec<resource::CryptoKeyHandle>> {
+        // decode key handles from native or vm page entries
+        match value {
+            HarnessValue::Native(value) => {
+                let entries = unsafe { value.entries.as_slice()? };
+                let mut handles = Vec::with_capacity(entries.len());
+                for entry in entries {
+                    handles.push(entry.handle);
+                }
+
+                Ok(handles)
+            }
+            HarnessValue::Vm(value) => {
+                // vm decoding requires one vm call context
+                let context = self.vm_context_mut().ok_or_else(|| {
+                    RuntimeError::from(PlatformError::invalid_argument_value(
+                        "context",
+                        "vm context is required for vm key-list pages",
+                    ))
+                    .boxed()
+                })?;
+                let entries = value.entries.read_values(context)?;
+                let mut handles = Vec::with_capacity(entries.len());
+                for entry in &entries {
+                    handles.push(entry.handle);
+                }
+
+                Ok(handles)
+            }
+        }
+    }
+
     /// Decode one certificate-list page entry count.
     pub(crate) fn certificate_list_entry_count(
         &self,
@@ -315,6 +477,94 @@ impl<'call> CryptoHarnessContext<'call> {
                 })?;
                 let entries = value.entries.raw_values(context)?;
                 Ok(entries.len())
+            }
+        }
+    }
+
+    /// Decode one certificate-list page into certificate handles.
+    pub(crate) fn certificate_list_handles(
+        &self,
+        value: HarnessValue<CryptoCertificateListPage, CryptoCertificateListPageVm>,
+    ) -> RuntimeResult<Vec<resource::CryptoCertificateHandle>> {
+        // decode certificate handles from native or vm page entries
+        match value {
+            HarnessValue::Native(value) => {
+                let entries = unsafe { value.entries.as_slice()? };
+                let mut handles = Vec::with_capacity(entries.len());
+                for entry in entries {
+                    handles.push(entry.handle);
+                }
+                Ok(handles)
+            }
+            HarnessValue::Vm(value) => {
+                // vm decoding requires one vm call context
+                let context = self.vm_context_mut().ok_or_else(|| {
+                    RuntimeError::from(PlatformError::invalid_argument_value(
+                        "context",
+                        "vm context is required for vm certificate-list pages",
+                    ))
+                    .boxed()
+                })?;
+                let entries = value.entries.read_values(context)?;
+                let mut handles = Vec::with_capacity(entries.len());
+                for entry in &entries {
+                    handles.push(entry.handle);
+                }
+                Ok(handles)
+            }
+        }
+    }
+
+    /// Decode one store capability payload.
+    pub(crate) fn store_capability_from_value(
+        &self,
+        value: HarnessValue<CryptoStoreCapability, CryptoStoreCapabilityVm>,
+    ) -> RuntimeResult<HarnessStoreCapability> {
+        // decode one store capability payload from native or vm values
+        match value {
+            HarnessValue::Native(value) => {
+                let provider_name = unsafe { value.provider_name.as_str()? };
+                let supported_key_algorithms =
+                    unsafe { value.supported_key_algorithms.as_slice()? };
+                let supported_key_formats = unsafe { value.supported_key_formats.as_slice()? };
+                Ok(HarnessStoreCapability {
+                    kind: value.kind,
+                    provider_name: provider_name.to_string(),
+                    is_available: value.is_available,
+                    supports_hardware_backed: value.supports_hardware_backed,
+                    supports_persistent: value.supports_persistent,
+                    supports_key_export: value.supports_key_export,
+                    supported_key_algorithms: supported_key_algorithms.to_vec(),
+                    supported_key_formats: supported_key_formats.to_vec(),
+                })
+            }
+            HarnessValue::Vm(value) => {
+                // vm decoding requires one vm call context
+                let context = self.vm_context_mut().ok_or_else(|| {
+                    RuntimeError::from(PlatformError::invalid_argument_value(
+                        "context",
+                        "vm context is required for vm store capabilities",
+                    ))
+                    .boxed()
+                })?;
+                let provider_name = context
+                    .string_ref(value.provider_name)
+                    .map_err(|error| RuntimeError::from(error).boxed())?
+                    .as_str()
+                    .to_string();
+                let supported_key_algorithms =
+                    value.supported_key_algorithms.read_values(context)?;
+                let supported_key_formats = value.supported_key_formats.read_values(context)?;
+                Ok(HarnessStoreCapability {
+                    kind: value.kind,
+                    provider_name,
+                    is_available: value.is_available,
+                    supports_hardware_backed: value.supports_hardware_backed,
+                    supports_persistent: value.supports_persistent,
+                    supports_key_export: value.supports_key_export,
+                    supported_key_algorithms,
+                    supported_key_formats,
+                })
             }
         }
     }

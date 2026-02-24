@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use getrandom::fill as fill_secure_random;
 use openssl::hash::Hasher;
 use openssl::pkey::{PKey, Private, Public};
 use openssl::symm::Crypter;
@@ -11,6 +12,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::crypto::{
     CryptoCipherAlgorithm, CryptoCipherDirection, CryptoDigestAlgorithm, CryptoKeyAlgorithm,
     CryptoKeyKind, CryptoKeyUsageMask, CryptoMacParameters, CryptoNamedCurve, CryptoStoreKind,
+    CryptoStoreProvenance, host as crypto_host,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::ResourceEntry;
@@ -36,6 +38,46 @@ pub(super) struct CryptoProbeSupport {
     pub(super) x448: bool,
 }
 
+/// Host key backend lanes.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HostKeyBackend {
+    /// macOS secure enclave keychain lane.
+    SecureEnclave,
+    /// macOS keychain RSA lane.
+    KeychainRsa,
+    /// macOS keychain EC lane.
+    KeychainEc,
+}
+
+/// Host-managed key payload.
+#[derive(Clone)]
+pub(crate) struct HostKeyMaterial {
+    /// Host backend lane.
+    pub(crate) backend: HostKeyBackend,
+    /// Host key label used for keychain lookup.
+    pub(crate) key_label: String,
+    /// Cached SPKI DER public-key payload.
+    pub(crate) public_key_spki_der: Vec<u8>,
+}
+
+/// Host-generated asymmetric key pair payload.
+pub(crate) struct HostGeneratedKeyPair {
+    /// Private key material managed by one host backend.
+    pub(crate) private_material: CryptoKeyMaterial,
+    /// Public key material in runtime provider form.
+    pub(crate) public_key: PKey<Public>,
+    /// Effective key algorithm.
+    pub(crate) algorithm: CryptoKeyAlgorithm,
+    /// Effective named curve.
+    pub(crate) named_curve: CryptoNamedCurve,
+    /// Effective key size in bits.
+    pub(crate) size_bits: u32,
+    /// Effective modulus bits when present.
+    pub(crate) modulus_bits: u32,
+    /// Effective public exponent when present.
+    pub(crate) public_exponent: u32,
+}
+
 /// Internal key-material state.
 #[derive(Clone)]
 pub(crate) enum CryptoKeyMaterial {
@@ -45,6 +87,8 @@ pub(crate) enum CryptoKeyMaterial {
     Private(PKey<Private>),
     /// Public-key material.
     Public(PKey<Public>),
+    /// Host-managed key material.
+    Host(HostKeyMaterial),
 }
 
 impl Drop for CryptoKeyMaterial {
@@ -83,8 +127,23 @@ pub(crate) struct CryptoKeyResource {
     pub(crate) hardware_backed: bool,
     /// Persistence policy lane.
     pub(crate) persistent: bool,
+    /// Backend persistent identifier.
+    pub(crate) persistent_id: String,
+    /// Effective store provenance lane.
+    pub(crate) store_provenance: CryptoStoreProvenanceResource,
     /// Key bytes or provider key object.
     pub(crate) material: CryptoKeyMaterial,
+}
+
+/// Internal store provenance payload.
+#[derive(Clone)]
+pub(crate) struct CryptoStoreProvenanceResource {
+    /// Store kind lane.
+    pub(crate) kind: CryptoStoreKind,
+    /// Provider-name lane.
+    pub(crate) provider_name: String,
+    /// Namespace lane.
+    pub(crate) namespace: String,
 }
 
 /// Internal certificate resource payload.
@@ -92,6 +151,8 @@ pub(crate) struct CryptoKeyResource {
 pub(crate) struct CryptoCertificateResource {
     /// Parsed X509 object.
     pub(crate) certificate: X509,
+    /// Effective store provenance lane.
+    pub(crate) store_provenance: CryptoStoreProvenanceResource,
 }
 
 /// Internal store resource payload.
@@ -100,6 +161,8 @@ pub(crate) struct CryptoStoreResource {
     pub(crate) kind: CryptoStoreKind,
     /// Provider-name lane.
     pub(crate) provider_name: String,
+    /// Namespace lane.
+    pub(crate) namespace: String,
     /// Registered key handles.
     pub(crate) keys: Vec<resource::CryptoKeyHandle>,
     /// Registered certificate handles.
@@ -313,21 +376,191 @@ pub(super) fn resolve_store_resource(
 
 /// Enforce key storage policy against one store kind.
 pub(super) fn enforce_store_key_policy(
+    context: &BindingCallContext,
     store: &CryptoStoreResource,
     hardware_backed: bool,
     persistent: bool,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    if store.kind == CryptoStoreKind::Ephemeral {
-        if hardware_backed {
-            return Err(not_supported(operation));
-        }
-        if persistent {
-            return Err(not_supported(operation));
-        }
+    // resolve effective store-key policy support for this lane
+    let support = store_key_policy_support(context, store);
+
+    // reject stores that do not support key-write operations
+    if !support.supports_key_writes {
+        return Err(not_supported(operation));
+    }
+
+    // reject unsupported persistent policy lanes
+    if persistent && !support.supports_persistent {
+        return Err(not_supported(operation));
+    }
+
+    // reject unsupported hardware-backed policy lanes
+    if hardware_backed && !support.supports_hardware_backed {
+        return Err(not_supported(operation));
     }
 
     Ok(())
+}
+
+/// Store key-policy support lanes for one open store resource.
+struct StoreKeyPolicySupport {
+    /// Whether this lane supports key-write operations.
+    supports_key_writes: bool,
+    /// Whether this lane supports persistent key operations.
+    supports_persistent: bool,
+    /// Whether this lane supports hardware-backed key operations.
+    supports_hardware_backed: bool,
+}
+
+/// Resolve key-policy support for one open store resource.
+fn store_key_policy_support(
+    context: &BindingCallContext,
+    store: &CryptoStoreResource,
+) -> StoreKeyPolicySupport {
+    // derive provider and ephemeral lane support
+    if store.kind == CryptoStoreKind::Provider {
+        let supports_key_writes =
+            store.provider_name.is_empty() || store.provider_name == "openssl";
+        return StoreKeyPolicySupport {
+            supports_key_writes,
+            supports_persistent: false,
+            supports_hardware_backed: false,
+        };
+    }
+    if store.kind == CryptoStoreKind::Ephemeral {
+        return StoreKeyPolicySupport {
+            supports_key_writes: true,
+            supports_persistent: false,
+            supports_hardware_backed: false,
+        };
+    }
+
+    // derive host-lane write support from availability and persistence backend state
+    let is_available = crypto_host::host_store_lane_is_available(context, store.kind);
+    let supports_persistent = is_available
+        && host_store_supports_key_persistence(store.kind)
+        && crypto_host::host_store_persistence_backend_is_available(context, store.kind);
+    let supports_hardware_backed =
+        is_available && host_store_supports_hardware_backed_key(context, store.kind);
+
+    StoreKeyPolicySupport {
+        supports_key_writes: supports_persistent,
+        supports_persistent,
+        supports_hardware_backed,
+    }
+}
+
+/// Return whether one host-lane store supports persistent key writes.
+pub(super) fn host_store_supports_key_persistence(kind: CryptoStoreKind) -> bool {
+    crypto_host::host_store_supports_key_persistence(kind)
+}
+
+/// Return whether one host-lane store supports hardware-backed keys.
+pub(super) fn host_store_supports_hardware_backed_key(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+) -> bool {
+    crypto_host::host_store_supports_hardware_backed_key(context, kind)
+}
+
+/// Return whether one host-lane store supports certificate write operations.
+pub(super) fn host_store_supports_certificate_write(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+) -> bool {
+    crypto_host::host_store_supports_certificate_write(context, kind)
+}
+
+/// Enforce certificate write policy for one store lane.
+pub(super) fn enforce_store_certificate_write_policy(
+    context: &BindingCallContext,
+    store: &CryptoStoreResource,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // allow certificate writes on host lanes that explicitly support writes
+    if matches!(
+        store.kind,
+        CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
+    ) && !host_store_supports_certificate_write(context, store.kind)
+    {
+        return Err(not_supported(operation));
+    }
+
+    Ok(())
+}
+
+/// Enforce delete policy for one object provenance lane.
+pub(super) fn enforce_object_delete_policy(
+    context: &BindingCallContext,
+    store_provenance: &CryptoStoreProvenanceResource,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // allow object deletion on host lanes that explicitly support writes
+    if matches!(
+        store_provenance.kind,
+        CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
+    ) && !host_store_supports_certificate_write(context, store_provenance.kind)
+    {
+        return Err(not_supported(operation));
+    }
+
+    Ok(())
+}
+
+/// Return one new random persistent identifier.
+pub(super) fn create_persistent_identifier(operation: &'static str) -> RuntimeResult<String> {
+    // generate one random 128-bit identifier payload
+    let mut random_bytes = [0u8; 16];
+    fill_secure_random(&mut random_bytes).map_err(|error| {
+        invalid_data(
+            operation,
+            format!("failed to generate persistent identifier bytes: {error}"),
+        )
+    })?;
+
+    // format one lowercase hex identifier
+    let mut identifier = String::with_capacity(random_bytes.len() * 2);
+    for byte in random_bytes {
+        let high_nibble = byte >> 4;
+        let low_nibble = byte & 0x0f;
+        identifier.push(nibble_to_hex(high_nibble));
+        identifier.push(nibble_to_hex(low_nibble));
+    }
+
+    Ok(identifier)
+}
+
+/// Convert one nibble value into one lowercase hex character.
+fn nibble_to_hex(nibble: u8) -> char {
+    match nibble {
+        0..=9 => (b'0' + nibble) as char,
+        10..=15 => (b'a' + (nibble - 10)) as char,
+        _ => '0',
+    }
+}
+
+/// Snapshot one store provenance payload from one store resource.
+pub(super) fn store_provenance_from_store(
+    store: &CryptoStoreResource,
+) -> CryptoStoreProvenanceResource {
+    CryptoStoreProvenanceResource {
+        kind: store.kind,
+        provider_name: store.provider_name.clone(),
+        namespace: store.namespace.clone(),
+    }
+}
+
+/// Convert one internal store provenance payload into one binding descriptor payload.
+pub(super) fn store_provenance_to_descriptor(
+    context: &BindingCallContext,
+    store_provenance: &CryptoStoreProvenanceResource,
+) -> CryptoStoreProvenance {
+    CryptoStoreProvenance {
+        kind: store_provenance.kind,
+        provider_name: context.store_string(&store_provenance.provider_name),
+        namespace: context.store_string(&store_provenance.namespace),
+    }
 }
 
 /// Resolve one certificate from one handle.

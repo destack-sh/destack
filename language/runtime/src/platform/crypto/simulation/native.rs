@@ -15,7 +15,8 @@ use crate::platform::crypto::{
     CryptoKeyAlgorithm, CryptoKeyDescriptor, CryptoKeyFormat, CryptoKeyGenerationRequest,
     CryptoKeyImportRequest, CryptoKeyListPage, CryptoKeyPair, CryptoKeyQuery, CryptoMacAlgorithm,
     CryptoMacParameters, CryptoNamedCurve, CryptoPbkdf2Request, CryptoScryptRequest,
-    CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreOptions,
+    CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreCapability, CryptoStoreKind,
+    CryptoStoreOptions,
 };
 use crate::platform::resource;
 
@@ -1665,12 +1666,71 @@ pub(crate) unsafe fn destack_crypto_store_list_keys(
     .boxed())
 }
 
+/// Return capabilities for one store backend lane.
+///
+/// Query one store kind and optional provider name and return effective capability policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store provider capability introspection.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_store_probe_capability(
+    _context: &BindingCallContext,
+    out: *mut CryptoStoreCapability,
+    kind: CryptoStoreKind,
+    providername: NativeStringRef,
+) -> RuntimeResult<()> {
+    let _ = (out, kind, providername);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.store.probeCapability",
+    ))
+    .boxed())
+}
+
+/// List store backend kinds that are currently available.
+///
+/// Return one runtime capability snapshot for store backends that can be opened.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store provider capability introspection.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_store_probe_kinds(
+    _context: &BindingCallContext,
+    out: *mut NativeArray<CryptoStoreKind>,
+) -> RuntimeResult<()> {
+    let _ = out;
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.store.probeKinds",
+    ))
+    .boxed())
+}
+
 /// Open one crypto store.
 ///
 /// Create one runtime provider store handle for key and certificate operations.
 /// Provider selection and access scope follow runtime crypto store semantics.
-/// `Ephemeral` store support is required.
-/// Other kinds may return notSupported until host store providers are implemented.
+/// `Ephemeral` and `Provider` store support is required.
+/// Host-backed `System`, `User`, and `Machine` support is host dependent.
+/// Host-backed lanes may expose certificate reads while rejecting key or certificate writes.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.

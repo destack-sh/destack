@@ -23,11 +23,13 @@ use crate::platform::crypto::{
     CryptoKeyQueryVm, CryptoKeyUsageMask, CryptoMacAlgorithm, CryptoMacParameters,
     CryptoMacParametersVm, CryptoNamedCurve, CryptoPbkdf2Request, CryptoPbkdf2RequestVm,
     CryptoScryptRequest, CryptoScryptRequestVm, CryptoSignatureAlgorithm,
-    CryptoSignatureParameters, CryptoSignatureParametersVm, CryptoStoreKind, CryptoStoreOptions,
-    CryptoStoreOptionsVm,
+    CryptoSignatureParameters, CryptoSignatureParametersVm, CryptoStoreCapability,
+    CryptoStoreCapabilityReplayRecord, CryptoStoreCapabilityVm, CryptoStoreKind,
+    CryptoStoreOptions, CryptoStoreOptionsVm,
 };
 use crate::platform::{
-    NativeSlice, PlatformError, RuntimeStatus, VmArray, VmSlice, abi as platform_abi,
+    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
+    abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
@@ -370,8 +372,14 @@ fn encode_destack_crypto_certificate_descriptor_result(
         };
         let field_6 = vm::Value::bool(value.is_certificate_authority);
         let field_7 = vm::Value::uint(value.key_usage_mask as u64, 32);
+        let field_8 = {
+            let field_0 = vm::Value::uint(value.store_provenance.kind as u8 as u64, 8);
+            let field_1 = value.store_provenance.provider_name.value();
+            let field_2 = value.store_provenance.namespace.value();
+            context.allocate_aggregate(vec![field_0, field_1, field_2])
+        };
         context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
         ])
     })
 }
@@ -1626,9 +1634,15 @@ fn encode_destack_crypto_key_descriptor_result(
         let field_9 = vm::Value::bool(value.extractable);
         let field_10 = vm::Value::bool(value.hardware_backed);
         let field_11 = vm::Value::bool(value.persistent);
+        let field_12 = {
+            let field_0 = vm::Value::uint(value.store_provenance.kind as u8 as u64, 8);
+            let field_1 = value.store_provenance.provider_name.value();
+            let field_2 = value.store_provenance.namespace.value();
+            context.allocate_aggregate(vec![field_0, field_1, field_2])
+        };
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11,
+            field_9, field_10, field_11, field_12,
         ])
     })
 }
@@ -3520,6 +3534,63 @@ fn encode_destack_crypto_store_open_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
+/// Decode arguments for destack.crypto.store.probeCapability.
+#[inline]
+fn decode_destack_crypto_store_probe_capability_args(
+    _context: &mut vm::ExternalCallContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(CryptoStoreKind, vm::StringHandle)> {
+    let kind_value = arg_value(args, 0, "kind", "CryptoStoreKind")?;
+    let kind_raw = decode_uint8(kind_value, "kind_raw", "CryptoStoreKind")?;
+    let kind = match kind_raw {
+        0u8 => CryptoStoreKind::System,
+        1u8 => CryptoStoreKind::User,
+        2u8 => CryptoStoreKind::Machine,
+        3u8 => CryptoStoreKind::Provider,
+        4u8 => CryptoStoreKind::Ephemeral,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "kind",
+                "unknown CryptoStoreKind value",
+            ))
+            .boxed());
+        }
+    };
+    let providername_value = arg_value(args, 1, "providername", "string")?;
+    let providername = decode_string(providername_value, "providername", "string")?;
+    Ok((kind, providername))
+}
+
+/// Encode the result for destack.crypto.store.probeCapability.
+#[inline]
+fn encode_destack_crypto_store_probe_capability_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<CryptoStoreCapabilityVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
+        let field_1 = value.provider_name.value();
+        let field_2 = vm::Value::bool(value.is_available);
+        let field_3 = vm::Value::bool(value.supports_hardware_backed);
+        let field_4 = vm::Value::bool(value.supports_persistent);
+        let field_5 = vm::Value::bool(value.supports_key_export);
+        let field_6 = value.supported_key_algorithms.to_value(context);
+        let field_7 = value.supported_key_formats.to_value(context);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+        ])
+    })
+}
+
+/// Encode the result for destack.crypto.store.probeKinds.
+#[inline]
+fn encode_destack_crypto_store_probe_kinds_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmArray<CryptoStoreKind>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
 /// Replay payload for destack.crypto.probe.agreementAlgorithms.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct CryptoProbeAgreementAlgorithmsReplay {
@@ -3581,6 +3652,20 @@ struct CryptoProbeNamedCurvesReplay {
 struct CryptoProbeSignatureAlgorithmsReplay {
     /// Replay result payload.
     pub result: Result<Vec<CryptoSignatureAlgorithm>, PlatformError>,
+}
+
+/// Replay payload for destack.crypto.store.probeCapability.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CryptoStoreProbeCapabilityReplay {
+    /// Replay result payload.
+    pub result: Result<CryptoStoreCapabilityReplayRecord, PlatformError>,
+}
+
+/// Replay payload for destack.crypto.store.probeKinds.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CryptoStoreProbeKindsReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<CryptoStoreKind>, PlatformError>,
 }
 
 /// Binding descriptor for destack.crypto.agreement.deriveKey.
@@ -4539,6 +4624,44 @@ pub const CRYPTO_STORE_OPEN: BindingDescriptor = BindingDescriptor::external_wit
 )
     .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
+/// Binding descriptor for destack.crypto.store.probeCapability.
+pub const CRYPTO_STORE_PROBE_CAPABILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.store.probeCapability",
+    "export function storeProbeCapability(kind: CryptoStoreKind, providerName: string): Result<CryptoStoreCapability, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["crypto.probe"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+
+/// Binding descriptor for destack.crypto.store.probeKinds.
+pub const CRYPTO_STORE_PROBE_KINDS: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.store.probeKinds",
+        "export function storeProbeKinds(): Result<CryptoStoreKind[], PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["crypto.probe"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
 /// Binding descriptors for crypto.
 pub const BINDINGS: &[BindingDescriptor] = &[
     CRYPTO_AGREEMENT_DERIVE_KEY,
@@ -4602,6 +4725,8 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     CRYPTO_STORE_LIST_CERTIFICATES,
     CRYPTO_STORE_LIST_KEYS,
     CRYPTO_STORE_OPEN,
+    CRYPTO_STORE_PROBE_CAPABILITY,
+    CRYPTO_STORE_PROBE_KINDS,
 ];
 
 /// Native binding set for crypto.
@@ -4912,6 +5037,16 @@ pub const CRYPTO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             CRYPTO_STORE_OPEN,
             "destack.crypto.store.open",
             destack_crypto_store_open as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_STORE_PROBE_CAPABILITY,
+            "destack.crypto.store.probeCapability",
+            destack_crypto_store_probe_capability as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_STORE_PROBE_KINDS,
+            "destack.crypto.store.probeKinds",
+            destack_crypto_store_probe_kinds as *const (),
         ),
     ],
 };
@@ -5527,6 +5662,228 @@ fn destack_crypto_probe_signature_algorithms_replay(
                         value_native_values.push(value_native_item_native);
                     }
                     let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_crypto_store_probe_capability_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut CryptoStoreCapability,
+    kind: CryptoStoreKind,
+    providername: NativeStringRef,
+) -> RuntimeResult<()> {
+    let _ = (&kind, &providername);
+
+    context.replay().run_binding_with_policy(
+        CRYPTO_STORE_PROBE_CAPABILITY,
+        context.replay_payload_for(CRYPTO_STORE_PROBE_CAPABILITY)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_crypto_store_probe_capability(
+                    context,
+                    out,
+                    kind,
+                    providername,
+                )
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_crypto_store_probe_capability(
+                    context,
+                    out,
+                    kind,
+                    providername,
+                )
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_provider_name =
+                    unsafe { result_value.provider_name.as_str()? }.to_string();
+                let result_recorded_is_available = result_value.is_available;
+                let result_recorded_supports_hardware_backed =
+                    result_value.supports_hardware_backed;
+                let result_recorded_supports_persistent = result_value.supports_persistent;
+                let result_recorded_supports_key_export = result_value.supports_key_export;
+                let result_recorded_supported_key_algorithms_raw =
+                    unsafe { result_value.supported_key_algorithms.as_slice()? };
+                let mut result_recorded_supported_key_algorithms =
+                    Vec::with_capacity(result_recorded_supported_key_algorithms_raw.len());
+                for result_recorded_supported_key_algorithms_item_value in
+                    result_recorded_supported_key_algorithms_raw
+                {
+                    let result_recorded_supported_key_algorithms_item =
+                        *result_recorded_supported_key_algorithms_item_value;
+                    let result_recorded_supported_key_algorithms_item_recorded =
+                        result_recorded_supported_key_algorithms_item;
+                    result_recorded_supported_key_algorithms
+                        .push(result_recorded_supported_key_algorithms_item_recorded);
+                }
+                let result_recorded_supported_key_formats_raw =
+                    unsafe { result_value.supported_key_formats.as_slice()? };
+                let mut result_recorded_supported_key_formats =
+                    Vec::with_capacity(result_recorded_supported_key_formats_raw.len());
+                for result_recorded_supported_key_formats_item_value in
+                    result_recorded_supported_key_formats_raw
+                {
+                    let result_recorded_supported_key_formats_item =
+                        *result_recorded_supported_key_formats_item_value;
+                    let result_recorded_supported_key_formats_item_recorded =
+                        result_recorded_supported_key_formats_item;
+                    result_recorded_supported_key_formats
+                        .push(result_recorded_supported_key_formats_item_recorded);
+                }
+                let result_recorded = CryptoStoreCapabilityReplayRecord {
+                    kind: result_recorded_kind,
+                    provider_name: result_recorded_provider_name,
+                    is_available: result_recorded_is_available,
+                    supports_hardware_backed: result_recorded_supports_hardware_backed,
+                    supports_persistent: result_recorded_supports_persistent,
+                    supports_key_export: result_recorded_supports_key_export,
+                    supported_key_algorithms: result_recorded_supported_key_algorithms,
+                    supported_key_formats: result_recorded_supported_key_formats,
+                };
+                let payload = CryptoStoreProbeCapabilityReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoStoreProbeCapabilityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_kind = value.kind;
+                    let value_native_provider_name = context.store_string(&value.provider_name);
+                    let value_native_is_available = value.is_available;
+                    let value_native_supports_hardware_backed = value.supports_hardware_backed;
+                    let value_native_supports_persistent = value.supports_persistent;
+                    let value_native_supports_key_export = value.supports_key_export;
+                    let mut value_native_supported_key_algorithms_values =
+                        Vec::with_capacity(value.supported_key_algorithms.len());
+                    for value_native_supported_key_algorithms_item in value.supported_key_algorithms
+                    {
+                        let value_native_supported_key_algorithms_item_native =
+                            value_native_supported_key_algorithms_item;
+                        value_native_supported_key_algorithms_values
+                            .push(value_native_supported_key_algorithms_item_native);
+                    }
+                    let value_native_supported_key_algorithms =
+                        context.store_array(value_native_supported_key_algorithms_values);
+                    let mut value_native_supported_key_formats_values =
+                        Vec::with_capacity(value.supported_key_formats.len());
+                    for value_native_supported_key_formats_item in value.supported_key_formats {
+                        let value_native_supported_key_formats_item_native =
+                            value_native_supported_key_formats_item;
+                        value_native_supported_key_formats_values
+                            .push(value_native_supported_key_formats_item_native);
+                    }
+                    let value_native_supported_key_formats =
+                        context.store_array(value_native_supported_key_formats_values);
+                    let value_native = CryptoStoreCapability {
+                        kind: value_native_kind,
+                        provider_name: value_native_provider_name,
+                        is_available: value_native_is_available,
+                        supports_hardware_backed: value_native_supports_hardware_backed,
+                        supports_persistent: value_native_supports_persistent,
+                        supports_key_export: value_native_supports_key_export,
+                        supported_key_algorithms: value_native_supported_key_algorithms,
+                        supported_key_formats: value_native_supported_key_formats,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_crypto_store_probe_kinds_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeArray<CryptoStoreKind>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        CRYPTO_STORE_PROBE_KINDS,
+        context.replay_payload_for(CRYPTO_STORE_PROBE_KINDS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_crypto_store_probe_kinds(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_crypto_store_probe_kinds(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoStoreProbeKindsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoStoreProbeKindsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_array(value_native_values);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -7223,6 +7580,38 @@ pub unsafe extern "C" fn destack_crypto_store_open(
     })
 }
 
+#[unsafe(export_name = "destack.crypto.store.probeCapability")]
+pub unsafe extern "C" fn destack_crypto_store_probe_capability(
+    out: *mut CryptoStoreCapability,
+    kind: CryptoStoreKind,
+    providername: NativeStringRef,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &kind, &providername);
+
+        let world = context.check_and_resolve_world(CRYPTO_STORE_PROBE_CAPABILITY)?;
+        destack_crypto_store_probe_capability_replay(context, world, out, kind, providername)
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.store.probeKinds")]
+pub unsafe extern "C" fn destack_crypto_store_probe_kinds(
+    out: *mut NativeArray<CryptoStoreKind>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(CRYPTO_STORE_PROBE_KINDS)?;
+        destack_crypto_store_probe_kinds_replay(context, world, out)
+    })
+}
+
 /// VM replay implementations for crypto bindings.
 #[inline]
 fn destack_crypto_probe_agreement_algorithms_vm_replay(
@@ -7998,6 +8387,296 @@ fn destack_crypto_probe_signature_algorithms_vm_replay(
         },
     );
     let result = encode_destack_crypto_probe_signature_algorithms_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_crypto_store_probe_capability_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+    kind: CryptoStoreKind,
+    providername: vm::StringHandle,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        CRYPTO_STORE_PROBE_CAPABILITY,
+        runtime.replay_payload_for(CRYPTO_STORE_PROBE_CAPABILITY)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_crypto_store_probe_capability(
+                runtime,
+                context,
+                kind,
+                providername,
+            ),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_crypto_store_probe_capability(
+                    runtime,
+                    context,
+                    kind,
+                    providername,
+                )
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: CryptoStoreCapabilityVm = value.clone();
+                let result_recorded_kind = result_value.kind;
+                let result_recorded_provider_name = {
+                    let result_recorded_provider_name_ref = context
+                        .string_ref(result_value.provider_name)
+                        .map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_provider_name_ref.as_str().to_string()
+                };
+                let result_recorded_is_available = result_value.is_available;
+                let result_recorded_supports_hardware_backed =
+                    result_value.supports_hardware_backed;
+                let result_recorded_supports_persistent = result_value.supports_persistent;
+                let result_recorded_supports_key_export = result_value.supports_key_export;
+                let result_recorded_supported_key_algorithms_raw =
+                    result_value.supported_key_algorithms.raw_values(context)?;
+                let mut result_recorded_supported_key_algorithms =
+                    Vec::with_capacity(result_recorded_supported_key_algorithms_raw.len());
+                for result_recorded_supported_key_algorithms_item_value in
+                    result_recorded_supported_key_algorithms_raw
+                {
+                    let result_recorded_supported_key_algorithms_item_raw = decode_uint8(
+                        result_recorded_supported_key_algorithms_item_value,
+                        "result_recorded_supported_key_algorithms_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_supported_key_algorithms_item =
+                        match result_recorded_supported_key_algorithms_item_raw {
+                            0u8 => CryptoKeyAlgorithm::Unknown,
+                            1u8 => CryptoKeyAlgorithm::Rsa,
+                            2u8 => CryptoKeyAlgorithm::Ec,
+                            3u8 => CryptoKeyAlgorithm::Ed25519,
+                            4u8 => CryptoKeyAlgorithm::Ed448,
+                            5u8 => CryptoKeyAlgorithm::X25519,
+                            6u8 => CryptoKeyAlgorithm::X448,
+                            7u8 => CryptoKeyAlgorithm::Aes,
+                            8u8 => CryptoKeyAlgorithm::ChaCha20,
+                            9u8 => CryptoKeyAlgorithm::Hmac,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_supported_key_algorithms_item",
+                                        "unknown CryptoKeyAlgorithm value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                    let result_recorded_supported_key_algorithms_item_recorded =
+                        result_recorded_supported_key_algorithms_item;
+                    result_recorded_supported_key_algorithms
+                        .push(result_recorded_supported_key_algorithms_item_recorded);
+                }
+                let result_recorded_supported_key_formats_raw =
+                    result_value.supported_key_formats.raw_values(context)?;
+                let mut result_recorded_supported_key_formats =
+                    Vec::with_capacity(result_recorded_supported_key_formats_raw.len());
+                for result_recorded_supported_key_formats_item_value in
+                    result_recorded_supported_key_formats_raw
+                {
+                    let result_recorded_supported_key_formats_item_raw = decode_uint8(
+                        result_recorded_supported_key_formats_item_value,
+                        "result_recorded_supported_key_formats_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_supported_key_formats_item =
+                        match result_recorded_supported_key_formats_item_raw {
+                            0u8 => CryptoKeyFormat::Unknown,
+                            1u8 => CryptoKeyFormat::Pkcs8Pem,
+                            2u8 => CryptoKeyFormat::Pkcs8Der,
+                            3u8 => CryptoKeyFormat::SpkiPem,
+                            4u8 => CryptoKeyFormat::SpkiDer,
+                            5u8 => CryptoKeyFormat::Jwk,
+                            6u8 => CryptoKeyFormat::Raw,
+                            7u8 => CryptoKeyFormat::Sec1Pem,
+                            8u8 => CryptoKeyFormat::Sec1Der,
+                            _ => {
+                                return Err(RuntimeError::from(
+                                    PlatformError::invalid_argument_value(
+                                        "result_recorded_supported_key_formats_item",
+                                        "unknown CryptoKeyFormat value",
+                                    ),
+                                )
+                                .boxed());
+                            }
+                        };
+                    let result_recorded_supported_key_formats_item_recorded =
+                        result_recorded_supported_key_formats_item;
+                    result_recorded_supported_key_formats
+                        .push(result_recorded_supported_key_formats_item_recorded);
+                }
+                let result_recorded = CryptoStoreCapabilityReplayRecord {
+                    kind: result_recorded_kind,
+                    provider_name: result_recorded_provider_name,
+                    is_available: result_recorded_is_available,
+                    supports_hardware_backed: result_recorded_supports_hardware_backed,
+                    supports_persistent: result_recorded_supports_persistent,
+                    supports_key_export: result_recorded_supports_key_export,
+                    supported_key_algorithms: result_recorded_supported_key_algorithms,
+                    supported_key_formats: result_recorded_supported_key_formats,
+                };
+                let payload = CryptoStoreProbeCapabilityReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoStoreProbeCapabilityReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_kind = value.kind;
+                    let vm_result_provider_name_value =
+                        context.intern_string(value.provider_name.as_str());
+                    let vm_result_provider_name =
+                        vm::StringHandle::new(vm_result_provider_name_value);
+                    let vm_result_is_available = value.is_available;
+                    let vm_result_supports_hardware_backed = value.supports_hardware_backed;
+                    let vm_result_supports_persistent = value.supports_persistent;
+                    let vm_result_supports_key_export = value.supports_key_export;
+                    let mut vm_result_supported_key_algorithms_values =
+                        Vec::with_capacity(value.supported_key_algorithms.len());
+                    for vm_result_supported_key_algorithms_item in
+                        value.supported_key_algorithms.iter()
+                    {
+                        let vm_result_supported_key_algorithms_item =
+                            *vm_result_supported_key_algorithms_item;
+                        let vm_result_supported_key_algorithms_item_value =
+                            vm_result_supported_key_algorithms_item;
+                        vm_result_supported_key_algorithms_values
+                            .push(vm_result_supported_key_algorithms_item_value);
+                    }
+                    let vm_result_supported_key_algorithms =
+                        VmArray::from_values(context, &vm_result_supported_key_algorithms_values)?;
+                    let mut vm_result_supported_key_formats_values =
+                        Vec::with_capacity(value.supported_key_formats.len());
+                    for vm_result_supported_key_formats_item in value.supported_key_formats.iter() {
+                        let vm_result_supported_key_formats_item =
+                            *vm_result_supported_key_formats_item;
+                        let vm_result_supported_key_formats_item_value =
+                            vm_result_supported_key_formats_item;
+                        vm_result_supported_key_formats_values
+                            .push(vm_result_supported_key_formats_item_value);
+                    }
+                    let vm_result_supported_key_formats =
+                        VmArray::from_values(context, &vm_result_supported_key_formats_values)?;
+                    let vm_result = CryptoStoreCapabilityVm {
+                        kind: vm_result_kind,
+                        provider_name: vm_result_provider_name,
+                        is_available: vm_result_is_available,
+                        supports_hardware_backed: vm_result_supports_hardware_backed,
+                        supports_persistent: vm_result_supports_persistent,
+                        supports_key_export: vm_result_supports_key_export,
+                        supported_key_algorithms: vm_result_supported_key_algorithms,
+                        supported_key_formats: vm_result_supported_key_formats,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_crypto_store_probe_capability_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_crypto_store_probe_kinds_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        CRYPTO_STORE_PROBE_KINDS,
+        runtime.replay_payload_for(CRYPTO_STORE_PROBE_KINDS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => platform_vm::destack_crypto_store_probe_kinds(runtime, context),
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_crypto_store_probe_kinds(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmArray<CryptoStoreKind> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_raw = decode_uint8(
+                        result_recorded_item_value,
+                        "result_recorded_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_item = match result_recorded_item_raw {
+                        0u8 => CryptoStoreKind::System,
+                        1u8 => CryptoStoreKind::User,
+                        2u8 => CryptoStoreKind::Machine,
+                        3u8 => CryptoStoreKind::Provider,
+                        4u8 => CryptoStoreKind::Ephemeral,
+                        _ => {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "unknown CryptoStoreKind value",
+                            ))
+                            .boxed());
+                        }
+                    };
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoStoreProbeKindsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoStoreProbeKindsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmArray::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_crypto_store_probe_kinds_result(context, result)?;
     Ok(result)
 }
 
@@ -9823,6 +10502,46 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         }
                     };
                     encode_destack_crypto_store_open_result(context, result)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_STORE_PROBE_CAPABILITY,
+            move |context, args| {
+                with_binding_call_context(|runtime| {
+                    // decode args
+                    let (kind, providername) =
+                        decode_destack_crypto_store_probe_capability_args(context, args)?;
+
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(CRYPTO_STORE_PROBE_CAPABILITY)?;
+                    destack_crypto_store_probe_capability_vm_replay(
+                        runtime,
+                        context,
+                        world,
+                        kind,
+                        providername,
+                    )
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_STORE_PROBE_KINDS,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(CRYPTO_STORE_PROBE_KINDS)?;
+                    destack_crypto_store_probe_kinds_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
             }

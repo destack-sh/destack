@@ -1,10 +1,12 @@
-use crate::diagnostic::RuntimeResult;
+use openssl::pkey::{PKey, Private};
+
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::crypto::{
-    CryptoAsymmetricEncryptionParameters, CryptoKeyDescriptor, CryptoKeyFormat,
-    CryptoKeyGenerationRequest, CryptoKeyImportRequest, CryptoKeyPair, CryptoSignatureParameters,
-    core as crypto_core,
+    CryptoAsymmetricEncryptionParameters, CryptoKeyAlgorithm, CryptoKeyDescriptor, CryptoKeyFormat,
+    CryptoKeyGenerationRequest, CryptoKeyImportRequest, CryptoKeyPair, CryptoNamedCurve,
+    CryptoSignatureParameters, CryptoStoreKind, HostKeyMaterial, core as crypto_core,
 };
-use crate::platform::{NativeSlice, resource};
+use crate::platform::{NativeSlice, PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core::{decode_bytes, write_out_bytes, write_out_value};

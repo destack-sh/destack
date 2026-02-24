@@ -1,6 +1,7 @@
 import { Array, Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { CryptoCertificateHandle, CryptoStoreHandle } from "../resource/index.ds";
+import { CryptoStoreProvenance } from "./store.ds";
 
 /// Certificate encoding format.
 export enum CryptoCertificateFormat {
@@ -58,6 +59,8 @@ export struct CryptoCertificateDescriptor {
     isCertificateAuthority: boolean;
     /// Key-usage bitmask.
     keyUsageMask: uint32;
+    /// Effective certificate store provenance.
+    storeProvenance: CryptoStoreProvenance;
 }
 
 /// Certificate key usage: digital signature.

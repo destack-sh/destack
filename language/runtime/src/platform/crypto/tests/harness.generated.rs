@@ -26,7 +26,8 @@ use crate::platform::crypto::{
     CryptoMacAlgorithm, CryptoMacParameters, CryptoMacParametersVm, CryptoNamedCurve,
     CryptoPbkdf2Request, CryptoPbkdf2RequestVm, CryptoScryptRequest, CryptoScryptRequestVm,
     CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoSignatureParametersVm,
-    CryptoStoreKind, CryptoStoreOptions, CryptoStoreOptionsVm, native as crypto_native,
+    CryptoStoreCapability, CryptoStoreCapabilityVm, CryptoStoreKind, CryptoStoreOptions,
+    CryptoStoreOptionsVm, CryptoStoreProvenance, CryptoStoreProvenanceVm, native as crypto_native,
     vm as crypto_vm,
 };
 use crate::platform::{
@@ -2713,8 +2714,9 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// Create one runtime provider store handle for key and certificate operations.
     /// Provider selection and access scope follow runtime crypto store semantics.
-    /// `Ephemeral` store support is required.
-    /// Other kinds may return notSupported until host store providers are implemented.
+    /// `Ephemeral` and `Provider` store support is required.
+    /// Host-backed `System`, `User`, and `Machine` support is host dependent.
+    /// Host-backed lanes may expose certificate reads while rejecting key or certificate writes.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
@@ -2751,6 +2753,93 @@ impl<'call> CryptoHarnessContext<'call> {
                 }
                 let out = unsafe { out.assume_init() };
                 Ok(out)
+            }
+        }
+    }
+
+    /// Return capabilities for one store backend lane.
+    ///
+    /// Query one store kind and optional provider name and return effective capability policy.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto store provider capability introspection.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_crypto_store_probe_capability(
+        &mut self,
+        kind: CryptoStoreKind,
+        providername: HarnessValue<NativeStringRef, vm::StringHandle>,
+    ) -> RuntimeResult<HarnessValue<CryptoStoreCapability, CryptoStoreCapabilityVm>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let providername = providername.into_vm("providername")?;
+                let out = crypto_vm::destack_crypto_store_probe_capability(
+                    self.call_context,
+                    context,
+                    kind,
+                    providername,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let providername = providername.into_native("providername")?;
+                let mut out = std::mem::MaybeUninit::<CryptoStoreCapability>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_store_probe_capability(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                        kind,
+                        providername,
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List store backend kinds that are currently available.
+    ///
+    /// Return one runtime capability snapshot for store backends that can be opened.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto store provider capability introspection.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_crypto_store_probe_kinds(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<NativeArray<CryptoStoreKind>, VmArray<CryptoStoreKind>>> {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = crypto_vm::destack_crypto_store_probe_kinds(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeArray<CryptoStoreKind>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_store_probe_kinds(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
             }
         }
     }

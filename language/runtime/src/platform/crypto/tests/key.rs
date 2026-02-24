@@ -5,8 +5,8 @@ use super::{
 use crate::platform::crypto::{
     CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters,
     CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyGenerationRequest,
-    CryptoKeyImportRequest, CryptoKeyUsageMask, CryptoNamedCurve, CryptoSignatureAlgorithm,
-    CryptoSignatureParameters, CryptoStoreKind,
+    CryptoKeyImportRequest, CryptoKeyQuery, CryptoKeyUsageMask, CryptoNamedCurve,
+    CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreKind,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -98,8 +98,14 @@ fn test_key_pair_sign_verify_encrypt_decrypt() {
 
         // verify descriptor metadata
         let descriptor = context.destack_crypto_key_descriptor(pair.private_key)?;
-        let algorithm = context.key_algorithm_from_value(descriptor);
+        let (descriptor_algorithm, descriptor_provenance) = context.duplicate_value(descriptor);
+        let algorithm = context.key_algorithm_from_value(descriptor_algorithm);
         assert_eq!(algorithm, CryptoKeyAlgorithm::Rsa);
+        let (store_kind, provider_name, namespace) =
+            context.key_descriptor_store_provenance_from_value(descriptor_provenance)?;
+        assert_eq!(store_kind, CryptoStoreKind::Ephemeral);
+        assert!(provider_name.is_empty());
+        assert!(namespace.is_empty());
 
         context.destack_crypto_store_close(store)?;
 
@@ -199,6 +205,14 @@ fn test_key_wrap_unwrap_roundtrip() {
             context.destack_crypto_key_export_secret(unwrapped, CryptoKeyFormat::Raw)?;
         let unwrapped_bytes = context.bytes_from_slice_value(unwrapped_bytes)?;
         assert_eq!(unwrapped_bytes, original_bytes);
+
+        // verify unwrapped key descriptor provenance
+        let descriptor = context.destack_crypto_key_descriptor(unwrapped)?;
+        let (store_kind, provider_name, namespace) =
+            context.key_descriptor_store_provenance_from_value(descriptor)?;
+        assert_eq!(store_kind, CryptoStoreKind::Ephemeral);
+        assert!(provider_name.is_empty());
+        assert!(namespace.is_empty());
 
         context.destack_crypto_store_close(store)?;
 
@@ -692,6 +706,795 @@ fn test_key_generate_rejects_unimplemented_storage_policies() {
         let platform = error
             .platform_error()
             .expect("key.import error should contain one platform error");
+        assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+
+        context.destack_crypto_store_close(store)?;
+
+        Ok(())
+    });
+}
+
+/// Follow host-lane key-write support for non-persistent key generation.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_key_generate_follows_host_lane_write_support() {
+    with_harness_context(|mut context| {
+        // attempt key generation for each available host lane
+        for kind in [
+            CryptoStoreKind::System,
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let provider = context.string_value("");
+            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context.store_capability_from_value(capability)?;
+            if !capability.is_available {
+                continue;
+            }
+
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let request = CryptoKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Aes,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(0),
+                label: context.call_context.store_string("host-write"),
+                extractable: true,
+                hardware_backed: false,
+                persistent: false,
+            };
+            let result =
+                context.destack_crypto_key_generate_secret(store, context.request_value(request)?);
+
+            if capability.supports_persistent {
+                let key = result.expect("host lane with key-write support should generate keys");
+                context.destack_crypto_key_delete(key)?;
+            } else {
+                let Err(error) = result else {
+                    panic!("host lane without key-write support should reject key generation");
+                };
+                let platform = error
+                    .platform_error()
+                    .expect("key.generateSecret error should contain one platform error");
+                assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+            }
+
+            context.destack_crypto_store_close(store)?;
+        }
+
+        Ok(())
+    });
+}
+
+/// Keep non-persistent host-lane keys process-scoped across store reopen.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_key_generate_nonpersistent_host_keys_do_not_survive_reopen() {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    with_harness_context(|mut context| {
+        // prepare one unique label prefix for this test run
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be after unix epoch")
+            .as_nanos();
+        let label_prefix = format!("host-session-{nonce}");
+
+        // exercise host lanes that support key writes
+        for kind in [
+            CryptoStoreKind::System,
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let provider = context.string_value("");
+            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context.store_capability_from_value(capability)?;
+            if !capability.is_available || !capability.supports_persistent {
+                continue;
+            }
+
+            // create one non-persistent key in this host lane
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let request = CryptoKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Aes,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(0),
+                label: context.call_context.store_string(&label_prefix),
+                extractable: true,
+                hardware_backed: false,
+                persistent: false,
+            };
+            let _key = context
+                .destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
+            context.destack_crypto_store_close(store)?;
+
+            // reopen lane and verify no keys are retained for this label scope
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let query = CryptoKeyQuery {
+                label_prefix: context.call_context.store_string(&label_prefix),
+                algorithm: CryptoKeyAlgorithm::Unknown,
+                usage_mask: CryptoKeyUsageMask(0),
+                cursor: context.call_context.store_string(""),
+                limit: 128,
+            };
+            let page =
+                context.destack_crypto_store_list_keys(store, context.request_value(query)?)?;
+            let count = context.key_list_entry_count(page)?;
+            assert_eq!(count, 0);
+            context.destack_crypto_store_close(store)?;
+        }
+
+        Ok(())
+    });
+}
+
+/// Persist keys on host-backed lanes that advertise persistent support.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_key_generate_persistent_roundtrip_on_supported_host_lanes() {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    with_harness_context(|mut context| {
+        // prepare one unique label prefix for this test run
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be after unix epoch")
+            .as_nanos();
+        let label_prefix = format!("host-persist-{nonce}");
+
+        // check each host lane and exercise only persistent-capable lanes
+        for kind in [
+            CryptoStoreKind::System,
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let provider = context.string_value("");
+            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context.store_capability_from_value(capability)?;
+            if !capability.is_available || !capability.supports_persistent {
+                continue;
+            }
+
+            // open lane and create one persistent key
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let request = CryptoKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Aes,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(0),
+                label: context.call_context.store_string(&label_prefix),
+                extractable: true,
+                hardware_backed: false,
+                persistent: true,
+            };
+            let _key = context
+                .destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
+            context.destack_crypto_store_close(store)?;
+
+            // reopen lane and verify the key is discoverable by label prefix
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let query = CryptoKeyQuery {
+                label_prefix: context.call_context.store_string(&label_prefix),
+                algorithm: CryptoKeyAlgorithm::Unknown,
+                usage_mask: CryptoKeyUsageMask(0),
+                cursor: context.call_context.store_string(""),
+                limit: 128,
+            };
+            let page =
+                context.destack_crypto_store_list_keys(store, context.request_value(query)?)?;
+            let handles = context.key_list_handles(page)?;
+            assert!(
+                !handles.is_empty(),
+                "persistent host lane should retain keys across reopen"
+            );
+
+            // delete all keys created for this prefix
+            for handle in handles {
+                context.destack_crypto_key_delete(handle)?;
+            }
+            context.destack_crypto_store_close(store)?;
+
+            // reopen lane and verify prefix scope is now empty
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let query = CryptoKeyQuery {
+                label_prefix: context.call_context.store_string(&label_prefix),
+                algorithm: CryptoKeyAlgorithm::Unknown,
+                usage_mask: CryptoKeyUsageMask(0),
+                cursor: context.call_context.store_string(""),
+                limit: 128,
+            };
+            let page =
+                context.destack_crypto_store_list_keys(store, context.request_value(query)?)?;
+            let count = context.key_list_entry_count(page)?;
+            assert_eq!(count, 0);
+            context.destack_crypto_store_close(store)?;
+        }
+
+        Ok(())
+    });
+}
+
+/// Persist one non-extractable RSA pair on host lanes and preserve sign and decrypt operations.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    with_harness_context(|mut context| {
+        // prepare one unique label prefix for this test run
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be after unix epoch")
+            .as_nanos();
+        let label_prefix = format!("host-rsa-persist-{nonce}");
+
+        // exercise each host lane that supports persistent keys
+        for kind in [
+            CryptoStoreKind::System,
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let provider = context.string_value("");
+            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context.store_capability_from_value(capability)?;
+            if !capability.is_available || !capability.supports_persistent {
+                continue;
+            }
+
+            // create one persistent non-extractable rsa pair
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let pair_request = CryptoKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Rsa,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits: 2048,
+                public_exponent: 65537,
+                digest: CryptoDigestAlgorithm::Sha256,
+                size_bits: 0,
+                usage_mask: CryptoKeyUsageMask(
+                    KEY_USAGE_SIGN | KEY_USAGE_VERIFY | KEY_USAGE_ENCRYPT | KEY_USAGE_DECRYPT,
+                ),
+                label: context
+                    .call_context
+                    .store_string(&format!("{label_prefix}-create")),
+                extractable: false,
+                hardware_backed: false,
+                persistent: true,
+            };
+            let pair = context
+                .destack_crypto_key_generate_pair(store, context.request_value(pair_request)?)?;
+            let pair = context.same_from_value(pair);
+
+            // sign and verify one payload
+            let sign_parameters = CryptoSignatureParameters {
+                algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
+                digest: CryptoDigestAlgorithm::Sha256,
+                salt_length_bytes: 0,
+            };
+            let payload = context.bytes_slice_value(b"host-persistent-rsa-sign")?;
+            let signature = context.destack_crypto_key_sign(
+                pair.private_key,
+                context.request_value(sign_parameters)?,
+                payload,
+            )?;
+            let signature = context.bytes_from_slice_value(signature)?;
+            assert!(!signature.is_empty());
+
+            let verify_parameters = CryptoSignatureParameters {
+                algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
+                digest: CryptoDigestAlgorithm::Sha256,
+                salt_length_bytes: 0,
+            };
+            let payload = context.bytes_slice_value(b"host-persistent-rsa-sign")?;
+            let signature = context.bytes_slice_value(&signature)?;
+            let is_valid = context.destack_crypto_key_verify(
+                pair.public_key,
+                context.request_value(verify_parameters)?,
+                payload,
+                signature,
+            )?;
+            assert!(is_valid);
+
+            // encrypt and decrypt one payload
+            let encrypt_parameters = CryptoAsymmetricEncryptionParameters {
+                algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+                digest: CryptoDigestAlgorithm::Sha256,
+                label: context.call_context.store_slice(Vec::<u8>::new()),
+            };
+            let plaintext = context.bytes_slice_value(b"host-persistent-rsa-decrypt")?;
+            let ciphertext = context.destack_crypto_key_encrypt(
+                pair.public_key,
+                context.request_value(encrypt_parameters)?,
+                plaintext,
+            )?;
+            let ciphertext = context.bytes_from_slice_value(ciphertext)?;
+            assert!(!ciphertext.is_empty());
+
+            let decrypt_parameters = CryptoAsymmetricEncryptionParameters {
+                algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+                digest: CryptoDigestAlgorithm::Sha256,
+                label: context.call_context.store_slice(Vec::<u8>::new()),
+            };
+            let ciphertext = context.bytes_slice_value(&ciphertext)?;
+            let decrypted = context.destack_crypto_key_decrypt(
+                pair.private_key,
+                context.request_value(decrypt_parameters)?,
+                ciphertext,
+            )?;
+            let decrypted = context.bytes_from_slice_value(decrypted)?;
+            assert_eq!(decrypted, b"host-persistent-rsa-decrypt");
+
+            // reject private-key export for non-extractable keys
+            let result = context
+                .destack_crypto_key_export_private(pair.private_key, CryptoKeyFormat::Pkcs8Der);
+            let Err(error) = result else {
+                panic!("non-extractable private key should reject export");
+            };
+            let platform = error
+                .platform_error()
+                .expect("key.exportPrivate error should contain one platform error");
+            assert_eq!(platform.code, PlatformErrorCode::IoPermissionDenied);
+
+            context.destack_crypto_store_close(store)?;
+
+            // reopen lane and verify the pair remains discoverable
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let query = CryptoKeyQuery {
+                label_prefix: context.call_context.store_string(&label_prefix),
+                algorithm: CryptoKeyAlgorithm::Rsa,
+                usage_mask: CryptoKeyUsageMask(0),
+                cursor: context.call_context.store_string(""),
+                limit: 128,
+            };
+            let page =
+                context.destack_crypto_store_list_keys(store, context.request_value(query)?)?;
+            let handles = context.key_list_handles(page)?;
+            assert!(
+                !handles.is_empty(),
+                "persistent host lane should retain non-extractable rsa keys across reopen"
+            );
+
+            // delete all keys created for this label scope
+            for handle in handles {
+                context.destack_crypto_key_delete(handle)?;
+            }
+            context.destack_crypto_store_close(store)?;
+        }
+
+        Ok(())
+    });
+}
+
+/// Import one persistent non-extractable RSA private key on host lanes and preserve key behavior.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    with_harness_context(|mut context| {
+        // prepare one reusable rsa source keypair for host-lane imports
+        let source_store_options = context.store_options_value(CryptoStoreKind::Ephemeral);
+        let source_store = context.destack_crypto_store_open(source_store_options)?;
+        let source_request = CryptoKeyGenerationRequest {
+            algorithm: CryptoKeyAlgorithm::Rsa,
+            named_curve: CryptoNamedCurve::Unknown,
+            modulus_bits: 2048,
+            public_exponent: 65537,
+            digest: CryptoDigestAlgorithm::Sha256,
+            size_bits: 0,
+            usage_mask: CryptoKeyUsageMask(
+                KEY_USAGE_SIGN
+                    | KEY_USAGE_VERIFY
+                    | KEY_USAGE_ENCRYPT
+                    | KEY_USAGE_DECRYPT
+                    | KEY_USAGE_EXPORT,
+            ),
+            label: context.call_context.store_string("import-source-rsa"),
+            extractable: true,
+            hardware_backed: false,
+            persistent: false,
+        };
+        let source_pair = context.destack_crypto_key_generate_pair(
+            source_store,
+            context.request_value(source_request)?,
+        )?;
+        let source_pair = context.same_from_value(source_pair);
+        let source_private_key = context.destack_crypto_key_export_private(
+            source_pair.private_key,
+            CryptoKeyFormat::Pkcs8Der,
+        )?;
+        let source_private_key = context.bytes_from_slice_value(source_private_key)?;
+
+        // prepare one unique label prefix for this test run
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be after unix epoch")
+            .as_nanos();
+        let label_prefix = format!("host-rsa-import-{nonce}");
+
+        // exercise each host lane that supports persistence
+        for kind in [
+            CryptoStoreKind::System,
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let provider = context.string_value("");
+            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context.store_capability_from_value(capability)?;
+            if !capability.is_available || !capability.supports_persistent {
+                continue;
+            }
+
+            // import one persistent non-extractable rsa private key
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let import_request = CryptoKeyImportRequest {
+                format: CryptoKeyFormat::Pkcs8Der,
+                bytes: context.call_context.store_slice(source_private_key.clone()),
+                algorithm: CryptoKeyAlgorithm::Rsa,
+                named_curve: CryptoNamedCurve::Unknown,
+                digest: CryptoDigestAlgorithm::Sha256,
+                usage_mask: CryptoKeyUsageMask(
+                    KEY_USAGE_SIGN
+                        | KEY_USAGE_VERIFY
+                        | KEY_USAGE_ENCRYPT
+                        | KEY_USAGE_DECRYPT
+                        | KEY_USAGE_EXPORT,
+                ),
+                label: context
+                    .call_context
+                    .store_string(&format!("{label_prefix}-import")),
+                extractable: false,
+                persistent: true,
+            };
+            let imported_key =
+                context.destack_crypto_key_import(store, context.request_value(import_request)?)?;
+
+            // decrypt payloads encrypted with the source public key
+            let encrypt_parameters = CryptoAsymmetricEncryptionParameters {
+                algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+                digest: CryptoDigestAlgorithm::Sha256,
+                label: context.call_context.store_slice(Vec::<u8>::new()),
+            };
+            let plaintext = context.bytes_slice_value(b"host-rsa-import-decrypt")?;
+            let ciphertext = context.destack_crypto_key_encrypt(
+                source_pair.public_key,
+                context.request_value(encrypt_parameters)?,
+                plaintext,
+            )?;
+            let ciphertext = context.bytes_from_slice_value(ciphertext)?;
+            let decrypt_parameters = CryptoAsymmetricEncryptionParameters {
+                algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+                digest: CryptoDigestAlgorithm::Sha256,
+                label: context.call_context.store_slice(Vec::<u8>::new()),
+            };
+            let ciphertext = context.bytes_slice_value(&ciphertext)?;
+            let decrypted = context.destack_crypto_key_decrypt(
+                imported_key,
+                context.request_value(decrypt_parameters)?,
+                ciphertext,
+            )?;
+            let decrypted = context.bytes_from_slice_value(decrypted)?;
+            assert_eq!(decrypted, b"host-rsa-import-decrypt");
+
+            // sign with imported key and verify with the source public key
+            let sign_parameters = CryptoSignatureParameters {
+                algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
+                digest: CryptoDigestAlgorithm::Sha256,
+                salt_length_bytes: 0,
+            };
+            let payload = context.bytes_slice_value(b"host-rsa-import-sign")?;
+            let signature = context.destack_crypto_key_sign(
+                imported_key,
+                context.request_value(sign_parameters)?,
+                payload,
+            )?;
+            let signature = context.bytes_from_slice_value(signature)?;
+            let verify_parameters = CryptoSignatureParameters {
+                algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
+                digest: CryptoDigestAlgorithm::Sha256,
+                salt_length_bytes: 0,
+            };
+            let payload = context.bytes_slice_value(b"host-rsa-import-sign")?;
+            let signature = context.bytes_slice_value(&signature)?;
+            let verified = context.destack_crypto_key_verify(
+                source_pair.public_key,
+                context.request_value(verify_parameters)?,
+                payload,
+                signature,
+            )?;
+            assert!(verified);
+
+            // reject private-key export for non-extractable keys
+            let result =
+                context.destack_crypto_key_export_private(imported_key, CryptoKeyFormat::Pkcs8Der);
+            let Err(error) = result else {
+                panic!("non-extractable imported private key should reject export");
+            };
+            let platform = error
+                .platform_error()
+                .expect("key.exportPrivate error should contain one platform error");
+            assert_eq!(platform.code, PlatformErrorCode::IoPermissionDenied);
+
+            context.destack_crypto_store_close(store)?;
+
+            // reopen lane and verify imported keys remain discoverable
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let query = CryptoKeyQuery {
+                label_prefix: context.call_context.store_string(&label_prefix),
+                algorithm: CryptoKeyAlgorithm::Rsa,
+                usage_mask: CryptoKeyUsageMask(0),
+                cursor: context.call_context.store_string(""),
+                limit: 128,
+            };
+            let page =
+                context.destack_crypto_store_list_keys(store, context.request_value(query)?)?;
+            let handles = context.key_list_handles(page)?;
+            assert!(
+                !handles.is_empty(),
+                "persistent host lane should retain imported rsa keys across reopen"
+            );
+            for handle in handles {
+                context.destack_crypto_key_delete(handle)?;
+            }
+            context.destack_crypto_store_close(store)?;
+        }
+
+        context.destack_crypto_store_close(source_store)?;
+
+        Ok(())
+    });
+}
+
+/// Persist one non-extractable EC pair on host lanes and preserve signing operations.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    with_harness_context(|mut context| {
+        // prepare one unique label prefix for this test run
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be after unix epoch")
+            .as_nanos();
+        let label_prefix = format!("host-ec-persist-{nonce}");
+
+        // exercise each host lane that supports persistent keys
+        for kind in [
+            CryptoStoreKind::System,
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let provider = context.string_value("");
+            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context.store_capability_from_value(capability)?;
+            if !capability.is_available || !capability.supports_persistent {
+                continue;
+            }
+
+            // create one persistent non-extractable ec pair
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let pair_request = CryptoKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Ec,
+                named_curve: CryptoNamedCurve::P256,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Sha256,
+                size_bits: 0,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                label: context
+                    .call_context
+                    .store_string(&format!("{label_prefix}-create")),
+                extractable: false,
+                hardware_backed: false,
+                persistent: true,
+            };
+            let pair = context
+                .destack_crypto_key_generate_pair(store, context.request_value(pair_request)?)?;
+            let pair = context.same_from_value(pair);
+
+            // sign and verify one payload
+            let sign_parameters = CryptoSignatureParameters {
+                algorithm: CryptoSignatureAlgorithm::Ecdsa,
+                digest: CryptoDigestAlgorithm::Sha256,
+                salt_length_bytes: 0,
+            };
+            let payload = context.bytes_slice_value(b"host-persistent-ec-sign")?;
+            let signature = context.destack_crypto_key_sign(
+                pair.private_key,
+                context.request_value(sign_parameters)?,
+                payload,
+            )?;
+            let signature = context.bytes_from_slice_value(signature)?;
+            assert!(!signature.is_empty());
+
+            let verify_parameters = CryptoSignatureParameters {
+                algorithm: CryptoSignatureAlgorithm::Ecdsa,
+                digest: CryptoDigestAlgorithm::Sha256,
+                salt_length_bytes: 0,
+            };
+            let payload = context.bytes_slice_value(b"host-persistent-ec-sign")?;
+            let signature = context.bytes_slice_value(&signature)?;
+            let is_valid = context.destack_crypto_key_verify(
+                pair.public_key,
+                context.request_value(verify_parameters)?,
+                payload,
+                signature,
+            )?;
+            assert!(is_valid);
+
+            // reject private-key export for non-extractable keys
+            let result = context
+                .destack_crypto_key_export_private(pair.private_key, CryptoKeyFormat::Pkcs8Der);
+            let Err(error) = result else {
+                panic!("non-extractable private key should reject export");
+            };
+            let platform = error
+                .platform_error()
+                .expect("key.exportPrivate error should contain one platform error");
+            assert_eq!(platform.code, PlatformErrorCode::IoPermissionDenied);
+
+            context.destack_crypto_store_close(store)?;
+
+            // reopen lane and verify the pair remains discoverable
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let query = CryptoKeyQuery {
+                label_prefix: context.call_context.store_string(&label_prefix),
+                algorithm: CryptoKeyAlgorithm::Ec,
+                usage_mask: CryptoKeyUsageMask(0),
+                cursor: context.call_context.store_string(""),
+                limit: 128,
+            };
+            let page =
+                context.destack_crypto_store_list_keys(store, context.request_value(query)?)?;
+            let handles = context.key_list_handles(page)?;
+            assert!(
+                !handles.is_empty(),
+                "persistent host lane should retain non-extractable ec keys across reopen"
+            );
+
+            // delete all keys created for this label scope
+            for handle in handles {
+                context.destack_crypto_key_delete(handle)?;
+            }
+            context.destack_crypto_store_close(store)?;
+        }
+
+        Ok(())
+    });
+}
+
+/// Reject persistent generation on host lanes without persistence support.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_key_generate_persistent_rejects_host_lanes_without_persistence() {
+    with_harness_context(|mut context| {
+        // check each host lane and exercise only non-persistent lanes
+        for kind in [
+            CryptoStoreKind::System,
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let provider = context.string_value("");
+            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context.store_capability_from_value(capability)?;
+            if !capability.is_available || capability.supports_persistent {
+                continue;
+            }
+
+            // open lane and reject persistent key generation
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let request = CryptoKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Aes,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(0),
+                label: context
+                    .call_context
+                    .store_string("host-persistent-unsupported"),
+                extractable: true,
+                hardware_backed: false,
+                persistent: true,
+            };
+            let result =
+                context.destack_crypto_key_generate_secret(store, context.request_value(request)?);
+            let Err(error) = result else {
+                panic!("host lane without persistence support should reject persistent generation");
+            };
+            let platform = error
+                .platform_error()
+                .expect("key.generateSecret error should contain one platform error");
+            assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+
+            context.destack_crypto_store_close(store)?;
+        }
+
+        Ok(())
+    });
+}
+
+/// Reject persistent and hardware-backed key policies on provider stores.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_key_generate_rejects_unimplemented_storage_policies_on_provider_store() {
+    with_harness_context(|mut context| {
+        // open one provider store lane
+        let options = context.store_options_value(CryptoStoreKind::Provider);
+        let store = context.destack_crypto_store_open(options)?;
+
+        // reject hardware-backed generation on provider stores
+        let hardware_backed_request = CryptoKeyGenerationRequest {
+            algorithm: CryptoKeyAlgorithm::Aes,
+            named_curve: CryptoNamedCurve::Unknown,
+            modulus_bits: 0,
+            public_exponent: 0,
+            digest: CryptoDigestAlgorithm::Unknown,
+            size_bits: 256,
+            usage_mask: CryptoKeyUsageMask(0),
+            label: context.call_context.store_string("provider-hardware"),
+            extractable: true,
+            hardware_backed: true,
+            persistent: false,
+        };
+        let result = context.destack_crypto_key_generate_secret(
+            store,
+            context.request_value(hardware_backed_request)?,
+        );
+        let Err(error) = result else {
+            panic!("hardware-backed keys are not supported on provider stores");
+        };
+        let platform = error
+            .platform_error()
+            .expect("key.generateSecret error should contain one platform error");
+        assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+
+        // reject persistent generation on provider stores
+        let persistent_request = CryptoKeyGenerationRequest {
+            algorithm: CryptoKeyAlgorithm::Aes,
+            named_curve: CryptoNamedCurve::Unknown,
+            modulus_bits: 0,
+            public_exponent: 0,
+            digest: CryptoDigestAlgorithm::Unknown,
+            size_bits: 256,
+            usage_mask: CryptoKeyUsageMask(0),
+            label: context.call_context.store_string("provider-persistent"),
+            extractable: true,
+            hardware_backed: false,
+            persistent: true,
+        };
+        let result = context
+            .destack_crypto_key_generate_secret(store, context.request_value(persistent_request)?);
+        let Err(error) = result else {
+            panic!("persistent keys are not supported on provider stores");
+        };
+        let platform = error
+            .platform_error()
+            .expect("key.generateSecret error should contain one platform error");
         assert_eq!(platform.code, PlatformErrorCode::NotSupported);
 
         context.destack_crypto_store_close(store)?;

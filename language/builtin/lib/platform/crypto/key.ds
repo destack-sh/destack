@@ -11,6 +11,7 @@ import {
     CryptoNamedCurve,
     CryptoSignatureAlgorithm,
 } from "./algorithm.ds";
+import { CryptoStoreProvenance } from "./store.ds";
 
 /// Key-generation request.
 export struct CryptoKeyGenerationRequest {
@@ -97,6 +98,8 @@ export struct CryptoKeyDescriptor {
     hardwareBacked: boolean;
     /// Whether key material persists beyond process lifetime.
     persistent: boolean;
+    /// Effective key store provenance.
+    storeProvenance: CryptoStoreProvenance;
 }
 
 /// Signature parameters.

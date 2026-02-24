@@ -4,13 +4,16 @@
 mod harness;
 
 use destack_vm as vm;
+use std::sync::Mutex;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::resource::ResourceId;
 use crate::platform::{NativeSlice, NativeStringRef, VmSlice, resource};
 use crate::runtime::BindingCallContext;
 use crate::tests::runtime::TestRuntime;
+
+/// Global lock to serialize host-sensitive crypto tests.
+static CRYPTO_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 /// Key usage bit: sign.
 pub(crate) const KEY_USAGE_SIGN: u32 = 0x0000_0001;
@@ -124,6 +127,11 @@ pub(crate) fn with_harnesses<F>(mut callback: F)
 where
     F: FnMut(&CryptoHarnessHandle),
 {
+    // serialize crypto test harness runs to avoid host keychain contention
+    let _lock_guard = CRYPTO_TEST_LOCK
+        .lock()
+        .expect("crypto test lock should not be poisoned");
+
     // execute callback against native bindings
     let native = CryptoHarnessHandle::Native(NativeCryptoHarness::new());
     callback(&native);

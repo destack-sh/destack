@@ -11,7 +11,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
     CryptoCertificateDescriptor, CryptoCertificateFormat, CryptoCertificatePurpose,
     CryptoCertificateRevocationMode, CryptoCertificateValidity, CryptoCertificateVerifyRequest,
-    CryptoCertificateVerifyResult, CryptoDigestAlgorithm,
+    CryptoCertificateVerifyResult, CryptoDigestAlgorithm, CryptoStoreKind, host as crypto_host,
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
@@ -25,8 +25,10 @@ use super::constants::{
 };
 use super::core::{
     CRYPTO_CERTIFICATE_RESOURCE_KIND, CryptoCertificateResource, attach_certificate_to_store,
-    decode_native_string, handle_not_found, insert_certificate_resource, invalid_argument,
-    openssl_error, resolve_certificate_resource, resolve_store_resource,
+    decode_native_string, enforce_object_delete_policy, enforce_store_certificate_write_policy,
+    handle_not_found, insert_certificate_resource, invalid_argument, openssl_error,
+    resolve_certificate_resource, resolve_store_resource, store_provenance_from_store,
+    store_provenance_to_descriptor,
 };
 use super::digest::message_digest;
 
@@ -122,7 +124,17 @@ pub(crate) fn certificate_import(
     certificate: &[u8],
 ) -> RuntimeResult<resource::CryptoCertificateHandle> {
     // validate store handle
-    resolve_store_resource(context, store, "destack.crypto.certificate.import")?;
+    let store_resource =
+        resolve_store_resource(context, store, "destack.crypto.certificate.import")?;
+    let store_provenance = {
+        let store_resource = store_resource.lock();
+        enforce_store_certificate_write_policy(
+            context,
+            &store_resource,
+            "destack.crypto.certificate.import",
+        )?;
+        store_provenance_from_store(&store_resource)
+    };
 
     // parse certificate by requested format
     let certificate = match format {
@@ -131,8 +143,24 @@ pub(crate) fn certificate_import(
     }
     .map_err(|error| openssl_error("destack.crypto.certificate.import", error))?;
 
+    // persist certificate into host store backends when this lane is host-managed
+    if matches!(
+        store_provenance.kind,
+        CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
+    ) {
+        crypto_host::host_store_import_certificate(
+            context,
+            store_provenance.kind,
+            &certificate,
+            "destack.crypto.certificate.import",
+        )?;
+    }
+
     // publish certificate resource and attach it to store
-    let resource_value = CryptoCertificateResource { certificate };
+    let resource_value = CryptoCertificateResource {
+        certificate,
+        store_provenance,
+    };
     let handle = insert_certificate_resource(context, resource_value);
     attach_certificate_to_store(context, store, handle)?;
 
@@ -225,6 +253,7 @@ pub(crate) fn certificate_descriptor(
         },
         is_certificate_authority: certificate_is_authority(&resource.certificate),
         key_usage_mask: certificate_key_usage_mask(&resource.certificate),
+        store_provenance: store_provenance_to_descriptor(context, &resource.store_provenance),
     })
 }
 
@@ -328,6 +357,36 @@ pub(crate) fn certificate_delete(
     context: &BindingCallContext,
     handle: resource::CryptoCertificateHandle,
 ) -> RuntimeResult<()> {
+    // resolve certificate handle and enforce store delete policy
+    let certificate_resource =
+        resolve_certificate_resource(context, handle, "destack.crypto.certificate.delete")?;
+    let certificate_snapshot = {
+        let certificate_resource = certificate_resource.lock();
+        enforce_object_delete_policy(
+            context,
+            &certificate_resource.store_provenance,
+            "destack.crypto.certificate.delete",
+        )?;
+
+        (
+            certificate_resource.store_provenance.kind,
+            certificate_resource.certificate.clone(),
+        )
+    };
+
+    // delete persisted host certificates before removing runtime resources
+    if matches!(
+        certificate_snapshot.0,
+        CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
+    ) {
+        crypto_host::host_store_delete_certificate(
+            context,
+            certificate_snapshot.0,
+            &certificate_snapshot.1,
+            "destack.crypto.certificate.delete",
+        )?;
+    }
+
     // remove certificate resource entry
     let Some(entry) = context.runtime().resources.remove(handle.0) else {
         return Err(handle_not_found(
