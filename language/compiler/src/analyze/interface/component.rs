@@ -6,9 +6,10 @@ use destack_dir::{
     TypeTable,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{Module, ModuleGraphVersion, ProfileId};
+use destack_workspace::{Module, ModuleGraph, ModuleGraphKey, ModuleGraphVersion, ProfileId};
 use indexmap::IndexMap;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::collections::VecDeque;
 
 /// One classified interface value state for convergence checks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -38,7 +39,7 @@ impl Compiler {
         profile: ProfileId,
     ) -> Result<(), TaskDependencyError> {
         // ensure forward dependency edges are available for component discovery
-        self.require_resolve_forward_closure_for_interface_component(module, profile)?;
+        self.require_interface_forward_closure(module, profile)?;
 
         // schedule the canonical anchor task for this component
         let anchor_module_id = self.interface_component_anchor_module_id(module, profile);
@@ -91,17 +92,14 @@ impl Compiler {
             self.converge_interface_component(module_id, profile, &component.component_modules)?;
 
         // report unresolved interface cycle dependencies after convergence
-        self.report_unresolved_interface_component_cycle_exports(
+        self.report_interface_component_cycle_exports(
             profile,
             &component.component_modules,
             &component_set,
         )?;
 
         // report unknown interface exports after convergence
-        self.report_semantic_unknown_interface_component_exports(
-            profile,
-            &component.component_modules,
-        )?;
+        self.report_interface_component_unknown_exports(profile, &component.component_modules)?;
 
         Ok(())
     }
@@ -114,37 +112,53 @@ impl Compiler {
         component_modules: &[ModuleId],
     ) -> AnalyzeResult<FxHashSet<ModuleId>> {
         let component_set: FxHashSet<_> = component_modules.iter().copied().collect();
-        let export_slot_count =
-            self.interface_component_value_slot_count(profile, component_modules);
-        let max_iterations =
-            self.interface_component_max_iterations(export_slot_count, component_modules.len());
+        let graph_key = ModuleGraphKey::new(profile);
+        let graph =
+            self.program
+                .index
+                .module_graphs
+                .get(&graph_key)
+                .ok_or(AnalyzeError::Internal {
+                    message: format!(
+                        "missing interface graph snapshot during component convergence: anchor={anchor_module_id:?}, profile={profile:?}"
+                    ),
+                })?;
+        let dependents_by_module = self.interface_component_dependents(&graph, &component_set);
+        let export_slot_count = component_modules
+            .iter()
+            .copied()
+            .map(|module_id| {
+                self.interface_module_value_snapshot(profile, module_id)
+                    .len()
+            })
+            .sum::<usize>();
+        let max_steps =
+            self.interface_component_max_steps(export_slot_count, component_modules.len());
 
-        let mut previous_snapshot: Option<Vec<InterfaceValueSnapshot>> = None;
-        for _ in 0..max_iterations {
-            self.analyze_interface_component_iteration(profile, component_modules)?;
-
-            let next_snapshot = self.interface_component_value_snapshot(profile, component_modules);
-            if previous_snapshot.as_ref() == Some(&next_snapshot) {
-                return Ok(component_set);
-            }
-            previous_snapshot = Some(next_snapshot);
+        let mut pending = VecDeque::new();
+        let mut pending_set = FxHashSet::default();
+        for module_id in component_modules.iter().copied() {
+            pending.push_back(module_id);
+            pending_set.insert(module_id);
         }
 
-        Err(AnalyzeError::Internal {
-            message: format!(
-                "interface component did not converge: anchor={anchor_module_id:?}, profile={profile:?}, modules={}, export_slots={export_slot_count}, max_iterations={max_iterations}",
-                component_modules.len(),
-            ),
-        })
-    }
+        let mut snapshots_by_module: FxHashMap<ModuleId, Vec<InterfaceValueSnapshot>> =
+            FxHashMap::default();
+        let mut step_count = 0usize;
 
-    /// Analyze one component iteration in deterministic module order.
-    fn analyze_interface_component_iteration(
-        &self,
-        profile: ProfileId,
-        component_modules: &[ModuleId],
-    ) -> AnalyzeResult<()> {
-        for component_module_id in component_modules.iter().copied() {
+        while let Some(component_module_id) = pending.pop_front() {
+            pending_set.remove(&component_module_id);
+
+            step_count = step_count.saturating_add(1);
+            if step_count > max_steps {
+                return Err(AnalyzeError::Internal {
+                    message: format!(
+                        "interface component did not converge: anchor={anchor_module_id:?}, profile={profile:?}, modules={}, export_slots={export_slot_count}, max_steps={max_steps}, executed_steps={step_count}",
+                        component_modules.len(),
+                    ),
+                });
+            }
+
             let module_version = self.module_version(component_module_id);
             let profile_version = self.profile_version(profile);
             self.analyze_module_interface_inner(
@@ -153,52 +167,91 @@ impl Compiler {
                 module_version,
                 profile_version,
             )?;
+
+            let next_snapshot = self.interface_module_value_snapshot(profile, component_module_id);
+            let changed = snapshots_by_module
+                .get(&component_module_id)
+                .is_none_or(|previous_snapshot| previous_snapshot != &next_snapshot);
+            if !changed {
+                continue;
+            }
+            snapshots_by_module.insert(component_module_id, next_snapshot);
+
+            let Some(dependents) = dependents_by_module.get(&component_module_id) else {
+                continue;
+            };
+            for dependent_module_id in dependents.iter().copied() {
+                if pending_set.insert(dependent_module_id) {
+                    pending.push_back(dependent_module_id);
+                }
+            }
         }
 
-        Ok(())
+        Ok(component_set)
     }
 
-    /// Compute the fixed-point iteration cap for one component.
-    fn interface_component_max_iterations(
+    /// Compute the fixed-point worklist cap for one component.
+    fn interface_component_max_steps(
         &self,
         export_slot_count: usize,
         module_count: usize,
     ) -> usize {
-        (export_slot_count.max(1) * module_count).saturating_mul(4)
+        let module_count = module_count.max(1);
+        (export_slot_count.max(1) * module_count)
+            .saturating_mul(module_count)
+            .saturating_mul(4)
     }
 
-    /// Count value-export slots in one interface component.
-    fn interface_component_value_slot_count(
+    /// Collect one deterministic component-local dependent map.
+    fn interface_component_dependents(
         &self,
-        profile: ProfileId,
-        component_modules: &[ModuleId],
-    ) -> usize {
-        self.interface_component_value_snapshot(profile, component_modules)
-            .len()
+        graph: &ModuleGraph,
+        component_set: &FxHashSet<ModuleId>,
+    ) -> FxHashMap<ModuleId, Vec<ModuleId>> {
+        let mut dependents_by_module = FxHashMap::default();
+        for module_id in component_set.iter().copied() {
+            let mut dependents = graph
+                .dependents_for(module_id)
+                .into_iter()
+                .filter(|dependent_module_id| component_set.contains(dependent_module_id))
+                .collect::<Vec<_>>();
+            dependents.sort_unstable();
+            dependents_by_module.insert(module_id, dependents);
+        }
+
+        dependents_by_module
     }
 
-    /// Snapshot one interface component value state vector.
-    fn interface_component_value_snapshot(
+    /// Snapshot one interface module value state vector.
+    fn interface_module_value_snapshot(
         &self,
         profile: ProfileId,
-        component_modules: &[ModuleId],
+        module_id: ModuleId,
     ) -> Vec<InterfaceValueSnapshot> {
         let mut snapshot = Vec::new();
-        for component_module_id in component_modules.iter().copied() {
-            let module = self.program.modules.get(component_module_id);
-            let module = module.read();
-            let dir = module.dir(profile);
-            let symbols = dir.symbols.read();
-            let types = dir.types.read();
-            self.for_each_interface_export_table(&module, profile, |exports| {
-                self.interface_value_snapshot_for_exports(
-                    module.id,
-                    &symbols,
-                    &types,
-                    exports,
-                    &mut snapshot,
-                );
-            });
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let types = dir.types.read();
+        let exported_symbols = dir.exported_symbols.read();
+        self.interface_value_snapshot_for_exports(
+            module.id,
+            &symbols,
+            &types,
+            &exported_symbols,
+            &mut snapshot,
+        );
+
+        let binding_exports = dir.module_binding_exports.read();
+        for binding in binding_exports.values() {
+            self.interface_value_snapshot_for_exports(
+                module.id,
+                &symbols,
+                &types,
+                &binding.exports,
+                &mut snapshot,
+            );
         }
 
         snapshot.sort_unstable();
@@ -260,7 +313,7 @@ impl Compiler {
     }
 
     /// Report unresolved interface cycles after component convergence.
-    fn report_unresolved_interface_component_cycle_exports(
+    fn report_interface_component_cycle_exports(
         &self,
         profile: ProfileId,
         component_modules: &[ModuleId],
@@ -273,24 +326,36 @@ impl Compiler {
             let tree = dir.tree.read();
             let symbols = dir.symbols.read();
             let mut types = dir.types.write();
-            self.try_for_each_interface_export_table(&module, profile, |exports| {
-                self.report_unresolved_interface_cycle_exports_for_table(
+            let exported_symbols = dir.exported_symbols.read();
+            self.report_interface_cycle_exports_for_table(
+                &module,
+                profile,
+                &tree,
+                &symbols,
+                &mut types,
+                &exported_symbols,
+                component_set,
+            )?;
+
+            let binding_exports = dir.module_binding_exports.read();
+            for binding in binding_exports.values() {
+                self.report_interface_cycle_exports_for_table(
                     &module,
                     profile,
                     &tree,
                     &symbols,
                     &mut types,
-                    exports,
+                    &binding.exports,
                     component_set,
-                )
-            })?;
+                )?;
+            }
         }
 
         Ok(())
     }
 
     /// Report unresolved interface cycles for one export table.
-    fn report_unresolved_interface_cycle_exports_for_table(
+    fn report_interface_cycle_exports_for_table(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -310,7 +375,9 @@ impl Compiler {
             let Some(value_type_id) = types.get_value_type_id(export_symbol) else {
                 continue;
             };
-            if !self.interface_value_type_requires_cycle_anchor(types, value_type_id) {
+            if !self.interface_value_requires_solver(types, value_type_id)
+                && !self.interface_value_is_semantic_unknown(types, value_type_id)
+            {
                 continue;
             }
 
@@ -351,7 +418,7 @@ impl Compiler {
     }
 
     /// Report semantic-unknown interface exports after component convergence.
-    fn report_semantic_unknown_interface_component_exports(
+    fn report_interface_component_unknown_exports(
         &self,
         profile: ProfileId,
         component_modules: &[ModuleId],
@@ -365,24 +432,36 @@ impl Compiler {
             let tree = dir.tree.read();
             let symbols = dir.symbols.read();
             let types = dir.types.read();
-            self.try_for_each_interface_export_table(&module, profile, |exports| {
-                self.report_semantic_unknown_interface_exports_for_table(
+            let exported_symbols = dir.exported_symbols.read();
+            self.report_interface_unknown_exports_for_table(
+                &module,
+                profile,
+                &tree,
+                &symbols,
+                &types,
+                &exported_symbols,
+                &mut warned_symbols,
+            )?;
+
+            let binding_exports = dir.module_binding_exports.read();
+            for binding in binding_exports.values() {
+                self.report_interface_unknown_exports_for_table(
                     &module,
                     profile,
                     &tree,
                     &symbols,
                     &types,
-                    exports,
+                    &binding.exports,
                     &mut warned_symbols,
-                )
-            })?;
+                )?;
+            }
         }
 
         Ok(())
     }
 
     /// Report semantic-unknown interface exports for one export table.
-    fn report_semantic_unknown_interface_exports_for_table(
+    fn report_interface_unknown_exports_for_table(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -405,7 +484,7 @@ impl Compiler {
             let Some(value_type_id) = types.get_value_type_id(export_symbol) else {
                 continue;
             };
-            if !self.interface_value_type_is_semantic_unknown(types, value_type_id) {
+            if !self.interface_value_is_semantic_unknown(types, value_type_id) {
                 continue;
             }
 
@@ -419,48 +498,6 @@ impl Compiler {
                 .into_global_any(module.id)
                 .into_anchored(Some(profile));
             self.warning(AnalyzeWarning::ExportTypeUnknown { node: warning_node });
-        }
-
-        Ok(())
-    }
-
-    /// Visit each interface export table for a module.
-    fn for_each_interface_export_table(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        mut callback: impl FnMut(&IndexMap<(SymbolSpace, StaticKey), Export>),
-    ) {
-        let dir = module.dir(profile);
-        let exported_symbols = dir.exported_symbols.read();
-        let binding_exports = dir.module_binding_exports.read();
-
-        callback(&exported_symbols);
-        for binding in binding_exports.values() {
-            callback(&binding.exports);
-        }
-    }
-
-    /// Visit each interface export table for a module and stop on first error.
-    fn try_for_each_interface_export_table(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        mut callback: impl FnMut(&IndexMap<(SymbolSpace, StaticKey), Export>) -> AnalyzeResult<()>,
-    ) -> AnalyzeResult<()> {
-        let mut first_error = None;
-        self.for_each_interface_export_table(module, profile, |exports| {
-            if first_error.is_some() {
-                return;
-            }
-
-            if let Err(error) = callback(exports) {
-                first_error = Some(error);
-            }
-        });
-
-        if let Some(error) = first_error {
-            return Err(error);
         }
 
         Ok(())

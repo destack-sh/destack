@@ -299,18 +299,17 @@ impl Compiler {
             && symbol == right_symbol
             && let (Some(left_arguments), Some(right_arguments)) =
                 (left_arguments.as_deref(), right_arguments.as_deref())
-            && let Some(inferred) = self
-                .infer_conditional_type_substitutions_for_reference_arguments(
-                    module,
-                    profile,
-                    left_arguments,
-                    right_arguments,
-                    distributive,
-                    source_id,
-                    symbols,
-                    types,
-                    visited,
-                )
+            && let Some(inferred) = self.infer_conditional_substitutions_for_reference_arguments(
+                module,
+                profile,
+                left_arguments,
+                right_arguments,
+                distributive,
+                source_id,
+                symbols,
+                types,
+                visited,
+            )
         {
             return Some(inferred);
         }
@@ -731,7 +730,7 @@ impl Compiler {
                 Type::TemplateLiteral { strings, spans },
             ) => {
                 let value = self.program.strings.get(string_id).to_string();
-                self.infer_template_literal_substitutions_from_string(
+                self.infer_template_substitutions_from_string(
                     module, profile, &value, &strings, &spans, source_id, symbols, types,
                 )
             }
@@ -751,7 +750,7 @@ impl Compiler {
                     let fragment = self.program.strings.get(string_id);
                     value.push_str(fragment.as_ref());
                 }
-                self.infer_template_literal_substitutions_from_string(
+                self.infer_template_substitutions_from_string(
                     module,
                     profile,
                     &value,
@@ -771,7 +770,7 @@ impl Compiler {
                     strings: right_strings,
                     spans: right_spans,
                 },
-            ) => self.infer_template_literal_substitutions_from_template(
+            ) => self.infer_template_substitutions_from_template(
                 module,
                 profile,
                 distributive,
@@ -1454,7 +1453,7 @@ impl Compiler {
     }
 
     /// Infer substitutions from matching reference static arguments.
-    fn infer_conditional_type_substitutions_for_reference_arguments(
+    fn infer_conditional_substitutions_for_reference_arguments(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1802,7 +1801,7 @@ impl Compiler {
     }
 
     /// Infer substitutions by matching a template literal type against a string literal.
-    pub(crate) fn infer_template_literal_substitutions_from_string(
+    pub(crate) fn infer_template_substitutions_from_string(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1962,7 +1961,7 @@ impl Compiler {
     }
 
     /// Infer substitutions by matching a template literal type against another template literal.
-    pub(crate) fn infer_template_literal_substitutions_from_template(
+    pub(crate) fn infer_template_substitutions_from_template(
         &self,
         module: &Module,
         profile: ProfileId,

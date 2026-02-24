@@ -1,4 +1,4 @@
-use crate::{AnalyzeResult, Compiler, InferContext};
+use crate::{Compiler, InferContext};
 use destack_dir::{GlobalSymbolId, InferTable, LocalTypeId, NodeTree, SymbolTable, TypeTable};
 use destack_workspace::{Module, ProfileId};
 
@@ -13,7 +13,7 @@ pub(in crate::analyze::commit) struct DirectBindingValueTypeCommitAction {
 
 impl Compiler {
     /// Collect direct-binding value-type commit actions from solved initializer intents.
-    pub(super) fn collect_direct_binding_value_type_commit_actions(
+    pub(super) fn collect_binding_value_commit_actions(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -27,8 +27,7 @@ impl Compiler {
         // consume infer-recorded write intents in deterministic symbol or node order
         let mut intents = infer
             .iter_direct_binding_value_commit_intents()
-            .filter(|intent| intent.symbol_id.module_id == module.id)
-            .map(|intent| (intent.symbol_id, intent.declarator_id, intent.value_id))
+            .filter(|(symbol_id, _, _)| symbol_id.module_id == module.id)
             .collect::<Vec<_>>();
         intents.sort_by_key(|(symbol_id, declarator_id, value_id)| {
             (symbol_id.local_id.id, declarator_id.id, value_id.id)
@@ -73,25 +72,13 @@ impl Compiler {
     }
 
     /// Apply direct-binding value-type commit actions to committed type tables.
-    pub(super) fn apply_direct_binding_value_type_commit_actions(
+    pub(super) fn apply_binding_value_commit_actions(
         &self,
         actions: Vec<DirectBindingValueTypeCommitAction>,
-        snapshot_types: &TypeTable,
         committed_types: &mut TypeTable,
-    ) -> AnalyzeResult<()> {
-        let committed_type_floor = committed_types.type_count();
-        let mut is_synchronized = false;
+    ) {
         for action in actions {
-            let committed_type_id = self.committed_type_id_for_snapshot_type(
-                action.type_id,
-                snapshot_types,
-                committed_types,
-                committed_type_floor,
-                &mut is_synchronized,
-            )?;
-            committed_types.set_value_type(action.symbol_id, committed_type_id);
+            committed_types.set_value_type(action.symbol_id, action.type_id);
         }
-
-        Ok(())
     }
 }

@@ -383,7 +383,7 @@ impl Compiler {
         // prefer a consistent bound when possible
         match (lower, upper) {
             (Some(lower), Some(upper)) => {
-                let normalized_target = self.normalize_apparent_type_for_assignability_cached(
+                let normalized_target = self.normalize_apparent_type_cached(
                     module,
                     profile,
                     upper,
@@ -391,7 +391,7 @@ impl Compiler {
                     types,
                     normalization_cache,
                 );
-                let normalized_source = self.normalize_apparent_type_for_assignability_cached(
+                let normalized_source = self.normalize_apparent_type_cached(
                     module,
                     profile,
                     lower,
@@ -468,7 +468,7 @@ impl Compiler {
     }
 
     /// Normalize a type for assignability using the per-solve cache.
-    fn normalize_apparent_type_for_assignability_cached(
+    fn normalize_apparent_type_cached(
         &self,
         module: &Module,
         profile: ProfileId,

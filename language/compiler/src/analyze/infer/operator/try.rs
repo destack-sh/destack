@@ -37,7 +37,11 @@ impl Compiler {
         // no Try elements means nullish-only behavior
         if try_elements.is_empty() {
             let result_ty_id = if has_nullish {
-                self.union_type(non_nullish_ty_id, right_ty_id, types)
+                self.union_type_from_list(
+                    vec![non_nullish_ty_id, right_ty_id],
+                    non_nullish_ty_id,
+                    types,
+                )
             } else {
                 left_ty_id
             };
@@ -1070,7 +1074,7 @@ impl Compiler {
 
         // report missing fromError implementations
         if missing_from_error {
-            self.emit_missing_member_diagnostic_for_receiver_type(
+            let _ = self.report_missing_member_diagnostic(
                 module,
                 profile,
                 expression_id,
@@ -1221,7 +1225,7 @@ impl Compiler {
         });
 
         // enforce propagated error compatibility after convergence when needed
-        let assignability_check = self.enforce_assignability_or_defer_unassignable_diagnostic(
+        let assignability_check = self.enforce_assignability_or_defer_diagnostic(
             module,
             ctx.profile,
             expression_id.into_any(),

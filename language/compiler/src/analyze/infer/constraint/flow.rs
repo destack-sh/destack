@@ -1833,7 +1833,6 @@ impl Compiler {
     }
 
     /// Split the environment for one comptime type relation guard.
-    #[allow(clippy::too_many_arguments)]
     fn narrow_environment_for_comptime_relation_guard(
         &self,
         module: &Module,

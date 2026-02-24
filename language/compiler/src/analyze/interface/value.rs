@@ -143,7 +143,7 @@ impl Compiler {
             }
 
             // ensure interface snapshots never publish value exports without one value type
-            self.ensure_complete_interface_value_types_for_exports(
+            self.ensure_interface_value_types_for_exports(
                 module,
                 profile,
                 exported_symbols,
@@ -179,7 +179,7 @@ impl Compiler {
 
             // defer unannotated function returns to declaration inference
             if let Some(declaration_id) =
-                self.interface_function_declaration_for_inference(tree, primary_declaration)
+                self.interface_function_declaration(tree, primary_declaration)
             {
                 export_declarations.push(InterfaceDeclarationInference { declaration_id });
                 continue;
@@ -305,7 +305,7 @@ impl Compiler {
         }
 
         // solve interface-local constraints for this surface pass
-        self.solve_interface_value_inference_constraints(
+        self.solve_interface_value_constraints(
             module,
             profile,
             symbols,
@@ -331,7 +331,7 @@ impl Compiler {
         }
 
         // ensure interface snapshots never publish value exports without one value type
-        self.ensure_complete_interface_value_types_for_exports(
+        self.ensure_interface_value_types_for_exports(
             module,
             profile,
             exported_symbols,
@@ -343,7 +343,7 @@ impl Compiler {
     }
 
     /// Ensure each published value export has one committed interface value type.
-    fn ensure_complete_interface_value_types_for_exports(
+    fn ensure_interface_value_types_for_exports(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -378,7 +378,7 @@ impl Compiler {
                 continue;
             }
 
-            let unknown_type_id = self.commit_interface_unknown_value_type_for_export_symbol(
+            let unknown_type_id = self.commit_unknown_interface_value_type(
                 module,
                 profile,
                 export,
@@ -405,7 +405,7 @@ impl Compiler {
     }
 
     /// Commit semantic unknown for one published export symbol with no inferred value type.
-    fn commit_interface_unknown_value_type_for_export_symbol(
+    fn commit_unknown_interface_value_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -431,7 +431,7 @@ impl Compiler {
     }
 
     /// Solve interface value inference constraints for the current surface pass.
-    fn solve_interface_value_inference_constraints(
+    fn solve_interface_value_constraints(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -478,7 +478,7 @@ impl Compiler {
     }
 
     /// Return an exported function declaration that needs interface return inference.
-    fn interface_function_declaration_for_inference(
+    fn interface_function_declaration(
         &self,
         tree: &NodeTree,
         primary_declaration: GlobalNodeIdAny,
@@ -620,7 +620,7 @@ impl Compiler {
     }
 
     /// Return true when one interface value type still requires solver convergence.
-    pub(crate) fn interface_value_type_requires_solver_convergence(
+    pub(crate) fn interface_value_requires_solver(
         &self,
         types: &TypeTable,
         ty_id: LocalTypeId,
@@ -629,7 +629,7 @@ impl Compiler {
     }
 
     /// Return true when one interface value type is the semantic `unknown` top type.
-    pub(crate) fn interface_value_type_is_semantic_unknown(
+    pub(crate) fn interface_value_is_semantic_unknown(
         &self,
         types: &TypeTable,
         ty_id: LocalTypeId,
@@ -640,15 +640,5 @@ impl Compiler {
                 value: TypeLiteral::Unknown
             }
         )
-    }
-
-    /// Return true when one interface export still needs a cycle anchor.
-    pub(crate) fn interface_value_type_requires_cycle_anchor(
-        &self,
-        types: &TypeTable,
-        ty_id: LocalTypeId,
-    ) -> bool {
-        self.interface_value_type_requires_solver_convergence(types, ty_id)
-            || self.interface_value_type_is_semantic_unknown(types, ty_id)
     }
 }

@@ -258,11 +258,10 @@ impl Compiler {
                     if kind == StaticParameterKind::Value {
                         // use substitution values when available
                         if let Some(substitutions) = substitutions
-                            && let Some(type_id) = self
-                                .substitution_type_id_for_static_parameter_symbol(
-                                    parameter_symbol,
-                                    substitutions,
-                                )
+                            && let Some(type_id) = self.substitution_type_id_for_static_parameter(
+                                parameter_symbol,
+                                substitutions,
+                            )
                         {
                             let value =
                                 self.static_expression_from_substitution_type(type_id, types);
@@ -541,22 +540,21 @@ impl Compiler {
                         right,
                     } => {
                         // resolve both sides for extends checks
-                        let Some(mut left_type_id) = self
-                            .resolve_static_conditional_operand_type_for_evaluation(
-                                module,
-                                profile,
-                                *left,
-                                tree,
-                                symbols,
-                                types,
-                                substitutions,
-                                mode,
-                            )?
+                        let Some(mut left_type_id) = self.resolve_static_conditional_operand_type(
+                            module,
+                            profile,
+                            *left,
+                            tree,
+                            symbols,
+                            types,
+                            substitutions,
+                            mode,
+                        )?
                         else {
                             return Ok(None);
                         };
                         let Some(mut right_type_id) = self
-                            .resolve_static_conditional_operand_type_for_evaluation(
+                            .resolve_static_conditional_operand_type(
                                 module,
                                 profile,
                                 *right,
@@ -628,14 +626,19 @@ impl Compiler {
 
                         // unresolved type operands keep conditional evaluation deferred
                         if mode == StaticEvaluationMode::Instantiated
-                            && !self.static_conditional_operands_are_resolved_for_evaluation(
+                            && (!self.type_is_converged_for_static_evaluation(
                                 module,
                                 profile,
                                 left_type_id,
+                                symbols,
+                                types,
+                            ) || !self.type_is_converged_for_static_evaluation(
+                                module,
+                                profile,
                                 right_type_id,
                                 symbols,
                                 types,
-                            )
+                            ))
                         {
                             return Ok(None);
                         }
@@ -683,31 +686,29 @@ impl Compiler {
                 else_type,
             } => {
                 // evaluate both sides as types before selecting one branch
-                let Some(mut left_type_id) = self
-                    .resolve_static_conditional_operand_type_for_evaluation(
-                        module,
-                        profile,
-                        *left,
-                        tree,
-                        symbols,
-                        types,
-                        substitutions,
-                        mode,
-                    )?
+                let Some(mut left_type_id) = self.resolve_static_conditional_operand_type(
+                    module,
+                    profile,
+                    *left,
+                    tree,
+                    symbols,
+                    types,
+                    substitutions,
+                    mode,
+                )?
                 else {
                     return Ok(None);
                 };
-                let Some(mut right_type_id) = self
-                    .resolve_static_conditional_operand_type_for_evaluation(
-                        module,
-                        profile,
-                        *right,
-                        tree,
-                        symbols,
-                        types,
-                        substitutions,
-                        mode,
-                    )?
+                let Some(mut right_type_id) = self.resolve_static_conditional_operand_type(
+                    module,
+                    profile,
+                    *right,
+                    tree,
+                    symbols,
+                    types,
+                    substitutions,
+                    mode,
+                )?
                 else {
                     return Ok(None);
                 };
@@ -771,10 +772,15 @@ impl Compiler {
                 );
 
                 // unresolved type operands keep conditional evaluation deferred
-                if !self.static_conditional_operands_are_resolved_for_evaluation(
+                if !self.type_is_converged_for_static_evaluation(
                     module,
                     profile,
                     left_type_id,
+                    symbols,
+                    types,
+                ) || !self.type_is_converged_for_static_evaluation(
+                    module,
+                    profile,
                     right_type_id,
                     symbols,
                     types,
@@ -953,8 +959,7 @@ impl Compiler {
     }
 
     /// Resolve one conditional operand type for static branch selection.
-    #[allow(clippy::too_many_arguments)]
-    fn resolve_static_conditional_operand_type_for_evaluation(
+    fn resolve_static_conditional_operand_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -970,13 +975,11 @@ impl Compiler {
             self.static_parameter_reference(module, profile, side_id, tree, symbols, types)?
         {
             if let Some(substitutions) = substitutions
-                && let Some(mapped) = self.substitution_type_id_for_static_parameter_symbol(
-                    parameter_symbol,
-                    substitutions,
-                )
+                && let Some(mapped) =
+                    self.substitution_type_id_for_static_parameter(parameter_symbol, substitutions)
             {
                 let mapped = types.unwrap_value_type_id(mapped);
-                let is_resolved = self.static_conditional_operand_is_resolved_for_evaluation(
+                let is_resolved = self.type_is_converged_for_static_evaluation(
                     module, profile, mapped, symbols, types,
                 );
                 if is_resolved {
@@ -1000,42 +1003,5 @@ impl Compiler {
             module, profile, side_id, tree, symbols, types, true, true,
         )?;
         Ok(Some(side_type_id))
-    }
-
-    /// Return true when one conditional operand type is resolved for static branch selection.
-    fn static_conditional_operand_is_resolved_for_evaluation(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-    ) -> bool {
-        self.type_is_converged_for_static_evaluation(module, profile, type_id, symbols, types)
-    }
-
-    /// Return true when both conditional operand types are resolved for static branch selection.
-    fn static_conditional_operands_are_resolved_for_evaluation(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        left_type_id: LocalTypeId,
-        right_type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-    ) -> bool {
-        self.static_conditional_operand_is_resolved_for_evaluation(
-            module,
-            profile,
-            left_type_id,
-            symbols,
-            types,
-        ) && self.static_conditional_operand_is_resolved_for_evaluation(
-            module,
-            profile,
-            right_type_id,
-            symbols,
-            types,
-        )
     }
 }

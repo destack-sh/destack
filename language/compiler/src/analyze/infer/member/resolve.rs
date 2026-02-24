@@ -53,7 +53,7 @@ impl Compiler {
                 symbols,
             )?;
             if member_kind == Some(StaticMemberSymbolKind::AssociatedComptimeConst) {
-                let associated_type_id = self.query_associated_comptime_member_type_for_symbol(
+                let associated_type_id = self.query_associated_member_type_for_symbol(
                     module,
                     profile,
                     expression_id,
@@ -145,8 +145,7 @@ impl Compiler {
     }
 
     /// Resolve one associated comptime member type without generic remote value import.
-    #[allow(clippy::too_many_arguments)]
-    fn query_associated_comptime_member_type_for_symbol(
+    fn query_associated_member_type_for_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -272,15 +271,14 @@ impl Compiler {
             .map_err(AnalyzeError::from)?;
         let remote_import = remote_import?;
 
-        let Some((resolved_symbol, remote_type, remote_snapshot)) = remote_import else {
+        let Some((_resolved_symbol, remote_type, remote_snapshot)) = remote_import else {
             return Ok(None);
         };
 
-        let local_type_id = self.import_type_from_remote_for_node(
+        let local_type_id = self.import_remote_type_for_node(
             expression_id.into_any(),
             &remote_type,
             &remote_snapshot,
-            resolved_symbol,
             types,
         );
         Ok(Some(local_type_id))
@@ -447,7 +445,7 @@ impl Compiler {
         }
 
         // resolve value-symbol static members for direct value receivers
-        if let Some(member_symbol) = self.resolve_value_member_symbol_for_receiver_expression(
+        if let Some(member_symbol) = self.resolve_value_member_symbol(
             module,
             receiver_id,
             member_key,
@@ -526,8 +524,7 @@ impl Compiler {
     }
 
     /// Resolve one static member symbol from one direct value receiver expression.
-    #[allow(clippy::too_many_arguments)]
-    fn resolve_value_member_symbol_for_receiver_expression(
+    fn resolve_value_member_symbol(
         &self,
         module: &Module,
         receiver_id: LocalNodeId<Expression>,
@@ -683,14 +680,8 @@ impl Compiler {
         }
 
         // defer missing-member diagnostics while receiver typing still depends on infer convergence
-        let receiver_is_unannotated_parameter_reference = self
-            .receiver_expression_is_unannotated_parameter_reference(
-                module,
-                receiver_id,
-                tree,
-                symbols,
-                types,
-            );
+        let receiver_is_unannotated_parameter_reference =
+            self.is_unannotated_parameter_receiver(module, receiver_id, tree, symbols, types);
         let receiver_is_indeterminate_for_callback_member_check = self
             .type_is_solver_placeholder(receiver_ty_id, types)
             || (matches!(
@@ -727,7 +718,7 @@ impl Compiler {
             return Ok(deferred_type_id);
         }
 
-        // keep callback-indeterminate receivers unresolved until callback replay lands
+        // keep callback-indeterminate receivers unresolved until callback inference converges
         if allow_missing_member_deferral && receiver_is_indeterminate_for_callback_member_check {
             self.record_provisional_member_resolution(
                 expression_id.into_global_any(module.id),
@@ -746,16 +737,15 @@ impl Compiler {
         }
 
         // suppress missing-member cascades only when a primary semantic fault blocks lookup
-        let allow_associated_contract_blocker = self
-            .query_expression_is_projection_receiver_for_infer(
-                module,
-                profile,
-                receiver_id,
-                tree,
-                symbols,
-                types,
-            );
-        let reported = self.report_missing_member_diagnostic_for_receiver_type(
+        let allow_associated_contract_blocker = self.is_projection_receiver_expression(
+            module,
+            profile,
+            receiver_id,
+            tree,
+            symbols,
+            types,
+        );
+        let reported = self.report_missing_member_diagnostic(
             module,
             profile,
             expression_id,
@@ -802,7 +792,7 @@ impl Compiler {
     }
 
     /// Return true when one receiver expression is an unannotated local parameter reference.
-    fn receiver_expression_is_unannotated_parameter_reference(
+    fn is_unannotated_parameter_receiver(
         &self,
         module: &Module,
         receiver_id: LocalNodeId<Expression>,
@@ -849,7 +839,7 @@ impl Compiler {
         allow_implicit: bool,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // pick a lookup mode based on the receiver type
-        let lookup_mode = self.query_member_lookup_mode_for_type(receiver_ty);
+        let lookup_mode = MemberLookupMode::Instance;
 
         let resolved = match receiver_ty {
             Type::Value { .. } => {
@@ -953,7 +943,7 @@ impl Compiler {
             return Ok(None);
         };
         let symbol = self
-            .remap_typevalue_symbol_to_canonical_type_space(module, profile, symbol)
+            .remap_typevalue_symbol_to_type_space(module, profile, symbol)
             .map_err(AnalyzeError::from)?;
         self.resolve_member_symbol_for_symbol(
             module,

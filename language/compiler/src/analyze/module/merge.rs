@@ -79,7 +79,7 @@ impl Compiler {
     }
 
     /// Select one canonical type-space symbol for a merge key.
-    pub(crate) fn select_canonical_type_space_symbol_for_key(
+    pub(crate) fn select_canonical_type_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -110,7 +110,7 @@ impl Compiler {
     }
 
     /// Remap one symbol from typevalue space to canonical type-space carrier.
-    pub(crate) fn remap_typevalue_symbol_to_canonical_type_space(
+    pub(crate) fn remap_typevalue_symbol_to_type_space(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -133,9 +133,7 @@ impl Compiler {
                 let Some(key) = owner_symbol.key else {
                     return symbol;
                 };
-                if let Some(candidate) =
-                    self.select_canonical_type_space_symbol_for_key(module, profile, key)
-                {
+                if let Some(candidate) = self.select_canonical_type_symbol(module, profile, key) {
                     self.normalize_reference_symbol_id(module, profile, candidate)
                 } else {
                     symbol

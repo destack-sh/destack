@@ -1,9 +1,9 @@
 use super::*;
 use destack_dir::FunctionMode;
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Check visibility constraints for a resolved member access.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn check_member_resolution_visibility(
         &self,
         module: &Module,

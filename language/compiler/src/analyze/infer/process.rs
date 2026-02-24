@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::analyze::common::NormalizationMode;
+use crate::analyze::r#type::json_value_to_type;
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, Compiler, FlowContext, InferSession, TaskDependencyError,
@@ -13,8 +14,6 @@ use destack_dir::{
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{Module, ModuleContent, ModuleSource, ModuleType, ProfileId};
 use std::collections::HashSet;
-
-use super::super::common::json_value_to_type;
 
 impl Compiler {
     /// Ensure a module's types have been inferred.
@@ -108,7 +107,7 @@ impl Compiler {
 
         // require builtins before resolving type-import operator dependencies
         self.require_resolve_builtins(profile)?;
-        self.require_type_import_interface_dependency_closure_for_infer(&module, profile, &tree)?;
+        self.require_type_import_interface_dependencies(&module, profile, &tree)?;
 
         drop(types);
         drop(symbols);
@@ -117,7 +116,7 @@ impl Compiler {
         // establish infer dependency preconditions
         self.require_analyze_module_interface(module_id, profile)?;
         self.require_declare_dependencies_for_infer(module_id, profile)?;
-        self.require_interface_dependencies_for_infer(module_id, profile)?;
+        self.require_interface_dependencies(module_id, profile)?;
         self.require_interface_inference_for_ambient_libs(profile)?;
 
         let dir = module.dir(profile);

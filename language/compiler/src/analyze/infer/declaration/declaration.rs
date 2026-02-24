@@ -11,12 +11,11 @@ use destack_base::StringId;
 use destack_dir::{
     AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration,
     DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem,
-    DependencyKind, DirectBindingValueCommitIntent, DynamicKey, EnumField, Expression,
-    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, GlobalNodeIdAny,
-    GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, Member, Mutability, NodeTree, NodeType, Parameter, Pattern, PrimitiveType,
-    StaticArgument, StaticExpression, StaticKey, SymbolSpace, SymbolTable, SymbolType, Type,
-    TypeField, TypeLiteral, TypeTable, WhereClause,
+    DependencyKind, DynamicKey, EnumField, Expression, FunctionCardinality, FunctionKind,
+    FunctionMode, FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope,
+    InferTable, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, Mutability, NodeTree,
+    NodeType, Parameter, Pattern, PrimitiveType, StaticArgument, StaticExpression, StaticKey,
+    SymbolSpace, SymbolTable, SymbolType, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleContent, ModuleSource, ProfileId};
@@ -171,9 +170,7 @@ impl Compiler {
                 descriptor: _,
                 scope: _,
                 expressions,
-            } => {
-                self.infer_global_declaration(module, expressions, tree, symbols, types, infer, ctx)
-            }
+            } => self.infer_expression_list(module, expressions, tree, symbols, types, infer, ctx),
 
             // namespace
             Declaration::Namespace {
@@ -352,20 +349,6 @@ impl Compiler {
         }
 
         Ok(())
-    }
-
-    /// Infer a global declaration body.
-    fn infer_global_declaration(
-        &self,
-        module: &Module,
-        expressions: &[LocalNodeId<Expression>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        ctx: &mut InferContext,
-    ) -> AnalyzeResult<()> {
-        self.infer_expression_list(module, expressions, tree, symbols, types, infer, ctx)
     }
 
     /// Infer a namespace declaration body.
@@ -742,7 +725,6 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         node_id: GlobalNodeIdAny,
-        owner_symbol: GlobalSymbolId,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // resolve local declared types directly
@@ -767,18 +749,11 @@ impl Compiler {
             .map_err(AnalyzeError::from)?;
 
         Ok(remote_declared.map(|(remote_ty, remote_snapshot)| {
-            self.import_type_from_remote_for_node(
-                node_id.local_id,
-                &remote_ty,
-                &remote_snapshot,
-                owner_symbol,
-                types,
-            )
+            self.import_remote_type_for_node(node_id.local_id, &remote_ty, &remote_snapshot, types)
         }))
     }
 
     /// Infer associated type contracts for declarations implementing interfaces.
-    #[allow(clippy::too_many_arguments)]
     fn infer_declaration_associated_types(
         &self,
         module: &Module,
@@ -878,7 +853,7 @@ impl Compiler {
         let mut inherited_defaults_by_name = HashMap::new();
 
         for contract_expression_id in contract_types {
-            self.infer_associated_comptime_requirements_for_contract(
+            self.infer_associated_comptime_requirements(
                 module,
                 profile,
                 *contract_expression_id,
@@ -923,7 +898,7 @@ impl Compiler {
     }
 
     /// Enforce associated comptime requirements for one inherited contract.
-    fn infer_associated_comptime_requirements_for_contract(
+    fn infer_associated_comptime_requirements(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -935,7 +910,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
-        let Some(contract_context) = self.associated_contract_context_for_contract_expression(
+        let Some(contract_context) = self.associated_contract_context_for_expression(
             module,
             profile,
             contract_expression_id,
@@ -969,7 +944,7 @@ impl Compiler {
                 }
 
                 // validate that inherited defaults do not conflict by name
-                self.validate_inherited_associated_comptime_default_compatibility(
+                self.validate_inherited_associated_comptime_default(
                     module,
                     profile,
                     contract_expression_id,
@@ -993,13 +968,8 @@ impl Compiler {
             let Some(requirement_type_node) = requirement.type_node else {
                 continue;
             };
-            let Some(mut requirement_type_id) = self.declared_type_for_node(
-                module,
-                profile,
-                requirement_type_node,
-                requirement.symbol,
-                types,
-            )?
+            let Some(mut requirement_type_id) =
+                self.declared_type_for_node(module, profile, requirement_type_node, types)?
             else {
                 continue;
             };
@@ -1053,7 +1023,7 @@ impl Compiler {
     }
 
     /// Validate that inherited associated comptime defaults agree across implemented interfaces.
-    fn validate_inherited_associated_comptime_default_compatibility(
+    fn validate_inherited_associated_comptime_default(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1132,7 +1102,6 @@ impl Compiler {
     }
 
     /// Enforce associated type requirements for one inherited contract.
-    #[allow(clippy::too_many_arguments)]
     fn infer_associated_type_requirements_for_contract(
         &self,
         module: &Module,
@@ -1145,7 +1114,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
-        let Some(contract_context) = self.associated_contract_context_for_contract_expression(
+        let Some(contract_context) = self.associated_contract_context_for_expression(
             module,
             profile,
             contract_expression_id,
@@ -1179,7 +1148,7 @@ impl Compiler {
                 }
 
                 // validate that inherited defaults do not conflict by name
-                self.validate_inherited_associated_default_compatibility(
+                self.validate_inherited_associated_default(
                     module,
                     profile,
                     contract_expression_id,
@@ -1231,8 +1200,7 @@ impl Compiler {
     }
 
     /// Validate that inherited associated defaults agree across implemented interfaces.
-    #[allow(clippy::too_many_arguments)]
-    fn validate_inherited_associated_default_compatibility(
+    fn validate_inherited_associated_default(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1278,7 +1246,7 @@ impl Compiler {
     }
 
     /// Resolve one associated contract context from one heritage contract expression.
-    fn associated_contract_context_for_contract_expression(
+    fn associated_contract_context_for_expression(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1698,7 +1666,7 @@ impl Compiler {
         };
 
         let Some(mut bound_ty_id) =
-            self.declared_type_for_node(module, profile, bound_node, requirement.symbol, types)?
+            self.declared_type_for_node(module, profile, bound_node, types)?
         else {
             return Ok(());
         };
@@ -3422,7 +3390,7 @@ impl Compiler {
         source_node: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
-        use crate::analyze::common::json_value_to_type;
+        use crate::analyze::r#type::json_value_to_type;
 
         match &target_module.content {
             ModuleContent::Data { value, .. } => {
@@ -3664,7 +3632,7 @@ impl Compiler {
                 self.unwrap_type_symbol(types, initial_declared_ty_id)
             {
                 let source_node_id = source_id.into_global(module.id);
-                let _ = self.record_provisional_instance_for_reference_type_maybe(
+                let _ = self.record_reference_provisional_instance(
                     module,
                     ctx.profile,
                     source_node_id,
@@ -3790,11 +3758,11 @@ impl Compiler {
             if declared_annotation_ty_id.is_none()
                 && let Some(value_id) = value
             {
-                infer.upsert_direct_binding_value_commit_intent(DirectBindingValueCommitIntent {
-                    symbol_id: binding_symbol,
+                infer.upsert_direct_binding_value_commit_intent(
+                    binding_symbol,
                     declarator_id,
-                    value_id: *value_id,
-                });
+                    *value_id,
+                );
             }
         }
 

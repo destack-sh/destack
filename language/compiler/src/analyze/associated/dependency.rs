@@ -59,7 +59,7 @@ impl NodeVisitor for ProjectionDependencyExpressionVisitor {
 
 impl Compiler {
     /// Collect projection dependencies for associated comptime members.
-    pub(crate) fn collect_associated_comptime_member_projection_dependencies(
+    pub(crate) fn collect_member_projection_dependencies(
         &self,
         module: &Module,
         members: &[LocalNodeId<Member>],
@@ -100,12 +100,11 @@ impl Compiler {
     }
 
     /// Return true when one associated comptime member symbol depends on projection forms.
-    pub(crate) fn query_symbol_has_associated_comptime_projection_dependencies(
+    pub(crate) fn symbol_has_projection_dependencies(
         &self,
         module: &Module,
         profile: ProfileId,
         symbol: GlobalSymbolId,
-        _symbols: &SymbolTable,
         types: &TypeTable,
     ) -> AnalyzeResult<bool> {
         self.with_module_types_or_local_at_stage(

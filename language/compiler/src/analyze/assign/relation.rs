@@ -43,7 +43,6 @@ impl Compiler {
         if !options.no_unsound_variance {
             return;
         }
-
         let node = anchor.into_global(module.id).into_anchored(Some(profile));
         self.error(AnalyzeError::UnsoundVarianceDisabled { node });
     }
@@ -422,7 +421,7 @@ impl Compiler {
                         .is_some_and(|record_symbol| record_symbol == source_symbol)
                         || map_symbol.is_some_and(|map_symbol| map_symbol == source_symbol);
                     if is_record_like_source
-                        && self.reference_static_arguments_assignable(
+                        && self.are_reference_static_arguments_assignable(
                             module,
                             profile,
                             target_id,
@@ -1859,7 +1858,7 @@ impl Compiler {
         }
 
         if target_symbol == source_symbol {
-            if self.reference_static_arguments_assignable(
+            if self.are_reference_static_arguments_assignable(
                 module,
                 profile,
                 target_id,

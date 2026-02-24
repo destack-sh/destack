@@ -16,6 +16,7 @@ pub(crate) enum UnassignableRelationFailureMode {
     ReportAndContinue,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Return true when one relation depends on unsolved inference state.
     pub(crate) fn type_relation_requires_infer_convergence(
@@ -41,7 +42,7 @@ impl Compiler {
     }
 
     /// Record one post solve relation obligation using captured type ids.
-    pub(crate) fn push_type_relation_obligation_for_captured_types(
+    pub(crate) fn push_relation_obligation_for_captured_types(
         &self,
         module: &Module,
         node_id: LocalNodeIdAny,
@@ -61,7 +62,7 @@ impl Compiler {
     }
 
     /// Record one post solve relation obligation using expression operands.
-    pub(crate) fn push_type_relation_obligation_for_expression_operands(
+    pub(crate) fn push_relation_obligation_for_expression_operands(
         &self,
         module: &Module,
         node_id: LocalNodeIdAny,
@@ -81,8 +82,7 @@ impl Compiler {
     }
 
     /// Enforce one assignability relation or defer its diagnostic to post solve reporting.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn enforce_assignability_or_defer_unassignable_diagnostic(
+    pub(crate) fn enforce_assignability_or_defer_diagnostic(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -104,7 +104,7 @@ impl Compiler {
             symbols,
             types,
         ) {
-            self.push_type_relation_obligation_for_captured_types(
+            self.push_relation_obligation_for_captured_types(
                 module,
                 node_id,
                 target_type_id,

@@ -31,7 +31,7 @@ impl Compiler {
         environment: StaticSubstitutionEnvironment,
     ) -> AnalyzeResult<NormalizedInstanceEnvironment> {
         let environment = self
-            .canonicalize_instance_environment_for_commit_key(environment)
+            .canonicalize_instance_environment_key(environment)
             .ok_or_else(|| {
                 self.internal_analyze_error(format!(
                     "normalize_instance_environment_for_commit: failed to canonicalize committable instance environment for symbol {symbol_id:?}",
@@ -65,7 +65,7 @@ impl Compiler {
     }
 
     /// Return whether two optional static-argument lists are equivalent for instance-key matching.
-    fn static_argument_list_option_equal_for_instance_key(
+    fn static_argument_list_eq_for_instance_key(
         &self,
         left: &Option<Vec<StaticArgument>>,
         right: &Option<Vec<StaticArgument>>,
@@ -81,7 +81,7 @@ impl Compiler {
     }
 
     /// Return whether two optional static expressions are equivalent for instance-key matching.
-    fn static_expression_option_equal_for_instance_key(
+    fn static_expression_option_eq_for_instance_key(
         &self,
         left: &Option<StaticExpression>,
         right: &Option<StaticExpression>,
@@ -90,7 +90,7 @@ impl Compiler {
         match (left, right) {
             (None, None) => true,
             (Some(left), Some(right)) => {
-                self.static_expression_equal_for_instance_key(left, right, types)
+                self.static_expression_eq_for_instance_key(left, right, types)
             }
             _ => false,
         }
@@ -127,8 +127,8 @@ impl Compiler {
                 left_modifiers == right_modifiers
                     && left_key == right_key
                     && left_symbol == right_symbol
-                    && self.static_expression_equal_for_instance_key(left_value, right_value, types)
-                    && self.static_expression_option_equal_for_instance_key(
+                    && self.static_expression_eq_for_instance_key(left_value, right_value, types)
+                    && self.static_expression_option_eq_for_instance_key(
                         left_default,
                         right_default,
                         types,
@@ -154,14 +154,14 @@ impl Compiler {
                     && left_key == right_key
                     && left_signature == right_signature
                     && left_symbol == right_symbol
-                    && self.static_expression_equal_for_instance_key(left_body, right_body, types)
+                    && self.static_expression_eq_for_instance_key(left_body, right_body, types)
             }
             _ => false,
         }
     }
 
     /// Return whether two static-property vectors are equivalent for instance-key matching.
-    fn static_properties_equal_for_instance_key(
+    fn static_properties_eq_for_instance_key(
         &self,
         left: &[StaticProperty],
         right: &[StaticProperty],
@@ -177,7 +177,7 @@ impl Compiler {
     }
 
     /// Return whether two static expressions are equivalent for instance-key matching.
-    fn static_expression_equal_for_instance_key(
+    fn static_expression_eq_for_instance_key(
         &self,
         left: &StaticExpression,
         right: &StaticExpression,
@@ -210,7 +210,7 @@ impl Compiler {
                 },
             ) => {
                 left_declaration == right_declaration
-                    && self.static_argument_list_option_equal_for_instance_key(
+                    && self.static_argument_list_eq_for_instance_key(
                         left_arguments,
                         right_arguments,
                         types,
@@ -229,13 +229,13 @@ impl Compiler {
                 }
 
                 left.iter().zip(right.iter()).all(|(left, right)| {
-                    self.static_expression_equal_for_instance_key(left, right, types)
+                    self.static_expression_eq_for_instance_key(left, right, types)
                 })
             }
             (
                 StaticExpression::ObjectExpression { properties: left },
                 StaticExpression::ObjectExpression { properties: right },
-            ) => self.static_properties_equal_for_instance_key(left, right, types),
+            ) => self.static_properties_eq_for_instance_key(left, right, types),
             _ => false,
         }
     }
@@ -255,7 +255,7 @@ impl Compiler {
             (
                 StaticArgument::Evaluated { value: left, .. },
                 StaticArgument::Evaluated { value: right, .. },
-            ) => self.static_expression_equal_for_instance_key(left, right, types),
+            ) => self.static_expression_eq_for_instance_key(left, right, types),
             _ => false,
         }
     }
@@ -338,7 +338,7 @@ impl Compiler {
     }
 
     /// Canonicalize one environment for instance commit keying.
-    fn canonicalize_instance_environment_for_commit_key(
+    fn canonicalize_instance_environment_key(
         &self,
         environment: StaticSubstitutionEnvironment,
     ) -> Option<StaticSubstitutionEnvironment> {

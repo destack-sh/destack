@@ -296,9 +296,7 @@ impl Compiler {
             if self.type_blocks_cascading_diagnostic(body_ty_id, types) {
                 return;
             }
-            if self
-                .body_trailing_expression_blocks_cascading_diagnostic(module, body_id, tree, types)
-            {
+            if self.trailing_expression_blocks_cascading_diagnostic(module, body_id, tree, types) {
                 return;
             }
 
@@ -322,7 +320,7 @@ impl Compiler {
     }
 
     /// Return true when the trailing body expression already blocks cascading diagnostics.
-    fn body_trailing_expression_blocks_cascading_diagnostic(
+    fn trailing_expression_blocks_cascading_diagnostic(
         &self,
         module: &Module,
         body_id: LocalNodeId<Expression>,
@@ -1040,7 +1038,7 @@ impl Compiler {
                 Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
                     // collect pattern bindings from the parameter
                     let mut bindings = HashSet::new();
-                    self.collect_value_binding_symbols_for_pattern(
+                    self.collect_pattern_value_binding_symbols(
                         tree,
                         *pattern,
                         symbols,
@@ -1157,7 +1155,7 @@ impl Compiler {
                     bindings.insert(symbol_id);
                 }
                 Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
-                    self.collect_value_binding_symbols_for_pattern(
+                    self.collect_pattern_value_binding_symbols(
                         tree,
                         *pattern,
                         symbols,
@@ -1219,7 +1217,7 @@ impl Compiler {
     }
 
     /// Collect value binding symbols for a pattern subtree.
-    fn collect_value_binding_symbols_for_pattern(
+    fn collect_pattern_value_binding_symbols(
         &self,
         tree: &NodeTree,
         pattern_id: LocalNodeId<Pattern>,
@@ -1241,7 +1239,7 @@ impl Compiler {
             Pattern::Must(inner)
             | Pattern::ReferenceOf { right: inner, .. }
             | Pattern::ValueOf { right: inner, .. } => {
-                self.collect_value_binding_symbols_for_pattern(tree, *inner, symbols, bindings);
+                self.collect_pattern_value_binding_symbols(tree, *inner, symbols, bindings);
             }
             Pattern::Tuple { fields }
             | Pattern::TaggedTuple { fields, .. }
@@ -1254,7 +1252,7 @@ impl Compiler {
             }
             Pattern::Union { patterns } => {
                 for pattern_id in patterns {
-                    self.collect_value_binding_symbols_for_pattern(
+                    self.collect_pattern_value_binding_symbols(
                         tree,
                         *pattern_id,
                         symbols,
@@ -1264,9 +1262,7 @@ impl Compiler {
             }
             Pattern::Binding { pattern, .. } => {
                 if let Some(pattern) = pattern {
-                    self.collect_value_binding_symbols_for_pattern(
-                        tree, *pattern, symbols, bindings,
-                    );
+                    self.collect_pattern_value_binding_symbols(tree, *pattern, symbols, bindings);
                 }
             }
         }
@@ -1300,7 +1296,7 @@ impl Compiler {
                 ..
             }
             | PatternField::Positional { pattern, .. } => {
-                self.collect_value_binding_symbols_for_pattern(tree, *pattern, symbols, bindings);
+                self.collect_pattern_value_binding_symbols(tree, *pattern, symbols, bindings);
             }
             _ => {}
         }
@@ -1475,7 +1471,7 @@ impl Compiler {
                 continue;
             }
             let declared_ty_id = types.get_declared_type_id(id.into_global(module.id).into());
-            self.report_implicit_any_for_declarator_unchecked(
+            self.report_unchecked_implicit_any_declarator(
                 module,
                 profile,
                 id,
@@ -1497,7 +1493,7 @@ impl Compiler {
                 Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
             };
             let symbol = parameter.symbol().into_global(module.id);
-            self.report_implicit_any_for_parameter_unchecked(
+            self.report_unchecked_implicit_any_parameter(
                 module,
                 profile,
                 id,
@@ -1512,7 +1508,7 @@ impl Compiler {
     }
 
     /// Report an implicit any diagnostic for a parameter after option checks.
-    fn report_implicit_any_for_parameter_unchecked(
+    fn report_unchecked_implicit_any_parameter(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1547,7 +1543,7 @@ impl Compiler {
     }
 
     /// Report an implicit any diagnostic for a declarator after option checks.
-    fn report_implicit_any_for_declarator_unchecked(
+    fn report_unchecked_implicit_any_declarator(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1587,7 +1583,7 @@ impl Compiler {
             return;
         }
 
-        self.report_implicit_any_for_parameter_unchecked(
+        self.report_unchecked_implicit_any_parameter(
             module,
             profile,
             parameter_id,
@@ -1614,7 +1610,7 @@ impl Compiler {
             return;
         }
 
-        self.report_implicit_any_for_declarator_unchecked(
+        self.report_unchecked_implicit_any_declarator(
             module,
             profile,
             declarator_id,

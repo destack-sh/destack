@@ -113,7 +113,7 @@ impl Compiler {
                 let match_type_id = if then_type_id == else_type_id {
                     then_type_id
                 } else {
-                    self.union_type(then_type_id, else_type_id, types)
+                    self.union_type_from_list(vec![then_type_id, else_type_id], then_type_id, types)
                 };
                 self.set_expression_type(types, tree.module_id, if_id, match_type_id);
             }

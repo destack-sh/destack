@@ -370,7 +370,6 @@ impl Compiler {
     }
 
     /// Resolve constant bindings into static expressions when possible.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_static_constant_reference_with_previsited(
         &self,
         module: &Module,
@@ -528,12 +527,11 @@ impl Compiler {
                         )
                         .map_err(AnalyzeError::from)?;
 
-                    if let Some((resolved_symbol, value, remote_snapshot)) = found_value {
-                        local_value = Some(self.import_static_expression_from_remote_for_node(
+                    if let Some((_resolved_symbol, value, remote_snapshot)) = found_value {
+                        local_value = Some(self.import_remote_static_expression_for_node(
                             source_node,
                             &value,
                             &remote_snapshot,
-                            resolved_symbol,
                             types,
                         ));
                         break;
@@ -566,13 +564,12 @@ impl Compiler {
                                 substitution_entries.as_ref().map(|entries| {
                                     let mut mapped = HashMap::with_capacity(entries.len());
                                     for (parameter_symbol, local_type) in entries {
-                                    let remote_type_id = self.import_type_from_remote_for_node(
-                                        source_node,
-                                        local_type,
-                                        types,
-                                        symbol,
-                                        &mut remote_snapshot,
-                                    );
+                                        let remote_type_id = self.import_remote_type_for_node(
+                                            source_node,
+                                            local_type,
+                                            types,
+                                            &mut remote_snapshot,
+                                        );
                                     mapped.insert(*parameter_symbol, remote_type_id);
                                     }
                                     mapped
@@ -600,11 +597,10 @@ impl Compiler {
                     .map_err(AnalyzeError::from)??;
 
                 local_value = evaluated_remote_value.map(|(value, remote_snapshot)| {
-                    self.import_static_expression_from_remote_for_node(
+                    self.import_remote_static_expression_for_node(
                         source_node,
                         &value,
                         &remote_snapshot,
-                        symbol,
                         types,
                     )
                 });

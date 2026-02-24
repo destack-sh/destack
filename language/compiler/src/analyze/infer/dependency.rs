@@ -9,7 +9,7 @@ use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
 impl Compiler {
     /// Require interface analysis for the type-import dependency closure used during infer.
-    pub(super) fn require_type_import_interface_dependency_closure_for_infer(
+    pub(super) fn require_type_import_interface_dependencies(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -17,12 +17,12 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         // collect and require interface dependencies in deterministic module order
         let required_modules =
-            self.collect_type_import_interface_dependency_modules_for_infer(module, profile, tree)?;
+            self.collect_type_import_interface_dependencies(module, profile, tree)?;
         self.require_interface_modules_for_infer(profile, required_modules)
     }
 
     /// Collect interface dependency modules for type-import expressions used during infer.
-    fn collect_type_import_interface_dependency_modules_for_infer(
+    fn collect_type_import_interface_dependencies(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -127,7 +127,7 @@ impl Compiler {
     }
 
     /// Ensure interface analysis is complete for infer dependency modules.
-    pub(crate) fn require_interface_dependencies_for_infer(
+    pub(crate) fn require_interface_dependencies(
         &self,
         module_id: ModuleId,
         profile: ProfileId,

@@ -3,8 +3,8 @@ use crate::analyze::module::GlobalMergeCategory;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
     Asynchrony, Declaration, Expression, FunctionCardinality, GlobalSymbolId, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LocalTypeId, NodeTree, StaticKey, Symbol, SymbolSpace,
-    SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeTable, are_types_equal,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, NodeTree, Symbol, SymbolTable, SymbolType, Type,
+    TypeField, TypeIndexSignature, TypeTable, are_types_equal,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -225,11 +225,10 @@ impl Compiler {
         };
 
         // import the remote type after dropping remote locks
-        let local_type_id = self.import_type_from_remote_for_node(
+        let local_type_id = self.import_remote_type_for_node(
             declaration_id.into_any(),
             &remote_type,
             &remote_snapshot,
-            global_symbol,
             types,
         );
 
@@ -1016,7 +1015,7 @@ impl Compiler {
         };
 
         // collect merge symbols for this key and space
-        let merge_symbols = self.collect_global_merge_symbols(
+        let merge_symbols = self.collect_global_merge_sources_for_key(
             module,
             profile,
             key,
@@ -1061,18 +1060,6 @@ impl Compiler {
         Ok(())
     }
 
-    /// Collect merge symbols for global augmentations.
-    fn collect_global_merge_symbols(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        key: StaticKey,
-        space: SymbolSpace,
-        category: GlobalMergeCategory,
-    ) -> Vec<GlobalSymbolId> {
-        self.collect_global_merge_sources_for_key(module, profile, key, space, category)
-    }
-
     /// Merge global augmentation types into a symbol value type.
     pub(crate) fn merge_global_value_shape_for_symbol(
         &self,
@@ -1098,7 +1085,7 @@ impl Compiler {
         };
 
         // collect merge symbols for this key and space
-        let merge_symbols = self.collect_global_merge_symbols(
+        let merge_symbols = self.collect_global_merge_sources_for_key(
             module,
             profile,
             key,

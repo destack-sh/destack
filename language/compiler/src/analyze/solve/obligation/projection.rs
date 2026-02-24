@@ -1,15 +1,15 @@
 use crate::analyze::StaticMemberSymbolKind;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    AssociatedComptimeProjectionObligation, Expression, GlobalSymbolId, LocalNodeId,
+    AssociatedComptimeProjectionObligation, Expression, GlobalSymbolId, InferTable, LocalNodeId,
     LocalNodeIdAny, LocalTypeId, NodeTree, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::{HashMap, HashSet};
 
-/// One deterministic commit action produced by projection obligation collection.
+/// One deterministic action produced by projection obligation collection.
 #[derive(Debug, Clone, Copy)]
-pub(in crate::analyze::commit) enum ProjectionCommitAction {
+enum ProjectionObligationAction {
     /// Set one inferred type for one projection expression.
     SetInferredType {
         /// The projection expression id.
@@ -17,53 +17,69 @@ pub(in crate::analyze::commit) enum ProjectionCommitAction {
         /// The inferred type id in the projection collection snapshot.
         type_id: LocalTypeId,
     },
-    /// Emit one invalid projection diagnostic and commit an error type.
+    /// Emit one invalid projection diagnostic and set an error type.
     EmitInvalidProjection {
         /// The projection expression id.
         expression_id: LocalNodeId<Expression>,
     },
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Apply projection commit actions to committed type tables.
-    pub(in crate::analyze::commit) fn apply_projection_commit_actions(
+    /// Discharge projection obligations in solve and update infer overlays directly.
+    pub(in crate::analyze::solve) fn discharge_projection_obligations_in_solve(
         &self,
         module: &Module,
         profile: ProfileId,
-        actions: Vec<ProjectionCommitAction>,
-        snapshot_types: &TypeTable,
-        committed_types: &mut TypeTable,
+        infer: &mut InferTable,
+        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
-        let committed_type_floor = committed_types.type_count();
-        let mut is_synchronized = false;
+        let mut obligations = infer.take_associated_comptime_projection_obligations();
+        obligations.sort_by_key(|obligation| obligation.expression_id.id);
+        if obligations.is_empty() {
+            return Ok(());
+        }
+
+        let actions = match self.collect_projection_obligation_actions(
+            module,
+            profile,
+            &obligations,
+            types,
+        ) {
+            Ok(actions) => actions,
+            Err(AnalyzeError::Yield { dependency }) => {
+                for obligation in obligations {
+                    infer.push_associated_comptime_projection_obligation(obligation);
+                }
+                return Err(AnalyzeError::Yield { dependency });
+            }
+            Err(error) => return Err(error),
+        };
+
+        self.apply_projection_obligation_actions_in_solve(module, profile, actions, infer, types)
+    }
+
+    /// Apply projection actions to infer overlays during solve discharge.
+    fn apply_projection_obligation_actions_in_solve(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        actions: Vec<ProjectionObligationAction>,
+        infer: &mut InferTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
         for action in actions {
             match action {
-                ProjectionCommitAction::SetInferredType {
+                ProjectionObligationAction::SetInferredType {
                     expression_id,
                     type_id,
                 } => {
-                    let committed_type_id = self.committed_type_id_for_snapshot_type(
-                        type_id,
-                        snapshot_types,
-                        committed_types,
-                        committed_type_floor,
-                        &mut is_synchronized,
-                    )?;
-                    committed_types.set_inferred_type(
+                    infer.set_inferred_type_for_node(
                         expression_id.into_global_any(module.id),
-                        committed_type_id,
+                        type_id,
                     );
                 }
-                ProjectionCommitAction::EmitInvalidProjection { expression_id } => {
-                    // synchronize snapshot tail before local error type insertions
-                    self.synchronize_snapshot_type_tail_for_commit(
-                        snapshot_types,
-                        committed_types,
-                        committed_type_floor,
-                        &mut is_synchronized,
-                    )?;
-
-                    // emit unresolved projection diagnostics
+                ProjectionObligationAction::EmitInvalidProjection { expression_id } => {
                     self.error(AnalyzeError::InvalidStaticArgument {
                         node: expression_id
                             .into_global_any(module.id)
@@ -71,11 +87,11 @@ impl Compiler {
                         message: "associated comptime projection must be resolvable".to_string(),
                     });
 
-                    // commit error type after reporting
-                    let error_type_id =
-                        committed_types.insert_type_from(Type::Error, expression_id);
-                    committed_types
-                        .set_inferred_type(expression_id.into_global_any(module.id), error_type_id);
+                    let error_type_id = types.insert_type_from(Type::Error, expression_id);
+                    infer.set_inferred_type_for_node(
+                        expression_id.into_global_any(module.id),
+                        error_type_id,
+                    );
                 }
             }
         }
@@ -83,14 +99,14 @@ impl Compiler {
         Ok(())
     }
 
-    /// Collect deterministic projection commit actions after infer convergence.
-    pub(in crate::analyze::commit) fn collect_projection_commit_actions(
+    /// Collect deterministic projection actions after infer convergence.
+    fn collect_projection_obligation_actions(
         &self,
         module: &Module,
         profile: ProfileId,
         obligations: &[AssociatedComptimeProjectionObligation],
         types: &mut TypeTable,
-    ) -> AnalyzeResult<Vec<ProjectionCommitAction>> {
+    ) -> AnalyzeResult<Vec<ProjectionObligationAction>> {
         // read module owned semantic tables once
         let tree = module.dir(profile).tree.read();
         let symbols = module.dir(profile).symbols.read();
@@ -111,19 +127,18 @@ impl Compiler {
             );
 
             // resolve projected value type for the converged substitution environment
-            let resolved_value_type_id = self
-                .resolved_projection_obligation_value_type_after_infer(
-                    module,
-                    profile,
-                    obligation.expression_id.into_any(),
-                    obligation_member_symbol,
-                    &obligation.substitutions,
-                    &tree,
-                    &symbols,
-                    types,
-                )?;
+            let resolved_value_type_id = self.resolve_projection_value_type(
+                module,
+                profile,
+                obligation.expression_id.into_any(),
+                obligation_member_symbol,
+                &obligation.substitutions,
+                &tree,
+                &symbols,
+                types,
+            )?;
 
-            // collect resolved projected value type commits
+            // collect resolved projected value type actions
             if let Some(value_type_id) = resolved_value_type_id {
                 if obligation_member_symbol.is_none() {
                     return Err(AnalyzeError::Internal {
@@ -131,7 +146,7 @@ impl Compiler {
                             .to_string(),
                     });
                 }
-                actions.push(ProjectionCommitAction::SetInferredType {
+                actions.push(ProjectionObligationAction::SetInferredType {
                     expression_id: obligation.expression_id,
                     type_id: value_type_id,
                 });
@@ -140,7 +155,7 @@ impl Compiler {
 
             // collect at most one unresolved projection diagnostic per expression id
             if reported.insert(obligation.expression_id.id) {
-                actions.push(ProjectionCommitAction::EmitInvalidProjection {
+                actions.push(ProjectionObligationAction::EmitInvalidProjection {
                     expression_id: obligation.expression_id,
                 });
             }
@@ -151,7 +166,7 @@ impl Compiler {
 
     /// Resolve one projection obligation value type after infer convergence.
     /// Return None when the obligation remains unresolved.
-    pub(super) fn resolved_projection_obligation_value_type_after_infer(
+    fn resolve_projection_value_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -175,17 +190,11 @@ impl Compiler {
             symbols,
             types,
         ) {
-            if !self.unresolved_projection_obligation_requires_primary_static_error_check(
-                module,
-                profile,
-                member_symbol,
-                symbols,
-                types,
-            )? {
+            if !self.symbol_has_projection_dependencies(module, profile, member_symbol, types)? {
                 return Ok(None);
             }
 
-            return self.projection_obligation_error_type_for_unresolved_substitutions_after_infer(
+            return self.resolve_projection_error_type(
                 module,
                 profile,
                 expression_id,
@@ -197,7 +206,7 @@ impl Compiler {
             );
         }
 
-        self.resolved_projection_obligation_static_value_type_after_infer(
+        self.resolve_projection_static_value_type(
             module,
             profile,
             expression_id,
@@ -209,27 +218,7 @@ impl Compiler {
         )
     }
 
-    /// Return true when unresolved substitutions may still produce a primary static cycle error.
-    #[allow(clippy::too_many_arguments)]
-    fn unresolved_projection_obligation_requires_primary_static_error_check(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        member_symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-    ) -> AnalyzeResult<bool> {
-        self.query_symbol_has_associated_comptime_projection_dependencies(
-            module,
-            profile,
-            member_symbol,
-            symbols,
-            types,
-        )
-    }
-
     /// Resolve one associated comptime member symbol for one deferred projection obligation.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_projection_obligation_member_symbol(
         &self,
         module: &Module,
@@ -252,9 +241,7 @@ impl Compiler {
         let left = self.unwrap_parenthesized_expression(*left, tree);
 
         // recover only for projection receivers
-        if !self.query_expression_is_projection_receiver_for_infer(
-            module, profile, left, tree, symbols, types,
-        ) {
+        if !self.is_projection_receiver_expression(module, profile, left, tree, symbols, types) {
             return None;
         }
 
@@ -287,7 +274,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &TypeTable,
     ) -> bool {
-        // unresolved substitutions block projection replay
+        // unresolved substitutions block projection discharge
         for substitution in substitutions.values().copied() {
             let substitution = types.unwrap_value_type_id(substitution);
             if !self.type_is_converged_for_static_evaluation(
@@ -306,8 +293,7 @@ impl Compiler {
 
     /// Resolve one projection obligation static value type after infer convergence.
     /// Return None when the static value is unresolved.
-    #[allow(clippy::too_many_arguments)]
-    fn projection_obligation_error_type_for_unresolved_substitutions_after_infer(
+    fn resolve_projection_error_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -319,7 +305,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // resolve a projected static value type for unresolved substitutions
-        let Some(value_type_id) = self.projection_obligation_static_value_type_for_substitutions(
+        let Some(value_type_id) = self.evaluate_projection_static_value_type(
             module,
             profile,
             expression_id,
@@ -335,7 +321,7 @@ impl Compiler {
 
         let value_type_id = types.unwrap_value_type_id(value_type_id);
 
-        // keep primary static errors as resolved replay output
+        // keep primary static errors as resolved discharge output
         if matches!(types.get_type(value_type_id), Type::Error) {
             return Ok(Some(value_type_id));
         }
@@ -345,8 +331,7 @@ impl Compiler {
 
     /// Resolve one projection obligation static value type after infer convergence.
     /// Return None when the static value is unresolved.
-    #[allow(clippy::too_many_arguments)]
-    fn resolved_projection_obligation_static_value_type_after_infer(
+    fn resolve_projection_static_value_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -358,7 +343,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // resolve projected static value type for converged substitutions
-        let Some(value_type_id) = self.projection_obligation_static_value_type_for_substitutions(
+        let Some(value_type_id) = self.evaluate_projection_static_value_type(
             module,
             profile,
             expression_id,
@@ -373,7 +358,7 @@ impl Compiler {
         };
 
         // keep error sentinels resolved here: static evaluation reports the primary diagnostic
-        let committed_type_id = self.projection_obligation_committed_value_type_for_symbol(
+        let value_space_type_id = self.resolve_projection_value_type_for_symbol(
             module,
             expression_id,
             member_symbol,
@@ -381,13 +366,12 @@ impl Compiler {
             types,
         )?;
 
-        Ok(Some(committed_type_id))
+        Ok(Some(value_space_type_id))
     }
 
     /// Resolve one projected static value type for one substitution environment.
     /// Return None when no static value can be produced yet.
-    #[allow(clippy::too_many_arguments)]
-    fn projection_obligation_static_value_type_for_substitutions(
+    fn evaluate_projection_static_value_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -414,12 +398,12 @@ impl Compiler {
             return Ok(None);
         };
 
-        // convert static expression replay result into a type id
+        // convert static expression discharge result into a type id
         Ok(self.static_expression_type_id_for_substitution(expression_id, &static_value, types))
     }
 
-    /// Resolve the committed value space type for one projection obligation.
-    fn projection_obligation_committed_value_type_for_symbol(
+    /// Resolve the value-space type for one projection obligation.
+    fn resolve_projection_value_type_for_symbol(
         &self,
         module: &Module,
         expression_id: LocalNodeIdAny,
@@ -427,13 +411,13 @@ impl Compiler {
         provisional_type_id: LocalTypeId,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
-        // prefer committed value type ids when already available
+        // prefer existing value type ids when already available
         if let Some(value_type_id) = types.get_value_type_id(member_symbol) {
             return Ok(value_type_id);
         }
 
-        // projection obligations commit the projection-evaluated value type directly:
-        // this keeps commit ownership local and avoids remote value-space imports here
+        // projection obligations use the projection-evaluated value type directly:
+        // this keeps solve ownership local and avoids remote value-space imports here
         Ok(self.widen_projection_value_type_for_value_position(
             module,
             expression_id,

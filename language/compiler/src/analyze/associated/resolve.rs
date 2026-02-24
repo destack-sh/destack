@@ -268,7 +268,7 @@ pub(crate) enum MissingMemberDiagnosticBlocker {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Return true when one declaration symbol has unimplemented associated requirements.
-    pub(crate) fn symbol_has_unimplemented_associated_requirements(
+    pub(crate) fn symbol_has_missing_associated_requirements(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -312,7 +312,7 @@ impl Compiler {
     }
 
     /// Return true when one receiver type resolves to a symbol with unsatisfied associated requirements.
-    pub(crate) fn receiver_type_has_unimplemented_associated_requirements(
+    pub(crate) fn receiver_has_missing_associated_requirements(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -324,7 +324,7 @@ impl Compiler {
             return Ok(false);
         };
 
-        self.symbol_has_unimplemented_associated_requirements(
+        self.symbol_has_missing_associated_requirements(
             module,
             profile,
             receiver_symbol,
@@ -334,7 +334,7 @@ impl Compiler {
     }
 
     /// Return the primary semantic blocker for one missing-member diagnostic, when present.
-    pub(crate) fn missing_member_diagnostic_blocker_for_receiver_type(
+    pub(crate) fn should_block_missing_member_diagnostic(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -370,7 +370,7 @@ impl Compiler {
         }
 
         if allow_associated_contract_blocker
-            && self.receiver_type_has_unimplemented_associated_requirements(
+            && self.receiver_has_missing_associated_requirements(
                 module,
                 profile,
                 receiver_ty_id,
@@ -387,7 +387,7 @@ impl Compiler {
     }
 
     /// Report one missing-member diagnostic unless a primary semantic blocker applies.
-    pub(crate) fn report_missing_member_diagnostic_for_receiver_type(
+    pub(crate) fn report_missing_member_diagnostic(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -398,7 +398,7 @@ impl Compiler {
         types: &TypeTable,
         allow_associated_contract_blocker: bool,
     ) -> AnalyzeResult<bool> {
-        let blocker = self.missing_member_diagnostic_blocker_for_receiver_type(
+        let blocker = self.should_block_missing_member_diagnostic(
             module,
             profile,
             receiver_ty_id,
@@ -421,32 +421,6 @@ impl Compiler {
         self.error(error);
 
         Ok(true)
-    }
-
-    /// Emit one missing-member diagnostic unless a primary semantic blocker applies.
-    pub(crate) fn emit_missing_member_diagnostic_for_receiver_type(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        expression_id: LocalNodeId<Expression>,
-        receiver_ty_id: LocalTypeId,
-        member_key: StaticKey,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-        allow_associated_contract_blocker: bool,
-    ) -> AnalyzeResult<()> {
-        self.report_missing_member_diagnostic_for_receiver_type(
-            module,
-            profile,
-            expression_id,
-            receiver_ty_id,
-            member_key,
-            symbols,
-            types,
-            allow_associated_contract_blocker,
-        )?;
-
-        Ok(())
     }
 
     /// Collect contract associated type requirements for one contract symbol.
@@ -901,7 +875,7 @@ impl Compiler {
 
         // follow static parameter constraints for projected members
         if self.symbol_is_static_parameter(module, profile, lookup_symbol, symbols, types) {
-            let constraint_ty_id = self.projection_static_parameter_constraint_type_for_traversal(
+            let constraint_ty_id = self.projection_static_parameter_constraint_type(
                 module,
                 profile,
                 expression_id.into_any(),
@@ -1030,7 +1004,7 @@ impl Compiler {
     }
 
     /// Return true when associated projection receiver arguments require deferral.
-    pub(crate) fn associated_projection_receiver_arguments_require_deferral(
+    pub(crate) fn receiver_projection_arguments_require_deferral(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1039,9 +1013,8 @@ impl Compiler {
         types: &TypeTable,
     ) -> bool {
         for argument in arguments {
-            if self.associated_projection_static_argument_requires_deferral(
-                module, profile, argument, symbols, types,
-            ) {
+            if self.projection_argument_requires_deferral(module, profile, argument, symbols, types)
+            {
                 return true;
             }
         }
@@ -1050,7 +1023,7 @@ impl Compiler {
     }
 
     /// Return true when one associated projection static argument requires deferral.
-    fn associated_projection_static_argument_requires_deferral(
+    fn projection_argument_requires_deferral(
         &self,
         module: &Module,
         profile: ProfileId,

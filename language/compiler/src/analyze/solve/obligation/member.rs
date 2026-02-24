@@ -9,9 +9,9 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 use std::collections::HashSet;
 
-/// One deferred commit resolution for one missing-member obligation.
+/// One deferred resolution for one missing-member obligation.
 #[derive(Debug, Clone)]
-pub(in crate::analyze::commit) enum MissingMemberResolutionCommit {
+enum MissingMemberObligationResolution {
     /// One static member symbol resolved for the obligation expression.
     Static {
         /// The selected member symbol.
@@ -20,34 +20,34 @@ pub(in crate::analyze::commit) enum MissingMemberResolutionCommit {
     /// One dynamic member dispatch list resolved for the obligation expression.
     Dynamic {
         /// The dynamic dispatch candidates selected for this member access.
-        candidates: Vec<MissingMemberResolutionCandidateCommit>,
+        candidates: Vec<MissingMemberObligationCandidate>,
     },
-    /// No concrete member was selected, but unresolved lookup state should be committed.
+    /// No concrete member was selected, and lookup remains unresolved.
     Unresolved,
 }
 
 /// One dynamic member dispatch candidate resolved during missing-member obligation collection.
 #[derive(Debug, Clone)]
-pub(in crate::analyze::commit) struct MissingMemberResolutionCandidateCommit {
+struct MissingMemberObligationCandidate {
     /// The receiver type id used for this candidate in the collection snapshot.
     receiver_ty_id: LocalTypeId,
     /// The selected member symbol for this receiver type.
     symbol: GlobalSymbolId,
 }
 
-/// One deterministic commit action produced by missing-member obligation collection.
+/// One deterministic action produced by missing-member obligation collection.
 #[derive(Debug, Clone)]
-pub(in crate::analyze::commit) enum MissingMemberCommitAction {
-    /// Commit one member lookup resolution for one expression.
-    CommitResolution {
+enum MissingMemberObligationAction {
+    /// Set one member lookup resolution for one expression.
+    SetResolution {
         /// The member expression that owns this resolution.
         expression_id: LocalNodeId<Expression>,
         /// The receiver type id in the collection snapshot.
         receiver_ty_id: LocalTypeId,
-        /// The collected resolution to commit.
-        resolution: MissingMemberResolutionCommit,
+        /// The collected resolution to apply.
+        resolution: MissingMemberObligationResolution,
     },
-    /// Emit one missing-member diagnostic and commit an error type.
+    /// Emit one missing-member diagnostic and set an error type.
     EmitMissingMemberDiagnostic {
         /// The member expression that failed lookup.
         expression_id: LocalNodeId<Expression>,
@@ -58,33 +58,73 @@ pub(in crate::analyze::commit) enum MissingMemberCommitAction {
     },
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Map one member-resolution result to commit resolution form.
-    fn missing_member_resolution_for_commit(
+    /// Discharge missing-member obligations in solve and write infer overlays directly.
+    pub(in crate::analyze::solve) fn discharge_missing_member_obligations_in_solve(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        infer: &mut InferTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> AnalyzeResult<()> {
+        let mut obligations = infer.take_missing_member_obligations();
+        obligations.sort_by_key(|obligation| {
+            (obligation.expression_id, obligation.receiver_expression_id)
+        });
+        if obligations.is_empty() {
+            return Ok(());
+        }
+
+        let actions = match self.collect_missing_member_obligation_actions(
+            module,
+            profile,
+            &obligations,
+            infer,
+            types,
+            options,
+        ) {
+            Ok(actions) => actions,
+            Err(AnalyzeError::Yield { dependency }) => {
+                for obligation in obligations {
+                    infer.push_missing_member_obligation(obligation);
+                }
+                return Err(AnalyzeError::Yield { dependency });
+            }
+            Err(error) => return Err(error),
+        };
+
+        self.apply_missing_member_obligation_actions_in_solve(
+            module, profile, actions, infer, types,
+        )
+    }
+
+    /// Map one member-resolution result to obligation resolution form.
+    fn resolve_missing_member_obligation_resolution(
         &self,
         resolution: &MemberResolution,
-    ) -> Option<MissingMemberResolutionCommit> {
+    ) -> Option<MissingMemberObligationResolution> {
         match resolution {
             MemberResolution::Static { symbol } => {
-                Some(MissingMemberResolutionCommit::Static { symbol: *symbol })
+                Some(MissingMemberObligationResolution::Static { symbol: *symbol })
             }
             MemberResolution::Dynamic { candidates } => {
                 let candidates = candidates
                     .iter()
-                    .map(|candidate| MissingMemberResolutionCandidateCommit {
+                    .map(|candidate| MissingMemberObligationCandidate {
                         receiver_ty_id: candidate.receiver_ty_id,
                         symbol: candidate.symbol,
                     })
                     .collect::<Vec<_>>();
-                Some(MissingMemberResolutionCommit::Dynamic { candidates })
+                Some(MissingMemberObligationResolution::Dynamic { candidates })
             }
             MemberResolution::None | MemberResolution::Unresolved => None,
         }
     }
 
-    /// Collect missing-member commit actions from deferred obligations.
-    #[allow(clippy::too_many_arguments)]
-    pub(in crate::analyze::commit) fn collect_missing_member_commit_actions(
+    /// Collect missing-member obligation actions from deferred obligations.
+    fn collect_missing_member_obligation_actions(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -92,14 +132,14 @@ impl Compiler {
         infer: &InferTable,
         types: &mut TypeTable,
         options: &AnalyzeOptions,
-    ) -> AnalyzeResult<Vec<MissingMemberCommitAction>> {
+    ) -> AnalyzeResult<Vec<MissingMemberObligationAction>> {
         // read module owned semantic tables once
         let tree = module.dir(profile).tree.read();
         let symbols = module.dir(profile).symbols.read();
         let mut reported = HashSet::new();
         let mut actions = Vec::with_capacity(obligations.len());
 
-        // replay each obligation after solver convergence
+        // discharge each obligation after solver convergence
         for obligation in obligations {
             // skip obligations attached to other modules
             if obligation.expression_id.module_id != module.id
@@ -126,8 +166,9 @@ impl Compiler {
                 })?;
 
             // skip stale obligations once the expression already has a concrete inferred type
-            if let Some(current_expression_ty_id) =
-                types.get_inferred_type_id(obligation.expression_id)
+            if let Some(current_expression_ty_id) = infer
+                .inferred_type_for_node(obligation.expression_id)
+                .or_else(|| types.get_inferred_type_id(obligation.expression_id))
             {
                 let current_expression_ty_id = types.unwrap_value_type_id(current_expression_ty_id);
                 if !matches!(
@@ -143,9 +184,10 @@ impl Compiler {
                 }
             }
 
-            // recover and normalize the receiver type for replayed lookup
-            let mut receiver_ty_id = types
-                .get_inferred_type_id(obligation.receiver_expression_id)
+            // recover and normalize the receiver type for discharged lookup
+            let mut receiver_ty_id = infer
+                .inferred_type_for_node(obligation.receiver_expression_id)
+                .or_else(|| types.get_inferred_type_id(obligation.receiver_expression_id))
                 .unwrap_or(obligation.receiver_type_id);
             if self.type_is_solver_placeholder(receiver_ty_id, types)
                 && let Some(receiver_symbol) = tree.get(receiver_expression_id).target_symbol()
@@ -181,7 +223,7 @@ impl Compiler {
                 continue;
             }
 
-            // fail closed when replay still depends on unsolved state
+            // fail closed when discharge still depends on unsolved state
             if self.type_relation_requires_infer_convergence(
                 module,
                 profile,
@@ -206,7 +248,6 @@ impl Compiler {
                 module,
                 receiver_expression_id,
                 Some(receiver_ty_id),
-                &receiver_ty,
                 profile,
                 &tree,
                 &symbols,
@@ -224,9 +265,10 @@ impl Compiler {
                 &symbols,
                 types,
             )?;
-            if let Some(resolution) = self.missing_member_resolution_for_commit(&member_resolution)
+            if let Some(resolution) =
+                self.resolve_missing_member_obligation_resolution(&member_resolution)
             {
-                actions.push(MissingMemberCommitAction::CommitResolution {
+                actions.push(MissingMemberObligationAction::SetResolution {
                     expression_id,
                     receiver_ty_id,
                     resolution,
@@ -247,10 +289,10 @@ impl Compiler {
                 &mut index_visited,
             );
             if index_type_id.is_some() {
-                actions.push(MissingMemberCommitAction::CommitResolution {
+                actions.push(MissingMemberObligationAction::SetResolution {
                     expression_id,
                     receiver_ty_id,
-                    resolution: MissingMemberResolutionCommit::Unresolved,
+                    resolution: MissingMemberObligationResolution::Unresolved,
                 });
                 continue;
             }
@@ -261,16 +303,15 @@ impl Compiler {
             }
 
             // report missing member diagnostics for unresolved lookups
-            let allow_associated_contract_blocker = self
-                .query_expression_is_projection_receiver_for_infer(
-                    module,
-                    profile,
-                    receiver_expression_id,
-                    &tree,
-                    &symbols,
-                    types,
-                );
-            let blocker = self.missing_member_diagnostic_blocker_for_receiver_type(
+            let allow_associated_contract_blocker = self.is_projection_receiver_expression(
+                module,
+                profile,
+                receiver_expression_id,
+                &tree,
+                &symbols,
+                types,
+            );
+            let blocker = self.should_block_missing_member_diagnostic(
                 module,
                 profile,
                 receiver_ty_id,
@@ -282,7 +323,7 @@ impl Compiler {
                 continue;
             }
 
-            actions.push(MissingMemberCommitAction::EmitMissingMemberDiagnostic {
+            actions.push(MissingMemberObligationAction::EmitMissingMemberDiagnostic {
                 expression_id,
                 receiver_ty_id,
                 member_key: obligation.member_key.clone(),
@@ -292,34 +333,25 @@ impl Compiler {
         Ok(actions)
     }
 
-    /// Apply missing-member commit actions to committed type tables.
-    pub(in crate::analyze::commit) fn apply_missing_member_commit_actions(
+    /// Apply missing-member obligation actions in solve.
+    fn apply_missing_member_obligation_actions_in_solve(
         &self,
         module: &Module,
         profile: ProfileId,
-        actions: Vec<MissingMemberCommitAction>,
-        snapshot_types: &TypeTable,
-        committed_types: &mut TypeTable,
+        actions: Vec<MissingMemberObligationAction>,
+        infer: &mut InferTable,
+        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
-        let committed_type_floor = committed_types.type_count();
-        let mut is_synchronized = false;
         for action in actions {
             match action {
-                MissingMemberCommitAction::CommitResolution {
+                MissingMemberObligationAction::SetResolution {
                     expression_id,
                     receiver_ty_id,
                     resolution,
                 } => {
-                    let committed_receiver_ty_id = self.committed_type_id_for_snapshot_type(
-                        receiver_ty_id,
-                        snapshot_types,
-                        committed_types,
-                        committed_type_floor,
-                        &mut is_synchronized,
-                    )?;
-                    let receiver_ty_id = Some(committed_receiver_ty_id);
+                    let receiver_ty_id = Some(receiver_ty_id);
                     let resolution = match resolution {
-                        MissingMemberResolutionCommit::Static { symbol } => {
+                        MissingMemberObligationResolution::Static { symbol } => {
                             let candidate = ResolutionCandidate {
                                 key: None,
                                 target_symbol: symbol,
@@ -331,20 +363,12 @@ impl Compiler {
                                 candidate,
                             }
                         }
-                        MissingMemberResolutionCommit::Dynamic { candidates } => {
+                        MissingMemberObligationResolution::Dynamic { candidates } => {
                             let candidates = candidates
                                 .into_iter()
                                 .map(|candidate| -> AnalyzeResult<ResolutionCandidate> {
-                                    let committed_receiver_ty_id = self
-                                        .committed_type_id_for_snapshot_type(
-                                            candidate.receiver_ty_id,
-                                            snapshot_types,
-                                            committed_types,
-                                            committed_type_floor,
-                                            &mut is_synchronized,
-                                        )?;
                                     Ok(ResolutionCandidate {
-                                        key: Some(DispatchKey::single(committed_receiver_ty_id)),
+                                        key: Some(DispatchKey::single(candidate.receiver_ty_id)),
                                         target_symbol: candidate.symbol,
                                         instance: None,
                                         resolved_signature: None,
@@ -356,47 +380,32 @@ impl Compiler {
                                 candidates,
                             }
                         }
-                        MissingMemberResolutionCommit::Unresolved => Resolution::Unresolved {
+                        MissingMemberObligationResolution::Unresolved => Resolution::Unresolved {
                             receiver: receiver_ty_id,
                             missing_keys: Vec::new(),
                             candidates: Vec::new(),
                         },
                     };
                     let expression_global = expression_id.into_global_any(module.id);
-                    let resolution_id = committed_types.insert_resolution(resolution);
-                    committed_types.set_resolution_for_node(expression_global, resolution_id);
+                    infer.set_provisional_resolution_for_node(expression_global, resolution);
                 }
-                MissingMemberCommitAction::EmitMissingMemberDiagnostic {
+                MissingMemberObligationAction::EmitMissingMemberDiagnostic {
                     expression_id,
                     receiver_ty_id,
                     member_key,
                 } => {
-                    // synchronize snapshot tail before local error type insertions
-                    self.synchronize_snapshot_type_tail_for_commit(
-                        snapshot_types,
-                        committed_types,
-                        committed_type_floor,
-                        &mut is_synchronized,
-                    )?;
-
-                    let committed_receiver_ty_id = self.committed_type_id_for_snapshot_type(
-                        receiver_ty_id,
-                        snapshot_types,
-                        committed_types,
-                        committed_type_floor,
-                        &mut is_synchronized,
-                    )?;
                     self.error(AnalyzeError::MissingMember {
                         node: expression_id
                             .into_global_any(module.id)
                             .into_anchored(Some(profile)),
-                        receiver_ty: committed_receiver_ty_id.into_global(module.id),
+                        receiver_ty: receiver_ty_id.into_global(module.id),
                         member_key,
                     });
-                    let error_type_id =
-                        committed_types.insert_type_from(Type::Error, expression_id);
-                    committed_types
-                        .set_inferred_type(expression_id.into_global_any(module.id), error_type_id);
+                    let error_type_id = types.insert_type_from(Type::Error, expression_id);
+                    infer.set_inferred_type_for_node(
+                        expression_id.into_global_any(module.id),
+                        error_type_id,
+                    );
                 }
             }
         }

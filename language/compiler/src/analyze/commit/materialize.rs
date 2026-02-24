@@ -10,7 +10,7 @@ impl Compiler {
         module: &Module,
         infer: &InferTable,
         types: &mut TypeTable,
-    ) -> AnalyzeResult<()> {
+    ) {
         // commit recorded resolutions in deterministic node-id order
         let mut resolution_entries = infer
             .iter_provisional_resolution_nodes()
@@ -31,8 +31,6 @@ impl Compiler {
                 types.set_instance_for_node(node_id, instance_id);
             }
         }
-
-        Ok(())
     }
 
     /// Commit one instance for one symbol and one substitution environment.

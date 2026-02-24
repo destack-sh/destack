@@ -178,7 +178,8 @@ impl Compiler {
 
         // handle logical operators with operand unions
         if matches!(operator, BinaryOperator::And | BinaryOperator::Or) {
-            let result_ty_id = self.union_type(left_ty_id, right_ty_id, types);
+            let result_ty_id =
+                self.union_type_from_list(vec![left_ty_id, right_ty_id], left_ty_id, types);
             self.record_provisional_builtin_resolution(
                 expression_id.into_global_any(module.id),
                 Some(left_ty_id),
@@ -320,7 +321,7 @@ impl Compiler {
                 variance: None,
             });
 
-            self.enforce_assignability_or_defer_unassignable_diagnostic(
+            self.enforce_assignability_or_defer_diagnostic(
                 module,
                 ctx.profile,
                 expression_id.into_any(),

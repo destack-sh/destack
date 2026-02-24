@@ -1,9 +1,9 @@
 use crate::analyze::StaticSubstitutionEnvironment;
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
-    Expression, GlobalNodeIdAny, GlobalSymbolId, InferTable, InstanceCommitObligation,
-    InstanceCommitObligationId, LocalInstanceId, LocalNodeId, LocalTypeId, NodeTree,
-    StaticArgument, StaticExpression, SymbolTable, SymbolType, Type, TypeTable,
+    GlobalNodeIdAny, GlobalSymbolId, InferTable, InstanceCommitObligation,
+    InstanceCommitObligationId, LocalInstanceId, LocalTypeId, NodeTree, StaticArgument,
+    StaticExpression, SymbolTable, SymbolType, Type, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::HashMap;
@@ -25,7 +25,7 @@ impl Compiler {
     }
 
     /// Record one node instance for one resolved reference type when arguments are present.
-    pub(crate) fn record_provisional_instance_for_reference_type_maybe(
+    pub(crate) fn record_reference_provisional_instance(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -64,19 +64,7 @@ impl Compiler {
             return Ok(None);
         };
 
-        self.record_provisional_instance_for_node_maybe(node_id, symbol, environment, infer, types)
-    }
-
-    /// Infer base instance arguments for member resolution from inherited or extension context.
-    pub(crate) fn infer_member_instance_base_arguments(
-        &self,
-        inherited_arguments: &[StaticArgument],
-        extension_arguments: Option<&[StaticArgument]>,
-    ) -> Vec<StaticArgument> {
-        match extension_arguments {
-            Some(arguments) => arguments.to_vec(),
-            None => inherited_arguments.to_vec(),
-        }
+        self.record_node_provisional_instance(node_id, symbol, environment, infer, types)
     }
 
     /// Query static parameter symbols for one function signature type.
@@ -253,7 +241,7 @@ impl Compiler {
     }
 
     /// Record one instance for one symbol and return an obligation when needed.
-    pub(crate) fn record_provisional_instance_for_symbol_maybe_with_obligation(
+    pub(crate) fn record_symbol_provisional_instance_with_obligation(
         &self,
         symbol_id: GlobalSymbolId,
         environment: StaticSubstitutionEnvironment,
@@ -323,7 +311,7 @@ impl Compiler {
     }
 
     /// Record one instance for one node when arguments are non-empty.
-    pub(crate) fn record_provisional_instance_for_node_maybe(
+    pub(crate) fn record_node_provisional_instance(
         &self,
         node_id: GlobalNodeIdAny,
         symbol_id: GlobalSymbolId,
@@ -339,22 +327,5 @@ impl Compiler {
         }
 
         self.record_provisional_instance_for_node(node_id, symbol_id, environment, infer, types)
-    }
-
-    /// Collect instance arguments recorded on a member expression.
-    pub(crate) fn query_member_instance_arguments_for_call(
-        &self,
-        module: &Module,
-        member_expression_id: LocalNodeId<Expression>,
-        member_symbol: Option<GlobalSymbolId>,
-        infer: &InferTable,
-        types: &TypeTable,
-    ) -> Option<Vec<StaticArgument>> {
-        self.query_instance_arguments_for_node_infer(
-            member_expression_id.into_global_any(module.id),
-            member_symbol,
-            infer,
-            types,
-        )
     }
 }

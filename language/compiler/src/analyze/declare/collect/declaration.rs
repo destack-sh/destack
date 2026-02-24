@@ -287,7 +287,7 @@ impl Compiler {
                     .as_ref()
                     .is_some_and(|parameters| !parameters.is_empty())
                 {
-                    self.validate_static_value_parameter_usage_in_type_expression(
+                    self.validate_static_value_parameter_usage(
                         module, profile, *value, tree, symbols, types, false, true,
                     )?;
                 }
@@ -394,7 +394,7 @@ impl Compiler {
                     types,
                 )?;
                 let declaration_symbol = descriptor.symbol.into_global(module.id);
-                self.report_missing_declared_associated_type_requirements(
+                self.report_missing_associated_type_requirements(
                     module,
                     profile,
                     declaration_symbol,
@@ -405,7 +405,7 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
-                self.report_missing_declared_associated_comptime_requirements(
+                self.report_missing_associated_comptime_requirements(
                     module,
                     profile,
                     declaration_symbol,
@@ -535,7 +535,7 @@ impl Compiler {
                 let declaration_symbol = descriptor.symbol.into_global(module.id);
                 let allows_deferred_associated =
                     descriptor.abstraction == DeclarationAbstraction::Abstract;
-                self.report_missing_declared_associated_type_requirements(
+                self.report_missing_associated_type_requirements(
                     module,
                     profile,
                     declaration_symbol,
@@ -546,7 +546,7 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
-                self.report_missing_declared_associated_comptime_requirements(
+                self.report_missing_associated_comptime_requirements(
                     module,
                     profile,
                     declaration_symbol,
@@ -675,7 +675,7 @@ impl Compiler {
                     types,
                 )?;
                 let declaration_symbol = descriptor.symbol.into_global(module.id);
-                self.report_missing_declared_associated_type_requirements(
+                self.report_missing_associated_type_requirements(
                     module,
                     profile,
                     declaration_symbol,
@@ -686,7 +686,7 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
-                self.report_missing_declared_associated_comptime_requirements(
+                self.report_missing_associated_comptime_requirements(
                     module,
                     profile,
                     declaration_symbol,
@@ -1530,9 +1530,7 @@ impl Compiler {
             types,
             defer_type_evaluation,
         )?;
-        self.collect_associated_comptime_member_projection_dependencies(
-            module, members, tree, symbols, types,
-        );
+        self.collect_member_projection_dependencies(module, members, tree, symbols, types);
 
         // collect member contributions
         for member_id in members {
@@ -1862,9 +1860,7 @@ impl Compiler {
             types,
             defer_type_evaluation,
         )?;
-        self.collect_associated_comptime_member_projection_dependencies(
-            module, members, tree, symbols, types,
-        );
+        self.collect_member_projection_dependencies(module, members, tree, symbols, types);
 
         // collect member contributions
         for member_id in members {
@@ -2138,11 +2134,10 @@ impl Compiler {
             .map_err(AnalyzeError::from)?;
 
         Ok(remote_value.map(|(remote_value_ty, remote_snapshot)| {
-            self.import_type_from_remote_for_node(
+            self.import_remote_type_for_node(
                 declaration_id.into_any(),
                 &remote_value_ty,
                 &remote_snapshot,
-                symbol,
                 types,
             )
         }))

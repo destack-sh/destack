@@ -22,6 +22,7 @@ use destack_dir::{
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
 mod binding;
+mod import;
 mod instance;
 mod member;
 mod operator;

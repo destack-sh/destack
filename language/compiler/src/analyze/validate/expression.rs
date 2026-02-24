@@ -647,17 +647,12 @@ impl Compiler {
         types: &TypeTable,
         expression_id: LocalNodeId<Expression>,
     ) {
-        if !self.expression_has_invalid_instantiation_access_receiver(tree, expression_id) {
+        if !self.has_invalid_instantiation_access_receiver(tree, expression_id) {
             return;
         }
 
         // type positions reuse member and index syntax for projections
-        if self.expression_is_type_position_for_instantiation_access(
-            module,
-            tree,
-            types,
-            expression_id,
-        ) {
+        if self.is_type_position_for_instantiation_access(module, tree, types, expression_id) {
             return;
         }
 
@@ -679,7 +674,7 @@ impl Compiler {
     }
 
     /// Return true when a member-like expression directly follows an instantiation expression.
-    fn expression_has_invalid_instantiation_access_receiver(
+    fn has_invalid_instantiation_access_receiver(
         &self,
         tree: &NodeTree,
         expression_id: LocalNodeId<Expression>,
@@ -692,7 +687,7 @@ impl Compiler {
             _ => return false,
         };
 
-        self.expression_is_unparenthesized_instantiation_receiver(tree, left_expression_id)
+        self.is_unparenthesized_instantiation_receiver(tree, left_expression_id)
     }
 
     /// Return true when a member-like expression follows an instantiation of a type-like symbol.
@@ -754,7 +749,7 @@ impl Compiler {
     }
 
     /// Return true when this expression is in a type position.
-    fn expression_is_type_position_for_instantiation_access(
+    fn is_type_position_for_instantiation_access(
         &self,
         module: &Module,
         tree: &NodeTree,
@@ -773,7 +768,7 @@ impl Compiler {
                     let parent_expression_id = parent.into_typed::<Expression>();
                     let parent_expression = tree.get(parent_expression_id);
 
-                    match self.expression_type_position_step_for_parent_expression(
+                    match self.type_position_step_for_parent_expression(
                         parent_expression,
                         current_expression_id,
                     ) {
@@ -837,7 +832,7 @@ impl Compiler {
     }
 
     /// Classify one expression parent edge for type-position traversal.
-    fn expression_type_position_step_for_parent_expression(
+    fn type_position_step_for_parent_expression(
         &self,
         parent_expression: &Expression,
         child_expression_id: LocalNodeId<Expression>,
@@ -950,7 +945,7 @@ impl Compiler {
             | Declaration::Class { heritage, .. }
             | Declaration::Enum { heritage, .. }
             | Declaration::Interface { heritage, .. } => {
-                self.declaration_heritage_expression_is_type_position(heritage, expression_id)
+                self.is_declaration_heritage_expression_type_position(heritage, expression_id)
             }
             Declaration::Function {
                 signature, body, ..
@@ -962,7 +957,7 @@ impl Compiler {
             } => {
                 *target_type == expression_id
                     || self
-                        .declaration_heritage_expression_is_type_position(heritage, expression_id)
+                        .is_declaration_heritage_expression_type_position(heritage, expression_id)
             }
             Declaration::Global { .. }
             | Declaration::Namespace { .. }
@@ -1048,7 +1043,7 @@ impl Compiler {
     }
 
     /// Return true when a declaration heritage type slot contains this expression.
-    fn declaration_heritage_expression_is_type_position(
+    fn is_declaration_heritage_expression_type_position(
         &self,
         heritage: &Heritage,
         expression_id: LocalNodeId<Expression>,
@@ -1068,7 +1063,7 @@ impl Compiler {
     }
 
     /// Return true when an expression is an instantiation receiver without parentheses.
-    fn expression_is_unparenthesized_instantiation_receiver(
+    fn is_unparenthesized_instantiation_receiver(
         &self,
         tree: &NodeTree,
         expression_id: LocalNodeId<Expression>,
@@ -1097,7 +1092,7 @@ impl Compiler {
 
             // optional-chain wrappers preserve the original receiver shape
             Expression::Maybe { left } => {
-                self.expression_is_unparenthesized_instantiation_receiver(tree, *left)
+                self.is_unparenthesized_instantiation_receiver(tree, *left)
             }
 
             // parenthesized receivers are explicitly allowed
@@ -1887,7 +1882,7 @@ impl Compiler {
         left: LocalNodeId<Expression>,
     ) {
         // parenthesized super calls are always invalid
-        if self.expression_contains_parenthesized_super_reference(tree, left) {
+        if self.has_parenthesized_super_reference(tree, left) {
             let node = expression_id
                 .into_global_any(module.id)
                 .into_anchored(Some(profile));
@@ -1902,7 +1897,7 @@ impl Compiler {
         }
 
         // allow super calls only in derived constructors
-        if self.can_call_super_in_context(tree, expression_id) {
+        if self.super_call_is_valid_context(tree, expression_id) {
             return;
         }
 
@@ -1947,7 +1942,7 @@ impl Compiler {
         }
 
         // parenthesized super access is always invalid
-        if self.expression_contains_parenthesized_super_reference(tree, expression_id) {
+        if self.has_parenthesized_super_reference(tree, expression_id) {
             let node = expression_id
                 .into_global_any(module.id)
                 .into_anchored(Some(profile));
@@ -1972,7 +1967,7 @@ impl Compiler {
         }
 
         // allow contexts that have valid super bindings
-        if self.can_access_super_in_context(tree, expression_id) {
+        if self.super_property_is_valid_context(tree, expression_id) {
             return;
         }
 
@@ -2027,17 +2022,14 @@ impl Compiler {
                     return false;
                 }
 
-                self.parenthesized_super_reference_is_part_of_expression_chain(
-                    tree,
-                    parent_expression_id,
-                )
+                self.is_parenthesized_super_in_expression_chain(tree, parent_expression_id)
             }
             _ => false,
         }
     }
 
     /// Return true when `(super)` is consumed by a larger expression chain.
-    fn parenthesized_super_reference_is_part_of_expression_chain(
+    fn is_parenthesized_super_in_expression_chain(
         &self,
         tree: &NodeTree,
         expression_id: LocalNodeId<Expression>,
@@ -2096,7 +2088,7 @@ impl Compiler {
     }
 
     /// Return true when an expression chain contains `(super)` directly.
-    fn expression_contains_parenthesized_super_reference(
+    fn has_parenthesized_super_reference(
         &self,
         tree: &NodeTree,
         expression_id: LocalNodeId<Expression>,
@@ -2104,7 +2096,7 @@ impl Compiler {
         match tree.get(expression_id) {
             Expression::Parenthesized { expression } => {
                 self.expression_is_super_reference(tree, *expression)
-                    || self.expression_contains_parenthesized_super_reference(tree, *expression)
+                    || self.has_parenthesized_super_reference(tree, *expression)
             }
             Expression::Member { left, .. }
             | Expression::PrivateMember { left, .. }
@@ -2112,29 +2104,9 @@ impl Compiler {
             | Expression::New { left, .. }
             | Expression::Index { left, .. }
             | Expression::Maybe { left }
-            | Expression::Must { left } => {
-                self.expression_contains_parenthesized_super_reference(tree, *left)
-            }
+            | Expression::Must { left } => self.has_parenthesized_super_reference(tree, *left),
             _ => false,
         }
-    }
-
-    /// Return true when the current expression can call `super(...)`.
-    fn can_call_super_in_context(
-        &self,
-        tree: &NodeTree,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        self.super_call_is_valid_context(tree, expression_id)
-    }
-
-    /// Return true when `super.x` is valid in the current lexical context.
-    fn can_access_super_in_context(
-        &self,
-        tree: &NodeTree,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        self.super_property_is_valid_context(tree, expression_id)
     }
 
     /// Return true when an expression chain contains optional access.
@@ -3218,7 +3190,7 @@ impl Compiler {
         };
 
         // report missing key access unless a primary receiver error blocks cascades
-        let reported = self.report_missing_member_diagnostic_for_receiver_type(
+        let reported = self.report_missing_member_diagnostic(
             module,
             profile,
             expression_id,
@@ -3324,7 +3296,7 @@ impl Compiler {
         else {
             return;
         };
-        let reported = self.report_missing_member_diagnostic_for_receiver_type(
+        let reported = self.report_missing_member_diagnostic(
             module,
             profile,
             expression_id,
@@ -3424,7 +3396,7 @@ impl Compiler {
         let Pattern::Expression { value } = tree.get(declarator.pattern) else {
             return;
         };
-        if self.expression_is_valid_js_ts_compat_declarator_binding(tree, *value) {
+        if self.is_valid_js_ts_compat_declarator_binding(tree, *value) {
             return;
         }
 
@@ -3436,7 +3408,7 @@ impl Compiler {
     }
 
     /// Return true when an expression is valid for JS/TS declarator binding compatibility.
-    fn expression_is_valid_js_ts_compat_declarator_binding(
+    fn is_valid_js_ts_compat_declarator_binding(
         &self,
         tree: &NodeTree,
         expression_id: LocalNodeId<Expression>,

@@ -1,7 +1,3 @@
-//! Structural type inference for JSON/TOML/YAML data.
-//!
-//! Converts `serde_json::Value` to DIR `Type` for type-safe data imports.
-
 use destack_base::StringPool;
 use destack_dir::{
     LocalNodeIdAny, LocalTypeId, PrimitiveType, StaticKey, Type, TypeField, TypeLiteral, TypeTable,
@@ -9,8 +5,6 @@ use destack_dir::{
 use serde_json::Value;
 
 /// Convert a serde_json::Value to a DIR Type.
-///
-/// This is used to infer structural types for data module imports (JSON, TOML, YAML).
 ///
 /// Type mappings:
 /// - `null` → `null`

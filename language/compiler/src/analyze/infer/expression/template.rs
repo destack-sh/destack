@@ -18,6 +18,27 @@ struct TemplateSpanInferenceTarget {
     constraint_id: Option<LocalTypeId>,
 }
 
+/// Shared context for template-literal argument inference.
+#[derive(Clone, Copy)]
+struct TemplateInferenceContext<'a> {
+    /// The current module.
+    module: &'a Module,
+    /// The active profile.
+    profile: ProfileId,
+    /// The argument node being inferred.
+    argument_id: LocalNodeId<Argument>,
+    /// The argument type id.
+    argument_ty_id: LocalTypeId,
+    /// The parameter template type id.
+    param_ty_id: LocalTypeId,
+    /// The node used to allocate span-local inference types.
+    span_node: LocalNodeIdAny,
+    /// The source node for inferred literal types.
+    source_node: LocalNodeIdAny,
+    /// The symbol table for lookups.
+    symbols: &'a SymbolTable,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Report a template literal inference mismatch.
@@ -408,17 +429,10 @@ impl Compiler {
     /// Infer template spans from a string literal argument.
     fn infer_template_literal_from_string_argument(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        argument_id: LocalNodeId<Argument>,
-        argument_ty_id: LocalTypeId,
-        param_ty_id: LocalTypeId,
+        context: &TemplateInferenceContext<'_>,
         strings: &[StringId],
         spans: &[LocalTypeId],
         value: &str,
-        span_node: LocalNodeIdAny,
-        source_node: LocalNodeIdAny,
-        symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
     ) {
@@ -436,16 +450,9 @@ impl Compiler {
         let mut visited = HashSet::new();
         for (span_ty_id, span_value) in spans.iter().zip(span_values.iter()) {
             if !self.infer_template_span_from_string_value(
-                module,
-                profile,
-                argument_id,
-                argument_ty_id,
-                param_ty_id,
+                context,
                 *span_ty_id,
                 span_value,
-                span_node,
-                source_node,
-                symbols,
                 types,
                 infer,
                 &mut visited,
@@ -458,38 +465,17 @@ impl Compiler {
     /// Infer template spans from a template literal argument.
     fn infer_template_literal_from_template_argument(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        argument_id: LocalNodeId<Argument>,
-        argument_ty_id: LocalTypeId,
-        param_ty_id: LocalTypeId,
+        context: &TemplateInferenceContext<'_>,
         strings: &[StringId],
         spans: &[LocalTypeId],
         argument_strings: &[StringId],
         argument_spans: &[LocalTypeId],
-        span_node: LocalNodeIdAny,
-        source_node: LocalNodeIdAny,
-        symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
         options: &AnalyzeOptions,
     ) {
         // handle `${infer}` templates that capture the entire argument
-        if self.infer_template_literal_full_span(
-            module,
-            profile,
-            argument_id,
-            argument_ty_id,
-            param_ty_id,
-            strings,
-            spans,
-            span_node,
-            source_node,
-            symbols,
-            types,
-            infer,
-            options,
-        ) {
+        if self.infer_template_literal_full_span(context, strings, spans, types, infer, options) {
             return;
         }
 
@@ -508,16 +494,9 @@ impl Compiler {
         // infer spans pairwise
         for (span_ty_id, argument_span) in spans.iter().zip(argument_spans.iter()) {
             self.infer_template_span_from_template_argument(
-                module,
-                profile,
-                argument_id,
-                argument_ty_id,
-                param_ty_id,
+                context,
                 *span_ty_id,
                 *argument_span,
-                span_node,
-                source_node,
-                symbols,
                 types,
                 infer,
                 options,
@@ -528,63 +507,66 @@ impl Compiler {
     /// Infer a single template span from a string literal value.
     fn infer_template_span_from_string_value(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        argument_id: LocalNodeId<Argument>,
-        argument_ty_id: LocalTypeId,
-        param_ty_id: LocalTypeId,
+        context: &TemplateInferenceContext<'_>,
         span_ty_id: LocalTypeId,
         span_value: &str,
-        span_node: LocalNodeIdAny,
-        source_node: LocalNodeIdAny,
-        symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         // resolve the span inference target when possible
         let target = self.template_span_inference_target(
-            module,
-            profile,
+            context.module,
+            context.profile,
             span_ty_id,
-            span_node,
-            source_node,
-            symbols,
+            context.span_node,
+            context.source_node,
+            context.symbols,
             types,
             infer,
         );
         let Some(target) = target else {
             return self.template_span_matches_string(
-                module, profile, span_ty_id, span_value, symbols, types, visited,
+                context.module,
+                context.profile,
+                span_ty_id,
+                span_value,
+                context.symbols,
+                types,
+                visited,
             );
         };
 
         // reject spans that violate the constraint
         if let Some(constraint_id) = target.constraint_id
             && !self.template_span_matches_string(
-                module,
-                profile,
+                context.module,
+                context.profile,
                 constraint_id,
                 span_value,
-                symbols,
+                context.symbols,
                 types,
                 visited,
             )
         {
             self.report_template_inference_unassignable(
-                module,
-                profile,
-                argument_id,
-                param_ty_id,
-                argument_ty_id,
+                context.module,
+                context.profile,
+                context.argument_id,
+                context.param_ty_id,
+                context.argument_ty_id,
                 types,
             );
             return false;
         }
 
         // infer a literal type when possible
-        let inferred_ty =
-            self.template_infer_literal_type(target.constraint_id, span_value, source_node, types);
+        let inferred_ty = self.template_infer_literal_type(
+            target.constraint_id,
+            span_value,
+            context.source_node,
+            types,
+        );
         if let Some(inferred_ty) = inferred_ty {
             infer.push_constraint(Constraint::Equal {
                 left: target.infer_ty_id,
@@ -598,28 +580,21 @@ impl Compiler {
     /// Infer a single template span from a template literal argument span.
     fn infer_template_span_from_template_argument(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        argument_id: LocalNodeId<Argument>,
-        argument_ty_id: LocalTypeId,
-        param_ty_id: LocalTypeId,
+        context: &TemplateInferenceContext<'_>,
         span_ty_id: LocalTypeId,
         argument_span: LocalTypeId,
-        span_node: LocalNodeIdAny,
-        source_node: LocalNodeIdAny,
-        symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
         options: &AnalyzeOptions,
     ) {
         // resolve the span inference target when possible
         let target = self.template_span_inference_target(
-            module,
-            profile,
+            context.module,
+            context.profile,
             span_ty_id,
-            span_node,
-            source_node,
-            symbols,
+            context.span_node,
+            context.source_node,
+            context.symbols,
             types,
             infer,
         );
@@ -630,9 +605,9 @@ impl Compiler {
         // validate argument spans against constraints
         if let Some(constraint_id) = target.constraint_id
             && self.is_type_assignable(
-                module,
-                profile,
-                symbols,
+                context.module,
+                context.profile,
+                context.symbols,
                 constraint_id,
                 argument_span,
                 types,
@@ -640,11 +615,11 @@ impl Compiler {
             ) == Assignability::NotAssignable
         {
             self.report_template_inference_unassignable(
-                module,
-                profile,
-                argument_id,
-                param_ty_id,
-                argument_ty_id,
+                context.module,
+                context.profile,
+                context.argument_id,
+                context.param_ty_id,
+                context.argument_ty_id,
                 types,
             );
             return;
@@ -660,16 +635,9 @@ impl Compiler {
     /// Infer the full template literal into a single span.
     fn infer_template_literal_full_span(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        argument_id: LocalNodeId<Argument>,
-        argument_ty_id: LocalTypeId,
-        param_ty_id: LocalTypeId,
+        context: &TemplateInferenceContext<'_>,
         strings: &[StringId],
         spans: &[LocalTypeId],
-        span_node: LocalNodeIdAny,
-        source_node: LocalNodeIdAny,
-        symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
         options: &AnalyzeOptions,
@@ -685,12 +653,12 @@ impl Compiler {
 
         // resolve the span inference target
         let target = self.template_span_inference_target(
-            module,
-            profile,
+            context.module,
+            context.profile,
             spans[0],
-            span_node,
-            source_node,
-            symbols,
+            context.span_node,
+            context.source_node,
+            context.symbols,
             types,
             infer,
         );
@@ -701,21 +669,21 @@ impl Compiler {
         // validate the constraint against the argument
         if let Some(constraint_id) = target.constraint_id
             && self.is_type_assignable(
-                module,
-                profile,
-                symbols,
+                context.module,
+                context.profile,
+                context.symbols,
                 constraint_id,
-                argument_ty_id,
+                context.argument_ty_id,
                 types,
                 options,
             ) == Assignability::NotAssignable
         {
             self.report_template_inference_unassignable(
-                module,
-                profile,
-                argument_id,
-                param_ty_id,
-                argument_ty_id,
+                context.module,
+                context.profile,
+                context.argument_id,
+                context.param_ty_id,
+                context.argument_ty_id,
                 types,
             );
             return true;
@@ -724,7 +692,7 @@ impl Compiler {
         // bind the inference variable to the full argument
         infer.push_constraint(Constraint::Equal {
             left: target.infer_ty_id,
-            right: argument_ty_id,
+            right: context.argument_ty_id,
         });
 
         true
@@ -760,6 +728,16 @@ impl Compiler {
             let source_node = argument_value_id.into_any();
             let span_node = argument_id.into_any();
             let argument_ty = types.get_type(*argument_ty_id).clone();
+            let context = TemplateInferenceContext {
+                module,
+                profile,
+                argument_id: *argument_id,
+                argument_ty_id: *argument_ty_id,
+                param_ty_id: *param_ty_id,
+                span_node,
+                source_node,
+                symbols,
+            };
 
             // infer from string or template literal arguments
             match argument_ty {
@@ -768,36 +746,12 @@ impl Compiler {
                 } => {
                     let value = self.program.strings.get(string_id).to_string();
                     self.infer_template_literal_from_string_argument(
-                        module,
-                        profile,
-                        *argument_id,
-                        *argument_ty_id,
-                        *param_ty_id,
-                        &strings,
-                        &spans,
-                        &value,
-                        span_node,
-                        source_node,
-                        symbols,
-                        types,
-                        infer,
+                        &context, &strings, &spans, &value, types, infer,
                     );
                 }
                 Type::Union { elements } => {
-                    self.infer_template_literal_from_union_string_argument(
-                        module,
-                        profile,
-                        *argument_id,
-                        *argument_ty_id,
-                        *param_ty_id,
-                        &strings,
-                        &spans,
-                        &elements,
-                        span_node,
-                        source_node,
-                        symbols,
-                        types,
-                        infer,
+                    self.infer_template_from_union_string_argument(
+                        &context, &strings, &spans, &elements, types, infer,
                     );
                 }
                 Type::TemplateLiteral {
@@ -805,18 +759,11 @@ impl Compiler {
                     spans: argument_spans,
                 } => {
                     self.infer_template_literal_from_template_argument(
-                        module,
-                        profile,
-                        *argument_id,
-                        *argument_ty_id,
-                        *param_ty_id,
+                        &context,
                         &strings,
                         &spans,
                         &argument_strings,
                         &argument_spans,
-                        span_node,
-                        source_node,
-                        symbols,
                         types,
                         infer,
                         options,
@@ -828,19 +775,12 @@ impl Compiler {
     }
 
     /// Infer template spans from a union of string literal arguments.
-    fn infer_template_literal_from_union_string_argument(
+    fn infer_template_from_union_string_argument(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        argument_id: LocalNodeId<Argument>,
-        argument_ty_id: LocalTypeId,
-        param_ty_id: LocalTypeId,
+        context: &TemplateInferenceContext<'_>,
         strings: &[StringId],
         spans: &[LocalTypeId],
         elements: &[LocalTypeId],
-        span_node: LocalNodeIdAny,
-        source_node: LocalNodeIdAny,
-        symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
     ) {
@@ -868,12 +808,12 @@ impl Compiler {
         // infer each parameter span from the union member span values
         for (span_index, span_ty_id) in spans.iter().enumerate() {
             let Some(target) = self.template_span_inference_target(
-                module,
-                profile,
+                context.module,
+                context.profile,
                 *span_ty_id,
-                span_node,
-                source_node,
-                symbols,
+                context.span_node,
+                context.source_node,
+                context.symbols,
                 types,
                 infer,
             ) else {
@@ -887,20 +827,20 @@ impl Compiler {
                 if let Some(constraint_id) = target.constraint_id {
                     let mut visited = HashSet::new();
                     if !self.template_span_matches_string(
-                        module,
-                        profile,
+                        context.module,
+                        context.profile,
                         constraint_id,
                         span_value,
-                        symbols,
+                        context.symbols,
                         types,
                         &mut visited,
                     ) {
                         self.report_template_inference_unassignable(
-                            module,
-                            profile,
-                            argument_id,
-                            param_ty_id,
-                            argument_ty_id,
+                            context.module,
+                            context.profile,
+                            context.argument_id,
+                            context.param_ty_id,
+                            context.argument_ty_id,
                             types,
                         );
                         return;
@@ -910,7 +850,7 @@ impl Compiler {
                 if let Some(inferred_ty) = self.template_infer_literal_type(
                     target.constraint_id,
                     span_value,
-                    source_node,
+                    context.source_node,
                     types,
                 ) {
                     inferred_span_types.push(inferred_ty);
@@ -929,7 +869,7 @@ impl Compiler {
                     Type::Union {
                         elements: inferred_span_types,
                     },
-                    source_node,
+                    context.source_node,
                 )
             };
             infer.push_constraint(Constraint::Equal {

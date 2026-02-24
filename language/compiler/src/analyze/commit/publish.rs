@@ -2,8 +2,8 @@ use crate::Compiler;
 use destack_dir::{InferTable, TypeTable};
 
 impl Compiler {
-    /// Publish infer-owned expression overlays into canonical type tables.
-    pub(super) fn publish_inferred_expression_overlays(
+    /// Commit infer-owned expression overlays into canonical type tables.
+    pub(super) fn commit_infer_expression_overlays(
         &self,
         infer: &InferTable,
         types: &mut TypeTable,

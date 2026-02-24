@@ -6,6 +6,32 @@ use super::AnalyzeDependencyStage;
 use crate::{Compiler, TaskDependencyError};
 
 impl Compiler {
+    /// Read one module type table, reusing a local table when possible.
+    fn with_module_types_read<R>(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        module_id: ModuleId,
+        local_types: Option<&TypeTable>,
+        handle: impl FnOnce(&Module, &TypeTable) -> R,
+    ) -> R {
+        // reuse local table for local reads
+        if module_id == module.id {
+            if let Some(local_types) = local_types {
+                return handle(module, local_types);
+            }
+
+            let types = module.dir(profile).types.read();
+            return handle(module, &types);
+        }
+
+        // otherwise read from the remote module
+        let remote_module = self.program.modules.get(module_id);
+        let remote_module = remote_module.read();
+        let types = remote_module.dir(profile).types.read();
+        handle(&remote_module, &types)
+    }
+
     /// Provide type tables for a module with stage-gated cross-module reads.
     pub(crate) fn with_module_types_at_stage<R>(
         &self,
@@ -17,7 +43,7 @@ impl Compiler {
     ) -> Result<R, TaskDependencyError> {
         self.require_stage_for_remote_module_read(module.id, module_id, profile, stage)?;
 
-        Ok(self.with_module_types_unchecked(module, profile, module_id, handle))
+        Ok(self.with_module_types_read(module, profile, module_id, None, handle))
     }
 
     /// Provide type tables with stage-gated cross-module reads and local reuse.
@@ -32,7 +58,7 @@ impl Compiler {
     ) -> Result<R, TaskDependencyError> {
         self.require_stage_for_remote_module_read(module.id, module_id, profile, stage)?;
 
-        Ok(self.with_module_types_or_local_unchecked(module, profile, module_id, types, handle))
+        Ok(self.with_module_types_read(module, profile, module_id, Some(types), handle))
     }
 
     /// Provide a type table by module id with a stage gate.
@@ -50,43 +76,5 @@ impl Compiler {
         let remote_module = remote_module.read();
         let remote_types = remote_module.dir(profile).types.read();
         Ok(handle(&remote_module, &remote_types))
-    }
-
-    /// Provide the type table for a module in the given profile.
-    fn with_module_types_unchecked<R>(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        module_id: ModuleId,
-        handle: impl FnOnce(&Module, &TypeTable) -> R,
-    ) -> R {
-        // use the current module when it matches
-        if module_id == module.id {
-            let types = module.dir(profile).types.read();
-            return handle(module, &types);
-        }
-
-        // otherwise load the module from the program
-        let remote_module = self.program.modules.get(module_id);
-        let remote_module = remote_module.read();
-        let remote_types = remote_module.dir(profile).types.read();
-        handle(&remote_module, &remote_types)
-    }
-
-    /// Provide a type table, reusing local references when possible.
-    fn with_module_types_or_local_unchecked<R>(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        module_id: ModuleId,
-        types: &TypeTable,
-        handle: impl FnOnce(&Module, &TypeTable) -> R,
-    ) -> R {
-        // reuse the provided table when it matches the target module
-        if module_id == module.id {
-            return handle(module, types);
-        }
-
-        self.with_module_types_unchecked(module, profile, module_id, handle)
     }
 }

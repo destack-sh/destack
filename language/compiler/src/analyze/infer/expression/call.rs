@@ -8,11 +8,10 @@ use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Constraint, Declaration, DispatchKey, DynamicResolutionCandidateSlotId, Expression,
-    FunctionKind, FunctionMode, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferTable,
-    LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType,
-    ResolutionCandidate, ResolvedSignature, StaticArgument, StaticExpression, StaticKey,
-    StaticParameter, StaticParameterKind, StringId, SymbolTable, SymbolType, Type, TypeLiteral,
-    TypeTable,
+    FunctionKind, FunctionMode, GlobalSymbolId, InferOrigin, InferTable, LocalInstanceId,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, ResolutionCandidate,
+    ResolvedSignature, StaticArgument, StaticExpression, StaticKey, StaticParameter,
+    StaticParameterKind, StringId, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -113,20 +112,6 @@ struct NewExpressionResolution {
     callee_symbol: Option<GlobalSymbolId>,
     /// Whether the constructor target is a struct constructor.
     is_struct_constructor: bool,
-}
-
-/// Resolution result for call-signature selection.
-#[derive(Debug)]
-enum CallExpressionSignatureResolution {
-    /// A concrete signature was resolved.
-    Resolved {
-        /// The selected signature type id.
-        signature_ty_id: LocalTypeId,
-        /// The resolved signature.
-        signature: ResolvedSignature,
-    },
-    /// Signature resolution produced an indeterminate call result type.
-    IndeterminateType(LocalTypeId),
 }
 
 /// Resolved member-call typing context shared by call-resolution paths.
@@ -252,15 +237,6 @@ impl Compiler {
         Vec::new()
     }
 
-    /// Select a callable signature type for a callee type when possible.
-    pub(crate) fn call_signature_for_type(
-        &self,
-        ty_id: LocalTypeId,
-        types: &TypeTable,
-    ) -> Option<LocalTypeId> {
-        self.call_signatures_for_type(ty_id, types).first().copied()
-    }
-
     /// Collect all construct signatures for a type.
     fn construct_signatures_for_type(
         &self,
@@ -383,27 +359,33 @@ impl Compiler {
             }
         }
 
-        let resolved = self.resolve_function_signature(
-            module,
-            expression_id.into_any(),
-            callee_symbol,
-            static_arguments,
-            prefilled_static_arguments,
-            bound_substitutions,
-            dynamic_arguments,
-            &static_parameters,
-            &dynamic_parameters,
-            return_type,
-            expected_return_type,
-            mode,
-            allow_missing_value_arguments,
-            profile,
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
-        )?;
+        let resolved = self
+            .resolve_function_static_arguments(
+                module,
+                expression_id.into_any(),
+                callee_symbol,
+                static_arguments,
+                prefilled_static_arguments,
+                bound_substitutions,
+                dynamic_arguments,
+                &static_parameters,
+                &dynamic_parameters,
+                return_type,
+                expected_return_type,
+                mode,
+                allow_missing_value_arguments,
+                profile,
+                options,
+                tree,
+                symbols,
+                types,
+                infer,
+            )?
+            .unwrap_or(ResolvedSignature {
+                dynamic_parameters,
+                return_type,
+                static_arguments: Vec::new(),
+            });
 
         // substitute `this` for member calls
         if let Some(receiver_ty_id) = call_receiver_ty_id {
@@ -457,63 +439,7 @@ impl Compiler {
         }
 
         // resolve and filter applicable overloads
-        let candidates = self.collect_applicable_signatures(
-            module,
-            expression_id,
-            callee_symbol,
-            static_arguments,
-            prefilled_static_arguments,
-            bound_substitutions,
-            signature_ids,
-            dynamic_arguments,
-            call_receiver_ty_id,
-            mode,
-            profile,
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
-        )?;
-
-        // drop equivalent overloads introduced by declaration merging
-        let mut candidates =
-            self.dedupe_signature_candidates(module, profile, candidates, symbols, types, options);
-
-        if candidates.is_empty() {
-            return Ok(None);
-        }
-        if candidates.len() == 1 {
-            return Ok(Some(candidates.remove(0)));
-        }
-
-        // prefer the first applicable signature in declaration order
-        Ok(candidates.into_iter().next())
-    }
-
-    /// Resolve and filter applicable overloads for call selection.
-    fn collect_applicable_signatures(
-        &self,
-        module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        callee_symbol: Option<GlobalSymbolId>,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
-        prefilled_static_arguments: Option<&[StaticArgument]>,
-        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        signature_ids: &[LocalTypeId],
-        dynamic_arguments: &[LocalNodeId<Argument>],
-        call_receiver_ty_id: Option<LocalTypeId>,
-        mode: SignatureResolutionMode,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-    ) -> AnalyzeResult<Vec<(LocalTypeId, ResolvedSignature)>> {
-        // collect resolved signatures that apply to the call site
         let mut candidates = Vec::new();
-
         for signature_ty_id in signature_ids {
             let Some(resolved) = self.resolve_call_signature(
                 module,
@@ -556,7 +482,19 @@ impl Compiler {
             candidates.push((*signature_ty_id, resolved));
         }
 
-        Ok(candidates)
+        // drop equivalent overloads introduced by declaration merging
+        let mut candidates =
+            self.dedupe_signature_candidates(module, profile, candidates, symbols, types, options);
+
+        if candidates.is_empty() {
+            return Ok(None);
+        }
+        if candidates.len() == 1 {
+            return Ok(Some(candidates.remove(0)));
+        }
+
+        // prefer the first applicable signature in declaration order
+        Ok(candidates.into_iter().next())
     }
 
     /// Drop duplicate overloads that resolve to equivalent shapes.
@@ -792,7 +730,6 @@ impl Compiler {
     }
 
     /// Add one argument constraint and static parameter bound for an invocation.
-    #[allow(clippy::too_many_arguments)]
     fn add_invocation_argument_constraint(
         &self,
         module: &Module,
@@ -1030,7 +967,6 @@ impl Compiler {
     }
 
     /// Check if one call argument is applicable to a signature parameter.
-    #[allow(clippy::too_many_arguments)]
     fn is_signature_argument_applicable(
         &self,
         module: &Module,
@@ -1154,7 +1090,6 @@ impl Compiler {
     }
 
     /// Check scalar literal assignability for signature applicability.
-    #[allow(clippy::too_many_arguments)]
     fn is_signature_scalar_literal_argument_applicable(
         &self,
         module: &Module,
@@ -1187,7 +1122,6 @@ impl Compiler {
     }
 
     /// Check static literal assignability for signature applicability.
-    #[allow(clippy::too_many_arguments)]
     fn is_signature_static_literal_argument_applicable(
         &self,
         module: &Module,
@@ -1223,7 +1157,6 @@ impl Compiler {
     }
 
     /// Check known argument-type assignability for signature applicability.
-    #[allow(clippy::too_many_arguments)]
     fn is_signature_known_argument_type_applicable(
         &self,
         module: &Module,
@@ -1303,7 +1236,6 @@ impl Compiler {
     }
 
     /// Prepare member-call typing context shared by member call resolution paths.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_member_call_type_context(
         &self,
         module: &Module,
@@ -1334,7 +1266,7 @@ impl Compiler {
             types,
         )?;
         if let Some(member_symbol) = member_symbol {
-            self.extend_owner_substitutions_from_inherited_arguments(
+            self.extend_owner_substitutions_from_inherited(
                 module,
                 profile,
                 receiver_expression_id.into_any(),
@@ -1368,12 +1300,11 @@ impl Compiler {
         let substitutions = self.merge_member_substitutions(&inherited, extension_context.as_ref());
 
         // select instance arguments for member instancing
-        let instance_arguments = self.infer_member_instance_base_arguments(
-            &inherited.arguments,
-            extension_context
-                .as_ref()
-                .map(|context| context.arguments.as_slice()),
-        );
+        let instance_arguments = if let Some(context) = extension_context.as_ref() {
+            context.arguments.clone()
+        } else {
+            inherited.arguments.clone()
+        };
 
         // infer member type for this receiver
         let mut member_type_visited = Vec::new();
@@ -1408,7 +1339,6 @@ impl Compiler {
     }
 
     /// Resolve per variant member call candidates for a union receiver.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_union_member_call_candidates(
         &self,
         module: &Module,
@@ -1427,12 +1357,10 @@ impl Compiler {
         infer: &mut InferTable,
     ) -> AnalyzeResult<Option<Vec<UnionMemberCallCandidate>>> {
         // query receiver context used by per element lookup filtering
-        let receiver_union_ty = types.get_type(receiver_union_ty_id).clone();
         let receiver_context = self.query_member_receiver_context_for_expression(
             module,
             receiver_expression_id,
             Some(receiver_union_ty_id),
-            &receiver_union_ty,
             profile,
             tree,
             symbols,
@@ -1490,8 +1418,11 @@ impl Compiler {
         };
 
         // prepare member call typing state for this element
-        let lookup_mode = self
-            .query_member_lookup_mode_for_receiver(context.receiver_nominal_symbol, &element_ty);
+        let lookup_mode = if context.receiver_nominal_symbol.is_some() {
+            MemberLookupMode::Value
+        } else {
+            MemberLookupMode::Instance
+        };
         let resolved_context = self.resolve_member_call_type_context(
             context.module,
             context.receiver_expression_id,
@@ -1609,7 +1540,13 @@ impl Compiler {
         // query callable signatures for the resolved member type
         let call_signatures = self.call_signatures_for_type(member_ty_id, types);
         if call_signatures.is_empty() {
-            self.report_union_member_call_non_callable(context, types);
+            self.emit_non_callable_for_callee_type(
+                context.module,
+                context.profile,
+                context.expression_id.into_any(),
+                context.receiver_union_ty_id,
+                types,
+            );
             return Ok(None);
         }
 
@@ -1636,7 +1573,13 @@ impl Compiler {
                 infer,
             )?;
             let Some((signature_ty_id, resolved)) = selection else {
-                self.report_union_member_call_no_overload(context, types);
+                self.emit_no_overload_for_receiver_type(
+                    context.module,
+                    context.profile,
+                    context.expression_id.into_any(),
+                    context.receiver_union_ty_id,
+                    types,
+                );
                 return Ok(None);
             };
 
@@ -1666,7 +1609,13 @@ impl Compiler {
             infer,
         )?;
         let Some(resolved) = resolved else {
-            self.report_union_member_call_non_callable(context, types);
+            self.emit_non_callable_for_callee_type(
+                context.module,
+                context.profile,
+                context.expression_id.into_any(),
+                context.receiver_union_ty_id,
+                types,
+            );
             return Ok(None);
         };
 
@@ -1680,17 +1629,16 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // allow associated blockers only for projection receivers
-        let allow_associated_contract_blocker = self
-            .query_expression_is_projection_receiver_for_infer(
-                context.module,
-                context.profile,
-                context.receiver_expression_id,
-                context.tree,
-                context.symbols,
-                types,
-            );
+        let allow_associated_contract_blocker = self.is_projection_receiver_expression(
+            context.module,
+            context.profile,
+            context.receiver_expression_id,
+            context.tree,
+            context.symbols,
+            types,
+        );
 
-        self.report_missing_member_diagnostic_for_receiver_type(
+        self.report_missing_member_diagnostic(
             context.module,
             context.profile,
             context.expression_id,
@@ -1702,36 +1650,6 @@ impl Compiler {
         )?;
 
         Ok(())
-    }
-
-    /// Report a no-overload diagnostic for union member-call resolution.
-    fn report_union_member_call_no_overload(
-        &self,
-        context: &UnionMemberCallResolutionContext<'_>,
-        types: &TypeTable,
-    ) {
-        self.emit_no_overload_for_receiver_type(
-            context.module,
-            context.profile,
-            context.expression_id.into_any(),
-            context.receiver_union_ty_id,
-            types,
-        );
-    }
-
-    /// Report a non-callable diagnostic for union member-call resolution.
-    fn report_union_member_call_non_callable(
-        &self,
-        context: &UnionMemberCallResolutionContext<'_>,
-        types: &TypeTable,
-    ) {
-        self.emit_non_callable_for_callee_type(
-            context.module,
-            context.profile,
-            context.expression_id.into_any(),
-            context.receiver_union_ty_id,
-            types,
-        );
     }
 
     /// Infer a call expression.
@@ -1833,13 +1751,18 @@ impl Compiler {
         }
 
         // query call signatures from the normalized call target
-        let call_signatures = self.call_signatures_for_call_target(
+        let call_signatures = if self.expression_is_super_reference_for_call(
             tree,
-            left_id,
-            callee.callee_ty_id,
-            call.super_constructor_value_ty_id,
-            types,
-        );
+            self.unwrap_parenthesized_expression(left_id, tree),
+        ) {
+            if let Some(super_constructor_value_ty_id) = call.super_constructor_value_ty_id {
+                self.construct_signatures_for_type(super_constructor_value_ty_id, types)
+            } else {
+                Vec::new()
+            }
+        } else {
+            self.call_signatures_for_type(callee.callee_ty_id, types)
+        };
         let ty_id = if call_signatures.is_empty() {
             self.infer_non_callable_call_expression(
                 module,
@@ -1856,28 +1779,28 @@ impl Compiler {
             )?
         } else {
             // resolve one concrete signature for this call
-            let signature_resolution = self.resolve_call_expression_signature(
+            let bound_substitutions =
+                (!call.inherited_substitutions.is_empty()).then_some(&call.inherited_substitutions);
+            let selection = self.select_call_signature(
                 module,
                 expression_id,
-                callee.callee_ty_id,
-                &call,
-                &call_signatures,
+                call.callee_symbol,
                 effective_static_arguments,
+                call.prefilled_static_arguments.as_deref(),
+                bound_substitutions,
+                &call_signatures,
                 dynamic_arguments,
-                &options,
+                call.call_receiver_ty_id,
+                SignatureResolutionMode::Synthesize,
+                ctx.profile,
+                &ctx.options,
                 tree,
                 symbols,
                 types,
                 infer,
-                ctx,
             )?;
-
-            // infer and commit from the selected signature when available
-            match signature_resolution {
-                CallExpressionSignatureResolution::Resolved {
-                    signature_ty_id,
-                    signature: resolved_signature,
-                } => self.infer_resolved_call_expression(
+            if let Some((signature_ty_id, resolved_signature)) = selection {
+                self.infer_resolved_call_expression(
                     module,
                     expression_id,
                     dynamic_arguments,
@@ -1890,80 +1813,72 @@ impl Compiler {
                     types,
                     infer,
                     ctx,
-                )?,
-                CallExpressionSignatureResolution::IndeterminateType(type_id) => type_id,
+                )?
+            } else if call_signatures.len() > 1 {
+                self.emit_no_overload_for_receiver_type(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    callee.callee_ty_id,
+                    types,
+                );
+                self.infer_call_arguments_without_context(
+                    module,
+                    dynamic_arguments,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
+                self.synthesize_call_error_result_type(expression_id, types)
+            } else {
+                let signature_ty_id = call_signatures[0];
+                let resolved = self.resolve_call_signature(
+                    module,
+                    expression_id,
+                    call.callee_symbol,
+                    effective_static_arguments,
+                    call.prefilled_static_arguments.as_deref(),
+                    bound_substitutions,
+                    Some(dynamic_arguments),
+                    signature_ty_id,
+                    call.call_receiver_ty_id,
+                    ctx.expected_type,
+                    SignatureResolutionMode::Synthesize,
+                    false,
+                    ctx.profile,
+                    &ctx.options,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                )?;
+                if let Some(resolved_signature) = resolved {
+                    self.infer_resolved_call_expression(
+                        module,
+                        expression_id,
+                        dynamic_arguments,
+                        &call,
+                        signature_ty_id,
+                        resolved_signature,
+                        &options,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?
+                } else {
+                    self.synthesize_call_error_result_type(expression_id, types)
+                }
             }
         };
 
         Ok(finish_result(ty_id, types))
     }
 
-    /// Query call signatures from a normalized call target.
-    fn call_signatures_for_call_target(
-        &self,
-        tree: &NodeTree,
-        left_id: LocalNodeId<Expression>,
-        callee_ty_id: LocalTypeId,
-        super_constructor_value_ty_id: Option<LocalTypeId>,
-        types: &TypeTable,
-    ) -> Vec<LocalTypeId> {
-        if self.expression_is_super_reference_for_call(
-            tree,
-            self.unwrap_parenthesized_expression(left_id, tree),
-        ) {
-            if let Some(super_constructor_value_ty_id) = super_constructor_value_ty_id {
-                return self.construct_signatures_for_type(super_constructor_value_ty_id, types);
-            }
-
-            return Vec::new();
-        }
-
-        self.call_signatures_for_type(callee_ty_id, types)
-    }
-
-    /// Resolve one signature for a call expression or recover with an error type.
-    #[allow(clippy::too_many_arguments)]
-    fn resolve_call_expression_signature(
-        &self,
-        module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        callee_ty_id: LocalTypeId,
-        call: &CallExpressionResolution,
-        call_signatures: &[LocalTypeId],
-        effective_static_arguments: Option<&[LocalNodeId<Argument>]>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        ctx: &mut InferContext,
-    ) -> AnalyzeResult<CallExpressionSignatureResolution> {
-        let bound_substitutions =
-            (!call.inherited_substitutions.is_empty()).then_some(&call.inherited_substitutions);
-        self.resolve_invocation_signature(
-            module,
-            expression_id,
-            callee_ty_id,
-            call.callee_symbol,
-            effective_static_arguments,
-            call.prefilled_static_arguments.as_deref(),
-            bound_substitutions,
-            call_signatures,
-            dynamic_arguments,
-            call.call_receiver_ty_id,
-            ctx.expected_type,
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
-            ctx,
-        )
-    }
-
     /// Infer argument constraints, record call resolutions, and return the call result type.
-    #[allow(clippy::too_many_arguments)]
     fn infer_resolved_call_expression(
         &self,
         module: &Module,
@@ -2144,7 +2059,7 @@ impl Compiler {
                     )
                 });
                 if let Some(environment) = environment {
-                    self.record_provisional_instance_for_node_maybe(
+                    self.record_node_provisional_instance(
                         expression_id.into_global_any(module.id),
                         callee_symbol,
                         environment,
@@ -2175,7 +2090,7 @@ impl Compiler {
                     types,
                 );
                 if let Some(environment) = environment {
-                    self.record_provisional_instance_for_node_maybe(
+                    self.record_node_provisional_instance(
                         expression_id.into_global_any(module.id),
                         callee_symbol,
                         environment,
@@ -2222,7 +2137,6 @@ impl Compiler {
     }
 
     /// Infer a non-callable call expression and recover with an error type.
-    #[allow(clippy::too_many_arguments)]
     fn infer_non_callable_call_expression(
         &self,
         module: &Module,
@@ -2295,7 +2209,6 @@ impl Compiler {
     }
 
     /// Infer call arguments without contextual parameter types.
-    #[allow(clippy::too_many_arguments)]
     fn infer_call_arguments_without_context(
         &self,
         module: &Module,
@@ -2323,7 +2236,6 @@ impl Compiler {
     }
 
     /// Infer and normalize the callee state for call-expression inference.
-    #[allow(clippy::too_many_arguments)]
     fn infer_call_expression_callee(
         &self,
         module: &Module,
@@ -2366,7 +2278,6 @@ impl Compiler {
     }
 
     /// Resolve call-target metadata used for signature and instance resolution.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_call_expression_target(
         &self,
         module: &Module,
@@ -2418,7 +2329,6 @@ impl Compiler {
     }
 
     /// Resolve member-call target metadata for signature and instance resolution.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_member_call_expression_target(
         &self,
         module: &Module,
@@ -2482,7 +2392,7 @@ impl Compiler {
             types,
         )?;
         if let Some(member_symbol) = member_symbol {
-            self.extend_owner_substitutions_from_inherited_arguments(
+            self.extend_owner_substitutions_from_inherited(
                 module,
                 ctx.profile,
                 receiver_id.into_any(),
@@ -2521,15 +2431,17 @@ impl Compiler {
         );
 
         // query receiver/member instance arguments when member syntax supplied them
-        let member_instance_arguments = self.query_member_call_instance_arguments(
-            module,
-            unwrapped_left_id,
-            member_symbol,
-            call_has_static_arguments,
-            member_has_static_arguments,
-            infer,
-            types,
-        );
+        let member_instance_arguments = if call_has_static_arguments || !member_has_static_arguments
+        {
+            None
+        } else {
+            self.query_instance_arguments_for_node_infer(
+                unwrapped_left_id.into_global_any(module.id),
+                member_symbol,
+                infer,
+                types,
+            )
+        };
         Ok(CallExpressionResolution {
             callee_symbol: member_symbol,
             call_receiver_ty_id: Some(receiver_ty_id),
@@ -2546,7 +2458,6 @@ impl Compiler {
     }
 
     /// Infer receiver type and receiver context for a member call target.
-    #[allow(clippy::too_many_arguments)]
     fn infer_member_call_receiver_state(
         &self,
         module: &Module,
@@ -2572,7 +2483,6 @@ impl Compiler {
             module,
             receiver_id,
             Some(receiver_ty_id),
-            &receiver_ty,
             profile,
             tree,
             symbols,
@@ -2583,7 +2493,6 @@ impl Compiler {
     }
 
     /// Resolve inherited static arguments for a member call receiver.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_member_call_inherited_static_context(
         &self,
         module: &Module,
@@ -2614,7 +2523,6 @@ impl Compiler {
     }
 
     /// Resolve member lookup metadata for a member call target.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_member_call_member_resolution(
         &self,
         module: &Module,
@@ -2648,7 +2556,6 @@ impl Compiler {
     }
 
     /// Resolve extension supplied static arguments for a member call target.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_member_call_prefilled_static_arguments(
         &self,
         module: &Module,
@@ -2679,32 +2586,7 @@ impl Compiler {
         Ok(context.map(|context| context.arguments))
     }
 
-    /// Query member instance arguments supplied through member static-argument syntax.
-    fn query_member_call_instance_arguments(
-        &self,
-        module: &Module,
-        member_expression_id: LocalNodeId<Expression>,
-        member_symbol: Option<GlobalSymbolId>,
-        call_has_static_arguments: bool,
-        member_has_static_arguments: bool,
-        infer: &InferTable,
-        types: &TypeTable,
-    ) -> Option<Vec<StaticArgument>> {
-        if call_has_static_arguments || !member_has_static_arguments {
-            return None;
-        }
-
-        self.query_member_instance_arguments_for_call(
-            module,
-            member_expression_id,
-            member_symbol,
-            infer,
-            types,
-        )
-    }
-
     /// Resolve non-member call target metadata for signature and instance resolution.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_non_member_call_expression_target(
         &self,
         module: &Module,
@@ -2777,7 +2659,6 @@ impl Compiler {
     }
 
     /// Infer the receiver type for a member call target.
-    #[allow(clippy::too_many_arguments)]
     fn infer_member_call_receiver_type(
         &self,
         module: &Module,
@@ -2867,7 +2748,6 @@ impl Compiler {
     }
 
     /// Infer dynamic union member-call dispatch when the receiver is a union.
-    #[allow(clippy::too_many_arguments)]
     fn infer_union_member_call_expression(
         &self,
         module: &Module,
@@ -2909,17 +2789,27 @@ impl Compiler {
             infer,
         )?;
         let Some(candidates) = candidates else {
-            return self.infer_unresolved_union_member_call_expression(
+            self.infer_call_arguments_without_context(
                 module,
-                expression_id,
-                context.receiver_ty_id,
                 dynamic_arguments,
                 tree,
                 symbols,
                 types,
                 infer,
                 ctx,
+            )?;
+            self.record_provisional_unresolved_resolution(
+                expression_id.into_global_any(module.id),
+                Some(context.receiver_ty_id),
+                Vec::new(),
+                Vec::new(),
+                infer,
+                types,
             );
+
+            return Ok(Some(
+                self.synthesize_call_error_result_type(expression_id, types),
+            ));
         };
 
         let argument_ty_ids = self.infer_union_member_call_argument_types(
@@ -2987,44 +2877,6 @@ impl Compiler {
         Some(elements.clone())
     }
 
-    /// Infer unresolved union member-call candidate resolution as indeterminate.
-    #[allow(clippy::too_many_arguments)]
-    fn infer_unresolved_union_member_call_expression(
-        &self,
-        module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        receiver_ty_id: LocalTypeId,
-        dynamic_arguments: &[LocalNodeId<Argument>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        ctx: &mut InferContext,
-    ) -> AnalyzeResult<Option<LocalTypeId>> {
-        self.infer_call_arguments_without_context(
-            module,
-            dynamic_arguments,
-            tree,
-            symbols,
-            types,
-            infer,
-            ctx,
-        )?;
-
-        self.record_provisional_unresolved_resolution(
-            expression_id.into_global_any(module.id),
-            Some(receiver_ty_id),
-            Vec::new(),
-            Vec::new(),
-            infer,
-            types,
-        );
-
-        Ok(Some(
-            self.synthesize_call_error_result_type(expression_id, types),
-        ))
-    }
-
     /// Query uniform expected argument types across union-call candidates.
     fn query_union_member_call_expected_argument_types(
         &self,
@@ -3057,7 +2909,6 @@ impl Compiler {
     }
 
     /// Infer argument types for one union member-call dispatch.
-    #[allow(clippy::too_many_arguments)]
     fn infer_union_member_call_argument_types(
         &self,
         module: &Module,
@@ -3143,7 +2994,6 @@ impl Compiler {
     }
 
     /// Check argument assignability against every union-call candidate.
-    #[allow(clippy::too_many_arguments)]
     fn check_union_member_call_argument_assignability(
         &self,
         module: &Module,
@@ -3177,7 +3027,6 @@ impl Compiler {
     }
 
     /// Check candidate argument assignability, deferring unresolved inference state during overload filtering.
-    #[allow(clippy::too_many_arguments)]
     fn is_signature_candidate_argument_assignable(
         &self,
         module: &Module,
@@ -3263,7 +3112,7 @@ impl Compiler {
         for (candidate_index, candidate) in candidates.into_iter().enumerate() {
             let instance_id = if let Some(environment) = candidate.instance_environment {
                 let (instance_id, obligation_id) = self
-                    .record_provisional_instance_for_symbol_maybe_with_obligation(
+                    .record_symbol_provisional_instance_with_obligation(
                         candidate.symbol,
                         environment,
                         infer,
@@ -3495,27 +3344,26 @@ impl Compiler {
             )?
         } else {
             // resolve one concrete constructor signature
-            let signature_resolution = self.resolve_new_expression_signature(
+            let selection = self.select_call_signature(
                 module,
                 expression_id,
-                &target,
+                target.callee_symbol,
                 static_arguments,
-                dynamic_arguments,
+                None,
+                None,
                 &construct_signatures,
-                &options,
+                dynamic_arguments,
+                None,
+                SignatureResolutionMode::Synthesize,
+                ctx.profile,
+                &ctx.options,
                 tree,
                 symbols,
                 types,
                 infer,
-                ctx,
             )?;
-
-            // infer and commit from the selected constructor signature
-            match signature_resolution {
-                CallExpressionSignatureResolution::Resolved {
-                    signature_ty_id: _,
-                    signature: resolved_signature,
-                } => self.infer_resolved_new_expression(
+            if let Some((_, resolved_signature)) = selection {
+                self.infer_resolved_new_expression(
                     module,
                     expression_id,
                     &target,
@@ -3527,8 +3375,64 @@ impl Compiler {
                     types,
                     infer,
                     ctx,
-                )?,
-                CallExpressionSignatureResolution::IndeterminateType(type_id) => type_id,
+                )?
+            } else if construct_signatures.len() > 1 {
+                self.emit_no_overload_for_receiver_type(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    target.callee_ty_id,
+                    types,
+                );
+                self.infer_call_arguments_without_context(
+                    module,
+                    dynamic_arguments,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
+                self.synthesize_call_error_result_type(expression_id, types)
+            } else {
+                let signature_ty_id = construct_signatures[0];
+                let resolved = self.resolve_call_signature(
+                    module,
+                    expression_id,
+                    target.callee_symbol,
+                    static_arguments,
+                    None,
+                    None,
+                    Some(dynamic_arguments),
+                    signature_ty_id,
+                    None,
+                    ctx.expected_type,
+                    SignatureResolutionMode::Synthesize,
+                    false,
+                    ctx.profile,
+                    &ctx.options,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                )?;
+                if let Some(resolved_signature) = resolved {
+                    self.infer_resolved_new_expression(
+                        module,
+                        expression_id,
+                        &target,
+                        dynamic_arguments,
+                        resolved_signature,
+                        &options,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?
+                } else {
+                    self.synthesize_call_error_result_type(expression_id, types)
+                }
             }
         };
 
@@ -3549,7 +3453,6 @@ impl Compiler {
     }
 
     /// Infer and normalize constructor target metadata for new-expression inference.
-    #[allow(clippy::too_many_arguments)]
     fn infer_new_expression_target(
         &self,
         module: &Module,
@@ -3596,152 +3499,7 @@ impl Compiler {
         })
     }
 
-    /// Resolve one constructor signature for a new expression or recover with an error type.
-    #[allow(clippy::too_many_arguments)]
-    fn resolve_new_expression_signature(
-        &self,
-        module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        target: &NewExpressionResolution,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
-        dynamic_arguments: &[LocalNodeId<Argument>],
-        construct_signatures: &[LocalTypeId],
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        ctx: &mut InferContext,
-    ) -> AnalyzeResult<CallExpressionSignatureResolution> {
-        self.resolve_invocation_signature(
-            module,
-            expression_id,
-            target.callee_ty_id,
-            target.callee_symbol,
-            static_arguments,
-            None,
-            None,
-            construct_signatures,
-            dynamic_arguments,
-            None,
-            ctx.expected_type,
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
-            ctx,
-        )
-    }
-
-    /// Resolve one invocation signature for call or constructor expressions.
-    #[allow(clippy::too_many_arguments)]
-    fn resolve_invocation_signature(
-        &self,
-        module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        receiver_ty_id_for_error: LocalTypeId,
-        callee_symbol: Option<GlobalSymbolId>,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
-        prefilled_static_arguments: Option<&[StaticArgument]>,
-        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        signature_ty_ids: &[LocalTypeId],
-        dynamic_arguments: &[LocalNodeId<Argument>],
-        receiver_ty_id_for_signature: Option<LocalTypeId>,
-        expected_return_type: Option<LocalTypeId>,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        ctx: &mut InferContext,
-    ) -> AnalyzeResult<CallExpressionSignatureResolution> {
-        // select the matching overload
-        let selection = self.select_call_signature(
-            module,
-            expression_id,
-            callee_symbol,
-            static_arguments,
-            prefilled_static_arguments,
-            bound_substitutions,
-            signature_ty_ids,
-            dynamic_arguments,
-            receiver_ty_id_for_signature,
-            SignatureResolutionMode::Synthesize,
-            ctx.profile,
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
-        )?;
-        if let Some((signature_ty_id, resolved)) = selection {
-            return Ok(CallExpressionSignatureResolution::Resolved {
-                signature_ty_id,
-                signature: resolved,
-            });
-        }
-
-        // report overload errors on ambiguous calls
-        if signature_ty_ids.len() > 1 {
-            self.emit_no_overload_for_receiver_type(
-                module,
-                ctx.profile,
-                expression_id.into_any(),
-                receiver_ty_id_for_error,
-                types,
-            );
-            self.infer_call_arguments_without_context(
-                module,
-                dynamic_arguments,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?;
-
-            return Ok(CallExpressionSignatureResolution::IndeterminateType(
-                self.synthesize_call_error_result_type(expression_id, types),
-            ));
-        }
-
-        // attempt direct signature resolution for singleton signatures
-        let signature_ty_id = signature_ty_ids[0];
-        let resolved = self.resolve_call_signature(
-            module,
-            expression_id,
-            callee_symbol,
-            static_arguments,
-            prefilled_static_arguments,
-            bound_substitutions,
-            Some(dynamic_arguments),
-            signature_ty_id,
-            receiver_ty_id_for_signature,
-            expected_return_type,
-            SignatureResolutionMode::Synthesize,
-            false,
-            ctx.profile,
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
-        )?;
-        if let Some(resolved) = resolved {
-            Ok(CallExpressionSignatureResolution::Resolved {
-                signature_ty_id,
-                signature: resolved,
-            })
-        } else {
-            Ok(CallExpressionSignatureResolution::IndeterminateType(
-                self.synthesize_call_error_result_type(expression_id, types),
-            ))
-        }
-    }
-
     /// Infer constructor arguments, commit constructor resolution, and return the constructed type.
-    #[allow(clippy::too_many_arguments)]
     fn infer_resolved_new_expression(
         &self,
         module: &Module,
@@ -3826,7 +3584,7 @@ impl Compiler {
                 types,
             );
             if let Some(environment) = environment {
-                self.record_provisional_instance_for_node_maybe(
+                self.record_node_provisional_instance(
                     expression_id.into_global_any(module.id),
                     callee_symbol,
                     environment,
@@ -3858,7 +3616,6 @@ impl Compiler {
     }
 
     /// Infer behavior for non-constructable new-expression targets.
-    #[allow(clippy::too_many_arguments)]
     fn infer_non_constructable_new_expression(
         &self,
         module: &Module,
@@ -3901,62 +3658,6 @@ impl Compiler {
         )?;
 
         Ok(self.synthesize_call_error_result_type(expression_id, types))
-    }
-
-    /// Resolve a function type for a call, substituting static parameters when provided.
-    pub(crate) fn resolve_function_signature(
-        &self,
-        module: &Module,
-        node_id: LocalNodeIdAny,
-        owner_symbol: Option<GlobalSymbolId>,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
-        prefilled_static_arguments: Option<&[StaticArgument]>,
-        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        dynamic_arguments: Option<&[LocalNodeId<Argument>]>,
-        static_parameters: &[LocalTypeId],
-        dynamic_parameters: &[LocalTypeId],
-        return_type: Option<LocalTypeId>,
-        expected_return_type: Option<LocalTypeId>,
-        mode: SignatureResolutionMode,
-        allow_missing_value_arguments: bool,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-    ) -> AnalyzeResult<ResolvedSignature> {
-        let resolved = self.resolve_function_static_arguments(
-            module,
-            node_id,
-            owner_symbol,
-            static_arguments,
-            prefilled_static_arguments,
-            bound_substitutions,
-            dynamic_arguments,
-            static_parameters,
-            dynamic_parameters,
-            return_type,
-            expected_return_type,
-            mode,
-            allow_missing_value_arguments,
-            profile,
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
-        )?;
-
-        if let Some(resolved) = resolved {
-            return Ok(resolved);
-        }
-
-        Ok(ResolvedSignature {
-            dynamic_parameters: dynamic_parameters.to_vec(),
-            return_type,
-            static_arguments: Vec::new(),
-        })
     }
 
     /// Resolve static arguments and substitutions for a function type.
@@ -4177,7 +3878,6 @@ impl Compiler {
     }
 
     /// Resolve static arguments and substitutions for one signature.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_signature_static_argument_state(
         &self,
         module: &Module,
@@ -4200,17 +3900,26 @@ impl Compiler {
         infer: &mut InferTable,
     ) -> AnalyzeResult<Option<ResolvedStaticArgumentState>> {
         // query expected return type mapping for type parameter backfill
-        let expected_return_mapping = self.query_signature_expected_return_mapping(
-            module,
-            mode,
-            return_type,
-            expected_return_type,
-            profile,
-            options,
-            tree,
-            symbols,
-            types,
-        )?;
+        let expected_return_mapping = if mode == SignatureResolutionMode::Synthesize {
+            if let (Some(return_type), Some(expected_return_type)) =
+                (return_type, expected_return_type)
+            {
+                self.static_arguments_from_expected_return_type(
+                    module,
+                    profile,
+                    return_type,
+                    expected_return_type,
+                    options,
+                    tree,
+                    symbols,
+                    types,
+                )?
+            } else {
+                None
+            }
+        } else {
+            None
+        };
 
         // resolve one static argument slot at a time
         let mut substitutions = HashMap::new();
@@ -4222,79 +3931,127 @@ impl Compiler {
             let assigned_argument = assigned_arguments.get(index).cloned().flatten();
 
             // query inferred value arguments from dynamic argument positions
-            let inferred_argument = self.query_signature_inferred_static_argument(
-                module,
-                profile,
-                static_parameter,
-                assigned_argument.as_ref(),
-                dynamic_argument_ids,
-                dynamic_parameters,
-                tree,
-                symbols,
-                types,
-                infer,
-            )?;
+            let inferred_argument = if assigned_argument.is_some() {
+                None
+            } else if let Some(dynamic_argument_ids) = dynamic_argument_ids {
+                self.infer_static_argument_from_dynamic_arguments(
+                    module,
+                    profile,
+                    static_parameter,
+                    dynamic_parameters,
+                    dynamic_argument_ids,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                )?
+            } else {
+                None
+            };
 
             // query expected argument backfill from return type compatibility
-            let expected_argument = self.query_signature_expected_static_argument(
-                module,
-                profile,
-                static_parameter,
-                assigned_argument.as_ref(),
-                expected_return_mapping.as_ref(),
-                tree,
-                symbols,
-                types,
-            )?;
+            let expected_argument = if assigned_argument.is_some()
+                || static_parameter.kind != StaticParameterKind::Type
+            {
+                None
+            } else if let Some(expected_argument) = expected_return_mapping
+                .as_ref()
+                .and_then(|mapping| mapping.get(&static_parameter.symbol))
+                .cloned()
+            {
+                self.resolve_static_argument(
+                    module,
+                    profile,
+                    static_parameter,
+                    Some(expected_argument),
+                    true,
+                    tree,
+                    symbols,
+                    types,
+                )?
+            } else {
+                None
+            };
 
             // resolve one concrete static argument value for this slot
-            let Some(mut resolved_argument) = self.resolve_signature_static_argument_value(
-                module,
-                node_id,
-                owner_symbol,
-                static_parameter,
-                assigned_argument,
-                inferred_argument,
-                expected_argument,
-                mode,
-                allow_missing_value_arguments,
-                profile,
-                tree,
-                symbols,
-                types,
-                infer,
-                &mut has_missing_value_argument,
-            )?
-            else {
-                return Ok(None);
+            let mut resolved_argument = if let Some(resolved_argument) = self
+                .resolve_static_argument(
+                    module,
+                    profile,
+                    static_parameter,
+                    assigned_argument,
+                    true,
+                    tree,
+                    symbols,
+                    types,
+                )? {
+                resolved_argument
+            } else if let Some(inferred_argument) = inferred_argument {
+                inferred_argument
+            } else if let Some(expected_argument) = expected_argument {
+                expected_argument
+            } else {
+                if static_parameter.kind == StaticParameterKind::Value
+                    && mode == SignatureResolutionMode::Synthesize
+                    && allow_missing_value_arguments
+                {
+                    return Ok(None);
+                }
+
+                if static_parameter.kind == StaticParameterKind::Value {
+                    has_missing_value_argument = true;
+                }
+
+                self.synthesize_missing_static_argument_for_function(
+                    module,
+                    profile,
+                    node_id,
+                    owner_symbol,
+                    static_parameter,
+                    infer,
+                    types,
+                )?
             };
 
             // query the error-node anchor used by type-argument validation
-            let error_node = self.query_signature_static_argument_error_node(
-                module,
-                node_id,
-                static_parameter,
-                Some(&resolved_argument),
-            );
+            let error_node = match &resolved_argument {
+                StaticArgument::Unevaluated { node } => *node,
+                StaticArgument::Evaluated { .. } => node_id.into_global(module.id),
+            };
 
             // validate and collect substitutions for this argument
-            let substitution = self.resolve_signature_static_argument_substitution(
+            let materialized_substitution = if static_parameter.kind == StaticParameterKind::Type {
+                Some(self.materialize_static_type_argument(
+                    module,
+                    profile,
+                    error_node,
+                    static_parameter,
+                    &resolved_argument,
+                    tree,
+                    symbols,
+                    types,
+                )?)
+            } else {
+                None
+            };
+            let substitution = self.validate_static_argument(
                 module,
                 profile,
                 error_node,
                 static_parameter,
                 &resolved_argument,
+                materialized_substitution,
                 &bound_substitutions,
                 tree,
                 symbols,
                 types,
+                Some(infer),
                 options,
-                infer,
             )?;
             if let Some(substitution_ty_id) = substitution {
                 substitutions.insert(static_parameter.symbol, substitution_ty_id);
                 bound_substitutions.insert(static_parameter.symbol, substitution_ty_id);
-                resolved_argument = self.normalize_signature_value_static_argument_substitution(
+                resolved_argument = self.normalize_signature_static_argument_substitution(
                     static_parameter,
                     substitution_ty_id,
                     resolved_argument,
@@ -4322,258 +4079,8 @@ impl Compiler {
         }))
     }
 
-    /// Query expected return mapping used to backfill unresolved type arguments.
-    #[allow(clippy::too_many_arguments)]
-    fn query_signature_expected_return_mapping(
-        &self,
-        module: &Module,
-        mode: SignatureResolutionMode,
-        return_type: Option<LocalTypeId>,
-        expected_return_type: Option<LocalTypeId>,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, StaticArgument>>> {
-        // only infer from return types in inference mode
-        if mode != SignatureResolutionMode::Synthesize {
-            return Ok(None);
-        }
-        let Some(return_type) = return_type else {
-            return Ok(None);
-        };
-        let Some(expected_return_type) = expected_return_type else {
-            return Ok(None);
-        };
-
-        self.static_arguments_from_expected_return_type(
-            module,
-            profile,
-            return_type,
-            expected_return_type,
-            options,
-            tree,
-            symbols,
-            types,
-        )
-    }
-
-    /// Query one inferred static argument from dynamic arguments when possible.
-    #[allow(clippy::too_many_arguments)]
-    fn query_signature_inferred_static_argument(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        static_parameter: &StaticParameter,
-        assigned_argument: Option<&StaticArgument>,
-        dynamic_argument_ids: Option<&[LocalNodeId<Argument>]>,
-        dynamic_parameters: &[LocalTypeId],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &InferTable,
-    ) -> AnalyzeResult<Option<StaticArgument>> {
-        // explicit static arguments always win over inferred ones
-        if assigned_argument.is_some() {
-            return Ok(None);
-        }
-        let Some(dynamic_argument_ids) = dynamic_argument_ids else {
-            return Ok(None);
-        };
-
-        self.infer_static_argument_from_dynamic_arguments(
-            module,
-            profile,
-            static_parameter,
-            dynamic_parameters,
-            dynamic_argument_ids,
-            tree,
-            symbols,
-            types,
-            infer,
-        )
-    }
-
-    /// Query one expected static argument from expected return type mapping.
-    #[allow(clippy::too_many_arguments)]
-    fn query_signature_expected_static_argument(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        static_parameter: &StaticParameter,
-        assigned_argument: Option<&StaticArgument>,
-        expected_return_mapping: Option<&HashMap<GlobalSymbolId, StaticArgument>>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<Option<StaticArgument>> {
-        // only unassigned type parameters can be inherited from expected return types
-        if assigned_argument.is_some() || static_parameter.kind != StaticParameterKind::Type {
-            return Ok(None);
-        }
-        let expected_argument = expected_return_mapping
-            .and_then(|mapping| mapping.get(&static_parameter.symbol))
-            .cloned();
-        let Some(expected_argument) = expected_argument else {
-            return Ok(None);
-        };
-
-        self.resolve_static_argument(
-            module,
-            profile,
-            static_parameter,
-            Some(expected_argument),
-            true,
-            tree,
-            symbols,
-            types,
-        )
-    }
-
-    /// Query the error node for one static argument slot.
-    fn query_signature_static_argument_error_node(
-        &self,
-        module: &Module,
-        node_id: LocalNodeIdAny,
-        static_parameter: &StaticParameter,
-        resolved_argument: Option<&StaticArgument>,
-    ) -> GlobalNodeIdAny {
-        if let Some(argument) = resolved_argument {
-            return match argument {
-                StaticArgument::Unevaluated { node } => *node,
-                StaticArgument::Evaluated { .. } => node_id.into_global(module.id),
-            };
-        }
-        if let Some(default_expression) = static_parameter.default_expression.as_ref() {
-            return default_expression
-                .local_id
-                .into_global_any(default_expression.module_id);
-        }
-
-        node_id.into_global(module.id)
-    }
-
-    /// Resolve one static argument value for signature instantiation.
-    #[allow(clippy::too_many_arguments)]
-    fn resolve_signature_static_argument_value(
-        &self,
-        module: &Module,
-        node_id: LocalNodeIdAny,
-        owner_symbol: Option<GlobalSymbolId>,
-        static_parameter: &StaticParameter,
-        assigned_argument: Option<StaticArgument>,
-        inferred_argument: Option<StaticArgument>,
-        expected_argument: Option<StaticArgument>,
-        mode: SignatureResolutionMode,
-        allow_missing_value_arguments: bool,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        has_missing_value_argument: &mut bool,
-    ) -> AnalyzeResult<Option<StaticArgument>> {
-        // resolve the explicit argument or default first
-        let resolved_argument = self.resolve_static_argument(
-            module,
-            profile,
-            static_parameter,
-            assigned_argument,
-            true,
-            tree,
-            symbols,
-            types,
-        )?;
-        if let Some(resolved_argument) = resolved_argument {
-            return Ok(Some(resolved_argument));
-        }
-
-        // then use inference from dynamic arguments
-        if let Some(inferred_argument) = inferred_argument {
-            return Ok(Some(inferred_argument));
-        }
-
-        // then use expected return type backfill
-        if let Some(expected_argument) = expected_argument {
-            return Ok(Some(expected_argument));
-        }
-
-        // defer value argument failure when the caller allows missing value slots
-        if static_parameter.kind == StaticParameterKind::Value
-            && mode == SignatureResolutionMode::Synthesize
-            && allow_missing_value_arguments
-        {
-            return Ok(None);
-        }
-
-        // record missing value slots to suppress cascading diagnostics
-        if static_parameter.kind == StaticParameterKind::Value {
-            *has_missing_value_argument = true;
-        }
-        let missing_argument = self.synthesize_missing_static_argument_for_function(
-            module,
-            profile,
-            node_id,
-            owner_symbol,
-            static_parameter,
-            infer,
-            types,
-        )?;
-
-        Ok(Some(missing_argument))
-    }
-
-    /// Resolve and validate one static argument substitution.
-    #[allow(clippy::too_many_arguments)]
-    fn resolve_signature_static_argument_substitution(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        error_node: GlobalNodeIdAny,
-        static_parameter: &StaticParameter,
-        resolved_argument: &StaticArgument,
-        bound_substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
-        infer: &mut InferTable,
-    ) -> AnalyzeResult<Option<LocalTypeId>> {
-        // materialize type arguments before validating bound compatibility
-        let materialized_substitution = if static_parameter.kind == StaticParameterKind::Type {
-            Some(self.materialize_static_type_argument(
-                module,
-                profile,
-                error_node,
-                static_parameter,
-                resolved_argument,
-                tree,
-                symbols,
-                types,
-            )?)
-        } else {
-            None
-        };
-
-        self.validate_static_argument(
-            module,
-            profile,
-            error_node,
-            static_parameter,
-            resolved_argument,
-            materialized_substitution,
-            bound_substitutions,
-            tree,
-            symbols,
-            types,
-            Some(infer),
-            options,
-        )
-    }
-
     /// Normalize value static arguments when substitution produced a concrete type.
-    fn normalize_signature_value_static_argument_substitution(
+    fn normalize_signature_static_argument_substitution(
         &self,
         static_parameter: &StaticParameter,
         substitution_ty_id: LocalTypeId,
@@ -4604,7 +4111,6 @@ impl Compiler {
     }
 
     /// Instantiate the dynamic signature from resolved static substitutions.
-    #[allow(clippy::too_many_arguments)]
     fn instantiate_signature_from_resolved_state(
         &self,
         module: &Module,
@@ -4740,7 +4246,6 @@ impl Compiler {
             module,
             receiver_expression_id,
             receiver_ty_id,
-            receiver_ty,
             profile,
             tree,
             symbols,
@@ -4795,27 +4300,34 @@ impl Compiler {
         };
         let signature_static_parameter_symbols =
             self.static_parameter_symbols_for_type_ids(&static_parameters, types);
-        let signature = self.resolve_function_signature(
-            module,
-            expression_id.into_any(),
-            member_symbol,
-            None,
-            None,
-            (!resolved_context.substitutions.is_empty()).then_some(&resolved_context.substitutions),
-            None,
-            &static_parameters,
-            &dynamic_parameters,
-            return_type,
-            None,
-            SignatureResolutionMode::Check,
-            false,
-            profile,
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
-        )?;
+        let signature = self
+            .resolve_function_static_arguments(
+                module,
+                expression_id.into_any(),
+                member_symbol,
+                None,
+                None,
+                (!resolved_context.substitutions.is_empty())
+                    .then_some(&resolved_context.substitutions),
+                None,
+                &static_parameters,
+                &dynamic_parameters,
+                return_type,
+                None,
+                SignatureResolutionMode::Check,
+                false,
+                profile,
+                options,
+                tree,
+                symbols,
+                types,
+                infer,
+            )?
+            .unwrap_or(ResolvedSignature {
+                dynamic_parameters,
+                return_type,
+                static_arguments: Vec::new(),
+            });
 
         Ok(Some(ResolvedMemberFunction {
             signature,
@@ -4860,7 +4372,7 @@ impl Compiler {
             return Ok(None);
         };
 
-        self.record_provisional_instance_for_node_maybe(
+        self.record_node_provisional_instance(
             expression_id.into_global_any(module.id),
             member_symbol,
             environment,
