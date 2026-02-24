@@ -293,6 +293,7 @@ impl Resolver {
             ctx.is_fully_specified = false;
             return Ok(None);
         } else if !self.check_restrictions(path) {
+            ctx.is_fully_specified = false;
             return Ok(None);
         }
 

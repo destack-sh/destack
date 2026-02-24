@@ -1,7 +1,7 @@
 use destack_dir::{DependencySource, StaticKey};
 use destack_workspace::TargetId;
 
-use crate::TestProgram;
+use crate::{ResolveError, TestProgram};
 
 /// Test that symbols inside `declare global { }` blocks are collected as globals.
 #[test]
@@ -295,4 +295,181 @@ fn test_build_global_symbol_table_key_uses_profile_target_without_default() {
         .expect("expected profile target selection to avoid default-target error");
 
     assert_eq!(key.target_id, js_target);
+}
+
+/// Report an explicit error when multiple targets map to the same profile.
+#[test]
+fn test_build_global_symbol_table_key_errors_on_ambiguous_profile_targets() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module("main.ds", "export const value: i32 = 1;");
+    test.add_target(module_id, "js");
+    test.add_target(module_id, "ts");
+
+    let package_id = {
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        module.package_id
+    };
+    let js_target = TargetId::new(package_id, "js");
+    let ts_target = TargetId::new(package_id, "ts");
+
+    // make ts target profile-equivalent to js to force ambiguity
+    {
+        let package = test.program.packages.get(package_id);
+        let mut package = package.write();
+        let js_target_config = package
+            .targets
+            .get(&js_target)
+            .cloned()
+            .expect("missing js target");
+        package.targets.insert(ts_target, js_target_config);
+    }
+    let _ = test.program.packages.bump_version(package_id);
+
+    let js_profile = test
+        .program
+        .profile_id_for_target(module_id, &js_target)
+        .expect("missing profile for js target");
+    let result = test
+        .compiler
+        .build_global_symbol_table_key(module_id, js_profile);
+
+    let Err(ResolveError::InvalidTargetConfig { message, .. }) = result else {
+        panic!("expected invalid target config for ambiguous profile targets");
+    };
+    assert!(
+        message.contains("multiple targets map to the same profile"),
+        "expected ambiguity message, got: {message}",
+    );
+}
+
+/// Use the configured default target when multiple profile-equivalent targets match.
+#[test]
+fn test_build_global_symbol_table_key_prefers_default_target_with_ambiguous_profile_matches() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module("main.ds", "export const value: i32 = 1;");
+    test.add_target(module_id, "js");
+    test.add_target(module_id, "ts");
+    test.apply_dsconfig(module_id, r#"{ "defaultTarget": "ts" }"#);
+
+    let package_id = {
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        module.package_id
+    };
+    let js_target = TargetId::new(package_id, "js");
+    let ts_target = TargetId::new(package_id, "ts");
+
+    // make ts target profile-equivalent to js to force ambiguity
+    {
+        let package = test.program.packages.get(package_id);
+        let mut package = package.write();
+        let js_target_config = package
+            .targets
+            .get(&js_target)
+            .cloned()
+            .expect("missing js target");
+        package.targets.insert(ts_target.clone(), js_target_config);
+    }
+    let _ = test.program.packages.bump_version(package_id);
+
+    let js_profile = test
+        .program
+        .profile_id_for_target(module_id, &js_target)
+        .expect("missing profile for js target");
+    let key = test
+        .compiler
+        .build_global_symbol_table_key(module_id, js_profile)
+        .expect("expected default target to disambiguate profile matches");
+
+    assert_eq!(key.target_id, ts_target);
+}
+
+/// Error when default target does not belong to the matching profile target set.
+#[test]
+fn test_build_global_symbol_table_key_errors_when_default_target_mismatches_profile_set() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module("main.ds", "export const value: i32 = 1;");
+    test.add_target(module_id, "js");
+    test.add_target(module_id, "ts");
+    test.add_target(module_id, "native");
+    test.apply_dsconfig(module_id, r#"{ "defaultTarget": "native" }"#);
+
+    let package_id = {
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        module.package_id
+    };
+    let js_target = TargetId::new(package_id, "js");
+    let ts_target = TargetId::new(package_id, "ts");
+
+    // make ts target profile-equivalent to js to force ambiguity on js profile
+    {
+        let package = test.program.packages.get(package_id);
+        let mut package = package.write();
+        let js_target_config = package
+            .targets
+            .get(&js_target)
+            .cloned()
+            .expect("missing js target");
+        package.targets.insert(ts_target, js_target_config);
+    }
+    let _ = test.program.packages.bump_version(package_id);
+
+    let js_profile = test
+        .program
+        .profile_id_for_target(module_id, &js_target)
+        .expect("missing profile for js target");
+    let result = test
+        .compiler
+        .build_global_symbol_table_key(module_id, js_profile);
+
+    let Err(ResolveError::InvalidTargetConfig { message, .. }) = result else {
+        panic!("expected invalid target config for mismatched default target");
+    };
+    assert!(
+        message.contains("default target does not match profile target set"),
+        "expected mismatched-default message, got: {message}",
+    );
+}
+
+/// Error when dsconfig default target references a missing target entry.
+#[test]
+fn test_build_global_symbol_table_key_errors_when_default_target_is_missing() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module("main.ds", "export const value: i32 = 1;");
+    test.add_target(module_id, "js");
+    test.add_target(module_id, "native");
+    test.apply_dsconfig(module_id, r#"{ "defaultTarget": "missing" }"#);
+
+    let package_id = {
+        let module = test.program.modules.get(module_id);
+        let module = module.read();
+        module.package_id
+    };
+    let js_target = TargetId::new(package_id, "js");
+    let js_profile = test
+        .program
+        .profile_id_for_target(module_id, &js_target)
+        .expect("missing profile for js target");
+
+    // remove js target so js profile no longer matches any current target
+    {
+        let package = test.program.packages.get(package_id);
+        let mut package = package.write();
+        package.targets.shift_remove(&js_target);
+    }
+    let _ = test.program.packages.bump_version(package_id);
+
+    let result = test
+        .compiler
+        .build_global_symbol_table_key(module_id, js_profile);
+
+    let Err(ResolveError::InvalidTargetConfig { message, .. }) = result else {
+        panic!("expected invalid target config for missing default target");
+    };
+    assert!(
+        message.contains("default target not found"),
+        "expected missing-default message, got: {message}",
+    );
 }

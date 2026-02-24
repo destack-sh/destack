@@ -165,7 +165,7 @@ fn test_resolve_infinite_alias_recursion() {
     let resolution = resolver.resolve(f, "./a");
     assert_eq!(
         resolution,
-        Err(ResolveError::RecursiveDependency { depth: 65 })
+        Err(ResolveError::RecursiveDependency { depth: 64 })
     );
 }
 
