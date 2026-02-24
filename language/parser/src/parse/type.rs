@@ -1008,18 +1008,28 @@ impl Parser {
             self.bump(); // eat readonly
             return Ok(TypeModifier::Add);
         }
-        // -readonly
-        else if self.peek_is(TokenType::Subtract) && self.is_next_keyword(Keyword::Readonly) {
-            self.bump(); // eat -
+
+        // +/- readonly
+        let modifier = if self.peek_is(TokenType::Subtract) {
+            TypeModifier::Remove
+        } else if self.peek_is(TokenType::Add) {
+            TypeModifier::Add
+        } else {
+            return Ok(TypeModifier::None);
+        };
+
+        // allow line breaks between `+` or `-` and `readonly`
+        let readonly_index = self.next_non_newline_index_from(self.pos_index().saturating_add(1));
+        let has_readonly_after_operator = self.token_type_at(readonly_index)
+            == TokenType::Identifier
+            && self.keyword_for_index(readonly_index) == Some(Keyword::Readonly);
+        if has_readonly_after_operator {
+            self.bump(); // eat + or -
+            self.eat_newlines_maybe()?;
             self.bump(); // eat readonly
-            return Ok(TypeModifier::Remove);
+            return Ok(modifier);
         }
-        // +readonly
-        else if self.peek_is(TokenType::Add) && self.is_next_keyword(Keyword::Readonly) {
-            self.bump(); // eat +
-            self.bump(); // eat readonly
-            return Ok(TypeModifier::Add);
-        }
+
         Ok(TypeModifier::None)
     }
 
@@ -1918,6 +1928,29 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_conditional_type_with_multiline_abstract_construct_signature() {
+        let mut test = TestParser::new(
+            "type T = A extends abstract\n  new (x: number) => infer U ? U : unknown",
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        // type T = A extends abstract\nnew (x: number) => infer U ? U : unknown
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeConditional { right, .. } => {
+                    assert_node!(parser.tree, *right, Expression::Declaration(function_id) => {
+                        assert_node!(parser.tree, *function_id, Declaration::Function { signature, .. } => {
+                            assert_eq!(signature.abstraction, FunctionAbstraction::Abstract);
+                            assert_eq!(signature.mode, Some(FunctionMode::New));
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_type_union_with_construct_signature() {
         let mut test = TestParser::new("type T = RegExp | (new() => object)");
         let mut parser = test.prepare();
@@ -2543,6 +2576,25 @@ mod tests {
                                 optional: TypeModifier::None,
                             });
                         });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_mapped_expression_with_newline_between_plus_and_readonly() {
+        let mut test = TestParser::new("type T = { +\nreadonly [K in keyof T]: T[K] }");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression(parser.options).unwrap();
+
+        // type T = { +\nreadonly [K in keyof T]: T[K] }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeMapped { modifiers, .. } => {
+                    assert_eq!(*modifiers, TypeMappedModifiers {
+                        readonly: TypeModifier::Add,
+                        optional: TypeModifier::None,
                     });
                 });
             });
