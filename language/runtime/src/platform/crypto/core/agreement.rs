@@ -4,7 +4,7 @@ use zeroize::Zeroize;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
     CryptoAgreementDeriveKeyRequest, CryptoKeyAgreementAlgorithm, CryptoKeyAlgorithm,
-    CryptoKeyKind, CryptoNamedCurve,
+    CryptoKeyKind, CryptoNamedCurve, host as crypto_host,
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
@@ -119,8 +119,9 @@ pub(crate) fn agreement_derive_shared_secret(
     }
 
     // clone provider key objects and release locks before derive
-    let private = match &private_resource.material {
-        CryptoKeyMaterial::Private(private_key) => private_key.clone(),
+    let host_private_key = match &private_resource.material {
+        CryptoKeyMaterial::Host(private_key) => Some(private_key.clone()),
+        CryptoKeyMaterial::Private(_) => None,
         _ => {
             return Err(invalid_argument(
                 "privateKey",
@@ -137,8 +138,37 @@ pub(crate) fn agreement_derive_shared_secret(
             ));
         }
     };
+    let peer_spki_der = peer
+        .public_key_to_der()
+        .map_err(|error| openssl_error("destack.crypto.agreement.deriveSharedSecret", error))?;
+    let private = match &private_resource.material {
+        CryptoKeyMaterial::Private(private_key) => Some(private_key.clone()),
+        _ => None,
+    };
+    let private_algorithm = private_resource.algorithm;
+    let private_named_curve = private_resource.named_curve;
     drop(private_resource);
     drop(peer_resource);
+
+    // derive with host key-exchange lanes for host-managed private keys
+    if let Some(host_private_key) = host_private_key {
+        return crypto_host::host_key_derive_shared_secret(
+            context,
+            &host_private_key,
+            private_algorithm,
+            private_named_curve,
+            &peer_spki_der,
+            "destack.crypto.agreement.deriveSharedSecret",
+        );
+    }
+
+    // require one provider private key for openssl derive path
+    let Some(private) = private else {
+        return Err(invalid_argument(
+            "privateKey",
+            "privateKey handle does not reference one private key",
+        ));
+    };
 
     // derive the shared secret through openssl
     let mut deriver = Deriver::new(&private)

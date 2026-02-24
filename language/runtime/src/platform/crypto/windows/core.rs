@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::crypto::{CryptoCipherOutput, core as crypto_core};
+use crate::platform::crypto::{CryptoCipherOutput, CryptoStoreKind, core as crypto_core};
 use crate::platform::{NativeSlice, PlatformError};
 use crate::runtime::BindingCallContext;
 
@@ -48,4 +48,9 @@ pub(crate) fn decode_mut_bytes<'a>(
     field: &str,
 ) -> RuntimeResult<&'a mut [u8]> {
     crypto_core::decode_native_mut_bytes(slice, field)
+}
+
+/// Return whether one host-lane store supports persistent key writes.
+pub(crate) fn host_store_supports_key_persistence(kind: CryptoStoreKind) -> bool {
+    matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine)
 }

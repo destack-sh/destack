@@ -1,12 +1,25 @@
 use super::with_harness_context;
+#[cfg(target_os = "macos")]
+use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
-    CryptoCertificateFormat, CryptoCertificatePurpose, CryptoCertificateRevocationMode,
-    CryptoCertificateVerifyRequest, CryptoStoreKind,
+    CryptoCertificateFormat, CryptoCertificatePurpose, CryptoCertificateQuery,
+    CryptoCertificateRevocationMode, CryptoCertificateVerifyRequest, CryptoStoreKind,
 };
+use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource;
+#[cfg(target_os = "macos")]
+use openssl::sha::sha256;
+#[cfg(target_os = "macos")]
+use std::collections::HashSet;
 
 const TEST_CERTIFICATE_PEM: &[u8] = include_bytes!("fixtures/tls-test-server.cert.pem");
 const TEST_CERTIFICATE_AUTHORITY_PEM: &[u8] = include_bytes!("fixtures/tls-test-ca.cert.pem");
+
+/// Return one stable sha256 fingerprint for one certificate payload.
+#[cfg(target_os = "macos")]
+fn certificate_fingerprint(certificate_bytes: &[u8]) -> [u8; 32] {
+    sha256(certificate_bytes)
+}
 
 /// Import, export, describe, and verify one certificate.
 #[cfg(any(unix, windows))]
@@ -31,8 +44,14 @@ fn test_certificate_import_export_descriptor_verify_delete() {
 
         // verify descriptor and export behavior
         let descriptor = context.destack_crypto_certificate_descriptor(certificate)?;
-        let subject = context.certificate_subject_from_value(descriptor)?;
+        let (descriptor_subject, descriptor_provenance) = context.duplicate_value(descriptor);
+        let subject = context.certificate_subject_from_value(descriptor_subject)?;
         assert!(!subject.is_empty());
+        let (store_kind, provider_name, namespace) =
+            context.certificate_descriptor_store_provenance_from_value(descriptor_provenance)?;
+        assert_eq!(store_kind, CryptoStoreKind::Ephemeral);
+        assert!(provider_name.is_empty());
+        assert!(namespace.is_empty());
 
         let exported =
             context.destack_crypto_certificate_export(certificate, CryptoCertificateFormat::Pem)?;
@@ -93,6 +112,153 @@ fn test_certificate_import_export_descriptor_verify_delete() {
         context.destack_crypto_certificate_delete(certificate)?;
         context.destack_crypto_certificate_delete(certificate_authority)?;
         context.destack_crypto_store_close(store)?;
+
+        Ok(())
+    });
+}
+
+/// Follow host-lane certificate write behavior.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_certificate_import_follows_host_store_write_behavior() {
+    with_harness_context(|mut context| {
+        // attempt certificate imports for each available host-backed lane
+        for kind in [
+            CryptoStoreKind::System,
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let provider = context.string_value("");
+            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context.store_capability_from_value(capability)?;
+            if !capability.is_available {
+                continue;
+            }
+
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let certificate = context.bytes_slice_value(TEST_CERTIFICATE_PEM)?;
+            let result = context.destack_crypto_certificate_import(
+                store,
+                CryptoCertificateFormat::Pem,
+                certificate,
+            );
+            let is_macos_user_lane = cfg!(target_os = "macos") && kind == CryptoStoreKind::User;
+            if let Ok(handle) = result {
+                assert!(
+                    is_macos_user_lane,
+                    "only macOS user host lane should accept certificate writes"
+                );
+                context.destack_crypto_certificate_delete(handle)?;
+            } else {
+                let Err(error) = result else {
+                    unreachable!("handled by success branch");
+                };
+                let platform = error
+                    .platform_error()
+                    .expect("certificate.import error should contain one platform error");
+                assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+
+                // host lanes should still support certificate listing
+                let query = CryptoCertificateQuery {
+                    subject_contains: context.call_context.store_string(""),
+                    issuer_contains: context.call_context.store_string(""),
+                    subject_alternative_name: context.call_context.store_string(""),
+                    cursor: context.call_context.store_string(""),
+                    limit: 8,
+                };
+                let page = context
+                    .destack_crypto_store_list_certificates(store, context.request_value(query)?)?;
+                let handles = context.certificate_list_handles(page)?;
+                if !handles.is_empty() {
+                    let entry_handle = handles[0];
+                    let result = context.destack_crypto_certificate_delete(entry_handle);
+                    let Err(error) = result else {
+                        panic!("host-backed store lane should reject certificate deletes");
+                    };
+                    let platform = error
+                        .platform_error()
+                        .expect("certificate.delete error should contain one platform error");
+                    assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+                }
+            }
+
+            context.destack_crypto_store_close(store)?;
+        }
+
+        Ok(())
+    });
+}
+
+/// Keep system-lane certificate trust roots aligned with rustls-native-certs on macOS.
+#[cfg(target_os = "macos")]
+#[test]
+fn test_certificate_system_lane_matches_rustls_native_certs_trust_subset() {
+    with_harness_context(|mut context| {
+        // skip when environment overrides rustls-native-certs trust source
+        if std::env::var_os("SSL_CERT_FILE").is_some() || std::env::var_os("SSL_CERT_DIR").is_some()
+        {
+            return Ok(());
+        }
+
+        // skip when the host system lane is unavailable
+        let provider = context.string_value("");
+        let capability =
+            context.destack_crypto_store_probe_capability(CryptoStoreKind::System, provider)?;
+        let capability = context.store_capability_from_value(capability)?;
+        if !capability.is_available {
+            return Ok(());
+        }
+
+        // export one full system lane snapshot as DER fingerprints
+        let options = context.store_options_value(CryptoStoreKind::System);
+        let store = context.destack_crypto_store_open(options)?;
+        let runtime_fingerprints_result: RuntimeResult<HashSet<[u8; 32]>> = (|| {
+            let query = CryptoCertificateQuery {
+                subject_contains: context.call_context.store_string(""),
+                issuer_contains: context.call_context.store_string(""),
+                subject_alternative_name: context.call_context.store_string(""),
+                cursor: context.call_context.store_string(""),
+                limit: u32::MAX,
+            };
+            let page = context
+                .destack_crypto_store_list_certificates(store, context.request_value(query)?)?;
+            let handles = context.certificate_list_handles(page)?;
+            let mut fingerprints = HashSet::with_capacity(handles.len());
+            for handle in handles {
+                let certificate_der = context
+                    .destack_crypto_certificate_export(handle, CryptoCertificateFormat::Der)?;
+                let certificate_der = context.bytes_from_slice_value(certificate_der)?;
+                fingerprints.insert(certificate_fingerprint(&certificate_der));
+            }
+
+            Ok(fingerprints)
+        })();
+        context.destack_crypto_store_close(store)?;
+        let runtime_fingerprints = runtime_fingerprints_result?;
+
+        // load oracle certificates and skip this differential check on partial oracle failures
+        let oracle = rustls_native_certs::load_native_certs();
+        if !oracle.errors.is_empty() {
+            eprintln!(
+                "skipping macOS certificate differential check due to oracle errors: {}",
+                oracle.errors.len()
+            );
+            return Ok(());
+        }
+
+        // verify every oracle trust root exists in our system lane snapshot
+        let mut missing_oracle_fingerprints = 0usize;
+        for certificate in oracle.certs {
+            let fingerprint = certificate_fingerprint(certificate.as_ref());
+            if !runtime_fingerprints.contains(&fingerprint) {
+                missing_oracle_fingerprints += 1;
+            }
+        }
+        assert_eq!(
+            missing_oracle_fingerprints, 0,
+            "system lane should include all rustls-native-certs trust roots"
+        );
 
         Ok(())
     });

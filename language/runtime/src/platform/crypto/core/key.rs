@@ -16,7 +16,7 @@ use crate::platform::crypto::{
     CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters, CryptoKeyAlgorithm,
     CryptoKeyDescriptor, CryptoKeyFormat, CryptoKeyGenerationRequest, CryptoKeyImportRequest,
     CryptoKeyKind, CryptoKeyPair, CryptoKeyUsageMask, CryptoNamedCurve, CryptoSignatureAlgorithm,
-    CryptoSignatureParameters,
+    CryptoSignatureParameters, CryptoStoreKind, host as crypto_host,
 };
 use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
@@ -25,10 +25,89 @@ use super::core::{
     CRYPTO_KEY_RESOURCE_KIND, CryptoKeyMaterial, CryptoKeyResource, KEY_USAGE_DECRYPT,
     KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT,
     KEY_USAGE_SIGN, KEY_USAGE_UNWRAP, KEY_USAGE_VERIFY, KEY_USAGE_WRAP, attach_key_to_store,
-    decode_native_bytes, decode_native_string, enforce_store_key_policy, handle_not_found,
-    insert_key_resource, invalid_argument, invalid_data, message_digest, openssl_error,
-    permission_denied, resolve_key_resource, resolve_store_resource,
+    create_persistent_identifier, decode_native_bytes, decode_native_string,
+    enforce_store_key_policy, handle_not_found, insert_key_resource, invalid_argument,
+    invalid_data, message_digest, openssl_error, permission_denied, resolve_key_resource,
+    resolve_store_resource, store_provenance_from_store, store_provenance_to_descriptor,
 };
+use super::store::{delete_persistent_key_if_present, persist_key_if_required};
+
+/// Software-generated asymmetric key-pair output payload.
+struct SoftwareKeyPair {
+    /// Private-key material.
+    private_key: PKey<Private>,
+    /// Public-key material.
+    public_key: PKey<Public>,
+    /// Effective key algorithm.
+    algorithm: CryptoKeyAlgorithm,
+    /// Effective named curve.
+    named_curve: CryptoNamedCurve,
+    /// Effective rsa modulus bits.
+    modulus_bits: u32,
+    /// Effective rsa public exponent.
+    public_exponent: u32,
+    /// Effective key size in bits.
+    size_bits: u32,
+}
+
+/// Insert one key resource, attach it to one store, and persist it when required.
+fn insert_attach_and_persist_key(
+    context: &BindingCallContext,
+    store: resource::CryptoStoreHandle,
+    key_resource: CryptoKeyResource,
+    operation: &'static str,
+) -> RuntimeResult<resource::CryptoKeyHandle> {
+    // insert one key resource handle first
+    let handle = insert_key_resource(context, key_resource);
+
+    // attach the key to the store and roll back on failure
+    if let Err(error) = attach_key_to_store(context, store, handle) {
+        rollback_key_publish(context, store, handle);
+        return Err(error);
+    }
+
+    // persist host-backed keys and roll back on failure
+    if let Err(error) = persist_key_if_required(context, store, handle, operation) {
+        rollback_key_publish(context, store, handle);
+        return Err(error);
+    }
+
+    Ok(handle)
+}
+
+/// Roll back one key publish path by detaching and removing the resource entry.
+fn rollback_key_publish(
+    context: &BindingCallContext,
+    store: resource::CryptoStoreHandle,
+    handle: resource::CryptoKeyHandle,
+) {
+    // detach this handle from the store list when the store still exists
+    if let Ok(store_resource) = resolve_store_resource(context, store, "destack.crypto.key") {
+        let mut store_resource = store_resource.lock();
+        store_resource
+            .keys
+            .retain(|key_handle| *key_handle != handle);
+    }
+
+    // remove the key resource and zeroize secret bytes before drop
+    let Some(entry) = context.runtime().resources.remove(handle.0) else {
+        return;
+    };
+    if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
+        return;
+    }
+
+    let Some(payload) = entry.payload.as_ref() else {
+        return;
+    };
+    let Some(key_resource) = payload.downcast_ref::<Arc<Mutex<CryptoKeyResource>>>() else {
+        return;
+    };
+    let mut key_resource = key_resource.lock();
+    if let CryptoKeyMaterial::Secret(bytes) = &mut key_resource.material {
+        bytes.zeroize();
+    }
+}
 
 /// Generate one secret key and return its handle.
 pub(crate) fn key_generate_secret(
@@ -39,14 +118,24 @@ pub(crate) fn key_generate_secret(
     // enforce store policy against requested key properties
     let store_resource =
         resolve_store_resource(context, store, "destack.crypto.key.generateSecret")?;
-    {
+    let store_provenance = {
         let store_resource = store_resource.lock();
         enforce_store_key_policy(
+            context,
             &store_resource,
             request.hardware_backed,
             request.persistent,
             "destack.crypto.key.generateSecret",
         )?;
+        store_provenance_from_store(&store_resource)
+    };
+
+    // reject hardware-backed secret-key requests
+    if request.hardware_backed {
+        return Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.crypto.key.generateSecret",
+        ))
+        .boxed());
     }
 
     // resolve key metadata defaults
@@ -82,6 +171,13 @@ pub(crate) fn key_generate_secret(
     rand_bytes(&mut bytes)
         .map_err(|error| openssl_error("destack.crypto.key.generateSecret", error))?;
 
+    // allocate one persistent identifier when persistence is required
+    let persistent_id = if request.persistent {
+        create_persistent_identifier("destack.crypto.key.generateSecret")?
+    } else {
+        String::new()
+    };
+
     // insert key resource and attach it to the store
     let key_resource = CryptoKeyResource {
         kind: CryptoKeyKind::Secret,
@@ -96,10 +192,16 @@ pub(crate) fn key_generate_secret(
         extractable: request.extractable,
         hardware_backed: request.hardware_backed,
         persistent: request.persistent,
+        persistent_id,
+        store_provenance,
         material: CryptoKeyMaterial::Secret(bytes),
     };
-    let handle = insert_key_resource(context, key_resource);
-    attach_key_to_store(context, store, handle)?;
+    let handle = insert_attach_and_persist_key(
+        context,
+        store,
+        key_resource,
+        "destack.crypto.key.generateSecret",
+    )?;
 
     Ok(handle)
 }
@@ -112,150 +214,139 @@ pub(crate) fn key_generate_pair(
 ) -> RuntimeResult<CryptoKeyPair> {
     // enforce store policy against requested key properties
     let store_resource = resolve_store_resource(context, store, "destack.crypto.key.generatePair")?;
-    {
+    let store_provenance = {
         let store_resource = store_resource.lock();
         enforce_store_key_policy(
+            context,
             &store_resource,
             request.hardware_backed,
             request.persistent,
             "destack.crypto.key.generatePair",
         )?;
-    }
+        store_provenance_from_store(&store_resource)
+    };
 
     // decode user label for both key resources
     let label = decode_native_string(request.label, "request.label")?;
 
-    // generate one provider keypair according to requested algorithm lane
-    let (private_key, public_key, algorithm, named_curve, modulus_bits, public_exponent) =
-        match request.algorithm {
-            CryptoKeyAlgorithm::Rsa => {
-                let modulus_bits = if request.modulus_bits == 0 {
-                    2048
-                } else {
-                    request.modulus_bits
-                };
-                let exponent_value = if request.public_exponent == 0 {
-                    65537u32
-                } else {
-                    request.public_exponent
-                };
-                let exponent = BigNum::from_u32(exponent_value)
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let rsa = Rsa::generate_with_e(modulus_bits, &exponent)
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let private_key = PKey::from_rsa(rsa)
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let public_pem = private_key
-                    .public_key_to_pem()
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let public_key = PKey::public_key_from_pem(&public_pem)
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                (
-                    private_key,
-                    public_key,
-                    CryptoKeyAlgorithm::Rsa,
-                    CryptoNamedCurve::Unknown,
-                    modulus_bits,
-                    exponent_value,
-                )
-            }
-            CryptoKeyAlgorithm::Ec => {
-                let group = EcGroup::from_curve_name(nid_from_named_curve(request.named_curve)?)
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let ec_key = EcKey::generate(&group)
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let named_curve = named_curve_from_ec_key(&ec_key);
-                let private_key = PKey::from_ec_key(ec_key)
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let public_pem = private_key
-                    .public_key_to_pem()
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let public_key = PKey::public_key_from_pem(&public_pem)
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                (
-                    private_key,
-                    public_key,
-                    CryptoKeyAlgorithm::Ec,
-                    named_curve,
-                    0,
-                    0,
-                )
-            }
-            CryptoKeyAlgorithm::Ed25519 => {
-                let private_key = PKey::generate_ed25519()
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let public_pem = private_key
-                    .public_key_to_pem()
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let public_key = PKey::public_key_from_pem(&public_pem)
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                (
-                    private_key,
-                    public_key,
-                    CryptoKeyAlgorithm::Ed25519,
-                    CryptoNamedCurve::Ed25519,
-                    0,
-                    0,
-                )
-            }
-            CryptoKeyAlgorithm::Ed448 => {
-                let private_key = PKey::generate_ed448()
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let public_pem = private_key
-                    .public_key_to_pem()
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let public_key = PKey::public_key_from_pem(&public_pem)
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                (
-                    private_key,
-                    public_key,
-                    CryptoKeyAlgorithm::Ed448,
-                    CryptoNamedCurve::Ed448,
-                    0,
-                    0,
-                )
-            }
-            CryptoKeyAlgorithm::X25519 => {
-                let private_key = PKey::generate_x25519()
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let public_pem = private_key
-                    .public_key_to_pem()
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let public_key = PKey::public_key_from_pem(&public_pem)
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                (
-                    private_key,
-                    public_key,
-                    CryptoKeyAlgorithm::X25519,
-                    CryptoNamedCurve::X25519,
-                    0,
-                    0,
-                )
-            }
-            CryptoKeyAlgorithm::X448 => {
-                let private_key = PKey::generate_x448()
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let public_pem = private_key
-                    .public_key_to_pem()
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                let public_key = PKey::public_key_from_pem(&public_pem)
-                    .map_err(|error| openssl_error("destack.crypto.key.generatePair", error))?;
-                (
-                    private_key,
-                    public_key,
-                    CryptoKeyAlgorithm::X448,
-                    CryptoNamedCurve::X448,
-                    0,
-                    0,
-                )
-            }
-            _ => {
-                return Err(invalid_argument(
-                    "request.algorithm",
-                    "algorithm does not describe one asymmetric key family",
-                ));
-            }
-        };
+    // enforce supported usage lanes for hardware-backed key generation
+    if request.hardware_backed {
+        enforce_hardware_backed_pair_usage(request.usage_mask, "destack.crypto.key.generatePair")?;
+    }
+
+    // allocate persistent identifiers for both key resources when required
+    let private_persistent_id = if request.persistent {
+        create_persistent_identifier("destack.crypto.key.generatePair")?
+    } else {
+        String::new()
+    };
+    let public_persistent_id = if request.persistent {
+        create_persistent_identifier("destack.crypto.key.generatePair")?
+    } else {
+        String::new()
+    };
+
+    // generate one host-backed pair when hardware-backed policy is requested
+    let (
+        private_material,
+        public_material,
+        algorithm,
+        named_curve,
+        modulus_bits,
+        public_exponent,
+        size_bits,
+        public_hardware_backed,
+    ) = if request.hardware_backed {
+        if !request.persistent {
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.crypto.key.generatePair",
+            ))
+            .boxed());
+        }
+
+        let pair = crypto_host::host_generate_hardware_backed_key_pair(
+            context,
+            store_provenance.kind,
+            request.algorithm,
+            request.named_curve,
+            &private_persistent_id,
+            "destack.crypto.key.generatePair",
+        )?;
+
+        (
+            pair.private_material,
+            CryptoKeyMaterial::Public(pair.public_key),
+            pair.algorithm,
+            pair.named_curve,
+            pair.modulus_bits,
+            pair.public_exponent,
+            pair.size_bits,
+            false,
+        )
+    }
+    // otherwise prefer one host-managed persistent lane when available
+    else if request.persistent
+        && !request.extractable
+        && matches!(
+            store_provenance.kind,
+            CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
+        )
+    {
+        let host_pair = crypto_host::host_generate_persistent_key_pair(
+            context,
+            store_provenance.kind,
+            request.algorithm,
+            request.named_curve,
+            request.modulus_bits,
+            request.public_exponent,
+            &private_persistent_id,
+            "destack.crypto.key.generatePair",
+        )?;
+
+        // use host-managed key material when one backend lane is available
+        if let Some(pair) = host_pair {
+            (
+                pair.private_material,
+                CryptoKeyMaterial::Public(pair.public_key),
+                pair.algorithm,
+                pair.named_curve,
+                pair.modulus_bits,
+                pair.public_exponent,
+                pair.size_bits,
+                false,
+            )
+        }
+        // otherwise fall back to software-backed pair generation
+        else {
+            let pair = generate_software_key_pair(request, "destack.crypto.key.generatePair")?;
+
+            (
+                CryptoKeyMaterial::Private(pair.private_key),
+                CryptoKeyMaterial::Public(pair.public_key),
+                pair.algorithm,
+                pair.named_curve,
+                pair.modulus_bits,
+                pair.public_exponent,
+                pair.size_bits,
+                request.hardware_backed,
+            )
+        }
+    }
+    // otherwise generate one software-backed pair through openssl
+    else {
+        let pair = generate_software_key_pair(request, "destack.crypto.key.generatePair")?;
+
+        (
+            CryptoKeyMaterial::Private(pair.private_key),
+            CryptoKeyMaterial::Public(pair.public_key),
+            pair.algorithm,
+            pair.named_curve,
+            pair.modulus_bits,
+            pair.public_exponent,
+            pair.size_bits,
+            request.hardware_backed,
+        )
+    };
 
     // publish private key resource
     let private_resource = CryptoKeyResource {
@@ -265,16 +356,26 @@ pub(crate) fn key_generate_pair(
         modulus_bits,
         public_exponent,
         digest: request.digest,
-        size_bits: request.size_bits,
+        size_bits,
         usage_mask: request.usage_mask,
         label: label.clone(),
-        extractable: request.extractable,
+        extractable: if request.hardware_backed {
+            false
+        } else {
+            request.extractable
+        },
         hardware_backed: request.hardware_backed,
         persistent: request.persistent,
-        material: CryptoKeyMaterial::Private(private_key),
+        persistent_id: private_persistent_id,
+        store_provenance: store_provenance.clone(),
+        material: private_material,
     };
-    let private_handle = insert_key_resource(context, private_resource);
-    attach_key_to_store(context, store, private_handle)?;
+    let private_handle = insert_attach_and_persist_key(
+        context,
+        store,
+        private_resource,
+        "destack.crypto.key.generatePair",
+    )?;
 
     // publish public key resource
     let public_resource = CryptoKeyResource {
@@ -284,21 +385,210 @@ pub(crate) fn key_generate_pair(
         modulus_bits,
         public_exponent,
         digest: request.digest,
-        size_bits: request.size_bits,
+        size_bits,
         usage_mask: request.usage_mask,
         label,
         extractable: true,
-        hardware_backed: request.hardware_backed,
+        hardware_backed: public_hardware_backed,
         persistent: request.persistent,
-        material: CryptoKeyMaterial::Public(public_key),
+        persistent_id: public_persistent_id,
+        store_provenance,
+        material: public_material,
     };
-    let public_handle = insert_key_resource(context, public_resource);
-    attach_key_to_store(context, store, public_handle)?;
+    let public_handle = match insert_attach_and_persist_key(
+        context,
+        store,
+        public_resource,
+        "destack.crypto.key.generatePair",
+    ) {
+        Ok(public_handle) => public_handle,
+        Err(error) => {
+            rollback_key_publish(context, store, private_handle);
+            return Err(error);
+        }
+    };
 
     Ok(CryptoKeyPair {
         public_key: public_handle,
         private_key: private_handle,
     })
+}
+
+/// Generate one software-backed asymmetric key pair.
+fn generate_software_key_pair(
+    request: CryptoKeyGenerationRequest,
+    operation: &'static str,
+) -> RuntimeResult<SoftwareKeyPair> {
+    match request.algorithm {
+        // rsa
+        CryptoKeyAlgorithm::Rsa => {
+            let modulus_bits = if request.modulus_bits == 0 {
+                2048
+            } else {
+                request.modulus_bits
+            };
+            let exponent_value = if request.public_exponent == 0 {
+                65537u32
+            } else {
+                request.public_exponent
+            };
+            let exponent = BigNum::from_u32(exponent_value)
+                .map_err(|error| openssl_error(operation, error))?;
+            let rsa = Rsa::generate_with_e(modulus_bits, &exponent)
+                .map_err(|error| openssl_error(operation, error))?;
+            let private_key =
+                PKey::from_rsa(rsa).map_err(|error| openssl_error(operation, error))?;
+            let public_pem = private_key
+                .public_key_to_pem()
+                .map_err(|error| openssl_error(operation, error))?;
+            let public_key = PKey::public_key_from_pem(&public_pem)
+                .map_err(|error| openssl_error(operation, error))?;
+
+            Ok(SoftwareKeyPair {
+                private_key,
+                public_key,
+                algorithm: CryptoKeyAlgorithm::Rsa,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits,
+                public_exponent: exponent_value,
+                size_bits: modulus_bits,
+            })
+        }
+        // ec
+        CryptoKeyAlgorithm::Ec => {
+            let group = EcGroup::from_curve_name(nid_from_named_curve(request.named_curve)?)
+                .map_err(|error| openssl_error(operation, error))?;
+            let ec_key =
+                EcKey::generate(&group).map_err(|error| openssl_error(operation, error))?;
+            let named_curve = named_curve_from_ec_key(&ec_key);
+            let private_key =
+                PKey::from_ec_key(ec_key).map_err(|error| openssl_error(operation, error))?;
+            let size_bits = private_key.bits();
+            let public_pem = private_key
+                .public_key_to_pem()
+                .map_err(|error| openssl_error(operation, error))?;
+            let public_key = PKey::public_key_from_pem(&public_pem)
+                .map_err(|error| openssl_error(operation, error))?;
+
+            Ok(SoftwareKeyPair {
+                private_key,
+                public_key,
+                algorithm: CryptoKeyAlgorithm::Ec,
+                named_curve,
+                modulus_bits: 0,
+                public_exponent: 0,
+                size_bits,
+            })
+        }
+        // ed25519
+        CryptoKeyAlgorithm::Ed25519 => {
+            let private_key =
+                PKey::generate_ed25519().map_err(|error| openssl_error(operation, error))?;
+            let size_bits = private_key.bits();
+            let public_pem = private_key
+                .public_key_to_pem()
+                .map_err(|error| openssl_error(operation, error))?;
+            let public_key = PKey::public_key_from_pem(&public_pem)
+                .map_err(|error| openssl_error(operation, error))?;
+
+            Ok(SoftwareKeyPair {
+                private_key,
+                public_key,
+                algorithm: CryptoKeyAlgorithm::Ed25519,
+                named_curve: CryptoNamedCurve::Ed25519,
+                modulus_bits: 0,
+                public_exponent: 0,
+                size_bits,
+            })
+        }
+        // ed448
+        CryptoKeyAlgorithm::Ed448 => {
+            let private_key =
+                PKey::generate_ed448().map_err(|error| openssl_error(operation, error))?;
+            let size_bits = private_key.bits();
+            let public_pem = private_key
+                .public_key_to_pem()
+                .map_err(|error| openssl_error(operation, error))?;
+            let public_key = PKey::public_key_from_pem(&public_pem)
+                .map_err(|error| openssl_error(operation, error))?;
+
+            Ok(SoftwareKeyPair {
+                private_key,
+                public_key,
+                algorithm: CryptoKeyAlgorithm::Ed448,
+                named_curve: CryptoNamedCurve::Ed448,
+                modulus_bits: 0,
+                public_exponent: 0,
+                size_bits,
+            })
+        }
+        // x25519
+        CryptoKeyAlgorithm::X25519 => {
+            let private_key =
+                PKey::generate_x25519().map_err(|error| openssl_error(operation, error))?;
+            let size_bits = private_key.bits();
+            let public_pem = private_key
+                .public_key_to_pem()
+                .map_err(|error| openssl_error(operation, error))?;
+            let public_key = PKey::public_key_from_pem(&public_pem)
+                .map_err(|error| openssl_error(operation, error))?;
+
+            Ok(SoftwareKeyPair {
+                private_key,
+                public_key,
+                algorithm: CryptoKeyAlgorithm::X25519,
+                named_curve: CryptoNamedCurve::X25519,
+                modulus_bits: 0,
+                public_exponent: 0,
+                size_bits,
+            })
+        }
+        // x448
+        CryptoKeyAlgorithm::X448 => {
+            let private_key =
+                PKey::generate_x448().map_err(|error| openssl_error(operation, error))?;
+            let size_bits = private_key.bits();
+            let public_pem = private_key
+                .public_key_to_pem()
+                .map_err(|error| openssl_error(operation, error))?;
+            let public_key = PKey::public_key_from_pem(&public_pem)
+                .map_err(|error| openssl_error(operation, error))?;
+
+            Ok(SoftwareKeyPair {
+                private_key,
+                public_key,
+                algorithm: CryptoKeyAlgorithm::X448,
+                named_curve: CryptoNamedCurve::X448,
+                modulus_bits: 0,
+                public_exponent: 0,
+                size_bits,
+            })
+        }
+        // unsupported
+        _ => Err(invalid_argument(
+            "request.algorithm",
+            "algorithm does not describe one asymmetric key family",
+        )),
+    }
+}
+
+/// Enforce usage-mask lanes supported by current hardware-backed key generation backends.
+fn enforce_hardware_backed_pair_usage(
+    usage_mask: CryptoKeyUsageMask,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // current host hardware-backed lanes support signing and verification only
+    let unsupported_usage_mask = KEY_USAGE_ENCRYPT
+        | KEY_USAGE_DECRYPT
+        | KEY_USAGE_WRAP
+        | KEY_USAGE_UNWRAP
+        | KEY_USAGE_DERIVE_BITS
+        | KEY_USAGE_DERIVE_KEYS;
+    if (usage_mask.0 & unsupported_usage_mask) != 0 {
+        return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+    }
+
+    Ok(())
 }
 
 /// Import one key into one store.
@@ -307,18 +597,6 @@ pub(crate) fn key_import(
     store: resource::CryptoStoreHandle,
     request: CryptoKeyImportRequest,
 ) -> RuntimeResult<resource::CryptoKeyHandle> {
-    // enforce store policy against requested key properties
-    let store_resource = resolve_store_resource(context, store, "destack.crypto.key.import")?;
-    {
-        let store_resource = store_resource.lock();
-        enforce_store_key_policy(
-            &store_resource,
-            false,
-            request.persistent,
-            "destack.crypto.key.import",
-        )?;
-    }
-
     // decode import payload and hand off to parser
     let bytes = decode_native_bytes(request.bytes, "request.bytes")?;
 
@@ -336,6 +614,23 @@ fn key_import_with_bytes(
     let operation = "destack.crypto.key.import";
     let label = decode_native_string(request.label, "request.label")?;
     let mut bytes = Zeroizing::new(bytes);
+    let store_resource = resolve_store_resource(context, store, operation)?;
+    let store_provenance = {
+        let store_resource = store_resource.lock();
+        enforce_store_key_policy(
+            context,
+            &store_resource,
+            false,
+            request.persistent,
+            operation,
+        )?;
+        store_provenance_from_store(&store_resource)
+    };
+    let persistent_id = if request.persistent {
+        create_persistent_identifier(operation)?
+    } else {
+        String::new()
+    };
 
     // handle raw secret-key import directly
     if request.format == CryptoKeyFormat::Raw {
@@ -375,16 +670,17 @@ fn key_import_with_bytes(
             extractable: request.extractable,
             hardware_backed: false,
             persistent: request.persistent,
+            persistent_id,
+            store_provenance,
             material: CryptoKeyMaterial::Secret(key_bytes),
         };
-        let handle = insert_key_resource(context, key_resource);
-        attach_key_to_store(context, store, handle)?;
+        let handle = insert_attach_and_persist_key(context, store, key_resource, operation)?;
 
         return Ok(handle);
     }
 
     // parse structured key formats through openssl
-    let key_resource = match request.format {
+    let mut key_resource = match request.format {
         CryptoKeyFormat::Pkcs8Pem => {
             let private_key = PKey::private_key_from_pem(&bytes)
                 .map_err(|error| openssl_error(operation, error))?;
@@ -412,6 +708,8 @@ fn key_import_with_bytes(
                 extractable: request.extractable,
                 hardware_backed: false,
                 persistent: request.persistent,
+                persistent_id: persistent_id.clone(),
+                store_provenance: store_provenance.clone(),
                 material: CryptoKeyMaterial::Private(private_key),
             }
         }
@@ -442,6 +740,8 @@ fn key_import_with_bytes(
                 extractable: request.extractable,
                 hardware_backed: false,
                 persistent: request.persistent,
+                persistent_id: persistent_id.clone(),
+                store_provenance: store_provenance.clone(),
                 material: CryptoKeyMaterial::Private(private_key),
             }
         }
@@ -466,6 +766,8 @@ fn key_import_with_bytes(
                 extractable: request.extractable,
                 hardware_backed: false,
                 persistent: request.persistent,
+                persistent_id: persistent_id.clone(),
+                store_provenance: store_provenance.clone(),
                 material: CryptoKeyMaterial::Private(private_key),
             }
         }
@@ -496,6 +798,8 @@ fn key_import_with_bytes(
                 extractable: true,
                 hardware_backed: false,
                 persistent: request.persistent,
+                persistent_id: persistent_id.clone(),
+                store_provenance: store_provenance.clone(),
                 material: CryptoKeyMaterial::Public(public_key),
             }
         }
@@ -526,6 +830,8 @@ fn key_import_with_bytes(
                 extractable: true,
                 hardware_backed: false,
                 persistent: request.persistent,
+                persistent_id: persistent_id.clone(),
+                store_provenance: store_provenance.clone(),
                 material: CryptoKeyMaterial::Public(public_key),
             }
         }
@@ -534,8 +840,40 @@ fn key_import_with_bytes(
         }
     };
 
-    let handle = insert_key_resource(context, key_resource);
-    attach_key_to_store(context, store, handle)?;
+    // import one host-managed persistent private key when this lane supports it
+    if request.persistent
+        && !request.extractable
+        && matches!(
+            store_provenance.kind,
+            CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
+        )
+        && key_resource.kind == CryptoKeyKind::Private
+    {
+        let private_key = match &key_resource.material {
+            CryptoKeyMaterial::Private(private_key) => private_key,
+            _ => {
+                return Err(invalid_data(
+                    operation,
+                    "private key import lane produced one unexpected key material payload",
+                ));
+            }
+        };
+
+        let host_material = crypto_host::host_import_persistent_private_key(
+            context,
+            store_provenance.kind,
+            key_resource.algorithm,
+            key_resource.named_curve,
+            private_key,
+            &persistent_id,
+            operation,
+        )?;
+        if let Some(host_material) = host_material {
+            key_resource.material = CryptoKeyMaterial::Host(host_material);
+        }
+    }
+
+    let handle = insert_attach_and_persist_key(context, store, key_resource, operation)?;
 
     Ok(handle)
 }
@@ -558,9 +896,12 @@ pub(crate) fn key_export_public(
     let key_resource = resolve_key_resource(context, handle, "destack.crypto.key.exportPublic")?;
     let key_resource = key_resource.lock();
     match key_resource.kind {
-        CryptoKeyKind::Public | CryptoKeyKind::Private => {
-            export_key_resource(&key_resource, format, "destack.crypto.key.exportPublic")
-        }
+        CryptoKeyKind::Public | CryptoKeyKind::Private => export_key_resource(
+            context,
+            &key_resource,
+            format,
+            "destack.crypto.key.exportPublic",
+        ),
         CryptoKeyKind::Secret => Err(invalid_argument(
             "handle",
             "key handle does not reference one asymmetric key",
@@ -592,14 +933,31 @@ pub(crate) fn key_export_private(
         ));
     }
 
-    let CryptoKeyMaterial::Private(_) = &key_resource.material else {
+    let is_private_key_material = matches!(
+        &key_resource.material,
+        CryptoKeyMaterial::Private(_) | CryptoKeyMaterial::Host(_)
+    );
+    if !is_private_key_material {
         return Err(invalid_argument(
             "handle",
             "key handle does not reference one private key",
         ));
-    };
+    }
 
-    export_key_resource(&key_resource, format, "destack.crypto.key.exportPrivate")
+    // reject private-key export for host-managed key lanes
+    if matches!(&key_resource.material, CryptoKeyMaterial::Host(_)) {
+        return Err(permission_denied(
+            "destack.crypto.key.exportPrivate",
+            "key export is denied for host-managed keys",
+        ));
+    }
+
+    export_key_resource(
+        context,
+        &key_resource,
+        format,
+        "destack.crypto.key.exportPrivate",
+    )
 }
 
 /// Export one secret key.
@@ -635,9 +993,12 @@ pub(crate) fn key_export_secret(
     }
 
     match key_resource.kind {
-        CryptoKeyKind::Secret => {
-            export_key_resource(&key_resource, format, "destack.crypto.key.exportSecret")
-        }
+        CryptoKeyKind::Secret => export_key_resource(
+            context,
+            &key_resource,
+            format,
+            "destack.crypto.key.exportSecret",
+        ),
         _ => Err(invalid_argument(
             "handle",
             "key handle does not reference one secret key",
@@ -664,25 +1025,47 @@ pub(crate) fn key_sign(
     parameters: CryptoSignatureParameters,
     payload: &[u8],
 ) -> RuntimeResult<Vec<u8>> {
-    // enforce signing usage policy and resolve private key
+    // enforce signing usage policy and resolve key resource
     require_key_usage(context, handle, KEY_USAGE_SIGN, "destack.crypto.key.sign")?;
-    let key = resolve_private_pkey(context, handle, "destack.crypto.key.sign")?;
-    let mut signer = build_signer(&key, parameters, "destack.crypto.key.sign")?;
+    let key_resource = resolve_key_resource(context, handle, "destack.crypto.key.sign")?;
+    let key_resource = key_resource.lock();
 
-    // route eddsa through one-shot and other algorithms through incremental apis
-    match parameters.algorithm {
-        CryptoSignatureAlgorithm::Ed25519 | CryptoSignatureAlgorithm::Ed448 => signer
-            .sign_oneshot_to_vec(payload)
-            .map_err(|error| openssl_error("destack.crypto.key.sign", error)),
-        _ => {
-            signer
-                .update(payload)
-                .map_err(|error| openssl_error("destack.crypto.key.sign", error))?;
-            signer
-                .sign_to_vec()
-                .map_err(|error| openssl_error("destack.crypto.key.sign", error))
-        }
+    // route software-backed private keys through openssl signer state
+    if let CryptoKeyMaterial::Private(key) = &key_resource.material {
+        let mut signer = build_signer(key, parameters, "destack.crypto.key.sign")?;
+
+        // route eddsa through one-shot and other algorithms through incremental apis
+        return match parameters.algorithm {
+            CryptoSignatureAlgorithm::Ed25519 | CryptoSignatureAlgorithm::Ed448 => signer
+                .sign_oneshot_to_vec(payload)
+                .map_err(|error| openssl_error("destack.crypto.key.sign", error)),
+            _ => {
+                signer
+                    .update(payload)
+                    .map_err(|error| openssl_error("destack.crypto.key.sign", error))?;
+                signer
+                    .sign_to_vec()
+                    .map_err(|error| openssl_error("destack.crypto.key.sign", error))
+            }
+        };
     }
+
+    // route host-managed keys through host signing primitives
+    if let CryptoKeyMaterial::Host(material) = &key_resource.material {
+        return crypto_host::host_key_sign(
+            context,
+            material,
+            key_resource.algorithm,
+            parameters,
+            payload,
+            "destack.crypto.key.sign",
+        );
+    }
+
+    Err(invalid_argument(
+        "handle",
+        "key handle does not reference one private key",
+    ))
 }
 
 /// Verify one signature with one public key.
@@ -777,12 +1160,33 @@ fn key_decrypt_internal(
     required_usage: u32,
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
-    // enforce usage policy and resolve private key
+    // enforce usage policy and resolve key resource
     require_key_usage(context, handle, required_usage, operation)?;
-    let key = resolve_private_pkey(context, handle, operation)?;
+    let key_resource = resolve_key_resource(context, handle, operation)?;
+    let key_resource = key_resource.lock();
+
+    // route host-managed key lanes through host decrypt primitives
+    if let CryptoKeyMaterial::Host(material) = &key_resource.material {
+        return crypto_host::host_key_decrypt(
+            context,
+            material,
+            key_resource.algorithm,
+            parameters,
+            payload,
+            operation,
+        );
+    }
+
+    // reject non-private key material for software-backed path
+    let CryptoKeyMaterial::Private(key) = &key_resource.material else {
+        return Err(invalid_argument(
+            "handle",
+            "key handle does not reference one private key",
+        ));
+    };
 
     // configure openssl decrypter from runtime parameters
-    let mut decrypter = Decrypter::new(&key).map_err(|error| openssl_error(operation, error))?;
+    let mut decrypter = Decrypter::new(key).map_err(|error| openssl_error(operation, error))?;
     configure_decrypter(&mut decrypter, parameters, operation)?;
 
     // allocate and run decryption operation
@@ -845,7 +1249,7 @@ pub(crate) fn key_wrap(
             ));
         }
 
-        export_key_resource(&key_resource, format, "destack.crypto.key.wrap")?
+        export_key_resource(context, &key_resource, format, "destack.crypto.key.wrap")?
     };
 
     // encrypt exported key bytes and wipe plaintext export buffer
@@ -894,8 +1298,28 @@ pub(crate) fn key_delete(
     context: &BindingCallContext,
     handle: resource::CryptoKeyHandle,
 ) -> RuntimeResult<()> {
+    // resolve key handle and capture delete metadata
+    let key_resource = resolve_key_resource(context, handle, "destack.crypto.key.delete")?;
+    let key_resource_snapshot = { key_resource.lock().clone() };
+
+    // delete one persistent host key entry when present
+    delete_persistent_key_if_present(context, &key_resource_snapshot, "destack.crypto.key.delete")?;
+
+    // delete host-managed key material when present
+    if let CryptoKeyMaterial::Host(material) = &key_resource_snapshot.material {
+        crypto_host::host_key_delete(context, material, "destack.crypto.key.delete")?;
+    }
+
+    // zeroize secret payload before removing the resource entry
+    {
+        let mut key_resource = key_resource.lock();
+        if let CryptoKeyMaterial::Secret(bytes) = &mut key_resource.material {
+            bytes.zeroize();
+        }
+    }
+
     // remove key resource and verify kind
-    let Some(mut entry) = context.runtime().resources.remove(handle.0) else {
+    let Some(entry) = context.runtime().resources.remove(handle.0) else {
         return Err(handle_not_found(
             "destack.crypto.key.delete",
             "crypto key",
@@ -908,17 +1332,6 @@ pub(crate) fn key_delete(
             "crypto key",
             handle.0.0,
         ));
-    }
-
-    // wipe secret key bytes before dropping resource payload
-    if let Some(payload) = entry.payload.as_mut()
-        && let Some(key_resource) = payload.downcast_mut::<Arc<Mutex<CryptoKeyResource>>>()
-    {
-        let mut key_resource = key_resource.lock();
-        match &mut key_resource.material {
-            CryptoKeyMaterial::Secret(bytes) => bytes.zeroize(),
-            CryptoKeyMaterial::Private(_) | CryptoKeyMaterial::Public(_) => {}
-        }
     }
 
     Ok(())
@@ -1054,23 +1467,6 @@ pub(super) fn resolve_secret_key_bytes(
     Ok(bytes)
 }
 
-/// Resolve one private key object.
-pub(super) fn resolve_private_pkey(
-    context: &BindingCallContext,
-    handle: resource::CryptoKeyHandle,
-    operation: &'static str,
-) -> RuntimeResult<PKey<Private>> {
-    let key = resolve_key_resource(context, handle, operation)?;
-    let key = key.lock();
-    match &key.material {
-        CryptoKeyMaterial::Private(value) => Ok(value.clone()),
-        _ => Err(invalid_argument(
-            "handle",
-            "key handle does not reference one private key",
-        )),
-    }
-}
-
 /// Resolve one public key object.
 pub(super) fn resolve_public_pkey(
     context: &BindingCallContext,
@@ -1087,6 +1483,8 @@ pub(super) fn resolve_public_pkey(
                 .map_err(|error| openssl_error(operation, error))?;
             PKey::public_key_from_pem(&pem).map_err(|error| openssl_error(operation, error))
         }
+        CryptoKeyMaterial::Host(value) => PKey::public_key_from_der(&value.public_key_spki_der)
+            .map_err(|error| openssl_error(operation, error)),
         CryptoKeyMaterial::Secret(_) => Err(invalid_argument(
             "handle",
             "key handle does not reference one asymmetric key",
@@ -1203,6 +1601,7 @@ pub(super) fn key_descriptor_from_resource(
         extractable: key.extractable,
         hardware_backed: key.hardware_backed,
         persistent: key.persistent,
+        store_provenance: store_provenance_to_descriptor(context, &key.store_provenance),
     }
 }
 
@@ -1255,6 +1654,7 @@ pub(super) fn export_sec1_private_key(
 
 /// Export one key resource in the requested format.
 pub(super) fn export_key_resource(
+    _context: &BindingCallContext,
     key_resource: &CryptoKeyResource,
     format: CryptoKeyFormat,
     operation: &'static str,
@@ -1303,6 +1703,20 @@ pub(super) fn export_key_resource(
 
             Ok(bytes.clone())
         }
+        CryptoKeyMaterial::Host(key) => match format {
+            CryptoKeyFormat::SpkiDer => Ok(key.public_key_spki_der.clone()),
+            CryptoKeyFormat::SpkiPem => {
+                let public_key = PKey::public_key_from_der(&key.public_key_spki_der)
+                    .map_err(|error| openssl_error(operation, error))?;
+                public_key
+                    .public_key_to_pem()
+                    .map_err(|error| openssl_error(operation, error))
+            }
+            _ => Err(invalid_argument(
+                "format",
+                "host-managed key export format must be one spki format",
+            )),
+        },
     }
 }
 

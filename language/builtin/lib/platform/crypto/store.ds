@@ -1,21 +1,24 @@
 import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { CryptoCertificateHandle, CryptoKeyHandle, CryptoStoreHandle } from "../resource/index.ds";
-import { CryptoKeyAlgorithm, CryptoKeyUsageMask } from "./algorithm.ds";
+import { CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyUsageMask } from "./algorithm.ds";
 
 /// Crypto store backend kind.
 export enum CryptoStoreKind {
     /// Host default trust and key provider.
-    /// May return notSupported when host store integration is unavailable.
+    /// Typically used for host certificate trust material.
+    /// Key write operations may return notSupported.
     System = 0,
     /// User-scoped host key and certificate store.
-    /// May return notSupported when host store integration is unavailable.
+    /// Availability is host dependent.
+    /// Key and certificate writes may return notSupported.
     User = 1,
     /// Machine-scoped host key and certificate store.
-    /// May return notSupported when host store integration is unavailable.
+    /// Availability is host dependent.
+    /// Key and certificate writes may return notSupported.
     Machine = 2,
-    /// Provider-scoped host key and certificate store.
-    /// May return notSupported when host store integration is unavailable.
+    /// Provider-scoped runtime store.
+    /// Defaults to the `openssl` software provider when no provider name is supplied.
     Provider = 3,
     /// Process-scoped ephemeral key and certificate store.
     Ephemeral = 4,
@@ -29,6 +32,36 @@ export struct CryptoStoreOptions {
     providerName?: string;
     /// Optional logical namespace.
     namespace?: string;
+}
+
+/// Effective store provenance for created crypto objects.
+export struct CryptoStoreProvenance {
+    /// Effective store backend kind.
+    kind: CryptoStoreKind;
+    /// Effective provider name.
+    providerName?: string;
+    /// Effective provider namespace.
+    namespace?: string;
+}
+
+/// Capability descriptor for one store backend lane.
+export struct CryptoStoreCapability {
+    /// Store backend kind lane.
+    kind: CryptoStoreKind;
+    /// Provider lane name.
+    providerName?: string;
+    /// Whether this lane is available for open calls.
+    isAvailable: boolean;
+    /// Whether hardware-backed key operations are supported.
+    supportsHardwareBacked: boolean;
+    /// Whether persistent key operations are supported.
+    supportsPersistent: boolean;
+    /// Whether key export operations are supported by policy.
+    supportsKeyExport: boolean;
+    /// Supported key algorithm families for this store lane.
+    supportedKeyAlgorithms: Array<CryptoKeyAlgorithm>;
+    /// Supported key formats for this store lane.
+    supportedKeyFormats: Array<CryptoKeyFormat>;
 }
 
 /// Key query selector for store enumeration.
@@ -105,12 +138,74 @@ export struct CryptoCertificateListPage {
 
 /// Crypto store bindings for runtime provider stores.
 declare namespace crypto {
+    /// List store backend kinds that are currently available.
+    ///
+    /// Return one runtime capability snapshot for store backends that can be opened.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto store provider capability introspection.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.crypto.store.probeKinds",
+        {
+            effect: "external",
+            replay: "recordable",
+            capabilities: ["crypto.probe"],
+            platforms: ["windows", "unix"],
+            scope: "host",
+            blocking: "never",
+        },
+    )
+    export function storeProbeKinds(): Result<Array<CryptoStoreKind>, PlatformError>;
+
+    /// Return capabilities for one store backend lane.
+    ///
+    /// Query one store kind and optional provider name and return effective capability policy.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto store provider capability introspection.
+    ///
+    /// # Errors
+    /// Returns invalidArgument, ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.crypto.store.probeCapability",
+        {
+            effect: "external",
+            replay: "recordable",
+            capabilities: ["crypto.probe"],
+            platforms: ["windows", "unix"],
+            scope: "host",
+            blocking: "never",
+        },
+    )
+    export function storeProbeCapability(
+        kind: CryptoStoreKind,
+        providerName?: string,
+    ): Result<CryptoStoreCapability, PlatformError>;
+
     /// Open one crypto store.
     ///
     /// Create one runtime provider store handle for key and certificate operations.
     /// Provider selection and access scope follow runtime crypto store semantics.
-    /// `Ephemeral` store support is required.
-    /// Other kinds may return notSupported until host store providers are implemented.
+    /// `Ephemeral` and `Provider` store support is required.
+    /// Host-backed `System`, `User`, and `Machine` support is host dependent.
+    /// Host-backed lanes may expose certificate reads while rejecting key or certificate writes.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.

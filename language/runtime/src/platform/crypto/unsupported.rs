@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 #![allow(clippy::missing_safety_doc)]
+use openssl::pkey::{PKey, Private};
+use openssl::x509::X509;
+
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::crypto::bindings_generated as bindings;
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
@@ -20,9 +23,229 @@ use crate::platform::crypto::{
     CryptoKeyKind, CryptoKeyListEntry, CryptoKeyListPage, CryptoKeyPair, CryptoKeyQuery,
     CryptoKeyUsageMask, CryptoMacAlgorithm, CryptoMacParameters, CryptoNamedCurve,
     CryptoPbkdf2Request, CryptoScryptRequest, CryptoSignatureAlgorithm, CryptoSignatureParameters,
-    CryptoStoreKind, CryptoStoreOptions,
+    CryptoStoreCapability, CryptoStoreKind, CryptoStoreOptions, HostKeyMaterial,
+    core as crypto_core,
 };
 use crate::platform::resource;
+
+/// Return whether one host-lane store supports persistent key writes.
+pub(crate) fn host_store_supports_key_persistence(kind: CryptoStoreKind) -> bool {
+    let _ = kind;
+
+    false
+}
+
+/// Return whether one host lane has a writable persistent-key backend.
+pub(crate) fn host_store_persistence_backend_is_available(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+) -> bool {
+    let _ = (context, kind);
+
+    false
+}
+
+/// Return whether one host store lane is currently available.
+pub(crate) fn host_store_lane_is_available(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+) -> bool {
+    let _ = (context, kind);
+
+    false
+}
+
+/// Return whether one host store lane supports hardware-backed keys.
+pub(crate) fn host_store_supports_hardware_backed_key(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+) -> bool {
+    let _ = (context, kind);
+
+    false
+}
+
+/// Generate one host-backed hardware key pair.
+pub(crate) fn host_generate_hardware_backed_key_pair(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    named_curve: CryptoNamedCurve,
+    persistent_key_label: &str,
+    operation: &'static str,
+) -> RuntimeResult<crypto_core::HostGeneratedKeyPair> {
+    let _ = (context, kind, algorithm, named_curve, persistent_key_label);
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
+/// Generate one host-managed persistent key pair when available.
+pub(crate) fn host_generate_persistent_key_pair(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    named_curve: CryptoNamedCurve,
+    modulus_bits: u32,
+    public_exponent: u32,
+    persistent_key_label: &str,
+    operation: &'static str,
+) -> RuntimeResult<Option<crypto_core::HostGeneratedKeyPair>> {
+    let _ = (
+        context,
+        kind,
+        algorithm,
+        named_curve,
+        modulus_bits,
+        public_exponent,
+        persistent_key_label,
+        operation,
+    );
+
+    Ok(None)
+}
+
+/// Import one persistent host-managed private key when available.
+pub(crate) fn host_import_persistent_private_key(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    named_curve: CryptoNamedCurve,
+    private_key: &PKey<Private>,
+    persistent_key_label: &str,
+    operation: &'static str,
+) -> RuntimeResult<Option<HostKeyMaterial>> {
+    let _ = (
+        context,
+        kind,
+        algorithm,
+        named_curve,
+        private_key,
+        persistent_key_label,
+        operation,
+    );
+
+    Ok(None)
+}
+
+/// Sign one payload with one host-managed key.
+pub(crate) fn host_key_sign(
+    context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoSignatureParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    let _ = (context, key, algorithm, parameters, payload);
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
+/// Decrypt one payload with one host-managed key.
+pub(crate) fn host_key_decrypt(
+    context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoAsymmetricEncryptionParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    let _ = (context, key, algorithm, parameters, payload);
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
+/// Delete one host-managed key.
+pub(crate) fn host_key_delete(
+    context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let _ = (context, key);
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
+/// Derive one shared secret with one host-managed private key.
+pub(crate) fn host_key_derive_shared_secret(
+    context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    algorithm: CryptoKeyAlgorithm,
+    named_curve: CryptoNamedCurve,
+    peer_public_spki_der: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    let _ = (context, key, algorithm, named_curve, peer_public_spki_der);
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
+/// Open one host store lane and return certificate snapshots.
+pub(crate) fn open_host_store_certificates(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+) -> RuntimeResult<Vec<X509>> {
+    let _ = (context, kind);
+
+    Err(RuntimeError::from(PlatformError::not_supported("destack.crypto.store.open")).boxed())
+}
+
+/// Load one backend host-key snapshot payload for one store lane.
+pub(crate) fn load_host_key_snapshot_bytes(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    operation: &'static str,
+) -> RuntimeResult<Option<Vec<u8>>> {
+    let _ = (context, kind, operation);
+
+    Ok(None)
+}
+
+/// Store one backend host-key snapshot payload for one store lane.
+pub(crate) fn store_host_key_snapshot_bytes(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    snapshot_bytes: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let _ = (context, kind, snapshot_bytes);
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
+/// Return whether one host store lane supports certificate write operations.
+pub(crate) fn host_store_supports_certificate_write(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+) -> bool {
+    let _ = (context, kind);
+
+    false
+}
+
+/// Import one certificate into one host store lane.
+pub(crate) fn host_store_import_certificate(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    certificate: &X509,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let _ = (context, kind, certificate);
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
+/// Delete one certificate from one host store lane.
+pub(crate) fn host_store_delete_certificate(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    certificate: &X509,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let _ = (context, kind, certificate);
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
 
 /// Derive one symmetric key from one local private key and one peer public key.
 ///
@@ -1826,12 +2049,77 @@ pub(crate) unsafe fn destack_crypto_store_list_keys(
     .boxed())
 }
 
+/// Return capabilities for one store backend lane.
+///
+/// Query one store kind and optional provider name and return effective capability policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store provider capability introspection.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_store_probe_capability(
+    context: &BindingCallContext,
+    out: *mut CryptoStoreCapability,
+    kind: CryptoStoreKind,
+    providername: NativeStringRef,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (context, out, kind, providername);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.store.probeCapability",
+    ))
+    .boxed())
+}
+
+/// List store backend kinds that are currently available.
+///
+/// Return one runtime capability snapshot for store backends that can be opened.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store provider capability introspection.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_store_probe_kinds(
+    context: &BindingCallContext,
+    out: *mut NativeArray<CryptoStoreKind>,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (context, out);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.store.probeKinds",
+    ))
+    .boxed())
+}
+
 /// Open one crypto store.
 ///
 /// Create one runtime provider store handle for key and certificate operations.
 /// Provider selection and access scope follow runtime crypto store semantics.
-/// `Ephemeral` store support is required.
-/// Other kinds may return notSupported until host store providers are implemented.
+/// `Ephemeral` and `Provider` store support is required.
+/// Host-backed `System`, `User`, and `Machine` support is host dependent.
+/// Host-backed lanes may expose certificate reads while rejecting key or certificate writes.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.

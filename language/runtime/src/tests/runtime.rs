@@ -26,8 +26,14 @@ pub(crate) struct TestRuntime {
 impl TestRuntime {
     /// Build a runtime with deterministic random settings.
     pub(crate) fn deterministic_random() -> Self {
+        // route host-backed crypto snapshots to deterministic local files
+        let process_id = std::process::id();
+        let user_store_path = std::env::temp_dir().join(format!(
+            "destack-runtime-tests/{process_id}/crypto/user-store.keys"
+        ));
+
         // deterministic random options
-        let options = RuntimeOptions {
+        let mut options = RuntimeOptions {
             execution: ExecutionMode::Fast,
             random: RandomOptions {
                 mode: RandomMode::Deterministic,
@@ -36,6 +42,7 @@ impl TestRuntime {
             },
             ..RuntimeOptions::default()
         };
+        options.crypto.host_store_paths.user = Some(user_store_path);
 
         // runtime with deterministic random state
         let state = Arc::new(RuntimeState::from_options(

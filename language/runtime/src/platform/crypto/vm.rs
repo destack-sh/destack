@@ -15,10 +15,13 @@ use crate::platform::crypto::{
     CryptoKeyListEntryVm, CryptoKeyListPage, CryptoKeyListPageVm, CryptoKeyPair, CryptoKeyPairVm,
     CryptoKeyQuery, CryptoKeyQueryVm, CryptoMacAlgorithm, CryptoMacParametersVm, CryptoNamedCurve,
     CryptoPbkdf2Request, CryptoPbkdf2RequestVm, CryptoScryptRequest, CryptoScryptRequestVm,
-    CryptoSignatureAlgorithm, CryptoSignatureParametersVm, CryptoStoreOptions,
-    CryptoStoreOptionsVm, host as host_crypto,
+    CryptoSignatureAlgorithm, CryptoSignatureParametersVm, CryptoStoreCapability,
+    CryptoStoreCapabilityVm, CryptoStoreKind, CryptoStoreOptions, CryptoStoreOptionsVm,
+    CryptoStoreProvenance, CryptoStoreProvenanceVm, host as host_crypto,
 };
-use crate::platform::{NativeSlice, NativeStringRef, VmAggregateCodec, VmArray, VmSlice, resource};
+use crate::platform::{
+    NativeArray, NativeSlice, NativeStringRef, VmAggregateCodec, VmArray, VmSlice, resource,
+};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
@@ -1684,12 +1687,68 @@ pub(crate) fn destack_crypto_store_list_keys(
     key_list_page_to_vm(context, page)
 }
 
+/// Return capabilities for one store backend lane.
+///
+/// Query one store kind and optional provider name and return effective capability policy.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store provider capability introspection.
+///
+/// # Errors
+/// Returns invalidArgument, ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_crypto_store_probe_capability(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    kind: CryptoStoreKind,
+    providername: vm::StringHandle,
+) -> RuntimeResult<CryptoStoreCapabilityVm> {
+    let provider_name = string_from_vm(runtime, context, providername)?;
+    let capability = call_out(|out| unsafe {
+        host_crypto::destack_crypto_store_probe_capability(runtime, out, kind, provider_name)
+    })?;
+
+    store_capability_to_vm(context, capability)
+}
+
+/// List store backend kinds that are currently available.
+///
+/// Return one runtime capability snapshot for store backends that can be opened.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto store provider capability introspection.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) fn destack_crypto_store_probe_kinds(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+) -> RuntimeResult<VmArray<CryptoStoreKind>> {
+    let kinds =
+        call_out(|out| unsafe { host_crypto::destack_crypto_store_probe_kinds(runtime, out) })?;
+    array_to_vm(context, kinds)
+}
+
 /// Open one crypto store.
 ///
 /// Create one runtime provider store handle for key and certificate operations.
 /// Provider selection and access scope follow runtime crypto store semantics.
-/// `Ephemeral` store support is required.
-/// Other kinds may return notSupported until host store providers are implemented.
+/// `Ephemeral` and `Provider` store support is required.
+/// Host-backed `System`, `User`, and `Machine` support is host dependent.
+/// Host-backed lanes may expose certificate reads while rejecting key or certificate writes.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
@@ -1769,6 +1828,14 @@ fn slice_to_vm<T: Copy + VmAggregateCodec>(
 ) -> RuntimeResult<VmSlice<T>> {
     let value = unsafe { value.as_slice()? };
     VmSlice::from_values(context, value)
+}
+
+fn array_to_vm<T: Copy + VmAggregateCodec>(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: NativeArray<T>,
+) -> RuntimeResult<VmArray<T>> {
+    let value = unsafe { value.as_slice()? };
+    VmArray::from_values(context, value)
 }
 
 fn copy_native_bytes_into_vm(
@@ -2010,6 +2077,7 @@ fn key_descriptor_to_vm(
         extractable: value.extractable,
         hardware_backed: value.hardware_backed,
         persistent: value.persistent,
+        store_provenance: store_provenance_to_vm(context, value.store_provenance)?,
     })
 }
 
@@ -2037,6 +2105,34 @@ fn certificate_descriptor_to_vm(
         validity,
         is_certificate_authority: value.is_certificate_authority,
         key_usage_mask: value.key_usage_mask,
+        store_provenance: store_provenance_to_vm(context, value.store_provenance)?,
+    })
+}
+
+fn store_provenance_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: CryptoStoreProvenance,
+) -> RuntimeResult<CryptoStoreProvenanceVm> {
+    Ok(CryptoStoreProvenanceVm {
+        kind: value.kind,
+        provider_name: string_to_vm(context, value.provider_name)?,
+        namespace: string_to_vm(context, value.namespace)?,
+    })
+}
+
+fn store_capability_to_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: CryptoStoreCapability,
+) -> RuntimeResult<CryptoStoreCapabilityVm> {
+    Ok(CryptoStoreCapabilityVm {
+        kind: value.kind,
+        provider_name: string_to_vm(context, value.provider_name)?,
+        is_available: value.is_available,
+        supports_hardware_backed: value.supports_hardware_backed,
+        supports_persistent: value.supports_persistent,
+        supports_key_export: value.supports_key_export,
+        supported_key_algorithms: array_to_vm(context, value.supported_key_algorithms)?,
+        supported_key_formats: array_to_vm(context, value.supported_key_formats)?,
     })
 }
 
