@@ -12,12 +12,12 @@ use destack_workspace::{ImportEdgeKind, Module, ModuleDir, ProfileId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::resolve::cache::{
+use crate::resolve::dependency::cache::{
     BindingExportCacheKey, ExportAssignmentTarget, NamespaceExportSymbolCacheKey,
     NamespaceSymbolCacheKey, ReexportChainCacheKey, RemoteSymbolCacheKey,
     ResolveDependencyItemCache, TargetCacheKey,
 };
-use crate::resolve::loader::LoaderAttribute;
+use crate::resolve::dependency::loader::LoaderAttribute;
 use crate::timing::tags;
 use crate::{
     Compiler, ImportError, ImportResolveContext, ResolveError, ResolveResult, ResolveWarning,
@@ -68,7 +68,7 @@ impl ReexportVisitStack {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Select import edge semantics from dependency source and source module kind.
-    pub(super) fn import_edge_kind_for_dependency(
+    pub(crate) fn import_edge_kind_for_dependency(
         source: DependencySource,
         is_typescript_commonjs: bool,
     ) -> ImportEdgeKind {
@@ -181,7 +181,7 @@ impl Compiler {
     }
 
     /// Resolve a symbol from a module export table.
-    pub(super) fn resolve_exported_symbol(
+    pub(crate) fn resolve_exported_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1196,7 +1196,7 @@ impl Compiler {
     }
 
     /// Whether the target is a relative import.
-    pub(super) fn is_import_relative(&self, target: StringId) -> bool {
+    pub(crate) fn is_import_relative(&self, target: StringId) -> bool {
         // check relative path specifiers
         let target_str = self.program.strings.get(target);
         target_str == "."
@@ -1229,7 +1229,7 @@ impl Compiler {
     }
 
     /// Emit diagnostics for unresolved modules based on resolve mode.
-    pub(super) fn handle_unresolved_module(&self, error: ResolveError) {
+    pub(crate) fn handle_unresolved_module(&self, error: ResolveError) {
         let (node, target) = match error {
             ResolveError::UnresolvedModule { node, target } => (node, target),
             error => {
@@ -1251,7 +1251,7 @@ impl Compiler {
 
     /// Resolve an import, returning `None` for unresolved modules.
     /// (This is mainly used for debug-only lenient resolve mode.)
-    pub(super) fn resolve_import_maybe(
+    pub(crate) fn resolve_import_maybe(
         &self,
         module: &Module,
         dir: &ModuleDir,
@@ -2329,7 +2329,7 @@ impl Compiler {
     }
 
     /// Resolve a dependency item, optionally using a cache.
-    pub(super) fn resolve_dependency_item(
+    pub(crate) fn resolve_dependency_item(
         &self,
         module: &Module,
         dir: &ModuleDir,
@@ -3188,42 +3188,5 @@ impl Compiler {
                 name,
             });
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use destack_dir::DependencySource;
-    use destack_workspace::ImportEdgeKind;
-
-    use crate::Compiler;
-
-    /// Use require conditions for static imports in TypeScript CommonJS modules.
-    #[test]
-    fn test_import_edge_kind_for_typescript_commonjs_static_import() {
-        let edge_kind =
-            Compiler::import_edge_kind_for_dependency(DependencySource::ImportStatement, true);
-
-        assert_eq!(edge_kind, ImportEdgeKind::Require);
-    }
-
-    /// Keep import-call dependencies on import conditions in TypeScript CommonJS modules.
-    #[test]
-    fn test_import_edge_kind_for_typescript_commonjs_import_call() {
-        let edge_kind =
-            Compiler::import_edge_kind_for_dependency(DependencySource::ImportCall, true);
-
-        assert_eq!(edge_kind, ImportEdgeKind::Import);
-    }
-
-    /// Keep triple slash directives on import conditions in TypeScript CommonJS modules.
-    #[test]
-    fn test_import_edge_kind_for_typescript_commonjs_reference_path_directive() {
-        let edge_kind = Compiler::import_edge_kind_for_dependency(
-            DependencySource::ReferencePathDirective,
-            true,
-        );
-
-        assert_eq!(edge_kind, ImportEdgeKind::Import);
     }
 }

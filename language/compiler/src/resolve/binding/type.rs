@@ -13,7 +13,7 @@ impl Compiler {
     }
 
     /// Resolve an identifier string to a builtin type literal.
-    pub(super) fn resolve_string_to_type(&self, string: &str) -> Option<TypeLiteral> {
+    pub(crate) fn resolve_string_to_type(&self, string: &str) -> Option<TypeLiteral> {
         match string {
             // undefined
             "undefined" => Some(TypeLiteral::Undefined),
