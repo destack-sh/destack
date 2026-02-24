@@ -355,6 +355,8 @@ pub(super) struct WasapiStreamRuntime {
     pub(super) direction: audio_core::AudioDeviceDirection,
     /// Opened stream sample format.
     pub(super) format: audio_core::AudioSampleFormat,
+    /// Opened stream sample rate in hertz.
+    pub(super) sample_rate: u32,
     /// Opened stream channel count.
     pub(super) channels: u16,
     /// Opened stream period in frames.

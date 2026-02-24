@@ -11,15 +11,13 @@ use std::sync::mpsc::{self, SyncSender};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::{self, JoinHandle};
 
-use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0, WAIT_TIMEOUT};
 use windows_sys::Win32::System::Registry::{
     HKEY, HKEY_LOCAL_MACHINE, KEY_NOTIFY, KEY_READ, KEY_WOW64_32KEY, KEY_WOW64_64KEY,
     REG_NOTIFY_CHANGE_LAST_SET, REG_NOTIFY_CHANGE_NAME, RegCloseKey, RegNotifyChangeKeyValue,
     RegOpenKeyExW,
 };
-use windows_sys::Win32::System::Threading::{
-    CreateEventW, ResetEvent, WAIT_OBJECT_0, WAIT_TIMEOUT, WaitForMultipleObjects,
-};
+use windows_sys::Win32::System::Threading::{CreateEventW, ResetEvent, WaitForMultipleObjects};
 
 /// One opened ASIO registry watcher row.
 struct AsioRegistryWatcher {

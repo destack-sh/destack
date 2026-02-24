@@ -129,6 +129,7 @@ fn open_runtime(
         Arc::new(WasapiStreamRuntime {
             direction,
             format: config.format,
+            sample_rate: config.sample_rate,
             channels: config.channels,
             period_frames,
             frame_bytes: audio_core::frame_bytes(config.format, config.channels)?,
@@ -196,6 +197,7 @@ fn open_runtime(
         Arc::new(WasapiStreamRuntime {
             direction,
             format: config.format,
+            sample_rate: config.sample_rate,
             channels: config.channels,
             period_frames,
             frame_bytes: audio_core::frame_bytes(config.format, config.channels)?,
