@@ -402,7 +402,7 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                     static_arguments,
                 } = ty
                 {
-                    if compiler.reference_contains_unevaluated_value_arguments(
+                    if compiler.reference_has_unevaluated_value_arguments(
                         module,
                         *profile,
                         *symbol,
@@ -1203,11 +1203,8 @@ impl Compiler {
 
         // unevaluated static arguments are not stable yet
         let mut static_argument_visited = HashSet::new();
-        if self.type_contains_unevaluated_static_arguments(
-            type_id,
-            types,
-            &mut static_argument_visited,
-        ) {
+        if self.type_has_unevaluated_static_arguments(type_id, types, &mut static_argument_visited)
+        {
             return true;
         }
 
@@ -1487,7 +1484,7 @@ impl Compiler {
                         }
 
                         let needs_materialization = self
-                            .type_contains_unevaluated_value_static_arguments(
+                            .type_has_unevaluated_value_static_arguments(
                                 owner_module,
                                 profile,
                                 remote_target_id,
@@ -1519,11 +1516,10 @@ impl Compiler {
                 types.record_normalization_symbol_dependency(dependency_symbol);
             }
             if let Some((typed_symbol, remote_target_ty, remote_snapshot)) = remote_alias_target {
-                let local_alias_target_id = self.import_type_from_remote_for_node(
+                let local_alias_target_id = self.import_remote_type_for_node(
                     source_id,
                     &remote_target_ty,
                     &remote_snapshot,
-                    typed_symbol,
                     types,
                 );
                 types.set_alias_target_type_id(typed_symbol, local_alias_target_id);
@@ -1724,17 +1720,6 @@ impl Compiler {
             }),
             _ => None,
         }
-    }
-
-    /// Build a union type from two type ids.
-    pub(crate) fn union_type(
-        &self,
-        left: LocalTypeId,
-        right: LocalTypeId,
-        types: &mut TypeTable,
-    ) -> LocalTypeId {
-        // reuse the left source for the combined union
-        self.union_type_from_list(vec![left, right], left, types)
     }
 
     /// Build a union type from a list of elements.
@@ -2047,7 +2032,7 @@ impl Compiler {
         visitor.found
     }
 
-    pub(crate) fn type_contains_unevaluated_static_arguments(
+    pub(crate) fn type_has_unevaluated_static_arguments(
         &self,
         ty_id: LocalTypeId,
         types: &TypeTable,
@@ -2058,7 +2043,7 @@ impl Compiler {
         visitor.found
     }
 
-    pub(crate) fn type_contains_unevaluated_value_static_arguments(
+    pub(crate) fn type_has_unevaluated_value_static_arguments(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -2075,7 +2060,7 @@ impl Compiler {
         visitor.found
     }
 
-    fn reference_contains_unevaluated_value_arguments(
+    fn reference_has_unevaluated_value_arguments(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -2114,15 +2099,15 @@ impl Compiler {
                         symbols,
                         AnalyzeDependencyStage::Declare,
                         |_, owner_tree, owner_symbols| {
-                            self.static_parameter_kind_for_symbol_in_module(
+                            self.static_parameter_metadata_for_symbol_in_module(
                                 *parameter_symbol,
                                 owner_tree,
                                 owner_symbols,
                             )
+                            .0
                         },
                     )
                     .ok()
-                    .flatten()
                     .unwrap_or(StaticParameterKind::Type)
                 })
                 .unwrap_or(StaticParameterKind::Type);
@@ -2134,8 +2119,9 @@ impl Compiler {
 
             let has_unevaluated = match argument {
                 StaticArgument::Unevaluated { .. } => true,
-                StaticArgument::Evaluated { value, .. } => self
-                    .static_expression_contains_unevaluated_static_arguments(value, types, visited),
+                StaticArgument::Evaluated { value, .. } => {
+                    self.static_expression_has_unevaluated_static_arguments(value, types, visited)
+                }
             };
             if has_unevaluated {
                 return true;
@@ -2146,7 +2132,7 @@ impl Compiler {
     }
 
     /// Check whether a static expression contains unevaluated static arguments.
-    fn static_expression_contains_unevaluated_static_arguments(
+    fn static_expression_has_unevaluated_static_arguments(
         &self,
         expression: &StaticExpression,
         types: &TypeTable,

@@ -10,7 +10,7 @@ use std::collections::HashSet;
 
 impl Compiler {
     /// Return true when a member receiver should be evaluated as a type projection receiver.
-    pub(crate) fn query_expression_is_projection_receiver_for_infer(
+    pub(crate) fn is_projection_receiver_expression(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -20,11 +20,15 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> bool {
         let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
-        if !self.query_receiver_has_static_arguments(receiver_id, tree) {
+        if !tree
+            .get(receiver_id)
+            .static_arguments()
+            .is_some_and(|arguments| !arguments.is_empty())
+        {
             return false;
         }
 
-        let symbol = self.resolve_projection_receiver_symbol_for_expression(
+        let symbol = self.resolve_projection_receiver_symbol(
             module,
             profile,
             receiver_id,
@@ -39,19 +43,8 @@ impl Compiler {
         self.query_symbol_supports_projection_receiver(module, profile, symbol, symbols)
     }
 
-    /// Return true when a receiver expression has explicit static arguments.
-    fn query_receiver_has_static_arguments(
-        &self,
-        receiver_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-    ) -> bool {
-        tree.get(receiver_id)
-            .static_arguments()
-            .is_some_and(|arguments| !arguments.is_empty())
-    }
-
     /// Resolve a symbol candidate for associated projection receiver inference.
-    fn resolve_projection_receiver_symbol_for_expression(
+    fn resolve_projection_receiver_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -114,36 +107,12 @@ impl Compiler {
         )
     }
 
-    /// Select a member lookup mode from nominal receiver metadata and receiver type.
-    pub(crate) fn query_member_lookup_mode_for_receiver(
-        &self,
-        nominal_symbol: Option<GlobalSymbolId>,
-        receiver_ty: &Type,
-    ) -> MemberLookupMode {
-        // nominal values only expose static members
-        if nominal_symbol.is_some() {
-            return MemberLookupMode::Value;
-        }
-
-        self.query_member_lookup_mode_for_type(receiver_ty)
-    }
-
-    /// Select a member lookup mode from receiver type metadata only.
-    pub(crate) fn query_member_lookup_mode_for_type(
-        &self,
-        _receiver_ty: &Type,
-    ) -> MemberLookupMode {
-        // runtime receivers expose instance members only
-        MemberLookupMode::Instance
-    }
-
     /// Classify member receiver behavior for symbol and type lookup paths.
     pub(crate) fn query_member_receiver_context_for_expression(
         &self,
         module: &Module,
         receiver_id: LocalNodeId<Expression>,
         receiver_ty_id: Option<LocalTypeId>,
-        receiver_ty: &Type,
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -157,13 +126,22 @@ impl Compiler {
             tree,
             symbols,
         );
-        let has_static_arguments = self.query_receiver_has_static_arguments(receiver_id, tree);
+        let has_static_arguments = tree
+            .get(receiver_id)
+            .static_arguments()
+            .is_some_and(|arguments| !arguments.is_empty());
         let has_this_receiver =
             matches!(tree.get(receiver_id), Expression::This | Expression::Super)
                 || receiver_ty_id.is_some_and(|receiver_ty_id| {
                     self.type_contains_this(receiver_ty_id, types, &mut HashSet::new())
                 });
-        let lookup_mode = self.query_member_lookup_mode_for_receiver(nominal_symbol, receiver_ty);
+        let lookup_mode = if nominal_symbol.is_some() {
+            // nominal values only expose static members
+            MemberLookupMode::Value
+        } else {
+            // runtime receivers expose instance members only
+            MemberLookupMode::Instance
+        };
 
         MemberReceiverContext {
             nominal_symbol,
@@ -208,8 +186,16 @@ impl Compiler {
             return Some(symbol);
         }
 
-        let space =
-            self.query_symbol_space_for_global_if_declared(module, profile, symbol, symbols);
+        let space = self
+            .with_module_symbols_or_local_at_stage(
+                module,
+                profile,
+                symbol.module_id,
+                symbols,
+                AnalyzeDependencyStage::Declare,
+                |_, owner_symbols| owner_symbols.get_symbol(symbol.local_id).space,
+            )
+            .ok();
         if space.is_some_and(|space| matches!(space, SymbolSpace::Value | SymbolSpace::TypeValue)) {
             Some(symbol)
         } else {
@@ -292,24 +278,5 @@ impl Compiler {
             self.unwrap_type_symbol(types, *element_id)
                 .map(|(symbol, _, _)| symbol)
         })
-    }
-
-    /// Resolve symbol space for one global symbol when declare commitments are available.
-    fn query_symbol_space_for_global_if_declared(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-    ) -> Option<SymbolSpace> {
-        self.with_module_symbols_or_local_at_stage(
-            module,
-            profile,
-            symbol.module_id,
-            symbols,
-            AnalyzeDependencyStage::Declare,
-            |_, owner_symbols| owner_symbols.get_symbol(symbol.local_id).space,
-        )
-        .ok()
     }
 }

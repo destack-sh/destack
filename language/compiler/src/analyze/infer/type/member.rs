@@ -19,7 +19,7 @@ impl Compiler {
 
         // normalize to declared symbol typing first
         let symbol = self
-            .remap_typevalue_symbol_to_canonical_type_space(module, profile, symbol)
+            .remap_typevalue_symbol_to_type_space(module, profile, symbol)
             .map_err(AnalyzeError::from)?;
 
         Ok(Type::Reference {

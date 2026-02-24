@@ -140,7 +140,6 @@ impl Compiler {
     }
 
     /// Resolve one canonical infer-time receiver type for `import.meta`.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_import_meta_receiver_type_for_infer(
         &self,
         module: &Module,
@@ -196,7 +195,6 @@ impl Compiler {
     }
 
     /// Recompute one receiver type from syntax without reusing inferred-expression cache.
-    #[allow(clippy::too_many_arguments)]
     fn infer_member_receiver_type_without_cache(
         &self,
         module: &Module,
@@ -268,7 +266,6 @@ impl Compiler {
     }
 
     /// Query and normalize the receiver state for member access.
-    #[allow(clippy::too_many_arguments)]
     fn query_member_access_receiver(
         &self,
         module: &Module,
@@ -298,7 +295,7 @@ impl Compiler {
                     optional_chain.has_nullish,
                 )
             } else {
-                let receiver_ty_id = if self.query_expression_is_projection_receiver_for_infer(
+                let receiver_ty_id = if self.is_projection_receiver_expression(
                     module,
                     ctx.profile,
                     left_id,
@@ -450,15 +447,14 @@ impl Compiler {
 
         // resolve unevaluated receivers through canonical reference symbols
         if matches!(types.get_type(receiver_ty_id), Type::Unevaluated(_))
-            && let Some(fallback_receiver_ty_id) = self
-                .resolve_unevaluated_member_receiver_type_from_symbol(
-                    module,
-                    receiver_id,
-                    tree,
-                    symbols,
-                    types,
-                    ctx,
-                )?
+            && let Some(fallback_receiver_ty_id) = self.resolve_member_receiver_type_from_symbol(
+                module,
+                receiver_id,
+                tree,
+                symbols,
+                types,
+                ctx,
+            )?
         {
             receiver_ty_id = self.materialize_infer_type_for_check(
                 module,
@@ -579,7 +575,6 @@ impl Compiler {
             module,
             receiver_id,
             Some(receiver_ty_id),
-            &receiver_ty,
             ctx.profile,
             tree,
             symbols,
@@ -610,7 +605,7 @@ impl Compiler {
     }
 
     /// Resolve one unevaluated member receiver type through canonical symbol ownership.
-    fn resolve_unevaluated_member_receiver_type_from_symbol(
+    fn resolve_member_receiver_type_from_symbol(
         &self,
         module: &Module,
         receiver_id: LocalNodeId<Expression>,
@@ -696,7 +691,6 @@ impl Compiler {
     }
 
     /// Resolve member lookup state for a prepared receiver.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_member_access_lookup(
         &self,
         module: &Module,
@@ -794,7 +788,7 @@ impl Compiler {
             types,
         )?;
         if let Some(member_symbol) = member_symbol {
-            self.extend_owner_substitutions_from_inherited_arguments(
+            self.extend_owner_substitutions_from_inherited(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -847,7 +841,6 @@ impl Compiler {
     }
 
     /// Infer and commit the member access type from resolved lookup state.
-    #[allow(clippy::too_many_arguments)]
     fn infer_member_access_type_from_lookup(
         &self,
         module: &Module,
@@ -970,7 +963,7 @@ impl Compiler {
                 &mut cache,
             )
         };
-        resolved_member_ty_id = self.materialize_associated_comptime_member_access_type(
+        resolved_member_ty_id = self.materialize_associated_member_access_type(
             module,
             expression_id,
             resolved_member_ty_id,
@@ -982,7 +975,7 @@ impl Compiler {
         )?;
 
         // register associated comptime obligations until post infer convergence
-        let obligation_member_symbol = self.projection_obligation_member_symbol_for_expression(
+        let obligation_member_symbol = self.projection_member_symbol_for_expression(
             module,
             ctx.profile,
             expression_id,
@@ -993,15 +986,14 @@ impl Compiler {
             symbols,
             types,
         )?;
-        let receiver_is_projection_receiver = self
-            .query_expression_is_projection_receiver_for_infer(
-                module,
-                ctx.profile,
-                receiver.receiver_id,
-                tree,
-                symbols,
-                types,
-            );
+        let receiver_is_projection_receiver = self.is_projection_receiver_expression(
+            module,
+            ctx.profile,
+            receiver.receiver_id,
+            tree,
+            symbols,
+            types,
+        );
         let member_type_is_unevaluated =
             matches!(types.get_type(resolved_member_ty_id), Type::Unevaluated(_));
         let requires_projection_obligation = if let Some(member_symbol) = obligation_member_symbol {
@@ -1033,8 +1025,7 @@ impl Compiler {
     }
 
     /// Resolve one associated-comptime member symbol for deferred projection obligations.
-    #[allow(clippy::too_many_arguments)]
-    fn projection_obligation_member_symbol_for_expression(
+    fn projection_member_symbol_for_expression(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1051,7 +1042,7 @@ impl Compiler {
         }
 
         let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
-        if !self.query_expression_is_projection_receiver_for_infer(
+        if !self.is_projection_receiver_expression(
             module,
             profile,
             receiver_id,
@@ -1080,8 +1071,7 @@ impl Compiler {
     }
 
     /// Materialize one associated comptime member access after receiver substitution.
-    #[allow(clippy::too_many_arguments)]
-    fn materialize_associated_comptime_member_access_type(
+    fn materialize_associated_member_access_type(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -1103,13 +1093,13 @@ impl Compiler {
             tree,
             symbols,
         )?;
-        if kind != Some(crate::analyze::StaticMemberSymbolKind::AssociatedComptimeConst) {
+        if kind != Some(StaticMemberSymbolKind::AssociatedComptimeConst) {
             return Ok(member_ty_id);
         }
 
         // defer projection materialization until receiver static arguments converge
         // unresolved obligations are reported after infer convergence
-        if self.associated_projection_receiver_arguments_require_deferral(
+        if self.receiver_projection_arguments_require_deferral(
             module,
             profile,
             &lookup.inherited.arguments,

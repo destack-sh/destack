@@ -283,7 +283,7 @@ impl Compiler {
                 variance: None,
             });
 
-            self.enforce_assignability_or_defer_unassignable_diagnostic(
+            self.enforce_assignability_or_defer_diagnostic(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -484,7 +484,7 @@ impl Compiler {
                 variance: None,
             });
 
-            self.enforce_assignability_or_defer_unassignable_diagnostic(
+            self.enforce_assignability_or_defer_diagnostic(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -642,7 +642,7 @@ impl Compiler {
                 variance: None,
             });
 
-            self.enforce_assignability_or_defer_unassignable_diagnostic(
+            self.enforce_assignability_or_defer_diagnostic(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -697,7 +697,7 @@ impl Compiler {
                     },
                     receiver_ty_id,
                 );
-                self.union_type(ty_id, undefined_ty_id, types)
+                self.union_type_from_list(vec![ty_id, undefined_ty_id], ty_id, types)
             } else {
                 ty_id
             }

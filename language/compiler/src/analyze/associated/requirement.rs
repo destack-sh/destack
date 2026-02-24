@@ -29,7 +29,7 @@ impl DeclaredAssociatedRequirementKind {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Report missing declared associated type requirements for one declaration.
-    pub(crate) fn report_missing_declared_associated_type_requirements(
+    pub(crate) fn report_missing_associated_type_requirements(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -41,7 +41,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
-        self.check_declared_associated_requirements(
+        self.check_associated_requirements(
             module,
             profile,
             declaration_symbol,
@@ -56,7 +56,7 @@ impl Compiler {
     }
 
     /// Report missing declared associated comptime requirements for one declaration.
-    pub(crate) fn report_missing_declared_associated_comptime_requirements(
+    pub(crate) fn report_missing_associated_comptime_requirements(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -68,7 +68,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
-        self.check_declared_associated_requirements(
+        self.check_associated_requirements(
             module,
             profile,
             declaration_symbol,
@@ -83,8 +83,7 @@ impl Compiler {
     }
 
     /// Check declared associated requirements for one declaration.
-    #[allow(clippy::too_many_arguments)]
-    fn check_declared_associated_requirements(
+    fn check_associated_requirements(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -131,7 +130,7 @@ impl Compiler {
                 continue;
             };
 
-            let requirements = self.collect_declared_associated_requirement_pairs_for_contract(
+            let requirements = self.collect_associated_requirement_pairs_for_contract(
                 requirement_kind,
                 module,
                 profile,
@@ -205,7 +204,7 @@ impl Compiler {
     }
 
     /// Collect requirement name or required-implementation pairs for one contract.
-    fn collect_declared_associated_requirement_pairs_for_contract(
+    fn collect_associated_requirement_pairs_for_contract(
         &self,
         requirement_kind: DeclaredAssociatedRequirementKind,
         module: &Module,
@@ -347,7 +346,6 @@ impl Compiler {
     }
 
     /// Declare one type-member alias and its generic context.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn collect_associated_type_member(
         &self,
         module: &Module,

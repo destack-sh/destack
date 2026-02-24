@@ -106,7 +106,7 @@ impl Compiler {
         });
 
         // enforce assignment relation after convergence when needed
-        self.enforce_assignability_or_defer_unassignable_diagnostic(
+        self.enforce_assignability_or_defer_diagnostic(
             module,
             ctx.profile,
             expression_id.into_any(),
@@ -249,7 +249,7 @@ impl Compiler {
             });
 
             // enforce assignment relation after convergence when needed
-            self.enforce_assignability_or_defer_unassignable_diagnostic(
+            self.enforce_assignability_or_defer_diagnostic(
                 module,
                 ctx.profile,
                 expression_id.into_any(),
@@ -429,7 +429,7 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
-        if self.query_expression_is_projection_receiver_for_infer(
+        if self.is_projection_receiver_expression(
             module,
             ctx.profile,
             receiver_id,

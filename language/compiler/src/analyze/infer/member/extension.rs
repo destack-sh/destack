@@ -1,10 +1,10 @@
 use super::*;
 use destack_dir::{InferTable, LocalInstanceId};
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Extend substitutions with owner-parameter slots derived from inherited arguments.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn extend_owner_substitutions_from_inherited_arguments(
+    pub(crate) fn extend_owner_substitutions_from_inherited(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -84,10 +84,11 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalInstanceId>> {
         let substitutions = self.merge_member_substitutions(inherited, extension_context);
-        let base_instance_arguments = self.infer_member_instance_base_arguments(
-            &inherited.arguments,
-            extension_context.map(|context| context.arguments.as_slice()),
-        );
+        let base_instance_arguments = if let Some(context) = extension_context {
+            context.arguments.clone()
+        } else {
+            inherited.arguments.clone()
+        };
         let environment = self.compose_member_instance_environment(
             module,
             profile,
@@ -104,7 +105,7 @@ impl Compiler {
             return Ok(None);
         };
 
-        self.record_provisional_instance_for_node_maybe(
+        self.record_node_provisional_instance(
             expression_id.into_global_any(module.id),
             member_symbol,
             environment,

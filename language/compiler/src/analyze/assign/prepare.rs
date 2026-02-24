@@ -168,7 +168,7 @@ impl Compiler {
     }
 
     /// Check assignability of static arguments on the same reference symbol.
-    pub(super) fn reference_static_arguments_assignable(
+    pub(super) fn are_reference_static_arguments_assignable(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -187,7 +187,7 @@ impl Compiler {
             return true;
         }
 
-        let target_arguments = self.resolved_reference_static_arguments_for_assignability(
+        let target_arguments = self.resolve_reference_static_arguments(
             module,
             profile,
             types.get_type_source(target_id),
@@ -198,7 +198,7 @@ impl Compiler {
             types,
             options,
         );
-        let source_arguments = self.resolved_reference_static_arguments_for_assignability(
+        let source_arguments = self.resolve_reference_static_arguments(
             module,
             profile,
             types.get_type_source(source_id),
@@ -347,7 +347,7 @@ impl Compiler {
     }
 
     /// Resolve static arguments for assignability comparisons.
-    pub(super) fn resolved_reference_static_arguments_for_assignability(
+    pub(super) fn resolve_reference_static_arguments(
         &self,
         module: &Module,
         profile: ProfileId,

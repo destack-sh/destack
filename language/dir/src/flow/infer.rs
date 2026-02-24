@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use indexmap::{IndexMap, IndexSet};
-use serde::{Deserialize, Serialize};
 
 use crate::{
     Addressability, Declarator, Expression, GlobalNodeIdAny, GlobalSymbolId, InferVarId,
@@ -11,7 +10,7 @@ use crate::{
 };
 
 /// Represent a single inference variable with bounds and defaults.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct InferVar {
     /// Lower bounds for this variable.
     pub lower_bounds: Vec<LocalTypeId>,
@@ -39,7 +38,7 @@ impl InferVar {
 }
 
 /// Describe where an inference variable was created.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy)]
 pub enum InferOrigin {
     /// Variable introduced by an expression.
     Expression(
@@ -69,7 +68,7 @@ pub enum InferOrigin {
 }
 
 /// Describe the scope of an inference variable.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy)]
 pub struct InferScope {
     /// Owning symbol for this inference variable.
     pub owner: GlobalSymbolId,
@@ -79,7 +78,7 @@ pub struct InferScope {
 
 /// Group id used to tie constraints for candidate selection.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ConstraintGroupId(
     /// Identify the constraint group.
     pub u32,
@@ -93,7 +92,7 @@ impl ConstraintGroupId {
 }
 
 /// Represent a constraint over types and inference variables.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub enum Constraint {
     /// Require two types to be equal.
     Equal {
@@ -174,7 +173,7 @@ pub struct InferTable {
     missing_member_obligations: IndexSet<MissingMemberObligation>,
     /// Direct-binding commit intents collected during infer.
     direct_binding_value_commit_intent_by_symbol:
-        IndexMap<GlobalSymbolId, DirectBindingValueCommitIntent>,
+        IndexMap<GlobalSymbolId, DirectBindingValueCommitEntry>,
     /// Provisional resolutions recorded during infer by node id.
     pub provisional_resolution_by_node_id: IndexMap<GlobalNodeIdAny, Resolution>,
     /// Provisional instance attachments recorded during infer by node id.
@@ -197,7 +196,7 @@ pub struct InferTable {
 }
 
 /// Associated comptime projection obligation collected during infer.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct AssociatedComptimeProjectionObligation {
     /// The member expression that created this obligation.
     pub expression_id: LocalNodeId<Expression>,
@@ -212,7 +211,7 @@ pub struct AssociatedComptimeProjectionObligation {
 }
 
 /// Diagnostic to emit when a type relation obligation fails after infer convergence.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TypeRelationObligationDiagnostic {
     /// Emit an unassignable type diagnostic.
     UnassignableType,
@@ -221,7 +220,7 @@ pub enum TypeRelationObligationDiagnostic {
 }
 
 /// Operand source for a deferred type relation obligation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TypeRelationObligationOperands {
     /// Use captured type ids recorded during infer.
     CapturedTypes {
@@ -240,7 +239,7 @@ pub enum TypeRelationObligationOperands {
 }
 
 /// Type relation obligation collected during infer and checked after solve convergence.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypeRelationObligation {
     /// The source node that owns this relation check.
     pub source_node_id: GlobalNodeIdAny,
@@ -251,7 +250,7 @@ pub struct TypeRelationObligation {
 }
 
 /// Missing-member obligation collected during infer and checked after solve convergence.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MissingMemberObligation {
     /// The member expression that created this obligation.
     pub expression_id: GlobalNodeIdAny,
@@ -263,9 +262,9 @@ pub struct MissingMemberObligation {
     pub member_key: StaticKey,
 }
 
-/// Direct-binding commit intent collected during infer.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DirectBindingValueCommitIntent {
+/// Direct-binding commit entry collected during infer.
+#[derive(Debug, Clone, PartialEq)]
+struct DirectBindingValueCommitEntry {
     /// The direct binding symbol to commit.
     pub symbol_id: GlobalSymbolId,
     /// The declarator that owns the binding.
@@ -276,7 +275,7 @@ pub struct DirectBindingValueCommitIntent {
 
 /// Infer-local identifier for one instance-commit obligation.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct InstanceCommitObligationId(
     /// The instance-commit obligation id.
     pub u32,
@@ -290,7 +289,7 @@ impl InstanceCommitObligationId {
 }
 
 /// Instance-commit record collected during infer.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InstanceCommitObligation {
     /// The target symbol for the instance.
     pub symbol_id: GlobalSymbolId,
@@ -303,7 +302,7 @@ pub struct InstanceCommitObligation {
 }
 
 /// Instance-commit obligation attachment for one resolution candidate slot.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InstanceCommitResolutionCandidateAttachment {
     /// The node carrying the resolution candidate list.
     pub node_id: GlobalNodeIdAny,
@@ -315,7 +314,7 @@ pub struct InstanceCommitResolutionCandidateAttachment {
 
 /// Infer-local dynamic candidate slot identifier.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DynamicResolutionCandidateSlotId(
     /// The dynamic candidate slot index.
     pub u32,
@@ -440,17 +439,33 @@ impl InferTable {
     /// Upsert one direct-binding commit intent by symbol.
     pub fn upsert_direct_binding_value_commit_intent(
         &mut self,
-        intent: DirectBindingValueCommitIntent,
+        symbol_id: GlobalSymbolId,
+        declarator_id: LocalNodeId<Declarator>,
+        value_id: LocalNodeId<Expression>,
     ) {
-        self.direct_binding_value_commit_intent_by_symbol
-            .insert(intent.symbol_id, intent);
+        self.direct_binding_value_commit_intent_by_symbol.insert(
+            symbol_id,
+            DirectBindingValueCommitEntry {
+                symbol_id,
+                declarator_id,
+                value_id,
+            },
+        );
     }
 
     /// Iterate direct-binding commit intents.
     pub fn iter_direct_binding_value_commit_intents(
         &self,
-    ) -> impl Iterator<Item = &DirectBindingValueCommitIntent> {
-        self.direct_binding_value_commit_intent_by_symbol.values()
+    ) -> impl Iterator<
+        Item = (
+            GlobalSymbolId,
+            LocalNodeId<Declarator>,
+            LocalNodeId<Expression>,
+        ),
+    > + '_ {
+        self.direct_binding_value_commit_intent_by_symbol
+            .values()
+            .map(|intent| (intent.symbol_id, intent.declarator_id, intent.value_id))
     }
 
     /// Record one provisional resolution for one node.

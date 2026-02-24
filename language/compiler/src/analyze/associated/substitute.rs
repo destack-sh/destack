@@ -48,7 +48,7 @@ impl Compiler {
     }
 
     /// Resolve receiver substitutions for an associated projection owner.
-    fn associated_projection_receiver_substitutions_for_owner_symbol(
+    fn receiver_projection_substitutions_for_owner(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -102,7 +102,7 @@ impl Compiler {
     /// Resolve one static-parameter constraint for projection traversal.
     /// remote constraints must come from declare-published commitments
     /// local constraints may use local infer-owned cache/evaluation
-    pub(super) fn projection_static_parameter_constraint_type_for_traversal(
+    pub(super) fn projection_static_parameter_constraint_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -162,15 +162,14 @@ impl Compiler {
 
         // follow static parameter constraints before declaration heritage traversal
         if self.symbol_is_static_parameter(module, profile, current_symbol, symbols, types) {
-            let constraint_type_id = self
-                .projection_static_parameter_constraint_type_for_traversal(
-                    module,
-                    profile,
-                    source_id,
-                    current_symbol,
-                    symbols,
-                    types,
-                )?;
+            let constraint_type_id = self.projection_static_parameter_constraint_type(
+                module,
+                profile,
+                source_id,
+                current_symbol,
+                symbols,
+                types,
+            )?;
             if let Some(mut constraint_type_id) = constraint_type_id {
                 if !current_substitutions.is_empty() {
                     let mut substitution_cache = HashMap::new();
@@ -372,7 +371,7 @@ impl Compiler {
                                 let options =
                                     self.analyze_context_options_for_module(owner_module.id);
                                 let resolved_static_arguments = self
-                                    .resolve_type_reference_static_arguments_for_symbol(
+                                    .resolve_type_reference_static_arguments(
                                         owner_module,
                                         profile,
                                         source_id,
@@ -518,7 +517,7 @@ impl Compiler {
         );
 
         // resolve substitutions from direct declaration implements clauses first
-        if let Some(substitutions) = self.interface_substitutions_for_receiver_declaration(
+        if let Some(substitutions) = self.receiver_interface_substitutions(
             module,
             profile,
             source_id,
@@ -660,7 +659,7 @@ impl Compiler {
     }
 
     /// Resolve interface substitutions from receiver declaration heritage.
-    fn interface_substitutions_for_receiver_declaration(
+    fn receiver_interface_substitutions(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -781,19 +780,18 @@ impl Compiler {
                 types,
             )?;
             let evaluated_static_arguments = evaluated_static_arguments.unwrap_or_default();
-            let resolved_static_arguments = self
-                .resolve_type_reference_static_arguments_for_symbol(
-                    owner_module,
-                    profile,
-                    source_id,
-                    canonical_target,
-                    Some(evaluated_static_arguments.as_slice()),
-                    true,
-                    options,
-                    owner_tree,
-                    owner_symbols,
-                    types,
-                )?;
+            let resolved_static_arguments = self.resolve_type_reference_static_arguments(
+                owner_module,
+                profile,
+                source_id,
+                canonical_target,
+                Some(evaluated_static_arguments.as_slice()),
+                true,
+                options,
+                owner_tree,
+                owner_symbols,
+                types,
+            )?;
             let interface_arguments =
                 resolved_static_arguments.unwrap_or(evaluated_static_arguments);
             let mut substitutions = self.build_type_parameter_substitutions_for_symbol(
@@ -908,7 +906,7 @@ impl Compiler {
                 // fall back to general receiver traversal for constrained/interface projections
                 if receiver_owner_substitutions.is_none() {
                     receiver_owner_substitutions = self
-                        .associated_projection_receiver_substitutions_for_owner_symbol(
+                        .receiver_projection_substitutions_for_owner(
                             module,
                             profile,
                             source_id,
@@ -921,18 +919,17 @@ impl Compiler {
                         )?;
                 }
             } else {
-                receiver_owner_substitutions = self
-                    .associated_projection_receiver_substitutions_for_owner_symbol(
-                        module,
-                        profile,
-                        source_id,
-                        receiver_symbol,
-                        receiver_arguments,
-                        owner_symbol,
-                        tree,
-                        symbols,
-                        types,
-                    )?;
+                receiver_owner_substitutions = self.receiver_projection_substitutions_for_owner(
+                    module,
+                    profile,
+                    source_id,
+                    receiver_symbol,
+                    receiver_arguments,
+                    owner_symbol,
+                    tree,
+                    symbols,
+                    types,
+                )?;
             }
         }
         if let Some(receiver_owner_substitutions) = receiver_owner_substitutions.as_ref() {
@@ -980,20 +977,19 @@ impl Compiler {
         }
 
         // resolve member static arguments under the projection context
-        let resolved_member_arguments = self
-            .resolve_type_reference_static_arguments_for_symbol_with_bound_substitutions(
-                module,
-                profile,
-                source_id,
-                target_symbol,
-                explicit_member_arguments,
-                true,
-                options,
-                Some(&substitutions),
-                tree,
-                symbols,
-                types,
-            )?;
+        let resolved_member_arguments = self.resolve_type_reference_static_arguments_with_bounds(
+            module,
+            profile,
+            source_id,
+            target_symbol,
+            explicit_member_arguments,
+            true,
+            options,
+            Some(&substitutions),
+            tree,
+            symbols,
+            types,
+        )?;
         if let Some((member_argument_symbol, member_arguments)) = self
             .projection_member_argument_source_for_environment(
                 target_symbol,
@@ -1306,13 +1302,8 @@ impl Compiler {
             .ok()??;
 
         let (remote_target_ty, remote_snapshot) = remote_alias_target;
-        let local_target_id = self.import_type_from_remote_for_node(
-            source_id,
-            &remote_target_ty,
-            &remote_snapshot,
-            typed_symbol,
-            types,
-        );
+        let local_target_id =
+            self.import_remote_type_for_node(source_id, &remote_target_ty, &remote_snapshot, types);
         types.record_normalization_symbol_dependency(typed_symbol);
         types.set_alias_target_type_id(typed_symbol, local_target_id);
         Some(local_target_id)
@@ -1449,7 +1440,7 @@ impl Compiler {
         }
 
         // unevaluated projection references
-        if let Some(mapped_type) = self.projection_substituted_unevaluated_type_for_expression(
+        if let Some(mapped_type) = self.substitute_projection_unevaluated_type(
             module,
             profile,
             expression_id,
@@ -1465,7 +1456,7 @@ impl Compiler {
         // recurse through nested index expressions and set count inferred types from substitutions
         match owner_tree.get(expression_id).clone() {
             Expression::TypeIndex { left, index } => {
-                return self.apply_projection_substitutions_for_type_index_expression(
+                return self.apply_projection_substitutions_to_type_index(
                     module,
                     profile,
                     expression_id,
@@ -1517,7 +1508,7 @@ impl Compiler {
             _ => return Ok(local_type_id),
         };
         if static_arguments.is_none() {
-            return self.projection_substituted_reference_without_static_arguments(
+            return self.substitute_projection_reference_without_arguments(
                 module,
                 profile,
                 expression_id,
@@ -1531,7 +1522,7 @@ impl Compiler {
         }
 
         // map reference static arguments that originate from owner projections
-        self.projection_substituted_reference_with_static_arguments(
+        self.substitute_projection_reference_with_arguments(
             module,
             profile,
             expression_id,
@@ -1546,7 +1537,6 @@ impl Compiler {
     }
 
     /// Return one projection-substituted alias target for a projection-root expression.
-    #[allow(clippy::too_many_arguments)]
     fn projection_substituted_alias_target_for_expression(
         &self,
         module: &Module,
@@ -1603,8 +1593,7 @@ impl Compiler {
     }
 
     /// Return one projection-substituted type for an unevaluated reference expression.
-    #[allow(clippy::too_many_arguments)]
-    fn projection_substituted_unevaluated_type_for_expression(
+    fn substitute_projection_unevaluated_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1692,8 +1681,7 @@ impl Compiler {
     }
 
     /// Return one projection-substituted type for a type-index expression.
-    #[allow(clippy::too_many_arguments)]
-    fn apply_projection_substitutions_for_type_index_expression(
+    fn apply_projection_substitutions_to_type_index(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1830,8 +1818,7 @@ impl Compiler {
     }
 
     /// Return one projection-substituted reference type with no static arguments.
-    #[allow(clippy::too_many_arguments)]
-    fn projection_substituted_reference_without_static_arguments(
+    fn substitute_projection_reference_without_arguments(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1884,8 +1871,7 @@ impl Compiler {
     }
 
     /// Return one projection-substituted reference type with static arguments.
-    #[allow(clippy::too_many_arguments)]
-    fn projection_substituted_reference_with_static_arguments(
+    fn substitute_projection_reference_with_arguments(
         &self,
         module: &Module,
         profile: ProfileId,

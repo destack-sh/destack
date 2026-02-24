@@ -131,7 +131,7 @@ impl Compiler {
 
     /// Look up one substitution type for a static parameter symbol.
 
-    pub(crate) fn substitution_type_id_for_static_parameter_symbol(
+    pub(crate) fn substitution_type_id_for_static_parameter(
         &self,
         symbol: GlobalSymbolId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,

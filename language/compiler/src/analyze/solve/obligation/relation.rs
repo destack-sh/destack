@@ -1,5 +1,5 @@
 use destack_dir::{
-    LocalTypeId, SymbolTable, TypeRelationObligation, TypeRelationObligationDiagnostic,
+    InferTable, LocalTypeId, SymbolTable, TypeRelationObligation, TypeRelationObligationDiagnostic,
     TypeRelationObligationOperands, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
@@ -7,17 +7,45 @@ use destack_workspace::{Module, ProfileId};
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
 
 impl Compiler {
-    /// Replay post-solve type relation obligations from explicit records.
-    pub(in crate::analyze::commit) fn replay_type_relation_obligations_from_records(
+    /// Discharge post-solve type relation obligations from infer-owned records.
+    pub(in crate::analyze::solve) fn discharge_relation_obligations_in_solve(
         &self,
         module: &Module,
         profile: ProfileId,
         symbols: &SymbolTable,
+        infer: &mut InferTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> AnalyzeResult<()> {
+        let mut obligations = infer.take_type_relation_obligations();
+        obligations.sort_by_key(|obligation| obligation.source_node_id);
+        if obligations.is_empty() {
+            return Ok(());
+        }
+
+        self.check_relation_obligations(
+            module,
+            profile,
+            symbols,
+            infer,
+            types,
+            &obligations,
+            options,
+        )
+    }
+
+    /// Check post-solve type relation obligations from explicit records.
+    fn check_relation_obligations(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        infer: &InferTable,
         types: &mut TypeTable,
         obligations: &[TypeRelationObligation],
         options: &AnalyzeOptions,
     ) -> AnalyzeResult<()> {
-        // replay each relation obligation with converged operand types
+        // check each relation obligation with converged operand types
         for obligation in obligations {
             // skip obligations that belong to other modules
             if obligation.source_node_id.module_id != module.id {
@@ -26,7 +54,7 @@ impl Compiler {
 
             // resolve effective operands from captured inputs or expression ids
             let (target_type_id, source_type_id) =
-                self.resolve_type_relation_obligation_operands(module, types, &obligation)?;
+                self.resolve_type_relation_obligation_operands(module, infer, types, obligation)?;
 
             if self.type_relation_requires_infer_convergence(
                 module,
@@ -121,6 +149,7 @@ impl Compiler {
     fn resolve_type_relation_obligation_operands(
         &self,
         module: &Module,
+        infer: &InferTable,
         types: &TypeTable,
         obligation: &TypeRelationObligation,
     ) -> AnalyzeResult<(LocalTypeId, LocalTypeId)> {
@@ -144,20 +173,26 @@ impl Compiler {
                     });
                 }
 
-                let Some(source_type_id) = types.get_inferred_type_id(*source_expression_id) else {
+                let source_type_id = infer
+                    .inferred_type_for_node(*source_expression_id)
+                    .or_else(|| types.get_inferred_type_id(*source_expression_id));
+                let Some(source_type_id) = source_type_id else {
                     return Err(AnalyzeError::Internal {
                         message: "missing inferred source operand for type relation obligation"
                             .to_string(),
                     });
                 };
-                let Some(target_type_id) = types.get_inferred_type_id(*target_expression_id) else {
+                let target_type_id = infer
+                    .inferred_type_for_node(*target_expression_id)
+                    .or_else(|| types.get_inferred_type_id(*target_expression_id));
+                let Some(target_type_id) = target_type_id else {
                     return Err(AnalyzeError::Internal {
                         message: "missing inferred target operand for type relation obligation"
                             .to_string(),
                     });
                 };
 
-                // normalize value wrappers for replayed relation checks
+                // normalize value wrappers for discharged relation checks
                 let target_type_id = types.unwrap_value_type_id(target_type_id);
                 let source_type_id = types.unwrap_value_type_id(source_type_id);
                 Ok((target_type_id, source_type_id))

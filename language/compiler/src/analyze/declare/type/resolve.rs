@@ -177,7 +177,7 @@ impl Compiler {
                 if !self.associated_projection_receiver_is_this(candidate_expression_id, tree) {
                     let has_unresolved_receiver_arguments =
                         selection.as_ref().is_some_and(|selection| {
-                            self.associated_projection_receiver_arguments_require_deferral(
+                            self.receiver_projection_arguments_require_deferral(
                                 module,
                                 profile,
                                 &selection.receiver_arguments,
@@ -777,7 +777,6 @@ impl Compiler {
     }
 
     /// Check whether one type index parameter is constrained by `keyof` over the receiver type.
-    #[allow(clippy::too_many_arguments)]
 
     pub(crate) fn type_index_constraint_matches_left_keyof(
         &self,
@@ -805,7 +804,6 @@ impl Compiler {
     }
 
     /// Check whether one type index parameter constraint chain reaches `keyof` on the receiver type.
-    #[allow(clippy::too_many_arguments)]
 
     pub(crate) fn type_index_constraint_matches_left_keyof_inner(
         &self,
@@ -1397,7 +1395,7 @@ impl Compiler {
             None
         } else {
             let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_ARGUMENTS);
-            self.resolve_type_reference_static_arguments_for_symbol(
+            self.resolve_type_reference_static_arguments(
                 module,
                 profile,
                 expression_id.into_any(),

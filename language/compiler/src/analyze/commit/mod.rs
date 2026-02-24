@@ -1,7 +1,6 @@
 mod binding;
+mod instance;
 mod materialize;
-mod obligation;
 mod pipeline;
 mod process;
-mod remap;
-mod replay;
+mod publish;

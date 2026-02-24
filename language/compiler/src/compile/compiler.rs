@@ -348,19 +348,6 @@ impl Compiler {
         dir.publish_analyze_infer_table(infer);
     }
 
-    /// Read one published infer table for a module and profile.
-    pub(crate) fn with_infer_table_for_module<R>(
-        &self,
-        module_id: ModuleId,
-        profile: ProfileId,
-        handle: impl FnOnce(&InferTable) -> R,
-    ) -> Option<R> {
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir_maybe(profile)?;
-        dir.with_analyze_infer_table(handle)
-    }
-
     /// Mutate one published infer table for a module and profile.
     pub(crate) fn with_infer_table_for_module_mut<R>(
         &self,

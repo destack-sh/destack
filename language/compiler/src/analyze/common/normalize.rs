@@ -1349,21 +1349,6 @@ impl Compiler {
         normalized
     }
 
-    /// Resolve static arguments from registered instances.
-    fn resolved_static_arguments_for_reference(
-        &self,
-        module: &Module,
-        source_id: LocalNodeIdAny,
-        symbol: GlobalSymbolId,
-        types: &TypeTable,
-    ) -> Option<Vec<StaticArgument>> {
-        self.query_instance_arguments_for_node(
-            source_id.into_global(module.id),
-            Some(symbol),
-            types,
-        )
-    }
-
     /// Resolve the instance type id used for alias normalization.
     fn instance_type_id_for_normalization(
         &self,
@@ -1398,8 +1383,11 @@ impl Compiler {
     ) -> Vec<StaticArgument> {
         // prefer resolved instance arguments when no arguments are present
         if arguments.is_empty()
-            && let Some(resolved) =
-                self.resolved_static_arguments_for_reference(module, source_id, symbol, types)
+            && let Some(resolved) = self.query_instance_arguments_for_node(
+                source_id.into_global(module.id),
+                Some(symbol),
+                types,
+            )
         {
             return resolved;
         }
@@ -1437,7 +1425,11 @@ impl Compiler {
             }
 
             return self
-                .resolved_static_arguments_for_reference(module, source_id, symbol, types)
+                .query_instance_arguments_for_node(
+                    source_id.into_global(module.id),
+                    Some(symbol),
+                    types,
+                )
                 .unwrap_or_else(|| arguments.to_vec());
         }
 
@@ -1543,14 +1535,15 @@ impl Compiler {
             return false;
         };
         let has_value_parameters = parameters.iter().any(|parameter_symbol| {
-            self.static_parameter_kind_for_symbol_in_module(*parameter_symbol, &tree, &symbols)
-                == Some(StaticParameterKind::Value)
+            self.static_parameter_metadata_for_symbol_in_module(*parameter_symbol, &tree, &symbols)
+                .0
+                == StaticParameterKind::Value
         });
         if !has_value_parameters {
             return false;
         }
 
-        self.type_contains_unevaluated_value_static_arguments(
+        self.type_has_unevaluated_value_static_arguments(
             module,
             profile,
             instance_type_id,

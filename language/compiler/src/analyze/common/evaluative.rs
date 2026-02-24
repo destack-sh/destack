@@ -66,11 +66,8 @@ impl Compiler {
 
         // unevaluated static arguments are not stable yet
         let mut static_argument_visited = HashSet::new();
-        if self.type_contains_unevaluated_static_arguments(
-            type_id,
-            types,
-            &mut static_argument_visited,
-        ) {
+        if self.type_has_unevaluated_static_arguments(type_id, types, &mut static_argument_visited)
+        {
             return true;
         }
 
@@ -136,7 +133,6 @@ impl Compiler {
     }
 
     /// Normalize decidable type operators into boolean literal types.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn normalize_decidable_type_operator(
         &self,
         module: &Module,

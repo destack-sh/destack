@@ -4,7 +4,7 @@ use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::ProfileId;
 
 impl Compiler {
-    /// Ensure a module's solved infer state has been committed.
+    /// Ensure a module's solved infer table outputs have been committed.
     pub fn require_analyze_module_commit(
         &self,
         module: ModuleId,
@@ -16,7 +16,7 @@ impl Compiler {
         self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleCommit { module, profile })
     }
 
-    /// Phase 5: Commit solved infer records and discharge obligations.
+    /// Phase 5: Commit solved infer table outputs and discharge obligations.
     pub(crate) fn analyze_module_commit(
         &self,
         module_id: ModuleId,
@@ -53,6 +53,6 @@ impl Compiler {
             return Ok(());
         }
 
-        self.commit_module_solved_infer_state(&module, profile)
+        self.commit_module_solved_infer_table(&module, profile)
     }
 }

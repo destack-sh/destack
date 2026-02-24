@@ -556,11 +556,10 @@ impl Compiler {
 
         Ok(
             remote_instance.map(|(remote_instance_ty, remote_snapshot)| {
-                self.import_type_from_remote_for_node(
+                self.import_remote_type_for_node(
                     node_id,
                     &remote_instance_ty,
                     &remote_snapshot,
-                    symbol,
                     types,
                 )
             }),

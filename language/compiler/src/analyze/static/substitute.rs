@@ -1071,7 +1071,7 @@ impl Compiler {
     }
 
     /// Resolve one projection receiver reference from static-parameter substitutions and owner constraints.
-    fn projection_receiver_reference_from_owner_substitutions(
+    fn projection_receiver_reference_from_substitutions(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1169,7 +1169,6 @@ impl Compiler {
     }
 
     /// Instantiate one signature type by materializing, substituting, and rewriting projections.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn instantiate_signature_type(
         &self,
         module: &Module,
@@ -1200,7 +1199,6 @@ impl Compiler {
     }
 
     /// Instantiate one type with a substitution environment, then normalize projections.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn instantiate_type_with_substitutions(
         &self,
         module: &Module,
@@ -1245,7 +1243,7 @@ impl Compiler {
         );
 
         // resolve associated projections after substitution
-        if let Some(projected) = self.instantiate_substituted_projection_type_from_source(
+        if let Some(projected) = self.instantiate_substituted_projection_type(
             module,
             profile,
             normalized,
@@ -1283,7 +1281,7 @@ impl Compiler {
         }
 
         // rematerialize projections exposed by the second substitution pass
-        if let Some(projected) = self.instantiate_substituted_projection_type_from_source(
+        if let Some(projected) = self.instantiate_substituted_projection_type(
             module,
             profile,
             normalized,
@@ -1307,7 +1305,7 @@ impl Compiler {
     }
 
     /// Materialize one substituted associated projection from its source member expression.
-    pub(crate) fn instantiate_substituted_projection_type_from_source(
+    pub(crate) fn instantiate_substituted_projection_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1389,7 +1387,7 @@ impl Compiler {
             .ok()
             .flatten();
         let receiver_from_owner = owner_symbol.and_then(|owner_symbol| {
-            self.projection_receiver_reference_from_owner_substitutions(
+            self.projection_receiver_reference_from_substitutions(
                 module,
                 profile,
                 source_id,

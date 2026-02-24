@@ -1,5 +1,5 @@
 use crate::analyze::AssociatedProjectionSelection;
-use crate::analyze::common::CanonicalSymbolMode;
+use crate::analyze::common::{CanonicalSymbolMode, RelationMode};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
@@ -341,7 +341,7 @@ impl Compiler {
 
     /// Evaluate an expression into a static integer literal when possible.
 
-    pub(crate) fn validate_static_value_parameter_usage_in_type_expression(
+    pub(crate) fn validate_static_value_parameter_usage(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -690,7 +690,7 @@ impl Compiler {
                 static_arguments,
                 ..
             } => {
-                let ty = self.resolve_declared_template_literal_span_reference(
+                let ty = self.resolve_declared_template_span_reference(
                     module,
                     profile,
                     span_id,
@@ -717,7 +717,7 @@ impl Compiler {
                     symbols,
                 );
                 if let Some(resolved_symbol) = resolved_symbol {
-                    let ty = self.resolve_declared_template_literal_span_reference(
+                    let ty = self.resolve_declared_template_span_reference(
                         module,
                         profile,
                         span_id,
@@ -752,7 +752,7 @@ impl Compiler {
     }
 
     /// Resolve a template literal span to a reference type.
-    fn resolve_declared_template_literal_span_reference(
+    fn resolve_declared_template_span_reference(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1011,7 +1011,6 @@ impl Compiler {
     }
 
     /// Resolve one declared type-index expression.
-    #[allow(clippy::too_many_arguments)]
     fn resolve_declared_type_index_expression(
         &self,
         module: &Module,
@@ -1040,7 +1039,7 @@ impl Compiler {
         let interpretation =
             self.type_index_interpretation(module, profile, left_id, index, tree, symbols, types)?;
         if interpretation == TypeIndexResolutionKind::ArraySized {
-            return self.resolve_declared_array_sized_type_for_index_expression(
+            return self.resolve_declared_array_sized_type(
                 module,
                 profile,
                 left_id,
@@ -1077,7 +1076,7 @@ impl Compiler {
                 symbols,
                 types,
                 NormalizationMode::Flow,
-                crate::analyze::common::RelationMode::INDEX_ACCESS,
+                RelationMode::INDEX_ACCESS,
                 &mut visited,
             );
             if resolution.missing_keys.is_empty() && !resolution.value_types.is_empty() {
@@ -1103,8 +1102,7 @@ impl Compiler {
     }
 
     /// Resolve one fixed-size array type from a type-index expression.
-    #[allow(clippy::too_many_arguments)]
-    fn resolve_declared_array_sized_type_for_index_expression(
+    fn resolve_declared_array_sized_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1235,7 +1233,7 @@ impl Compiler {
                         )?;
 
                         // report missing-member unless receiver has a primary blocker
-                        self.emit_missing_member_diagnostic_for_receiver_type(
+                        let _ = self.report_missing_member_diagnostic(
                             module,
                             profile,
                             expression_id,

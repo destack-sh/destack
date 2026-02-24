@@ -238,7 +238,7 @@ impl Compiler {
             AnalyzeDependencyStage::Declare,
             |owner_module, owner_symbols| {
                 let owner_types = owner_module.dir(profile).types.read();
-                self.enum_field_value_for_symbol_reference_in_read_tables(
+                self.enum_field_value_for_symbol_reference_read(
                     owner_module,
                     enum_symbol,
                     target_symbol,
@@ -251,7 +251,7 @@ impl Compiler {
     }
 
     /// Resolve an enum field value from symbol tables and immutable type tables.
-    fn enum_field_value_for_symbol_reference_in_read_tables(
+    fn enum_field_value_for_symbol_reference_read(
         &self,
         module: &Module,
         enum_symbol: GlobalSymbolId,

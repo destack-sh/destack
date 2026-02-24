@@ -17,11 +17,11 @@ use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Addressability, Argument, BindingKind, BindingOperator, Block, CastOperator, CastSource,
     Constraint, Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource,
-    DirectBindingValueCommitIntent, DynamicKey, Expression, FlowGraphBuilder, ForEachBinding,
-    FunctionCardinality, FunctionKind, FunctionMode, GlobalNodeIdAny, GlobalSymbolId, IfCondition,
-    ImportTarget, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
-    LocalTypeId, LoopKind, MatchCase, MatchKind, MatchSelector, MatchSource, Member, Mutability,
-    NodeTree, NodeType, NormalizationMode, Pattern, PrimitiveType, Property, Resolution,
+    DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, FunctionCardinality, FunctionKind,
+    FunctionMode, GlobalNodeIdAny, GlobalSymbolId, IfCondition, ImportTarget, InferOrigin,
+    InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, LoopKind,
+    MatchCase, MatchKind, MatchSelector, MatchSource, Member, Mutability, NodeTree, NodeType,
+    NormalizationMode, Pattern, PrimitiveType, Property, Resolution, ResolvedSignature,
     ScalarLiteral, StaticKey, StringId, SymbolDecorators, SymbolSpace, SymbolTable, Type,
     TypeBinaryOperator, TypeElement, TypeField, TypeLiteral, TypeRelationObligationDiagnostic,
     TypeTable, TypeUnaryOperator, WellKnownSymbol, YieldCardinality,
@@ -534,7 +534,7 @@ impl Compiler {
             }
         }
 
-        self.union_type(left_ty_id, right_ty_id, types)
+        self.union_type_from_list(vec![left_ty_id, right_ty_id], left_ty_id, types)
     }
 
     /// Select the best common type for a list of branch results.
@@ -685,19 +685,6 @@ impl Compiler {
         Some((yield_ty_id, None))
     }
 
-    /// Commit a flow join result using best-common-type rules.
-    fn flow_join_type(
-        &self,
-        module: &Module,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        ctx: &InferContext,
-        source_id: LocalNodeIdAny,
-        candidates: &[LocalTypeId],
-    ) -> LocalTypeId {
-        self.best_common_type_for_list(module, symbols, types, ctx, source_id, candidates)
-    }
-
     /// Resolve a type expression or fall back to inference when unevaluated.
     fn resolve_type_expression(
         &self,
@@ -829,11 +816,7 @@ impl Compiler {
             types,
         );
         types.set_value_type(symbol, committed_ty_id);
-        infer.upsert_direct_binding_value_commit_intent(DirectBindingValueCommitIntent {
-            symbol_id: symbol,
-            declarator_id,
-            value_id,
-        });
+        infer.upsert_direct_binding_value_commit_intent(symbol, declarator_id, value_id);
 
         Ok(Some(committed_ty_id))
     }
@@ -927,8 +910,7 @@ impl Compiler {
     }
 
     /// Instantiate one inferred expression type from infer-local instance obligations.
-    #[allow(clippy::too_many_arguments)]
-    fn instantiate_inferred_type_from_node_instance_obligation(
+    fn instantiate_type_from_node_instance_obligation(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1406,20 +1388,19 @@ impl Compiler {
                             infer,
                             &mut left_ctx,
                         )?;
-                        let left_ty_id = self
-                            .instantiate_inferred_type_from_node_instance_obligation(
-                                module,
-                                ctx.profile,
-                                *left,
-                                left_ty_id,
-                                tree,
-                                symbols,
-                                infer,
-                                types,
-                            );
+                        let left_ty_id = self.instantiate_type_from_node_instance_obligation(
+                            module,
+                            ctx.profile,
+                            *left,
+                            left_ty_id,
+                            tree,
+                            symbols,
+                            infer,
+                            types,
+                        );
 
                         // enforce satisfies after convergence for full inferred substitutions
-                        self.push_type_relation_obligation_for_expression_operands(
+                        self.push_relation_obligation_for_expression_operands(
                             module,
                             expression_id.into_any(),
                             *right,
@@ -1828,7 +1809,11 @@ impl Compiler {
             types,
         )?;
 
-        let Some(signature_ty_id) = self.call_signature_for_type(left_ty_id, types) else {
+        let Some(signature_ty_id) = self
+            .call_signatures_for_type(left_ty_id, types)
+            .first()
+            .copied()
+        else {
             self.error(AnalyzeError::InvalidStaticArgument {
                 node: expression_id
                     .into_global_any(module.id)
@@ -1890,27 +1875,33 @@ impl Compiler {
             }
         }
 
-        let resolved = self.resolve_function_signature(
-            module,
-            expression_id.into_any(),
-            owner_symbol,
-            Some(static_arguments),
-            None,
-            None,
-            None,
-            &static_parameters,
-            &dynamic_parameters,
-            return_type,
-            None,
-            super::SignatureResolutionMode::Check,
-            false,
-            ctx.profile,
-            &ctx.options,
-            tree,
-            symbols,
-            types,
-            infer,
-        )?;
+        let resolved = self
+            .resolve_function_static_arguments(
+                module,
+                expression_id.into_any(),
+                owner_symbol,
+                Some(static_arguments),
+                None,
+                None,
+                None,
+                &static_parameters,
+                &dynamic_parameters,
+                return_type,
+                None,
+                super::SignatureResolutionMode::Check,
+                false,
+                ctx.profile,
+                &ctx.options,
+                tree,
+                symbols,
+                types,
+                infer,
+            )?
+            .unwrap_or(ResolvedSignature {
+                dynamic_parameters,
+                return_type,
+                static_arguments: Vec::new(),
+            });
 
         let instantiated_fn = Type::Function {
             asynchrony,
@@ -1943,7 +1934,7 @@ impl Compiler {
                 )
             });
             if let Some(environment) = environment {
-                self.record_provisional_instance_for_node_maybe(
+                self.record_node_provisional_instance(
                     expression_id.into_global_any(module.id),
                     owner_symbol,
                     environment,
@@ -3258,7 +3249,6 @@ impl Compiler {
     }
 
     /// Infer control-flow expressions and their result types.
-    #[allow(clippy::too_many_arguments)]
     fn infer_control_expression(
         &self,
         module: &Module,
@@ -3330,7 +3320,7 @@ impl Compiler {
 
                 // compute the result type from the branches
                 if let Some(else_ty_id) = else_ty_id {
-                    self.flow_join_type(
+                    self.best_common_type_for_list(
                         module,
                         symbols,
                         types,
@@ -3624,7 +3614,7 @@ impl Compiler {
                             types.insert_type_from(ty, expression_id)
                         }
                         1 => case_type_ids[0],
-                        _ => self.flow_join_type(
+                        _ => self.best_common_type_for_list(
                             module,
                             symbols,
                             types,
@@ -3771,7 +3761,7 @@ impl Compiler {
 
                 // combine try and catch result types
                 if let Some(catch_ty_id) = catch_ty_id {
-                    self.flow_join_type(
+                    self.best_common_type_for_list(
                         module,
                         symbols,
                         types,
@@ -4277,7 +4267,10 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         // super references require a valid lexical home object
-        if !self.super_property_is_valid_context(tree, expression_id) {
+        if self
+            .super_home_object_for_context(tree, expression_id, true)
+            .is_none()
+        {
             return None;
         }
 
@@ -5198,7 +5191,11 @@ impl Compiler {
         };
 
         // resolve a callable signature for generic instantiation
-        let Some(signature_ty_id) = self.call_signature_for_type(base_ty_id, types) else {
+        let Some(signature_ty_id) = self
+            .call_signatures_for_type(base_ty_id, types)
+            .first()
+            .copied()
+        else {
             self.error(AnalyzeError::InvalidStaticArgument {
                 node: expression_id
                     .into_global_any(module.id)
@@ -5246,27 +5243,33 @@ impl Compiler {
             }
         }
 
-        let resolved = self.resolve_function_signature(
-            module,
-            expression_id.into_any(),
-            Some(canonical_symbol),
-            Some(static_argument_ids),
-            None,
-            None,
-            None,
-            &static_parameters,
-            &dynamic_parameters,
-            return_type,
-            None,
-            super::SignatureResolutionMode::Check,
-            false,
-            ctx.profile,
-            &ctx.options,
-            tree,
-            symbols,
-            types,
-            infer,
-        )?;
+        let resolved = self
+            .resolve_function_static_arguments(
+                module,
+                expression_id.into_any(),
+                Some(canonical_symbol),
+                Some(static_argument_ids),
+                None,
+                None,
+                None,
+                &static_parameters,
+                &dynamic_parameters,
+                return_type,
+                None,
+                super::SignatureResolutionMode::Check,
+                false,
+                ctx.profile,
+                &ctx.options,
+                tree,
+                symbols,
+                types,
+                infer,
+            )?
+            .unwrap_or(ResolvedSignature {
+                dynamic_parameters,
+                return_type,
+                static_arguments: Vec::new(),
+            });
 
         let instantiated_fn = Type::Function {
             asynchrony,
@@ -5298,7 +5301,7 @@ impl Compiler {
             )
         });
         if let Some(environment) = environment {
-            self.record_provisional_instance_for_node_maybe(
+            self.record_node_provisional_instance(
                 expression_id.into_global_any(module.id),
                 canonical_symbol,
                 environment,

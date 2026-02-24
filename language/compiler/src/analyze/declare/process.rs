@@ -101,9 +101,7 @@ impl Compiler {
         }
 
         // index declaration static parameter metadata
-        self.index_static_parameter_metadata_for_module_declarations(
-            &module, &tree, &symbols, &mut types,
-        );
+        self.index_static_parameter_metadata(&module, &tree, &symbols, &mut types);
 
         // yield after declaration metadata writes
         if let Some(dependency) = collector.try_into_yield_any() {
@@ -138,7 +136,7 @@ impl Compiler {
         let mut publish_collector = TaskResultCollector::new();
         self.collect(
             &mut publish_collector,
-            self.publish_declared_static_parameter_constraints_for_module(
+            self.publish_static_parameter_constraints(
                 &module, profile, &tree, &symbols, &mut types,
             ),
         );
@@ -159,7 +157,7 @@ impl Compiler {
             let binding_exports = dir.module_binding_exports.read();
             self.collect(
                 &mut publish_collector,
-                self.publish_declared_alias_targets_for_exports(
+                self.publish_declared_alias_targets(
                     &module,
                     profile,
                     &exported_symbols,
@@ -171,7 +169,7 @@ impl Compiler {
             for binding in binding_exports.values() {
                 self.collect(
                     &mut publish_collector,
-                    self.publish_declared_alias_targets_for_exports(
+                    self.publish_declared_alias_targets(
                         &module,
                         profile,
                         &binding.exports,
@@ -343,7 +341,7 @@ impl Compiler {
     }
 
     /// Publish exported alias targets from declared local type metadata.
-    fn publish_declared_alias_targets_for_exports(
+    fn publish_declared_alias_targets(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -381,7 +379,7 @@ impl Compiler {
             self.ensure_type_evaluated(module, profile, alias_target_id, tree, symbols, types)?;
 
             // materialize value static arguments before publishing
-            let needs_materialization = self.type_contains_unevaluated_value_static_arguments(
+            let needs_materialization = self.type_has_unevaluated_value_static_arguments(
                 module,
                 profile,
                 alias_target_id,

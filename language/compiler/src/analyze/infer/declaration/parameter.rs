@@ -11,21 +11,6 @@ use std::collections::HashSet;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Emit one internal error for missing declared static-parameter metadata.
-    fn report_missing_declared_static_parameter_metadata(
-        &self,
-        module: &Module,
-        symbol: GlobalSymbolId,
-        metadata: &str,
-    ) {
-        self.error(AnalyzeError::Internal {
-            message: format!(
-                "missing declared static parameter {metadata}: module={}, symbol={symbol:?}",
-                module.id
-            ),
-        });
-    }
-
     /// Query one declare-published static-parameter constraint entry.
     pub(crate) fn query_declared_static_parameter_constraint(
         &self,
@@ -57,57 +42,12 @@ impl Compiler {
             .flatten()?;
 
         let (owner_constraint_type, owner_snapshot) = remote_constraint;
-        Some(self.import_type_from_remote_for_node(
+        Some(self.import_remote_type_for_node(
             source_id,
             &owner_constraint_type,
             &owner_snapshot,
-            symbol,
             types,
         ))
-    }
-
-    /// Query one declare-published static-parameter kind entry.
-    fn query_declared_static_parameter_kind(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-        types: &TypeTable,
-    ) -> Option<StaticParameterKind> {
-        self.with_module_types_or_local_at_stage(
-            module,
-            profile,
-            symbol.module_id,
-            types,
-            AnalyzeDependencyStage::Declare,
-            |_owner_module, owner_types| owner_types.query_published_static_parameter_kind(symbol),
-        )
-        .ok()
-        .flatten()
-    }
-
-    /// Query one declare-published static-parameter variance entry.
-    fn query_declared_static_parameter_variance(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-        types: &TypeTable,
-    ) -> Option<VarianceModifier> {
-        self.with_module_types_or_local_at_stage(
-            module,
-            profile,
-            symbol.module_id,
-            types,
-            AnalyzeDependencyStage::Declare,
-            |_owner_module, owner_types| {
-                owner_types
-                    .query_published_static_parameter_variance(symbol)
-                    .flatten()
-            },
-        )
-        .ok()
-        .flatten()
     }
 
     /// Build and cache one static-parameter-constraint cycle error type.
@@ -133,6 +73,33 @@ impl Compiler {
         error_type_id
     }
 
+    /// Resolve local static parameter metadata from one module tree symbol.
+    pub(crate) fn static_parameter_metadata_for_symbol_in_module(
+        &self,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> (StaticParameterKind, Option<VarianceModifier>) {
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        if !symbol_entry.is_static_parameter() {
+            return (StaticParameterKind::Type, None);
+        }
+
+        let Some(primary) = symbol_entry.primary_declaration else {
+            return (StaticParameterKind::Type, None);
+        };
+        let Ok(parameter_id) = primary.local_id.try_into_typed::<Parameter>() else {
+            return (StaticParameterKind::Type, None);
+        };
+        let parameter = tree.get(parameter_id);
+        let kind = self.static_parameter_kind_for_parameter(parameter);
+        let variance = parameter
+            .modifiers()
+            .and_then(|modifiers| modifiers.variance);
+
+        (kind, variance)
+    }
+
     /// Resolve the static parameter kind for a symbol.
     pub(crate) fn static_parameter_kind_for_symbol(
         &self,
@@ -149,9 +116,14 @@ impl Compiler {
         }
 
         // resolve from published declare entries first
-        if let Some(kind) =
-            self.query_declared_static_parameter_kind(module, profile, symbol, types)
-        {
+        if let Ok(Some(kind)) = self.with_module_types_or_local_at_stage(
+            module,
+            profile,
+            symbol.module_id,
+            types,
+            AnalyzeDependencyStage::Declare,
+            |_owner_module, owner_types| owner_types.query_published_static_parameter_kind(symbol),
+        ) {
             types.set_static_parameter_kind(symbol, kind);
             return kind;
         }
@@ -162,55 +134,11 @@ impl Compiler {
         }
 
         // derive from local declaration metadata
-        let Some(kind) = self.static_parameter_kind_for_symbol_in_module(symbol, tree, symbols)
-        else {
-            self.report_missing_declared_static_parameter_metadata(module, symbol, "kind");
-            return StaticParameterKind::Type;
-        };
+        let (kind, _) = self.static_parameter_metadata_for_symbol_in_module(symbol, tree, symbols);
 
         // cache resolved kinds
         types.set_static_parameter_kind(symbol, kind);
         kind
-    }
-
-    /// Resolve the static parameter kind inside a module tree.
-    pub(crate) fn static_parameter_kind_for_symbol_in_module(
-        &self,
-        symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-    ) -> Option<StaticParameterKind> {
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
-        if !symbol_entry.is_static_parameter() {
-            return Some(StaticParameterKind::Type);
-        }
-
-        let Some(primary) = symbol_entry.primary_declaration else {
-            return Some(StaticParameterKind::Type);
-        };
-        let Ok(parameter_id) = primary.local_id.try_into_typed::<Parameter>() else {
-            return Some(StaticParameterKind::Type);
-        };
-        let parameter = tree.get(parameter_id);
-        Some(self.static_parameter_kind_for_parameter(parameter))
-    }
-
-    /// Resolve the static parameter variance inside a module tree.
-    pub(crate) fn static_parameter_variance_for_symbol_in_module(
-        &self,
-        symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-    ) -> Option<VarianceModifier> {
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
-        let primary = symbol_entry.primary_declaration?;
-        let Ok(parameter_id) = primary.local_id.try_into_typed::<Parameter>() else {
-            return None;
-        };
-        let parameter = tree.get(parameter_id);
-        parameter
-            .modifiers()
-            .and_then(|modifiers| modifiers.variance)
     }
 
     /// Resolve the static parameter variance for a symbol.
@@ -229,9 +157,18 @@ impl Compiler {
         }
 
         // resolve from published declare entries first
-        if let Some(variance) =
-            self.query_declared_static_parameter_variance(module, profile, symbol, types)
-        {
+        if let Ok(Some(variance)) = self.with_module_types_or_local_at_stage(
+            module,
+            profile,
+            symbol.module_id,
+            types,
+            AnalyzeDependencyStage::Declare,
+            |_owner_module, owner_types| {
+                owner_types
+                    .query_published_static_parameter_variance(symbol)
+                    .flatten()
+            },
+        ) {
             types.set_static_parameter_variance(symbol, Some(variance));
             return Some(variance);
         }
@@ -242,7 +179,8 @@ impl Compiler {
         }
 
         // derive from local declaration metadata
-        let variance = self.static_parameter_variance_for_symbol_in_module(symbol, tree, symbols);
+        let (_, variance) =
+            self.static_parameter_metadata_for_symbol_in_module(symbol, tree, symbols);
 
         // cache resolved variance
         types.set_static_parameter_variance(symbol, variance);
@@ -297,7 +235,7 @@ impl Compiler {
     }
 
     /// Index static parameter symbols and metadata declared in one module.
-    pub(crate) fn index_static_parameter_metadata_for_module_declarations(
+    pub(crate) fn index_static_parameter_metadata(
         &self,
         module: &Module,
         tree: &NodeTree,
@@ -314,17 +252,7 @@ impl Compiler {
 
             types.publish_static_parameter_symbols(symbol, parameters.clone());
             for parameter_symbol in parameters {
-                let kind = self
-                    .static_parameter_kind_for_symbol_in_module(parameter_symbol, tree, symbols)
-                    .unwrap_or_else(|| {
-                        self.report_missing_declared_static_parameter_metadata(
-                            module,
-                            parameter_symbol,
-                            "kind",
-                        );
-                        StaticParameterKind::Type
-                    });
-                let variance = self.static_parameter_variance_for_symbol_in_module(
+                let (kind, variance) = self.static_parameter_metadata_for_symbol_in_module(
                     parameter_symbol,
                     tree,
                     symbols,
@@ -337,7 +265,7 @@ impl Compiler {
     }
 
     /// Publish declared static parameter constraints for one module.
-    pub(crate) fn publish_declared_static_parameter_constraints_for_module(
+    pub(crate) fn publish_static_parameter_constraints(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -377,9 +305,7 @@ impl Compiler {
                     declared_type_id
                 }
             } else {
-                self.synthesize_implicit_static_parameter_constraint_type_for_source(
-                    source_id, types,
-                )
+                self.synthesize_implicit_static_parameter_constraint(source_id, types)
             };
             types.publish_static_parameter_constraint_type(symbol, published_constraint_type_id);
         }
@@ -659,7 +585,7 @@ impl Compiler {
     }
 
     /// Synthesize the implicit unconstrained static-parameter bound (`unknown`) for one source.
-    fn synthesize_implicit_static_parameter_constraint_type_for_source(
+    fn synthesize_implicit_static_parameter_constraint(
         &self,
         source_id: LocalNodeIdAny,
         types: &mut TypeTable,
@@ -779,9 +705,7 @@ impl Compiler {
                     {
                         declared_type_id
                     } else {
-                        self.synthesize_implicit_static_parameter_constraint_type_for_source(
-                            source_id, types,
-                        )
+                        self.synthesize_implicit_static_parameter_constraint(source_id, types)
                     };
                     if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
                         let tree = module.dir(profile).tree.read();
@@ -856,7 +780,7 @@ impl Compiler {
             types
                 .get_declared_type_id(primary_declaration)
                 .unwrap_or_else(|| {
-                    self.synthesize_implicit_static_parameter_constraint_type_for_source(
+                    self.synthesize_implicit_static_parameter_constraint(
                         parameter_id.into_any(),
                         types,
                     )
@@ -887,17 +811,14 @@ impl Compiler {
 
             match remote_declared {
                 Some(Some((remote_declared_type, remote_snapshot))) => self
-                    .import_type_from_remote_for_node(
+                    .import_remote_type_for_node(
                         source_id,
                         &remote_declared_type,
                         &remote_snapshot,
-                        symbol_id,
                         types,
                     ),
                 Some(None) => self.synthesize_semantic_error_type_for_source(source_id, types),
-                None => self.synthesize_implicit_static_parameter_constraint_type_for_source(
-                    source_id, types,
-                ),
+                None => self.synthesize_implicit_static_parameter_constraint(source_id, types),
             }
         };
 
@@ -954,7 +875,7 @@ impl Compiler {
                 symbols.insert(*symbol);
                 if let Some(static_arguments) = static_arguments {
                     for argument in static_arguments {
-                        self.collect_type_reference_symbols_in_static_argument(
+                        self.collect_type_reference_symbols_from_static_argument(
                             argument, types, symbols, visited,
                         );
                     }
@@ -1082,7 +1003,7 @@ impl Compiler {
     }
 
     /// Collect static parameter symbols referenced in a static argument.
-    pub(crate) fn collect_type_reference_symbols_in_static_argument(
+    pub(crate) fn collect_type_reference_symbols_from_static_argument(
         &self,
         argument: &StaticArgument,
         types: &TypeTable,
@@ -1092,7 +1013,7 @@ impl Compiler {
         match argument {
             StaticArgument::Unevaluated { .. } => {}
             StaticArgument::Evaluated { value, .. } => {
-                self.collect_type_reference_symbols_in_static_expression(
+                self.collect_type_reference_symbols_from_static_expression(
                     value, types, symbols, visited,
                 );
             }
@@ -1100,7 +1021,7 @@ impl Compiler {
     }
 
     /// Collect static parameter symbols referenced in a static expression.
-    pub(crate) fn collect_type_reference_symbols_in_static_expression(
+    pub(crate) fn collect_type_reference_symbols_from_static_expression(
         &self,
         expression: &StaticExpression,
         types: &TypeTable,
@@ -1119,7 +1040,7 @@ impl Compiler {
             } => {
                 if let Some(static_arguments) = static_arguments {
                     for argument in static_arguments {
-                        self.collect_type_reference_symbols_in_static_argument(
+                        self.collect_type_reference_symbols_from_static_argument(
                             argument, types, symbols, visited,
                         );
                     }
@@ -1128,14 +1049,14 @@ impl Compiler {
             StaticExpression::ArrayExpression { elements }
             | StaticExpression::TupleExpression { elements } => {
                 for element in elements {
-                    self.collect_type_reference_symbols_in_static_expression(
+                    self.collect_type_reference_symbols_from_static_expression(
                         element, types, symbols, visited,
                     );
                 }
             }
             StaticExpression::ObjectExpression { properties } => {
                 for property in properties {
-                    self.collect_type_reference_symbols_in_static_property(
+                    self.collect_type_reference_symbols_from_static_property(
                         property, types, symbols, visited,
                     );
                 }
@@ -1144,7 +1065,7 @@ impl Compiler {
     }
 
     /// Collect static parameter symbols referenced in a static property.
-    pub(crate) fn collect_type_reference_symbols_in_static_property(
+    pub(crate) fn collect_type_reference_symbols_from_static_property(
         &self,
         property: &StaticProperty,
         types: &TypeTable,
@@ -1154,17 +1075,17 @@ impl Compiler {
         match property {
             StaticProperty::Unevaluated { .. } => {}
             StaticProperty::Field { value, default, .. } => {
-                self.collect_type_reference_symbols_in_static_expression(
+                self.collect_type_reference_symbols_from_static_expression(
                     value, types, symbols, visited,
                 );
                 if let Some(default) = default {
-                    self.collect_type_reference_symbols_in_static_expression(
+                    self.collect_type_reference_symbols_from_static_expression(
                         default, types, symbols, visited,
                     );
                 }
             }
             StaticProperty::Method { body, .. } => {
-                self.collect_type_reference_symbols_in_static_expression(
+                self.collect_type_reference_symbols_from_static_expression(
                     body, types, symbols, visited,
                 );
             }

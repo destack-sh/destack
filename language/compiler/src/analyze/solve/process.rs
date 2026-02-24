@@ -55,19 +55,31 @@ impl Compiler {
 
         // load module tables and solve published infer constraints
         let options = self.analyze_context_options_for_module(module.id);
-        let dir = module.dir(profile);
-        let symbols = dir.symbols.read();
-        let mut types = dir.types.write();
-        self.with_infer_table_for_module(module_id, profile, |infer| {
-            if !infer.vars.is_empty() || !infer.constraints.is_empty() {
-                self.solve_infer_table(&module, profile, &symbols, infer, &mut types, &options);
-            }
+        self.with_infer_table_for_module_mut(module_id, profile, |infer| {
+            let tree = module.dir(profile).tree.read();
+            let symbols = module.dir(profile).symbols.read();
+            let mut types = module.dir(profile).types.write();
+            self.solve_infer_table(&module, profile, &symbols, infer, &mut types, &options);
+
+            self.rewrite_inferred_type_overlays_for_instance_substitutions(
+                &module, profile, &tree, &symbols, infer, &mut types,
+            )?;
+
+            self.discharge_projection_obligations_in_solve(&module, profile, infer, &mut types)?;
+            self.discharge_missing_member_obligations_in_solve(
+                &module, profile, infer, &mut types, &options,
+            )?;
+            self.discharge_relation_obligations_in_solve(
+                &module, profile, &symbols, infer, &mut types, &options,
+            )?;
+
+            Ok::<(), AnalyzeError>(())
         })
         .ok_or_else(|| AnalyzeError::Internal {
             message: format!(
                 "missing infer table for solve stage: module={module_id:?}, profile={profile:?}"
             ),
-        })?;
+        })??;
 
         Ok(())
     }

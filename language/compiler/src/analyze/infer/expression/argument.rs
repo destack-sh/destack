@@ -282,7 +282,7 @@ impl Compiler {
                     static_arguments,
                 }) => {
                     let symbol = self
-                        .remap_typevalue_symbol_to_canonical_type_space(module, profile, symbol)
+                        .remap_typevalue_symbol_to_type_space(module, profile, symbol)
                         .map_err(AnalyzeError::from)?;
                     Some((symbol, static_arguments))
                 }
@@ -2077,35 +2077,7 @@ impl Compiler {
         );
         let symbol = self.merged_type_symbol_id(module, symbols, profile, symbol);
 
-        self.resolve_type_reference_static_arguments_for_symbol(
-            module,
-            profile,
-            node_id,
-            symbol,
-            static_arguments,
-            validate_static_argument_bounds,
-            options,
-            tree,
-            symbols,
-            types,
-        )
-    }
-
-    /// Resolve static arguments for a canonicalized type reference.
-    pub(crate) fn resolve_type_reference_static_arguments_for_symbol(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        node_id: LocalNodeIdAny,
-        symbol: GlobalSymbolId,
-        static_arguments: Option<&[StaticArgument]>,
-        validate_static_argument_bounds: bool,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
-        self.resolve_type_reference_static_arguments_for_symbol_with_bound_substitutions(
+        self.resolve_type_reference_static_arguments_with_bounds(
             module,
             profile,
             node_id,
@@ -2121,7 +2093,7 @@ impl Compiler {
     }
 
     /// Resolve static arguments for a canonicalized type reference in one substitution environment.
-    pub(crate) fn resolve_type_reference_static_arguments_for_symbol_with_bound_substitutions(
+    pub(crate) fn resolve_type_reference_static_arguments_with_bounds(
         &self,
         module: &Module,
         profile: ProfileId,

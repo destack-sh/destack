@@ -56,7 +56,7 @@ impl InterfaceComponentGraphIndex {
 
 impl Compiler {
     /// Ensure direct resolve edges exist for one module's forward dependency closure.
-    pub(super) fn require_resolve_forward_closure_for_interface_component(
+    pub(super) fn require_interface_forward_closure(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
@@ -167,13 +167,13 @@ impl Compiler {
         }
 
         // compute strongly connected components once for this module domain
-        let components = self.interface_graph_strongly_connected_components(graph, &modules);
+        let components = self.interface_graph_scc(graph, &modules);
         if components.is_empty() {
             return InterfaceComponentGraphIndex::default();
         }
 
         // schedule components in deterministic topological order
-        let component_order = self.interface_graph_topological_component_order(graph, &components);
+        let component_order = self.interface_graph_component_order(graph, &components);
         let mut ordered_components = Vec::with_capacity(component_order.len());
         for component_id in component_order {
             if let Some(component_modules) = components.get(component_id) {
@@ -254,11 +254,7 @@ impl Compiler {
     }
 
     /// Compute strongly connected components for one graph domain.
-    fn interface_graph_strongly_connected_components(
-        &self,
-        graph: &ModuleGraph,
-        modules: &[ModuleId],
-    ) -> Vec<Vec<ModuleId>> {
+    fn interface_graph_scc(&self, graph: &ModuleGraph, modules: &[ModuleId]) -> Vec<Vec<ModuleId>> {
         let module_domain: FxHashSet<_> = modules.iter().copied().collect();
 
         // first pass: collect finish order on dependency edges
@@ -329,7 +325,7 @@ impl Compiler {
     }
 
     /// Build one deterministic topological component order.
-    fn interface_graph_topological_component_order(
+    fn interface_graph_component_order(
         &self,
         graph: &ModuleGraph,
         components: &[Vec<ModuleId>],

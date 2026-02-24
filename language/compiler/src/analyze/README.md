@@ -235,7 +235,7 @@ Infer is where most semantic decisions become provisional semantic records.
 Infer records obligations when correctness depends on solved substitutions or solved receiver state.
 Solve resolves placeholder operands and canonicalizes substitutions used by those obligations.
 Commit discharges obligations in deterministic order and emits diagnostics when checks fail.
-Validate is read-only over committed state and does not mutate obligation payloads.
+Validate is read-only over committed state and does not mutate obligation state.
 
 ### Instantiation And Resolution Record Contract
 
@@ -247,7 +247,7 @@ Node placement does not own instance identity.
 Resolution ownership stays in `resolution_by_node_id`.
 
 Infer records one `Instantiation Event` whenever a node materializes concrete static substitutions for one symbol.
-Each event records provisional node linkage and unresolved or solved substitution payloads for Solve.
+Each event records provisional node linkage and unresolved or solved substitution state for Solve.
 Unevaluated or unresolved static arguments must not commit instances.
 
 Infer records static and dynamic dispatch outcomes through provisional resolution records.
@@ -352,7 +352,7 @@ Solve is deterministic and semantically read-write only over infer-owned provisi
 - Run fixed-point convergence for interface-sensitive and projection-sensitive equations.
 - Canonicalize substitutions and zonk provisional type references.
 - Resolve deferred obligation operands against solved state.
-- Prepare canonical commit payloads for Commit.
+- Prepare canonical commit state for Commit.
 
 ### Solve Inputs And Outputs
 
@@ -360,8 +360,8 @@ Solve is deterministic and semantically read-write only over infer-owned provisi
 | --- | --- |
 | input | Infer provisional constraints, obligations, and records |
 | output: solved substitutions | Canonical static and type substitutions |
-| output: solved record payloads | Commit-ready resolution and instantiation payloads |
-| output: solved obligation payloads | Deferred diagnostics with solved operand state |
+| output: solved records | Commit-ready resolution and instantiation state |
+| output: solved obligations | Deferred diagnostics with solved operand state |
 
 ### Solve Must Not
 
