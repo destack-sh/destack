@@ -524,9 +524,14 @@ pub(crate) fn syscall_getpgid(pid: ProcessId) -> RuntimeResult<ProcessId> {
 /// Read process priority through direct unix syscalls.
 #[cfg(unix)]
 pub(crate) fn syscall_get_priority(pid: ProcessId) -> RuntimeResult<i32> {
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(target_os = "linux")]
     unsafe fn errno_location() -> *mut libc::c_int {
         unsafe { libc::__errno_location() }
+    }
+
+    #[cfg(target_os = "android")]
+    unsafe fn errno_location() -> *mut libc::c_int {
+        unsafe { libc::__errno() }
     }
 
     #[cfg(any(

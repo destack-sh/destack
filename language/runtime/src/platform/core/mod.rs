@@ -10,10 +10,10 @@ mod winsock;
 pub(crate) use errno::{get_errno, set_errno};
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use unix::io_error_with_errno;
+#[cfg(target_os = "linux")]
+pub(crate) use unix::load_dynamic_symbol_named;
 #[cfg(any(target_os = "linux", target_os = "android"))]
-pub(crate) use unix::{
-    close_dynamic_library, load_dynamic_symbol, load_dynamic_symbol_named, open_dynamic_library,
-};
+pub(crate) use unix::{close_dynamic_library, load_dynamic_symbol, open_dynamic_library};
 #[cfg(unix)]
 pub(crate) use unix::{io_error, net_error};
 #[cfg(windows)]

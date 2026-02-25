@@ -225,7 +225,13 @@ pub(crate) unsafe fn destack_process_fexec(
     let arguments = unsafe { decode_native_strings(arguments)? };
     let environment = unsafe { decode_native_strings(environment)? };
 
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "freebsd",
+        target_os = "dragonfly",
+        target_os = "netbsd",
+        target_os = "openbsd"
+    ))]
     {
         let executable_name = CString::new("fd-exec").map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
@@ -258,7 +264,6 @@ pub(crate) unsafe fn destack_process_fexec(
 
     #[cfg(not(any(
         target_os = "linux",
-        target_os = "android",
         target_os = "freebsd",
         target_os = "dragonfly",
         target_os = "netbsd",

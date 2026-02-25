@@ -58,7 +58,7 @@ where
 }
 
 /// Load one typed symbol from one dynamic-library handle using one UTF-8 name.
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(target_os = "linux")]
 pub(crate) fn load_dynamic_symbol_named<T>(handle: *mut c_void, name: &str) -> Option<T>
 where
     T: Copy,
