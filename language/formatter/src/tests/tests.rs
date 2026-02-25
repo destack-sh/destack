@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
-use crate::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions};
+use crate::{DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_ast::{NodeParentIndex, NodeTree, TokenSpan};
 use destack_base::ImmutableStringPool;
 use destack_fir::format;
 use destack_fir::format::Format;
 use destack_parser::{ParseResult, Parser};
-use destack_source::{File, FileId, FileType, LanguageType, MultiSpan, Uri};
+use destack_source::{
+    DiffOptions, File, FileId, FileType, LanguageType, MultiSpan, Uri, print_diff,
+};
 
 /// A test wrapper for Formatter.
 #[derive(Debug)]
@@ -101,6 +103,84 @@ impl TestFormatter {
     }
 }
 
+/// Assert formatter output and print a diff on mismatch.
+#[track_caller]
+pub(crate) fn assert_format_output_eq(expected: impl AsRef<str>, actual: impl AsRef<str>) {
+    let expected = expected.as_ref();
+    let actual = actual.as_ref();
+
+    if actual != expected {
+        print_diff(expected, actual, &DiffOptions::new());
+        panic!("formatter output mismatch");
+    }
+}
+
+/// Assert one expected format output and enforce second-pass roundtrip stability.
+pub(crate) fn assert_format_roundtrip_with_file_type<F, N>(
+    input: &str,
+    expected: &str,
+    file_type: FileType,
+    parse_fn: F,
+    options: DestackFormatOptions,
+) where
+    F: Fn(&mut Parser) -> ParseResult<N> + Copy,
+    N: for<'a> Format<DestackFormatContext<'a>>,
+{
+    let (first_formatter, first_node_id) =
+        TestFormatter::parse_with_file_type(input, file_type, parse_fn)
+            .expect("parse first-pass source");
+    let first_output = first_formatter.format(&first_node_id, options.clone());
+    assert_format_output_eq(expected, &first_output);
+
+    let (second_formatter, second_node_id) =
+        TestFormatter::parse_with_file_type(&first_output, file_type, parse_fn)
+            .expect("parse second-pass source");
+    let second_output = second_formatter.format(&second_node_id, options);
+    assert_format_output_eq(&first_output, &second_output);
+}
+
+/// Assert formatter idempotence after one formatting pass.
+pub(crate) fn assert_format_idempotent_with_file_type<F, N>(
+    input: &str,
+    file_type: FileType,
+    parse_fn: F,
+    options: DestackFormatOptions,
+) where
+    F: Fn(&mut Parser) -> ParseResult<N> + Copy,
+    N: for<'a> Format<DestackFormatContext<'a>>,
+{
+    let (first_formatter, first_node_id) =
+        TestFormatter::parse_with_file_type(input, file_type, parse_fn)
+            .expect("parse first-pass source");
+    let first_output = first_formatter.format(&first_node_id, options.clone());
+
+    let (second_formatter, second_node_id) =
+        TestFormatter::parse_with_file_type(&first_output, file_type, parse_fn)
+            .expect("parse second-pass source");
+    let second_output = second_formatter.format(&second_node_id, options);
+    assert_format_output_eq(&first_output, &second_output);
+}
+
+/// Assert one expected program output and enforce second-pass roundtrip stability.
+pub(crate) fn assert_format_program_roundtrip_with_file_type(
+    input: &str,
+    expected: &str,
+    file_type: FileType,
+    options: DestackFormatOptions,
+) {
+    let (first_formatter, first_roots) =
+        TestFormatter::parse_with_file_type(input, file_type, |p| Ok(p.parse()))
+            .expect("parse first-pass source");
+    let first_output = first_formatter.format(&statement_list(&first_roots), options.clone());
+    assert_format_output_eq(expected, &first_output);
+
+    let (second_formatter, second_roots) =
+        TestFormatter::parse_with_file_type(&first_output, file_type, |p| Ok(p.parse()))
+            .expect("parse second-pass source");
+    let second_output = second_formatter.format(&statement_list(&second_roots), options);
+    assert_format_output_eq(&first_output, &second_output);
+}
+
 /// Assert that some input string formats to some output string as expected.
 ///
 /// Examples:
@@ -131,21 +211,21 @@ macro_rules! assert_format {
     ($input:expr, $output:expr) => {
         let (test, stmt_id) = TestFormatter::parse($input, |p| p.eat_statement()).unwrap();
         let formatted = test.format(&stmt_id, DestackFormatOptions::default());
-        assert_eq!(formatted, $output);
+        $crate::assert_format_output_eq($output, &formatted);
     };
 
     // Format an arbitrary node.
     ($input:expr, $output:expr, $parse_fn:expr) => {
         let (test, node_id) = TestFormatter::parse($input, $parse_fn).unwrap();
         let formatted = test.format(&node_id, DestackFormatOptions::default());
-        assert_eq!(formatted, $output);
+        $crate::assert_format_output_eq($output, &formatted);
     };
 
     // Format an arbitrary node with options.
     ($input:expr, $output:expr, $parse_fn:expr, $options:expr) => {
         let (test, node_id) = TestFormatter::parse($input, $parse_fn).unwrap();
         let formatted = test.format(&node_id, $options);
-        assert_eq!(formatted, $output);
+        $crate::assert_format_output_eq($output, &formatted);
     };
 
     // Format an arbitrary node with options.
@@ -153,6 +233,6 @@ macro_rules! assert_format {
         let (test, node_id) = TestFormatter::parse($input, $parse_fn).unwrap();
         let node = $get_fn(&test.tree, node_id);
         let formatted = test.format(&node, $options);
-        assert_eq!(formatted, $output);
+        $crate::assert_format_output_eq($output, &formatted);
     };
 }
