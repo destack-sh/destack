@@ -269,9 +269,7 @@ impl Parser {
             };
 
         // keep the binding head on the same line
-        let Some(declarator_cursor) = self.using_binding_head_cursor(using_index) else {
-            return None;
-        };
+        let declarator_cursor = self.using_binding_head_cursor(using_index)?;
 
         // using bindings start with a binding pattern shape
         let declarator_token_type = declarator_cursor.token_type;

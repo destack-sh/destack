@@ -8,6 +8,7 @@ use destack_ast::{
 
 use super::common::{DECLARATION_START_TOKENS, is_type_relation_keyword};
 
+#[allow(clippy::too_many_arguments)]
 impl Parser {
     /// Return true when a token can start a function signature head.
     #[inline]

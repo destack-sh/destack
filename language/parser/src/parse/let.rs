@@ -366,18 +366,7 @@ impl Parser {
                     );
                     self.tree.set_main_span(pattern_id, name_span);
                     pattern_id
-                } else {
-                    if self.options == pattern_options {
-                        self.eat_pattern()?
-                    } else {
-                        let old_options = self.swap_options(pattern_options);
-                        let pattern_result = self.eat_pattern();
-                        self.restore_options(old_options);
-                        pattern_result?
-                    }
-                }
-            } else {
-                if self.options == pattern_options {
+                } else if self.options == pattern_options {
                     self.eat_pattern()?
                 } else {
                     let old_options = self.swap_options(pattern_options);
@@ -385,9 +374,7 @@ impl Parser {
                     self.restore_options(old_options);
                     pattern_result?
                 }
-            }
-        } else {
-            if self.options == pattern_options {
+            } else if self.options == pattern_options {
                 self.eat_pattern()?
             } else {
                 let old_options = self.swap_options(pattern_options);
@@ -395,6 +382,13 @@ impl Parser {
                 self.restore_options(old_options);
                 pattern_result?
             }
+        } else if self.options == pattern_options {
+            self.eat_pattern()?
+        } else {
+            let old_options = self.swap_options(pattern_options);
+            let pattern_result = self.eat_pattern();
+            self.restore_options(old_options);
+            pattern_result?
         };
 
         // declaration declarators must use binding patterns
