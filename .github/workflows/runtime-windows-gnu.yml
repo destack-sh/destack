@@ -1,4 +1,4 @@
-name: Runtime Windows
+name: Runtime Windows GNU
 
 on:
   workflow_call:
@@ -12,10 +12,10 @@ permissions:
   contents: read
 
 jobs:
-  runtime-windows:
-    name: Runtime Windows
-    runs-on: windows-latest
-    timeout-minutes: 90
+  runtime-windows-gnu:
+    name: Runtime Windows GNU
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -26,8 +26,19 @@ jobs:
         run: |
           rustup toolchain install "${{ inputs.rust_toolchain }}" --profile minimal --component clippy
           rustup default "${{ inputs.rust_toolchain }}"
+          rustup target add x86_64-pc-windows-gnu
           rustc --version
           cargo --version
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@53fc45b17fe98b52f92ee5ea08ff48a85a3e7eb7
+        with:
+          version: 0.15.2
+
+      - name: Install Wine
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wine64
 
       - name: Restore Rust cache
         uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
@@ -35,5 +46,5 @@ jobs:
       - name: Install just
         uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
-      - name: Run windows runtime check
-        run: just check-runtime-windows-host
+      - name: Run windows gnu runtime checks
+        run: just check-runtime-windows-gnu

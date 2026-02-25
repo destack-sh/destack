@@ -1,4 +1,4 @@
-name: Runtime Windows
+name: Runtime Cross Targets
 
 on:
   workflow_call:
@@ -12,9 +12,9 @@ permissions:
   contents: read
 
 jobs:
-  runtime-windows:
-    name: Runtime Windows
-    runs-on: windows-latest
+  runtime-cross-targets:
+    name: Runtime Cross Targets
+    runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
       - name: Checkout
@@ -24,10 +24,16 @@ jobs:
 
       - name: Install Rust toolchain
         run: |
-          rustup toolchain install "${{ inputs.rust_toolchain }}" --profile minimal --component clippy
+          rustup toolchain install "${{ inputs.rust_toolchain }}" --profile minimal
           rustup default "${{ inputs.rust_toolchain }}"
+          rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-gnu
           rustc --version
           cargo --version
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@53fc45b17fe98b52f92ee5ea08ff48a85a3e7eb7
+        with:
+          version: 0.15.2
 
       - name: Restore Rust cache
         uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
@@ -35,5 +41,5 @@ jobs:
       - name: Install just
         uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
-      - name: Run windows runtime check
-        run: just check-runtime-windows-host
+      - name: Run runtime cross-target checks
+        run: just check-runtime-cross-targets

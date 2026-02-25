@@ -1,4 +1,4 @@
-name: Runtime Windows
+name: Runtime WASIp1
 
 on:
   workflow_call:
@@ -12,10 +12,10 @@ permissions:
   contents: read
 
 jobs:
-  runtime-windows:
-    name: Runtime Windows
-    runs-on: windows-latest
-    timeout-minutes: 90
+  runtime-wasip1:
+    name: Runtime WASIp1
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -24,8 +24,9 @@ jobs:
 
       - name: Install Rust toolchain
         run: |
-          rustup toolchain install "${{ inputs.rust_toolchain }}" --profile minimal --component clippy
+          rustup toolchain install "${{ inputs.rust_toolchain }}" --profile minimal
           rustup default "${{ inputs.rust_toolchain }}"
+          rustup target add wasm32-wasip1
           rustc --version
           cargo --version
 
@@ -35,5 +36,5 @@ jobs:
       - name: Install just
         uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
-      - name: Run windows runtime check
-        run: just check-runtime-windows-host
+      - name: Run wasip1 runtime check
+        run: just check-runtime-wasip1

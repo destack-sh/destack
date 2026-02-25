@@ -144,6 +144,14 @@ jobs:
     with:
       rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
+  runtime-linux:
+    name: Runtime Linux
+    needs:
+      - verify
+    uses: ./.github/workflows/runtime-linux.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
   runtime-macos:
     name: Runtime macOS
     needs:
@@ -160,6 +168,137 @@ jobs:
     with:
       rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
+  runtime-windows-gnu:
+    name: Runtime Windows GNU
+    needs:
+      - verify
+    uses: ./.github/workflows/runtime-windows-gnu.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+  runtime-wasip1:
+    name: Runtime WASIp1
+    needs:
+      - verify
+    uses: ./.github/workflows/runtime-wasip1.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+  release-smoke-runtime-unix:
+    name: Runtime Release Smoke (${{ matrix.id }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    needs:
+      - verify
+      - runtime-linux
+      - runtime-macos
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: linux-x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - id: linux-aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+          - id: macos-aarch64
+            runner: macos-14
+            target: aarch64-apple-darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          rustup default "${RUST_TOOLCHAIN}"
+          rustup target add "${{ matrix.target }}"
+          rustc --version
+          cargo --version
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
+
+      - name: Build runtime smoke release binary
+        run: cargo build --release -p destack_runtime --bin runtime-smoke --target "${{ matrix.target }}"
+
+      - name: Run runtime smoke release binary
+        run: "./target/${{ matrix.target }}/release/runtime-smoke"
+
+  release-smoke-runtime-windows:
+    name: Runtime Release Smoke (windows-msvc)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    needs:
+      - verify
+      - runtime-windows
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          rustup default "${RUST_TOOLCHAIN}"
+          rustup target add x86_64-pc-windows-msvc
+          rustc --version
+          cargo --version
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
+
+      - name: Build runtime smoke release binary
+        run: cargo build --release -p destack_runtime --bin runtime-smoke --target x86_64-pc-windows-msvc
+
+      - name: Run runtime smoke release binary
+        shell: powershell
+        run: .\target\x86_64-pc-windows-msvc\release\runtime-smoke.exe
+
+  release-smoke-runtime-windows-gnu:
+    name: Runtime Release Smoke (windows-gnu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs:
+      - verify
+      - runtime-windows-gnu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          rustup default "${RUST_TOOLCHAIN}"
+          rustup target add x86_64-pc-windows-gnu
+          rustc --version
+          cargo --version
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@53fc45b17fe98b52f92ee5ea08ff48a85a3e7eb7
+        with:
+          version: 0.15.2
+
+      - name: Install Wine
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wine64
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5
+
+      - name: Build runtime smoke release binary
+        run: cargo build --release -p destack_runtime --bin runtime-smoke --target x86_64-pc-windows-gnu
+
+      - name: Run runtime smoke release binary
+        run: WINEDEBUG="${WINEDEBUG:--all}" wine "./target/x86_64-pc-windows-gnu/release/runtime-smoke.exe"
+
   build-artifacts:
     name: Build Release Artifacts
     runs-on: ubuntu-latest
@@ -168,8 +307,14 @@ jobs:
       - verify
       - runtime-android
       - runtime-ios
+      - runtime-linux
       - runtime-macos
       - runtime-windows
+      - runtime-windows-gnu
+      - runtime-wasip1
+      - release-smoke-runtime-unix
+      - release-smoke-runtime-windows
+      - release-smoke-runtime-windows-gnu
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -212,8 +357,14 @@ jobs:
       - verify
       - runtime-android
       - runtime-ios
+      - runtime-linux
       - runtime-macos
       - runtime-windows
+      - runtime-windows-gnu
+      - runtime-wasip1
+      - release-smoke-runtime-unix
+      - release-smoke-runtime-windows
+      - release-smoke-runtime-windows-gnu
     strategy:
       fail-fast: false
       matrix:

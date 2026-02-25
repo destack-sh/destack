@@ -209,6 +209,14 @@ jobs:
     with:
       rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
+  runtime-linux:
+    name: Runtime Linux
+    needs:
+      - nightly-core
+    uses: ./.github/workflows/runtime-linux.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
   runtime-macos:
     name: Runtime macOS
     needs:
@@ -222,5 +230,21 @@ jobs:
     needs:
       - nightly-core
     uses: ./.github/workflows/runtime-windows.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+  runtime-windows-gnu:
+    name: Runtime Windows GNU
+    needs:
+      - nightly-core
+    uses: ./.github/workflows/runtime-windows-gnu.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+  runtime-wasip1:
+    name: Runtime WASIp1
+    needs:
+      - nightly-core
+    uses: ./.github/workflows/runtime-wasip1.yml
     with:
       rust_toolchain: ${{ env.RUST_TOOLCHAIN }}

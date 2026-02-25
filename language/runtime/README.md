@@ -96,6 +96,12 @@ Primary references are listed below.
 | Android Activity lifecycle docs (`https://developer.android.com/guide/components/activities/activity-lifecycle`) | Canonical callback ordering and meaning (`onCreate`, `onStart`, `onResume`, `onPause`, `onStop`, `onDestroy`). |
 | Apple app lifecycle docs (`https://developer.apple.com/documentation/appkit/nsapplicationdelegate`) | Canonical application callback meanings (`applicationDidFinishLaunching`, `applicationDidBecomeActive`, `applicationWillResignActive`, `applicationWillTerminate`). |
 
+## Target Support Matrix
+
+Runtime target support policy is defined in the repo-wide `TARGETS.md`.
+`workspace` build `Platform` configuration selects product build behavior, while target support tiers define runtime and CI guarantees by Rust target triple.
+Runtime-specific support rows are maintained in `../../TARGETS.md` under the runtime support view.
+
 ## Modules
 
 Every platform module follows one canonical layout.
@@ -296,5 +302,24 @@ cargo test -p destack_runtime
 
 ```sh
 just language/test-runtime-privileged
-just language/test-windows-runtime
+just language/test-runtime-windows-cross
+```
+
+### Test layers
+
+Runtime testing follows a layered model.
+Contract tests validate runtime behavior and binding semantics.
+Smoke tests validate that target binaries link, boot, and run one minimal runtime pass.
+Integration tests validate host-facing behavior, including privileged lanes where required.
+
+### Tier 1 runtime checks
+
+Run one Tier 1 lane per host environment.
+Linux and windows-gnu lanes include smoke execution by default.
+
+```sh
+just check-runtime-linux
+just check-runtime-macos
+just check-runtime-windows-host
+just check-runtime-windows-gnu
 ```

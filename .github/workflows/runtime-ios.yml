@@ -44,6 +44,6 @@ jobs:
         uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Run iOS runtime check
-        run: just language/check-runtime-ios
+        run: just check-runtime-ios
         env:
           IOS_DEPLOYMENT_TARGET: ${{ env.IOS_DEPLOYMENT_TARGET }}

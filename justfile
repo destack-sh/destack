@@ -55,6 +55,7 @@ ci-platform:
 
 # run all blocking ci gates locally
 ci:
+    just check-ci-hygiene
     just ci-language
     just ci-library
     just ci-client
@@ -66,10 +67,78 @@ precommit:
 
 # check everything
 check:
+    just check-ci-hygiene
     just language/check
     just library/check
     just client/check
     just platform/check
+
+# lint ci workflows and shell scripts with strict policy checks
+check-ci-hygiene:
+    actionlint
+    shellcheck .github/scripts/*.sh scripts/toolchain/*.sh scripts/ci/*.sh
+    shfmt -d .github/scripts/*.sh scripts/toolchain/*.sh scripts/ci/*.sh
+    ./scripts/ci/check-target-policy-sync.sh
+    ./scripts/ci/check-branch-protection-check-names.sh
+    ./scripts/ci/check-release-tier1-dependencies.sh
+    # runtime workflows should go through top-level just wrappers
+    if rg -n "run: just language/check-runtime-" .github/workflows/runtime-*.yml; then \
+        echo "runtime workflows must call top-level just check-runtime-* wrappers"; \
+        exit 1; \
+    fi
+    # cross compiler env should resolve via toolchain wrappers, not inline zig cc commands
+    if rg -n "CC_[A-Za-z0-9_]+.*zig cc -target" justfile language/justfile .github/workflows/*.yml; then \
+        echo "inline zig cc toolchain env is not allowed, use scripts/toolchain wrappers"; \
+        exit 1; \
+    fi
+    # tier 1 runtime workflow files should exist
+    if [ ! -f .github/workflows/runtime-linux.yml ] || [ ! -f .github/workflows/runtime-windows-gnu.yml ]; then \
+        echo "missing required tier 1 runtime workflows"; \
+        exit 1; \
+    fi
+    # ci should call all tier 1 runtime lanes
+    if ! rg -n "^  runtime-linux:" .github/workflows/ci.yml >/dev/null; then \
+        echo "ci.yml missing runtime-linux tier 1 lane"; \
+        exit 1; \
+    fi
+    if ! rg -n "^  runtime-macos:" .github/workflows/ci.yml >/dev/null; then \
+        echo "ci.yml missing runtime-macos tier 1 lane"; \
+        exit 1; \
+    fi
+    if ! rg -n "^  runtime-windows:" .github/workflows/ci.yml >/dev/null; then \
+        echo "ci.yml missing runtime-windows tier 1 lane"; \
+        exit 1; \
+    fi
+    if ! rg -n "^  runtime-windows-gnu:" .github/workflows/ci.yml >/dev/null; then \
+        echo "ci.yml missing runtime-windows-gnu tier 1 lane"; \
+        exit 1; \
+    fi
+    # runtime linux tier 1 lane should test both host architectures
+    if ! rg -n "arch: x86_64" .github/workflows/runtime-linux.yml >/dev/null; then \
+        echo "runtime-linux.yml missing x86_64 host lane"; \
+        exit 1; \
+    fi
+    if ! rg -n "arch: aarch64" .github/workflows/runtime-linux.yml >/dev/null; then \
+        echo "runtime-linux.yml missing aarch64 host lane"; \
+        exit 1; \
+    fi
+    # tier 1 rows in target policy should include linux and windows gnu
+    if ! rg -n "^\\| `x86_64-unknown-linux-gnu` \\| Tier 1 \\|" TARGETS.md >/dev/null; then \
+        echo "TARGETS.md must keep x86_64-unknown-linux-gnu in Tier 1"; \
+        exit 1; \
+    fi
+    if ! rg -n "^\\| `aarch64-unknown-linux-gnu` \\| Tier 1 \\|" TARGETS.md >/dev/null; then \
+        echo "TARGETS.md must keep aarch64-unknown-linux-gnu in Tier 1"; \
+        exit 1; \
+    fi
+    if ! rg -n "^\\| `x86_64-pc-windows-gnu` \\| Tier 1 \\|" TARGETS.md >/dev/null; then \
+        echo "TARGETS.md must keep x86_64-pc-windows-gnu in Tier 1"; \
+        exit 1; \
+    fi
+
+# apply github branch protection for tier 1 runtime checks
+apply-branch-protection *args:
+    ./scripts/ci/apply-branch-protection.sh {{args}}
 
 # build everything
 build:
@@ -144,6 +213,14 @@ check-runtime-android:
 check-runtime-ios:
     just language/check-runtime-ios
 
+# run language runtime wasip1 target checks
+check-runtime-wasip1:
+    just language/check-runtime-wasip1
+
+# run language runtime linux host checks
+check-runtime-linux:
+    just language/check-runtime-linux
+
 # run language runtime macos host checks
 check-runtime-macos:
     just language/check-runtime-macos
@@ -151,6 +228,10 @@ check-runtime-macos:
 # run language runtime windows host checks
 check-runtime-windows-host:
     just language/check-runtime-windows-host
+
+# run language runtime windows gnu target checks with runnable tests
+check-runtime-windows-gnu:
+    just language/check-runtime-windows-gnu
 
 # run language runtime windows target checks via zig cross
 check-runtime-windows-cross:
@@ -160,6 +241,9 @@ check-runtime-windows-cross:
 test-windows-resolver:
     just language/test-windows-resolver
 
+# run language runtime cross-target checks
+check-runtime-cross-targets:
+    just language/check-runtime-cross-targets
 # run privileged language runtime platform tests
 test-runtime-privileged:
     just language/test-runtime-privileged
