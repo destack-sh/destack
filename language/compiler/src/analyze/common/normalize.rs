@@ -151,19 +151,13 @@ impl Compiler {
     /// Normalize a type id for the given mode.
     pub(crate) fn normalize_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         mode: NormalizationMode,
     ) -> LocalTypeId {
         self.normalize_type_with_relation(
-            module,
-            profile,
+            &mut tables.reborrow(),
             type_id,
-            symbols,
-            types,
             mode,
             RelationMode::ASSIGN,
         )
@@ -172,11 +166,8 @@ impl Compiler {
     /// Normalize a type id for the given mode and relation.
     pub(crate) fn normalize_type_with_relation(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         mode: NormalizationMode,
         relation_mode: RelationMode,
     ) -> LocalTypeId {
@@ -184,11 +175,8 @@ impl Compiler {
 
         let mut visited = Vec::new();
         self.normalize_type_inner(
-            module,
-            profile,
+            &mut tables.reborrow(),
             type_id,
-            symbols,
-            types,
             mode,
             relation_mode,
             &mut visited,
@@ -198,19 +186,13 @@ impl Compiler {
     /// Normalize a type for assignability checks.
     pub(crate) fn normalize_type_for_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> LocalTypeId {
         // normalize the apparent return type first
         let normalized = self.normalize_apparent_type(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             type_id,
-            symbols,
-            types,
             NormalizationMode::Assign,
             RelationMode::ASSIGN,
         );
@@ -224,7 +206,7 @@ impl Compiler {
         let Type::Reference {
             symbol,
             static_arguments,
-        } = types.get_type(type_id).clone()
+        } = type_tables.types.get_type(type_id).clone()
         else {
             return normalized;
         };
@@ -236,21 +218,17 @@ impl Compiler {
         };
 
         // load the alias target for substitution
-        let source_id = types.get_type_source(type_id);
-        let Some(alias_target_id) = self
-            .alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
+        let source_id = type_tables.types.get_type_source(type_id);
+        let Some(alias_target_id) =
+            self.alias_target_type_id_for_symbol(&mut type_tables.reborrow(), symbol, source_id)
         else {
             return normalized;
         };
 
         // resolve static arguments for substitution
-        let tree = module.dir(profile).tree.read();
-        let options = self.analyze_context_options_for_module(module.id);
-        let mut type_tables =
-            TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
         let resolved_arguments = self
             .resolve_type_reference_static_arguments(
-                &mut type_tables,
+                &mut type_tables.reborrow(),
                 source_id,
                 symbol,
                 Some(arguments.as_slice()),
@@ -269,37 +247,32 @@ impl Compiler {
         );
         if substitutions.is_empty() {
             return self.normalize_type(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 alias_target_id,
-                symbols,
-                types,
                 NormalizationMode::Assign,
             );
         }
 
         // apply substitutions and normalize the result
         let mut cache = HashMap::new();
-        let substituted =
-            self.substitute_static_parameters(alias_target_id, &substitutions, types, &mut cache);
+        let substituted = self.substitute_static_parameters(
+            alias_target_id,
+            &substitutions,
+            type_tables.types,
+            &mut cache,
+        );
         self.normalize_type(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             substituted,
-            symbols,
-            types,
             NormalizationMode::Assign,
         )
     }
 
     /// Normalize a type id with a recursion guard.
-    pub(super) fn normalize_type_inner(
+    pub(crate) fn normalize_type_inner(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         mode: NormalizationMode,
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
@@ -308,52 +281,50 @@ impl Compiler {
         // reuse cached normalization when available
         let relation_key = relation_mode.cache_key();
         if relation_mode.is_cacheable()
-            && let Some(entry) = types.get_normalized_type(mode, relation_key, type_id)
+            && let Some(entry) = tables
+                .types
+                .get_normalized_type(mode, relation_key, type_id)
         {
             for (dependency_id, _) in &entry.dependency_versions.type_versions {
-                types.record_normalization_dependency(*dependency_id);
+                tables.types.record_normalization_dependency(*dependency_id);
             }
             for (dependency_id, _) in &entry.dependency_versions.symbol_versions {
-                types.record_normalization_symbol_dependency(*dependency_id);
+                tables
+                    .types
+                    .record_normalization_symbol_dependency(*dependency_id);
             }
             return entry.normalized_type;
         }
 
-        // avoid infinite recursion on self referential types
+        // avoid infinite recursion on self referential tables.types
         if visited.contains(&type_id) {
-            types.record_normalization_dependency(type_id);
+            tables.types.record_normalization_dependency(type_id);
             return type_id;
         }
 
         // collect dependencies for this normalization pass
-        types.push_normalization_dependency_scope();
-        types.record_normalization_dependency(type_id);
+        tables.types.push_normalization_dependency_scope();
+        tables.types.record_normalization_dependency(type_id);
         visited.push(type_id);
 
         // keep the source id for any normalized replacement
-        let source_id = types.get_type_source(type_id);
-        let ty = types.get_type(type_id).clone();
+        let source_id = tables.types.get_type_source(type_id);
+        let ty = tables.types.get_type(type_id).clone();
 
         // normalize based on structural shape
         let normalized_id = match ty {
             Type::Union { elements } => self.normalize_union_type(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 type_id,
                 &elements,
-                symbols,
-                types,
                 mode,
                 relation_mode,
                 visited,
             ),
             Type::Intersection { elements } => self.normalize_intersection_type(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 type_id,
                 &elements,
-                symbols,
-                types,
                 mode,
                 relation_mode,
                 visited,
@@ -362,20 +333,18 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => {
-                // normalize reference symbols to their declared type
-                let normalized_symbol = self.normalize_reference_symbol_id(module, profile, symbol);
+                // normalize reference tables.symbols to their declared type
+                let normalized_symbol =
+                    self.normalize_reference_symbol_id(tables.module, tables.profile, symbol);
                 if normalized_symbol != symbol {
                     let normalized = Type::Reference {
                         symbol: normalized_symbol,
                         static_arguments,
                     };
-                    let normalized_id = types.insert_type_from_any(normalized, source_id);
+                    let normalized_id = tables.types.insert_type_from_any(normalized, source_id);
                     self.normalize_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         normalized_id,
-                        symbols,
-                        types,
                         mode,
                         relation_mode,
                         visited,
@@ -385,33 +354,31 @@ impl Compiler {
 
                     // follow import targets while preserving alias identity
                     let symbol = self.canonical_symbol_id(
-                        module,
-                        symbols,
-                        profile,
+                        tables.module,
+                        tables.symbols,
+                        tables.profile,
                         symbol,
                         CanonicalSymbolMode::PreserveAliases,
                     );
 
                     // rewrite well known references to canonical shapes
-                    if let Some(well_known) = self.well_known_array_kind(profile, symbol)
+                    if let Some(well_known) = self.well_known_array_kind(tables.profile, symbol)
                         && let Some(normalized) = self.normalize_well_known_type_reference(
-                            module,
-                            symbols,
-                            profile,
+                            tables.module,
+                            tables.symbols,
+                            tables.profile,
                             source_id,
                             symbol,
                             well_known,
                             static_arguments.as_deref(),
-                            types,
+                            tables.types,
                         )
                     {
-                        let normalized_id = types.insert_type_from_any(normalized, source_id);
+                        let normalized_id =
+                            tables.types.insert_type_from_any(normalized, source_id);
                         self.normalize_type_inner(
-                            module,
-                            profile,
+                            &mut tables.reborrow(),
                             normalized_id,
-                            symbols,
-                            types,
                             mode,
                             relation_mode,
                             visited,
@@ -421,38 +388,29 @@ impl Compiler {
                     else if symbol.ty() == SymbolType::TypeAlias {
                         let arguments = static_arguments.as_deref().unwrap_or(&[]);
                         let expanded = self.normalize_type_alias_reference_with_arguments(
-                            module,
-                            profile,
+                            &mut tables.reborrow(),
                             source_id,
                             symbol,
                             arguments,
-                            symbols,
-                            types,
                             mode,
                             relation_mode,
                             visited,
                         );
                         if let Some(expanded) = expanded {
                             self.normalize_type_inner(
-                                module,
-                                profile,
+                                &mut tables.reborrow(),
                                 expanded,
-                                symbols,
-                                types,
                                 mode,
                                 relation_mode,
                                 visited,
                             )
                         } else {
                             let unwrapped =
-                                self.unwrap_normalization_alias_reference(type_id, types);
+                                self.unwrap_normalization_alias_reference(type_id, tables.types);
                             if unwrapped != type_id {
                                 self.normalize_type_inner(
-                                    module,
-                                    profile,
+                                    &mut tables.reborrow(),
                                     unwrapped,
-                                    symbols,
-                                    types,
                                     mode,
                                     relation_mode,
                                     visited,
@@ -462,14 +420,12 @@ impl Compiler {
                             }
                         }
                     } else {
-                        let unwrapped = self.unwrap_normalization_alias_reference(type_id, types);
+                        let unwrapped =
+                            self.unwrap_normalization_alias_reference(type_id, tables.types);
                         if unwrapped != type_id {
                             self.normalize_type_inner(
-                                module,
-                                profile,
+                                &mut tables.reborrow(),
                                 unwrapped,
-                                symbols,
-                                types,
                                 mode,
                                 relation_mode,
                                 visited,
@@ -488,11 +444,8 @@ impl Compiler {
                 let original_element = element;
                 let normalized_element = original_element.map(|element_id| {
                     self.normalize_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         element_id,
-                        symbols,
-                        types,
                         mode,
                         relation_mode,
                         visited,
@@ -506,7 +459,7 @@ impl Compiler {
                         element: normalized_element,
                         is_readonly,
                     };
-                    types.insert_type_from_any(normalized, source_id)
+                    tables.types.insert_type_from_any(normalized, source_id)
                 }
             }
             Type::ArraySized {
@@ -517,11 +470,8 @@ impl Compiler {
                 // normalize the array element type
                 let original_element = element;
                 let normalized_element = self.normalize_type_inner(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     original_element,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
@@ -534,23 +484,20 @@ impl Compiler {
                         count,
                         is_readonly,
                     };
-                    types.insert_type_from_any(normalized, source_id)
+                    tables.types.insert_type_from_any(normalized, source_id)
                 }
             }
             Type::Tuple {
                 elements,
                 is_readonly,
             } => {
-                // normalize tuple element types
+                // normalize tuple element tables.types
                 let mut normalized_elements = Vec::with_capacity(elements.len());
                 let mut did_change = false;
                 for element in elements {
                     let (normalized, element_changed) = self.normalize_tuple_element(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         element,
-                        symbols,
-                        types,
                         mode,
                         relation_mode,
                         visited,
@@ -568,7 +515,7 @@ impl Compiler {
                         elements: normalized_elements,
                         is_readonly,
                     };
-                    types.insert_type_from_any(normalized, source_id)
+                    tables.types.insert_type_from_any(normalized, source_id)
                 }
             }
             Type::Object {
@@ -584,11 +531,8 @@ impl Compiler {
                 let mut normalized_fields = Vec::with_capacity(fields.len());
                 for field in fields {
                     let normalized_ty = self.normalize_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         field.ty,
-                        symbols,
-                        types,
                         mode,
                         relation_mode,
                         visited,
@@ -604,11 +548,8 @@ impl Compiler {
 
                 // normalize callable signatures
                 let normalized_calls = self.normalize_type_list(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     &call_signatures,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
@@ -616,11 +557,8 @@ impl Compiler {
                 );
                 // normalize construct signatures
                 let normalized_constructs = self.normalize_type_list(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     &construct_signatures,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
@@ -631,21 +569,15 @@ impl Compiler {
                 let mut normalized_indexes = Vec::with_capacity(index_signatures.len());
                 for signature in index_signatures {
                     let normalized_key = self.normalize_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         signature.key_type,
-                        symbols,
-                        types,
                         mode,
                         relation_mode,
                         visited,
                     );
                     let normalized_value = self.normalize_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         signature.value_type,
-                        symbols,
-                        types,
                         mode,
                         relation_mode,
                         visited,
@@ -673,7 +605,7 @@ impl Compiler {
                         construct_signatures: normalized_constructs,
                         index_signatures: normalized_indexes,
                     };
-                    types.insert_type_from_any(normalized, source_id)
+                    tables.types.insert_type_from_any(normalized, source_id)
                 }
             }
             Type::Function {
@@ -688,22 +620,16 @@ impl Compiler {
                 let mut did_change = false;
                 // normalize type parameter and parameter lists
                 let normalized_static = self.normalize_type_list(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     &static_parameters,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
                     &mut did_change,
                 );
                 let normalized_dynamic = self.normalize_type_list(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     &dynamic_parameters,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
@@ -713,11 +639,8 @@ impl Compiler {
                 let normalized_this = match this_parameter {
                     Some(type_id) => {
                         let normalized = self.normalize_type_inner(
-                            module,
-                            profile,
+                            &mut tables.reborrow(),
                             type_id,
-                            symbols,
-                            types,
                             mode,
                             relation_mode,
                             visited,
@@ -733,11 +656,8 @@ impl Compiler {
                 let normalized_return = match return_type {
                     Some(type_id) => {
                         let normalized = self.normalize_type_inner(
-                            module,
-                            profile,
+                            &mut tables.reborrow(),
                             type_id,
-                            symbols,
-                            types,
                             mode,
                             relation_mode,
                             visited,
@@ -761,7 +681,7 @@ impl Compiler {
                         dynamic_parameters: normalized_dynamic,
                         return_type: normalized_return,
                     };
-                    types.insert_type_from_any(normalized, source_id)
+                    tables.types.insert_type_from_any(normalized, source_id)
                 }
             }
             Type::Conditional {
@@ -771,8 +691,7 @@ impl Compiler {
                 then_type,
                 else_type,
             } => self.normalize_conditional_type(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 type_id,
                 source_id,
                 distributive_symbol,
@@ -780,8 +699,6 @@ impl Compiler {
                 right,
                 then_type,
                 else_type,
-                symbols,
-                types,
                 mode,
                 relation_mode,
                 visited,
@@ -791,26 +708,20 @@ impl Compiler {
                 modifiers,
                 value,
             } => self.normalize_mapped_type(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 source_id,
                 parameter,
                 modifiers,
                 value,
-                symbols,
-                types,
                 mode,
                 relation_mode,
                 visited,
             ),
             Type::Index { left, index } => self.normalize_index_type(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 source_id,
                 left,
                 index,
-                symbols,
-                types,
                 mode,
                 relation_mode,
                 visited,
@@ -819,11 +730,8 @@ impl Compiler {
                 // normalize template literal spans
                 let mut did_change = false;
                 let normalized_spans = self.normalize_type_list(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     &spans,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
@@ -832,13 +740,13 @@ impl Compiler {
                 // collapse template literals containing never
                 if normalized_spans.iter().any(|span_id| {
                     matches!(
-                        types.get_type(*span_id),
+                        tables.types.get_type(*span_id),
                         Type::TypeLiteral {
                             value: TypeLiteral::Never,
                         }
                     )
                 }) {
-                    types.insert_type_from_any(
+                    tables.types.insert_type_from_any(
                         Type::TypeLiteral {
                             value: TypeLiteral::Never,
                         },
@@ -851,13 +759,13 @@ impl Compiler {
                         strings,
                         spans: normalized_spans,
                     };
-                    types.insert_type_from_any(normalized, source_id)
+                    tables.types.insert_type_from_any(normalized, source_id)
                 }
             }
             Type::Unevaluated(_) => {
-                // treat unevaluated types as unknown during assignability normalization
+                // treat unevaluated tables.types as unknown during assignability normalization
                 if matches!(mode, NormalizationMode::Assign) {
-                    types.insert_type_from_any(
+                    tables.types.insert_type_from_any(
                         Type::TypeLiteral {
                             value: TypeLiteral::Unknown,
                         },
@@ -873,21 +781,18 @@ impl Compiler {
                 static_arguments,
             } => {
                 let resolved = self.query_import_type_reference(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     source_id,
                     target,
                     qualifier.as_ref(),
                     static_arguments.as_deref(),
-                    types,
+                    tables.types,
                 );
                 if let Some(resolved) = resolved {
                     self.normalize_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         resolved,
-                        symbols,
-                        types,
                         mode,
                         relation_mode,
                         visited,
@@ -901,11 +806,8 @@ impl Compiler {
                 let original_constraint = constraint;
                 let constraint = original_constraint.map(|type_id| {
                     self.normalize_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         type_id,
-                        symbols,
-                        types,
                         mode,
                         relation_mode,
                         visited,
@@ -916,7 +818,7 @@ impl Compiler {
                     type_id
                 } else {
                     let normalized = Type::Infer { name, constraint };
-                    types.insert_type_from_any(normalized, source_id)
+                    tables.types.insert_type_from_any(normalized, source_id)
                 }
             }
             Type::Predicate {
@@ -928,11 +830,8 @@ impl Compiler {
                 let original_target = target;
                 let target = original_target.map(|type_id| {
                     self.normalize_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         type_id,
-                        symbols,
-                        types,
                         mode,
                         relation_mode,
                         visited,
@@ -946,18 +845,15 @@ impl Compiler {
                         subject,
                         target,
                     };
-                    types.insert_type_from_any(normalized, source_id)
+                    tables.types.insert_type_from_any(normalized, source_id)
                 }
             }
             Type::Unary { operator, right } => match operator {
                 TypeUnaryOperator::Keyof => self.normalize_keyof_type(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     source_id,
                     Some(type_id),
                     right,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
@@ -965,48 +861,39 @@ impl Compiler {
                 TypeUnaryOperator::Readonly => {
                     // materialize readonly modifiers during normalization
                     let normalized_right = self.normalize_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         right,
-                        symbols,
-                        types,
                         mode,
                         relation_mode,
                         visited,
                     );
                     let deep_readonly = self
-                        .analyze_context_options_for_module(module.id)
+                        .analyze_context_options_for_module(tables.module.id)
                         .deep_readonly;
                     self.materialize_readonly_type(
                         source_id,
                         normalized_right,
-                        types,
+                        tables.types,
                         deep_readonly,
                     )
                 }
                 TypeUnaryOperator::AsConst => {
                     // materialize const modifiers with deep readonly
                     let normalized_right = self.normalize_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         right,
-                        symbols,
-                        types,
                         mode,
                         relation_mode,
                         visited,
                     );
-                    self.materialize_readonly_type(source_id, normalized_right, types, true)
+                    self.materialize_readonly_type(source_id, normalized_right, tables.types, true)
                 }
                 _ => {
                     // normalize unary operand
                     let original_right = right;
                     let right = self.normalize_type_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         original_right,
-                        symbols,
-                        types,
                         mode,
                         relation_mode,
                         visited,
@@ -1015,7 +902,7 @@ impl Compiler {
                         type_id
                     } else {
                         let normalized = Type::Unary { operator, right };
-                        types.insert_type_from_any(normalized, source_id)
+                        tables.types.insert_type_from_any(normalized, source_id)
                     }
                 }
             },
@@ -1028,39 +915,31 @@ impl Compiler {
                 let original_left = left;
                 let original_right = right;
                 let left = self.normalize_type_inner(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     original_left,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
                 );
                 let right = self.normalize_type_inner(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     original_right,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
                 );
 
                 // reduce decidable type operators to boolean literals
-                if let Some(normalized_id) = self.normalize_decidable_type_operator(
-                    module,
-                    profile,
+                let normalized_id = self.normalize_decidable_type_operator(
+                    &mut tables.reborrow(),
                     source_id,
                     operator,
                     left,
                     right,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
-                ) {
+                );
+                if let Some(normalized_id) = normalized_id {
                     normalized_id
                 } else if left == original_left && right == original_right {
                     type_id
@@ -1070,7 +949,7 @@ impl Compiler {
                         operator,
                         right,
                     };
-                    types.insert_type_from_any(normalized, source_id)
+                    tables.types.insert_type_from_any(normalized, source_id)
                 }
             }
             Type::ValueOf {
@@ -1081,11 +960,8 @@ impl Compiler {
                 // normalize value of target
                 let original_right = right;
                 let right = self.normalize_type_inner(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     original_right,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
@@ -1098,7 +974,7 @@ impl Compiler {
                         variance,
                         right,
                     };
-                    types.insert_type_from_any(normalized, source_id)
+                    tables.types.insert_type_from_any(normalized, source_id)
                 }
             }
             Type::ReferenceOf {
@@ -1109,11 +985,8 @@ impl Compiler {
                 // normalize reference of target
                 let original_right = right;
                 let right = self.normalize_type_inner(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     original_right,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
@@ -1126,18 +999,15 @@ impl Compiler {
                         variance,
                         right,
                     };
-                    types.insert_type_from_any(normalized, source_id)
+                    tables.types.insert_type_from_any(normalized, source_id)
                 }
             }
             Type::PointerOf { mutability, right } => {
                 // normalize pointer target
                 let original_right = right;
                 let right = self.normalize_type_inner(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     original_right,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
@@ -1146,18 +1016,15 @@ impl Compiler {
                     type_id
                 } else {
                     let normalized = Type::PointerOf { mutability, right };
-                    types.insert_type_from_any(normalized, source_id)
+                    tables.types.insert_type_from_any(normalized, source_id)
                 }
             }
             Type::Value { value } => {
                 // normalize type value target
                 let original_value = value;
                 let value = self.normalize_type_inner(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     original_value,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
@@ -1166,7 +1033,7 @@ impl Compiler {
                     type_id
                 } else {
                     let normalized = Type::Value { value };
-                    types.insert_type_from_any(normalized, source_id)
+                    tables.types.insert_type_from_any(normalized, source_id)
                 }
             }
             Type::TypeLiteral { .. } | Type::InferVar { .. } | Type::This | Type::Error => type_id,
@@ -1174,11 +1041,11 @@ impl Compiler {
 
         // release the recursion guard for this type
         visited.pop();
-        let dependencies = types.pop_normalization_dependency_scope();
+        let dependencies = tables.types.pop_normalization_dependency_scope();
         // cache the normalized result for reuse
         if relation_mode.is_cacheable() {
-            let dependency_versions = types.collect_dependency_versions(dependencies);
-            types.set_normalized_type(
+            let dependency_versions = tables.types.collect_dependency_versions(dependencies);
+            tables.types.set_normalized_type(
                 mode,
                 relation_key,
                 type_id,
@@ -1192,43 +1059,43 @@ impl Compiler {
     /// Normalize type alias references with static arguments.
     pub(crate) fn normalize_type_alias_reference_with_arguments(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         arguments: &[StaticArgument],
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         mode: NormalizationMode,
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> Option<LocalTypeId> {
         // normalize reference symbols to their declared type
-        let symbol = self.normalize_reference_symbol_id(module, profile, symbol);
+        let symbol = self.normalize_reference_symbol_id(tables.module, tables.profile, symbol);
 
         // return cached normalization results when available
         let relation_key = relation_mode.cache_key();
         if relation_mode.is_cacheable()
             && let Some(entry) =
-                types.get_normalized_alias_reference(symbol, mode, relation_key, arguments)
+                tables
+                    .types
+                    .get_normalized_alias_reference(symbol, mode, relation_key, arguments)
         {
             for (dependency_id, _) in &entry.dependency_versions.type_versions {
-                types.record_normalization_dependency(*dependency_id);
+                tables.types.record_normalization_dependency(*dependency_id);
             }
             for (dependency_id, _) in &entry.dependency_versions.symbol_versions {
-                types.record_normalization_symbol_dependency(*dependency_id);
+                tables
+                    .types
+                    .record_normalization_symbol_dependency(*dependency_id);
             }
             return Some(entry.normalized_type);
         }
 
         // report recursion when already resolving the same alias
-        if types.is_normalization_alias_in_progress(symbol) {
-            let alias_target_id = self.alias_target_type_id_for_symbol(
-                module, profile, symbol, source_id, symbols, types,
-            );
+        if tables.types.is_normalization_alias_in_progress(symbol) {
+            let alias_target_id =
+                self.alias_target_type_id_for_symbol(&mut tables.reborrow(), symbol, source_id);
             let is_direct_self_reference = alias_target_id.is_some_and(|alias_target_id| {
                 matches!(
-                    types.get_type(alias_target_id),
+                    tables.types.get_type(alias_target_id),
                     Type::Reference { symbol: target_symbol, .. } if *target_symbol == symbol
                 )
             });
@@ -1237,115 +1104,93 @@ impl Compiler {
             }
 
             let node = source_id
-                .into_global(module.id)
-                .into_anchored(Some(profile));
+                .into_global(tables.module.id)
+                .into_anchored(Some(tables.profile));
             self.error(AnalyzeError::RecursiveTypeInstantiation { node });
-            let error_id = types.insert_type_from_any(Type::Error, source_id);
+            let error_id = tables.types.insert_type_from_any(Type::Error, source_id);
             return Some(error_id);
         }
-        types.mark_normalization_alias_in_progress(symbol);
-        types.push_normalization_dependency_scope();
+        tables.types.mark_normalization_alias_in_progress(symbol);
+        tables.types.push_normalization_dependency_scope();
 
-        let normalized = (|| {
-            let options = self.analyze_context_options_for_module(module.id);
-
+        let normalized = {
             // ensure remote declarations are ready before reading instance types
-            if symbol.module_id != module.id {
-                let _ = self.require_analyze_module_declare(symbol.module_id, profile);
+            if symbol.module_id != tables.module.id {
+                let _ = self.require_analyze_module_declare(symbol.module_id, tables.profile);
             }
 
             // resolve the instance type, including alias targets and remote imports
-            let instance_type_id = self.instance_type_id_for_normalization(
-                module, profile, symbol, source_id, symbols, types,
-            )?;
-
-            // select the static arguments to substitute
-            let resolved_arguments = {
-                let tree = module.dir(profile).tree.read();
-                let mut type_tables =
-                    TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
-                self.resolved_static_arguments_for_normalization(
-                    &mut type_tables,
-                    source_id,
-                    symbol,
-                    arguments,
-                )
-            };
+            let instance_type_id =
+                self.instance_type_id_for_normalization(&mut tables.reborrow(), symbol, source_id)?;
 
             // materialize unevaluated alias targets before normalization
             let materialized_instance = self.materialize_alias_instance_for_normalization(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 symbol,
                 instance_type_id,
-                types,
+            );
+
+            // select the static arguments to substitute
+            let resolved_arguments = self.resolved_static_arguments_for_normalization(
+                &mut tables.reborrow(),
+                source_id,
+                symbol,
+                arguments,
             );
 
             if resolved_arguments.is_empty() {
-                return Some(self.normalize_type_inner(
-                    module,
-                    profile,
+                Some(self.normalize_type_inner(
+                    &mut tables.reborrow(),
                     materialized_instance,
-                    symbols,
-                    types,
                     mode,
                     relation_mode,
                     visited,
-                ));
+                ))
+            } else {
+                // build type parameter substitutions
+                let substitutions = self.build_type_parameter_substitutions_for_symbol(
+                    &mut tables.reborrow(),
+                    symbol,
+                    source_id,
+                    &resolved_arguments,
+                );
+                if substitutions.is_empty() {
+                    // normalize the instance type (even when no substitutions are available)
+                    Some(self.normalize_type_inner(
+                        &mut tables.reborrow(),
+                        materialized_instance,
+                        mode,
+                        relation_mode,
+                        visited,
+                    ))
+                } else {
+                    // substitute and normalize
+                    let mut cache = HashMap::new();
+                    let substituted = self.substitute_static_parameters(
+                        materialized_instance,
+                        &substitutions,
+                        tables.types,
+                        &mut cache,
+                    );
+                    let normalized_id = self.normalize_type_inner(
+                        &mut tables.reborrow(),
+                        substituted,
+                        mode,
+                        relation_mode,
+                        visited,
+                    );
+                    Some(normalized_id)
+                }
             }
+        };
 
-            // build type parameter substitutions
-            let tree = module.dir(profile).tree.read();
-            let mut type_tables =
-                TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
-            let substitutions = self.build_type_parameter_substitutions_for_symbol(
-                &mut type_tables,
-                symbol,
-                source_id,
-                &resolved_arguments,
-            );
-            if substitutions.is_empty() {
-                // normalize the instance type (even when no substitutions are available)
-                return Some(self.normalize_type_inner(
-                    module,
-                    profile,
-                    materialized_instance,
-                    symbols,
-                    types,
-                    mode,
-                    relation_mode,
-                    visited,
-                ));
-            }
-
-            // substitute and normalize
-            let mut cache = HashMap::new();
-            let substituted = self.substitute_static_parameters(
-                materialized_instance,
-                &substitutions,
-                types,
-                &mut cache,
-            );
-            let normalized_id = self.normalize_type_inner(
-                module,
-                profile,
-                substituted,
-                symbols,
-                types,
-                mode,
-                relation_mode,
-                visited,
-            );
-            Some(normalized_id)
-        })();
-
-        let dependencies = types.pop_normalization_dependency_scope();
-        types.clear_normalization_alias_in_progress(symbol);
+        let dependencies = tables.types.pop_normalization_dependency_scope();
+        tables.types.clear_normalization_alias_in_progress(symbol);
         if let Some(normalized_id) = normalized
             && relation_mode.is_cacheable()
         {
-            let dependency_versions = types.collect_dependency_versions(dependencies);
-            types.set_normalized_alias_reference(
+            let dependency_versions = tables.types.collect_dependency_versions(dependencies);
+            tables.types.set_normalized_alias_reference(
                 symbol,
                 mode,
                 relation_key,
@@ -1360,22 +1205,19 @@ impl Compiler {
     /// Resolve the instance type id used for alias normalization.
     fn instance_type_id_for_normalization(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         symbol: GlobalSymbolId,
         source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         // fetch or import the alias target type when available
         if let Some(alias_target_id) =
-            self.alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
+            self.alias_target_type_id_for_symbol(&mut tables.reborrow(), symbol, source_id)
         {
             return Some(alias_target_id);
         }
 
         // resolve the apparent instance type through the normal require gate
-        self.apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+        self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
     }
 
     /// Resolve the static arguments used for alias normalization.
@@ -1414,16 +1256,11 @@ impl Compiler {
             }
 
             // fall back to local materialization when resolution is incomplete
-            let tree = tables.module.dir(tables.profile).tree.read();
             let resolved = self.materialize_static_arguments_for_reference(
-                tables.module,
-                tables.profile,
+                &mut tables.reborrow(),
                 symbol,
                 source_id,
                 arguments,
-                &tree,
-                tables.symbols,
-                tables.types,
             );
             if resolved != arguments {
                 return resolved;
@@ -1444,23 +1281,18 @@ impl Compiler {
     /// Materialize alias targets before normalization when needed.
     fn materialize_alias_instance_for_normalization(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         symbol: GlobalSymbolId,
         instance_type_id: LocalTypeId,
-        types: &mut TypeTable,
     ) -> LocalTypeId {
-        if symbol.module_id == module.id {
-            let tree = module.dir(profile).tree.read();
-            let symbols = module.dir(profile).symbols.read();
-
+        if symbol.module_id == type_tables.module.id {
             // skip materialization when the alias instance is already stable
             if !self.alias_instance_needs_materialization(
-                module,
-                profile,
+                type_tables.module,
+                type_tables.profile,
                 symbol,
                 instance_type_id,
-                types,
+                type_tables.types,
             ) {
                 return instance_type_id;
             }
@@ -1468,41 +1300,40 @@ impl Compiler {
             // materialize static arguments using the alias module context
             let mut materialize_cache = HashMap::new();
             self.materialize_static_arguments_in_type(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 instance_type_id,
-                &tree,
-                &symbols,
-                types,
                 &mut materialize_cache,
             )
         } else {
             self.with_module_tree_symbols_at_stage(
-                module,
-                profile,
+                type_tables.module,
+                type_tables.profile,
                 symbol.module_id,
                 AnalyzeDependencyStage::Declare,
                 |owner_module, tree, symbols| {
                     // skip materialization when the alias instance is already stable
                     if !self.alias_instance_needs_materialization(
                         owner_module,
-                        profile,
+                        type_tables.profile,
                         symbol,
                         instance_type_id,
-                        types,
+                        type_tables.types,
                     ) {
                         return instance_type_id;
                     }
 
                     // materialize static arguments using the alias module context
                     let mut materialize_cache = HashMap::new();
-                    self.materialize_static_arguments_in_type(
+                    let options = self.analyze_context_options_for_module(owner_module.id);
+                    let mut type_tables = type_tables.reborrow_for_module_with_options(
                         owner_module,
-                        profile,
-                        instance_type_id,
+                        &options,
                         tree,
                         symbols,
-                        types,
+                    );
+                    self.materialize_static_arguments_in_type(
+                        &mut type_tables,
+                        instance_type_id,
                         &mut materialize_cache,
                     )
                 },
@@ -1562,11 +1393,8 @@ impl Compiler {
     /// Normalize a tuple element, lifting readonly modifiers into flags.
     fn normalize_tuple_element(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         element: TypeElement,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         mode: NormalizationMode,
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
@@ -1578,7 +1406,7 @@ impl Compiler {
         if let Type::Unary {
             operator: TypeUnaryOperator::Readonly | TypeUnaryOperator::AsConst,
             right,
-        } = types.get_type(element_ty_id)
+        } = tables.types.get_type(element_ty_id)
         {
             element_ty_id = *right;
             element_is_readonly = true;
@@ -1587,11 +1415,8 @@ impl Compiler {
 
         // normalize the tuple element type
         let normalized_ty = self.normalize_type_inner(
-            module,
-            profile,
+            &mut tables.reborrow(),
             element_ty_id,
-            symbols,
-            types,
             mode,
             relation_mode,
             visited,
@@ -1611,12 +1436,9 @@ impl Compiler {
     /// Normalize union types by flattening and collapsing special cases.
     fn normalize_union_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
         elements: &[LocalTypeId],
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         mode: NormalizationMode,
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
@@ -1627,17 +1449,14 @@ impl Compiler {
         // normalize and collect union elements
         for element_id in elements {
             let normalized = self.normalize_type_inner(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 *element_id,
-                symbols,
-                types,
                 mode,
                 relation_mode,
                 visited,
             );
             // flatten nested unions
-            match types.get_type(normalized) {
+            match tables.types.get_type(normalized) {
                 Type::Union { elements: union } => {
                     // keep elements unique
                     for element_id in union {
@@ -1661,7 +1480,7 @@ impl Compiler {
         let mut never_type = None;
         let mut filtered = Vec::new();
         for element_id in flattened {
-            match types.get_type(element_id) {
+            match tables.types.get_type(element_id) {
                 Type::TypeLiteral {
                     value: TypeLiteral::Any,
                 } => any_type = Some(element_id),
@@ -1686,11 +1505,11 @@ impl Compiler {
         // no matches means never
         if filtered.is_empty() {
             return never_type.unwrap_or_else(|| {
-                types.insert_type_from_any(
+                tables.types.insert_type_from_any(
                     Type::TypeLiteral {
                         value: TypeLiteral::Never,
                     },
-                    types.get_type_source(type_id),
+                    tables.types.get_type_source(type_id),
                 )
             });
         }
@@ -1705,18 +1524,15 @@ impl Compiler {
             return type_id;
         }
 
-        types.intern_union_type(filtered, type_id)
+        tables.types.intern_union_type(filtered, type_id)
     }
 
     /// Normalize intersection types by flattening and collapsing special cases.
     fn normalize_intersection_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
         elements: &[LocalTypeId],
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         mode: NormalizationMode,
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
@@ -1727,17 +1543,14 @@ impl Compiler {
         // normalize and collect intersection elements
         for element_id in elements {
             let normalized = self.normalize_type_inner(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 *element_id,
-                symbols,
-                types,
                 mode,
                 relation_mode,
                 visited,
             );
             // flatten nested intersections
-            match types.get_type(normalized) {
+            match tables.types.get_type(normalized) {
                 Type::Intersection {
                     elements: intersection,
                 } => {
@@ -1764,7 +1577,7 @@ impl Compiler {
         let mut filtered = Vec::new();
         // split special literals from remaining elements
         for element_id in flattened {
-            match types.get_type(element_id) {
+            match tables.types.get_type(element_id) {
                 Type::TypeLiteral {
                     value: TypeLiteral::Any,
                 } => any_type = Some(element_id),
@@ -1787,11 +1600,11 @@ impl Compiler {
         }
 
         // strip nullish values when intersecting with empty object types
-        let source_id = types.get_type_source(type_id);
+        let source_id = tables.types.get_type_source(type_id);
         let mut empty_object_id = None;
         let mut remaining = Vec::new();
         for element_id in filtered {
-            let is_empty_object = match types.get_type(element_id) {
+            let is_empty_object = match tables.types.get_type(element_id) {
                 Type::Object {
                     fields,
                     call_signatures,
@@ -1822,11 +1635,11 @@ impl Compiler {
 
             let mut stripped = Vec::new();
             for element_id in remaining {
-                match types.get_type(element_id) {
+                match tables.types.get_type(element_id) {
                     Type::TypeLiteral {
                         value: TypeLiteral::Null | TypeLiteral::Undefined,
                     } => {
-                        return types.insert_type_from_any(
+                        return tables.types.insert_type_from_any(
                             Type::TypeLiteral {
                                 value: TypeLiteral::Never,
                             },
@@ -1837,7 +1650,7 @@ impl Compiler {
                         let mut non_nullish = Vec::new();
                         let mut has_nullish = false;
                         for union_id in elements {
-                            match types.get_type(*union_id) {
+                            match tables.types.get_type(*union_id) {
                                 Type::TypeLiteral {
                                     value: TypeLiteral::Null | TypeLiteral::Undefined,
                                 } => {
@@ -1853,7 +1666,7 @@ impl Compiler {
                         }
 
                         if non_nullish.is_empty() {
-                            return types.insert_type_from_any(
+                            return tables.types.insert_type_from_any(
                                 Type::TypeLiteral {
                                     value: TypeLiteral::Never,
                                 },
@@ -1864,7 +1677,7 @@ impl Compiler {
                         if non_nullish.len() == 1 {
                             stripped.push(non_nullish[0]);
                         } else {
-                            stripped.push(types.insert_type_from_any(
+                            stripped.push(tables.types.insert_type_from_any(
                                 Type::Union {
                                     elements: non_nullish,
                                 },
@@ -1884,11 +1697,11 @@ impl Compiler {
         // fall back to unknown when the intersection collapses
         if filtered.is_empty() {
             return unknown_type.unwrap_or_else(|| {
-                types.insert_type_from_any(
+                tables.types.insert_type_from_any(
                     Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
                     },
-                    types.get_type_source(type_id),
+                    tables.types.get_type_source(type_id),
                 )
             });
         }
@@ -1903,7 +1716,7 @@ impl Compiler {
             return type_id;
         }
 
-        types.intern_intersection_type(filtered, type_id)
+        tables.types.intern_intersection_type(filtered, type_id)
     }
 
     /// Unwrap structural type aliases using cached instance types.
@@ -1953,11 +1766,8 @@ impl Compiler {
     /// Normalize a list of type ids, updating the change flag.
     fn normalize_type_list(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_ids: &[LocalTypeId],
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         mode: NormalizationMode,
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
@@ -1967,11 +1777,8 @@ impl Compiler {
         // normalize each element and track changes
         for type_id in type_ids {
             let normalized_id = self.normalize_type_inner(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 *type_id,
-                symbols,
-                types,
                 mode,
                 relation_mode,
                 visited,
@@ -1987,11 +1794,8 @@ impl Compiler {
     /// Resolve the apparent type for type operations.
     pub(crate) fn apparent_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         relation_mode: RelationMode,
     ) -> LocalTypeId {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_TYPE_APPARENT);
@@ -2002,26 +1806,23 @@ impl Compiler {
         }
 
         // unwrap cached alias instances first
-        let type_id = self.unwrap_normalization_alias_reference(type_id, types);
+        let type_id = self.unwrap_normalization_alias_reference(type_id, tables.types);
 
         // expand alias references with static arguments before apparent resolution
-        let ty = types.get_type(type_id).clone();
+        let ty = tables.types.get_type(type_id).clone();
         if let Type::Reference {
             symbol,
             static_arguments: Some(static_arguments),
         } = ty
             && matches!(symbol.ty(), SymbolType::TypeAlias)
         {
-            let source_id = types.get_type_source(type_id);
+            let source_id = tables.types.get_type_source(type_id);
             let mut visited = Vec::new();
             if let Some(expanded_id) = self.normalize_type_alias_reference_with_arguments(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 source_id,
                 symbol,
                 &static_arguments,
-                symbols,
-                types,
                 NormalizationMode::Assign,
                 relation_mode,
                 &mut visited,
@@ -2031,10 +1832,10 @@ impl Compiler {
         }
 
         // prefer apparent instance types for references and type as value wrappers
-        if let Some(symbol) = self.unwrap_type_value_symbol(types, type_id) {
-            let source_id = types.get_type_source(type_id);
+        if let Some(symbol) = self.unwrap_type_value_symbol(tables.types, type_id) {
+            let source_id = tables.types.get_type_source(type_id);
             if let Some(apparent_id) =
-                self.apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+                self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
             {
                 return apparent_id;
             }
@@ -2065,44 +1866,41 @@ impl Compiler {
     /// Normalize and resolve the apparent type.
     pub(crate) fn normalize_apparent_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         mode: NormalizationMode,
         relation_mode: RelationMode,
     ) -> LocalTypeId {
         // normalize the input type first
-        let type_id = self.normalize_type_with_relation(
-            module,
-            profile,
-            type_id,
-            symbols,
-            types,
-            mode,
-            relation_mode,
-        );
+        let type_id = {
+            let mut normalize_visited = Vec::new();
+            self.normalize_type_inner(
+                &mut tables.reborrow(),
+                type_id,
+                mode,
+                relation_mode,
+                &mut normalize_visited,
+            )
+        };
 
         // resolve apparent types after normalization
         let type_id = self.apparent_type_for_assignability(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             type_id,
-            symbols,
-            types,
+            tables.symbols,
+            tables.types,
             relation_mode,
         );
 
         // normalize again after apparent type expansion
-        self.normalize_type_with_relation(
-            module,
-            profile,
+        let mut normalize_visited = Vec::new();
+        self.normalize_type_inner(
+            &mut tables.reborrow(),
             type_id,
-            symbols,
-            types,
             mode,
             relation_mode,
+            &mut normalize_visited,
         )
     }
 }

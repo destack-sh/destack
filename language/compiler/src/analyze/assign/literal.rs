@@ -17,18 +17,14 @@ impl Compiler {
     /// Report unsound array variance for mutable arrays when configured.
     pub(super) fn check_unsound_array_variance(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         anchor: LocalNodeIdAny,
         target_readonly: bool,
         source_readonly: bool,
         target_element: LocalTypeId,
         source_element: LocalTypeId,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) {
-        if !options.no_unsound_variance {
+        if !ctx.options.no_unsound_variance {
             return;
         }
 
@@ -38,29 +34,21 @@ impl Compiler {
 
         let target_assignable = self
             .is_type_assignable(
-                module,
-                profile,
-                symbols,
+                &mut ctx.type_tables_reborrow(),
                 target_element,
                 source_element,
-                types,
-                options,
             )
             .is_assignable();
         let source_assignable = self
             .is_type_assignable(
-                module,
-                profile,
-                symbols,
+                &mut ctx.type_tables_reborrow(),
                 source_element,
                 target_element,
-                types,
-                options,
             )
             .is_assignable();
 
         if target_assignable && !source_assignable {
-            self.report_unsound_variance(module, profile, anchor, options);
+            self.report_unsound_variance(ctx.module, ctx.profile, anchor, ctx.options);
         }
     }
 

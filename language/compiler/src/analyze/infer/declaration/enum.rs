@@ -1,4 +1,4 @@
-use crate::analyze::common::AnalyzeDependencyStage;
+use crate::analyze::common::{AnalyzeDependencyStage, TypeTablesContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, EnumBackingType, EnumField, EnumFieldValue, Expression, GlobalSymbolId, IntType,
@@ -13,13 +13,9 @@ impl Compiler {
     /// Resolve enum field values from their declarations.
     pub(crate) fn infer_enum_field_values(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         enum_symbol: GlobalSymbolId,
         fields: &[LocalNodeId<EnumField>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<EnumBackingType> {
         // default to the configured integer width when unspecified
         let default_int_type = IntType::Arbitrary {
@@ -35,29 +31,30 @@ impl Compiler {
 
         // walk enum fields in declaration order
         for field_id in fields {
-            let field = tree.get(*field_id);
-            let field_symbol = field.symbol.into_global(module.id);
+            let field = tables.tree.get(*field_id);
+            let field_symbol = field.symbol.into_global(tables.module.id);
 
             // resolve explicit values first
             let explicit_value = if let Some(value_id) = field.value {
                 let static_value = self
                     .evaluate_static_expression_value(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         value_id,
-                        tree,
-                        symbols,
-                        types,
                         Some(enum_symbol),
                     )?
                     .ok_or(AnalyzeError::InvalidEnumFieldValue {
                         node: field_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(profile)),
+                            .into_global_any(tables.module.id)
+                            .into_anchored(Some(tables.profile)),
                     })?;
                 Some((
                     value_id,
-                    self.enum_field_value_from_static(&static_value, *field_id, module, profile)?,
+                    self.enum_field_value_from_static(
+                        &static_value,
+                        *field_id,
+                        tables.module,
+                        tables.profile,
+                    )?,
                 ))
             } else {
                 None
@@ -68,7 +65,12 @@ impl Compiler {
                 match value {
                     EnumFieldValue::Int(_) => {
                         let int_type = self
-                            .enum_int_type_for_expression(module, profile, value_id, types)?
+                            .enum_int_type_for_expression(
+                                tables.module,
+                                tables.profile,
+                                value_id,
+                                tables.types,
+                            )?
                             .unwrap_or(default_int_type);
                         EnumBackingType::Int(int_type)
                     }
@@ -87,13 +89,13 @@ impl Compiler {
                 };
                 if !matches {
                     let backing_type_id = match field_backing_type {
-                        EnumBackingType::Int(int_type) => types.insert_type_from(
+                        EnumBackingType::Int(int_type) => tables.types.insert_type_from(
                             Type::TypeLiteral {
                                 value: TypeLiteral::Primitive(PrimitiveType::Int(int_type)),
                             },
                             *field_id,
                         ),
-                        EnumBackingType::String => types.insert_type_from(
+                        EnumBackingType::String => tables.types.insert_type_from(
                             Type::TypeLiteral {
                                 value: TypeLiteral::Primitive(PrimitiveType::String),
                             },
@@ -102,9 +104,9 @@ impl Compiler {
                     };
                     return Err(AnalyzeError::InvalidEnumBackingType {
                         node: field_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(profile)),
-                        ty: backing_type_id.into_global(module.id),
+                            .into_global_any(tables.module.id)
+                            .into_anchored(Some(tables.profile)),
+                        ty: backing_type_id.into_global(tables.module.id),
                     });
                 }
             } else {
@@ -118,8 +120,8 @@ impl Compiler {
                     if !is_signed && value < 0 {
                         return Err(AnalyzeError::InvalidEnumFieldValue {
                             node: field_id
-                                .into_global_any(module.id)
-                                .into_anchored(Some(profile)),
+                                .into_global_any(tables.module.id)
+                                .into_anchored(Some(tables.profile)),
                         });
                     }
                     next_value =
@@ -127,8 +129,8 @@ impl Compiler {
                             .checked_add(1)
                             .ok_or(AnalyzeError::InvalidEnumFieldValue {
                                 node: field_id
-                                    .into_global_any(module.id)
-                                    .into_anchored(Some(profile)),
+                                    .into_global_any(tables.module.id)
+                                    .into_anchored(Some(tables.profile)),
                             })?;
                     has_next = true;
                     EnumFieldValue::Int(value)
@@ -140,8 +142,8 @@ impl Compiler {
                             .checked_add(1)
                             .ok_or(AnalyzeError::InvalidEnumFieldValue {
                                 node: field_id
-                                    .into_global_any(module.id)
-                                    .into_anchored(Some(profile)),
+                                    .into_global_any(tables.module.id)
+                                    .into_anchored(Some(tables.profile)),
                             })?;
                     has_next = true;
 
@@ -149,8 +151,8 @@ impl Compiler {
                     if !is_signed && value < 0 {
                         return Err(AnalyzeError::InvalidEnumFieldValue {
                             node: field_id
-                                .into_global_any(module.id)
-                                .into_anchored(Some(profile)),
+                                .into_global_any(tables.module.id)
+                                .into_anchored(Some(tables.profile)),
                         });
                     }
 
@@ -162,21 +164,21 @@ impl Compiler {
                 (Some(EnumBackingType::String), _) => {
                     return Err(AnalyzeError::InvalidEnumFieldValue {
                         node: field_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(profile)),
+                            .into_global_any(tables.module.id)
+                            .into_anchored(Some(tables.profile)),
                     });
                 }
                 _ => {
                     return Err(AnalyzeError::InvalidEnumFieldValue {
                         node: field_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(profile)),
+                            .into_global_any(tables.module.id)
+                            .into_anchored(Some(tables.profile)),
                     });
                 }
             };
 
             // record the resolved value
-            types.set_enum_field_value(field_symbol, value);
+            tables.types.set_enum_field_value(field_symbol, value);
         }
 
         let backing_type = backing_type.unwrap_or(EnumBackingType::Int(default_int_type));
@@ -212,32 +214,26 @@ impl Compiler {
     /// Resolve an enum field value from a symbol reference.
     pub(crate) fn enum_field_value_for_symbol_reference(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         enum_symbol: GlobalSymbolId,
         target_symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<EnumFieldValue>> {
         // prefer local symbol tables when possible
-        if target_symbol.module_id == module.id {
+        if target_symbol.module_id == tables.module.id {
             return Ok(self.enum_field_value_for_symbol_reference_in_tables(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 enum_symbol,
                 target_symbol,
-                symbols,
-                types,
             ));
         }
 
         self.with_module_symbols_at_stage(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             target_symbol.module_id,
             AnalyzeDependencyStage::Declare,
             |owner_module, owner_symbols| {
-                let owner_types = owner_module.dir(profile).types.read();
+                let owner_types = owner_module.dir(tables.profile).types.read();
                 self.enum_field_value_for_symbol_reference_read(
                     owner_module,
                     enum_symbol,
@@ -286,116 +282,94 @@ impl Compiler {
     /// Resolve an enum field value from symbol tables and type tables.
     fn enum_field_value_for_symbol_reference_in_tables(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         enum_symbol: GlobalSymbolId,
         target_symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<EnumFieldValue> {
         // validate module ownership for symbol table lookups
-        debug_assert_eq!(target_symbol.module_id, module.id);
+        debug_assert_eq!(target_symbol.module_id, tables.module.id);
 
         // ensure the target is an enum field on this enum
-        let target_entry = symbols.get_symbol(target_symbol.local_id);
+        let target_entry = tables.symbols.get_symbol(target_symbol.local_id);
         let primary = target_entry.primary_declaration?;
         if primary.local_id.ty != NodeType::EnumField {
             return None;
         }
 
         // confirm the field is owned by the enum or merge group
-        let scope = symbols.get_scope_by_symbol(target_symbol.local_id);
+        let scope = tables.symbols.get_scope_by_symbol(target_symbol.local_id);
         let scope_owner = scope.owner_id?;
-        let scope_owner = scope_owner.into_global(module.id);
+        let scope_owner = scope_owner.into_global(tables.module.id);
         if scope_owner != enum_symbol
-            && !self.symbols_share_merge_group(enum_symbol, scope_owner, symbols)
+            && !self.symbols_share_merge_group(enum_symbol, scope_owner, tables.symbols)
         {
             return None;
         }
 
         // reuse cached values when possible
-        if let Some(value) = types.get_enum_field_value(target_symbol) {
+        if let Some(value) = tables.types.get_enum_field_value(target_symbol) {
             return Some(value);
         }
 
         // ensure backing values are inferred
-        let _ = self.enum_backing_type_for_symbol_in_tables(module, profile, enum_symbol, types);
+        let _ = self.enum_backing_type_for_symbol_in_tables(&mut tables.reborrow(), enum_symbol);
 
-        types.get_enum_field_value(target_symbol)
-    }
-
-    /// Resolve the enum backing type for a symbol.
-    ///
-    /// Local modules may lazily infer and cache backing types.
-    /// Remote modules are read-only and must expose already-published backing types.
-    pub(crate) fn enum_backing_type_for_symbol(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        enum_symbol: GlobalSymbolId,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<Option<EnumBackingType>> {
-        // prefer local type tables when possible
-        if enum_symbol.module_id == module.id {
-            return Ok(self.enum_backing_type_for_symbol_in_tables(
-                module,
-                profile,
-                enum_symbol,
-                types,
-            ));
-        }
-
-        self.with_module_types_at_stage(
-            module,
-            profile,
-            enum_symbol.module_id,
-            AnalyzeDependencyStage::Declare,
-            |_owner_module, owner_types| owner_types.get_enum_backing_type(enum_symbol),
-        )
-        .map_err(AnalyzeError::from)
-    }
-
-    /// Query one enum backing type in non-AnalyzeResult paths.
-    pub(crate) fn query_enum_backing_type_for_symbol(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        enum_symbol: GlobalSymbolId,
-        types: &mut TypeTable,
-    ) -> Option<EnumBackingType> {
-        match self.enum_backing_type_for_symbol(module, profile, enum_symbol, types) {
-            Ok(backing) => backing,
-            Err(error) => {
-                self.error(error);
-                None
-            }
-        }
+        tables.types.get_enum_field_value(target_symbol)
     }
 
     /// Resolve the enum backing type for a local symbol using available tables.
     pub(crate) fn enum_backing_type_for_symbol_in_tables(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         enum_symbol: GlobalSymbolId,
-        types: &mut TypeTable,
     ) -> Option<EnumBackingType> {
         // validate module ownership for symbol table lookups
-        debug_assert_eq!(enum_symbol.module_id, module.id);
+        debug_assert_eq!(enum_symbol.module_id, tables.module.id);
 
         // reuse cached backing types
-        if let Some(backing) = types.get_enum_backing_type(enum_symbol) {
+        if let Some(backing) = tables.types.get_enum_backing_type(enum_symbol) {
             return Some(backing);
         }
 
-        // ensure backing values are inferred
-        if let Err(error) =
-            self.ensure_enum_backing_type_for_symbol(module, profile, enum_symbol, types)
-        {
-            self.error(error);
+        // consume already published values from remote modules
+        if enum_symbol.module_id != tables.module.id {
+            let remote_backing = self
+                .with_module_types_at_stage(
+                    tables.module,
+                    tables.profile,
+                    enum_symbol.module_id,
+                    AnalyzeDependencyStage::Declare,
+                    |_owner_module, owner_types| owner_types.get_enum_backing_type(enum_symbol),
+                )
+                .map_err(AnalyzeError::from);
+            match remote_backing {
+                Ok(backing) => return backing,
+                Err(error) => {
+                    self.error(error);
+                    return None;
+                }
+            }
         }
 
-        types.get_enum_backing_type(enum_symbol)
+        // infer local enum field values to determine the backing type
+        let fields = self.enum_fields_for_symbol_in_tree(enum_symbol, tables.tree, tables.symbols);
+        if fields.is_empty() {
+            return None;
+        }
+        let backing_type =
+            self.infer_enum_field_values(&mut tables.reborrow(), enum_symbol, &fields);
+        match backing_type {
+            Ok(backing_type) => {
+                tables
+                    .types
+                    .set_enum_backing_type(enum_symbol, backing_type);
+            }
+            Err(error) => {
+                self.error(error);
+            }
+        }
+
+        tables.types.get_enum_backing_type(enum_symbol)
     }
 
     /// Check whether two symbols share the same merge group.
@@ -415,53 +389,6 @@ impl Compiler {
             (Some(left_group), Some(right_group)) => left_group == right_group,
             _ => false,
         }
-    }
-
-    /// Ensure enum backing type and field values are available for a symbol when possible.
-    pub(crate) fn ensure_enum_backing_type_for_symbol(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        enum_symbol: GlobalSymbolId,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<Option<EnumBackingType>> {
-        if let Some(backing) = types.get_enum_backing_type(enum_symbol) {
-            return Ok(Some(backing));
-        }
-
-        // remote modules are read-only here: consume already-published values only
-        if enum_symbol.module_id != module.id {
-            return Ok(self
-                .with_module_types_at_stage(
-                    module,
-                    profile,
-                    enum_symbol.module_id,
-                    AnalyzeDependencyStage::Declare,
-                    |_owner_module, owner_types| owner_types.get_enum_backing_type(enum_symbol),
-                )
-                .map_err(AnalyzeError::from)?);
-        }
-
-        // resolve backing types in local modules
-        let tree = module.dir(profile).tree.read();
-        let symbols = module.dir(profile).symbols.read();
-        let fields = self.enum_fields_for_symbol_in_tree(enum_symbol, &tree, &symbols);
-        if fields.is_empty() {
-            return Ok(None);
-        }
-
-        let backing_type = self.infer_enum_field_values(
-            module,
-            profile,
-            enum_symbol,
-            &fields,
-            &tree,
-            &symbols,
-            types,
-        )?;
-        types.set_enum_backing_type(enum_symbol, backing_type);
-
-        Ok(Some(backing_type))
     }
 
     /// Collect enum field ids for a symbol in a single tree.

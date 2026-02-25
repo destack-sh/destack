@@ -642,17 +642,11 @@ declare let value: Buffer<SIZE>;
             }
         }
         let expression_id = expression_id.expect("expected SIZE reference");
+        let options = test.compiler.analyze_context_options_for_module(module.id);
+        let mut tables = TypeTablesContext::new(module, profile, &options, tree, symbols, types);
         let value = test
             .compiler
-            .evaluate_static_expression_value(
-                module,
-                profile,
-                expression_id,
-                tree,
-                symbols,
-                types,
-                None,
-            )
+            .evaluate_static_expression_value(&mut tables, expression_id, None)
             .expect("static evaluation failed")
             .expect("expected SIZE reference to evaluate");
 

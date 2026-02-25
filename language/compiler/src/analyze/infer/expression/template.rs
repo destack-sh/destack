@@ -6,7 +6,7 @@ use crate::{AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Constraint, Expression, InferOrigin, InferScope, InferVarId, LocalNodeId,
     LocalNodeIdAny, LocalTypeId, PrimitiveType, ResolvedSignature, ScalarLiteral, StringId,
-    SymbolSpaceOrder, SymbolTable, TemplateLiteral, Type, TypeLiteral, TypeTable,
+    SymbolSpaceOrder, TemplateLiteral, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -36,8 +36,6 @@ struct TemplateInferenceContext<'a> {
     span_node: LocalNodeIdAny,
     /// The source node for inferred literal types.
     source_node: LocalNodeIdAny,
-    /// The symbol table for lookups.
-    symbols: &'a SymbolTable,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -255,13 +253,9 @@ impl Compiler {
             }
 
             if self.is_type_assignable(
-                tables.module,
-                ctx.profile,
-                tables.symbols,
+                &mut tables.type_tables_reborrow(),
                 *param_ty_id,
                 *argument_ty_id,
-                tables.types,
-                &ctx.options,
             ) == Assignability::NotAssignable
             {
                 self.emit_unassignable_type_for_types(
@@ -334,25 +328,20 @@ impl Compiler {
         let Some(strings_param_ty_id) = resolved.dynamic_parameters.first().copied() else {
             return Ok(None);
         };
+        let strings_source_id = tables.types.get_type_source(strings_param_ty_id);
 
         // ensure instance types are materialized for the template parameter
         self.ensure_reference_instance_types_for_type(
-            tables.module,
-            tables.profile,
-            tables.types.get_type_source(strings_param_ty_id),
+            &mut tables.type_tables_reborrow(),
+            strings_source_id,
             strings_param_ty_id,
-            tables.types,
         )?;
 
         // reject template strings arguments that are not assignable
         if self.is_type_assignable(
-            tables.module,
-            tables.profile,
-            tables.symbols,
+            &mut tables.type_tables_reborrow(),
             strings_param_ty_id,
             template_strings_ty_id,
-            tables.types,
-            tables.options,
         ) == Assignability::NotAssignable
         {
             if require_assignable {
@@ -539,13 +528,9 @@ impl Compiler {
         // validate argument spans against constraints
         if let Some(constraint_id) = target.constraint_id
             && self.is_type_assignable(
-                context.module,
-                context.profile,
-                context.symbols,
+                &mut tables.type_tables_reborrow(),
                 constraint_id,
                 argument_span,
-                tables.types,
-                tables.options,
             ) == Assignability::NotAssignable
         {
             self.report_template_inference_unassignable(
@@ -597,13 +582,9 @@ impl Compiler {
         // validate the constraint against the argument
         if let Some(constraint_id) = target.constraint_id
             && self.is_type_assignable(
-                context.module,
-                context.profile,
-                context.symbols,
+                &mut tables.type_tables_reborrow(),
                 constraint_id,
                 context.argument_ty_id,
-                tables.types,
-                tables.options,
             ) == Assignability::NotAssignable
         {
             self.report_template_inference_unassignable(
@@ -658,7 +639,6 @@ impl Compiler {
                 param_ty_id: *param_ty_id,
                 span_node,
                 source_node,
-                symbols: tables.symbols,
             };
 
             // infer from string or template literal arguments

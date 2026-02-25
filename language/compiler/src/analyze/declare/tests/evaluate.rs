@@ -722,14 +722,17 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     let member_selection = test
         .compiler
         .resolve_type_member_symbol(
-            &module,
-            profile,
+            &mut TypeTablesContext::new(
+                &module,
+                profile,
+                &test.options,
+                &tree,
+                &symbols,
+                &mut types,
+            ),
             log_member_expression_id,
             *left,
             StaticKey::Name(*name),
-            &tree,
-            &symbols,
-            &mut types,
             true,
             true,
         )
@@ -778,12 +781,8 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     let direct_projection = test
         .compiler
         .resolve_static_constant_reference_instantiated(
-            &module,
-            profile,
+            &mut type_tables.reborrow(),
             segment_bytes_symbol,
-            &tree,
-            &symbols,
-            &mut types,
             &substitutions,
             &mut visited,
         )

@@ -58,11 +58,8 @@ impl Compiler {
         // normalize mapped, alias, and object shapes into concrete object types
         // NOTE #Suspicious: contextual object normalization uses type ops without apparent type checks
         let normalized_ty_id = self.normalize_type_with_relation(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             expected_ty_id,
-            tables.symbols,
-            tables.types,
             NormalizationMode::Assign,
             RelationMode::EXPECTED_TYPE,
         );
@@ -111,12 +108,8 @@ impl Compiler {
                     if let Some(value_ty_id) = tables.types.get_declared_type_id(value_id) {
                         if matches!(tables.types.get_type(value_ty_id), Type::Unevaluated(_)) {
                             self.resolve_declared_type(
-                                tables.module,
-                                tables.profile,
+                                &mut tables.type_tables_reborrow(),
                                 value_ty_id,
-                                tables.tree,
-                                tables.symbols,
-                                tables.types,
                             )?;
                         }
                         declared_type_id = Some(value_ty_id);
@@ -127,11 +120,9 @@ impl Compiler {
 
         // resolve the instance type for the reference
         let instance_ty_id = self.resolve_instance_type_for_symbol(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             source_id,
             symbol,
-            tables.types,
         )?;
         let Some(instance_ty_id) = instance_ty_id else {
             return Ok(None);
@@ -192,7 +183,7 @@ impl Compiler {
         tables: &mut InferTablesContext<'_>,
         expected_ty_id: Option<LocalTypeId>,
         properties: &[LocalNodeId<Property>],
-        options: &AnalyzeOptions,
+        _options: &AnalyzeOptions,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         let expected_ty_id = self.expected_value_type(expected_ty_id, tables.types);
         let Some(expected_ty_id) = expected_ty_id else {
@@ -200,11 +191,8 @@ impl Compiler {
         };
 
         let normalized_ty_id = self.normalize_type_with_relation(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             expected_ty_id,
-            tables.symbols,
-            tables.types,
             NormalizationMode::Assign,
             RelationMode::EXPECTED_TYPE,
         );
@@ -252,28 +240,19 @@ impl Compiler {
         let mut matching_elements = Vec::new();
         'elements: for element_id in elements {
             for (key, literal_type_id) in &literal_filters {
-                let field_info = self.type_field_type_for_key(
-                    tables.module,
-                    tables.profile,
-                    element_id,
-                    key,
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
-                )?;
+                let field_info = {
+                    let mut type_tables = tables.type_tables_reborrow();
+                    self.type_field_type_for_key(&mut type_tables, element_id, key)?
+                };
                 let Some((field_type_id, _)) = field_info else {
                     continue 'elements;
                 };
 
                 let is_assignable = self
                     .is_type_assignable(
-                        tables.module,
-                        tables.profile,
-                        tables.symbols,
+                        &mut tables.type_tables_reborrow(),
                         field_type_id,
                         *literal_type_id,
-                        tables.types,
-                        options,
                     )
                     .is_assignable();
                 if !is_assignable {
@@ -289,11 +268,8 @@ impl Compiler {
 
         let matched_id = matching_elements[0];
         let normalized_id = self.normalize_type_with_relation(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             matched_id,
-            tables.symbols,
-            tables.types,
             NormalizationMode::Assign,
             RelationMode::EXPECTED_TYPE,
         );
@@ -370,14 +346,8 @@ impl Compiler {
                 }
                 Member::Embed { value, .. } => {
                     // include embedded fields in tagged literal filtering
-                    let embed_shape = self.embed_member_shape(
-                        tables.module,
-                        tables.profile,
-                        *value,
-                        tables.tree,
-                        tables.symbols,
-                        tables.types,
-                    )?;
+                    let embed_shape =
+                        self.embed_member_shape(&mut tables.type_tables_reborrow(), *value)?;
                     for field in embed_shape.fields {
                         declared_field_keys.push(field.key);
                     }

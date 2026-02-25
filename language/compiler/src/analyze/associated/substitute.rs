@@ -4,7 +4,7 @@ use super::resolve::{AssociatedAliasProjectionRewriter, ProjectionEnvironment};
 use crate::analyze::common::{
     AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode, TypeRewriteCache, TypeTablesContext,
 };
-use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, Expression, GlobalNodeId, GlobalSymbolId, Heritage, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, Member, NodeTree, NodeType, NormalizationMode, ScalarLiteral, StaticArgument,
@@ -17,15 +17,11 @@ use destack_workspace::{Module, ProfileId};
 impl Compiler {
     pub(crate) fn rewrite_associated_aliases_for_owner(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         owner_symbol: GlobalSymbolId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
         type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> LocalTypeId {
         // skip when no substitutions are available
         if substitutions.is_empty() {
@@ -35,49 +31,47 @@ impl Compiler {
         // rewrite associated aliases for the owner in one pass
         let mut rewriter = AssociatedAliasProjectionRewriter::new(
             self,
-            module,
-            profile,
+            type_tables.module,
+            type_tables.profile,
             source_id,
             owner_symbol,
             substitutions,
-            tree,
-            symbols,
+            type_tables.tree,
+            type_tables.symbols,
         );
 
-        rewriter.rewrite_type_id(types, type_id)
+        rewriter.rewrite_type_id(type_tables.types, type_id)
     }
 
     /// Resolve receiver substitutions for an associated projection owner.
     fn receiver_projection_substitutions_for_owner(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         receiver_symbol: GlobalSymbolId,
         receiver_arguments: &[StaticArgument],
         owner_symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
         let canonical_receiver_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            tables.module,
+            tables.symbols,
+            tables.profile,
             receiver_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         let canonical_receiver_symbol = self
-            .declaration_symbol_id(module, symbols, profile, canonical_receiver_symbol)
+            .declaration_symbol_id(
+                tables.module,
+                tables.symbols,
+                tables.profile,
+                canonical_receiver_symbol,
+            )
             .unwrap_or(canonical_receiver_symbol);
         let owner_symbol = self
-            .declaration_symbol_id(module, symbols, profile, owner_symbol)
+            .declaration_symbol_id(tables.module, tables.symbols, tables.profile, owner_symbol)
             .unwrap_or(owner_symbol);
-        let options = self.analyze_context_options_for_module(module.id);
-        let mut type_tables =
-            TypeTablesContext::new(module, profile, &options, tree, symbols, types);
         let receiver_substitutions = self.build_type_parameter_substitutions_for_symbol(
-            &mut type_tables,
+            &mut tables.reborrow(),
             canonical_receiver_symbol,
             source_id,
             receiver_arguments,
@@ -85,15 +79,11 @@ impl Compiler {
 
         let mut visited_symbols = HashSet::new();
         self.associated_projection_receiver_substitutions_inner(
-            module,
-            profile,
+            &mut tables.reborrow(),
             source_id,
             canonical_receiver_symbol,
             owner_symbol,
             receiver_substitutions,
-            tree,
-            symbols,
-            types,
             &mut visited_symbols,
         )
     }
@@ -103,30 +93,23 @@ impl Compiler {
     /// local constraints may use local infer-owned cache/evaluation
     pub(super) fn projection_static_parameter_constraint_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         static_parameter_symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         if let Some(constraint_type_id) = self.query_declared_static_parameter_constraint(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             static_parameter_symbol,
             source_id,
-            types,
+            tables.types,
         ) {
             return Ok(Some(constraint_type_id));
         }
 
-        if static_parameter_symbol.module_id == module.id {
-            let tree = module.dir(profile).tree.read();
-            let options = self.analyze_context_options_for_module(module.id);
-            let mut type_tables =
-                TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
+        if static_parameter_symbol.module_id == tables.module.id {
             let constraint_type_id = self.static_parameter_constraint_type(
-                &mut type_tables,
+                &mut tables.reborrow(),
                 static_parameter_symbol,
                 source_id,
             );
@@ -139,15 +122,11 @@ impl Compiler {
     /// Resolve receiver substitutions for associated projections along heritage edges.
     fn associated_projection_receiver_substitutions_inner(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         current_symbol: GlobalSymbolId,
         owner_symbol: GlobalSymbolId,
         current_substitutions: HashMap<GlobalSymbolId, LocalTypeId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
         // stop when we reached the associated member owner
@@ -159,17 +138,18 @@ impl Compiler {
         if !visited_symbols.insert(current_symbol) {
             return Ok(None);
         }
-        let options = self.analyze_context_options_for_module(module.id);
-
         // follow static parameter constraints before declaration heritage traversal
-        if self.symbol_is_static_parameter(module, profile, current_symbol, symbols, types) {
+        if self.symbol_is_static_parameter(
+            tables.module,
+            tables.profile,
+            current_symbol,
+            tables.symbols,
+            tables.types,
+        ) {
             let constraint_type_id = self.projection_static_parameter_constraint_type(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 source_id,
                 current_symbol,
-                symbols,
-                types,
             )?;
             if let Some(mut constraint_type_id) = constraint_type_id {
                 if !current_substitutions.is_empty() {
@@ -177,55 +157,50 @@ impl Compiler {
                     constraint_type_id = self.substitute_static_parameters(
                         constraint_type_id,
                         &current_substitutions,
-                        types,
+                        tables.types,
                         &mut substitution_cache,
                     );
                 }
 
                 let mut materialize_cache = TypeRewriteCache::new();
                 constraint_type_id = self.materialize_static_arguments_in_type(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     constraint_type_id,
-                    tree,
-                    symbols,
-                    types,
                     &mut materialize_cache,
                 );
 
                 if let Some((mut next_symbol, next_arguments, _)) =
-                    self.unwrap_type_symbol(types, constraint_type_id)
+                    self.unwrap_type_symbol(tables.types, constraint_type_id)
                 {
                     next_symbol = self.canonical_symbol_id(
-                        module,
-                        symbols,
-                        profile,
+                        tables.module,
+                        tables.symbols,
+                        tables.profile,
                         next_symbol,
                         CanonicalSymbolMode::FollowAliases,
                     );
                     next_symbol = self
-                        .declaration_symbol_id(module, symbols, profile, next_symbol)
+                        .declaration_symbol_id(
+                            tables.module,
+                            tables.symbols,
+                            tables.profile,
+                            next_symbol,
+                        )
                         .unwrap_or(next_symbol);
 
-                    let mut type_tables =
-                        TypeTablesContext::new(module, profile, &options, tree, symbols, types);
                     let next_substitutions = self.build_type_parameter_substitutions_for_symbol(
-                        &mut type_tables,
+                        &mut tables.reborrow(),
                         next_symbol,
                         source_id,
                         next_arguments.as_deref().unwrap_or_default(),
                     );
                     if let Some(substitutions) = self
                         .associated_projection_receiver_substitutions_inner(
-                            module,
-                            profile,
+                            &mut tables.reborrow(),
                             source_id,
                             next_symbol,
                             owner_symbol,
                             next_substitutions,
-                            tree,
-                            symbols,
-                            types,
                             visited_symbols,
                         )?
                     {
@@ -236,27 +211,29 @@ impl Compiler {
         }
 
         // collect direct heritage expressions for this symbol
-        let heritage_expressions = self.heritage_expressions_for_associated_projection(
-            module,
-            profile,
-            current_symbol,
-            tree,
-            symbols,
-        )?;
+        let heritage_expressions =
+            self.heritage_expressions_for_associated_projection(&*tables, current_symbol)?;
         for heritage_expression_id in heritage_expressions {
             // resolve the heritage target and applied arguments
             let resolved_heritage = self
                 .with_module_tree_symbols_or_local_at_stage(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     heritage_expression_id.module_id,
-                    tree,
-                    symbols,
+                    tables.tree,
+                    tables.symbols,
                     AnalyzeDependencyStage::Declare,
                     |owner_module,
                      owner_tree,
                      owner_symbols|
                      -> AnalyzeResult<Option<(GlobalSymbolId, Vec<StaticArgument>)>> {
+                        let owner_options = self.analyze_context_options_for_module(owner_module.id);
+                        let mut owner_tables = tables.reborrow_for_module_with_options(
+                            owner_module,
+                            &owner_options,
+                            owner_tree,
+                            owner_symbols,
+                        );
                         let expression_id = heritage_expression_id.local_id;
                         let expression = owner_tree.get(expression_id);
                         let expression_has_static_arguments = expression
@@ -268,25 +245,26 @@ impl Compiler {
                         let target_symbol = self.canonical_symbol_id(
                             owner_module,
                             owner_symbols,
-                            profile,
+                            owner_tables.profile,
                             target_symbol,
                             CanonicalSymbolMode::FollowAliases,
                         );
 
                         let expression_global_id = expression_id.into_global_any(owner_module.id);
-                        let mut heritage_type_id = if let Some(type_id) = types
+                        let mut heritage_type_id = if let Some(type_id) = owner_tables
+                            .types
                             .get_inferred_type_id(expression_global_id)
-                            .or_else(|| types.get_declared_type_id(expression_global_id))
+                            .or_else(|| {
+                                owner_tables
+                                    .types
+                                    .get_declared_type_id(expression_global_id)
+                            })
                         {
                             type_id
                         } else {
                             self.resolve_declared_type_expression(
-                                owner_module,
-                                profile,
+                                &mut owner_tables.reborrow(),
                                 expression_id,
-                                owner_tree,
-                                owner_symbols,
-                                types,
                                 true,
                                 true,
                             )?
@@ -297,37 +275,29 @@ impl Compiler {
                             heritage_type_id = self.substitute_static_parameters(
                                 heritage_type_id,
                                 &current_substitutions,
-                                types,
+                                owner_tables.types,
                                 &mut substitution_cache,
                             );
                         }
 
                         let mut materialize_cache = TypeRewriteCache::new();
                         heritage_type_id = self.materialize_static_arguments_in_type(
-                            owner_module,
-                            profile,
+                            &mut owner_tables.reborrow(),
                             heritage_type_id,
-                            owner_tree,
-                            owner_symbols,
-                            types,
                             &mut materialize_cache,
                         );
 
                         // refresh cached heritage references when explicit static arguments were dropped
                         if expression_has_static_arguments
                             && let Some((_, resolved_arguments, _)) =
-                                self.unwrap_type_symbol(types, heritage_type_id)
+                                self.unwrap_type_symbol(owner_tables.types, heritage_type_id)
                             && resolved_arguments
                                 .as_ref()
                                 .is_none_or(|arguments| arguments.is_empty())
                         {
                             heritage_type_id = self.resolve_declared_type_expression(
-                                owner_module,
-                                profile,
+                                &mut owner_tables.reborrow(),
                                 expression_id,
-                                owner_tree,
-                                owner_symbols,
-                                types,
                                 true,
                                 true,
                             )?;
@@ -337,49 +307,35 @@ impl Compiler {
                                 heritage_type_id = self.substitute_static_parameters(
                                     heritage_type_id,
                                     &current_substitutions,
-                                    types,
+                                    owner_tables.types,
                                     &mut substitution_cache,
                                 );
                             }
 
                             heritage_type_id = self.materialize_static_arguments_in_type(
-                                owner_module,
-                                profile,
+                                &mut owner_tables.reborrow(),
                                 heritage_type_id,
-                                owner_tree,
-                                owner_symbols,
-                                types,
                                 &mut materialize_cache,
                             );
                         }
 
                         if let Some((resolved_symbol, resolved_arguments, _)) =
-                            self.unwrap_type_symbol(types, heritage_type_id)
+                            self.unwrap_type_symbol(owner_tables.types, heritage_type_id)
                         {
                             let mut resolved_arguments = resolved_arguments.unwrap_or_default();
                             if resolved_arguments.is_empty() && expression_has_static_arguments {
                                 let evaluated_arguments = self.evaluate_static_arguments(
                                     owner_module,
-                                    profile,
+                                    owner_tables.profile,
                                     expression.static_arguments(),
                                     owner_tree,
                                     owner_symbols,
-                                    types,
+                                    owner_tables.types,
                                 )?;
                                 let evaluated_arguments = evaluated_arguments.unwrap_or_default();
-                                let options =
-                                    self.analyze_context_options_for_module(owner_module.id);
-                                let mut type_tables = TypeTablesContext::new(
-                                    owner_module,
-                                    profile,
-                                    &options,
-                                    owner_tree,
-                                    owner_symbols,
-                                    types,
-                                );
                                 let resolved_static_arguments = self
                                     .resolve_type_reference_static_arguments(
-                                        &mut type_tables,
+                                        &mut owner_tables.reborrow(),
                                         source_id,
                                         target_symbol,
                                         Some(evaluated_arguments.as_slice()),
@@ -401,24 +357,18 @@ impl Compiler {
             };
 
             // map the resolved arguments onto the next symbol parameters
-            let mut type_tables =
-                TypeTablesContext::new(module, profile, &options, tree, symbols, types);
             let next_substitutions = self.build_type_parameter_substitutions_for_symbol(
-                &mut type_tables,
+                &mut tables.reborrow(),
                 next_symbol,
                 source_id,
                 &next_arguments,
             );
             if let Some(substitutions) = self.associated_projection_receiver_substitutions_inner(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 source_id,
                 next_symbol,
                 owner_symbol,
                 next_substitutions,
-                tree,
-                symbols,
-                types,
                 visited_symbols,
             )? {
                 return Ok(Some(substitutions));
@@ -431,18 +381,15 @@ impl Compiler {
     /// Collect direct heritage expressions for associated projection traversal.
     fn heritage_expressions_for_associated_projection(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &TypeTablesContext<'_>,
         symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> AnalyzeResult<Vec<GlobalNodeId<Expression>>> {
         self.with_module_tree_symbols_or_local_at_stage(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             symbol.module_id,
-            tree,
-            symbols,
+            tables.tree,
+            tables.symbols,
             AnalyzeDependencyStage::Declare,
             |owner_module, owner_tree, owner_symbols| {
                 let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
@@ -492,16 +439,11 @@ impl Compiler {
     /// Build interface substitutions for one interface owner on a receiver type.
     pub(crate) fn interface_substitutions_for_owner_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         receiver_symbol: GlobalSymbolId,
         receiver_arguments: &[StaticArgument],
         interface_symbol: GlobalSymbolId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
         if interface_symbol.ty() != SymbolType::Interface {
             return Ok(None);
@@ -509,46 +451,41 @@ impl Compiler {
 
         // normalize the receiver symbol for extension matching
         let canonical_receiver_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            type_tables.module,
+            type_tables.symbols,
+            type_tables.profile,
             receiver_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
 
         // resolve substitutions from direct declaration implements clauses first
         if let Some(substitutions) = self.receiver_interface_substitutions(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             source_id,
             canonical_receiver_symbol,
             receiver_arguments,
             interface_symbol,
-            options,
-            tree,
-            symbols,
-            types,
         )? {
             return Ok(Some(substitutions));
         }
 
         // collect visible extensions for the receiver target
         let mut extension_symbols = self.visible_extension_symbols_for_target(
-            module,
-            profile,
-            symbols,
-            types,
+            type_tables.module,
+            type_tables.profile,
+            type_tables.symbols,
+            type_tables.types,
             canonical_receiver_symbol,
         )?;
 
         // include directly declared extensions from the receiver module
         let declared_extension_symbols = self
             .with_module_tree_symbols_or_local_at_stage(
-                module,
-                profile,
+                type_tables.module,
+                type_tables.profile,
                 canonical_receiver_symbol.module_id,
-                tree,
-                symbols,
+                type_tables.tree,
+                type_tables.symbols,
                 AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     let mut declared = Vec::new();
@@ -564,7 +501,7 @@ impl Compiler {
                         let canonical_target = self.canonical_symbol_id(
                             owner_module,
                             owner_symbols,
-                            profile,
+                            type_tables.profile,
                             *extension_target,
                             CanonicalSymbolMode::FollowAliases,
                         );
@@ -596,11 +533,11 @@ impl Compiler {
         for extension_symbol in extension_symbols {
             let substitutions = self
                 .with_module_tree_symbols_or_local_at_stage(
-                    module,
-                    profile,
+                    type_tables.module,
+                    type_tables.profile,
                     extension_symbol.module_id,
-                    tree,
-                    symbols,
+                    type_tables.tree,
+                    type_tables.symbols,
                     AnalyzeDependencyStage::Declare,
                     |owner_module,
                      owner_tree,
@@ -623,33 +560,20 @@ impl Compiler {
                             return Ok(None);
                         };
 
-                        let mut type_tables = TypeTablesContext::new(
+                        let owner_options = self.analyze_context_options_for_module(owner_module.id);
+                        let mut owner_tables = type_tables.reborrow_for_module_with_options(
                             owner_module,
-                            profile,
-                            options,
+                            &owner_options,
                             owner_tree,
                             owner_symbols,
-                            types,
                         );
-                        let receiver_substitutions =
-                            self.build_type_parameter_substitutions_for_symbol(
-                                &mut type_tables,
-                                extension_symbol,
-                                source_id,
-                                receiver_arguments,
-                            );
-
-                        self.interface_substitutions_for_implements_types(
-                            owner_module,
-                            profile,
+                        self.interface_substitutions_for_owner_implements_types(
+                            &mut owner_tables,
                             source_id,
+                            extension_symbol,
+                            receiver_arguments,
                             interface_symbol,
                             implements_types,
-                            &receiver_substitutions,
-                            options,
-                            owner_tree,
-                            owner_symbols,
-                            types,
                         )
                     },
                 )
@@ -665,23 +589,18 @@ impl Compiler {
     /// Resolve interface substitutions from receiver declaration heritage.
     fn receiver_interface_substitutions(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         receiver_symbol: GlobalSymbolId,
         receiver_arguments: &[StaticArgument],
         interface_symbol: GlobalSymbolId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
         self.with_module_tree_symbols_or_local_at_stage(
-            module,
-            profile,
+            type_tables.module,
+            type_tables.profile,
             receiver_symbol.module_id,
-            tree,
-            symbols,
+            type_tables.tree,
+            type_tables.symbols,
             AnalyzeDependencyStage::Declare,
             |owner_module, owner_tree, owner_symbols| {
                 // resolve receiver declaration and heritage
@@ -703,101 +622,117 @@ impl Compiler {
                     return Ok(None);
                 };
 
-                // resolve receiver substitutions from projection arguments
-                let mut type_tables = TypeTablesContext::new(
+                let owner_options = self.analyze_context_options_for_module(owner_module.id);
+                let mut owner_tables = type_tables.reborrow_for_module_with_options(
                     owner_module,
-                    profile,
-                    options,
+                    &owner_options,
                     owner_tree,
                     owner_symbols,
-                    types,
                 );
-                let receiver_substitutions = self.build_type_parameter_substitutions_for_symbol(
-                    &mut type_tables,
+                self.interface_substitutions_for_owner_implements_types(
+                    &mut owner_tables,
+                    source_id,
                     receiver_symbol,
-                    source_id,
                     receiver_arguments,
-                );
-
-                self.interface_substitutions_for_implements_types(
-                    owner_module,
-                    profile,
-                    source_id,
                     interface_symbol,
                     implements_types,
-                    &receiver_substitutions,
-                    options,
-                    owner_tree,
-                    owner_symbols,
-                    types,
                 )
             },
         )
         .map_err(AnalyzeError::from)?
     }
 
+    /// Resolve interface substitutions for one owner and one implements list.
+    fn interface_substitutions_for_owner_implements_types(
+        &self,
+        type_tables: &mut TypeTablesContext<'_>,
+        source_id: LocalNodeIdAny,
+        receiver_symbol: GlobalSymbolId,
+        receiver_arguments: &[StaticArgument],
+        interface_symbol: GlobalSymbolId,
+        implements_types: &[LocalNodeId<Expression>],
+    ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
+        let receiver_substitutions = self.build_type_parameter_substitutions_for_symbol(
+            &mut type_tables.reborrow(),
+            receiver_symbol,
+            source_id,
+            receiver_arguments,
+        );
+
+        self.interface_substitutions_for_implements_types(
+            &mut type_tables.reborrow(),
+            source_id,
+            interface_symbol,
+            implements_types,
+            &receiver_substitutions,
+        )
+    }
+
     /// Resolve interface substitutions from a list of implements expressions.
     fn interface_substitutions_for_implements_types(
         &self,
-        owner_module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         interface_symbol: GlobalSymbolId,
         implements_types: &[LocalNodeId<Expression>],
         receiver_substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        options: &AnalyzeOptions,
-        owner_tree: &NodeTree,
-        owner_symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
         let interface_symbol = self.canonical_symbol_id(
-            owner_module,
-            owner_symbols,
-            profile,
+            type_tables.module,
+            type_tables.symbols,
+            type_tables.profile,
             interface_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         let interface_symbol = self
-            .declaration_symbol_id(owner_module, owner_symbols, profile, interface_symbol)
+            .declaration_symbol_id(
+                type_tables.module,
+                type_tables.symbols,
+                type_tables.profile,
+                interface_symbol,
+            )
             .unwrap_or(interface_symbol);
 
         for interface_expression_id in implements_types {
-            let Some(target_symbol) = owner_tree.get(*interface_expression_id).target_symbol()
+            let Some(target_symbol) = type_tables
+                .tree
+                .get(*interface_expression_id)
+                .target_symbol()
             else {
                 continue;
             };
             let mut canonical_target = self.canonical_symbol_id(
-                owner_module,
-                owner_symbols,
-                profile,
+                type_tables.module,
+                type_tables.symbols,
+                type_tables.profile,
                 target_symbol,
                 CanonicalSymbolMode::FollowAliases,
             );
             canonical_target = self
-                .declaration_symbol_id(owner_module, owner_symbols, profile, canonical_target)
+                .declaration_symbol_id(
+                    type_tables.module,
+                    type_tables.symbols,
+                    type_tables.profile,
+                    canonical_target,
+                )
                 .unwrap_or(canonical_target);
 
             // resolve interface arguments from heritage expressions
-            let static_argument_nodes = owner_tree.get(*interface_expression_id).static_arguments();
+            let static_argument_nodes = type_tables
+                .tree
+                .get(*interface_expression_id)
+                .static_arguments();
             let evaluated_static_arguments = self.evaluate_static_arguments(
-                owner_module,
-                profile,
+                type_tables.module,
+                type_tables.profile,
                 static_argument_nodes,
-                owner_tree,
-                owner_symbols,
-                types,
+                type_tables.tree,
+                type_tables.symbols,
+                type_tables.types,
             )?;
             let evaluated_static_arguments = evaluated_static_arguments.unwrap_or_default();
-            let mut type_tables = TypeTablesContext::new(
-                owner_module,
-                profile,
-                options,
-                owner_tree,
-                owner_symbols,
-                types,
-            );
             let resolved_static_arguments = self.resolve_type_reference_static_arguments(
-                &mut type_tables,
+                &mut type_tables.reborrow(),
                 source_id,
                 canonical_target,
                 Some(evaluated_static_arguments.as_slice()),
@@ -818,7 +753,7 @@ impl Compiler {
                     let mapped = self.substitute_static_parameters(
                         *ty_id,
                         receiver_substitutions,
-                        types,
+                        type_tables.types,
                         &mut cache,
                     );
                     *ty_id = mapped;
@@ -835,15 +770,11 @@ impl Compiler {
                 let mut visited_symbols = HashSet::new();
                 if let Some(inherited_substitutions) = self
                     .associated_projection_receiver_substitutions_inner(
-                        owner_module,
-                        profile,
+                        &mut type_tables.reborrow(),
                         source_id,
                         canonical_target,
                         interface_symbol,
                         substitutions,
-                        owner_tree,
-                        owner_symbols,
-                        types,
                         &mut visited_symbols,
                     )?
                 {
@@ -858,36 +789,40 @@ impl Compiler {
     /// Build one canonical projection environment for a projected member.
     pub(crate) fn projection_environment_for_member(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         target_symbol: GlobalSymbolId,
         receiver_symbol: Option<GlobalSymbolId>,
         receiver_arguments: &[StaticArgument],
         explicit_member_arguments: Option<&[StaticArgument]>,
         member_ty: Option<&Type>,
-        options: &AnalyzeOptions,
         static_eval_visited_symbols: Option<&HashSet<GlobalSymbolId>>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<ProjectionEnvironment> {
         let mut substitutions = HashMap::new();
-        let owner_symbol =
-            self.query_owner_symbol_for_member_symbol(module, profile, target_symbol, symbols)?;
+        let owner_symbol = self.query_owner_symbol_for_member_symbol(
+            tables.module,
+            tables.profile,
+            target_symbol,
+            tables.symbols,
+        )?;
         let canonical_receiver_symbol = receiver_symbol.map(|receiver_symbol| {
             let canonical_receiver_symbol = self.canonical_symbol_id(
-                module,
-                symbols,
-                profile,
+                tables.module,
+                tables.symbols,
+                tables.profile,
                 receiver_symbol,
                 CanonicalSymbolMode::FollowAliases,
             );
-            self.declaration_symbol_id(module, symbols, profile, canonical_receiver_symbol)
-                .unwrap_or(canonical_receiver_symbol)
+            self.declaration_symbol_id(
+                tables.module,
+                tables.symbols,
+                tables.profile,
+                canonical_receiver_symbol,
+            )
+            .unwrap_or(canonical_receiver_symbol)
         });
         let owner_symbol = owner_symbol.map(|owner_symbol| {
-            self.declaration_symbol_id(module, symbols, profile, owner_symbol)
+            self.declaration_symbol_id(tables.module, tables.symbols, tables.profile, owner_symbol)
                 .unwrap_or(owner_symbol)
         });
 
@@ -898,44 +833,31 @@ impl Compiler {
         {
             if owner_symbol.ty() == SymbolType::Interface {
                 receiver_owner_substitutions = self.interface_substitutions_for_owner_symbol(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     source_id,
                     receiver_symbol,
                     receiver_arguments,
                     owner_symbol,
-                    options,
-                    tree,
-                    symbols,
-                    types,
                 )?;
 
                 // fall back to general receiver traversal for constrained/interface projections
                 if receiver_owner_substitutions.is_none() {
                     receiver_owner_substitutions = self
                         .receiver_projection_substitutions_for_owner(
-                            module,
-                            profile,
+                            &mut tables.reborrow(),
                             source_id,
                             receiver_symbol,
                             receiver_arguments,
                             owner_symbol,
-                            tree,
-                            symbols,
-                            types,
                         )?;
                 }
             } else {
                 receiver_owner_substitutions = self.receiver_projection_substitutions_for_owner(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     source_id,
                     receiver_symbol,
                     receiver_arguments,
                     owner_symbol,
-                    tree,
-                    symbols,
-                    types,
                 )?;
             }
         }
@@ -952,29 +874,21 @@ impl Compiler {
             && let Some(owner_symbol) = owner_symbol
             && let Some(owner_comptime_substitutions) = self
                 .owner_comptime_substitutions_for_receiver(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     source_id,
                     target_symbol,
                     receiver_symbol,
                     owner_symbol,
-                    tree,
-                    symbols,
                     static_eval_visited_symbols,
                     receiver_owner_substitutions.as_ref(),
-                    types,
                 )?
         {
             substitutions.extend(owner_comptime_substitutions);
         }
 
-        // construct shared tables for extension/member static-argument resolution
-        let mut type_tables =
-            TypeTablesContext::new(module, profile, options, tree, symbols, types);
-
         // map extension substitutions when the member is extension-owned
         if let Ok(Some(extension_context)) = self.resolve_extension_member_context(
-            &mut type_tables.reborrow(),
+            &mut tables.reborrow(),
             source_id,
             target_symbol,
             receiver_arguments,
@@ -984,7 +898,7 @@ impl Compiler {
 
         // resolve member static arguments under the projection context
         let resolved_member_arguments = self.resolve_type_reference_static_arguments_with_bounds(
-            &mut type_tables.reborrow(),
+            &mut tables.reborrow(),
             source_id,
             target_symbol,
             explicit_member_arguments,
@@ -1000,7 +914,7 @@ impl Compiler {
             )
         {
             let member_substitutions = self.build_type_parameter_substitutions_for_symbol(
-                &mut type_tables.reborrow(),
+                &mut tables.reborrow(),
                 member_argument_symbol,
                 source_id,
                 member_arguments,
@@ -1017,17 +931,13 @@ impl Compiler {
     /// Build owner associated comptime substitutions for one projected receiver.
     fn owner_comptime_substitutions_for_receiver(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         target_symbol: GlobalSymbolId,
         receiver_symbol: GlobalSymbolId,
         owner_symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
         static_eval_visited_symbols: Option<&HashSet<GlobalSymbolId>>,
         receiver_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
         if !matches!(
             owner_symbol.ty(),
@@ -1036,19 +946,24 @@ impl Compiler {
             return Ok(None);
         }
         let owner_symbol = self
-            .declaration_symbol_id(module, symbols, profile, owner_symbol)
+            .declaration_symbol_id(tables.module, tables.symbols, tables.profile, owner_symbol)
             .unwrap_or(owner_symbol);
 
         // normalize the receiver symbol for lookup
         let canonical_receiver_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            tables.module,
+            tables.symbols,
+            tables.profile,
             receiver_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         let canonical_receiver_symbol = self
-            .declaration_symbol_id(module, symbols, profile, canonical_receiver_symbol)
+            .declaration_symbol_id(
+                tables.module,
+                tables.symbols,
+                tables.profile,
+                canonical_receiver_symbol,
+            )
             .unwrap_or(canonical_receiver_symbol);
 
         // avoid recursive default evaluation when projecting on interface owners
@@ -1062,11 +977,11 @@ impl Compiler {
         // collect owner associated comptime member symbols by name
         let owner_members = self
             .with_module_tree_symbols_or_local_at_stage(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 owner_symbol.module_id,
-                tree,
-                symbols,
+                tables.tree,
+                tables.symbols,
                 AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     let mut members = Vec::new();
@@ -1125,16 +1040,16 @@ impl Compiler {
 
             let resolved_member_symbol = self
                 .with_module_tree_symbols_or_local_at_stage(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     canonical_receiver_symbol.module_id,
-                    tree,
-                    symbols,
+                    tables.tree,
+                    tables.symbols,
                     AnalyzeDependencyStage::Declare,
                     |receiver_module, receiver_tree, receiver_symbols| {
                         self.resolve_static_member_symbol_in_tables(
                             receiver_module,
-                            profile,
+                            tables.profile,
                             canonical_receiver_symbol,
                             member_key,
                             receiver_tree,
@@ -1157,13 +1072,15 @@ impl Compiler {
                 let should_report_missing =
                     requires_implementation && canonical_receiver_symbol != owner_symbol;
                 if should_report_missing {
-                    types.mark_symbol_with_unimplemented_associated_requirements(
-                        canonical_receiver_symbol,
-                    );
+                    tables
+                        .types
+                        .mark_symbol_with_unimplemented_associated_requirements(
+                            canonical_receiver_symbol,
+                        );
                     self.error(AnalyzeError::InvalidStaticArgument {
                         node: source_id
-                            .into_global(module.id)
-                            .into_anchored(Some(profile)),
+                            .into_global(tables.module.id)
+                            .into_anchored(Some(tables.profile)),
                         message: "missing associated comptime implementation".to_string(),
                     });
                 }
@@ -1172,12 +1089,8 @@ impl Compiler {
 
             let mut visited_symbols = static_eval_visited_symbols.cloned().unwrap_or_default();
             let Some(value) = self.resolve_static_constant_reference_instantiated_declared(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 resolved_member_symbol,
-                tree,
-                symbols,
-                types,
                 receiver_substitutions,
                 &mut visited_symbols,
             )?
@@ -1185,13 +1098,15 @@ impl Compiler {
                 let should_report_missing =
                     requires_implementation && canonical_receiver_symbol != owner_symbol;
                 if should_report_missing {
-                    types.mark_symbol_with_unimplemented_associated_requirements(
-                        canonical_receiver_symbol,
-                    );
+                    tables
+                        .types
+                        .mark_symbol_with_unimplemented_associated_requirements(
+                            canonical_receiver_symbol,
+                        );
                     self.error(AnalyzeError::InvalidStaticArgument {
                         node: source_id
-                            .into_global(module.id)
-                            .into_anchored(Some(profile)),
+                            .into_global(tables.module.id)
+                            .into_anchored(Some(tables.profile)),
                         message: "missing associated comptime implementation".to_string(),
                     });
                 }
@@ -1199,7 +1114,7 @@ impl Compiler {
             };
 
             let Some(type_id) =
-                self.static_expression_type_id_for_substitution(source_id, &value, types)
+                self.static_expression_type_id_for_substitution(source_id, &value, tables.types)
             else {
                 continue;
             };
@@ -1241,21 +1156,17 @@ impl Compiler {
     /// Import one alias target without requiring pre-materialized static value arguments.
     pub(super) fn relaxed_alias_target_type_id_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         symbol: GlobalSymbolId,
         source_id: LocalNodeIdAny,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         let typed_symbol = self
             .with_module_tree_symbols_or_local_at_stage(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 symbol.module_id,
-                tree,
-                symbols,
+                tables.tree,
+                tables.symbols,
                 AnalyzeDependencyStage::Declare,
                 |_, _, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
@@ -1272,23 +1183,26 @@ impl Compiler {
             .map_err(AnalyzeError::from)
             .ok()??;
 
-        if typed_symbol.module_id == module.id {
-            types.record_normalization_symbol_dependency(typed_symbol);
-            return types
+        if typed_symbol.module_id == tables.module.id {
+            tables
+                .types
+                .record_normalization_symbol_dependency(typed_symbol);
+            return tables
+                .types
                 .get_alias_target_type_id(typed_symbol)
-                .or_else(|| types.get_alias_target_type_id(symbol));
+                .or_else(|| tables.types.get_alias_target_type_id(symbol));
         }
 
         let remote_alias_target = self
             .with_module_tree_symbols_or_local_at_stage(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 typed_symbol.module_id,
-                tree,
-                symbols,
+                tables.tree,
+                tables.symbols,
                 AnalyzeDependencyStage::Declare,
                 |owner_module, _owner_tree, _owner_symbols| {
-                    let owner_types = owner_module.dir(profile).types.read();
+                    let owner_types = owner_module.dir(tables.profile).types.read();
                     let remote_target_id = owner_types.get_alias_target_type_id(typed_symbol)?;
                     let remote_target_ty = owner_types.get_type(remote_target_id).clone();
                     let remote_snapshot = owner_types.clone();
@@ -1299,10 +1213,18 @@ impl Compiler {
             .ok()??;
 
         let (remote_target_ty, remote_snapshot) = remote_alias_target;
-        let local_target_id =
-            self.import_remote_type_for_node(source_id, &remote_target_ty, &remote_snapshot, types);
-        types.record_normalization_symbol_dependency(typed_symbol);
-        types.set_alias_target_type_id(typed_symbol, local_target_id);
+        let local_target_id = self.import_remote_type_for_node(
+            source_id,
+            &remote_target_ty,
+            &remote_snapshot,
+            tables.types,
+        );
+        tables
+            .types
+            .record_normalization_symbol_dependency(typed_symbol);
+        tables
+            .types
+            .set_alias_target_type_id(typed_symbol, local_target_id);
         Some(local_target_id)
     }
 
@@ -1414,68 +1336,48 @@ impl Compiler {
     /// Apply associated projection substitutions by alias expression shape.
     fn apply_projection_substitutions_from_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         local_type_id: LocalTypeId,
-        owner_tree: &NodeTree,
-        owner_symbols: &SymbolTable,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         // projection alias roots
         if let Some(mapped_alias_target) = self.projection_substituted_alias_target_for_expression(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             expression_id,
-            owner_tree,
-            owner_symbols,
             substitutions,
-            types,
         )? {
             return Ok(mapped_alias_target);
         }
 
         // unevaluated projection references
         if let Some(mapped_type) = self.substitute_projection_unevaluated_type(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             expression_id,
             local_type_id,
-            owner_tree,
-            owner_symbols,
             substitutions,
-            types,
         )? {
             return Ok(mapped_type);
         }
 
         // recurse through nested index expressions and set count inferred types from substitutions
-        match owner_tree.get(expression_id).clone() {
+        match type_tables.tree.get(expression_id).clone() {
             Expression::TypeIndex { left, index } => {
                 return self.apply_projection_substitutions_to_type_index(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     left,
                     index,
                     local_type_id,
-                    owner_tree,
-                    owner_symbols,
                     substitutions,
-                    types,
                 );
             }
             Expression::Parenthesized { expression } => {
                 return self.apply_projection_substitutions_from_expression(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     expression,
                     local_type_id,
-                    owner_tree,
-                    owner_symbols,
                     substitutions,
-                    types,
                 );
             }
             Expression::TypeUnary {
@@ -1483,21 +1385,17 @@ impl Compiler {
                 right,
             } => {
                 return self.apply_projection_substitutions_from_expression(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     right,
                     local_type_id,
-                    owner_tree,
-                    owner_symbols,
                     substitutions,
-                    types,
                 );
             }
             _ => {}
         }
 
         // map direct reference substitutions for projected symbols
-        let (symbol, static_arguments) = match types.get_type(local_type_id).clone() {
+        let (symbol, static_arguments) = match type_tables.types.get_type(local_type_id).clone() {
             Type::Reference {
                 symbol,
                 static_arguments,
@@ -1506,81 +1404,61 @@ impl Compiler {
         };
         if static_arguments.is_none() {
             return self.substitute_projection_reference_without_arguments(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 expression_id,
                 symbol,
                 local_type_id,
-                owner_tree,
-                owner_symbols,
                 substitutions,
-                types,
             );
         }
 
         // map reference static arguments that originate from owner projections
         self.substitute_projection_reference_with_arguments(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             expression_id,
             symbol,
             static_arguments,
             local_type_id,
-            owner_tree,
-            owner_symbols,
             substitutions,
-            types,
         )
     }
 
     /// Return one projection-substituted alias target for a projection-root expression.
     fn projection_substituted_alias_target_for_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        owner_tree: &NodeTree,
-        owner_symbols: &SymbolTable,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         if !matches!(
-            owner_tree.get(expression_id),
+            type_tables.tree.get(expression_id),
             Expression::Member { .. } | Expression::Instantiation { .. }
         ) {
             return Ok(None);
         }
 
         let Some(target_symbol) = self.projection_substitution_symbol_from_expression(
-            module,
-            profile,
+            type_tables.module,
+            type_tables.profile,
             expression_id,
-            owner_tree,
-            owner_symbols,
+            type_tables.tree,
+            type_tables.symbols,
         ) else {
             return Ok(None);
         };
         let Some(alias_target_id) = self.relaxed_alias_target_type_id_for_symbol(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             target_symbol,
             expression_id.into_any(),
-            owner_tree,
-            owner_symbols,
-            types,
         ) else {
             return Ok(None);
         };
 
         let mapped_alias_target = self.apply_associated_projection_substitutions(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             target_symbol,
             alias_target_id,
             substitutions,
-            owner_tree,
-            owner_symbols,
-            types,
         )?;
         if mapped_alias_target == alias_target_id {
             return Ok(None);
@@ -1592,25 +1470,24 @@ impl Compiler {
     /// Return one projection-substituted type for an unevaluated reference expression.
     fn substitute_projection_unevaluated_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         local_type_id: LocalTypeId,
-        owner_tree: &NodeTree,
-        owner_symbols: &SymbolTable,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        if !matches!(types.get_type(local_type_id), Type::Unevaluated(_)) {
+        if !matches!(
+            type_tables.types.get_type(local_type_id),
+            Type::Unevaluated(_)
+        ) {
             return Ok(None);
         }
 
         let Some(target_symbol) = self.projection_substitution_symbol_from_expression(
-            module,
-            profile,
+            type_tables.module,
+            type_tables.profile,
             expression_id,
-            owner_tree,
-            owner_symbols,
+            type_tables.tree,
+            type_tables.symbols,
         ) else {
             return Ok(None);
         };
@@ -1618,18 +1495,15 @@ impl Compiler {
         if let Some(substitution) =
             self.projection_substitution_type_for_symbol(target_symbol, substitutions)
         {
-            let mapped_type = self.normalized_projection_substitution_type(substitution, types);
+            let mapped_type =
+                self.normalized_projection_substitution_type(substitution, type_tables.types);
             return Ok(Some(mapped_type));
         }
 
         let mut visited_symbols = HashSet::new();
         let Ok(Some(value)) = self.resolve_static_constant_reference_instantiated(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             target_symbol,
-            owner_tree,
-            owner_symbols,
-            types,
             substitutions,
             &mut visited_symbols,
         ) else {
@@ -1638,7 +1512,7 @@ impl Compiler {
         let Some(value_type_id) = self.static_expression_type_id_for_substitution(
             expression_id.into_any(),
             &value,
-            types,
+            type_tables.types,
         ) else {
             return Ok(None);
         };
@@ -1649,27 +1523,20 @@ impl Compiler {
             mapped_value_type_id = self.substitute_static_parameters(
                 mapped_value_type_id,
                 substitutions,
-                types,
+                type_tables.types,
                 &mut substitution_cache,
             );
         }
 
         let mut materialize_cache = TypeRewriteCache::new();
         mapped_value_type_id = self.materialize_static_arguments_in_type(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             mapped_value_type_id,
-            owner_tree,
-            owner_symbols,
-            types,
             &mut materialize_cache,
         );
         mapped_value_type_id = self.normalize_type_with_relation(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             mapped_value_type_id,
-            owner_symbols,
-            types,
             NormalizationMode::Assign,
             RelationMode::STATIC_EVAL,
         );
@@ -1680,18 +1547,14 @@ impl Compiler {
     /// Return one projection-substituted type for a type-index expression.
     fn apply_projection_substitutions_to_type_index(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
         index: LocalNodeId<Expression>,
         local_type_id: LocalTypeId,
-        owner_tree: &NodeTree,
-        owner_symbols: &SymbolTable,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
-        let array_parts = match types.get_type(local_type_id) {
+        let array_parts = match type_tables.types.get_type(local_type_id) {
             Type::ArraySized {
                 element,
                 count,
@@ -1703,45 +1566,47 @@ impl Compiler {
             return Ok(local_type_id);
         };
         let mut substitution_cache = HashMap::new();
-        let mut mapped_count =
-            self.substitute_static_parameters(count, substitutions, types, &mut substitution_cache);
+        let mut mapped_count = self.substitute_static_parameters(
+            count,
+            substitutions,
+            type_tables.types,
+            &mut substitution_cache,
+        );
 
         if let Some(target_symbol) = self.projection_substitution_symbol_from_expression(
-            module,
-            profile,
+            type_tables.module,
+            type_tables.profile,
             index,
-            owner_tree,
-            owner_symbols,
+            type_tables.tree,
+            type_tables.symbols,
         ) && let Some(substitution) =
             self.projection_substitution_type_for_symbol(target_symbol, substitutions)
         {
-            mapped_count = self.normalized_projection_substitution_type(substitution, types);
+            mapped_count =
+                self.normalized_projection_substitution_type(substitution, type_tables.types);
         }
 
         // map direct count references through projection substitutions
-        if let Type::Reference { symbol, .. } = types.get_type(mapped_count).clone()
+        if let Type::Reference { symbol, .. } = type_tables.types.get_type(mapped_count).clone()
             && let Some(substitution) =
                 self.projection_substitution_type_for_symbol(symbol, substitutions)
         {
-            mapped_count = self.normalized_projection_substitution_type(substitution, types);
+            mapped_count =
+                self.normalized_projection_substitution_type(substitution, type_tables.types);
         }
 
         // materialize remaining comptime references using projection substitutions
-        if let Type::Reference { symbol, .. } = types.get_type(mapped_count).clone() {
+        if let Type::Reference { symbol, .. } = type_tables.types.get_type(mapped_count).clone() {
             let mut visited_symbols = HashSet::new();
             if let Ok(Some(value)) = self.resolve_static_constant_reference_instantiated(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 symbol,
-                owner_tree,
-                owner_symbols,
-                types,
                 substitutions,
                 &mut visited_symbols,
             ) && let Some(value_type_id) = self.static_expression_type_id_for_substitution(
                 expression_id.into_any(),
                 &value,
-                types,
+                type_tables.types,
             ) {
                 mapped_count = value_type_id;
                 if !substitutions.is_empty() {
@@ -1749,49 +1614,45 @@ impl Compiler {
                     mapped_count = self.substitute_static_parameters(
                         mapped_count,
                         substitutions,
-                        types,
+                        type_tables.types,
                         &mut substitution_cache,
                     );
                 }
 
                 let mut materialize_cache = TypeRewriteCache::new();
                 mapped_count = self.materialize_static_arguments_in_type(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     mapped_count,
-                    owner_tree,
-                    owner_symbols,
-                    types,
                     &mut materialize_cache,
                 );
-                mapped_count = self.normalized_projection_substitution_type(mapped_count, types);
+                mapped_count =
+                    self.normalized_projection_substitution_type(mapped_count, type_tables.types);
             }
         }
 
         let mapped_element = self.apply_projection_substitutions_from_expression(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             left,
             element,
-            owner_tree,
-            owner_symbols,
             substitutions,
-            types,
         )?;
 
         // keep indexed-access semantics when substitution makes the receiver indexable
-        let (_, is_explicit_comptime) = self.unwrap_as_comptime_expression(index, owner_tree);
+        let (_, is_explicit_comptime) = self.unwrap_as_comptime_expression(index, type_tables.tree);
         let mapped_count_is_numeric_literal = matches!(
-            types.get_type(mapped_count),
+            type_tables.types.get_type(mapped_count),
             Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(
                     ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) | ScalarLiteral::Bigint(_)
                 ),
             }
         );
-        let mapped_element_is_array = matches!(types.get_type(mapped_element), Type::Array { .. });
+        let mapped_element_is_array = matches!(
+            type_tables.types.get_type(mapped_element),
+            Type::Array { .. }
+        );
         if !is_explicit_comptime && mapped_element_is_array && mapped_count_is_numeric_literal {
-            return Ok(types.insert_type_from_type(
+            return Ok(type_tables.types.insert_type_from_type(
                 Type::Index {
                     left: mapped_element,
                     index: mapped_count,
@@ -1804,7 +1665,7 @@ impl Compiler {
             return Ok(local_type_id);
         }
 
-        Ok(types.insert_type_from_type(
+        Ok(type_tables.types.insert_type_from_type(
             Type::ArraySized {
                 element: mapped_element,
                 count: mapped_count,
@@ -1817,50 +1678,48 @@ impl Compiler {
     /// Return one projection-substituted reference type with no static arguments.
     fn substitute_projection_reference_without_arguments(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         symbol: GlobalSymbolId,
         local_type_id: LocalTypeId,
-        owner_tree: &NodeTree,
-        owner_symbols: &SymbolTable,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         if let Some(mapped_symbol) = self.projection_substitution_symbol_from_expression(
-            module,
-            profile,
+            type_tables.module,
+            type_tables.profile,
             expression_id,
-            owner_tree,
-            owner_symbols,
+            type_tables.tree,
+            type_tables.symbols,
         ) && (mapped_symbol == symbol
             || (mapped_symbol.module_id == symbol.module_id
                 && mapped_symbol.local_id.id == symbol.local_id.id))
             && let Some(substitution) =
                 self.projection_substitution_type_for_symbol(mapped_symbol, substitutions)
         {
-            return Ok(self.normalized_projection_substitution_type(substitution, types));
+            return Ok(
+                self.normalized_projection_substitution_type(substitution, type_tables.types)
+            );
         }
 
         if let Some(substitution) =
             self.projection_substitution_type_for_symbol(symbol, substitutions)
         {
-            return Ok(self.normalized_projection_substitution_type(substitution, types));
+            return Ok(
+                self.normalized_projection_substitution_type(substitution, type_tables.types)
+            );
         }
 
         let mut visited_symbols = HashSet::new();
         if let Ok(Some(value)) = self.resolve_static_constant_reference_instantiated(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             symbol,
-            owner_tree,
-            owner_symbols,
-            types,
             substitutions,
             &mut visited_symbols,
-        ) && let Some(value_type_id) =
-            self.static_expression_type_id_for_substitution(expression_id.into_any(), &value, types)
-        {
+        ) && let Some(value_type_id) = self.static_expression_type_id_for_substitution(
+            expression_id.into_any(),
+            &value,
+            type_tables.types,
+        ) {
             return Ok(value_type_id);
         }
 
@@ -1870,21 +1729,17 @@ impl Compiler {
     /// Return one projection-substituted reference type with static arguments.
     fn substitute_projection_reference_with_arguments(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         symbol: GlobalSymbolId,
         static_arguments: Option<Vec<StaticArgument>>,
         local_type_id: LocalTypeId,
-        owner_tree: &NodeTree,
-        owner_symbols: &SymbolTable,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         let Some(static_arguments) = static_arguments else {
             return Ok(local_type_id);
         };
-        let Some(argument_nodes) = owner_tree.get(expression_id).static_arguments() else {
+        let Some(argument_nodes) = type_tables.tree.get(expression_id).static_arguments() else {
             return Ok(local_type_id);
         };
 
@@ -1895,22 +1750,24 @@ impl Compiler {
             let Some(current_argument) = mapped_arguments.get(argument_index).cloned() else {
                 continue;
             };
-            let argument_expression_id = owner_tree.get(*argument_node).value();
+            let argument_expression_id = type_tables.tree.get(*argument_node).value();
 
             // replace direct symbol references with projection substitutions
             if let Some(target_symbol) = self.projection_substitution_symbol_from_expression(
-                module,
-                profile,
+                type_tables.module,
+                type_tables.profile,
                 argument_expression_id,
-                owner_tree,
-                owner_symbols,
+                type_tables.tree,
+                type_tables.symbols,
             ) && let Some(substitution) =
                 self.projection_substitution_type_for_symbol(target_symbol, substitutions)
             {
                 let substitution =
-                    self.normalized_projection_substitution_type(substitution, types);
-                let substitution_value =
-                    self.static_expression_from_projection_substitution_type(substitution, types);
+                    self.normalized_projection_substitution_type(substitution, type_tables.types);
+                let substitution_value = self.static_expression_from_projection_substitution_type(
+                    substitution,
+                    type_tables.types,
+                );
                 let argument_name = match current_argument {
                     StaticArgument::Evaluated { name, .. } => name,
                     StaticArgument::Unevaluated { .. } => None,
@@ -1934,14 +1791,10 @@ impl Compiler {
                 continue;
             };
             let mapped_type = self.apply_projection_substitutions_from_expression(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 argument_expression_id,
                 ty,
-                owner_tree,
-                owner_symbols,
                 substitutions,
-                types,
             )?;
             if mapped_type == ty {
                 continue;
@@ -1958,7 +1811,7 @@ impl Compiler {
             return Ok(local_type_id);
         }
 
-        Ok(types.insert_type_from_type(
+        Ok(type_tables.types.insert_type_from_type(
             Type::Reference {
                 symbol,
                 static_arguments: Some(mapped_arguments),
@@ -1970,14 +1823,10 @@ impl Compiler {
     /// Apply associated projection substitutions to imported alias targets when needed.
     pub(super) fn apply_associated_projection_substitutions(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         target_symbol: GlobalSymbolId,
         alias_target_id: LocalTypeId,
         substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         if substitutions.is_empty() {
             return Ok(alias_target_id);
@@ -1985,11 +1834,11 @@ impl Compiler {
 
         let mapped_alias_target = self
             .with_module_tree_symbols_or_local_at_stage(
-                module,
-                profile,
+                type_tables.module,
+                type_tables.profile,
                 target_symbol.module_id,
-                tree,
-                symbols,
+                type_tables.tree,
+                type_tables.symbols,
                 AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| -> AnalyzeResult<LocalTypeId> {
                     let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
@@ -2009,15 +1858,18 @@ impl Compiler {
                         return Ok(alias_target_id);
                     };
 
-                    self.apply_projection_substitutions_from_expression(
+                    let owner_options = self.analyze_context_options_for_module(owner_module.id);
+                    let mut owner_tables = type_tables.reborrow_for_module_with_options(
                         owner_module,
-                        profile,
-                        *alias_expression,
-                        alias_target_id,
+                        &owner_options,
                         owner_tree,
                         owner_symbols,
+                    );
+                    self.apply_projection_substitutions_from_expression(
+                        &mut owner_tables,
+                        *alias_expression,
+                        alias_target_id,
                         substitutions,
-                        types,
                     )
                 },
             )

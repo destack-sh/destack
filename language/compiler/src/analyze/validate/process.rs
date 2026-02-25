@@ -1,3 +1,4 @@
+use crate::analyze::common::TypeTablesContext;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
 use destack_dir::{Annotation, Declaration, Expression, Member, Parameter, Pattern};
@@ -129,91 +130,89 @@ impl Compiler {
             if should_skip_declaration_validation {
                 should_return_after_validation = true;
             } else {
+                let mut type_tables = TypeTablesContext::new(
+                    &module,
+                    profile,
+                    &analyze_options,
+                    &tree,
+                    &symbols,
+                    &mut types,
+                );
+
                 // TODO #Performance: consolidate validation passes into a single tree walk
                 // validate binding identifiers
-                self.validate_binding_names(&module, profile, &tree, &symbols);
+                self.validate_binding_names(&type_tables);
 
                 // validate declarations
-                for (id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
-                    let symbol = symbols.get_symbol(declaration.symbol());
+                for (id, declaration) in type_tables.tree.iter_nodes_of_type::<Declaration>() {
+                    let symbol = type_tables.symbols.get_symbol(declaration.symbol());
                     if !symbol.is_active() {
                         continue;
                     }
-                    self.validate_declaration(
-                        &module,
-                        profile,
-                        &tree,
-                        &symbols,
-                        &mut types,
-                        id,
-                        declaration,
-                    );
+                    self.validate_declaration(&mut type_tables.reborrow(), id, declaration);
                 }
 
                 // validate parameters
-                for (id, parameter) in tree.iter_nodes_of_type::<Parameter>() {
-                    if !self.is_node_active(&tree, &symbols, id.into_any()) {
+                for (id, parameter) in type_tables.tree.iter_nodes_of_type::<Parameter>() {
+                    if !self.is_node_active(type_tables.tree, type_tables.symbols, id.into_any()) {
                         continue;
                     }
-                    self.validate_parameter(
-                        &module, profile, &tree, &symbols, &types, id, parameter,
-                    );
+                    self.validate_parameter(&mut type_tables.reborrow(), id, parameter);
                 }
 
                 // validate members
-                for (id, member) in tree.iter_nodes_of_type::<Member>() {
-                    let symbol = symbols.get_symbol(member.symbol());
+                for (id, member) in type_tables.tree.iter_nodes_of_type::<Member>() {
+                    let symbol = type_tables.symbols.get_symbol(member.symbol());
                     if !symbol.is_active() {
                         continue;
                     }
-                    self.validate_member(&module, profile, &tree, analyze_options, id, member);
+                    self.validate_member(&type_tables, analyze_options, id, member);
                 }
 
                 // validate expressions
-                for (id, expression) in tree.iter_nodes_of_type::<Expression>() {
-                    if !self.is_node_active(&tree, &symbols, id.into_any()) {
+                for (id, expression) in type_tables.tree.iter_nodes_of_type::<Expression>() {
+                    if !self.is_node_active(type_tables.tree, type_tables.symbols, id.into_any()) {
                         continue;
                     }
                     self.validate_expression(
-                        &module,
-                        profile,
-                        &tree,
-                        &symbols,
-                        &mut types,
+                        &mut type_tables.reborrow(),
                         analyze_options,
                         id,
                         expression,
                     );
                 }
 
+                // validate type-index access resolution with one shared tables context
+                for (id, expression) in type_tables.tree.iter_nodes_of_type::<Expression>() {
+                    if !self.is_node_active(type_tables.tree, type_tables.symbols, id.into_any()) {
+                        continue;
+                    }
+                    if matches!(expression, Expression::TypeIndex { .. }) {
+                        self.validate_type_index_access(&mut type_tables.reborrow(), id);
+                    }
+                }
+
                 // validate annotations
-                for (id, annotation) in tree.iter_nodes_of_type::<Annotation>() {
-                    if let Some(parent) = tree.get_parent(id.id)
-                        && !self.is_node_active(&tree, &symbols, parent)
+                for (id, annotation) in type_tables.tree.iter_nodes_of_type::<Annotation>() {
+                    if let Some(parent) = type_tables.tree.get_parent(id.id)
+                        && !self.is_node_active(type_tables.tree, type_tables.symbols, parent)
                     {
                         continue;
                     }
-                    self.validate_annotation(&module, profile, &tree, id, annotation);
+                    self.validate_annotation(&type_tables, id, annotation);
                 }
 
                 // validate patterns
-                for (id, pattern) in tree.iter_nodes_of_type::<Pattern>() {
-                    if !self.is_node_active(&tree, &symbols, id.into_any()) {
+                for (id, pattern) in type_tables.tree.iter_nodes_of_type::<Pattern>() {
+                    if !self.is_node_active(type_tables.tree, type_tables.symbols, id.into_any()) {
                         continue;
                     }
-                    self.validate_pattern(&module, profile, &tree, pattern);
+                    self.validate_pattern(&mut type_tables.reborrow(), pattern);
                 }
 
                 // validate option dependent checks
-                self.validate_strict_checks(
-                    &module,
-                    profile,
-                    &tree,
-                    &symbols,
-                    &types,
-                    analyze_options,
-                );
-                self.validate_restriction_checks(&module, profile, &types, analyze_options);
+                self.validate_strict_checks(&mut type_tables.reborrow(), analyze_options);
+                self.validate_restriction_checks(&mut type_tables.reborrow(), analyze_options);
             }
         }
 

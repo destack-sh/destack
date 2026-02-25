@@ -1,11 +1,12 @@
 use crate::{AnalyzeResult, Compiler, InferContext};
 use destack_dir::{
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, Property, SymbolTable, Type, TypeLiteral, TypeTable,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Property, Type, TypeLiteral, TypeTable,
 };
-use destack_workspace::{Module, ProfileId};
 
 use super::expression::ObjectLiteralField;
-use crate::analyze::common::{InferTablesContext, NormalizationMode, ObjectShape, RelationMode};
+use crate::analyze::common::{
+    InferTablesContext, NormalizationMode, ObjectShape, RelationMode, TypeTablesContext,
+};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -36,11 +37,8 @@ impl Compiler {
                         self.infer_expression(&mut tables.reborrow(), *value, &mut spread_ctx)?;
                     // normalize spreads before extracting shapes
                     let spread_type = self.normalize_type_with_relation(
-                        tables.module,
-                        ctx.profile,
+                        &mut tables.type_tables_reborrow(),
                         spread_type,
-                        tables.symbols,
-                        tables.types,
                         NormalizationMode::Assign,
                         RelationMode::OBJECT_SHAPE,
                     );
@@ -70,12 +68,9 @@ impl Compiler {
 
                     // expand spread types into object shapes
                     let spread_shapes = self.collect_object_spread_shapes(
-                        tables.module,
-                        ctx.profile,
+                        &mut tables.type_tables_reborrow(),
                         (*property_id).into_any(),
                         spread_type,
-                        tables.symbols,
-                        tables.types,
                     )?;
                     shapes = self.merge_object_spread_shape_sets(shapes, spread_shapes);
                 }
@@ -142,21 +137,15 @@ impl Compiler {
     /// Collect object shapes from a spread type.
     fn collect_object_spread_shapes(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         node_id: LocalNodeIdAny,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Vec<ObjectShape>> {
         let mut visited = Vec::new();
         self.collect_object_spread_shapes_inner(
-            module,
-            profile,
+            &mut tables.reborrow(),
             node_id,
             type_id,
-            symbols,
-            types,
             &mut visited,
         )
     }
@@ -164,12 +153,9 @@ impl Compiler {
     /// Collect object shapes with recursion protection.
     fn collect_object_spread_shapes_inner(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         node_id: LocalNodeIdAny,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         visited: &mut Vec<LocalTypeId>,
     ) -> AnalyzeResult<Vec<ObjectShape>> {
         // guard against recursive types
@@ -179,38 +165,36 @@ impl Compiler {
         visited.push(type_id);
 
         // normalize before inspecting the spread shape
-        let normalized_type = self.normalize_type_with_relation(
-            module,
-            profile,
-            type_id,
-            symbols,
-            types,
-            NormalizationMode::Assign,
-            RelationMode::OBJECT_SHAPE,
-        );
+        let normalized_type = {
+            let mut normalize_visited = Vec::new();
+            self.normalize_type_inner(
+                &mut tables.reborrow(),
+                type_id,
+                NormalizationMode::Assign,
+                RelationMode::OBJECT_SHAPE,
+                &mut normalize_visited,
+            )
+        };
 
         // derive shapes based on the normalized type
-        let normalized_type_value = types.get_type(normalized_type).clone();
+        let normalized_type_value = tables.types.get_type(normalized_type).clone();
         let shapes = match normalized_type_value {
             Type::Object { .. } => {
                 // direct object shapes map to a single inferred shape
                 let mut shape = ObjectShape::default();
-                shape.extend_from_object(types.get_type(normalized_type));
+                shape.extend_from_object(tables.types.get_type(normalized_type));
                 vec![shape]
             }
             Type::Reference { symbol, .. } => {
                 // use apparent types for spreads to match shape behavior
                 let instance_id =
-                    self.apparent_instance_type(module, profile, node_id, symbol, symbols, types);
+                    self.apparent_instance_type(&mut tables.reborrow(), node_id, symbol);
 
                 if let Some(instance_id) = instance_id {
                     self.collect_object_spread_shapes_inner(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         node_id,
                         instance_id,
-                        symbols,
-                        types,
                         visited,
                     )?
                 } else {
@@ -223,7 +207,10 @@ impl Compiler {
                 let mut merged = Vec::new();
                 for element_id in elements {
                     let mut element_shapes = self.collect_object_spread_shapes_inner(
-                        module, profile, node_id, element_id, symbols, types, visited,
+                        &mut tables.reborrow(),
+                        node_id,
+                        element_id,
+                        visited,
                     )?;
                     merged.append(&mut element_shapes);
                 }
@@ -234,12 +221,15 @@ impl Compiler {
                 let mut merged = vec![ObjectShape::default()];
                 for element_id in elements {
                     let element_shapes = self.collect_object_spread_shapes_inner(
-                        module, profile, node_id, element_id, symbols, types, visited,
+                        &mut tables.reborrow(),
+                        node_id,
+                        element_id,
+                        visited,
                     )?;
                     merged = self.merge_object_spread_shape_sets_for_intersection(
                         merged,
                         element_shapes,
-                        types,
+                        tables.types,
                     );
                 }
                 merged

@@ -1,10 +1,10 @@
-use crate::analyze::common::AnalyzeDependencyStage;
+use crate::analyze::common::{AnalyzeDependencyStage, TypeTablesContext};
 use crate::analyze::module::GlobalMergeCategory;
-use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
     Asynchrony, Declaration, Expression, FunctionCardinality, GlobalSymbolId, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LocalTypeId, NodeTree, Symbol, SymbolTable, SymbolType, Type,
-    TypeField, TypeIndexSignature, TypeTable, are_types_equal,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, Symbol, SymbolTable, SymbolType, Type, TypeField,
+    TypeIndexSignature, TypeTable, are_types_equal,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -449,28 +449,23 @@ impl Compiler {
     /// Collect embedded fields and index signatures for an embed member.
     pub(crate) fn embed_member_shape(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         value: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<ObjectShape> {
         // resolve the embed target type
-        let embed_ty_id = self.resolve_declared_type_expression(
-            module, profile, value, tree, symbols, types, true, true,
-        )?;
+        let embed_ty_id =
+            self.resolve_declared_type_expression(&mut tables.reborrow(), value, true, true)?;
 
         // unwrap value types and resolve nominal references when possible
         let mut embed_ty_id = embed_ty_id;
         let mut embed_symbol = None;
-        match types.get_type(embed_ty_id) {
+        match tables.types.get_type(embed_ty_id) {
             Type::Reference { symbol, .. } => {
                 embed_symbol = Some(*symbol);
             }
             Type::Value { value } => {
                 embed_ty_id = *value;
-                if let Type::Reference { symbol, .. } = types.get_type(*value) {
+                if let Type::Reference { symbol, .. } = tables.types.get_type(*value) {
                     embed_symbol = Some(*symbol);
                 }
             }
@@ -484,12 +479,9 @@ impl Compiler {
         let mut visited_symbols = Vec::new();
         if let Some(symbol) = embed_symbol {
             self.collect_embed_shape_for_symbol(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 value.into_any(),
                 symbol,
-                symbols,
-                types,
                 &mut embed_shape,
                 &mut extras,
                 &mut visited,
@@ -498,7 +490,7 @@ impl Compiler {
         } else {
             self.collect_value_shape_from_type(
                 embed_ty_id,
-                types,
+                tables.types,
                 &mut embed_shape,
                 &mut extras,
                 &mut visited,
@@ -515,12 +507,9 @@ impl Compiler {
     /// Collect embedded shape data for a nominal symbol, including lineage.
     fn collect_embed_shape_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         shape: &mut ObjectShape,
         extras: &mut Vec<LocalTypeId>,
         visited_types: &mut Vec<LocalTypeId>,
@@ -534,22 +523,25 @@ impl Compiler {
 
         // collect fields from the apparent instance type
         if let Some(instance_id) =
-            self.apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+            self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
         {
-            self.collect_value_shape_from_type(instance_id, types, shape, extras, visited_types);
+            self.collect_value_shape_from_type(
+                instance_id,
+                tables.types,
+                shape,
+                extras,
+                visited_types,
+            );
         }
 
         // traverse lineage to collect inherited or embedded fields
-        let lineage = types.get_lineage_for_symbol(symbol).cloned();
+        let lineage = tables.types.get_lineage_for_symbol(symbol).cloned();
         if let Some(lineage) = lineage {
             if let Some(extends) = lineage.extends {
                 self.collect_embed_shape_for_symbol(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     source_id,
                     extends,
-                    symbols,
-                    types,
                     shape,
                     extras,
                     visited_types,
@@ -559,12 +551,9 @@ impl Compiler {
 
             for implements in lineage.implements {
                 self.collect_embed_shape_for_symbol(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     source_id,
                     implements,
-                    symbols,
-                    types,
                     shape,
                     extras,
                     visited_types,
@@ -574,12 +563,9 @@ impl Compiler {
 
             for embedded in lineage.embedded {
                 self.collect_embed_shape_for_symbol(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     source_id,
                     embedded,
-                    symbols,
-                    types,
                     shape,
                     extras,
                     visited_types,
@@ -657,33 +643,30 @@ impl Compiler {
     /// Merge a function declaration into the symbol value type.
     pub(crate) fn merge_function_value_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         symbol_id: LocalSymbolId,
         fn_ty_id: LocalTypeId,
         previous_signature_id: Option<LocalTypeId>,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         allow_merge: bool,
     ) {
         // resolve the symbol and merge mode
-        let symbol = symbol_id.into_global(module.id);
+        let symbol = symbol_id.into_global(type_tables.module.id);
 
         // assign directly when merging is disallowed
         if !allow_merge {
-            types.set_value_type(symbol, fn_ty_id);
+            type_tables.types.set_value_type(symbol, fn_ty_id);
             return;
         }
 
         // reuse the existing value type when available
-        let Some(existing_id) = types.get_value_type_id(symbol) else {
-            types.set_value_type(symbol, fn_ty_id);
+        let Some(existing_id) = type_tables.types.get_value_type_id(symbol) else {
+            type_tables.types.set_value_type(symbol, fn_ty_id);
             return;
         };
 
         // unpack the existing value type into a callable shape
-        let existing_ty = types.get_type(existing_id).clone();
+        let existing_ty = type_tables.types.get_type(existing_id).clone();
         let mut fields = Vec::new();
         let mut call_signatures = Vec::new();
         let mut construct_signatures = Vec::new();
@@ -692,7 +675,7 @@ impl Compiler {
             Type::Function { .. } => {
                 if previous_signature_id == Some(existing_id) {
                     // replace the cached signature for this declaration
-                    types.set_value_type(symbol, fn_ty_id);
+                    type_tables.types.set_value_type(symbol, fn_ty_id);
                     return;
                 }
                 call_signatures.push(existing_id);
@@ -718,13 +701,10 @@ impl Compiler {
 
         // report duplicate overloads in non-declaration modules
         self.report_duplicate_overload_signature(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             declaration_id.into_any(),
             &call_signatures,
             fn_ty_id,
-            symbols,
-            types,
         );
 
         // append the new overload signature
@@ -737,23 +717,20 @@ impl Compiler {
             construct_signatures,
             index_signatures,
         };
-        let value_ty_id = types.insert_type_from(value_ty, declaration_id);
-        types.set_value_type(symbol, value_ty_id);
+        let value_ty_id = type_tables.types.insert_type_from(value_ty, declaration_id);
+        type_tables.types.set_value_type(symbol, value_ty_id);
     }
 
     /// Report duplicate overload signatures in non-declaration modules.
     pub(crate) fn report_duplicate_overload_signature(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         existing_signatures: &[LocalTypeId],
         candidate_signature: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) {
         // allow duplicate overloads in declaration modules
-        if module.language_type.is_declaration() {
+        if type_tables.module.language_type.is_declaration() {
             return;
         }
 
@@ -762,25 +739,18 @@ impl Compiler {
             return;
         }
 
-        // resolve options for assignability checks
-        let options = self.analyze_context_options_for_module(module.id);
-
         // detect equivalent overloads by shape
         let has_duplicate = existing_signatures.iter().any(|signature_id| {
             self.signature_types_equivalent(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 *signature_id,
                 candidate_signature,
-                symbols,
-                types,
-                &options,
             )
         });
 
         if has_duplicate {
             self.error(AnalyzeError::DuplicateOverloadSignature {
-                node: source_id.into_anchored(module.id, Some(profile)),
+                node: source_id.into_anchored(type_tables.module.id, Some(type_tables.profile)),
             });
         }
     }
@@ -788,19 +758,15 @@ impl Compiler {
     /// Check whether two signature types are equivalent by shape.
     fn signature_types_equivalent(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         left_id: LocalTypeId,
         right_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> bool {
         // unpack function signatures
-        let Some(left) = self.signature_shape_from_type(left_id, types) else {
+        let Some(left) = self.signature_shape_from_type(left_id, type_tables.types) else {
             return false;
         };
-        let Some(right) = self.signature_shape_from_type(right_id, types) else {
+        let Some(right) = self.signature_shape_from_type(right_id, type_tables.types) else {
             return false;
         };
 
@@ -824,7 +790,9 @@ impl Compiler {
             (None, None) => {}
             (Some(left_this), Some(right_this)) => {
                 if !self.signature_type_ids_equivalent(
-                    module, profile, left_this, right_this, symbols, types, options,
+                    &mut type_tables.reborrow(),
+                    left_this,
+                    right_this,
                 ) {
                     return false;
                 }
@@ -839,13 +807,9 @@ impl Compiler {
             .zip(right.static_parameters.iter())
         {
             if !self.signature_type_ids_equivalent(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 *left_param,
                 *right_param,
-                symbols,
-                types,
-                options,
             ) {
                 return false;
             }
@@ -858,13 +822,9 @@ impl Compiler {
             .zip(right.dynamic_parameters.iter())
         {
             if !self.signature_type_ids_equivalent(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 *left_param,
                 *right_param,
-                symbols,
-                types,
-                options,
             ) {
                 return false;
             }
@@ -874,13 +834,9 @@ impl Compiler {
         match (left.return_type, right.return_type) {
             (None, None) => true,
             (Some(left_return), Some(right_return)) => self.signature_type_ids_equivalent(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 left_return,
                 right_return,
-                symbols,
-                types,
-                options,
             ),
             _ => false,
         }
@@ -889,19 +845,15 @@ impl Compiler {
     /// Check whether two type ids are mutually assignable for overload equivalence.
     fn signature_type_ids_equivalent(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         left_id: LocalTypeId,
         right_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> bool {
         // compare assignability in both directions
         let left_assignable =
-            self.is_type_assignable(module, profile, symbols, left_id, right_id, types, options);
+            self.is_type_assignable(&mut type_tables.reborrow(), left_id, right_id);
         let right_assignable =
-            self.is_type_assignable(module, profile, symbols, right_id, left_id, types, options);
+            self.is_type_assignable(&mut type_tables.reborrow(), right_id, left_id);
         left_assignable != Assignability::NotAssignable
             && right_assignable != Assignability::NotAssignable
     }

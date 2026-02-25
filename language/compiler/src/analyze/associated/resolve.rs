@@ -128,34 +128,31 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
             return None;
         }
 
-        // resolve the alias target for this member alias
-        let alias_target_id = self.compiler.alias_target_type_id_for_symbol(
-            self.module,
-            self.profile,
-            symbol,
-            self.source_id,
-            self.symbols,
-            types,
-        )?;
-
         // start from the caller substitutions
         let mut substitutions = self.substitutions.clone();
+        let options = self
+            .compiler
+            .analyze_context_options_for_module(self.module.id);
+        let mut type_tables = TypeTablesContext::new(
+            self.module,
+            self.profile,
+            &options,
+            self.tree,
+            self.symbols,
+            types,
+        );
+
+        // resolve the alias target for this member alias
+        let alias_target_id = self.compiler.alias_target_type_id_for_symbol(
+            &mut type_tables.reborrow(),
+            symbol,
+            self.source_id,
+        )?;
 
         // map explicit member arguments onto alias static parameters
         if let Some(member_arguments) = static_arguments.as_deref() {
-            let options = self
-                .compiler
-                .analyze_context_options_for_module(self.module.id);
-            let mut type_tables = TypeTablesContext::new(
-                self.module,
-                self.profile,
-                &options,
-                self.tree,
-                self.symbols,
-                types,
-            );
             let member_substitutions = self.compiler.build_type_parameter_substitutions_for_symbol(
-                &mut type_tables,
+                &mut type_tables.reborrow(),
                 symbol,
                 self.source_id,
                 member_arguments,
@@ -171,25 +168,18 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
             self.compiler.substitute_static_parameters(
                 alias_target_id,
                 &substitutions,
-                types,
+                type_tables.types,
                 &mut substitution_cache,
             )
         };
 
         // materialize static arguments after substitution
         let mut materialize_cache = TypeRewriteCache::new();
-        let mapped_alias_id = self.compiler.materialize_static_arguments_in_type(
-            self.module,
-            self.profile,
+        Some(self.compiler.materialize_static_arguments_in_type(
+            &mut type_tables.reborrow(),
             mapped_alias_id,
-            self.tree,
-            self.symbols,
-            types,
             &mut materialize_cache,
-        );
-
-        // return one rewrite step and let the outer walker handle recursion and caching
-        Some(mapped_alias_id)
+        ))
     }
 
     fn rewrite_type_id(&mut self, types: &mut TypeTable, type_id: LocalTypeId) -> LocalTypeId {
@@ -794,62 +784,56 @@ impl Compiler {
     /// Select a projected static member symbol from a nominal receiver.
     pub(crate) fn select_associated_projection_member_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
         member_key: StaticKey,
         preferred_kind: Option<StaticMemberSymbolKind>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Option<AssociatedProjectionSelection>> {
         // evaluate the receiver to a reference-like type
         let left_ty_id = self.resolve_declared_type_expression(
-            module,
-            profile,
+            &mut tables.reborrow(),
             left,
-            tree,
-            symbols,
-            types,
             validate_static_argument_bounds,
             enforce_implicit_managed,
         )?;
-        let left_ty = types.get_type(left_ty_id).clone();
+        let left_ty = tables.types.get_type(left_ty_id).clone();
         let receiver_reference = self
-            .unwrap_type_symbol(types, left_ty_id)
+            .unwrap_type_symbol(tables.types, left_ty_id)
             .map(|(symbol, static_arguments, _)| (symbol, static_arguments.unwrap_or_default()))
             .or_else(|| match left_ty {
                 Type::Intersection { elements } | Type::Union { elements } => {
                     elements.iter().find_map(|element_id| {
-                        self.unwrap_type_symbol(types, *element_id).map(
+                        self.unwrap_type_symbol(tables.types, *element_id).map(
                             |(symbol, static_arguments, _)| {
                                 (symbol, static_arguments.unwrap_or_default())
                             },
                         )
                     })
                 }
-                Type::This => {
-                    self.owner_symbol_for_this_expression(module, profile, left, tree, symbols)
-                }
+                Type::This => self.owner_symbol_for_this_expression(
+                    tables.module,
+                    tables.profile,
+                    left,
+                    tables.tree,
+                    tables.symbols,
+                ),
                 _ => None,
             });
         let mut receiver_reference = match receiver_reference {
             Some(reference) => Some(reference),
-            None => self.associated_projection_receiver_from_expression(
-                module, profile, left, tree, symbols, types,
-            )?,
+            None => {
+                self.associated_projection_receiver_from_expression(&mut tables.reborrow(), left)?
+            }
         };
 
         // preserve explicit receiver arguments from syntax when type evaluation dropped them
         if let Some((_, lookup_arguments)) = receiver_reference.as_ref()
             && lookup_arguments.is_empty()
-            && let Some((syntax_symbol, syntax_arguments)) = self
-                .associated_projection_receiver_from_expression(
-                    module, profile, left, tree, symbols, types,
-                )?
+            && let Some((syntax_symbol, syntax_arguments)) =
+                self.associated_projection_receiver_from_expression(&mut tables.reborrow(), left)?
             && !syntax_arguments.is_empty()
         {
             receiver_reference = Some((syntax_symbol, syntax_arguments));
@@ -859,21 +843,21 @@ impl Compiler {
             return Ok(None);
         };
         let mut projection_receiver_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            tables.module,
+            tables.symbols,
+            tables.profile,
             receiver_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
-        projection_receiver_symbol = self.resolve_type_reference_symbol(
-            module,
-            profile,
-            projection_receiver_symbol,
-            tree,
-            symbols,
-        );
+        projection_receiver_symbol =
+            self.resolve_type_reference_symbol(tables, projection_receiver_symbol);
         projection_receiver_symbol = self
-            .declaration_symbol_id(module, symbols, profile, projection_receiver_symbol)
+            .declaration_symbol_id(
+                tables.module,
+                tables.symbols,
+                tables.profile,
+                projection_receiver_symbol,
+            )
             .unwrap_or(projection_receiver_symbol);
         let projection_receiver_arguments = receiver_arguments.clone();
 
@@ -881,20 +865,23 @@ impl Compiler {
         let mut lookup_arguments = receiver_arguments;
 
         // follow static parameter constraints for projected members
-        if self.symbol_is_static_parameter(module, profile, lookup_symbol, symbols, types) {
+        if self.symbol_is_static_parameter(
+            tables.module,
+            tables.profile,
+            lookup_symbol,
+            tables.symbols,
+            tables.types,
+        ) {
             let constraint_ty_id = self.projection_static_parameter_constraint_type(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 expression_id.into_any(),
                 lookup_symbol,
-                symbols,
-                types,
             )?;
             if let Some(constraint_ty_id) = constraint_ty_id
                 && let Type::Reference {
                     symbol,
                     static_arguments,
-                } = types.get_type(constraint_ty_id)
+                } = tables.types.get_type(constraint_ty_id)
             {
                 lookup_symbol = *symbol;
                 lookup_arguments = static_arguments.clone().unwrap_or_default();
@@ -903,21 +890,15 @@ impl Compiler {
 
         // project through alias references before static member lookup
         if let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
-            module,
-            profile,
+            &mut tables.reborrow(),
             lookup_symbol,
             expression_id.into_any(),
-            symbols,
-            types,
         ) {
             let mapped_alias_target = if lookup_arguments.is_empty() {
                 alias_target_id
             } else {
-                let options = self.analyze_context_options_for_module(module.id);
-                let mut type_tables =
-                    TypeTablesContext::new(module, profile, &options, tree, symbols, types);
                 let substitutions = self.build_type_parameter_substitutions_for_symbol(
-                    &mut type_tables,
+                    &mut tables.reborrow(),
                     lookup_symbol,
                     expression_id.into_any(),
                     &lookup_arguments,
@@ -929,7 +910,7 @@ impl Compiler {
                     self.substitute_static_parameters(
                         alias_target_id,
                         &substitutions,
-                        types,
+                        tables.types,
                         &mut substitution_cache,
                     )
                 }
@@ -937,15 +918,12 @@ impl Compiler {
 
             let mut materialize_cache = TypeRewriteCache::new();
             let mapped_alias_target = self.materialize_static_arguments_in_type(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 mapped_alias_target,
-                tree,
-                symbols,
-                types,
                 &mut materialize_cache,
             );
-            if let Some((alias_symbol, _, _)) = self.unwrap_type_symbol(types, mapped_alias_target)
+            if let Some((alias_symbol, _, _)) =
+                self.unwrap_type_symbol(tables.types, mapped_alias_target)
             {
                 lookup_symbol = alias_symbol;
             }
@@ -954,16 +932,16 @@ impl Compiler {
         // resolve the projected member symbol on the normalized receiver symbol
         let projected_symbol = self
             .with_module_tree_symbols_or_local_at_stage(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 lookup_symbol.module_id,
-                tree,
-                symbols,
+                tables.tree,
+                tables.symbols,
                 AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
                     self.resolve_static_member_symbol_in_tables(
                         owner_module,
-                        profile,
+                        tables.profile,
                         lookup_symbol,
                         member_key,
                         owner_tree,
@@ -979,27 +957,29 @@ impl Compiler {
         // prefer one member-kind class when the owner has ambiguous same-name members
         if let Some(preferred_kind) = preferred_kind {
             if let Some(preferred_symbol) = self.query_direct_member_symbol_for_key_and_kind(
-                module,
-                profile,
+                &*tables,
                 lookup_symbol,
                 member_key,
                 preferred_kind,
-                tree,
-                symbols,
             )? {
                 projected_symbol = preferred_symbol;
             }
         }
 
         let projected_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            tables.module,
+            tables.symbols,
+            tables.profile,
             projected_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         let projected_symbol = self
-            .declaration_symbol_id(module, symbols, profile, projected_symbol)
+            .declaration_symbol_id(
+                tables.module,
+                tables.symbols,
+                tables.profile,
+                projected_symbol,
+            )
             .unwrap_or(projected_symbol);
 
         Ok(Some(AssociatedProjectionSelection {
@@ -1053,19 +1033,21 @@ impl Compiler {
     /// Build a projection receiver from one expression when type evaluation is unavailable.
     fn associated_projection_receiver_from_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<(GlobalSymbolId, Vec<StaticArgument>)>> {
-        let expression = tree.get(expression_id);
+        let expression = tables.tree.get(expression_id);
         let target_symbol = self
-            .reference_symbol_for_expression(module, expression_id, profile, tree, symbols)
+            .reference_symbol_for_expression(
+                tables.module,
+                expression_id,
+                tables.profile,
+                tables.tree,
+                tables.symbols,
+            )
             .or_else(|| expression.target_symbol())
             .or_else(|| match expression {
-                Expression::Instantiation { left, .. } => tree.get(*left).target_symbol(),
+                Expression::Instantiation { left, .. } => tables.tree.get(*left).target_symbol(),
                 _ => None,
             });
         let Some(target_symbol) = target_symbol else {
@@ -1073,26 +1055,25 @@ impl Compiler {
         };
         let static_argument_nodes = expression.static_arguments();
         let static_arguments = self.evaluate_static_arguments(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             static_argument_nodes,
-            tree,
-            symbols,
-            types,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         )?;
         let static_arguments = static_arguments.unwrap_or_default();
 
         let mut target_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            tables.module,
+            tables.symbols,
+            tables.profile,
             target_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
-        target_symbol =
-            self.resolve_type_reference_symbol(module, profile, target_symbol, tree, symbols);
+        target_symbol = self.resolve_type_reference_symbol(tables, target_symbol);
         target_symbol = self
-            .declaration_symbol_id(module, symbols, profile, target_symbol)
+            .declaration_symbol_id(tables.module, tables.symbols, tables.profile, target_symbol)
             .unwrap_or(target_symbol);
 
         Ok(Some((target_symbol, static_arguments)))
@@ -1101,28 +1082,25 @@ impl Compiler {
     /// Query one owner member symbol for one key and one static-member kind.
     pub(crate) fn query_direct_member_symbol_for_key_and_kind(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &TypeTablesContext<'_>,
         owner_symbol: GlobalSymbolId,
         member_key: StaticKey,
         preferred_kind: StaticMemberSymbolKind,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         let Some(member_name) = member_key.name() else {
             return Ok(None);
         };
 
         let owner_symbol = self
-            .declaration_symbol_id(module, symbols, profile, owner_symbol)
+            .declaration_symbol_id(tables.module, tables.symbols, tables.profile, owner_symbol)
             .unwrap_or(owner_symbol);
 
         self.with_module_tree_symbols_or_local_at_stage(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             owner_symbol.module_id,
-            tree,
-            symbols,
+            tables.tree,
+            tables.symbols,
             AnalyzeDependencyStage::Declare,
             |owner_module, owner_tree, owner_symbols| {
                 let symbol_entry = owner_symbols.get_symbol(owner_symbol.local_id);
@@ -1181,68 +1159,67 @@ impl Compiler {
     /// Resolve one associated member symbol for a concrete receiver and static member key.
     pub(crate) fn resolve_associated_member_symbol_for_receiver(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         receiver_symbol: GlobalSymbolId,
         member_key: StaticKey,
         member_kind: StaticMemberSymbolKind,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         let mut receiver_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            tables.module,
+            tables.symbols,
+            tables.profile,
             receiver_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         receiver_symbol = self
-            .declaration_symbol_id(module, symbols, profile, receiver_symbol)
+            .declaration_symbol_id(
+                tables.module,
+                tables.symbols,
+                tables.profile,
+                receiver_symbol,
+            )
             .unwrap_or(receiver_symbol);
 
         let Some(mut member_symbol) = self.resolve_static_member_symbol_in_tables(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             receiver_symbol,
             member_key,
-            tree,
-            symbols,
+            tables.tree,
+            tables.symbols,
         ) else {
             return Ok(None);
         };
 
         if let Some(preferred_symbol) = self.query_direct_member_symbol_for_key_and_kind(
-            module,
-            profile,
+            &*tables,
             receiver_symbol,
             member_key,
             member_kind,
-            tree,
-            symbols,
         )? {
             member_symbol = preferred_symbol;
         }
 
         if self.query_static_member_symbol_kind_for_symbol(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             member_symbol,
-            tree,
-            symbols,
+            tables.tree,
+            tables.symbols,
         )? != Some(member_kind)
         {
             return Ok(None);
         }
 
         let member_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            tables.module,
+            tables.symbols,
+            tables.profile,
             member_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         let member_symbol = self
-            .declaration_symbol_id(module, symbols, profile, member_symbol)
+            .declaration_symbol_id(tables.module, tables.symbols, tables.profile, member_symbol)
             .unwrap_or(member_symbol);
 
         Ok(Some(member_symbol))

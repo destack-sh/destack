@@ -2,11 +2,13 @@ use std::collections::{HashMap, HashSet};
 
 use super::resolve::AssociatedAliasProjectionRewriter;
 use crate::analyze::StaticMemberSymbolKind;
-use crate::analyze::common::{AnalyzeDependencyStage, RelationMode, TypeRewriteCache};
+use crate::analyze::common::{
+    AnalyzeDependencyStage, RelationMode, TypeRewriteCache, TypeTablesContext,
+};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeIdAny, Member, NodeTree, NodeType, NormalizationMode,
-    StaticArgument, SymbolTable, SymbolType, Type, TypeRewriter, TypeTable,
+    StaticArgument, SymbolTable, SymbolType, Type, TypeRewriter,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -14,33 +16,23 @@ use destack_workspace::{Module, ProfileId};
 impl Compiler {
     pub(crate) fn materialize_associated_member_projection(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         target_symbol: GlobalSymbolId,
         receiver_symbol: Option<GlobalSymbolId>,
         receiver_arguments: &[StaticArgument],
         static_arguments: Option<&[StaticArgument]>,
         member_ty: Type,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Type> {
-        let options = self.analyze_context_options_for_module(module.id);
         let projection_environment = self.projection_environment_for_member(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             source_id,
             target_symbol,
             receiver_symbol,
             receiver_arguments,
             static_arguments,
             Some(&member_ty),
-            &options,
             None,
-            tree,
-            symbols,
-            types,
         )?;
         let substitutions = projection_environment.substitutions;
         let owner_symbol = projection_environment.owner_symbol;
@@ -51,20 +43,20 @@ impl Compiler {
         {
             let parameter_count = self
                 .with_module_tree_symbols_or_local_at_stage(
-                    module,
-                    profile,
+                    type_tables.module,
+                    type_tables.profile,
                     target_symbol.module_id,
-                    tree,
-                    symbols,
+                    type_tables.tree,
+                    type_tables.symbols,
                     AnalyzeDependencyStage::Declare,
                     |owner_module, owner_tree, owner_symbols| {
                         self.collect_static_parameter_symbols(
                             owner_module,
                             target_symbol,
-                            profile,
+                            type_tables.profile,
                             owner_tree,
                             owner_symbols,
-                            types,
+                            type_tables.types,
                         )
                         .map(|parameters| parameters.len())
                     },
@@ -74,8 +66,8 @@ impl Compiler {
             if parameter_count == Some(0) {
                 self.error(AnalyzeError::InvalidStaticArgument {
                     node: source_id
-                        .into_global(module.id)
-                        .into_anchored(Some(profile)),
+                        .into_global(type_tables.module.id)
+                        .into_anchored(Some(type_tables.profile)),
                     message: "too many static arguments".to_string(),
                 });
                 return Ok(Type::Error);
@@ -85,11 +77,11 @@ impl Compiler {
         // re-evaluate associated comptime constants with receiver substitutions
         let member_kind = self
             .query_static_member_symbol_kind_for_symbol(
-                module,
-                profile,
+                type_tables.module,
+                type_tables.profile,
                 target_symbol,
-                tree,
-                symbols,
+                type_tables.tree,
+                type_tables.symbols,
             )
             .map_err(AnalyzeError::from)?;
         if matches!(
@@ -98,12 +90,8 @@ impl Compiler {
         ) {
             let mut visited_symbols = HashSet::new();
             let static_value = match self.resolve_static_constant_reference_instantiated_declared(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 target_symbol,
-                tree,
-                symbols,
-                types,
                 &substitutions,
                 &mut visited_symbols,
             ) {
@@ -112,10 +100,13 @@ impl Compiler {
                 Err(error) => return Err(error),
             };
             if let Some(static_value) = static_value
-                && let Some(value_type_id) =
-                    self.static_expression_type_id_for_substitution(source_id, &static_value, types)
+                && let Some(value_type_id) = self.static_expression_type_id_for_substitution(
+                    source_id,
+                    &static_value,
+                    type_tables.types,
+                )
             {
-                return Ok(types.get_type(value_type_id).clone());
+                return Ok(type_tables.types.get_type(value_type_id).clone());
             }
 
             // keep unresolved associated comptime projections explicit
@@ -129,66 +120,44 @@ impl Compiler {
 
         // materialize associated type alias targets with merged substitutions
         let mut alias_target_id = if let Some(alias_target_id) = self
-            .alias_target_type_id_for_symbol(
-                module,
-                profile,
-                target_symbol,
-                source_id,
-                symbols,
-                types,
-            ) {
+            .alias_target_type_id_for_symbol(&mut type_tables.reborrow(), target_symbol, source_id)
+        {
             alias_target_id
         } else if let Some(alias_target_id) = self.relaxed_alias_target_type_id_for_symbol(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             target_symbol,
             source_id,
-            tree,
-            symbols,
-            types,
         ) {
             alias_target_id
         } else {
             return Ok(member_ty);
         };
+
         // refresh local alias targets from source expressions once projection context is available
-        if target_symbol.module_id == module.id {
-            let alias_source = types.get_type_source(alias_target_id);
+        if target_symbol.module_id == type_tables.module.id {
+            let alias_source = type_tables.types.get_type_source(alias_target_id);
             if let Ok(alias_expression_id) = alias_source.try_into_typed::<Expression>()
-                && tree.has_node_id(alias_expression_id.id)
+                && type_tables.tree.has_node_id(alias_expression_id.id)
             {
                 alias_target_id = self.resolve_declared_type_expression_fresh(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     alias_expression_id,
-                    tree,
-                    symbols,
-                    types,
                     true,
                     true,
                 )?;
             }
         }
-
         alias_target_id = self.apply_associated_projection_substitutions(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             target_symbol,
             alias_target_id,
             &substitutions,
-            tree,
-            symbols,
-            types,
         )?;
 
         let mut materialize_cache = TypeRewriteCache::new();
         let materialized_alias = self.materialize_static_arguments_in_type(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             alias_target_id,
-            tree,
-            symbols,
-            types,
             &mut materialize_cache,
         );
 
@@ -200,49 +169,42 @@ impl Compiler {
             self.substitute_static_parameters(
                 materialized_alias,
                 &substitutions,
-                types,
+                type_tables.types,
                 &mut substitution_cache,
             )
         };
 
         // rematerialize after substitution to normalize mapped references
         let mapped_alias = self.materialize_static_arguments_in_type(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             mapped_alias,
-            tree,
-            symbols,
-            types,
             &mut materialize_cache,
         );
 
         let mapped_alias = if let Some(owner_symbol) = owner_symbol {
             let mut rewriter = AssociatedAliasProjectionRewriter::new(
                 self,
-                module,
-                profile,
+                type_tables.module,
+                type_tables.profile,
                 source_id,
                 owner_symbol,
                 &substitutions,
-                tree,
-                symbols,
+                type_tables.tree,
+                type_tables.symbols,
             );
-            rewriter.rewrite_type_id(types, mapped_alias)
+            rewriter.rewrite_type_id(type_tables.types, mapped_alias)
         } else {
             mapped_alias
         };
 
         let normalized_alias = self.normalize_type_with_relation(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             mapped_alias,
-            symbols,
-            types,
             NormalizationMode::Assign,
             RelationMode::OBJECT_SHAPE,
         );
 
-        Ok(types.get_type(normalized_alias).clone())
+        Ok(type_tables.types.get_type(normalized_alias).clone())
     }
 
     /// Check whether an associated type alias requires explicit static arguments.

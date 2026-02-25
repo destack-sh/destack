@@ -1,8 +1,8 @@
-use crate::analyze::common::CanonicalSymbolMode;
+use crate::analyze::common::{CanonicalSymbolMode, TypeTablesContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, Generics, GlobalSymbolId, Heritage, LocalNodeId, Member, NodeTree, Parameter,
-    StringId, SymbolTable, TypeTable, WhereClause,
+    StringId, SymbolTable, WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 use std::collections::HashSet;
@@ -28,80 +28,57 @@ impl DeclaredAssociatedRequirementKind {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Report missing declared associated type requirements for one declaration.
-    pub(crate) fn report_missing_associated_type_requirements(
+    /// Report missing declared associated requirements for one declaration in one tables context.
+    pub(crate) fn report_missing_associated_requirements_in_tables(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         declaration_symbol: GlobalSymbolId,
         heritage: &Heritage,
         members: &[LocalNodeId<Member>],
-        allows_deferred_associated_types: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        allows_deferred_requirements: bool,
     ) -> AnalyzeResult<()> {
         self.check_associated_requirements(
-            module,
-            profile,
+            &mut tables.reborrow(),
             declaration_symbol,
             heritage,
             members,
-            allows_deferred_associated_types,
+            allows_deferred_requirements,
             DeclaredAssociatedRequirementKind::Type,
-            tree,
-            symbols,
-            types,
-        )
-    }
+        )?;
 
-    /// Report missing declared associated comptime requirements for one declaration.
-    pub(crate) fn report_missing_associated_comptime_requirements(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        declaration_symbol: GlobalSymbolId,
-        heritage: &Heritage,
-        members: &[LocalNodeId<Member>],
-        allows_deferred_associated_comptime: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<()> {
         self.check_associated_requirements(
-            module,
-            profile,
+            tables,
             declaration_symbol,
             heritage,
             members,
-            allows_deferred_associated_comptime,
+            allows_deferred_requirements,
             DeclaredAssociatedRequirementKind::Comptime,
-            tree,
-            symbols,
-            types,
-        )
+        )?;
+
+        Ok(())
     }
 
     /// Check declared associated requirements for one declaration.
     fn check_associated_requirements(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         declaration_symbol: GlobalSymbolId,
         heritage: &Heritage,
         members: &[LocalNodeId<Member>],
         allows_deferred_requirements: bool,
         requirement_kind: DeclaredAssociatedRequirementKind,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         let declaration_symbol = self
-            .declaration_symbol_id(module, symbols, profile, declaration_symbol)
+            .declaration_symbol_id(
+                tables.module,
+                tables.symbols,
+                tables.profile,
+                declaration_symbol,
+            )
             .unwrap_or(declaration_symbol);
 
         // skip non-user modules
-        if !matches!(module.source, ModuleSource::User) {
+        if !matches!(tables.module.source, ModuleSource::User) {
             return Ok(());
         }
 
@@ -113,30 +90,24 @@ impl Compiler {
 
         // collect declaration associated names for this requirement category
         let declared_associated_names =
-            self.declared_associated_member_names(requirement_kind, members, tree);
+            self.declared_associated_member_names(requirement_kind, members, tables.tree);
 
         // report or mark missing requirements once per associated name
         let mut reported_missing_names = HashSet::new();
         for expression_id in contract_expressions {
-            let Some(target_symbol) = self.inherited_contract_symbol_for_expression(
-                module,
-                profile,
-                expression_id,
-                tree,
-                symbols,
-                types,
-            )?
+            let Some(target_symbol) = self
+                .inherited_contract_symbol_for_expression(&mut tables.reborrow(), expression_id)?
             else {
                 continue;
             };
 
             let requirements = self.collect_associated_requirement_pairs_for_contract(
                 requirement_kind,
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 target_symbol,
-                tree,
-                symbols,
+                tables.tree,
+                tables.symbols,
             )?;
 
             for (requirement_name, requires_implementation) in requirements {
@@ -148,10 +119,12 @@ impl Compiler {
                     continue;
                 }
 
-                types.mark_symbol_with_unimplemented_associated_requirements(declaration_symbol);
+                tables
+                    .types
+                    .mark_symbol_with_unimplemented_associated_requirements(declaration_symbol);
                 let node = expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile));
+                    .into_global_any(tables.module.id)
+                    .into_anchored(Some(tables.profile));
                 self.error(AnalyzeError::InvalidStaticArgument {
                     node,
                     message: requirement_kind.missing_requirement_message().to_string(),
@@ -244,75 +217,64 @@ impl Compiler {
     /// Resolve one inherited contract symbol from one heritage expression.
     fn inherited_contract_symbol_for_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve direct symbol links through canonical declaration ownership
-        if let Some(target_symbol) = tree.get(expression_id).target_symbol() {
+        if let Some(target_symbol) = tables.tree.get(expression_id).target_symbol() {
             let mut target_symbol = self.canonical_symbol_id(
-                module,
-                symbols,
-                profile,
+                tables.module,
+                tables.symbols,
+                tables.profile,
                 target_symbol,
                 CanonicalSymbolMode::FollowAliases,
             );
-            target_symbol =
-                self.resolve_type_reference_symbol(module, profile, target_symbol, tree, symbols);
-            if let Some(target_symbol) =
-                self.declaration_symbol_id(module, symbols, profile, target_symbol)
-            {
+            target_symbol = self.resolve_type_reference_symbol(tables, target_symbol);
+            if let Some(target_symbol) = self.declaration_symbol_id(
+                tables.module,
+                tables.symbols,
+                tables.profile,
+                target_symbol,
+            ) {
                 return Ok(Some(target_symbol));
             }
         }
 
         // otherwise evaluate the heritage expression to resolve the target symbol
         let inherited_contract_type_id = self.resolve_declared_type_expression(
-            module,
-            profile,
+            &mut tables.reborrow(),
             expression_id,
-            tree,
-            symbols,
-            types,
             true,
             true,
         )?;
         let target_symbol = self
-            .unwrap_type_value_symbol(types, inherited_contract_type_id)
+            .unwrap_type_value_symbol(tables.types, inherited_contract_type_id)
             .map(|target_symbol| {
                 let mut target_symbol = self.canonical_symbol_id(
-                    module,
-                    symbols,
-                    profile,
+                    tables.module,
+                    tables.symbols,
+                    tables.profile,
                     target_symbol,
                     CanonicalSymbolMode::FollowAliases,
                 );
-                target_symbol = self.resolve_type_reference_symbol(
-                    module,
-                    profile,
+                target_symbol = self.resolve_type_reference_symbol(tables, target_symbol);
+                self.declaration_symbol_id(
+                    tables.module,
+                    tables.symbols,
+                    tables.profile,
                     target_symbol,
-                    tree,
-                    symbols,
-                );
-                self.declaration_symbol_id(module, symbols, profile, target_symbol)
-                    .unwrap_or(target_symbol)
+                )
+                .unwrap_or(target_symbol)
             });
 
         Ok(target_symbol)
     }
 
-    /// Declare type-member aliases and their generics for one declaration.
-    pub(crate) fn collect_associated_type_members(
+    /// Declare type-member aliases and their generics for one declaration in one tables context.
+    pub(crate) fn collect_associated_type_members_in_tables(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         members: &[LocalNodeId<Member>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         defer_type_evaluation: bool,
     ) -> AnalyzeResult<()> {
         for member_id in members {
@@ -322,22 +284,18 @@ impl Compiler {
                 ty,
                 value,
                 ..
-            } = tree.get(*member_id)
+            } = type_tables.tree.get(*member_id)
             else {
                 continue;
             };
 
             self.collect_associated_type_member(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 *member_id,
                 static_parameters.as_deref(),
                 where_clauses.as_deref(),
                 *ty,
                 *value,
-                tree,
-                symbols,
-                types,
                 defer_type_evaluation,
             )?;
         }
@@ -348,16 +306,12 @@ impl Compiler {
     /// Declare one type-member alias and its generic context.
     pub(crate) fn collect_associated_type_member(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         member_id: LocalNodeId<Member>,
         static_parameters: Option<&[LocalNodeId<Parameter>]>,
         where_clauses: Option<&[LocalNodeId<WhereClause>]>,
         ty: Option<LocalNodeId<Expression>>,
         value: Option<LocalNodeId<Expression>>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         defer_type_evaluation: bool,
     ) -> AnalyzeResult<()> {
         // declare associated type generics
@@ -366,41 +320,43 @@ impl Compiler {
                 .map(|static_parameters| static_parameters.to_vec()),
             where_clauses: where_clauses.map(|where_clauses| where_clauses.to_vec()),
         };
-        self.collect_generics(module, profile, &member_generics, tree, symbols, types)?;
+        self.collect_generics_in_tables(&mut type_tables.reborrow(), &member_generics)?;
 
         // resolve associated type bound
         if let Some(ty) = ty {
             let bound_ty_id = self.collect_or_defer_type_expression(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 ty,
-                tree,
-                symbols,
-                types,
                 defer_type_evaluation,
             )?;
-            types.set_declared_type(ty.into_global_any(module.id), bound_ty_id);
+            type_tables
+                .types
+                .set_declared_type(ty.into_global_any(type_tables.module.id), bound_ty_id);
         }
 
         // resolve and register associated type default
         if let Some(value) = value {
             let value_ty_id = self.collect_or_defer_type_expression(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 value,
-                tree,
-                symbols,
-                types,
                 defer_type_evaluation,
             )?;
-            types.set_declared_type(value.into_global_any(module.id), value_ty_id);
+            type_tables
+                .types
+                .set_declared_type(value.into_global_any(type_tables.module.id), value_ty_id);
 
-            let member_symbol = tree.get(member_id).symbol();
-            let member_symbol_entry = symbols.get_symbol(member_symbol);
-            let member_symbol =
-                GlobalSymbolId::new(module.id, member_symbol.with_type(member_symbol_entry.ty));
-            types.set_alias_target_type_id(member_symbol, value_ty_id);
-            types.set_instance_type(member_symbol, value_ty_id);
+            let member_symbol = type_tables.tree.get(member_id).symbol();
+            let member_symbol_entry = type_tables.symbols.get_symbol(member_symbol);
+            let member_symbol = GlobalSymbolId::new(
+                type_tables.module.id,
+                member_symbol.with_type(member_symbol_entry.ty),
+            );
+            type_tables
+                .types
+                .set_alias_target_type_id(member_symbol, value_ty_id);
+            type_tables
+                .types
+                .set_instance_type(member_symbol, value_ty_id);
         }
 
         Ok(())

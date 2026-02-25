@@ -319,12 +319,9 @@ impl Compiler {
                 if let Some(member_key) = member_key {
                     let is_field_readonly = self
                         .field_modifiers_for_key(
-                            tables.module,
-                            ctx.profile,
+                            &mut tables.type_tables_reborrow(),
                             receiver_ty_id,
                             &member_key,
-                            tables.symbols,
-                            tables.types,
                         )
                         .is_some_and(|(_, is_readonly)| is_readonly);
                     let is_parameter_property_readonly = if let Some(receiver_symbol) =
@@ -379,12 +376,8 @@ impl Compiler {
             self.is_projection_receiver_expression(&mut tables.reborrow(), receiver_id);
         if is_projection_receiver {
             return self.resolve_declared_type_expression(
-                tables.module,
-                ctx.profile,
+                &mut tables.type_tables_reborrow(),
                 receiver_id,
-                tables.tree,
-                tables.symbols,
-                tables.types,
                 true,
                 true,
             );

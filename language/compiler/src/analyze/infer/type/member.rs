@@ -1,12 +1,10 @@
 use super::*;
 
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Normalize one well known reference symbol before member inference recursion.
     fn normalize_well_known_reference_for_member_inference(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &TypeTablesContext<'_>,
         reference_ty: Type,
     ) -> AnalyzeResult<Type> {
         let Type::Reference {
@@ -19,7 +17,7 @@ impl Compiler {
 
         // normalize to declared symbol typing first
         let symbol = self
-            .remap_typevalue_symbol_to_type_space(module, profile, symbol)
+            .remap_typevalue_symbol_to_type_space(tables.module, tables.profile, symbol)
             .map_err(AnalyzeError::from)?;
 
         Ok(Type::Reference {
@@ -30,14 +28,11 @@ impl Compiler {
 
     pub(crate) fn infer_member_of_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         node_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
         receiver_ty: &Type,
         member_key: &StaticKey,
         lookup_mode: MemberLookupMode,
-        types: &mut TypeTable,
         visited: &mut Vec<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         match receiver_ty {
@@ -49,66 +44,61 @@ impl Compiler {
             } => {
                 // check explicit object fields first
                 if let Some(field_ty) =
-                    self.member_type_from_fields(fields, member_key, node_id, types)
+                    self.member_type_from_fields(fields, member_key, node_id, tables.types)
                 {
                     return Ok(Some(field_ty));
                 }
 
                 // override bind/call/apply signatures based on strictness policy
-                let options = self.analyze_context_options_for_module(module.id);
                 if !call_signatures.is_empty()
                     && let Some(synthetic) = self.bind_call_apply_member_type(
                         node_id,
                         receiver_ty,
                         member_key,
-                        options.strict_bind_call_apply,
-                        types,
+                        tables.options.strict_bind_call_apply,
+                        tables.types,
                     )
                 {
                     return Ok(Some(synthetic));
                 }
 
                 // fall back to implicit Object members
-                let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
+                let Some(reference_ty) =
+                    self.well_known_type(tables.profile, receiver_ty, tables.types)
+                else {
                     return Ok(None);
                 };
                 let reference_ty = self.normalize_well_known_reference_for_member_inference(
-                    module,
-                    profile,
+                    &tables.reborrow(),
                     reference_ty,
                 )?;
                 self.infer_member_of_type(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     node_id,
-                    symbols,
                     &reference_ty,
                     member_key,
                     lookup_mode,
-                    types,
                     visited,
                 )
             }
 
             // value type: unwrap to the underlying type
             Type::Value { .. } => {
-                let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
+                let Some(reference_ty) =
+                    self.well_known_type(tables.profile, receiver_ty, tables.types)
+                else {
                     return Ok(None);
                 };
                 let reference_ty = self.normalize_well_known_reference_for_member_inference(
-                    module,
-                    profile,
+                    &tables.reborrow(),
                     reference_ty,
                 )?;
                 self.infer_member_of_type(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     node_id,
-                    symbols,
                     &reference_ty,
                     member_key,
                     lookup_mode,
-                    types,
                     visited,
                 )
             }
@@ -121,27 +111,21 @@ impl Compiler {
                 if static_arguments.is_some() && matches!(symbol.ty(), SymbolType::TypeAlias) {
                     let mut normalize_visited = Vec::new();
                     if let Some(expanded_id) = self.normalize_type_alias_reference_with_arguments(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         node_id,
                         *symbol,
                         static_arguments.as_deref().unwrap_or(&[]),
-                        symbols,
-                        types,
                         NormalizationMode::Assign,
                         RelationMode::ASSIGN,
                         &mut normalize_visited,
                     ) {
-                        let expanded_ty = types.get_type(expanded_id).clone();
+                        let expanded_ty = tables.types.get_type(expanded_id).clone();
                         return self.infer_member_of_type(
-                            module,
-                            profile,
+                            &mut tables.reborrow(),
                             node_id,
-                            symbols,
                             &expanded_ty,
                             member_key,
                             lookup_mode,
-                            types,
                             visited,
                         );
                     }
@@ -150,30 +134,24 @@ impl Compiler {
                 match lookup_mode {
                     MemberLookupMode::Instance | MemberLookupMode::Any => self
                         .infer_member_of_symbol(
-                            module,
-                            profile,
+                            &mut tables.reborrow(),
                             node_id,
-                            symbols,
                             *symbol,
                             member_key,
                             lookup_mode,
-                            types,
                             visited,
                         ),
                     MemberLookupMode::Value => {
-                        let Some(value_ty_id) = types.get_value_type_id(*symbol) else {
+                        let Some(value_ty_id) = tables.types.get_value_type_id(*symbol) else {
                             return Ok(None);
                         };
-                        let value_ty = types.get_type(value_ty_id).clone();
+                        let value_ty = tables.types.get_type(value_ty_id).clone();
                         self.infer_member_of_type(
-                            module,
-                            profile,
+                            &mut tables.reborrow(),
                             node_id,
-                            symbols,
                             &value_ty,
                             member_key,
                             lookup_mode,
-                            types,
                             visited,
                         )
                     }
@@ -182,23 +160,21 @@ impl Compiler {
 
             // array like types: fall back to well known Array members
             Type::Array { .. } | Type::ArraySized { .. } | Type::Tuple { .. } => {
-                let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
+                let Some(reference_ty) =
+                    self.well_known_type(tables.profile, receiver_ty, tables.types)
+                else {
                     return Ok(None);
                 };
                 let reference_ty = self.normalize_well_known_reference_for_member_inference(
-                    module,
-                    profile,
+                    &tables.reborrow(),
                     reference_ty,
                 )?;
                 self.infer_member_of_type(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     node_id,
-                    symbols,
                     &reference_ty,
                     member_key,
                     lookup_mode,
-                    types,
                     visited,
                 )
             }
@@ -208,16 +184,13 @@ impl Compiler {
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => {
-                let inner_ty = types.get_type(*right).clone();
+                let inner_ty = tables.types.get_type(*right).clone();
                 self.infer_member_of_type(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     node_id,
-                    symbols,
                     &inner_ty,
                     member_key,
                     lookup_mode,
-                    types,
                     visited,
                 )
             }
@@ -227,16 +200,13 @@ impl Compiler {
                 let element_ids = elements.clone();
                 let mut field_types: Vec<LocalTypeId> = Vec::new();
                 for element_id in element_ids {
-                    let element_ty = types.get_type(element_id).clone();
+                    let element_ty = tables.types.get_type(element_id).clone();
                     if let Some(field_ty) = self.infer_member_of_type(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         node_id,
-                        symbols,
                         &element_ty,
                         member_key,
                         lookup_mode,
-                        types,
                         visited,
                     )? {
                         field_types.push(field_ty);
@@ -256,7 +226,7 @@ impl Compiler {
                     if field_types.iter().all(|&t| t == first) {
                         Ok(Some(first))
                     } else {
-                        Ok(Some(types.insert_type_from_any(
+                        Ok(Some(tables.types.insert_type_from_any(
                             Type::Union {
                                 elements: field_types,
                             },
@@ -270,16 +240,13 @@ impl Compiler {
             Type::Intersection { elements } => {
                 let element_ids = elements.clone();
                 for element_id in element_ids {
-                    let element_ty = types.get_type(element_id).clone();
+                    let element_ty = tables.types.get_type(element_id).clone();
                     if let Some(field_ty) = self.infer_member_of_type(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         node_id,
-                        symbols,
                         &element_ty,
                         member_key,
                         lookup_mode,
-                        types,
                         visited,
                     )? {
                         return Ok(Some(field_ty));
@@ -289,58 +256,52 @@ impl Compiler {
             }
 
             Type::Function { .. } => {
-                let options = self.analyze_context_options_for_module(module.id);
-
                 // override bind/call/apply signatures based on strictness policy
                 if let Some(synthetic) = self.bind_call_apply_member_type(
                     node_id,
                     receiver_ty,
                     member_key,
-                    options.strict_bind_call_apply,
-                    types,
+                    tables.options.strict_bind_call_apply,
+                    tables.types,
                 ) {
                     return Ok(Some(synthetic));
                 }
 
-                let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
+                let Some(reference_ty) =
+                    self.well_known_type(tables.profile, receiver_ty, tables.types)
+                else {
                     return Ok(None);
                 };
                 let reference_ty = self.normalize_well_known_reference_for_member_inference(
-                    module,
-                    profile,
+                    &tables.reborrow(),
                     reference_ty,
                 )?;
                 self.infer_member_of_type(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     node_id,
-                    symbols,
                     &reference_ty,
                     member_key,
                     lookup_mode,
-                    types,
                     visited,
                 )
             }
 
             Type::TypeLiteral { .. } => {
-                let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
+                let Some(reference_ty) =
+                    self.well_known_type(tables.profile, receiver_ty, tables.types)
+                else {
                     return Ok(None);
                 };
                 let reference_ty = self.normalize_well_known_reference_for_member_inference(
-                    module,
-                    profile,
+                    &tables.reborrow(),
                     reference_ty,
                 )?;
                 self.infer_member_of_type(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     node_id,
-                    symbols,
                     &reference_ty,
                     member_key,
                     lookup_mode,
-                    types,
                     visited,
                 )
             }
@@ -579,49 +540,57 @@ impl Compiler {
     /// Infer the index signature value type for a member key.
     pub(crate) fn resolve_index_signature_value_type_for_key(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         node_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
         receiver_ty: &Type,
         member_key: &StaticKey,
-        types: &mut TypeTable,
         visited: &mut Vec<GlobalSymbolId>,
     ) -> Option<LocalTypeId> {
         match receiver_ty {
             Type::Object {
                 index_signatures, ..
-            } => self.index_signature_value_type_for_key(index_signatures, member_key, types),
+            } => {
+                self.index_signature_value_type_for_key(index_signatures, member_key, tables.types)
+            }
             Type::Value { value } => {
-                let value_ty = types.get_type(*value).clone();
+                let value_ty = tables.types.get_type(*value).clone();
                 self.resolve_index_signature_value_type_for_key(
-                    module, profile, node_id, symbols, &value_ty, member_key, types, visited,
+                    &mut tables.reborrow(),
+                    node_id,
+                    &value_ty,
+                    member_key,
+                    visited,
                 )
             }
             Type::Reference { symbol, .. } => self.resolve_index_signature_value_type_for_symbol(
-                module, profile, node_id, symbols, *symbol, member_key, types, visited,
+                &mut tables.reborrow(),
+                node_id,
+                *symbol,
+                member_key,
+                visited,
             ),
             Type::Unary { right, .. }
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => {
-                let inner_ty = types.get_type(*right).clone();
+                let inner_ty = tables.types.get_type(*right).clone();
                 self.resolve_index_signature_value_type_for_key(
-                    module, profile, node_id, symbols, &inner_ty, member_key, types, visited,
+                    &mut tables.reborrow(),
+                    node_id,
+                    &inner_ty,
+                    member_key,
+                    visited,
                 )
             }
             Type::Union { elements } => {
                 let mut value_types = Vec::new();
                 for element_id in elements.clone() {
-                    let element_ty = types.get_type(element_id).clone();
+                    let element_ty = tables.types.get_type(element_id).clone();
                     if let Some(value_ty) = self.resolve_index_signature_value_type_for_key(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         node_id,
-                        symbols,
                         &element_ty,
                         member_key,
-                        types,
                         visited,
                     ) {
                         value_types.push(value_ty);
@@ -634,21 +603,18 @@ impl Compiler {
                     1 => Some(value_types[0]),
                     _ => {
                         let source_type_id = value_types[0];
-                        Some(self.union_type_from_list(value_types, source_type_id, types))
+                        Some(self.union_type_from_list(value_types, source_type_id, tables.types))
                     }
                 }
             }
             Type::Intersection { elements } => {
                 for element_id in elements.clone() {
-                    let element_ty = types.get_type(element_id).clone();
+                    let element_ty = tables.types.get_type(element_id).clone();
                     if let Some(value_ty) = self.resolve_index_signature_value_type_for_key(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         node_id,
-                        symbols,
                         &element_ty,
                         member_key,
-                        types,
                         visited,
                     ) {
                         return Some(value_ty);
@@ -663,14 +629,11 @@ impl Compiler {
     /// Infer member type for a nominal type symbol, traversing lineage and extensions.
     fn infer_member_of_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         node_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
         lookup_mode: MemberLookupMode,
-        types: &mut TypeTable,
         visited: &mut Vec<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // cycle detection: if we've already visited this symbol, stop
@@ -681,22 +644,17 @@ impl Compiler {
         visited.push(symbol);
 
         // resolve instance types before walking members and extensions
-        self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
+        self.resolve_instance_type_for_symbol(&mut tables.reborrow(), node_id, symbol)?;
 
         // step 1: look up in the type's own instance type
-        if let Some(ty_id) =
-            self.apparent_instance_type(module, profile, node_id, symbol, symbols, types)
-        {
-            let ty = types.get_type(ty_id).clone();
+        if let Some(ty_id) = self.apparent_instance_type(&mut tables.reborrow(), node_id, symbol) {
+            let ty = tables.types.get_type(ty_id).clone();
             if let Some(member_ty) = self.infer_member_of_type(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 node_id,
-                symbols,
                 &ty,
                 member_key,
                 lookup_mode,
-                types,
                 visited,
             )? {
                 return Ok(Some(member_ty));
@@ -704,19 +662,16 @@ impl Compiler {
         }
 
         // step 2: traverse lineage (extends, implements, embedded)
-        let lineage = types.get_lineage_for_symbol(symbol).cloned();
+        let lineage = tables.types.get_lineage_for_symbol(symbol).cloned();
         if let Some(lineage) = lineage {
             // check parent type (extends)
             if let Some(extends) = lineage.extends
                 && let Some(member_ty) = self.infer_member_of_symbol(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     node_id,
-                    symbols,
                     extends,
                     member_key,
                     lookup_mode,
-                    types,
                     visited,
                 )?
             {
@@ -726,14 +681,11 @@ impl Compiler {
             // check implemented interfaces
             for implements in &lineage.implements {
                 if let Some(member_ty) = self.infer_member_of_symbol(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     node_id,
-                    symbols,
                     *implements,
                     member_key,
                     lookup_mode,
-                    types,
                     visited,
                 )? {
                     return Ok(Some(member_ty));
@@ -743,14 +695,11 @@ impl Compiler {
             // check embedded types
             for embedded in &lineage.embedded {
                 if let Some(member_ty) = self.infer_member_of_symbol(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     node_id,
-                    symbols,
                     *embedded,
                     member_key,
                     lookup_mode,
-                    types,
                     visited,
                 )? {
                     return Ok(Some(member_ty));
@@ -759,31 +708,35 @@ impl Compiler {
         }
 
         // step 3: check visible extensions
-        let extension_symbols =
-            self.visible_extension_symbols_for_target(module, profile, symbols, types, symbol)?;
+        let extension_symbols = self.visible_extension_symbols_for_target(
+            tables.module,
+            tables.profile,
+            tables.symbols,
+            tables.types,
+            symbol,
+        )?;
         for extension_symbol in extension_symbols {
-            let Some(extension) =
-                self.extension_for_symbol_in_module(module, profile, extension_symbol, types)?
+            let Some(extension) = self.extension_for_symbol_in_module(
+                tables.module,
+                tables.profile,
+                extension_symbol,
+                tables.types,
+            )?
             else {
                 continue;
             };
-            if !self.is_extension_visible(module, &extension) {
+            if !self.is_extension_visible(tables.module, &extension) {
                 continue;
             }
 
             // ensure the extension instance type is available
-            if let Some(ty_id) = self.apparent_instance_type(
-                module,
-                profile,
-                node_id,
-                extension_symbol,
-                symbols,
-                types,
-            ) {
-                let ty = types.get_type(ty_id).clone();
+            if let Some(ty_id) =
+                self.apparent_instance_type(&mut tables.reborrow(), node_id, extension_symbol)
+            {
+                let ty = tables.types.get_type(ty_id).clone();
                 if let Type::Object { fields, .. } = ty
                     && let Some(field_ty) =
-                        self.member_type_from_fields(&fields, member_key, node_id, types)
+                        self.member_type_from_fields(&fields, member_key, node_id, tables.types)
                 {
                     return Ok(Some(field_ty));
                 }
@@ -796,13 +749,10 @@ impl Compiler {
     /// Infer the index signature value type for a symbol.
     fn resolve_index_signature_value_type_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         node_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
-        types: &mut TypeTable,
         visited: &mut Vec<GlobalSymbolId>,
     ) -> Option<LocalTypeId> {
         if visited.contains(&symbol) {
@@ -811,22 +761,28 @@ impl Compiler {
         visited.push(symbol);
 
         // step 1: look up in the type's own instance type
-        if let Some(ty_id) =
-            self.apparent_instance_type(module, profile, node_id, symbol, symbols, types)
-        {
-            let ty = types.get_type(ty_id).clone();
+        if let Some(ty_id) = self.apparent_instance_type(&mut tables.reborrow(), node_id, symbol) {
+            let ty = tables.types.get_type(ty_id).clone();
             if let Some(value_ty) = self.resolve_index_signature_value_type_for_key(
-                module, profile, node_id, symbols, &ty, member_key, types, visited,
+                &mut tables.reborrow(),
+                node_id,
+                &ty,
+                member_key,
+                visited,
             ) {
                 return Some(value_ty);
             }
         }
 
         // step 2: traverse lineage (extends, implements, embedded)
-        if let Some(lineage) = types.get_lineage_for_symbol(symbol).cloned() {
+        if let Some(lineage) = tables.types.get_lineage_for_symbol(symbol).cloned() {
             if let Some(extends) = lineage.extends
                 && let Some(value_ty) = self.resolve_index_signature_value_type_for_symbol(
-                    module, profile, node_id, symbols, extends, member_key, types, visited,
+                    &mut tables.reborrow(),
+                    node_id,
+                    extends,
+                    member_key,
+                    visited,
                 )
             {
                 return Some(value_ty);
@@ -834,13 +790,10 @@ impl Compiler {
 
             for implements in &lineage.implements {
                 if let Some(value_ty) = self.resolve_index_signature_value_type_for_symbol(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     node_id,
-                    symbols,
                     *implements,
                     member_key,
-                    types,
                     visited,
                 ) {
                     return Some(value_ty);
@@ -849,7 +802,11 @@ impl Compiler {
 
             for embedded in &lineage.embedded {
                 if let Some(value_ty) = self.resolve_index_signature_value_type_for_symbol(
-                    module, profile, node_id, symbols, *embedded, member_key, types, visited,
+                    &mut tables.reborrow(),
+                    node_id,
+                    *embedded,
+                    member_key,
+                    visited,
                 ) {
                     return Some(value_ty);
                 }
@@ -857,9 +814,13 @@ impl Compiler {
         }
 
         // step 3: check visible extensions
-        let extension_symbols = match self
-            .visible_extension_symbols_for_target(module, profile, symbols, types, symbol)
-        {
+        let extension_symbols = match self.visible_extension_symbols_for_target(
+            tables.module,
+            tables.profile,
+            tables.symbols,
+            tables.types,
+            symbol,
+        ) {
             Ok(symbols) => symbols,
             Err(AnalyzeError::Yield { .. }) => return None,
             Err(error) => {
@@ -868,33 +829,35 @@ impl Compiler {
             }
         };
         for extension_symbol in extension_symbols {
-            let extension =
-                match self.extension_for_symbol_in_module(module, profile, extension_symbol, types)
-                {
-                    Ok(extension) => extension,
-                    Err(AnalyzeError::Yield { .. }) => return None,
-                    Err(error) => {
-                        self.error(error);
-                        return None;
-                    }
-                };
+            let extension = match self.extension_for_symbol_in_module(
+                tables.module,
+                tables.profile,
+                extension_symbol,
+                tables.types,
+            ) {
+                Ok(extension) => extension,
+                Err(AnalyzeError::Yield { .. }) => return None,
+                Err(error) => {
+                    self.error(error);
+                    return None;
+                }
+            };
             let Some(extension) = extension else {
                 continue;
             };
-            if !self.is_extension_visible(module, &extension) {
+            if !self.is_extension_visible(tables.module, &extension) {
                 continue;
             }
-            if let Some(ty_id) = self.apparent_instance_type(
-                module,
-                profile,
-                node_id,
-                extension_symbol,
-                symbols,
-                types,
-            ) {
-                let ty = types.get_type(ty_id).clone();
+            if let Some(ty_id) =
+                self.apparent_instance_type(&mut tables.reborrow(), node_id, extension_symbol)
+            {
+                let ty = tables.types.get_type(ty_id).clone();
                 if let Some(value_ty) = self.resolve_index_signature_value_type_for_key(
-                    module, profile, node_id, symbols, &ty, member_key, types, visited,
+                    &mut tables.reborrow(),
+                    node_id,
+                    &ty,
+                    member_key,
+                    visited,
                 ) {
                     return Some(value_ty);
                 }
@@ -904,7 +867,7 @@ impl Compiler {
         None
     }
 
-    /// Get the idnex signature value type for a member key.
+    /// Get the index signature value type for a member key.
     fn index_signature_value_type_for_key(
         &self,
         index_signatures: &[TypeIndexSignature],

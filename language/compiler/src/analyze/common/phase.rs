@@ -59,6 +59,8 @@ pub(crate) struct AssignContext<'a> {
     pub module: &'a Module,
     /// The active profile.
     pub profile: ProfileId,
+    /// The analyzed syntax tree for assignability helpers.
+    pub tree: &'a NodeTree,
     /// The symbol table for relation checks.
     pub symbols: &'a SymbolTable,
     /// The mutable type table for normalization and relation checks.
@@ -72,6 +74,7 @@ impl<'a> AssignContext<'a> {
     pub(crate) fn new(
         module: &'a Module,
         profile: ProfileId,
+        tree: &'a NodeTree,
         symbols: &'a SymbolTable,
         types: &'a mut TypeTable,
         options: &'a AnalyzeOptions,
@@ -79,6 +82,7 @@ impl<'a> AssignContext<'a> {
         Self {
             module,
             profile,
+            tree,
             symbols,
             types,
             options,
@@ -90,9 +94,22 @@ impl<'a> AssignContext<'a> {
         AssignContext {
             module: self.module,
             profile: self.profile,
+            tree: self.tree,
             symbols: self.symbols,
             types: self.types,
             options: self.options,
+        }
+    }
+
+    /// Reborrow this assign context as a type-tables context.
+    pub(crate) fn type_tables_reborrow(&mut self) -> TypeTablesContext<'_> {
+        TypeTablesContext {
+            module: self.module,
+            profile: self.profile,
+            options: self.options,
+            tree: self.tree,
+            symbols: self.symbols,
+            types: self.types,
         }
     }
 }
@@ -162,6 +179,43 @@ impl<'a> TypeTablesContext<'a> {
             types: self.types,
         }
     }
+
+    /// Reborrow this context for one module-local view and one explicit options set.
+    pub(crate) fn reborrow_for_module_with_options<'b>(
+        &'b mut self,
+        module: &'b Module,
+        options: &'b AnalyzeOptions,
+        tree: &'b NodeTree,
+        symbols: &'b SymbolTable,
+    ) -> TypeTablesContext<'b> {
+        TypeTablesContext {
+            module,
+            profile: self.profile,
+            options,
+            tree,
+            symbols,
+            types: self.types,
+        }
+    }
+
+    /// Reborrow this context for one explicit module-local view and one explicit type table.
+    pub(crate) fn reborrow_for_module_with_options_and_types<'b>(
+        &'b self,
+        module: &'b Module,
+        options: &'b AnalyzeOptions,
+        tree: &'b NodeTree,
+        symbols: &'b SymbolTable,
+        types: &'b mut TypeTable,
+    ) -> TypeTablesContext<'b> {
+        TypeTablesContext {
+            module,
+            profile: self.profile,
+            options,
+            tree,
+            symbols,
+            types,
+        }
+    }
 }
 
 /// Shared mutable infer context for tree, symbols, types, and infer tables.
@@ -227,6 +281,25 @@ impl<'a> InferTablesContext<'a> {
             tree: self.tree,
             symbols: self.symbols,
             types: self.types,
+        }
+    }
+
+    /// Reborrow this context as a type-resolution context for one module-local view with explicit options and one explicit type table.
+    pub(crate) fn type_tables_reborrow_for_module_with_options_and_types<'b>(
+        &'b self,
+        module: &'b Module,
+        options: &'b AnalyzeOptions,
+        tree: &'b NodeTree,
+        symbols: &'b SymbolTable,
+        types: &'b mut TypeTable,
+    ) -> TypeTablesContext<'b> {
+        TypeTablesContext {
+            module,
+            profile: self.profile,
+            options,
+            tree,
+            symbols,
+            types,
         }
     }
 

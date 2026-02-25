@@ -1,7 +1,6 @@
 use super::*;
 use crate::analyze::common::TypeTablesContext;
 
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
     pub(crate) fn promise_type(
         &self,
@@ -39,14 +38,11 @@ impl Compiler {
     /// Resolve generator context types from a declared return type.
     pub(crate) fn generator_context_types(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         return_type: Option<LocalTypeId>,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> (LocalTypeId, LocalTypeId, LocalTypeId) {
-        let unknown_ty_id = types.insert_type_from_any(
+        let unknown_ty_id = tables.types.insert_type_from_any(
             Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             },
@@ -57,7 +53,7 @@ impl Compiler {
         };
 
         if let Some((yield_ty_id, return_ty_id, next_ty_id)) =
-            self.generator_type_arguments(module, profile, return_type_id, symbols, types)
+            self.generator_type_arguments(&mut tables.reborrow(), return_type_id)
         {
             return (yield_ty_id, return_ty_id, next_ty_id);
         }
@@ -68,13 +64,10 @@ impl Compiler {
     /// Unwrap a Promise reference into its value type when possible.
     pub(crate) fn unwrap_promise_type(
         &self,
-        module: &Module,
-        symbols: &SymbolTable,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
-        let ty = types.get_type(type_id);
+        let ty = tables.types.get_type(type_id);
         let symbol = ty.symbol()?;
         let static_arguments = match ty {
             Type::Reference {
@@ -85,14 +78,14 @@ impl Compiler {
 
         // compare canonical symbols to avoid alias mismatches
         let canonical_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            tables.module,
+            tables.symbols,
+            tables.profile,
             symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         let is_promise_symbol =
-            self.is_well_known_symbol(profile, canonical_symbol, WellKnownSymbol::Promise);
+            self.is_well_known_symbol(tables.profile, canonical_symbol, WellKnownSymbol::Promise);
         if !is_promise_symbol {
             return None;
         }
@@ -103,13 +96,9 @@ impl Compiler {
                 .iter()
                 .any(|arg| matches!(arg, StaticArgument::Unevaluated { .. }))
         {
-            let options = self.analyze_context_options_for_module(module.id);
-            let tree = module.dir(profile).tree.read();
-            let source_id = types.get_type_source(type_id);
-            let mut type_tables =
-                TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
+            let source_id = tables.types.get_type_source(type_id);
             self.resolve_type_reference_static_arguments(
-                &mut type_tables,
+                &mut tables.reborrow(),
                 source_id,
                 symbol,
                 Some(static_arguments.as_slice()),
@@ -129,61 +118,61 @@ impl Compiler {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            return Some(types.insert_type_from_type(ty, type_id));
+            return Some(tables.types.insert_type_from_type(ty, type_id));
         };
 
         // evaluate remaining unevaluated arguments as types when possible
         let mut argument = first_argument.clone();
         if let StaticArgument::Unevaluated { node } = argument {
-            let tree = module.dir(profile).tree.read();
-            let symbols = module.dir(profile).symbols.read();
             if let Ok(Some(evaluated)) =
-                self.evaluate_static_argument_as_type(module, profile, node, &tree, &symbols, types)
+                self.evaluate_static_argument_as_type(&mut tables.reborrow(), node)
             {
                 argument = evaluated;
             }
         }
 
-        Some(self.convert_static_argument_type(&argument, types.get_type_source(type_id), types))
+        Some(self.convert_static_argument_type(
+            &argument,
+            tables.types.get_type_source(type_id),
+            tables.types,
+        ))
     }
 
     /// Extract generator type arguments from a reference when possible.
     pub(crate) fn generator_type_arguments(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<(LocalTypeId, LocalTypeId, LocalTypeId)> {
         let (symbol, static_arguments) = {
             let Type::Reference {
                 symbol,
                 static_arguments,
-            } = types.get_type(type_id)
+            } = tables.types.get_type(type_id)
             else {
                 return None;
             };
 
             (*symbol, static_arguments.clone())
         };
-        let source_id = types.get_type_source(type_id);
+        let source_id = tables.types.get_type_source(type_id);
 
         let canonical_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            tables.module,
+            tables.symbols,
+            tables.profile,
             symbol,
             CanonicalSymbolMode::FollowAliases,
         );
 
         let generator_name = self.program.strings.intern("Generator");
         let generator_symbol = self.get_declared_lib_symbol_from(
-            profile,
+            tables.profile,
             generator_name,
             SymbolSpaceOrder::TypeThenValue,
         );
-        let iterator_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Iterator);
+        let iterator_symbol =
+            self.get_well_known_type_symbol(tables.profile, WellKnownSymbol::Iterator);
 
         let is_generator = generator_symbol.is_some_and(|symbol| symbol == canonical_symbol)
             || iterator_symbol.is_some_and(|symbol| symbol == canonical_symbol);
@@ -191,13 +180,9 @@ impl Compiler {
             return None;
         }
 
-        let options = self.analyze_context_options_for_module(module.id);
-        let tree = module.dir(profile).tree.read();
-        let mut type_tables =
-            TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
         let resolved_arguments = self
             .resolve_type_reference_static_arguments(
-                &mut type_tables,
+                &mut tables.reborrow(),
                 source_id,
                 symbol,
                 static_arguments.as_deref(),
@@ -211,7 +196,7 @@ impl Compiler {
             .map(|arguments| arguments.as_slice())
             .unwrap_or(&[]);
 
-        let unknown_ty_id = types.insert_type_from_any(
+        let unknown_ty_id = tables.types.insert_type_from_any(
             Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             },
@@ -220,15 +205,15 @@ impl Compiler {
 
         let yield_ty_id = arguments
             .first()
-            .map(|argument| self.convert_static_argument_type(argument, source_id, types))
+            .map(|argument| self.convert_static_argument_type(argument, source_id, tables.types))
             .unwrap_or(unknown_ty_id);
         let return_ty_id = arguments
             .get(1)
-            .map(|argument| self.convert_static_argument_type(argument, source_id, types))
+            .map(|argument| self.convert_static_argument_type(argument, source_id, tables.types))
             .unwrap_or(unknown_ty_id);
         let next_ty_id = arguments
             .get(2)
-            .map(|argument| self.convert_static_argument_type(argument, source_id, types))
+            .map(|argument| self.convert_static_argument_type(argument, source_id, tables.types))
             .unwrap_or(unknown_ty_id);
 
         Some((yield_ty_id, return_ty_id, next_ty_id))
@@ -237,24 +222,18 @@ impl Compiler {
     /// Resolve the awaited type for a value.
     pub(crate) fn unwrap_awaited_type(
         &self,
-        module: &Module,
-        symbols: &SymbolTable,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        types: &mut TypeTable,
     ) -> LocalTypeId {
         let mut visited = Vec::new();
-        self.unwrap_awaited_type_inner(module, symbols, profile, type_id, types, &mut visited)
+        self.unwrap_awaited_type_inner(&mut tables.reborrow(), type_id, &mut visited)
     }
 
     /// Resolve the awaited type for a value with cycle detection.
     fn unwrap_awaited_type_inner(
         &self,
-        module: &Module,
-        symbols: &SymbolTable,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        types: &mut TypeTable,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // avoid infinite recursion in cyclic types
@@ -270,11 +249,11 @@ impl Compiler {
             let Type::Reference {
                 symbol,
                 static_arguments,
-            } = types.get_type(expanded_id).clone()
+            } = tables.types.get_type(expanded_id).clone()
             else {
                 break;
             };
-            let symbol = self.normalize_reference_symbol_id(module, profile, symbol);
+            let symbol = self.normalize_reference_symbol_id(tables.module, tables.profile, symbol);
             if symbol.ty() != SymbolType::TypeAlias {
                 break;
             }
@@ -284,14 +263,12 @@ impl Compiler {
 
             let arguments = static_arguments.as_deref().unwrap_or(&[]);
             let mut normalize_visited = Vec::new();
+            let source_id = tables.types.get_type_source(expanded_id);
             let Some(next_id) = self.normalize_type_alias_reference_with_arguments(
-                module,
-                profile,
-                types.get_type_source(expanded_id),
+                &mut tables.reborrow(),
+                source_id,
                 symbol,
                 arguments,
-                symbols,
-                types,
                 NormalizationMode::Assign,
                 RelationMode::ALIAS_EXPANSION,
                 &mut normalize_visited,
@@ -306,25 +283,17 @@ impl Compiler {
         let type_id = expanded_id;
 
         // materialize static arguments before awaiting promise targets
-        let tree = module.dir(profile).tree.read();
         let mut materialize_cache = TypeRewriteCache::new();
         let type_id = self.materialize_static_arguments_in_type(
-            module,
-            profile,
+            &mut tables.reborrow(),
             type_id,
-            &tree,
-            symbols,
-            types,
             &mut materialize_cache,
         );
 
         // normalize after alias expansion to avoid cached alias results
         let normalized_id = self.normalize_type_with_relation(
-            module,
-            profile,
+            &mut tables.reborrow(),
             type_id,
-            symbols,
-            types,
             NormalizationMode::Assign,
             RelationMode::ALIAS_EXPANSION,
         );
@@ -338,29 +307,27 @@ impl Compiler {
         }
 
         // keep any/unknown as-is
-        if self.type_is_semantic_top_like(type_id, types) {
+        if self.type_is_semantic_top_like(type_id, tables.types) {
             return type_id;
         }
 
         // distribute await across unions
-        if let Type::Union { elements } = types.get_type(type_id).clone() {
+        if let Type::Union { elements } = tables.types.get_type(type_id).clone() {
             let mut awaited_elements = Vec::new();
 
             // evaluate each union element independently
             for element_id in elements {
-                let awaited_id = self.unwrap_awaited_type_inner(
-                    module, symbols, profile, element_id, types, visited,
-                );
+                let awaited_id =
+                    self.unwrap_awaited_type_inner(&mut tables.reborrow(), element_id, visited);
                 awaited_elements.push(awaited_id);
             }
 
-            return self.union_type_from_list(awaited_elements, type_id, types);
+            return self.union_type_from_list(awaited_elements, type_id, tables.types);
         }
 
         // unwrap promises when possible
-        if let Some(inner_id) = self.unwrap_promise_type(module, symbols, profile, type_id, types) {
-            return self
-                .unwrap_awaited_type_inner(module, symbols, profile, inner_id, types, visited);
+        if let Some(inner_id) = self.unwrap_promise_type(&mut tables.reborrow(), type_id) {
+            return self.unwrap_awaited_type_inner(&mut tables.reborrow(), inner_id, visited);
         }
 
         type_id

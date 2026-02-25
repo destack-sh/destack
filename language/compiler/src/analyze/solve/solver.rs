@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
 use destack_dir::{
-    Constraint, InferTable, InferVar, InferVarId, LocalTypeId, SymbolTable, Type, TypeLiteral,
-    TypeRewriter, TypeRewriterOptions, TypeTable, rewrite_type,
+    Constraint, InferTable, InferVar, InferVarId, LocalTypeId, NodeTree, SymbolTable, Type,
+    TypeLiteral, TypeRewriter, TypeRewriterOptions, TypeTable, rewrite_type,
 };
 use destack_workspace::{Module, ProfileId};
 use indexmap::IndexSet;
 
 use crate::analyze::common::{
-    MaterializationMode, NormalizationMode, REWRITER_TAG_INFER_MATERIALIZER, RelationMode,
-    TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
+    InferTablesContext, MaterializationMode, NormalizationMode, REWRITER_TAG_INFER_MATERIALIZER,
+    RelationMode, TypeRewriteCache, TypeTablesContext, TypeWalkContext, rewrite_type_with_cache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeOptions, Assignability, Compiler};
@@ -63,14 +63,14 @@ enum JoinKind {
 
 /// The resolved types for all inference variables.
 #[derive(Debug, Default)]
-pub struct InferSolution {
+pub(crate) struct InferSolution {
     /// Resolved type ids by inference variable index.
     pub resolved: Vec<Option<LocalTypeId>>,
 }
 
 impl InferSolution {
     /// Get the resolved type for an inference variable.
-    pub fn get(&self, id: InferVarId) -> Option<LocalTypeId> {
+    pub(crate) fn get(&self, id: InferVarId) -> Option<LocalTypeId> {
         self.resolved.get(id.0 as usize).copied().flatten()
     }
 }
@@ -83,12 +83,12 @@ struct InferTypeMaterializer<'a> {
     module: &'a Module,
     /// The active profile.
     profile: ProfileId,
+    /// The current tree.
+    tree: &'a NodeTree,
     /// The current symbol table.
     symbols: &'a SymbolTable,
     /// The inference table.
     infer: &'a InferTable,
-    /// The analysis options.
-    options: &'a AnalyzeOptions,
     /// The materialization mode.
     mode: MaterializationMode,
     /// Cached materializations by type id.
@@ -105,6 +105,7 @@ impl<'a> InferTypeMaterializer<'a> {
         compiler: &'a Compiler,
         module: &'a Module,
         profile: ProfileId,
+        tree: &'a NodeTree,
         symbols: &'a SymbolTable,
         infer: &'a InferTable,
         options: &'a AnalyzeOptions,
@@ -120,9 +121,9 @@ impl<'a> InferTypeMaterializer<'a> {
             compiler,
             module,
             profile,
+            tree,
             symbols,
             infer,
-            options,
             mode,
             cache: TypeRewriteCache::new(),
             cache_key,
@@ -148,15 +149,25 @@ impl TypeRewriter for InferTypeMaterializer<'_> {
             MaterializationMode::Shape => rewrite_type(self, types, id, ty),
             MaterializationMode::Validation | MaterializationMode::Surface => match ty {
                 Type::InferVar { .. } => {
-                    if let Some(resolved) = self.compiler.resolve_infer_type_for_check(
-                        self.module,
-                        self.profile,
-                        self.symbols,
-                        id,
-                        self.infer,
-                        types,
-                        self.options,
-                    ) {
+                    let resolved = {
+                        let options = self
+                            .compiler
+                            .analyze_context_options_for_module(self.module.id);
+                        let mut type_tables = TypeTablesContext::new(
+                            self.module,
+                            self.profile,
+                            &options,
+                            self.tree,
+                            self.symbols,
+                            types,
+                        );
+                        self.compiler.resolve_infer_type_for_check(
+                            &mut type_tables.reborrow(),
+                            id,
+                            self.infer,
+                        )
+                    };
+                    if let Some(resolved) = resolved {
                         self.rewrite_type_id(types, resolved)
                     } else {
                         id
@@ -173,13 +184,8 @@ impl Compiler {
     /// Replace infer vars inside a type with resolved bounds for assignability checks.
     pub(crate) fn materialize_infer_type_for_check(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        tables: &mut InferTablesContext<'_>,
         ty_id: LocalTypeId,
-        infer: &InferTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> LocalTypeId {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_TYPE_MATERIALIZE);
 
@@ -187,25 +193,22 @@ impl Compiler {
         let _ = MaterializationMode::Shape;
         let mut materializer = InferTypeMaterializer::new(
             self,
-            module,
-            profile,
-            symbols,
-            infer,
-            options,
+            tables.module,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
+            tables.infer,
+            tables.options,
             MaterializationMode::Validation,
         );
-        materializer.rewrite_type_id(types, ty_id)
+        materializer.rewrite_type_id(tables.types, ty_id)
     }
 
     /// Solve inference variables and commit the results into the TypeTable.
-    pub fn solve_infer_table(
+    pub(crate) fn solve_infer_table(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        type_tables: &mut TypeTablesContext<'_>,
         infer: &InferTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> InferSolution {
         let _timing = self.timing_scope(tags::ANALYZE_SOLVE_CONSTRAINTS);
 
@@ -220,7 +223,7 @@ impl Compiler {
 
         // apply constraints to bounds
         for constraint in &infer.constraints {
-            Self::apply_constraint(constraint, types, &mut bounds);
+            Self::apply_constraint(constraint, type_tables.types, &mut bounds);
         }
         self.dedupe_bounds(&mut bounds);
 
@@ -235,14 +238,10 @@ impl Compiler {
                 let var_id = InferVarId::new(index as u32);
                 let default_source_type_id = infer.type_for_var(var_id);
                 if let Some(resolved) = self.resolve_bounds(
-                    module,
-                    profile,
-                    symbols,
+                    &mut type_tables.reborrow(),
                     bound,
                     default_source_type_id,
                     &solution,
-                    types,
-                    options,
                     &mut normalization_cache,
                 ) {
                     solution.resolved[index] = Some(resolved);
@@ -252,7 +251,7 @@ impl Compiler {
         }
 
         // apply resolved types into the table
-        self.apply_solution(&solution, infer, types);
+        self.apply_solution(&solution, infer, type_tables.types);
 
         solution
     }
@@ -260,43 +259,36 @@ impl Compiler {
     /// Resolve an inference variable type for use in assignability checks.
     pub(crate) fn resolve_infer_type_for_check(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        type_tables: &mut TypeTablesContext<'_>,
         ty_id: LocalTypeId,
         infer: &InferTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Option<LocalTypeId> {
         // TODO #Performance: recomputes bounds and normalization cache per query
         // return early when the type is not an inference variable
-        let Type::InferVar { id } = types.get_type(ty_id) else {
-            return Some(ty_id);
+        let infer_id = match type_tables.types.get_type(ty_id) {
+            Type::InferVar { id } => *id,
+            _ => return Some(ty_id),
         };
         let mut normalization_cache = SolveNormalizationCache::new();
 
         // collect bounds for the current inference table
         let mut bounds: Vec<_> = infer.vars.iter().map(Bounds::from_var).collect();
         for constraint in &infer.constraints {
-            Self::apply_constraint(constraint, types, &mut bounds);
+            Self::apply_constraint(constraint, type_tables.types, &mut bounds);
         }
         self.dedupe_bounds(&mut bounds);
 
         // resolve the specific inference variable against the collected bounds
-        let bound = bounds.get(id.0 as usize)?;
-        let default_source_type_id = infer.type_for_var(*id);
+        let bound = bounds.get(infer_id.0 as usize)?;
+        let default_source_type_id = infer.type_for_var(infer_id);
         let solution = InferSolution {
             resolved: vec![None; infer.vars.len()],
         };
         self.resolve_bounds(
-            module,
-            profile,
-            symbols,
+            &mut type_tables.reborrow(),
             bound,
             default_source_type_id,
             &solution,
-            types,
-            options,
             &mut normalization_cache,
         )
     }
@@ -364,49 +356,40 @@ impl Compiler {
     /// Resolve bounds for a single inference variable.
     fn resolve_bounds(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        type_tables: &mut TypeTablesContext<'_>,
         bound: &Bounds,
         default_source_type_id: Option<LocalTypeId>,
         solution: &InferSolution,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
         normalization_cache: &mut SolveNormalizationCache,
     ) -> Option<LocalTypeId> {
         // NOTE #Performance: resolve_bounds recomputes assignability per iteration without caching
         // resolve lower and upper bounds
-        let lower = self.resolve_joined_bounds(&bound.lower, solution, types, JoinKind::Union);
-        let upper =
-            self.resolve_joined_bounds(&bound.upper, solution, types, JoinKind::Intersection);
+        let lower =
+            self.resolve_joined_bounds(&bound.lower, solution, type_tables.types, JoinKind::Union);
+        let upper = self.resolve_joined_bounds(
+            &bound.upper,
+            solution,
+            type_tables.types,
+            JoinKind::Intersection,
+        );
 
         // prefer a consistent bound when possible
         match (lower, upper) {
             (Some(lower), Some(upper)) => {
                 let normalized_target = self.normalize_apparent_type_cached(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     upper,
-                    symbols,
-                    types,
                     normalization_cache,
                 );
                 let normalized_source = self.normalize_apparent_type_cached(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     lower,
-                    symbols,
-                    types,
                     normalization_cache,
                 );
-                if self.is_type_assignable_normalized(
-                    module,
-                    profile,
-                    symbols,
+                if self.is_type_assignable(
+                    &mut type_tables.reborrow(),
                     normalized_target,
                     normalized_source,
-                    types,
-                    options,
                 ) == Assignability::Assignable
                 {
                     Some(lower)
@@ -416,9 +399,11 @@ impl Compiler {
             }
             (Some(lower), None) => Some(lower),
             (None, Some(upper)) => Some(upper),
-            (None, None) => {
-                self.resolve_unconstrained_bound_type(bound, default_source_type_id, types)
-            }
+            (None, None) => self.resolve_unconstrained_bound_type(
+                bound,
+                default_source_type_id,
+                type_tables.types,
+            ),
         }
     }
 
@@ -470,11 +455,8 @@ impl Compiler {
     /// Normalize a type for assignability using the per-solve cache.
     fn normalize_apparent_type_cached(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         normalization_cache: &mut SolveNormalizationCache,
     ) -> LocalTypeId {
         if let Some(cached) = normalization_cache.apparent_assign.get(&type_id) {
@@ -483,11 +465,8 @@ impl Compiler {
 
         // normalize apparent types for assignability
         let normalized = self.normalize_apparent_type(
-            module,
-            profile,
+            &mut tables.reborrow(),
             type_id,
-            symbols,
-            types,
             NormalizationMode::Assign,
             RelationMode::ASSIGN,
         );

@@ -1,12 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::analyze::common::TypeTablesContext;
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, MatchCase, MatchSelector,
     NodeTree, NormalizationMode, Pattern, PatternField, PrimitiveType, ScalarLiteral, StaticKey,
-    StringId, SymbolTable, SymbolType, Type, TypeField, TypeLiteral, TypeTable,
+    StringId, SymbolType, Type, TypeField, TypeLiteral, TypeTable,
 };
-use destack_workspace::{Module, ProfileId};
 
 /// Coverage summary for a match pattern.
 #[derive(Debug)]
@@ -75,19 +75,17 @@ impl Compiler {
     /// Validate a single pattern node.
     pub(super) fn validate_pattern(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         pattern: &Pattern,
     ) {
         match pattern {
             Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => {
-                self.validate_object_pattern_spreads(module, profile, tree, fields);
+                self.validate_object_pattern_spreads(&mut type_tables.reborrow(), fields);
             }
             Pattern::Array { fields }
             | Pattern::Tuple { fields }
             | Pattern::TaggedTuple { fields, .. } => {
-                self.validate_sequence_pattern_fields(module, profile, tree, fields);
+                self.validate_sequence_pattern_fields(&mut type_tables.reborrow(), fields);
             }
             _ => {}
         }
@@ -96,11 +94,7 @@ impl Compiler {
     /// Validate match exhaustiveness for supported value shapes.
     pub(super) fn validate_match_exhaustiveness(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         value_id: LocalNodeId<Expression>,
         cases: &[LocalNodeId<MatchCase>],
@@ -109,7 +103,7 @@ impl Compiler {
         let mut has_fallback = false;
         let mut has_guard = false;
         for case_id in cases {
-            let selector = match tree.get(*case_id) {
+            let selector = match type_tables.tree.get(*case_id) {
                 MatchCase::Expression { selector, .. } | MatchCase::Block { selector, .. } => {
                     selector
                 }
@@ -133,43 +127,43 @@ impl Compiler {
         }
 
         // resolve the match value type
-        let value_type_id = types
-            .get_inferred_type_id(value_id.into_global_any(module.id))
+        let value_type_id = type_tables
+            .types
+            .get_inferred_type_id(value_id.into_global_any(type_tables.module.id))
             .or_else(|| {
-                let symbol =
-                    self.reference_symbol_for_expression(module, value_id, profile, tree, symbols)?;
-                types.get_value_type_id(symbol)
+                let symbol = self.reference_symbol_for_expression(
+                    type_tables.module,
+                    value_id,
+                    type_tables.profile,
+                    type_tables.tree,
+                    type_tables.symbols,
+                )?;
+                type_tables.types.get_value_type_id(symbol)
             });
         let Some(value_type_id) = value_type_id else {
             return;
         };
-        let value_type_id = self.unwrap_type_value(value_type_id, types);
-        let value_type_id = match types.get_type(value_type_id) {
-            Type::Reference { symbol, .. } if symbol.ty() == SymbolType::Void => {
-                types.get_value_type_id(*symbol).unwrap_or(value_type_id)
-            }
+        let value_type_id = self.unwrap_type_value(value_type_id, type_tables.types);
+        let value_type_id = match type_tables.types.get_type(value_type_id) {
+            Type::Reference { symbol, .. } if symbol.ty() == SymbolType::Void => type_tables
+                .types
+                .get_value_type_id(*symbol)
+                .unwrap_or(value_type_id),
             _ => value_type_id,
         };
         // preserve nominal types for irrefutable checks
         let irrefutable_type_id = value_type_id;
         let normalized_type_id = self.normalize_type(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             value_type_id,
-            symbols,
-            types,
             NormalizationMode::Flow,
         );
 
         // allow irrefutable patterns to satisfy exhaustiveness
         if self.match_has_irrefutable_pattern(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             irrefutable_type_id,
             cases,
-            tree,
-            symbols,
-            types,
         ) {
             return;
         }
@@ -177,29 +171,22 @@ impl Compiler {
         // guards require a fallback because exhaustiveness cannot be proven
         if has_guard {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::NonExhaustiveMatch { node });
             return;
         }
 
         // resolve the exhaustiveness target
         let target = self
-            .match_exhaustiveness_target(module, profile, irrefutable_type_id, tree, symbols, types)
+            .match_exhaustiveness_target(&mut type_tables.reborrow(), irrefutable_type_id)
             .or_else(|| {
-                self.match_exhaustiveness_target(
-                    module,
-                    profile,
-                    normalized_type_id,
-                    tree,
-                    symbols,
-                    types,
-                )
+                self.match_exhaustiveness_target(&mut type_tables.reborrow(), normalized_type_id)
             });
         let Some(target) = target else {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::NonExhaustiveMatch { node });
             return;
         };
@@ -209,7 +196,7 @@ impl Compiler {
         let mut covered_fields: HashSet<GlobalSymbolId> = HashSet::new();
         let mut is_provable = true;
         for case_id in cases {
-            let selector = match tree.get(*case_id) {
+            let selector = match type_tables.tree.get(*case_id) {
                 MatchCase::Expression { selector, .. } | MatchCase::Block { selector, .. } => {
                     selector
                 }
@@ -230,7 +217,10 @@ impl Compiler {
                     symbol, field_set, ..
                 } => {
                     let coverage = self.enum_pattern_coverage(
-                        module, profile, *symbol, *pattern, field_set, tree, symbols,
+                        &mut type_tables.reborrow(),
+                        *symbol,
+                        *pattern,
+                        field_set,
                     );
                     let Some(coverage) = coverage else {
                         is_provable = false;
@@ -245,7 +235,7 @@ impl Compiler {
                 }
                 MatchExhaustiveTarget::LiteralUnion { values } => {
                     let coverage = self
-                        .literal_pattern_coverage(*pattern, tree)
+                        .literal_pattern_coverage(*pattern, type_tables.tree)
                         .and_then(|coverage| self.filter_literal_coverage(values, coverage));
                     let Some(coverage) = coverage else {
                         is_provable = false;
@@ -260,7 +250,10 @@ impl Compiler {
                 }
                 MatchExhaustiveTarget::DiscriminantUnion { key, values } => {
                     let coverage = self.discriminant_pattern_coverage(
-                        module, profile, *pattern, *key, values, tree, symbols, types,
+                        &mut type_tables.reborrow(),
+                        *pattern,
+                        *key,
+                        values,
                     );
                     let Some(coverage) = coverage else {
                         is_provable = false;
@@ -274,8 +267,12 @@ impl Compiler {
                     }
                 }
                 MatchExhaustiveTarget::TupleDiscriminantUnion { index, values } => {
-                    let coverage =
-                        self.tuple_discriminant_pattern_coverage(*pattern, *index, values, tree);
+                    let coverage = self.tuple_discriminant_pattern_coverage(
+                        *pattern,
+                        *index,
+                        values,
+                        type_tables.tree,
+                    );
                     let Some(coverage) = coverage else {
                         is_provable = false;
                         break;
@@ -293,8 +290,8 @@ impl Compiler {
         // require fallback when coverage cannot be proven
         if !is_provable {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::NonExhaustiveMatch { node });
             return;
         }
@@ -313,24 +310,20 @@ impl Compiler {
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::NonExhaustiveMatch { node });
     }
 
     /// Check if a match contains an irrefutable pattern for the given type.
     fn match_has_irrefutable_pattern(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         value_type_id: LocalTypeId,
         cases: &[LocalNodeId<MatchCase>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> bool {
         for case_id in cases {
-            let selector = match tree.get(*case_id) {
+            let selector = match type_tables.tree.get(*case_id) {
                 MatchCase::Expression { selector, .. } | MatchCase::Block { selector, .. } => {
                     selector
                 }
@@ -345,13 +338,9 @@ impl Compiler {
             }
 
             if self.is_irrefutable_pattern_for_type(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 *pattern,
                 value_type_id,
-                tree,
-                symbols,
-                types,
             ) {
                 return true;
             }
@@ -363,23 +352,15 @@ impl Compiler {
     /// Check whether a pattern matches all values of the given type.
     pub(crate) fn is_irrefutable_pattern_for_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
         value_type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> bool {
         let mut visited = HashSet::new();
         self.is_irrefutable_pattern_for_type_inner(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             pattern_id,
             value_type_id,
-            tree,
-            symbols,
-            types,
             &mut visited,
         )
     }
@@ -387,37 +368,35 @@ impl Compiler {
     /// Check whether a pattern matches all values of the given type.
     fn is_irrefutable_pattern_for_type_inner(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
         value_type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
-        let value_type_id = types.unwrap_value_type_id(value_type_id);
+        let value_type_id = type_tables.types.unwrap_value_type_id(value_type_id);
         if !visited.insert(value_type_id) {
             return false;
         }
 
-        let is_irrefutable = match tree.get(pattern_id) {
+        let is_irrefutable = match type_tables.tree.get(pattern_id) {
             Pattern::Wildcard => true,
             Pattern::Binding { pattern, .. } => match pattern {
                 None => {
-                    let value_type = types.get_type(value_type_id);
-                    if let Some(enum_symbol) = self.enum_symbol_for_type(value_type, types) {
-                        let Pattern::Binding { name, .. } = tree.get(pattern_id) else {
+                    let value_type = type_tables.types.get_type(value_type_id);
+                    if let Some(enum_symbol) =
+                        self.enum_symbol_for_type(value_type, type_tables.types)
+                    {
+                        let Pattern::Binding { name, .. } = type_tables.tree.get(pattern_id) else {
                             return true;
                         };
                         if self
                             .query_enum_field_symbol_for_name(
-                                module,
-                                profile,
+                                type_tables.module,
+                                type_tables.profile,
                                 enum_symbol,
                                 *name,
-                                tree,
-                                symbols,
+                                type_tables.tree,
+                                type_tables.symbols,
                             )
                             .is_some()
                         {
@@ -428,96 +407,76 @@ impl Compiler {
                     true
                 }
                 Some(inner) => self.is_irrefutable_pattern_for_type_inner(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     *inner,
                     value_type_id,
-                    tree,
-                    symbols,
-                    types,
                     visited,
                 ),
             },
             Pattern::ReferenceOf { right, .. } => {
-                let Type::ReferenceOf { right: inner, .. } = types.get_type(value_type_id) else {
-                    return false;
+                let inner = match type_tables.types.get_type(value_type_id) {
+                    Type::ReferenceOf { right: inner, .. } => *inner,
+                    _ => return false,
                 };
                 self.is_irrefutable_pattern_for_type_inner(
-                    module, profile, *right, *inner, tree, symbols, types, visited,
+                    &mut type_tables.reborrow(),
+                    *right,
+                    inner,
+                    visited,
                 )
             }
             Pattern::ValueOf { right, .. } => {
-                let Type::ValueOf { right: inner, .. } = types.get_type(value_type_id) else {
-                    return false;
+                let inner = match type_tables.types.get_type(value_type_id) {
+                    Type::ValueOf { right: inner, .. } => *inner,
+                    _ => return false,
                 };
                 self.is_irrefutable_pattern_for_type_inner(
-                    module, profile, *right, *inner, tree, symbols, types, visited,
+                    &mut type_tables.reborrow(),
+                    *right,
+                    inner,
+                    visited,
                 )
             }
             Pattern::Union { patterns } => patterns.iter().any(|inner| {
                 self.is_irrefutable_pattern_for_type_inner(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     *inner,
                     value_type_id,
-                    tree,
-                    symbols,
-                    types,
                     visited,
                 )
             }),
             Pattern::Tuple { fields } => self.is_irrefutable_sequence_pattern_for_type(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 fields,
                 value_type_id,
                 SequenceRestPatternKind::Tuple,
-                tree,
-                symbols,
-                types,
                 visited,
             ),
             Pattern::Array { fields } => self.is_irrefutable_sequence_pattern_for_type(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 fields,
                 value_type_id,
                 SequenceRestPatternKind::Array,
-                tree,
-                symbols,
-                types,
                 visited,
             ),
             Pattern::TaggedTuple { ty, fields } => self.is_irrefutable_tagged_tuple_pattern(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 *ty,
                 fields,
                 value_type_id,
-                tree,
-                symbols,
-                types,
                 visited,
             ),
             Pattern::Object { fields } => self.is_irrefutable_object_pattern_for_type(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 fields,
                 value_type_id,
-                tree,
-                symbols,
-                types,
                 visited,
             ),
             Pattern::TaggedObject { ty, fields } => self.is_irrefutable_tagged_object_pattern(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 *ty,
                 fields,
                 value_type_id,
-                tree,
-                symbols,
-                types,
                 visited,
             ),
             Pattern::Must(_) | Pattern::Expression { .. } => false,
@@ -532,32 +491,24 @@ impl Compiler {
     /// Check if a sequence pattern matches all values of a fixed-size sequence type.
     fn is_irrefutable_sequence_pattern_for_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         fields: &[LocalNodeId<PatternField>],
         value_type_id: LocalTypeId,
         rest_pattern_kind: SequenceRestPatternKind,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         // resolve fixed element types for the matched value
         let Some(element_types) =
-            self.fixed_sequence_element_types(module, profile, value_type_id, tree, symbols, types)
+            self.fixed_sequence_element_types(&mut type_tables.reborrow(), value_type_id)
         else {
             return false;
         };
 
         self.is_irrefutable_sequence_pattern_for_fixed_elements(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             fields,
             &element_types,
             rest_pattern_kind,
-            tree,
-            symbols,
-            types,
             visited,
         )
     }
@@ -565,20 +516,16 @@ impl Compiler {
     /// Check if a sequence pattern matches all values of fixed element types.
     fn is_irrefutable_sequence_pattern_for_fixed_elements(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         fields: &[LocalNodeId<PatternField>],
         element_types: &[LocalTypeId],
         rest_pattern_kind: SequenceRestPatternKind,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         // locate a rest field when present
         let mut rest_index = None;
         for (index, field_id) in fields.iter().enumerate() {
-            if matches!(tree.get(*field_id), PatternField::Spread { .. }) {
+            if matches!(type_tables.tree.get(*field_id), PatternField::Spread { .. }) {
                 if rest_index.is_some() {
                     return false;
                 }
@@ -609,17 +556,13 @@ impl Compiler {
         let prefix_len = rest_index.unwrap_or(fields.len());
         for (field_id, element_type_id) in fields.iter().take(prefix_len).zip(element_types.iter())
         {
-            let field = tree.get(*field_id);
+            let field = type_tables.tree.get(*field_id);
             match field {
                 PatternField::Positional { pattern, .. } => {
                     if !self.is_irrefutable_pattern_for_type_inner(
-                        module,
-                        profile,
+                        &mut type_tables.reborrow(),
                         *pattern,
                         *element_type_id,
-                        tree,
-                        symbols,
-                        types,
                         visited,
                     ) {
                         return false;
@@ -628,13 +571,9 @@ impl Compiler {
                 PatternField::Named { pattern, .. } => {
                     if let Some(pattern_id) = pattern
                         && !self.is_irrefutable_pattern_for_type_inner(
-                            module,
-                            profile,
+                            &mut type_tables.reborrow(),
                             *pattern_id,
                             *element_type_id,
-                            tree,
-                            symbols,
-                            types,
                             visited,
                         )
                     {
@@ -653,19 +592,16 @@ impl Compiler {
             let rest_elements = &element_types[rest_index..];
 
             // validate the rest pattern when provided
-            let PatternField::Spread { pattern, .. } = tree.get(fields[rest_index]) else {
+            let PatternField::Spread { pattern, .. } = type_tables.tree.get(fields[rest_index])
+            else {
                 return false;
             };
             if let Some(pattern_id) = pattern
                 && !self.is_irrefutable_sequence_rest_pattern(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     *pattern_id,
                     rest_elements,
                     rest_pattern_kind,
-                    tree,
-                    symbols,
-                    types,
                     visited,
                 )
             {
@@ -679,29 +615,21 @@ impl Compiler {
     /// Check whether one rest pattern is irrefutable for a virtual sequence rest shape.
     fn is_irrefutable_sequence_rest_pattern(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
         rest_elements: &[LocalTypeId],
         rest_pattern_kind: SequenceRestPatternKind,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
-        match tree.get(pattern_id) {
+        match type_tables.tree.get(pattern_id) {
             Pattern::Wildcard => true,
             Pattern::Binding { pattern, .. } => {
                 if let Some(inner_pattern_id) = pattern {
                     return self.is_irrefutable_sequence_rest_pattern(
-                        module,
-                        profile,
+                        &mut type_tables.reborrow(),
                         *inner_pattern_id,
                         rest_elements,
                         rest_pattern_kind,
-                        tree,
-                        symbols,
-                        types,
                         visited,
                     );
                 }
@@ -710,14 +638,10 @@ impl Compiler {
             }
             Pattern::Union { patterns } => patterns.iter().any(|inner_pattern_id| {
                 self.is_irrefutable_sequence_rest_pattern(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     *inner_pattern_id,
                     rest_elements,
                     rest_pattern_kind,
-                    tree,
-                    symbols,
-                    types,
                     visited,
                 )
             }),
@@ -727,14 +651,10 @@ impl Compiler {
                 }
 
                 self.is_irrefutable_sequence_pattern_for_fixed_elements(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     fields,
                     rest_elements,
                     SequenceRestPatternKind::Tuple,
-                    tree,
-                    symbols,
-                    types,
                     visited,
                 )
             }
@@ -744,14 +664,10 @@ impl Compiler {
                 }
 
                 self.is_irrefutable_sequence_pattern_for_fixed_elements(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     fields,
                     rest_elements,
                     SequenceRestPatternKind::Array,
-                    tree,
-                    symbols,
-                    types,
                     visited,
                 )
             }
@@ -768,30 +684,26 @@ impl Compiler {
     /// Check whether a tagged tuple pattern is irrefutable for a nominal type.
     fn is_irrefutable_tagged_tuple_pattern(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         ty: LocalNodeId<Expression>,
         fields: &[LocalNodeId<PatternField>],
         value_type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
-        let Some(tag_symbol) =
-            self.reference_symbol_for_expression(module, ty, profile, tree, symbols)
-        else {
+        let Some(tag_symbol) = self.reference_symbol_for_expression(
+            type_tables.module,
+            ty,
+            type_tables.profile,
+            type_tables.tree,
+            type_tables.symbols,
+        ) else {
             return false;
         };
 
         if !self.value_type_matches_tag_symbol(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             value_type_id,
             tag_symbol,
-            tree,
-            symbols,
-            types,
         ) {
             return false;
         }
@@ -800,17 +712,21 @@ impl Compiler {
             return false;
         }
 
-        let Some(target_type_id) = self
-            .committed_alias_target_type_id_for_symbol(module, profile, tag_symbol, symbols, types)
-        else {
+        let Some(target_type_id) = self.committed_alias_target_type_id_for_symbol(
+            type_tables.module,
+            type_tables.profile,
+            tag_symbol,
+            type_tables.symbols,
+            type_tables.types,
+        ) else {
             return false;
         };
 
-        let target_type_id = types.unwrap_value_type_id(target_type_id);
+        let target_type_id = type_tables.types.unwrap_value_type_id(target_type_id);
 
         // scalar newtypes use a single field
         if fields.len() == 1 {
-            let field = tree.get(fields[0]);
+            let field = type_tables.tree.get(fields[0]);
             let nested_pattern = match field {
                 PatternField::Positional { pattern, .. } => Some(*pattern),
                 PatternField::Named { pattern, .. } => *pattern,
@@ -820,13 +736,9 @@ impl Compiler {
 
             if let Some(pattern_id) = nested_pattern {
                 return self.is_irrefutable_pattern_for_type_inner(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     pattern_id,
                     target_type_id,
-                    tree,
-                    symbols,
-                    types,
                     visited,
                 );
             }
@@ -835,14 +747,10 @@ impl Compiler {
         }
 
         self.is_irrefutable_sequence_pattern_for_type(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             fields,
             target_type_id,
             SequenceRestPatternKind::Tuple,
-            tree,
-            symbols,
-            types,
             visited,
         )
     }
@@ -850,86 +758,72 @@ impl Compiler {
     /// Check whether an object pattern is irrefutable for a structural object type.
     fn is_irrefutable_object_pattern_for_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         fields: &[LocalNodeId<PatternField>],
         value_type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         let Some(field_map) =
-            self.object_field_map_for_type(module, profile, value_type_id, symbols, types)
+            self.object_field_map_for_type(&mut type_tables.reborrow(), value_type_id)
         else {
             return false;
         };
 
-        self.object_pattern_is_irrefutable(
-            module, profile, fields, &field_map, tree, symbols, types, visited,
-        )
+        self.object_pattern_is_irrefutable(&mut type_tables.reborrow(), fields, &field_map, visited)
     }
 
     /// Check whether a tagged object pattern is irrefutable for a nominal object type.
     fn is_irrefutable_tagged_object_pattern(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         ty: LocalNodeId<Expression>,
         fields: &[LocalNodeId<PatternField>],
         value_type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
-        let Some(tag_symbol) =
-            self.reference_symbol_for_expression(module, ty, profile, tree, symbols)
-        else {
+        let Some(tag_symbol) = self.reference_symbol_for_expression(
+            type_tables.module,
+            ty,
+            type_tables.profile,
+            type_tables.tree,
+            type_tables.symbols,
+        ) else {
             return false;
         };
 
         if !self.value_type_matches_tag_symbol(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             value_type_id,
             tag_symbol,
-            tree,
-            symbols,
-            types,
         ) {
             return false;
         }
 
         let Some(object_type_id) =
-            self.object_type_id_for_tag_symbol(module, profile, tag_symbol, tree, symbols, types)
+            self.object_type_id_for_tag_symbol(&mut type_tables.reborrow(), tag_symbol)
         else {
             return false;
         };
 
-        let Some(field_map) = self.object_field_map_for_object_type(types, object_type_id) else {
+        let Some(field_map) =
+            self.object_field_map_for_object_type(type_tables.types, object_type_id)
+        else {
             return false;
         };
 
-        self.object_pattern_is_irrefutable(
-            module, profile, fields, &field_map, tree, symbols, types, visited,
-        )
+        self.object_pattern_is_irrefutable(&mut type_tables.reborrow(), fields, &field_map, visited)
     }
 
     /// Check whether a pattern field list is irrefutable against a field map.
     fn object_pattern_is_irrefutable(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         fields: &[LocalNodeId<PatternField>],
         field_map: &HashMap<StaticKey, TypeField>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         for field_id in fields {
-            let field = tree.get(*field_id);
+            let field = type_tables.tree.get(*field_id);
             match field {
                 PatternField::Spread { .. } => {}
                 PatternField::Named { name, pattern, .. } => {
@@ -942,13 +836,9 @@ impl Compiler {
                     }
                     if let Some(inner) = pattern
                         && !self.is_irrefutable_pattern_for_type_inner(
-                            module,
-                            profile,
+                            &mut type_tables.reborrow(),
                             *inner,
                             field_ty.ty,
-                            tree,
-                            symbols,
-                            types,
                             visited,
                         )
                     {
@@ -966,11 +856,11 @@ impl Compiler {
                 }
                 PatternField::Computed { key, pattern, .. } => {
                     let Some(key) = self.static_key_from_dynamic_key(
-                        profile,
+                        type_tables.profile,
                         DynamicKey::Expression(*key),
-                        tree,
-                        symbols,
-                        types,
+                        type_tables.tree,
+                        type_tables.symbols,
+                        type_tables.types,
                     ) else {
                         return false;
                     };
@@ -982,13 +872,9 @@ impl Compiler {
                     }
                     if let Some(inner) = pattern
                         && !self.is_irrefutable_pattern_for_type_inner(
-                            module,
-                            profile,
+                            &mut type_tables.reborrow(),
                             *inner,
                             field_ty.ty,
-                            tree,
-                            symbols,
-                            types,
                             visited,
                         )
                     {
@@ -1007,14 +893,10 @@ impl Compiler {
     /// Resolve fixed sequence element types for tuple and sized array values.
     fn fixed_sequence_element_types(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         value_type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<Vec<LocalTypeId>> {
-        let value_type = types.get_type(value_type_id).clone();
+        let value_type = type_tables.types.get_type(value_type_id).clone();
         match value_type {
             Type::Tuple { elements, .. } => {
                 if elements
@@ -1028,7 +910,7 @@ impl Compiler {
                 Some(types)
             }
             Type::ArraySized { element, count, .. } => {
-                let length = self.fixed_array_count_value(count, types)?;
+                let length = self.fixed_array_count_value(count, type_tables.types)?;
                 let mut elements = Vec::with_capacity(length);
                 for _ in 0..length {
                     elements.push(element);
@@ -1037,13 +919,17 @@ impl Compiler {
             }
             Type::Reference { symbol, .. } if symbol.ty() == SymbolType::TypeAlias => {
                 let target_id = self.committed_alias_target_type_id_for_symbol(
-                    module, profile, symbol, symbols, types,
+                    type_tables.module,
+                    type_tables.profile,
+                    symbol,
+                    type_tables.symbols,
+                    type_tables.types,
                 )?;
-                let target_id = types.unwrap_value_type_id(target_id);
-                self.fixed_sequence_element_types(module, profile, target_id, tree, symbols, types)
+                let target_id = type_tables.types.unwrap_value_type_id(target_id);
+                self.fixed_sequence_element_types(&mut type_tables.reborrow(), target_id)
             }
             Type::Value { value } => {
-                self.fixed_sequence_element_types(module, profile, value, tree, symbols, types)
+                self.fixed_sequence_element_types(&mut type_tables.reborrow(), value)
             }
             _ => None,
         }
@@ -1059,29 +945,31 @@ impl Compiler {
     /// Resolve a structural object field map for a value type.
     fn object_field_map_for_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         value_type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<HashMap<StaticKey, TypeField>> {
-        match types.get_type(value_type_id) {
+        let value_type = type_tables.types.get_type(value_type_id).clone();
+        match value_type {
             Type::Object { fields, .. } => {
                 let mut map = HashMap::new();
-                for field in fields {
+                for field in &fields {
                     map.insert(field.key, field.clone());
                 }
                 Some(map)
             }
             Type::Reference { symbol, .. } if symbol.ty() == SymbolType::TypeAlias => {
                 let target_id = self.committed_alias_target_type_id_for_symbol(
-                    module, profile, *symbol, symbols, types,
+                    type_tables.module,
+                    type_tables.profile,
+                    symbol,
+                    type_tables.symbols,
+                    type_tables.types,
                 )?;
-                let target_id = types.unwrap_value_type_id(target_id);
-                self.object_field_map_for_type(module, profile, target_id, symbols, types)
+                let target_id = type_tables.types.unwrap_value_type_id(target_id);
+                self.object_field_map_for_type(&mut type_tables.reborrow(), target_id)
             }
             Type::Value { value } => {
-                self.object_field_map_for_type(module, profile, *value, symbols, types)
+                self.object_field_map_for_type(&mut type_tables.reborrow(), value)
             }
             _ => None,
         }
@@ -1090,23 +978,23 @@ impl Compiler {
     /// Resolve an object type id for a tagged pattern symbol.
     fn object_type_id_for_tag_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         tag_symbol: GlobalSymbolId,
-        _tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         match tag_symbol.ty() {
             SymbolType::Struct | SymbolType::Interface | SymbolType::Class => {
-                types.get_instance_type_id(tag_symbol)
+                type_tables.types.get_instance_type_id(tag_symbol)
             }
             SymbolType::Newtype | SymbolType::TypeAlias => {
                 let target_id = self.committed_alias_target_type_id_for_symbol(
-                    module, profile, tag_symbol, symbols, types,
+                    type_tables.module,
+                    type_tables.profile,
+                    tag_symbol,
+                    type_tables.symbols,
+                    type_tables.types,
                 )?;
-                let target_id = types.unwrap_value_type_id(target_id);
-                self.object_type_id_for_type(types, target_id)
+                let target_id = type_tables.types.unwrap_value_type_id(target_id);
+                self.object_type_id_for_type(type_tables.types, target_id)
             }
             _ => None,
         }
@@ -1146,24 +1034,20 @@ impl Compiler {
     /// Check whether a value type resolves to a tagged pattern symbol.
     fn value_type_matches_tag_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         value_type_id: LocalTypeId,
         tag_symbol: GlobalSymbolId,
-        _tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> bool {
         let mut visited = HashSet::new();
         let mut current_id = value_type_id;
 
         loop {
-            current_id = types.unwrap_value_type_id(current_id);
+            current_id = type_tables.types.unwrap_value_type_id(current_id);
             if !visited.insert(current_id) {
                 return false;
             }
 
-            match types.get_type(current_id) {
+            match type_tables.types.get_type(current_id) {
                 Type::Reference { symbol, .. } => {
                     if *symbol == tag_symbol {
                         return true;
@@ -1171,7 +1055,11 @@ impl Compiler {
 
                     if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype) {
                         let Some(target_id) = self.committed_alias_target_type_id_for_symbol(
-                            module, profile, *symbol, symbols, types,
+                            type_tables.module,
+                            type_tables.profile,
+                            *symbol,
+                            type_tables.symbols,
+                            type_tables.types,
                         ) else {
                             return false;
                         };
@@ -1192,18 +1080,19 @@ impl Compiler {
     /// Resolve the exhaustiveness target for a match value.
     fn match_exhaustiveness_target(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         value_type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<MatchExhaustiveTarget> {
         // enum exhaustiveness
-        let value_type = types.get_type(value_type_id);
-        if let Some(enum_symbol) = self.enum_symbol_for_type(value_type, types) {
-            let enum_fields =
-                self.enum_field_symbols_for_enum(module, profile, enum_symbol, tree, symbols);
+        let value_type = type_tables.types.get_type(value_type_id);
+        if let Some(enum_symbol) = self.enum_symbol_for_type(value_type, type_tables.types) {
+            let enum_fields = self.enum_field_symbols_for_enum(
+                type_tables.module,
+                type_tables.profile,
+                enum_symbol,
+                type_tables.tree,
+                type_tables.symbols,
+            );
             if !enum_fields.is_empty() {
                 let field_set = enum_fields.iter().copied().collect();
                 return Some(MatchExhaustiveTarget::Enum {
@@ -1215,18 +1104,20 @@ impl Compiler {
         }
 
         // literal unions
-        if let Some(values) = self.literal_union_values_for_type(value_type_id, types) {
+        if let Some(values) = self.literal_union_values_for_type(value_type_id, type_tables.types) {
             return Some(MatchExhaustiveTarget::LiteralUnion { values });
         }
 
         // discriminated unions
-        if let Some((key, values)) = self.discriminant_union_values_for_type(value_type_id, types) {
+        if let Some((key, values)) =
+            self.discriminant_union_values_for_type(value_type_id, type_tables.types)
+        {
             return Some(MatchExhaustiveTarget::DiscriminantUnion { key, values });
         }
 
         // tuple discriminated unions
         if let Some((index, values)) =
-            self.tuple_discriminant_union_values_for_type(value_type_id, types)
+            self.tuple_discriminant_union_values_for_type(value_type_id, type_tables.types)
         {
             return Some(MatchExhaustiveTarget::TupleDiscriminantUnion { index, values });
         }
@@ -1535,34 +1426,28 @@ impl Compiler {
     /// Summarize coverage for a single enum pattern.
     fn enum_pattern_coverage(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         enum_symbol: GlobalSymbolId,
         pattern_id: LocalNodeId<Pattern>,
         enum_fields: &HashSet<GlobalSymbolId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> Option<MatchPatternCoverage<GlobalSymbolId>> {
-        match tree.get(pattern_id) {
+        match type_tables.tree.get(pattern_id) {
             Pattern::Wildcard => Some(MatchPatternCoverage::All),
             Pattern::Binding { name, pattern, .. } => match pattern {
                 Some(pattern) => self.enum_pattern_coverage(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     enum_symbol,
                     *pattern,
                     enum_fields,
-                    tree,
-                    symbols,
                 ),
                 None => {
                     if let Some(field_symbol) = self.query_enum_field_symbol_for_name(
-                        module,
-                        profile,
+                        type_tables.module,
+                        type_tables.profile,
                         enum_symbol,
                         *name,
-                        tree,
-                        symbols,
+                        type_tables.tree,
+                        type_tables.symbols,
                     ) {
                         Some(MatchPatternCoverage::Values(vec![field_symbol]))
                     } else {
@@ -1574,13 +1459,10 @@ impl Compiler {
                 let mut covered_fields: HashSet<GlobalSymbolId> = HashSet::new();
                 for pattern in patterns {
                     let coverage = self.enum_pattern_coverage(
-                        module,
-                        profile,
+                        &mut type_tables.reborrow(),
                         enum_symbol,
                         *pattern,
                         enum_fields,
-                        tree,
-                        symbols,
                     )?;
                     match coverage {
                         MatchPatternCoverage::All => return Some(MatchPatternCoverage::All),
@@ -1595,25 +1477,19 @@ impl Compiler {
             }
             Pattern::TaggedTuple { ty, .. } | Pattern::TaggedObject { ty, .. } => {
                 let field_symbol = self.enum_field_symbol_for_pattern_value(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     enum_symbol,
                     *ty,
                     enum_fields,
-                    tree,
-                    symbols,
                 )?;
                 Some(MatchPatternCoverage::Values(vec![field_symbol]))
             }
             Pattern::Expression { value } => {
                 let field_symbol = self.enum_field_symbol_for_pattern_value(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     enum_symbol,
                     *value,
                     enum_fields,
-                    tree,
-                    symbols,
                 )?;
                 Some(MatchPatternCoverage::Values(vec![field_symbol]))
             }
@@ -1655,20 +1531,19 @@ impl Compiler {
     /// Summarize coverage for a discriminated union pattern.
     fn discriminant_pattern_coverage(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
         key: StaticKey,
         values: &HashSet<MatchLiteral>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> Option<MatchPatternCoverage<MatchLiteral>> {
-        match tree.get(pattern_id) {
+        match type_tables.tree.get(pattern_id) {
             Pattern::Wildcard => Some(MatchPatternCoverage::All),
             Pattern::Binding { pattern, .. } => match pattern {
                 Some(pattern) => self.discriminant_pattern_coverage(
-                    module, profile, *pattern, key, values, tree, symbols, types,
+                    &mut type_tables.reborrow(),
+                    *pattern,
+                    key,
+                    values,
                 ),
                 None => Some(MatchPatternCoverage::All),
             },
@@ -1676,7 +1551,10 @@ impl Compiler {
                 let mut covered: HashSet<MatchLiteral> = HashSet::new();
                 for pattern in patterns {
                     let coverage = self.discriminant_pattern_coverage(
-                        module, profile, *pattern, key, values, tree, symbols, types,
+                        &mut type_tables.reborrow(),
+                        *pattern,
+                        key,
+                        values,
                     )?;
                     match coverage {
                         MatchPatternCoverage::All => return Some(MatchPatternCoverage::All),
@@ -1687,9 +1565,9 @@ impl Compiler {
             }
             Pattern::Object { fields } => {
                 let coverage = if let Some(field_id) =
-                    self.discriminant_pattern_field(profile, key, fields, tree, symbols, types)
+                    self.discriminant_pattern_field(&mut type_tables.reborrow(), key, fields)
                 {
-                    self.discriminant_pattern_field_coverage(field_id, tree)?
+                    self.discriminant_pattern_field_coverage(field_id, type_tables.tree)?
                 } else {
                     MatchPatternCoverage::All
                 };
@@ -1698,17 +1576,24 @@ impl Compiler {
             Pattern::TaggedObject { ty, fields } => {
                 // prefer explicit discriminant fields in the pattern
                 if let Some(field_id) =
-                    self.discriminant_pattern_field(profile, key, fields, tree, symbols, types)
+                    self.discriminant_pattern_field(&mut type_tables.reborrow(), key, fields)
                 {
-                    let coverage = self.discriminant_pattern_field_coverage(field_id, tree)?;
+                    let coverage =
+                        self.discriminant_pattern_field_coverage(field_id, type_tables.tree)?;
                     return self.filter_literal_coverage(values, coverage);
                 }
 
                 // fall back to the discriminant value on the tag type
-                let tag_symbol =
-                    self.reference_symbol_for_expression(module, *ty, profile, tree, symbols)?;
-                let tag_type_id = types.get_instance_type_id(tag_symbol)?;
-                let discriminants = self.discriminant_fields_for_type(types, tag_type_id)?;
+                let tag_symbol = self.reference_symbol_for_expression(
+                    type_tables.module,
+                    *ty,
+                    type_tables.profile,
+                    type_tables.tree,
+                    type_tables.symbols,
+                )?;
+                let tag_type_id = type_tables.types.get_instance_type_id(tag_symbol)?;
+                let discriminants =
+                    self.discriminant_fields_for_type(type_tables.types, tag_type_id)?;
                 let literal = *discriminants.get(&key)?;
                 let coverage = MatchPatternCoverage::Values(vec![literal]);
                 self.filter_literal_coverage(values, coverage)
@@ -1803,25 +1688,22 @@ impl Compiler {
     /// Resolve the discriminant field for an object pattern.
     fn discriminant_pattern_field(
         &self,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         key: StaticKey,
         fields: &[LocalNodeId<PatternField>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> Option<LocalNodeId<PatternField>> {
         // locate the matching field by key
         for field_id in fields {
-            let field_key = match tree.get(*field_id) {
+            let field_key = match type_tables.tree.get(*field_id) {
                 PatternField::Named { name, .. } | PatternField::Alias { name, .. } => {
                     Some(StaticKey::Name(*name))
                 }
                 PatternField::Computed { key: field_key, .. } => self.static_key_from_dynamic_key(
-                    profile,
+                    type_tables.profile,
                     DynamicKey::Expression(*field_key),
-                    tree,
-                    symbols,
-                    types,
+                    type_tables.tree,
+                    type_tables.symbols,
+                    type_tables.types,
                 ),
                 _ => None,
             };
@@ -1915,30 +1797,32 @@ impl Compiler {
     /// Resolve enum field symbols from pattern expressions.
     fn enum_field_symbol_for_pattern_value(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         enum_symbol: GlobalSymbolId,
         expression_id: LocalNodeId<Expression>,
         enum_fields: &HashSet<GlobalSymbolId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
-        let expression_id = self.unwrap_parenthesized_expression(expression_id, tree);
-        match tree.get(expression_id) {
+        let expression_id = self.unwrap_parenthesized_expression(expression_id, type_tables.tree);
+        match type_tables.tree.get(expression_id) {
             Expression::Member { left, name, .. } => {
-                let left_id = self.unwrap_parenthesized_expression(*left, tree);
-                let left_symbol =
-                    self.reference_symbol_for_expression(module, left_id, profile, tree, symbols)?;
+                let left_id = self.unwrap_parenthesized_expression(*left, type_tables.tree);
+                let left_symbol = self.reference_symbol_for_expression(
+                    type_tables.module,
+                    left_id,
+                    type_tables.profile,
+                    type_tables.tree,
+                    type_tables.symbols,
+                )?;
                 if left_symbol != enum_symbol {
                     return None;
                 }
                 let field_symbol = self.query_enum_field_symbol_for_name(
-                    module,
-                    profile,
+                    type_tables.module,
+                    type_tables.profile,
                     enum_symbol,
                     *name,
-                    tree,
-                    symbols,
+                    type_tables.tree,
+                    type_tables.symbols,
                 )?;
                 if enum_fields.contains(&field_symbol) {
                     Some(field_symbol)
@@ -1962,18 +1846,16 @@ impl Compiler {
     /// Validate object pattern spread placement.
     fn validate_object_pattern_spreads(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         fields: &[LocalNodeId<PatternField>],
     ) {
         // locate the first spread field and report duplicates
         let mut spread_index = None;
         for (index, field_id) in fields.iter().enumerate() {
-            if matches!(tree.get(*field_id), PatternField::Spread { .. }) {
+            if matches!(type_tables.tree.get(*field_id), PatternField::Spread { .. }) {
                 let error_node = field_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile));
+                    .into_global_any(type_tables.module.id)
+                    .into_anchored(Some(type_tables.profile));
                 if spread_index.is_some() {
                     self.error(AnalyzeError::ObjectPatternMultipleSpreads { node: error_node });
                 } else {
@@ -1983,18 +1865,21 @@ impl Compiler {
         }
 
         // validate rest targets
-        if !module.language_type.is_destack() {
+        if !type_tables.module.language_type.is_destack() {
             for field_id in fields {
-                let PatternField::Spread { pattern, .. } = tree.get(*field_id) else {
+                let PatternField::Spread { pattern, .. } = type_tables.tree.get(*field_id) else {
                     continue;
                 };
                 let is_identifier = pattern.is_some_and(|pattern_id| {
-                    matches!(tree.get(pattern_id), Pattern::Binding { pattern: None, .. })
+                    matches!(
+                        type_tables.tree.get(pattern_id),
+                        Pattern::Binding { pattern: None, .. }
+                    )
                 });
                 if !is_identifier {
                     let node = field_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile));
+                        .into_global_any(type_tables.module.id)
+                        .into_anchored(Some(type_tables.profile));
                     self.error(AnalyzeError::ObjectPatternRestNotIdentifier { node });
                 }
             }
@@ -2005,8 +1890,8 @@ impl Compiler {
             && index + 1 < fields.len()
         {
             let error_node = fields[index + 1]
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::ObjectPatternSpreadNotLast { node: error_node });
         }
     }
@@ -2014,25 +1899,23 @@ impl Compiler {
     /// Validate named fields in array and tuple patterns.
     fn validate_sequence_pattern_fields(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         fields: &[LocalNodeId<PatternField>],
     ) {
         // Destack tuple and array patterns may use named fields
-        if module.language_type.is_destack() {
+        if type_tables.module.language_type.is_destack() {
             return;
         }
 
         // reject named or aliased fields in array and tuple patterns
         for field_id in fields {
             if matches!(
-                tree.get(*field_id),
+                type_tables.tree.get(*field_id),
                 PatternField::Named { .. } | PatternField::Alias { .. }
             ) {
                 let node = field_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile));
+                    .into_global_any(type_tables.module.id)
+                    .into_anchored(Some(type_tables.profile));
                 self.error(AnalyzeError::InvalidPatternNamedField { node });
                 return;
             }

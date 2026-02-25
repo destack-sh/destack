@@ -32,15 +32,11 @@ impl Compiler {
                 tables.symbols,
             )? {
                 self.rewrite_associated_aliases_for_owner(
-                    tables.module,
-                    tables.profile,
+                    &mut tables.type_tables_reborrow(),
                     expression_id.into_any(),
                     owner_symbol,
                     substitutions,
                     member_ty_id,
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
                 )
             } else {
                 member_ty_id

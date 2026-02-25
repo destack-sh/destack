@@ -1,21 +1,18 @@
 use destack_dir::{
-    InferTable, LocalTypeId, SymbolTable, TypeRelationObligation, TypeRelationObligationDiagnostic,
+    InferTable, LocalTypeId, TypeRelationObligation, TypeRelationObligationDiagnostic,
     TypeRelationObligationOperands, TypeTable,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::Module;
 
-use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
+use crate::analyze::common::TypeTablesContext;
+use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
 
 impl Compiler {
     /// Discharge post-solve type relation obligations from infer-owned records.
     pub(in crate::analyze::solve) fn discharge_relation_obligations_in_solve(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        tables: &mut TypeTablesContext<'_>,
         infer: &mut InferTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> AnalyzeResult<()> {
         let mut obligations = infer.take_type_relation_obligations();
         obligations.sort_by_key(|obligation| obligation.source_node_id);
@@ -23,52 +20,44 @@ impl Compiler {
             return Ok(());
         }
 
-        self.check_relation_obligations(
-            module,
-            profile,
-            symbols,
-            infer,
-            types,
-            &obligations,
-            options,
-        )
+        self.check_relation_obligations(&mut tables.reborrow(), infer, &obligations)
     }
 
     /// Check post-solve type relation obligations from explicit records.
     fn check_relation_obligations(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        tables: &mut TypeTablesContext<'_>,
         infer: &InferTable,
-        types: &mut TypeTable,
         obligations: &[TypeRelationObligation],
-        options: &AnalyzeOptions,
     ) -> AnalyzeResult<()> {
         // check each relation obligation with converged operand types
         for obligation in obligations {
             // skip obligations that belong to other modules
-            if obligation.source_node_id.module_id != module.id {
+            if obligation.source_node_id.module_id != tables.module.id {
                 continue;
             }
 
             // resolve effective operands from captured inputs or expression ids
-            let (target_type_id, source_type_id) =
-                self.resolve_type_relation_obligation_operands(module, infer, types, obligation)?;
+            let (target_type_id, source_type_id) = self.resolve_type_relation_obligation_operands(
+                tables.module,
+                infer,
+                tables.types,
+                obligation,
+            )?;
 
             if self.type_relation_requires_infer_convergence(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 target_type_id,
                 source_type_id,
-                symbols,
-                types,
+                tables.symbols,
+                tables.types,
             ) {
                 // drop unresolved relations only when blocked by a primary error
                 if self.type_relation_operands_have_primary_error(
                     target_type_id,
                     source_type_id,
-                    types,
+                    tables.types,
                 ) {
                     continue;
                 }
@@ -80,21 +69,17 @@ impl Compiler {
             }
 
             // skip cascading diagnostics once one side already failed
-            if self.type_relation_operands_have_primary_error(target_type_id, source_type_id, types)
-            {
+            if self.type_relation_operands_have_primary_error(
+                target_type_id,
+                source_type_id,
+                tables.types,
+            ) {
                 continue;
             }
 
             // evaluate assignability with converged operands
-            let assignability = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
-                target_type_id,
-                source_type_id,
-                types,
-                options,
-            );
+            let assignability =
+                self.is_type_assignable(&mut tables.reborrow(), target_type_id, source_type_id);
             if assignability != Assignability::NotAssignable {
                 continue;
             }
@@ -103,22 +88,22 @@ impl Compiler {
             match obligation.diagnostic {
                 TypeRelationObligationDiagnostic::UnassignableType => {
                     self.emit_unassignable_type_for_types(
-                        module,
-                        profile,
+                        tables.module,
+                        tables.profile,
                         obligation.source_node_id.local_id,
                         target_type_id,
                         source_type_id,
-                        types,
+                        tables.types,
                     );
                 }
                 TypeRelationObligationDiagnostic::UnsatisfiedType => {
                     self.report_unsatisfied_type_for_types(
-                        module,
-                        profile,
+                        tables.module,
+                        tables.profile,
                         obligation.source_node_id.local_id,
                         target_type_id,
                         source_type_id,
-                        types,
+                        tables.types,
                     );
                 }
             }

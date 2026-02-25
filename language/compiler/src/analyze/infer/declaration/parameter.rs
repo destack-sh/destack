@@ -103,65 +103,61 @@ impl Compiler {
     /// Resolve the static parameter kind for a symbol.
     pub(crate) fn static_parameter_kind_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> StaticParameterKind {
         // reuse cached kinds when available
-        if let Some(kind) = types.get_static_parameter_kind(symbol) {
+        if let Some(kind) = tables.types.get_static_parameter_kind(symbol) {
             return kind;
         }
 
         // resolve from published declare entries first
         if let Ok(Some(kind)) = self.with_module_types_or_local_at_stage(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             symbol.module_id,
-            types,
+            tables.types,
             AnalyzeDependencyStage::Declare,
             |_owner_module, owner_types| owner_types.query_published_static_parameter_kind(symbol),
         ) {
-            types.set_static_parameter_kind(symbol, kind);
+            tables.types.set_static_parameter_kind(symbol, kind);
             return kind;
         }
 
         // remote symbols consume only published declare entries
-        if symbol.module_id != module.id || types.module_id != module.id {
+        if symbol.module_id != tables.module.id || tables.types.module_id != tables.module.id {
             return StaticParameterKind::Type;
         }
 
         // derive from local declaration metadata
-        let (kind, _) = self.static_parameter_metadata_for_symbol_in_module(symbol, tree, symbols);
+        let (kind, _) = self.static_parameter_metadata_for_symbol_in_module(
+            symbol,
+            tables.tree,
+            tables.symbols,
+        );
 
         // cache resolved kinds
-        types.set_static_parameter_kind(symbol, kind);
+        tables.types.set_static_parameter_kind(symbol, kind);
         kind
     }
 
     /// Resolve the static parameter variance for a symbol.
     pub(crate) fn static_parameter_variance_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<VarianceModifier> {
         // reuse cached variance when available
-        if let Some(variance) = types.get_static_parameter_variance(symbol) {
+        if let Some(variance) = tables.types.get_static_parameter_variance(symbol) {
             return variance;
         }
 
         // resolve from published declare entries first
         if let Ok(Some(variance)) = self.with_module_types_or_local_at_stage(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             symbol.module_id,
-            types,
+            tables.types,
             AnalyzeDependencyStage::Declare,
             |_owner_module, owner_types| {
                 owner_types
@@ -169,69 +165,38 @@ impl Compiler {
                     .flatten()
             },
         ) {
-            types.set_static_parameter_variance(symbol, Some(variance));
+            tables
+                .types
+                .set_static_parameter_variance(symbol, Some(variance));
             return Some(variance);
         }
 
         // remote symbols consume only published declare entries
-        if symbol.module_id != module.id || types.module_id != module.id {
+        if symbol.module_id != tables.module.id || tables.types.module_id != tables.module.id {
             return None;
         }
 
         // derive from local declaration metadata
-        let (_, variance) =
-            self.static_parameter_metadata_for_symbol_in_module(symbol, tree, symbols);
+        let (_, variance) = self.static_parameter_metadata_for_symbol_in_module(
+            symbol,
+            tables.tree,
+            tables.symbols,
+        );
 
         // cache resolved variance
-        types.set_static_parameter_variance(symbol, variance);
+        tables.types.set_static_parameter_variance(symbol, variance);
         variance
     }
 
-    /// Resolve static parameter kind and variance with optional tree access.
+    /// Resolve static parameter kind and variance for one symbol.
     pub(crate) fn static_parameter_metadata_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         symbol: GlobalSymbolId,
-        tree: Option<&NodeTree>,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> (Option<StaticParameterKind>, Option<VarianceModifier>) {
-        // use local tree when available
-        if let Some(tree) = tree {
-            let kind = self
-                .static_parameter_kind_for_symbol(module, profile, symbol, tree, symbols, types);
-            let variance = self.static_parameter_variance_for_symbol(
-                module, profile, symbol, tree, symbols, types,
-            );
-
-            return (Some(kind), variance);
-        }
-
-        // query owner type metadata when tree is unavailable
-        let (kind, variance) = match self.with_module_types_or_local_at_stage(
-            module,
-            profile,
-            symbol.module_id,
-            types,
-            AnalyzeDependencyStage::Declare,
-            |_, owner_types| {
-                (
-                    owner_types.query_published_static_parameter_kind(symbol),
-                    owner_types
-                        .query_published_static_parameter_variance(symbol)
-                        .flatten(),
-                )
-            },
-        ) {
-            Ok(metadata) => metadata,
-            Err(error) => {
-                self.error(AnalyzeError::from(error));
-                (None, None)
-            }
-        };
-
-        (kind, variance)
+        let kind = self.static_parameter_kind_for_symbol(&mut tables.reborrow(), symbol);
+        let variance = self.static_parameter_variance_for_symbol(&mut tables.reborrow(), symbol);
+        (Some(kind), variance)
     }
 
     /// Index static parameter symbols and metadata declared in one module.
@@ -550,14 +515,7 @@ impl Compiler {
 
         // recover with error metadata when declaration lookup does not resolve
         parameter.unwrap_or_else(|| {
-            let kind = self.static_parameter_kind_for_symbol(
-                tables.module,
-                tables.profile,
-                symbol_id,
-                tables.tree,
-                tables.symbols,
-                tables.types,
-            );
+            let kind = self.static_parameter_kind_for_symbol(&mut tables.reborrow(), symbol_id);
             self.synthesize_error_static_parameter(symbol_id, kind, source_id, tables.types)
         })
     }
@@ -618,16 +576,13 @@ impl Compiler {
 
         // evaluate once without resolving static arguments to keep symbolic structure
         let raw_evaluated = self.resolve_declared_type_expression_value(
-            tables.module,
-            tables.profile,
+            &mut tables.reborrow(),
             expression_id,
-            tables.tree,
-            tables.symbols,
-            tables.types,
             false,
             true,
             false,
             false,
+            true,
         )?;
 
         // stage the raw evaluation result in the declared type slot
@@ -648,16 +603,13 @@ impl Compiler {
 
         // otherwise resolve static arguments now that the constraint is independent
         let resolved = self.resolve_declared_type_expression_value(
-            tables.module,
-            tables.profile,
+            &mut tables.reborrow(),
             expression_id,
-            tables.tree,
-            tables.symbols,
-            tables.types,
             false,
             true,
             true,
             false,
+            true,
         )?;
         tables.types.update_type(declared_type_id, resolved);
 
@@ -715,9 +667,7 @@ impl Compiler {
                         tables.types.get_type(declared_type_id),
                         Type::Unevaluated(_)
                     ) {
-                        let tree = tables.module.dir(tables.profile).tree.read();
-                        let mut type_tables =
-                            tables.reborrow_for_module(tables.module, &tree, tables.symbols);
+                        let mut type_tables = tables.reborrow();
                         if let Err(error) = self.evaluate_static_parameter_constraint_type(
                             &mut type_tables,
                             declared_type_id,

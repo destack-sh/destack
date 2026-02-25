@@ -12,11 +12,9 @@ use destack_workspace::{Module, ProfileId};
 
 use super::{
     AnalyzeDependencyStage, CanonicalSymbolMode, InferTablesContext, NormalizationMode,
-    RelationMode, TypeWalkContext, TypeWalkKey,
+    RelationMode, TypeTablesContext, TypeWalkContext, TypeWalkKey,
 };
-use crate::{
-    AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, ElaborateError, ElaborateResult,
-};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, ElaborateError, ElaborateResult};
 
 /// Maximum number of unwrap steps when chasing type value wrappers.
 const MAX_TYPE_VALUE_UNWRAP_STEPS: usize = 8;
@@ -1214,15 +1212,11 @@ impl Compiler {
     /// Ensure a type id is evaluated when it is unevaluated.
     pub(crate) fn ensure_type_evaluated(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
-        if matches!(types.get_type(type_id), Type::Unevaluated(_)) {
-            self.resolve_declared_type(module, profile, type_id, tree, symbols, types)?;
+        if matches!(tables.types.get_type(type_id), Type::Unevaluated(_)) {
+            self.resolve_declared_type(&mut tables.reborrow(), type_id)?;
         }
         Ok(type_id)
     }
@@ -1234,14 +1228,7 @@ impl Compiler {
         type_id: LocalTypeId,
     ) -> AnalyzeResult<LocalTypeId> {
         let unwrapped_type_id = tables.types.unwrap_value_type_id(type_id);
-        self.ensure_type_evaluated(
-            tables.module,
-            tables.profile,
-            unwrapped_type_id,
-            tables.tree,
-            tables.symbols,
-            tables.types,
-        )
+        self.ensure_type_evaluated(&mut tables.type_tables_reborrow(), unwrapped_type_id)
     }
 
     /// Return true when one unwrapped value type id remains unevaluated.
@@ -1400,12 +1387,9 @@ impl Compiler {
     /// Import the alias target type for a symbol when available.
     pub(crate) fn alias_target_type_id_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         symbol: GlobalSymbolId,
         source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         let mut visited = HashSet::new();
         let mut current = symbol;
@@ -1416,22 +1400,24 @@ impl Compiler {
             }
 
             // load the local alias target when the symbol is local
-            if current.module_id == module.id {
-                let symbol_entry = symbols.get_symbol(current.local_id);
+            if current.module_id == tables.module.id {
+                let symbol_entry = tables.symbols.get_symbol(current.local_id);
                 let typed_symbol = GlobalSymbolId::new(
                     current.module_id,
                     current.local_id.with_type(symbol_entry.ty),
                 );
 
                 // check the incoming symbol first, then the declaration-typed symbol
-                types.record_normalization_symbol_dependency(current);
-                if let Some(target) = types.get_alias_target_type_id(current) {
+                tables.types.record_normalization_symbol_dependency(current);
+                if let Some(target) = tables.types.get_alias_target_type_id(current) {
                     return Some(target);
                 }
 
                 if matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
-                    types.record_normalization_symbol_dependency(typed_symbol);
-                    if let Some(target) = types.get_alias_target_type_id(typed_symbol) {
+                    tables
+                        .types
+                        .record_normalization_symbol_dependency(typed_symbol);
+                    if let Some(target) = tables.types.get_alias_target_type_id(typed_symbol) {
                         return Some(target);
                     }
                 }
@@ -1447,8 +1433,8 @@ impl Compiler {
             // import the alias target when the symbol is remote
             let (dependency_symbol, remote_alias_target, next) = match self
                 .with_module_tree_symbols_at_stage(
-                    module,
-                    profile,
+                    tables.module,
+                    tables.profile,
                     current.module_id,
                     AnalyzeDependencyStage::Declare,
                     |owner_module, owner_tree, owner_symbols| {
@@ -1466,7 +1452,7 @@ impl Compiler {
 
                         // resolve the remote alias target id without holding a write lock
                         let remote_target_id = {
-                            let owner_types = owner_module.dir(profile).types.read();
+                            let owner_types = owner_module.dir(tables.profile).types.read();
                             match owner_types.get_alias_target_type_id(typed_symbol) {
                                 Some(id) => id,
                                 None => {
@@ -1479,7 +1465,7 @@ impl Compiler {
                         };
 
                         // remote modules are read-only here: consume only published alias targets
-                        let owner_types = owner_module.dir(profile).types.read();
+                        let owner_types = owner_module.dir(tables.profile).types.read();
                         if matches!(owner_types.get_type(remote_target_id), Type::Unevaluated(_)) {
                             let target_symbol =
                                 symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
@@ -1489,7 +1475,7 @@ impl Compiler {
                         let needs_materialization = self
                             .type_has_unevaluated_value_static_arguments(
                                 owner_module,
-                                profile,
+                                tables.profile,
                                 remote_target_id,
                                 owner_tree,
                                 owner_symbols,
@@ -1516,16 +1502,20 @@ impl Compiler {
                 }
             };
             if let Some(dependency_symbol) = dependency_symbol {
-                types.record_normalization_symbol_dependency(dependency_symbol);
+                tables
+                    .types
+                    .record_normalization_symbol_dependency(dependency_symbol);
             }
             if let Some((typed_symbol, remote_target_ty, remote_snapshot)) = remote_alias_target {
                 let local_alias_target_id = self.import_remote_type_for_node(
                     source_id,
                     &remote_target_ty,
                     &remote_snapshot,
-                    types,
+                    tables.types,
                 );
-                types.set_alias_target_type_id(typed_symbol, local_alias_target_id);
+                tables
+                    .types
+                    .set_alias_target_type_id(typed_symbol, local_alias_target_id);
                 return Some(local_alias_target_id);
             }
             current = next?;
@@ -1626,34 +1616,31 @@ impl Compiler {
     /// Require an instance type for a symbol into the local type table.
     pub(crate) fn require_instance_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         // resolve through canonical import targets while preserving aliases
         let symbol = if symbol.ty() == SymbolType::Extension {
             symbol
         } else {
             self.canonical_symbol_id(
-                module,
-                symbols,
-                profile,
+                tables.module,
+                tables.symbols,
+                tables.profile,
                 symbol,
                 CanonicalSymbolMode::PreserveAliases,
             )
         };
 
         // reuse local instance types when already available
-        types.record_normalization_symbol_dependency(symbol);
-        if let Some(instance_id) = types.get_instance_type_id(symbol) {
+        tables.types.record_normalization_symbol_dependency(symbol);
+        if let Some(instance_id) = tables.types.get_instance_type_id(symbol) {
             return Some(instance_id);
         }
 
         // load or import the instance type through the existing resolver
-        match self.resolve_instance_type_for_symbol(module, profile, source_id, symbol, types) {
+        match self.resolve_instance_type_for_symbol(&mut tables.reborrow(), source_id, symbol) {
             Ok(instance_id) => instance_id,
             Err(error) => {
                 self.error(error);
@@ -1665,21 +1652,18 @@ impl Compiler {
     /// Resolve the apparent instance type for shape queries like `keyof`.
     pub(crate) fn apparent_instance_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         // resolve through canonical import targets while preserving aliases
         let symbol = if symbol.ty() == SymbolType::Extension {
             symbol
         } else {
             self.canonical_symbol_id(
-                module,
-                symbols,
-                profile,
+                tables.module,
+                tables.symbols,
+                tables.profile,
                 symbol,
                 CanonicalSymbolMode::PreserveAliases,
             )
@@ -1687,14 +1671,14 @@ impl Compiler {
 
         // only aliases and newtypes expose apparent type through alias targets
         if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
-            && let Some(alias_target_id) = self
-                .alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
+            && let Some(alias_target_id) =
+                self.alias_target_type_id_for_symbol(&mut tables.reborrow(), symbol, source_id)
         {
             return Some(alias_target_id);
         }
 
         // otherwise fall back to the instance type
-        self.require_instance_type(module, profile, source_id, symbol, symbols, types)
+        self.require_instance_type(&mut tables.reborrow(), source_id, symbol)
     }
 
     /// Unwrap a type-as-value wrapper to the underlying type id.
@@ -1886,89 +1870,63 @@ impl Compiler {
     /// Determine the runtime check kind for a type guard relation.
     pub(crate) fn runtime_check_kind_for_relation(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        tables: &mut TypeTablesContext<'_>,
         value_type_id: LocalTypeId,
         target_type_id: LocalTypeId,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Option<RuntimeCheckKind> {
         // normalize apparent types before relation checks
         let value_type_id = self.normalize_apparent_type(
-            module,
-            profile,
+            &mut tables.reborrow(),
             value_type_id,
-            symbols,
-            types,
             NormalizationMode::Assign,
             RelationMode::RUNTIME_GUARD,
         );
         let target_type_id = self.normalize_apparent_type(
-            module,
-            profile,
+            &mut tables.reborrow(),
             target_type_id,
-            symbols,
-            types,
             NormalizationMode::Assign,
             RelationMode::RUNTIME_GUARD,
         );
 
         // constant true when the guard is already satisfied
         let is_assignable = self
-            .is_type_assignable(
-                module,
-                profile,
-                symbols,
-                target_type_id,
-                value_type_id,
-                types,
-                options,
-            )
+            .is_type_assignable(&mut tables.reborrow(), target_type_id, value_type_id)
             .is_assignable();
         if is_assignable {
             return Some(RuntimeCheckKind::Constant(true));
         }
 
         // require a runtime checkable target type
-        if !self.type_is_runtime_checkable_target(module, profile, symbols, target_type_id, types) {
+        if !self.type_is_runtime_checkable_target(&mut tables.reborrow(), target_type_id) {
             return None;
         }
 
         // decide which runtime identity the value carries
-        self.runtime_check_kind_for_value_type(module, profile, symbols, value_type_id, types)
+        self.runtime_check_kind_for_value_type(&mut tables.reborrow(), value_type_id)
     }
 
     /// Check whether a target type can be validated at runtime.
     fn type_is_runtime_checkable_target(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        types: &mut TypeTable,
     ) -> bool {
         // unwrap apparent types before inspection
         let type_id = self.normalize_apparent_type(
-            module,
-            profile,
+            &mut tables.reborrow(),
             type_id,
-            symbols,
-            types,
             NormalizationMode::Assign,
             RelationMode::RUNTIME_GUARD,
         );
 
         // accept unions when all members are runtime checkable
-        let union_elements = match types.get_type(type_id) {
+        let union_elements = match tables.types.get_type(type_id) {
             Type::Union { elements } => Some(elements.clone()),
             _ => None,
         };
         if let Some(elements) = union_elements {
             for element_id in elements {
-                if !self
-                    .type_is_runtime_checkable_target(module, profile, symbols, element_id, types)
-                {
+                if !self.type_is_runtime_checkable_target(&mut tables.reborrow(), element_id) {
                     return false;
                 }
             }
@@ -1976,7 +1934,7 @@ impl Compiler {
         }
 
         // accept nominal reference targets
-        match types.get_type(type_id) {
+        match tables.types.get_type(type_id) {
             Type::Reference { symbol, .. } => matches!(
                 symbol.local_id.ty,
                 SymbolType::Class | SymbolType::Struct | SymbolType::Enum | SymbolType::Newtype
@@ -1988,24 +1946,19 @@ impl Compiler {
     /// Determine the runtime identity carried by a value type.
     fn runtime_check_kind_for_value_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        types: &mut TypeTable,
     ) -> Option<RuntimeCheckKind> {
         // unwrap apparent types before inspection
         let type_id = self.normalize_apparent_type(
-            module,
-            profile,
+            &mut tables.reborrow(),
             type_id,
-            symbols,
-            types,
             NormalizationMode::Assign,
             RelationMode::RUNTIME_GUARD,
         );
 
-        match types.get_type(type_id) {
+        let ty = tables.types.get_type(type_id).clone();
+        match ty {
             Type::Union { .. } => Some(RuntimeCheckKind::UnionTag),
             Type::Reference { symbol, .. } => match symbol.local_id.ty {
                 SymbolType::Class | SymbolType::Struct | SymbolType::Enum | SymbolType::Newtype => {
@@ -2017,7 +1970,7 @@ impl Compiler {
                 value: TypeLiteral::Unknown,
             } => Some(RuntimeCheckKind::TypeDescriptor),
             Type::Value { value } => {
-                self.runtime_check_kind_for_value_type(module, profile, symbols, *value, types)
+                self.runtime_check_kind_for_value_type(&mut tables.reborrow(), value)
             }
             _ => None,
         }

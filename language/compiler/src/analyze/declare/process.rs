@@ -9,10 +9,7 @@ use crate::{
     TaskDependencyError, TaskResultCollector,
 };
 use destack_builtin::BuiltinLibKind;
-use destack_dir::{
-    Export, GlobalSymbolId, LocalTypeId, NodeTree, StaticKey, SymbolSpace, SymbolTable, SymbolType,
-    Type, TypeTable,
-};
+use destack_dir::{Export, GlobalSymbolId, LocalTypeId, StaticKey, SymbolSpace, SymbolType, Type};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -92,17 +89,20 @@ impl Compiler {
         let symbols = dir.symbols.read();
         let mut collector = TaskResultCollector::new();
         let module_checks = self.module_check_options_for_module(module.id);
+        let options = self.analyze_context_options_for_module(module.id);
+        let mut type_tables =
+            TypeTablesContext::new(&module, profile, &options, &tree, &symbols, &mut types);
 
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_DECLARATIONS);
             self.collect(
                 &mut collector,
-                self.collect_module_declarations(&module, profile, &tree, &symbols, &mut types),
+                self.collect_module_declarations(&mut type_tables.reborrow()),
             );
         }
 
         // index declaration static parameter metadata
-        self.index_static_parameter_metadata(&module, &tree, &symbols, &mut types);
+        self.index_static_parameter_metadata(&module, &tree, &symbols, type_tables.types);
 
         // yield after declaration metadata writes
         if let Some(dependency) = collector.try_into_yield_any() {
@@ -116,11 +116,7 @@ impl Compiler {
             // evaluate remaining unevaluated types after declaration metadata is available
             if self.should_eager_evaluate_declared_types(&module, module_checks) {
                 let has_dependency = self.evaluate_unevaluated_types_to_fixpoint(
-                    &module,
-                    profile,
-                    &tree,
-                    &symbols,
-                    &mut types,
+                    &mut type_tables.reborrow(),
                     &mut collector,
                 );
                 if has_dependency {
@@ -136,9 +132,6 @@ impl Compiler {
         // publish declared static parameter constraints
         let mut publish_collector = TaskResultCollector::new();
         {
-            let options = self.analyze_context_options_for_module(module.id);
-            let mut type_tables =
-                TypeTablesContext::new(&module, profile, &options, &tree, &symbols, &mut types);
             self.collect(
                 &mut publish_collector,
                 self.publish_static_parameter_constraints(&mut type_tables),
@@ -148,9 +141,7 @@ impl Compiler {
         // publish declare-owned static constant values for cross-module static evaluation
         self.collect(
             &mut publish_collector,
-            self.publish_declared_static_constant_values_for_module(
-                &module, profile, &tree, &symbols, &mut types,
-            ),
+            self.publish_declared_static_constant_values_for_module(&mut type_tables.reborrow()),
         );
 
         {
@@ -161,25 +152,14 @@ impl Compiler {
             let binding_exports = dir.module_binding_exports.read();
             self.collect(
                 &mut publish_collector,
-                self.publish_declared_alias_targets(
-                    &module,
-                    profile,
-                    &exported_symbols,
-                    &tree,
-                    &symbols,
-                    &mut types,
-                ),
+                self.publish_declared_alias_targets(&mut type_tables.reborrow(), &exported_symbols),
             );
             for binding in binding_exports.values() {
                 self.collect(
                     &mut publish_collector,
                     self.publish_declared_alias_targets(
-                        &module,
-                        profile,
+                        &mut type_tables.reborrow(),
                         &binding.exports,
-                        &tree,
-                        &symbols,
-                        &mut types,
                     ),
                 );
             }
@@ -286,41 +266,37 @@ impl Compiler {
     /// Returns true if evaluation yielded dependencies.
     fn evaluate_unevaluated_types_to_fixpoint(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        type_tables: &mut TypeTablesContext<'_>,
         collector: &mut TaskResultCollector,
     ) -> bool {
         // seed the worklist
-        let mut pending: VecDeque<LocalTypeId> = (0..types.type_count())
+        let mut pending: VecDeque<LocalTypeId> = (0..type_tables.types.type_count())
             .map(LocalTypeId::new)
-            .filter(|ty_id| matches!(types.get_type(*ty_id), Type::Unevaluated(_)))
+            .filter(|ty_id| matches!(type_tables.types.get_type(*ty_id), Type::Unevaluated(_)))
             .collect();
         let mut did_change = true;
 
         while did_change && !pending.is_empty() {
             did_change = false;
             let mut next_pending = VecDeque::new();
-            let type_count = types.type_count();
+            let type_count = type_tables.types.type_count();
 
             // evaluate pending types
             while let Some(ty_id) = pending.pop_front() {
-                if !matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
+                if !matches!(type_tables.types.get_type(ty_id), Type::Unevaluated(_)) {
                     continue;
                 }
 
                 self.collect(
                     collector,
-                    self.resolve_declared_type(module, profile, ty_id, tree, symbols, types),
+                    self.resolve_declared_type(&mut type_tables.reborrow(), ty_id),
                 );
 
                 if collector.has_dependencies() {
                     return true;
                 }
 
-                if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
+                if matches!(type_tables.types.get_type(ty_id), Type::Unevaluated(_)) {
                     next_pending.push_back(ty_id);
                 } else {
                     did_change = true;
@@ -328,11 +304,11 @@ impl Compiler {
             }
 
             // add newly created unevaluated types
-            let new_type_count = types.type_count();
+            let new_type_count = type_tables.types.type_count();
             if new_type_count > type_count {
                 for i in type_count..new_type_count {
                     let ty_id = LocalTypeId::new(i);
-                    if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
+                    if matches!(type_tables.types.get_type(ty_id), Type::Unevaluated(_)) {
                         next_pending.push_back(ty_id);
                     }
                 }
@@ -347,12 +323,8 @@ impl Compiler {
     /// Publish exported alias targets from declared local type metadata.
     fn publish_declared_alias_targets(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         for export in exports.values() {
             // skip non-type exports
@@ -364,32 +336,35 @@ impl Compiler {
             let Some(export_symbol) = export.target.resolved() else {
                 continue;
             };
-            if export_symbol.module_id != module.id {
+            if export_symbol.module_id != type_tables.module.id {
                 continue;
             }
 
             // skip non-alias symbols
-            let symbol_entry = symbols.get_symbol(export_symbol.local_id);
+            let symbol_entry = type_tables.symbols.get_symbol(export_symbol.local_id);
             if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
                 continue;
             }
 
             // load the declared alias target and ensure it is evaluated
-            let typed_symbol =
-                GlobalSymbolId::new(module.id, export_symbol.local_id.with_type(symbol_entry.ty));
-            let Some(alias_target_id) = types.get_alias_target_type_id(typed_symbol) else {
+            let typed_symbol = GlobalSymbolId::new(
+                type_tables.module.id,
+                export_symbol.local_id.with_type(symbol_entry.ty),
+            );
+            let Some(alias_target_id) = type_tables.types.get_alias_target_type_id(typed_symbol)
+            else {
                 continue;
             };
-            self.ensure_type_evaluated(module, profile, alias_target_id, tree, symbols, types)?;
+            self.ensure_type_evaluated(&mut type_tables.reborrow(), alias_target_id)?;
 
             // materialize value static arguments before publishing
             let needs_materialization = self.type_has_unevaluated_value_static_arguments(
-                module,
-                profile,
+                type_tables.module,
+                type_tables.profile,
                 alias_target_id,
-                tree,
-                symbols,
-                types,
+                type_tables.tree,
+                type_tables.symbols,
+                type_tables.types,
                 &mut HashSet::new(),
             );
             if !needs_materialization {
@@ -397,17 +372,12 @@ impl Compiler {
             }
 
             let mut cache = HashMap::new();
-            let materialized = self.materialize_static_arguments_in_type(
-                module,
-                profile,
-                alias_target_id,
-                tree,
-                symbols,
-                types,
-                &mut cache,
-            );
+            let materialized =
+                self.materialize_static_arguments_in_type(type_tables, alias_target_id, &mut cache);
             if materialized != alias_target_id {
-                types.set_alias_target_type_id(typed_symbol, materialized);
+                type_tables
+                    .types
+                    .set_alias_target_type_id(typed_symbol, materialized);
             }
         }
 

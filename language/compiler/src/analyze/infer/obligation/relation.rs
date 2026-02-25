@@ -89,7 +89,7 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         target_type_id: LocalTypeId,
         source_type_id: LocalTypeId,
-        options: &AnalyzeOptions,
+        _options: &AnalyzeOptions,
         failure_mode: UnassignableRelationFailureMode,
     ) -> AnalyzeResult<()> {
         // defer relation diagnostics until all inference variables are solved
@@ -114,13 +114,9 @@ impl Compiler {
 
         // report immediately when the relation is fully concrete
         let assignability = self.is_type_assignable(
-            tables.module,
-            tables.profile,
-            tables.symbols,
+            &mut tables.type_tables_reborrow(),
             target_type_id,
             source_type_id,
-            tables.types,
-            options,
         );
         if assignability != Assignability::NotAssignable {
             return Ok(());

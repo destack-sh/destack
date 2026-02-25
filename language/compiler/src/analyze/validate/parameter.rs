@@ -1,9 +1,9 @@
+use crate::analyze::common::TypeTablesContext;
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     BindingKind, BindingModifier, Declaration, FunctionMode, LocalNodeId, Member, Mutability,
-    NodeTree, NodeType, Parameter, Property, SymbolSpace, SymbolTable, TypeTable,
+    NodeTree, NodeType, Parameter, Property, SymbolSpace,
 };
-use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::collapsible_match, clippy::too_many_arguments)]
 impl Compiler {
@@ -85,11 +85,7 @@ impl Compiler {
     /// Validate a parameter.
     pub(super) fn validate_parameter(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        type_tables: &mut TypeTablesContext<'_>,
         id: LocalNodeId<Parameter>,
         parameter: &Parameter,
     ) {
@@ -99,33 +95,42 @@ impl Compiler {
             modifiers.is_some_and(|modifiers| self.is_parameter_property(modifiers));
 
         // classify explicit type annotations on parameters
-        let has_declared_type = types
-            .get_declared_type_id(id.into_global_any(module.id))
+        let has_declared_type = type_tables
+            .types
+            .get_declared_type_id(id.into_global_any(type_tables.module.id))
             .is_some();
 
         // reject parameter properties in javascript modules
-        if is_parameter_property && module.language_type.is_javascript() {
-            let node = id.into_global_any(module.id).into_anchored(Some(profile));
+        if is_parameter_property && type_tables.module.language_type.is_javascript() {
+            let node = id
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
         }
 
         // reject parameter type annotations in javascript modules
-        if module.language_type.is_javascript() && has_declared_type {
-            let node = id.into_global_any(module.id).into_anchored(Some(profile));
+        if type_tables.module.language_type.is_javascript() && has_declared_type {
+            let node = id
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
         }
 
         // reject optional parameters in javascript modules
-        if module.language_type.is_javascript()
+        if type_tables.module.language_type.is_javascript()
             && modifiers.is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe))
         {
-            let node = id.into_global_any(module.id).into_anchored(Some(profile));
+            let node = id
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
         }
 
         // parameter properties only allowed in constructors
-        if is_parameter_property && !self.is_in_constructor(tree, id) {
-            let node = id.into_global_any(module.id).into_anchored(Some(profile));
+        if is_parameter_property && !self.is_in_constructor(type_tables.tree, id) {
+            let node = id
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidParameterProperty { node });
         }
 
@@ -135,7 +140,9 @@ impl Compiler {
             Parameter::Pattern { .. } | Parameter::VariadicPattern { .. }
         );
         if is_parameter_property && is_binding_pattern {
-            let node = id.into_global_any(module.id).into_anchored(Some(profile));
+            let node = id
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidParameterProperty { node });
         }
 
@@ -145,14 +152,18 @@ impl Compiler {
             Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. }
         );
         if is_parameter_property && is_rest_parameter {
-            let node = id.into_global_any(module.id).into_anchored(Some(profile));
+            let node = id
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidParameterProperty { node });
         }
         // optional pattern or rest parameters are not valid
         let is_optional =
             modifiers.is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe));
         if is_optional {
-            let node = id.into_global_any(module.id).into_anchored(Some(profile));
+            let node = id
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             match parameter {
                 Parameter::Pattern { .. } => {
                     self.error(AnalyzeError::InvalidOptionalPatternParameter { node });
@@ -165,11 +176,15 @@ impl Compiler {
         }
 
         // JS/TS parameter patterns must only contain assignment targets
-        if module.language_type.is_javascript() || module.language_type.is_typescript() {
+        if type_tables.module.language_type.is_javascript()
+            || type_tables.module.language_type.is_typescript()
+        {
             match parameter {
                 Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
                     self.validate_for_each_assignment_pattern(
-                        module, profile, tree, *pattern, true,
+                        &mut type_tables.reborrow(),
+                        *pattern,
+                        true,
                     );
                 }
                 Parameter::Named { .. } | Parameter::VariadicNamed { .. } => {}
@@ -177,25 +192,30 @@ impl Compiler {
         }
         // variadic destructuring bindings must contain assignment targets
         else if let Parameter::VariadicPattern { pattern, .. } = parameter {
-            self.validate_for_each_assignment_pattern(module, profile, tree, *pattern, true);
+            self.validate_for_each_assignment_pattern(&mut type_tables.reborrow(), *pattern, true);
         }
 
         // variance modifiers are restricted
         if let Some(modifiers) = modifiers
             && (modifiers.variance.is_some() || modifiers.visibility.is_some())
         {
-            let symbol = symbols.get_symbol(parameter.symbol());
+            let symbol = type_tables.symbols.get_symbol(parameter.symbol());
             let is_type_parameter = symbol.space == SymbolSpace::Type;
 
             if modifiers.visibility.is_some() && is_type_parameter {
-                let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                let node = id
+                    .into_global_any(type_tables.module.id)
+                    .into_anchored(Some(type_tables.profile));
                 self.error(AnalyzeError::InvalidTypeParameterModifier { node });
             }
 
             if modifiers.variance.is_some() {
-                let is_allowed = is_type_parameter && self.is_parameter_variable(tree, id);
+                let is_allowed =
+                    is_type_parameter && self.is_parameter_variable(type_tables.tree, id);
                 if !is_allowed {
-                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                    let node = id
+                        .into_global_any(type_tables.module.id)
+                        .into_anchored(Some(type_tables.profile));
                     self.error(AnalyzeError::InvalidTypeParameterModifier { node });
                 }
             }

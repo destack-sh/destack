@@ -84,3 +84,25 @@ fn test_resolve_well_known_symbols() {
         assert_string!(test.program, key.global_name, symbol.global_symbol_name());
     }
 }
+
+/// Resolve native-only well-known symbols when the native lib is active.
+#[test]
+fn test_resolve_native_well_known_fixed_array_symbol() {
+    let test =
+        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["native"]);
+    test.resolve_builtins();
+    test.resolve_libs();
+    test.compile();
+
+    let profile = test.default_profile_id_for_root();
+    let well_known = test
+        .compiler
+        .get_well_known_symbols(profile)
+        .unwrap_or_else(|| panic!("missing well known symbols for test profile"));
+    assert!(
+        well_known
+            .get_type_symbol(WellKnownSymbol::FixedArray)
+            .is_some(),
+        "missing native FixedArray well-known symbol"
+    );
+}

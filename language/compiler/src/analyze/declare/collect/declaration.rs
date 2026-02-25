@@ -3,9 +3,9 @@ use destack_dir::{
     DeclarationAbstraction, DynamicKey, Expression, Extension, ExtensionKind, FunctionCardinality,
     FunctionMode, FunctionSignature, Generics, GlobalSymbolId, Heritage, Lineage, LocalNodeId,
     LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member, Mutability, NodeTree, NodeVisitor,
-    NodeVisitorOptions, Parameter, StaticArgument, StaticExpression, StaticKey, SymbolTable,
-    Timing, Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral, TypeTable, walk_block,
-    walk_declaration, walk_expression,
+    NodeVisitorOptions, Parameter, StaticArgument, StaticExpression, StaticKey, Timing, Type,
+    TypeField, TypeIndexSignature, TypeKind, TypeLiteral, TypeTable, walk_block, walk_declaration,
+    walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, ObjectShape, ObjectShapeSet,
+    AnalyzeDependencyStage, CanonicalSymbolMode, ObjectShape, ObjectShapeSet, TypeTablesContext,
 };
 
 /// Visitor used to declare type-level constructs across a module.
@@ -21,14 +21,8 @@ use crate::analyze::common::{
 struct CollectVisitor<'a> {
     /// The compiler shared state.
     compiler: &'a Compiler,
-    /// The module being declared.
-    module: &'a Module,
-    /// The profile id used for evaluation.
-    profile: ProfileId,
-    /// The symbol table for this module.
-    symbols: &'a SymbolTable,
-    /// The type table for this module.
-    types: &'a mut TypeTable,
+    /// The shared type tables context for declaration collection.
+    type_tables: TypeTablesContext<'a>,
     /// Track the first error encountered while walking.
     result: AnalyzeResult<()>,
     /// Node visitor options (unused, but required by trait).
@@ -37,20 +31,11 @@ struct CollectVisitor<'a> {
 
 impl<'a> CollectVisitor<'a> {
     /// Create a new declare visitor.
-    fn new(
-        compiler: &'a Compiler,
-        module: &'a Module,
-        profile: ProfileId,
-        symbols: &'a SymbolTable,
-        types: &'a mut TypeTable,
-    ) -> Self {
+    fn new(compiler: &'a Compiler, type_tables: TypeTablesContext<'a>) -> Self {
         // build the visitor state
         Self {
             compiler,
-            module,
-            profile,
-            symbols,
-            types,
+            type_tables,
             result: Ok(()),
             options: NodeVisitorOptions::default(),
         }
@@ -121,14 +106,9 @@ impl NodeVisitor for CollectVisitor<'_> {
         }
 
         // declare this declaration before walking nested nodes
-        let result = self.compiler.collect_declaration(
-            self.module,
-            self.profile,
-            id,
-            tree,
-            self.symbols,
-            self.types,
-        );
+        let result = self
+            .compiler
+            .collect_declaration(&mut self.type_tables.reborrow(), id);
         self.record_result(result);
 
         // stop on error after declaration work
@@ -156,34 +136,28 @@ impl Compiler {
     /// Resolve or defer a type expression into a type id.
     pub(crate) fn collect_or_defer_type_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         defer_type_evaluation: bool,
     ) -> AnalyzeResult<LocalTypeId> {
         if !defer_type_evaluation {
             return self.resolve_declared_type_expression(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 expression_id,
-                tree,
-                symbols,
-                types,
                 true,
                 true,
             );
         }
 
-        let global_id = expression_id.into_global_any(module.id);
-        if let Some(existing) = types.get_declared_type_id(global_id) {
+        let global_id = expression_id.into_global_any(type_tables.module.id);
+        if let Some(existing) = type_tables.types.get_declared_type_id(global_id) {
             return Ok(existing);
         }
 
-        let ty_id = types.insert_type_from(Type::Unevaluated(expression_id), expression_id);
-        types.set_declared_type(global_id, ty_id);
+        let ty_id = type_tables
+            .types
+            .insert_type_from(Type::Unevaluated(expression_id), expression_id);
+        type_tables.types.set_declared_type(global_id, ty_id);
         Ok(ty_id)
     }
 
@@ -211,20 +185,18 @@ impl Compiler {
     /// Declare all declarations reachable from the module roots.
     pub(crate) fn collect_module_declarations(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        type_tables: &mut TypeTablesContext<'_>,
     ) -> AnalyzeResult<()> {
+        let roots = type_tables.module.dir(type_tables.profile).roots.clone();
+
         // prepare the declaration visitor
-        let mut visitor = CollectVisitor::new(self, module, profile, symbols, types);
+        let mut visitor = CollectVisitor::new(self, type_tables.reborrow());
 
         // walk each root expression to visit all declarations
-        for root_id in module.dir(profile).roots.iter() {
-            let root = tree.get(*root_id);
+        for root_id in roots {
+            let root = visitor.type_tables.tree.get(root_id);
             // visit the root expression
-            visitor.visit_expression(tree, *root_id, root);
+            visitor.visit_expression(visitor.type_tables.tree, root_id, root);
 
             // stop early on errors
             if !visitor.should_continue() {
@@ -239,22 +211,18 @@ impl Compiler {
     /// Declare a single declaration node.
     pub(super) fn collect_declaration(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        mut type_tables: &mut TypeTablesContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // load the declaration node
-        let declaration = tree.get(declaration_id);
+        let declaration = type_tables.tree.get(declaration_id);
 
         // dispatch by declaration kind
         match declaration {
             Declaration::Global { .. } => Ok(()),
             Declaration::Namespace { generics, .. } => {
                 // declare namespace generics
-                self.collect_generics(module, profile, generics, tree, symbols, types)?;
+                self.collect_generics_in_tables(&mut type_tables, generics)?;
 
                 Ok(())
             }
@@ -266,38 +234,27 @@ impl Compiler {
                 ..
             } => {
                 // decide whether to defer declared types
-                let defer_type_evaluation = self.should_defer_declaration_types(module);
+                let defer_type_evaluation = self.should_defer_declaration_types(type_tables.module);
 
                 // declare static parameters
                 if let Some(parameters) = static_parameters.as_ref() {
                     for parameter_id in parameters {
-                        self.collect_parameter(
-                            module,
-                            profile,
+                        self.collect_parameter_in_tables(
+                            &mut type_tables.reborrow(),
                             *parameter_id,
-                            tree,
-                            symbols,
-                            types,
                         )?;
                     }
                 }
 
-                // validate comptime usage for array size parameters
-                if static_parameters
-                    .as_ref()
-                    .is_some_and(|parameters| !parameters.is_empty())
-                {
-                    self.validate_static_value_parameter_usage(
-                        module, profile, *value, tree, symbols, types, false, true,
-                    )?;
-                }
-
                 // avoid eager evaluation for generic aliases
                 // detect value static parameters that require deferred evaluation
+                let has_static_parameters = static_parameters
+                    .as_ref()
+                    .is_some_and(|parameters| !parameters.is_empty());
                 let has_comptime_parameters =
                     static_parameters.as_ref().is_some_and(|parameters| {
                         parameters.iter().any(|param_id| {
-                            let parameter = tree.get(*param_id);
+                            let parameter = type_tables.tree.get(*param_id);
                             parameter
                                 .modifiers()
                                 .is_some_and(|modifiers| modifiers.timing == Some(Timing::Comptime))
@@ -306,20 +263,41 @@ impl Compiler {
 
                 // resolve the declared type eagerly for type-only parameters
                 let should_defer = defer_type_evaluation || has_comptime_parameters;
-                let declared_ty_id = self.collect_or_defer_type_expression(
-                    module,
-                    profile,
-                    *value,
-                    tree,
-                    symbols,
-                    types,
-                    should_defer,
-                )?;
-                types.set_declared_type(value.into_global_any(module.id), declared_ty_id);
+
+                // validate comptime usage for array size parameters
+                if has_static_parameters {
+                    self.validate_static_value_parameter_usage(
+                        &mut type_tables.reborrow(),
+                        *value,
+                        false,
+                        true,
+                    )?;
+                }
+
+                let declared_ty_id = if should_defer {
+                    self.collect_or_defer_type_expression(
+                        &mut type_tables.reborrow(),
+                        *value,
+                        true,
+                    )?
+                } else {
+                    self.resolve_declared_type_expression(
+                        &mut type_tables.reborrow(),
+                        *value,
+                        true,
+                        true,
+                    )?
+                };
+                type_tables.types.set_declared_type(
+                    value.into_global_any(type_tables.module.id),
+                    declared_ty_id,
+                );
 
                 // register the instance type for this symbol
-                let symbol = descriptor.symbol.into_global(module.id);
-                types.set_alias_target_type_id(symbol, declared_ty_id);
+                let symbol = descriptor.symbol.into_global(type_tables.module.id);
+                type_tables
+                    .types
+                    .set_alias_target_type_id(symbol, declared_ty_id);
                 let instance_ty_id = match *kind {
                     TypeKind::Structural => declared_ty_id,
                     TypeKind::Nominal => {
@@ -327,42 +305,42 @@ impl Compiler {
                             symbol,
                             static_arguments: None,
                         };
-                        types.insert_type_from(ty, declaration_id)
+                        type_tables.types.insert_type_from(ty, declaration_id)
                     }
                 };
-                types.set_instance_type(symbol, instance_ty_id);
+                type_tables.types.set_instance_type(symbol, instance_ty_id);
 
                 // register the value type for this symbol
                 if *kind == TypeKind::Nominal {
                     let static_parameters = self.static_parameter_placeholders_for_declaration(
-                        module,
+                        type_tables.module,
                         static_parameters.as_deref(),
-                        tree,
-                        types,
+                        type_tables.tree,
+                        type_tables.types,
                     );
                     let constructor_id = self.newtype_constructor_signature(
                         declaration_id,
                         declared_ty_id,
                         instance_ty_id,
                         static_parameters,
-                        types,
+                        type_tables.types,
                     );
                     let mut shape = ObjectShape::default();
                     shape.call_signatures.push(constructor_id);
                     self.merge_value_shape_into_symbol(
-                        module,
+                        type_tables.module,
                         declaration_id,
                         descriptor.symbol,
                         &shape,
-                        types,
+                        type_tables.types,
                         false,
                     );
-                } else if module.language_type.is_destack() {
+                } else if type_tables.module.language_type.is_destack() {
                     let value_ty = Type::Value {
                         value: instance_ty_id,
                     };
-                    let value_ty_id = types.insert_type_from(value_ty, declaration_id);
-                    types.set_value_type(symbol, value_ty_id);
+                    let value_ty_id = type_tables.types.insert_type_from(value_ty, declaration_id);
+                    type_tables.types.set_value_type(symbol, value_ty_id);
                 }
 
                 Ok(())
@@ -376,131 +354,105 @@ impl Compiler {
                 ..
             } => {
                 // resolve declaration merge state
-                let symbol_entry = symbols.get_symbol(descriptor.symbol);
-                let allow_merge = module.language_type.is_declaration();
-                let is_primary = symbol_entry
-                    .primary_declaration
-                    .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
+                let symbol_entry = type_tables.symbols.get_symbol(descriptor.symbol);
+                let allow_merge = type_tables.module.language_type.is_declaration();
+                let is_primary = symbol_entry.primary_declaration.is_some_and(|primary| {
+                    primary == declaration_id.into_global_any(type_tables.module.id)
+                });
 
                 // declare generics and heritage
-                self.collect_generics(module, profile, generics, tree, symbols, types)?;
-                self.collect_heritage(
-                    module,
-                    profile,
+                self.collect_generics_in_tables(&mut type_tables.reborrow(), generics)?;
+                self.collect_heritage_in_tables(
+                    &mut type_tables.reborrow(),
                     heritage,
                     Some(descriptor.symbol),
-                    tree,
-                    symbols,
-                    types,
                 )?;
-                let declaration_symbol = descriptor.symbol.into_global(module.id);
-                self.report_missing_associated_type_requirements(
-                    module,
-                    profile,
+                let declaration_symbol = descriptor.symbol.into_global(type_tables.module.id);
+                self.report_missing_associated_requirements_in_tables(
+                    &mut type_tables.reborrow(),
                     declaration_symbol,
                     heritage,
                     members,
                     false,
-                    tree,
-                    symbols,
-                    types,
-                )?;
-                self.report_missing_associated_comptime_requirements(
-                    module,
-                    profile,
-                    declaration_symbol,
-                    heritage,
-                    members,
-                    false,
-                    tree,
-                    symbols,
-                    types,
                 )?;
 
                 // nominal reference for constructors
-                let symbol = descriptor.symbol.into_global(module.id);
+                let symbol = descriptor.symbol.into_global(type_tables.module.id);
                 let static_arguments = self.self_type_static_arguments_for_declaration(
-                    module,
+                    type_tables.module,
                     generics.static_parameters.as_deref(),
-                    tree,
-                    types,
+                    type_tables.tree,
+                    type_tables.types,
                 );
                 let nominal_reference = Type::Reference {
                     symbol,
                     static_arguments,
                 };
-                let nominal_reference_id =
-                    types.insert_type_from(nominal_reference, declaration_id);
+                let nominal_reference_id = type_tables
+                    .types
+                    .insert_type_from(nominal_reference, declaration_id);
 
                 // build instance and value shapes from members
-                let shapes = self.collect_member_shapes(
-                    module,
-                    profile,
+                let shapes = self.collect_member_shapes_in_tables(
+                    &mut type_tables.reborrow(),
                     members,
                     None,
                     Some(nominal_reference_id),
-                    tree,
-                    symbols,
-                    types,
                 )?;
                 let instance_shape = shapes.instance;
                 let mut value_shape = shapes.value;
 
                 // merge instance shapes for merged declarations
                 self.merge_instance_shape_into_merge_group(
-                    module,
+                    type_tables.module,
                     declaration_id,
                     descriptor.symbol,
                     &instance_shape,
-                    symbols,
-                    types,
+                    type_tables.symbols,
+                    type_tables.types,
                     allow_merge,
                 );
 
                 // merge global augmentations once per primary declaration
                 if allow_merge && is_primary {
                     self.merge_global_instance_shape_for_symbol(
-                        module,
+                        type_tables.module,
                         declaration_id,
                         descriptor.symbol,
-                        symbols,
-                        types,
-                        profile,
+                        type_tables.symbols,
+                        type_tables.types,
+                        type_tables.profile,
                     )?;
                 }
 
                 // ensure constructors exist for the value shape
-                self.ensure_constructor_signatures(
-                    module,
-                    profile,
+                self.ensure_constructor_signatures_in_tables(
+                    &mut type_tables.reborrow(),
                     declaration_id,
                     symbol,
                     nominal_reference_id,
                     &mut value_shape,
-                    tree,
-                    symbols,
-                    types,
                 )?;
 
                 // register the nominal value type with static members
                 self.merge_value_shape_into_symbol(
-                    module,
+                    type_tables.module,
                     declaration_id,
                     descriptor.symbol,
                     &value_shape,
-                    types,
+                    type_tables.types,
                     allow_merge,
                 );
 
                 // merge global augmentations for the value shape
                 if allow_merge && is_primary {
                     self.merge_global_value_shape_for_symbol(
-                        module,
+                        type_tables.module,
                         declaration_id,
                         descriptor.symbol,
-                        symbols,
-                        types,
-                        profile,
+                        type_tables.symbols,
+                        type_tables.types,
+                        type_tables.profile,
                     )?;
                 }
 
@@ -514,134 +466,111 @@ impl Compiler {
                 ..
             } => {
                 // resolve declaration merge state
-                let symbol_entry = symbols.get_symbol(descriptor.symbol);
-                let allow_merge = module.language_type.supports_declaration_merging()
+                let symbol_entry = type_tables.symbols.get_symbol(descriptor.symbol);
+                let allow_merge = type_tables
+                    .module
+                    .language_type
+                    .supports_declaration_merging()
                     || symbol_entry.origin.is_global_augmentation();
-                let is_primary = symbol_entry
-                    .primary_declaration
-                    .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
+                let is_primary = symbol_entry.primary_declaration.is_some_and(|primary| {
+                    primary == declaration_id.into_global_any(type_tables.module.id)
+                });
 
                 // declare generics and heritage
-                self.collect_generics(module, profile, generics, tree, symbols, types)?;
-                self.collect_heritage(
-                    module,
-                    profile,
+                self.collect_generics_in_tables(&mut type_tables.reborrow(), generics)?;
+                self.collect_heritage_in_tables(
+                    &mut type_tables.reborrow(),
                     heritage,
                     Some(descriptor.symbol),
-                    tree,
-                    symbols,
-                    types,
                 )?;
-                let declaration_symbol = descriptor.symbol.into_global(module.id);
+                let declaration_symbol = descriptor.symbol.into_global(type_tables.module.id);
                 let allows_deferred_associated =
                     descriptor.abstraction == DeclarationAbstraction::Abstract;
-                self.report_missing_associated_type_requirements(
-                    module,
-                    profile,
+                self.report_missing_associated_requirements_in_tables(
+                    &mut type_tables.reborrow(),
                     declaration_symbol,
                     heritage,
                     members,
                     allows_deferred_associated,
-                    tree,
-                    symbols,
-                    types,
-                )?;
-                self.report_missing_associated_comptime_requirements(
-                    module,
-                    profile,
-                    declaration_symbol,
-                    heritage,
-                    members,
-                    allows_deferred_associated,
-                    tree,
-                    symbols,
-                    types,
                 )?;
 
                 // prepare nominal reference for constructors
-                let symbol = descriptor.symbol.into_global(module.id);
+                let symbol = descriptor.symbol.into_global(type_tables.module.id);
                 let static_arguments = self.self_type_static_arguments_for_declaration(
-                    module,
+                    type_tables.module,
                     generics.static_parameters.as_deref(),
-                    tree,
-                    types,
+                    type_tables.tree,
+                    type_tables.types,
                 );
                 let nominal_reference = Type::Reference {
                     symbol,
                     static_arguments,
                 };
-                let nominal_reference_id =
-                    types.insert_type_from(nominal_reference, declaration_id);
+                let nominal_reference_id = type_tables
+                    .types
+                    .insert_type_from(nominal_reference, declaration_id);
 
                 // build instance and value shapes from members
-                let shapes = self.collect_member_shapes(
-                    module,
-                    profile,
+                let shapes = self.collect_member_shapes_in_tables(
+                    &mut type_tables.reborrow(),
                     members,
                     generics.static_parameters.as_deref(),
                     Some(nominal_reference_id),
-                    tree,
-                    symbols,
-                    types,
                 )?;
                 let instance_shape = shapes.instance;
                 let mut value_shape = shapes.value;
 
                 // merge instance shapes for merged declarations
                 self.merge_instance_shape_into_merge_group(
-                    module,
+                    type_tables.module,
                     declaration_id,
                     descriptor.symbol,
                     &instance_shape,
-                    symbols,
-                    types,
+                    type_tables.symbols,
+                    type_tables.types,
                     allow_merge,
                 );
 
                 // merge global augmentations once per primary declaration
                 if allow_merge && is_primary {
                     self.merge_global_instance_shape_for_symbol(
-                        module,
+                        type_tables.module,
                         declaration_id,
                         descriptor.symbol,
-                        symbols,
-                        types,
-                        profile,
+                        type_tables.symbols,
+                        type_tables.types,
+                        type_tables.profile,
                     )?;
                 }
 
                 // ensure constructors exist for the value shape
-                self.ensure_constructor_signatures(
-                    module,
-                    profile,
+                self.ensure_constructor_signatures_in_tables(
+                    &mut type_tables.reborrow(),
                     declaration_id,
                     symbol,
                     nominal_reference_id,
                     &mut value_shape,
-                    tree,
-                    symbols,
-                    types,
                 )?;
 
                 // register the nominal value type with static members
                 self.merge_value_shape_into_symbol(
-                    module,
+                    type_tables.module,
                     declaration_id,
                     descriptor.symbol,
                     &value_shape,
-                    types,
+                    type_tables.types,
                     allow_merge,
                 );
 
                 // merge global augmentations for the value shape
                 if allow_merge && is_primary {
                     self.merge_global_value_shape_for_symbol(
-                        module,
+                        type_tables.module,
                         declaration_id,
                         descriptor.symbol,
-                        symbols,
-                        types,
-                        profile,
+                        type_tables.symbols,
+                        type_tables.types,
+                        type_tables.profile,
                     )?;
                 }
 
@@ -656,105 +585,88 @@ impl Compiler {
                 ..
             } => {
                 // resolve declaration merge state
-                let symbol_entry = symbols.get_symbol(descriptor.symbol);
-                let allow_merge = module.language_type.supports_declaration_merging()
+                let symbol_entry = type_tables.symbols.get_symbol(descriptor.symbol);
+                let allow_merge = type_tables
+                    .module
+                    .language_type
+                    .supports_declaration_merging()
                     || symbol_entry.origin.is_global_augmentation();
-                let is_primary = symbol_entry
-                    .primary_declaration
-                    .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
+                let is_primary = symbol_entry.primary_declaration.is_some_and(|primary| {
+                    primary == declaration_id.into_global_any(type_tables.module.id)
+                });
 
                 // declare generics and heritage
-                self.collect_generics(module, profile, generics, tree, symbols, types)?;
-                self.collect_heritage(
-                    module,
-                    profile,
+                self.collect_generics_in_tables(&mut type_tables.reborrow(), generics)?;
+                self.collect_heritage_in_tables(
+                    &mut type_tables.reborrow(),
                     heritage,
                     Some(descriptor.symbol),
-                    tree,
-                    symbols,
-                    types,
                 )?;
-                let declaration_symbol = descriptor.symbol.into_global(module.id);
-                self.report_missing_associated_type_requirements(
-                    module,
-                    profile,
+                let declaration_symbol = descriptor.symbol.into_global(type_tables.module.id);
+                self.report_missing_associated_requirements_in_tables(
+                    &mut type_tables.reborrow(),
                     declaration_symbol,
                     heritage,
                     members,
                     false,
-                    tree,
-                    symbols,
-                    types,
-                )?;
-                self.report_missing_associated_comptime_requirements(
-                    module,
-                    profile,
-                    declaration_symbol,
-                    heritage,
-                    members,
-                    false,
-                    tree,
-                    symbols,
-                    types,
                 )?;
 
                 // prepare the nominal reference for enum values
-                let symbol = descriptor.symbol.into_global(module.id);
+                let symbol = descriptor.symbol.into_global(type_tables.module.id);
                 let static_arguments = self.self_type_static_arguments_for_declaration(
-                    module,
+                    type_tables.module,
                     generics.static_parameters.as_deref(),
-                    tree,
-                    types,
+                    type_tables.tree,
+                    type_tables.types,
                 );
                 let nominal_reference = Type::Reference {
                     symbol,
                     static_arguments,
                 };
-                let nominal_reference_id =
-                    types.insert_type_from(nominal_reference, declaration_id);
+                let nominal_reference_id = type_tables
+                    .types
+                    .insert_type_from(nominal_reference, declaration_id);
 
                 // build instance and value shapes from members
-                let shapes = self.collect_member_shapes(
-                    module,
-                    profile,
+                let shapes = self.collect_member_shapes_in_tables(
+                    &mut type_tables.reborrow(),
                     members,
                     generics.static_parameters.as_deref(),
                     Some(nominal_reference_id),
-                    tree,
-                    symbols,
-                    types,
                 )?;
                 let instance_shape = shapes.instance;
                 let mut value_shape = shapes.value;
 
                 // merge instance shapes for merged declarations
                 self.merge_instance_shape_into_merge_group(
-                    module,
+                    type_tables.module,
                     declaration_id,
                     descriptor.symbol,
                     &instance_shape,
-                    symbols,
-                    types,
+                    type_tables.symbols,
+                    type_tables.types,
                     allow_merge,
                 );
 
                 // merge global augmentations once per primary declaration
                 if allow_merge && is_primary {
                     self.merge_global_instance_shape_for_symbol(
-                        module,
+                        type_tables.module,
                         declaration_id,
                         descriptor.symbol,
-                        symbols,
-                        types,
-                        profile,
+                        type_tables.symbols,
+                        type_tables.types,
+                        type_tables.profile,
                     )?;
                 }
 
                 // build value fields for enum members
                 for field_id in fields {
-                    let field = tree.get(*field_id);
-                    let field_symbol = field.symbol.into_global(module.id);
-                    types.set_value_type(field_symbol, nominal_reference_id);
+                    let field = type_tables.tree.get(*field_id);
+                    let field_symbol = field.symbol.into_global(type_tables.module.id);
+                    type_tables
+                        .types
+                        .set_value_type(field_symbol, nominal_reference_id);
 
                     value_shape.fields.push(TypeField {
                         key: StaticKey::Name(field.name),
@@ -766,23 +678,23 @@ impl Compiler {
 
                 // register the enum value type
                 self.merge_value_shape_into_symbol(
-                    module,
+                    type_tables.module,
                     declaration_id,
                     descriptor.symbol,
                     &value_shape,
-                    types,
+                    type_tables.types,
                     allow_merge,
                 );
 
                 // merge global augmentations for the value shape
                 if allow_merge && is_primary {
                     self.merge_global_value_shape_for_symbol(
-                        module,
+                        type_tables.module,
                         declaration_id,
                         descriptor.symbol,
-                        symbols,
-                        types,
-                        profile,
+                        type_tables.symbols,
+                        type_tables.types,
+                        type_tables.profile,
                     )?;
                 }
 
@@ -796,63 +708,70 @@ impl Compiler {
                 ..
             } => {
                 // resolve declaration merge state
-                let symbol_entry = symbols.get_symbol(descriptor.symbol);
-                let allow_merge = module.language_type.supports_declaration_merging()
+                let symbol_entry = type_tables.symbols.get_symbol(descriptor.symbol);
+                let allow_merge = type_tables
+                    .module
+                    .language_type
+                    .supports_declaration_merging()
                     || symbol_entry.origin.is_global_augmentation();
-                let is_primary = symbol_entry
-                    .primary_declaration
-                    .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
+                let is_primary = symbol_entry.primary_declaration.is_some_and(|primary| {
+                    primary == declaration_id.into_global_any(type_tables.module.id)
+                });
 
                 // declare generics and heritage
-                self.collect_generics(module, profile, generics, tree, symbols, types)?;
-                self.collect_heritage(
-                    module,
-                    profile,
+                self.collect_generics_in_tables(&mut type_tables.reborrow(), generics)?;
+                self.collect_heritage_in_tables(
+                    &mut type_tables.reborrow(),
                     heritage,
                     Some(descriptor.symbol),
-                    tree,
-                    symbols,
-                    types,
                 )?;
 
                 // build instance shape from members
-                let shape = self
-                    .collect_member_shape(module, profile, members, None, tree, symbols, types)?;
+                let shape = self.collect_member_shape_in_tables(
+                    &mut type_tables.reborrow(),
+                    members,
+                    None,
+                )?;
 
                 // merge instance shapes for merged declarations
                 self.merge_instance_shape_into_merge_group(
-                    module,
+                    type_tables.module,
                     declaration_id,
                     descriptor.symbol,
                     &shape,
-                    symbols,
-                    types,
+                    type_tables.symbols,
+                    type_tables.types,
                     allow_merge,
                 );
 
                 // merge global augmentations once per primary declaration
                 if allow_merge && is_primary {
                     self.merge_global_instance_shape_for_symbol(
-                        module,
+                        type_tables.module,
                         declaration_id,
                         descriptor.symbol,
-                        symbols,
-                        types,
-                        profile,
+                        type_tables.symbols,
+                        type_tables.types,
+                        type_tables.profile,
                     )?;
                 }
 
                 // register the nominal type as the value type
                 let nominal_ty = Type::Reference {
-                    symbol: descriptor.symbol.into_global(module.id),
+                    symbol: descriptor.symbol.into_global(type_tables.module.id),
                     static_arguments: None,
                 };
-                let nominal_ty_id = types.insert_type_from(nominal_ty, declaration_id);
+                let nominal_ty_id = type_tables
+                    .types
+                    .insert_type_from(nominal_ty, declaration_id);
                 let value_ty = Type::Value {
                     value: nominal_ty_id,
                 };
-                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
-                types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
+                let value_ty_id = type_tables.types.insert_type_from(value_ty, declaration_id);
+                type_tables.types.set_value_type(
+                    descriptor.symbol.into_global(type_tables.module.id),
+                    value_ty_id,
+                );
 
                 Ok(())
             }
@@ -863,16 +782,19 @@ impl Compiler {
                 ..
             } => {
                 // decide whether to defer declared types
-                let defer_type_evaluation = self.should_defer_declaration_types(module);
+                let defer_type_evaluation = self.should_defer_declaration_types(type_tables.module);
 
                 // resolve declaration merge state
-                let symbol_entry = symbols.get_symbol(descriptor.symbol);
-                let allow_merge = module.language_type.supports_declaration_merging()
-                    || module.language_type.is_destack()
+                let symbol_entry = type_tables.symbols.get_symbol(descriptor.symbol);
+                let allow_merge = type_tables
+                    .module
+                    .language_type
+                    .supports_declaration_merging()
+                    || type_tables.module.language_type.is_destack()
                     || symbol_entry.origin.is_global_augmentation();
 
                 // enforce single implementation for TypeScript overloads
-                if self.should_enforce_single_overload(module) && body.is_some() {
+                if self.should_enforce_single_overload(type_tables.module) && body.is_some() {
                     let mut implementation_count = 0;
                     let mut declaration_nodes = Vec::new();
                     if let Some(primary) = symbol_entry.primary_declaration {
@@ -883,7 +805,7 @@ impl Compiler {
                     }
 
                     for declaration_id in declaration_nodes {
-                        if declaration_id.module_id != module.id {
+                        if declaration_id.module_id != type_tables.module.id {
                             continue;
                         }
                         let Ok(declaration_id) =
@@ -892,13 +814,13 @@ impl Compiler {
                             continue;
                         };
                         if let Declaration::Function { body: Some(_), .. } =
-                            tree.get(declaration_id)
+                            type_tables.tree.get(declaration_id)
                         {
                             implementation_count += 1;
                             if implementation_count > 1 {
                                 self.report_overload_implementation_error(
-                                    module,
-                                    profile,
+                                    type_tables.module,
+                                    type_tables.profile,
                                     declaration_id.into_any(),
                                     false,
                                 );
@@ -908,31 +830,26 @@ impl Compiler {
                     }
                 }
 
-                // declare generics for the signature
-                if let Some(generics) = signature.generics.as_ref() {
-                    self.collect_generics(module, profile, generics, tree, symbols, types)?;
-                }
-
-                // load any previously cached signature for this declaration
-                let previous_signature_id =
-                    types.get_signature_type_for_node(declaration_id.into_global_any(module.id));
-
                 // evaluate the function signature
+                if let Some(generics) = signature.generics.as_ref() {
+                    self.collect_generics_in_tables(&mut type_tables.reborrow(), generics)?;
+                }
+                let previous_signature_id = type_tables.types.get_signature_type_for_node(
+                    declaration_id.into_global_any(type_tables.module.id),
+                );
                 let ty = self.resolve_declared_function_signature_type(
-                    module,
-                    profile,
+                    &mut type_tables,
                     signature,
                     declaration_id.into_any(),
-                    tree,
-                    symbols,
-                    types,
                     defer_type_evaluation,
                 )?;
-                let fn_ty_id = types.insert_type_from_any(ty, declaration_id.into_any());
+                let fn_ty_id = type_tables
+                    .types
+                    .insert_type_from_any(ty, declaration_id.into_any());
 
                 // record the declared signature for inference
-                types.set_signature_type_for_node(
-                    declaration_id.into_global_any(module.id),
+                type_tables.types.set_signature_type_for_node(
+                    declaration_id.into_global_any(type_tables.module.id),
                     fn_ty_id,
                 );
 
@@ -940,25 +857,22 @@ impl Compiler {
                 let mut shape = ObjectShape::default();
                 shape.push_call_signature(fn_ty_id);
                 self.merge_instance_shape_into_merge_group(
-                    module,
+                    type_tables.module,
                     declaration_id,
                     descriptor.symbol,
                     &shape,
-                    symbols,
-                    types,
+                    type_tables.symbols,
+                    type_tables.types,
                     allow_merge,
                 );
 
                 // merge the function into the value type
                 self.merge_function_value_type(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     declaration_id,
                     descriptor.symbol,
                     fn_ty_id,
                     previous_signature_id,
-                    symbols,
-                    types,
                     allow_merge,
                 );
 
@@ -974,35 +888,28 @@ impl Compiler {
                 ..
             } => {
                 // decide whether to defer declared types
-                let defer_type_evaluation = self.should_defer_declaration_types(module);
+                let defer_type_evaluation = self.should_defer_declaration_types(type_tables.module);
 
                 // declare generics and heritage
-                self.collect_generics(module, profile, generics, tree, symbols, types)?;
+                self.collect_generics_in_tables(&mut type_tables.reborrow(), generics)?;
                 if !defer_type_evaluation {
                     self.resolve_declared_type_expression(
-                        module,
-                        profile,
+                        &mut type_tables.reborrow(),
                         *target_type,
-                        tree,
-                        symbols,
-                        types,
                         true,
                         true,
                     )?;
                 }
-                self.collect_heritage(
-                    module,
-                    profile,
+                self.collect_heritage_in_tables(
+                    &mut type_tables.reborrow(),
                     heritage,
                     Some(descriptor.symbol),
-                    tree,
-                    symbols,
-                    types,
                 )?;
 
                 // skip already declared extensions for this symbol
-                let extension_symbol = descriptor.symbol.into_global(module.id);
-                if types
+                let extension_symbol = descriptor.symbol.into_global(type_tables.module.id);
+                if type_tables
+                    .types
                     .get_extension_id_for_symbol(extension_symbol)
                     .is_some()
                 {
@@ -1011,40 +918,42 @@ impl Compiler {
 
                 // build the extension instance shape
                 let extension_static_parameters = generics.static_parameters.as_deref();
-                let shape = self.collect_member_shape(
-                    module,
-                    profile,
+                let shape = self.collect_member_shape_in_tables(
+                    &mut type_tables.reborrow(),
                     members,
                     extension_static_parameters,
-                    tree,
-                    symbols,
-                    types,
                 )?;
                 let instance_ty = shape.into_object_type();
-                let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
-                types.set_instance_type(extension_symbol, instance_ty_id);
+                let instance_ty_id = type_tables
+                    .types
+                    .insert_type_from(instance_ty, declaration_id);
+                type_tables
+                    .types
+                    .set_instance_type(extension_symbol, instance_ty_id);
 
                 // register the extension when a target symbol exists
                 if let Some(target) = target_symbol {
                     // resolve the canonical target symbol for extension lookup
                     let canonical_target = self.canonical_symbol_id(
-                        module,
-                        symbols,
-                        profile,
+                        type_tables.module,
+                        type_tables.symbols,
+                        type_tables.profile,
                         *target,
                         CanonicalSymbolMode::FollowAliases,
                     );
-                    let kind = if module.id == canonical_target.module_id {
+                    let kind = if type_tables.module.id == canonical_target.module_id {
                         ExtensionKind::Inherent
                     } else if descriptor.name.is_some() {
                         ExtensionKind::Nominal
                     } else {
                         ExtensionKind::Local
                     };
-                    let lineage = types.get_lineage_id_for_symbol(extension_symbol);
+                    let lineage = type_tables
+                        .types
+                        .get_lineage_id_for_symbol(extension_symbol);
                     let extension =
                         Extension::new(extension_symbol, kind, canonical_target, lineage);
-                    types.insert_extension(extension);
+                    type_tables.types.insert_extension(extension);
                 }
 
                 Ok(())
@@ -1052,25 +961,21 @@ impl Compiler {
         }
     }
 
-    /// Declare generics by evaluating static parameter constraint types.
-    pub(crate) fn collect_generics(
+    /// Declare generics by evaluating static parameter constraints in one tables context.
+    pub(crate) fn collect_generics_in_tables(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         generics: &Generics,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // defer generic constraint evaluation for declaration modules
-        if self.should_defer_declaration_types(module) {
+        if self.should_defer_declaration_types(type_tables.module) {
             return Ok(());
         }
 
         // evaluate static parameter constraints
         if let Some(parameters) = generics.static_parameters.as_ref() {
             for parameter_id in parameters {
-                self.collect_parameter(module, profile, *parameter_id, tree, symbols, types)?;
+                self.collect_parameter_in_tables(&mut type_tables.reborrow(), *parameter_id)?;
             }
         }
 
@@ -1078,91 +983,53 @@ impl Compiler {
     }
 
     /// Declare a parameter by evaluating its declared type.
-    fn collect_parameter(
+    fn collect_parameter_in_tables(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         parameter_id: LocalNodeId<Parameter>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // defer parameter evaluation for declaration modules
-        if self.should_defer_declaration_types(module) {
+        if self.should_defer_declaration_types(type_tables.module) {
             return Ok(());
         }
 
         // resolve the declared type for the parameter
-        let declared_type_id = types.get_declared_type_id(parameter_id.into_global_any(module.id));
+        let declared_type_id = type_tables
+            .types
+            .get_declared_type_id(parameter_id.into_global_any(type_tables.module.id));
         let Some(declared_type_id) = declared_type_id else {
             return Ok(());
         };
 
         // evaluate the declared type
-        self.resolve_declared_type(module, profile, declared_type_id, tree, symbols, types)?;
+        self.resolve_declared_type(&mut type_tables.reborrow(), declared_type_id)?;
 
         Ok(())
     }
 
-    /// Declare heritage lineages for a nominal type.
-    fn collect_heritage(
+    /// Declare heritage lineages for a nominal type in one tables context.
+    fn collect_heritage_in_tables(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         heritage: &Heritage,
         symbol: Option<LocalSymbolId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // defer heritage evaluation for declaration modules
-        let defer_type_evaluation = self.should_defer_declaration_types(module);
-
-        // resolve heritage targets from evaluated types when possible
-        let collect_symbol = |expression_id: LocalNodeId<Expression>,
-                              symbols: &SymbolTable,
-                              types: &mut TypeTable|
-         -> AnalyzeResult<Option<GlobalSymbolId>> {
-            if !defer_type_evaluation {
-                let ty_id = self.resolve_declared_type_expression(
-                    module,
-                    profile,
-                    expression_id,
-                    tree,
-                    symbols,
-                    types,
-                    true,
-                    true,
-                )?;
-                let type_symbol = self.unwrap_type_value_symbol(types, ty_id);
-
-                // prefer evaluated type references when available
-                if let Some(type_symbol) = type_symbol {
-                    return Ok(Some(self.merged_type_symbol_id(
-                        module,
-                        symbols,
-                        profile,
-                        type_symbol,
-                    )));
-                }
-            }
-
-            // fall back to the syntactic target symbol
-            let expression = tree.get(expression_id);
-            Ok(expression
-                .target_symbol()
-                .map(|symbol| self.merged_type_symbol_id(module, symbols, profile, symbol)))
-        };
+        let defer_type_evaluation = self.should_defer_declaration_types(type_tables.module);
 
         // resolve extends symbols
         let mut extends_symbols = Vec::new();
         if let Some(extend_types) = heritage.extends_types.as_ref() {
             for expression_id in extend_types {
-                if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
+                if let Some(target_symbol) = self.collect_heritage_symbol_in_tables(
+                    &mut type_tables.reborrow(),
+                    *expression_id,
+                    defer_type_evaluation,
+                )? {
                     let canonical_symbol = self.canonical_symbol_id(
-                        module,
-                        symbols,
-                        profile,
+                        type_tables.module,
+                        type_tables.symbols,
+                        type_tables.profile,
                         target_symbol,
                         CanonicalSymbolMode::FollowAliases,
                     );
@@ -1175,11 +1042,15 @@ impl Compiler {
         let mut implements_symbols = Vec::new();
         if let Some(implements_types) = heritage.implements_types.as_ref() {
             for expression_id in implements_types {
-                if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
+                if let Some(target_symbol) = self.collect_heritage_symbol_in_tables(
+                    &mut type_tables.reborrow(),
+                    *expression_id,
+                    defer_type_evaluation,
+                )? {
                     let canonical_symbol = self.canonical_symbol_id(
-                        module,
-                        symbols,
-                        profile,
+                        type_tables.module,
+                        type_tables.symbols,
+                        type_tables.profile,
                         target_symbol,
                         CanonicalSymbolMode::FollowAliases,
                     );
@@ -1192,11 +1063,15 @@ impl Compiler {
         let mut embedded_symbols = Vec::new();
         if let Some(embedded_types) = heritage.embedded_types.as_ref() {
             for expression_id in embedded_types {
-                if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
+                if let Some(target_symbol) = self.collect_heritage_symbol_in_tables(
+                    &mut type_tables.reborrow(),
+                    *expression_id,
+                    defer_type_evaluation,
+                )? {
                     let canonical_symbol = self.canonical_symbol_id(
-                        module,
-                        symbols,
-                        profile,
+                        type_tables.module,
+                        type_tables.symbols,
+                        type_tables.profile,
                         target_symbol,
                         CanonicalSymbolMode::FollowAliases,
                     );
@@ -1213,12 +1088,52 @@ impl Compiler {
                 embedded: embedded_symbols,
             };
             if !lineage.is_empty() {
-                let lineage_id = types.insert_lineage(lineage);
-                types.set_lineage_for_symbol(symbol.into_global(module.id), lineage_id);
+                let lineage_id = type_tables.types.insert_lineage(lineage);
+                type_tables
+                    .types
+                    .set_lineage_for_symbol(symbol.into_global(type_tables.module.id), lineage_id);
             }
         }
 
         Ok(())
+    }
+
+    /// Resolve one heritage expression to one merged target symbol.
+    fn collect_heritage_symbol_in_tables(
+        &self,
+        type_tables: &mut TypeTablesContext<'_>,
+        expression_id: LocalNodeId<Expression>,
+        defer_type_evaluation: bool,
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        // prefer evaluated type references when type evaluation is enabled
+        if !defer_type_evaluation {
+            let ty_id = self.resolve_declared_type_expression(
+                &mut type_tables.reborrow(),
+                expression_id,
+                true,
+                true,
+            )?;
+            let type_symbol = self.unwrap_type_value_symbol(type_tables.types, ty_id);
+            if let Some(type_symbol) = type_symbol {
+                return Ok(Some(self.merged_type_symbol_id(
+                    type_tables.module,
+                    type_tables.symbols,
+                    type_tables.profile,
+                    type_symbol,
+                )));
+            }
+        }
+
+        // fall back to the syntactic target symbol
+        let expression = type_tables.tree.get(expression_id);
+        Ok(expression.target_symbol().map(|symbol| {
+            self.merged_type_symbol_id(
+                type_tables.module,
+                type_tables.symbols,
+                type_tables.profile,
+                symbol,
+            )
+        }))
     }
 
     /// Replace the return type of a function signature.
@@ -1447,23 +1362,19 @@ impl Compiler {
         }
     }
 
-    /// Declare instance and value shapes for a list of members.
-    fn collect_member_shapes(
+    /// Declare instance and value shapes for a list of members in one tables context.
+    fn collect_member_shapes_in_tables(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         members: &[LocalNodeId<Member>],
         owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
         constructor_return: Option<LocalTypeId>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<ObjectShapeSet> {
         // defer member type evaluation for declaration modules
-        let defer_type_evaluation = self.should_defer_declaration_types(module);
+        let defer_type_evaluation = self.should_defer_declaration_types(type_tables.module);
 
         // enforce single implementations for TypeScript methods and constructors
-        if self.should_enforce_single_overload(module) {
+        if self.should_enforce_single_overload(type_tables.module) {
             let mut method_implementations: HashMap<StaticKey, usize> = HashMap::new();
             let mut constructor_implementations = 0;
 
@@ -1473,7 +1384,7 @@ impl Compiler {
                     signature,
                     body,
                     ..
-                } = tree.get(*member_id)
+                } = type_tables.tree.get(*member_id)
                 else {
                     continue;
                 };
@@ -1486,8 +1397,8 @@ impl Compiler {
                     constructor_implementations += 1;
                     if constructor_implementations > 1 {
                         self.report_overload_implementation_error(
-                            module,
-                            profile,
+                            type_tables.module,
+                            type_tables.profile,
                             (*member_id).into_any(),
                             true,
                         );
@@ -1498,9 +1409,13 @@ impl Compiler {
                 let Some(key) = key.as_ref() else {
                     continue;
                 };
-                let Some(static_key) =
-                    self.static_key_from_dynamic_key(profile, *key, tree, symbols, types)
-                else {
+                let Some(static_key) = self.static_key_from_dynamic_key(
+                    type_tables.profile,
+                    *key,
+                    type_tables.tree,
+                    type_tables.symbols,
+                    type_tables.types,
+                ) else {
                     continue;
                 };
 
@@ -1508,8 +1423,8 @@ impl Compiler {
                 *count += 1;
                 if *count > 1 {
                     self.report_overload_implementation_error(
-                        module,
-                        profile,
+                        type_tables.module,
+                        type_tables.profile,
                         (*member_id).into_any(),
                         false,
                     );
@@ -1521,20 +1436,22 @@ impl Compiler {
         let mut shapes = ObjectShapeSet::default();
 
         // predeclare associated type members so later member references can resolve by symbol
-        self.collect_associated_type_members(
-            module,
-            profile,
+        self.collect_associated_type_members_in_tables(
+            &mut type_tables.reborrow(),
             members,
-            tree,
-            symbols,
-            types,
             defer_type_evaluation,
         )?;
-        self.collect_member_projection_dependencies(module, members, tree, symbols, types);
+        self.collect_member_projection_dependencies(
+            type_tables.module,
+            members,
+            type_tables.tree,
+            type_tables.symbols,
+            type_tables.types,
+        );
 
         // collect member contributions
         for member_id in members {
-            let member = tree.get(*member_id);
+            let member = type_tables.tree.get(*member_id);
             match member {
                 Member::Type { .. } | Member::ComptimeConst { .. } => {}
                 Member::Field {
@@ -1553,29 +1470,23 @@ impl Compiler {
                     if let Some(DynamicKey::NamedExpression { name, key }) = key {
                         // resolve index signature types
                         let key_type = self.collect_or_defer_type_expression(
-                            module,
-                            profile,
+                            &mut type_tables.reborrow(),
                             *key,
-                            tree,
-                            symbols,
-                            types,
                             defer_type_evaluation,
                         )?;
                         let value_type = if let Some(value) = value {
                             self.collect_or_defer_type_expression(
-                                module,
-                                profile,
+                                &mut type_tables.reborrow(),
                                 *value,
-                                tree,
-                                symbols,
-                                types,
                                 defer_type_evaluation,
                             )?
                         } else {
                             let ty = Type::TypeLiteral {
                                 value: TypeLiteral::Unknown,
                             };
-                            types.insert_type_from_any(ty, (*member_id).into_any())
+                            type_tables
+                                .types
+                                .insert_type_from_any(ty, (*member_id).into_any())
                         };
 
                         // collect index signature flags
@@ -1594,27 +1505,34 @@ impl Compiler {
 
                     // resolve a static key for the field
                     let static_key = key.and_then(|key| {
-                        self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
+                        self.static_key_from_dynamic_key(
+                            type_tables.profile,
+                            key,
+                            type_tables.tree,
+                            type_tables.symbols,
+                            type_tables.types,
+                        )
                     });
 
                     // resolve the field type
                     let value_ty_id = if let Some(value) = value {
                         let value_ty_id = self.collect_or_defer_type_expression(
-                            module,
-                            profile,
+                            &mut type_tables.reborrow(),
                             *value,
-                            tree,
-                            symbols,
-                            types,
                             defer_type_evaluation,
                         )?;
-                        types.set_declared_type(value.into_global_any(module.id), value_ty_id);
+                        type_tables.types.set_declared_type(
+                            value.into_global_any(type_tables.module.id),
+                            value_ty_id,
+                        );
                         value_ty_id
                     } else {
                         let ty = Type::TypeLiteral {
                             value: TypeLiteral::Unknown,
                         };
-                        types.insert_type_from_any(ty, (*member_id).into_any())
+                        type_tables
+                            .types
+                            .insert_type_from_any(ty, (*member_id).into_any())
                     };
 
                     // collect field flags
@@ -1654,29 +1572,26 @@ impl Compiler {
                     {
                         // declare generics for the signature
                         if let Some(generics) = signature.generics.as_ref() {
-                            self.collect_generics(module, profile, generics, tree, symbols, types)?;
+                            self.collect_generics_in_tables(&mut type_tables.reborrow(), generics)?;
                         }
 
                         // evaluate the signature type
                         let ty = self.resolve_declared_function_signature_type(
-                            module,
-                            profile,
+                            &mut type_tables.reborrow(),
                             signature,
                             (*member_id).into_any(),
-                            tree,
-                            symbols,
-                            types,
                             defer_type_evaluation,
                         )?;
                         let ty = self.extend_signature_static_parameters(
-                            module,
+                            type_tables.module,
                             owner_static_parameters,
                             ty,
-                            tree,
-                            types,
+                            type_tables.tree,
+                            type_tables.types,
                         );
-                        let signature_ty_id =
-                            types.insert_type_from_any(ty, (*member_id).into_any());
+                        let signature_ty_id = type_tables
+                            .types
+                            .insert_type_from_any(ty, (*member_id).into_any());
 
                         // override constructor returns when needed
                         let construct_signature_id =
@@ -1685,7 +1600,7 @@ impl Compiler {
                                     signature_ty_id,
                                     constructor_return,
                                     (*member_id).into_any(),
-                                    types,
+                                    type_tables.types,
                                 )
                             } else {
                                 signature_ty_id
@@ -1697,19 +1612,20 @@ impl Compiler {
                                 let void_ty = Type::TypeLiteral {
                                     value: TypeLiteral::Void,
                                 };
-                                let void_ty_id =
-                                    types.insert_type_from_any(void_ty, (*member_id).into_any());
+                                let void_ty_id = type_tables
+                                    .types
+                                    .insert_type_from_any(void_ty, (*member_id).into_any());
                                 self.replace_signature_return_type(
                                     signature_ty_id,
                                     Some(void_ty_id),
                                     (*member_id).into_any(),
-                                    types,
+                                    type_tables.types,
                                 )
                             } else {
                                 signature_ty_id
                             };
-                        types.set_signature_type_for_node(
-                            (*member_id).into_global_any(module.id),
+                        type_tables.types.set_signature_type_for_node(
+                            (*member_id).into_global_any(type_tables.module.id),
                             declared_signature_id,
                         );
 
@@ -1724,8 +1640,8 @@ impl Compiler {
                                     signature,
                                     signature_ty_id,
                                     &mut shapes.instance,
-                                    tree,
-                                    types,
+                                    type_tables.tree,
+                                    type_tables.types,
                                 );
                             }
                             Some(FunctionMode::New) => {
@@ -1740,39 +1656,43 @@ impl Compiler {
 
                     // resolve the method key
                     let Some(key) = key.and_then(|key| {
-                        self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
+                        self.static_key_from_dynamic_key(
+                            type_tables.profile,
+                            key,
+                            type_tables.tree,
+                            type_tables.symbols,
+                            type_tables.types,
+                        )
                     }) else {
                         continue;
                     };
 
                     // declare generics for the signature
                     if let Some(generics) = signature.generics.as_ref() {
-                        self.collect_generics(module, profile, generics, tree, symbols, types)?;
+                        self.collect_generics_in_tables(&mut type_tables.reborrow(), generics)?;
                     }
 
                     // build the method type
                     let ty = self.resolve_declared_function_signature_type(
-                        module,
-                        profile,
+                        &mut type_tables.reborrow(),
                         signature,
                         (*member_id).into_any(),
-                        tree,
-                        symbols,
-                        types,
                         defer_type_evaluation,
                     )?;
                     let ty = self.extend_signature_static_parameters(
-                        module,
+                        type_tables.module,
                         owner_static_parameters,
                         ty,
-                        tree,
-                        types,
+                        type_tables.tree,
+                        type_tables.types,
                     );
-                    let ty_id = types.insert_type_from_any(ty, (*member_id).into_any());
+                    let ty_id = type_tables
+                        .types
+                        .insert_type_from_any(ty, (*member_id).into_any());
 
                     // record the declared signature for inference
-                    types.set_signature_type_for_node(
-                        (*member_id).into_global_any(module.id),
+                    type_tables.types.set_signature_type_for_node(
+                        (*member_id).into_global_any(type_tables.module.id),
                         ty_id,
                     );
 
@@ -1794,7 +1714,7 @@ impl Compiler {
                     let is_static = Self::member_is_static(modifiers.as_ref());
                     let target_shape = Self::member_target_shape(&mut shapes, is_static);
                     let embed_shape =
-                        self.embed_member_shape(module, profile, *value, tree, symbols, types)?;
+                        self.embed_member_shape(&mut type_tables.reborrow(), *value)?;
                     target_shape.extend_from_shape(&embed_shape);
                 }
                 Member::StaticBlock { .. } | Member::ComptimeBlock { .. } => {}
@@ -1835,43 +1755,37 @@ impl Compiler {
         types.insert_type_from(signature, declaration_id)
     }
 
-    /// Declare the instance shape for a list of members.
-    fn collect_member_shape(
+    /// Declare the instance shape for a list of members in one tables context.
+    fn collect_member_shape_in_tables(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         members: &[LocalNodeId<Member>],
         owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<ObjectShape> {
         // defer member type evaluation for declaration modules
-        let defer_type_evaluation = self.should_defer_declaration_types(module);
+        let defer_type_evaluation = self.should_defer_declaration_types(type_tables.module);
         let mut shape = ObjectShape::default();
 
         // predeclare associated type members so later member references can resolve by symbol
-        self.collect_associated_type_members(
-            module,
-            profile,
+        self.collect_associated_type_members_in_tables(
+            &mut type_tables.reborrow(),
             members,
-            tree,
-            symbols,
-            types,
             defer_type_evaluation,
         )?;
-        self.collect_member_projection_dependencies(module, members, tree, symbols, types);
+        self.collect_member_projection_dependencies(
+            type_tables.module,
+            members,
+            type_tables.tree,
+            type_tables.symbols,
+            type_tables.types,
+        );
 
         // collect member contributions
         for member_id in members {
             let member_shape = self.collect_member(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 *member_id,
                 owner_static_parameters,
-                tree,
-                symbols,
-                types,
                 defer_type_evaluation,
             )?;
             shape.extend_from_shape(&member_shape);
@@ -1883,16 +1797,12 @@ impl Compiler {
     /// Declare a single member into an object shape.
     fn collect_member(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         member_id: LocalNodeId<Member>,
         owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         defer_type_evaluation: bool,
     ) -> AnalyzeResult<ObjectShape> {
-        let member = tree.get(member_id);
+        let member = type_tables.tree.get(member_id);
         let mut shape = ObjectShape::default();
 
         match member {
@@ -1906,29 +1816,23 @@ impl Compiler {
                 // handle index signatures
                 if let Some(DynamicKey::NamedExpression { name, key }) = key {
                     let key_type = self.collect_or_defer_type_expression(
-                        module,
-                        profile,
+                        &mut type_tables.reborrow(),
                         *key,
-                        tree,
-                        symbols,
-                        types,
                         defer_type_evaluation,
                     )?;
                     let value_type = if let Some(value) = value {
                         self.collect_or_defer_type_expression(
-                            module,
-                            profile,
+                            &mut type_tables.reborrow(),
                             *value,
-                            tree,
-                            symbols,
-                            types,
                             defer_type_evaluation,
                         )?
                     } else {
                         let ty = Type::TypeLiteral {
                             value: TypeLiteral::Unknown,
                         };
-                        types.insert_type_from_any(ty, member_id.into_any())
+                        type_tables
+                            .types
+                            .insert_type_from_any(ty, member_id.into_any())
                     };
                     let is_readonly = modifiers.as_ref().is_some_and(|modifiers| {
                         modifiers.mutability == Some(Mutability::Immutable)
@@ -1946,27 +1850,34 @@ impl Compiler {
 
                 // resolve a static key for the field
                 let static_key = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
+                    self.static_key_from_dynamic_key(
+                        type_tables.profile,
+                        key,
+                        type_tables.tree,
+                        type_tables.symbols,
+                        type_tables.types,
+                    )
                 });
 
                 // resolve the field type
                 let value_ty_id = if let Some(value) = value {
                     let value_ty_id = self.collect_or_defer_type_expression(
-                        module,
-                        profile,
+                        &mut type_tables.reborrow(),
                         *value,
-                        tree,
-                        symbols,
-                        types,
                         defer_type_evaluation,
                     )?;
-                    types.set_declared_type(value.into_global_any(module.id), value_ty_id);
+                    type_tables.types.set_declared_type(
+                        value.into_global_any(type_tables.module.id),
+                        value_ty_id,
+                    );
                     value_ty_id
                 } else {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
                     };
-                    types.insert_type_from_any(ty, member_id.into_any())
+                    type_tables
+                        .types
+                        .insert_type_from_any(ty, member_id.into_any())
                 };
 
                 // collect field modifiers
@@ -1997,7 +1908,7 @@ impl Compiler {
             } => {
                 // declare generics for the signature
                 if let Some(generics) = signature.generics.as_ref() {
-                    self.collect_generics(module, profile, generics, tree, symbols, types)?;
+                    self.collect_generics_in_tables(&mut type_tables.reborrow(), generics)?;
                 }
 
                 // handle call or construct signatures
@@ -2011,33 +1922,38 @@ impl Compiler {
                     )
                 {
                     let ty = self.resolve_declared_function_signature_type(
-                        module,
-                        profile,
+                        &mut type_tables.reborrow(),
                         signature,
                         member_id.into_any(),
-                        tree,
-                        symbols,
-                        types,
                         defer_type_evaluation,
                     )?;
                     let ty = self.extend_signature_static_parameters(
-                        module,
+                        type_tables.module,
                         owner_static_parameters,
                         ty,
-                        tree,
-                        types,
+                        type_tables.tree,
+                        type_tables.types,
                     );
-                    let ty_id = types.insert_type_from_any(ty, member_id.into_any());
+                    let ty_id = type_tables
+                        .types
+                        .insert_type_from_any(ty, member_id.into_any());
 
                     // record the declared signature for inference
-                    types.set_signature_type_for_node(member_id.into_global_any(module.id), ty_id);
+                    type_tables.types.set_signature_type_for_node(
+                        member_id.into_global_any(type_tables.module.id),
+                        ty_id,
+                    );
 
                     match signature.mode {
                         Some(FunctionMode::New) | Some(FunctionMode::Constructor) => {
                             shape.construct_signatures.push(ty_id);
                             if signature.mode == Some(FunctionMode::Constructor) {
                                 self.add_constructor_parameter_property_fields(
-                                    signature, ty_id, &mut shape, tree, types,
+                                    signature,
+                                    ty_id,
+                                    &mut shape,
+                                    type_tables.tree,
+                                    type_tables.types,
                                 );
                             }
                         }
@@ -2051,33 +1967,40 @@ impl Compiler {
 
                 // resolve the method key
                 let Some(key) = key.and_then(|key| {
-                    self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
+                    self.static_key_from_dynamic_key(
+                        type_tables.profile,
+                        key,
+                        type_tables.tree,
+                        type_tables.symbols,
+                        type_tables.types,
+                    )
                 }) else {
                     return Ok(shape);
                 };
 
                 // build the method type
                 let ty = self.resolve_declared_function_signature_type(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     signature,
                     member_id.into_any(),
-                    tree,
-                    symbols,
-                    types,
                     defer_type_evaluation,
                 )?;
                 let ty = self.extend_signature_static_parameters(
-                    module,
+                    type_tables.module,
                     owner_static_parameters,
                     ty,
-                    tree,
-                    types,
+                    type_tables.tree,
+                    type_tables.types,
                 );
-                let ty_id = types.insert_type_from_any(ty, member_id.into_any());
+                let ty_id = type_tables
+                    .types
+                    .insert_type_from_any(ty, member_id.into_any());
 
                 // record the declared signature for inference
-                types.set_signature_type_for_node(member_id.into_global_any(module.id), ty_id);
+                type_tables.types.set_signature_type_for_node(
+                    member_id.into_global_any(type_tables.module.id),
+                    ty_id,
+                );
 
                 // collect field modifiers
                 let is_optional = false;
@@ -2094,8 +2017,7 @@ impl Compiler {
             }
             Member::Embed { value, .. } => {
                 // collect embedded fields from the target type
-                let embed_shape =
-                    self.embed_member_shape(module, profile, *value, tree, symbols, types)?;
+                let embed_shape = self.embed_member_shape(&mut type_tables.reborrow(), *value)?;
                 shape.extend_from_shape(&embed_shape);
 
                 Ok(shape)
@@ -2175,18 +2097,14 @@ impl Compiler {
         Ok(shape.construct_signatures)
     }
 
-    /// Ensure constructors exist for a nominal value shape.
-    fn ensure_constructor_signatures(
+    /// Ensure constructors exist for a nominal value shape in one tables context.
+    fn ensure_constructor_signatures_in_tables(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         symbol: GlobalSymbolId,
         nominal_reference_id: LocalTypeId,
         value_shape: &mut ObjectShape,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // stop once constructors exist
         if !value_shape.construct_signatures.is_empty() {
@@ -2195,39 +2113,35 @@ impl Compiler {
 
         // prefer positional constructors for nominal declarations
         if let Declaration::Struct { members, .. } | Declaration::Class { members, .. } =
-            tree.get(declaration_id)
+            type_tables.tree.get(declaration_id)
         {
-            let owner_static_parameters = match tree.get(declaration_id) {
+            let owner_static_parameters = match type_tables.tree.get(declaration_id) {
                 Declaration::Struct { generics, .. } | Declaration::Class { generics, .. } => {
                     generics.static_parameters.as_deref()
                 }
                 _ => None,
             };
-            let signature_id = self.struct_constructor_signature(
-                module,
-                profile,
+            let signature_id = self.struct_constructor_signature_in_tables(
+                &mut type_tables.reborrow(),
                 nominal_reference_id,
                 declaration_id,
                 owner_static_parameters,
                 members,
-                tree,
-                symbols,
-                types,
             )?;
             value_shape.construct_signatures.push(signature_id);
             return Ok(());
         }
 
         // inherit constructors from the base class when present
-        if let Some(lineage) = types.get_lineage_for_symbol(symbol).cloned()
+        if let Some(lineage) = type_tables.types.get_lineage_for_symbol(symbol).cloned()
             && let Some(base_symbol) = lineage.extends
         {
             let inherited = self.collect_constructor_signatures_for_symbol(
-                module,
-                profile,
+                type_tables.module,
+                type_tables.profile,
                 declaration_id,
                 base_symbol,
-                types,
+                type_tables.types,
             )?;
             if !inherited.is_empty() {
                 value_shape.construct_signatures.extend(inherited);
@@ -2236,17 +2150,17 @@ impl Compiler {
         }
 
         // fall back to a default constructor
-        let owner_static_parameters = match tree.get(declaration_id) {
+        let owner_static_parameters = match type_tables.tree.get(declaration_id) {
             Declaration::Struct { generics, .. } | Declaration::Class { generics, .. } => {
                 generics.static_parameters.as_deref()
             }
             _ => None,
         };
         let static_parameters = self.static_parameter_placeholders_for_declaration(
-            module,
+            type_tables.module,
             owner_static_parameters,
-            tree,
-            types,
+            type_tables.tree,
+            type_tables.types,
         );
         let signature = Type::Function {
             asynchrony: Asynchrony::Sync,
@@ -2256,32 +2170,30 @@ impl Compiler {
             dynamic_parameters: Vec::new(),
             return_type: Some(nominal_reference_id),
         };
-        let signature_id = types.insert_type_from(signature, declaration_id);
+        let signature_id = type_tables
+            .types
+            .insert_type_from(signature, declaration_id);
         value_shape.construct_signatures.push(signature_id);
 
         Ok(())
     }
 
-    /// Build a positional constructor signature for nominal fields.
-    fn struct_constructor_signature(
+    /// Build a positional constructor signature for nominal fields in one tables context.
+    fn struct_constructor_signature_in_tables(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         nominal_reference_id: LocalTypeId,
         declaration_id: LocalNodeId<Declaration>,
         owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
         members: &[LocalNodeId<Member>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         // defer field type evaluation for declaration modules
-        let defer_type_evaluation = self.should_defer_declaration_types(module);
+        let defer_type_evaluation = self.should_defer_declaration_types(type_tables.module);
 
         // collect field types in source order
         let mut dynamic_parameters = Vec::new();
         for member_id in members {
-            let member = tree.get(*member_id);
+            let member = type_tables.tree.get(*member_id);
             let Member::Field {
                 modifiers, value, ..
             } = member
@@ -2297,16 +2209,12 @@ impl Compiler {
             // require declared field types
             let value_id = value.ok_or_else(|| AnalyzeError::ImplicitAny {
                 node: member_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
+                    .into_global_any(type_tables.module.id)
+                    .into_anchored(Some(type_tables.profile)),
             })?;
             let field_ty_id = self.collect_or_defer_type_expression(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 value_id,
-                tree,
-                symbols,
-                types,
                 defer_type_evaluation,
             )?;
             dynamic_parameters.push(field_ty_id);
@@ -2314,10 +2222,10 @@ impl Compiler {
 
         // build the constructor signature
         let static_parameters = self.static_parameter_placeholders_for_declaration(
-            module,
+            type_tables.module,
             owner_static_parameters,
-            tree,
-            types,
+            type_tables.tree,
+            type_tables.types,
         );
         let signature = Type::Function {
             asynchrony: Asynchrony::Sync,
@@ -2327,6 +2235,8 @@ impl Compiler {
             dynamic_parameters,
             return_type: Some(nominal_reference_id),
         };
-        Ok(types.insert_type_from(signature, declaration_id))
+        Ok(type_tables
+            .types
+            .insert_type_from(signature, declaration_id))
     }
 }

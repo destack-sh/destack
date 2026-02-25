@@ -21,7 +21,9 @@ pub(crate) use associated::{
     AssociatedComptimeRequirement, AssociatedProjectionSelection, AssociatedTypeRequirement,
     StaticMemberSymbolKind,
 };
-pub(crate) use common::{evaluate_binary_scalar, evaluate_numeric_literal, evaluate_unary_scalar};
+pub(crate) use common::{
+    TypeTablesContext, evaluate_binary_scalar, evaluate_numeric_literal, evaluate_unary_scalar,
+};
 pub use error::*;
 pub use infer::*;
 pub(crate) use module::AnalyzeDependencyStage;

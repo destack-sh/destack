@@ -140,9 +140,17 @@ fn test_build_flow_graph_short_circuit_guard() {
         profile,
         AnalyzeOptions::from(&DsConfigCompilerOptions::default()),
     );
+    let mut flow_tables = TypeTablesContext::new(
+        &module,
+        profile,
+        &context.options,
+        &tree,
+        &symbols,
+        &mut types,
+    );
     let flow = test
         .compiler
-        .compute_flow_table_for_graph(&module, &graph, &tree, &symbols, &mut types, &context)
+        .compute_flow_table_for_graph(&mut flow_tables, &graph, &context)
         .expect("expected flow table");
 
     // read the flow environment for the right side argument
