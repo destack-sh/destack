@@ -7,6 +7,10 @@
 _Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and platform built on open standards._
 
 <p>
+    <img src="./.github/assets/banner.svg" width="960" alt="Destack banner">
+</p>
+
+<p>
     <a href="version.txt"><img src="https://img.shields.io/badge/version-0.55.2-2ea44f" alt="Version"></a>
     <a href="https://github.com/destack-sh/destack/actions/workflows/ci.yml"><img src="https://github.com/destack-sh/destack/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <a href="https://github.com/destack-sh/destack/actions/workflows/nightly.yml"><img src="https://github.com/destack-sh/destack/actions/workflows/nightly.yml/badge.svg" alt="Nightly"></a>
@@ -50,9 +54,13 @@ We believe the opaqueness, inefficiency, and fragmentation of software as a whol
 
 The more we can express in one unified software system, the more great software systems we can build that understands more about what we're actually trying to do.
 At its best, software is not just a pale digital shadow of a real world process, but an enabling technology to support processes that weren't possible before.
-There is significant promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a unified system of production is the best way.
+There is significant promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a unified software system is the best way.
 
 ## Getting Started
+
+> [!WARNING]
+> **Destack is alpha-stage software.**
+> Use at your own risk. Things may change or break without notice.
 
 <!--TODO #Incomplete: getting started (`bun i -g @destack/cli`, `curl destack.sh/install`, and local development setup)-->
 
