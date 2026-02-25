@@ -3,11 +3,11 @@ use ast::{
 };
 use destack_ast as ast;
 
-use crate::format::comments::boundary::{
+use crate::format::annotation::boundary::{
     CommentAttachment, CommentAttachmentOwners, CommentSeamContext, CommentSeamData,
     CommentSeamKeyword, CommentSeamOwnerCache, comment_seam_owner,
 };
-use crate::format::comments::ownership::{
+use crate::format::annotation::ownership::{
     find_smallest_owner_enclosing_token, normalize_formatter_trivia_target_owner,
     promote_owner_by_shared_start, promote_owner_to_satisfies_expression_ancestor,
     promote_rhs_expression_owner,
@@ -298,6 +298,16 @@ pub(crate) fn try_attach_comment_expression_operator(
     {
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
         return Some((Some(target_node), AnnotationPosition::LinePostfix));
+    }
+
+    // comments after `as` stay on cast seams, except mapped-type remap seams
+    if (token_before_is_as || token_before_is_satisfies)
+        && comment_is_multiline_star
+        && (has_leading_newline || has_trailing_newline)
+        && let Some(target_node) = right_owner
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
     }
 
     // comments after `as` stay on cast seams, except mapped-type remap seams

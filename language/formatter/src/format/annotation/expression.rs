@@ -4,25 +4,25 @@ use ast::{
 };
 use destack_ast as ast;
 
-use crate::format::comments::attachment::{
+use crate::format::annotation::attachment::{
     FormatterTriviaOwnerIndex, attach_line_comment_after_ternary_colon,
     attach_star_comment_before_ternary_colon,
     attach_trailing_comma_close_brace_property_line_comment, if_expression_then_owner_without_else,
     promote_owner_to_tree_expression_parent,
 };
-use crate::format::comments::boundary::{
+use crate::format::annotation::boundary::{
     CommentAttachment, CommentAttachmentOwners, CommentSeamContext, CommentSeamData,
     CommentSeamOwnerCache, comment_seam_owner,
 };
-use crate::format::comments::operator::try_attach_comment_expression_operator;
-use crate::format::comments::ownership::{
+use crate::format::annotation::operator::try_attach_comment_expression_operator;
+use crate::format::annotation::ownership::{
     find_owner_at_or_after_token, find_preferred_owner_starting_at,
     find_smallest_owner_enclosing_token, lowest_common_owner_ancestor,
     normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
     promote_owner_by_shared_start, promote_owner_to_declaration_ancestor,
     promote_owner_to_node_type_ancestor, promote_owner_to_parenthesized_expression_ancestor,
 };
-use crate::format::comments::statement::try_attach_comment_semicolon_guard_own_line;
+use crate::format::annotation::statement::try_attach_comment_semicolon_guard_own_line;
 
 /// Return the first dynamic argument owner for one call-like expression.
 fn first_dynamic_argument_owner_for_call_like(tree: &NodeTree, owner_id: u32) -> Option<u32> {
@@ -115,6 +115,32 @@ fn owner_is_call_or_new_expression(tree: &NodeTree, owner_id: u32) -> bool {
     )
 }
 
+/// Return whether one owner belongs to a do-while expression ancestry.
+fn owner_has_do_while_expression_ancestor(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+) -> bool {
+    let mut current_owner = Some(owner_id);
+    while let Some(node_id) = current_owner {
+        if tree.get_node_type(node_id) == NodeType::Expression
+            && matches!(
+                tree.get(LocalNodeId::<Expression>::new(node_id)),
+                Expression::While {
+                    kind: ast::WhileKind::DoWhile,
+                    ..
+                }
+            )
+        {
+            return true;
+        }
+
+        current_owner = parents.get_by_id(node_id);
+    }
+
+    false
+}
+
 /// Resolve expression and type seam comment rules.
 pub(crate) fn try_attach_comment_expression(
     tree: &NodeTree,
@@ -147,6 +173,7 @@ pub(crate) fn try_attach_comment_expression(
     let token_after_is_open_brace = seam.token_after_is(TokenType::OpenBrace);
     let token_after_is_open_parenthesis = seam.token_after_is(TokenType::OpenParenthesis);
     let token_after_is_colon = seam.token_after_is(TokenType::Colon);
+    let token_after_is_spread = seam.token_after_is(TokenType::Spread);
     let token_after_is_open_bracket = seam.token_after_is(TokenType::OpenBracket);
     let token_after_is_close_brace = seam.token_after_is(TokenType::CloseBrace);
     let token_after_is_close_parenthesis = seam.token_after_is(TokenType::CloseParenthesis);
@@ -159,6 +186,8 @@ pub(crate) fn try_attach_comment_expression(
 
     let token_before_is_open_parenthesis = seam.token_before_is(TokenType::OpenParenthesis);
     let token_before_is_open_brace = seam.token_before_is(TokenType::OpenBrace);
+    let token_before_is_arrow =
+        seam.token_before_is(TokenType::Arrow) || seam.token_before_is(TokenType::ArrowWide);
     let token_before_is_comma = seam.token_before_is(TokenType::Comma);
     let token_before_is_maybe = seam.token_before_is(TokenType::Maybe);
     let token_before_is_colon = seam.token_before_is(TokenType::Colon);
@@ -203,11 +232,55 @@ pub(crate) fn try_attach_comment_expression(
         return None;
     }
 
-    // own-line semicolon guard comments should resolve consistently across seam shapes
-    if let Some(attachment) =
-        try_attach_comment_semicolon_guard_own_line(tree, parents, context, seam, owners)
+    // comments after `=>` should stay with the lambda body expression
+    if token_before_is_arrow
+        && (comment_is_star || comment_is_line)
+        && let Some(target_node) = token_after_owner
+            .or(right_owner)
+            .or(seam_owner)
+            .map(|owner| {
+                token_after_span.map_or(owner, |token| {
+                    promote_owner_by_shared_start(tree, parents, owner, token.span.start)
+                })
+            })
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        let position = if has_leading_newline || has_trailing_newline {
+            AnnotationPosition::BlockPrefix
+        } else {
+            AnnotationPosition::LinePrefix
+        };
+        return Some((Some(target_node), position));
+    }
+
+    // own-line semicolon-before-comment guard seams resolve in expression routing
+    if seam.token_before_is(TokenType::Semicolon)
+        && let Some(attachment) =
+            try_attach_comment_semicolon_guard_own_line(tree, parents, context, seam, owners)
     {
         return Some(attachment);
+    }
+
+    // line comments before jsx spread children should stay before the spread argument
+    if comment_is_line
+        && token_after_is_spread
+        && let Some(target_node) = seam_owner.or(left_owner).or(right_owner).and_then(|owner| {
+            promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Argument)
+        })
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+    }
+
+    // line comments after jsx spread operators should stay on the spread argument boundary
+    if comment_is_line
+        && token_before_is_spread
+        && let Some(target_node) = seam_owner.or(left_owner).or(right_owner).and_then(|owner| {
+            promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Argument)
+        })
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
     }
 
     // line comments after label colons stay with the labelled statement owner
@@ -534,6 +607,7 @@ pub(crate) fn try_attach_comment_expression(
     // trailing line comments after non-block if consequents stay on the consequent statement
     if is_trailing_line_comment
         && !token_before_is_close_parenthesis
+        && !token_after_is_close_parenthesis
         && let Some(seam_owner) = seam_owner
         && let Some(then_owner) = if_expression_then_owner_without_else(tree, seam_owner)
     {
@@ -635,6 +709,25 @@ pub(crate) fn try_attach_comment_expression(
         && let Some(target_owner) = ternary_right_owner
     {
         return Some((Some(target_owner), AnnotationPosition::LinePrefix));
+    }
+
+    // inline comments before `)` in do-while conditions should stay on the condition expression
+    if is_inline_star_comment
+        && token_after_is_close_parenthesis
+        && [
+            token_before_owner,
+            left_owner,
+            right_owner,
+            seam_owner,
+            token_after_owner,
+        ]
+        .into_iter()
+        .flatten()
+        .any(|owner| owner_has_do_while_expression_ancestor(tree, parents, owner))
+        && let Some(target_node) = token_before_owner.or(left_owner)
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
     }
 
     // inline comments before `)` in ternary branches stay on the inner branch expression

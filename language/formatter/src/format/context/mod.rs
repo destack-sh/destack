@@ -27,7 +27,7 @@ pub(crate) use crate::format::analysis::timing::{
     FormatterTimingEntry, FormatterTimingScope, FormatterTimingTag, FormatterTimings,
     tag_for_node_type,
 };
-pub(crate) use crate::format::comments::formatter_annotation_projection;
+pub(crate) use crate::format::annotation::formatter_annotation_projection;
 
 pub(crate) const ANNOTATION_STATE_NONE: u8 = 1;
 pub(crate) const ANNOTATION_STATE_PRESENT: u8 = 2;
