@@ -50,34 +50,11 @@ impl Compiler {
 
     /// Check if `source` type is assignable to `target` type.
     /// Returns true if a value of type `source` can be assigned to a location of type `target`.
-    pub(crate) fn is_type_assignable_in_type_tables(
+    pub(crate) fn is_type_assignable(
         &self,
         tables: &mut TypeTablesContext<'_>,
         target_id: LocalTypeId,
         source_id: LocalTypeId,
-    ) -> Assignability {
-        self.is_type_assignable(
-            tables.module,
-            tables.profile,
-            tables.symbols,
-            target_id,
-            source_id,
-            tables.types,
-            tables.options,
-        )
-    }
-
-    /// Check if `source` type is assignable to `target` type.
-    /// Returns true if a value of type `source` can be assigned to a location of type `target`.
-    pub fn is_type_assignable(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
-        target_id: LocalTypeId,
-        source_id: LocalTypeId,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Assignability {
         // same type id: trivially assignable
         if target_id == source_id {
@@ -86,22 +63,25 @@ impl Compiler {
 
         let _timing = self.timing_scope(tags::ANALYZE_INFER_ASSIGN_CHECK);
 
+        let mut ctx = AssignContext::new(
+            tables.module,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
+            tables.types,
+            tables.options,
+        );
+
         // normalize and resolve apparent types for assignability
         let target_id = self.normalize_apparent_type(
-            module,
-            profile,
+            &mut ctx.type_tables_reborrow(),
             target_id,
-            symbols,
-            types,
             NormalizationMode::Assign,
             RelationMode::ASSIGN,
         );
         let source_id = self.normalize_apparent_type(
-            module,
-            profile,
+            &mut ctx.type_tables_reborrow(),
             source_id,
-            symbols,
-            types,
             NormalizationMode::Assign,
             RelationMode::ASSIGN,
         );
@@ -111,96 +91,37 @@ impl Compiler {
             return Assignability::Assignable;
         }
 
-        self.is_type_assignable_inner(
-            module, profile, symbols, target_id, source_id, types, options,
-        )
-    }
-
-    /// Check assignability assuming apparent type normalization is already applied.
-    pub(crate) fn is_type_assignable_normalized(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
-        target_id: LocalTypeId,
-        source_id: LocalTypeId,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
-    ) -> Assignability {
-        // same type id: trivially assignable
-        if target_id == source_id {
-            return Assignability::Assignable;
-        }
-
-        let _timing = self.timing_scope(tags::ANALYZE_INFER_ASSIGN_CHECK);
-
-        self.is_type_assignable_inner(
-            module, profile, symbols, target_id, source_id, types, options,
-        )
-    }
-
-    /// Check assignability, but defer unresolved infer variables.
-    pub(crate) fn is_type_assignable_or_deferred(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
-        target_id: LocalTypeId,
-        source_id: LocalTypeId,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
-    ) -> bool {
-        // defer unresolved inference variables to constraint solving
-        if self.is_infer_var_type(target_id, types) || self.is_infer_var_type(source_id, types) {
-            return true;
-        }
-
-        // check concrete assignability when both sides are known
-        self.is_type_assignable(
-            module, profile, symbols, target_id, source_id, types, options,
-        ) != Assignability::NotAssignable
+        self.is_type_assignable_inner(&mut ctx, target_id, source_id)
     }
 
     /// Inner assignability check on Type values.
     pub(super) fn is_type_assignable_inner(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         target_id: LocalTypeId,
         source_id: LocalTypeId,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Assignability {
-        // follow alias references and static constraints before assignability
-        let target_id = self.prepare_assignability_type(module, profile, target_id, symbols, types);
-        let source_id = self.prepare_assignability_type(module, profile, source_id, symbols, types);
+        let target_source_id = ctx.types.get_type_source(target_id);
+        let source_source_id = ctx.types.get_type_source(source_id);
 
-        // capture type sources for instance type resolution
-        let target_source_id = types.get_type_source(target_id);
-        let source_source_id = types.get_type_source(source_id);
+        // follow alias references and static constraints before assignability
+        let target_id = self.prepare_assignability_type(&mut ctx.type_tables_reborrow(), target_id);
+        let source_id = self.prepare_assignability_type(&mut ctx.type_tables_reborrow(), source_id);
 
         // re-expand alias targets when normalization preserves references
-        if let Type::Reference { symbol, .. } = types.get_type(target_id)
+        if let Type::Reference { symbol, .. } = ctx.types.get_type(target_id)
             && symbol.ty() == SymbolType::TypeAlias
         {
             let normalized_target = self.normalize_type(
-                module,
-                profile,
+                &mut ctx.type_tables_reborrow(),
                 target_id,
-                symbols,
-                types,
                 NormalizationMode::Assign,
             );
             if normalized_target != target_id {
                 return self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    &mut ctx.type_tables_reborrow(),
                     normalized_target,
                     source_id,
-                    types,
-                    options,
                 );
             }
         }
@@ -211,46 +132,57 @@ impl Compiler {
         }
 
         // recursion guard for assignability pairs
-        if !types.mark_assignability_in_progress(target_id, source_id) {
+        if !ctx
+            .types
+            .mark_assignability_in_progress(target_id, source_id)
+        {
             return Assignability::Assignable;
         }
-        let _assignability_guard = AssignabilityGuard::new(types, target_id, source_id);
+        let _assignability_guard = AssignabilityGuard::new(ctx.types, target_id, source_id);
 
-        let target = types.get_type(target_id).clone();
-        let source = types.get_type(source_id).clone();
+        let target = ctx.types.get_type(target_id).clone();
+        let source = ctx.types.get_type(source_id).clone();
 
         // newtypes are nominal: only the same newtype symbol is assignable
-        if let Some(target_symbol) = self.unwrap_type_value_symbol(types, target_id)
+        if let Some(target_symbol) = self.unwrap_type_value_symbol(ctx.types, target_id)
             && target_symbol.ty() == SymbolType::Newtype
         {
-            let source_symbol = self.unwrap_type_value_symbol(types, source_id);
+            let source_symbol = self.unwrap_type_value_symbol(ctx.types, source_id);
             if source_symbol != Some(target_symbol) {
                 return Assignability::NotAssignable;
             }
         }
 
         // prevent implicit enum backing coercions
-        if self.blocks_enum_backing_assignability(&source, &target, types) {
+        if self.blocks_enum_backing_assignability(&source, &target, ctx.types) {
             return Assignability::NotAssignable;
         }
 
         // normalize conditional types that can be resolved in flow mode
-        if let Some(assignability) = self.normalize_conditional_assignability(
-            module, profile, symbols, target_id, source_id, types, options,
-        ) {
+        if let Some(assignability) =
+            self.normalize_conditional_assignability(&mut ctx.reborrow(), target_id, source_id)
+        {
             return assignability;
         }
 
         // infer placeholders: treat as wildcard with optional constraints
         if let Some(assignability) = self.resolve_infer_type_assignability(
-            module, profile, symbols, target_id, source_id, &target, &source, types, options,
+            &mut ctx.reborrow(),
+            target_id,
+            source_id,
+            &target,
+            &source,
         ) {
             return assignability;
         }
 
         // conditional sources and targets
         if let Some(assignability) = self.check_conditional_type_assignability(
-            module, profile, symbols, target_id, source_id, &target, &source, types, options,
+            &mut ctx.reborrow(),
+            target_id,
+            source_id,
+            &target,
+            &source,
         ) {
             return assignability;
         }
@@ -332,7 +264,7 @@ impl Compiler {
         }
 
         // allow nullish assignments when strict null checks are disabled
-        if !options.strict_null_checks
+        if !ctx.options.strict_null_checks
             && matches!(
                 source,
                 Type::TypeLiteral {
@@ -354,29 +286,33 @@ impl Compiler {
 
         // union and intersection relations
         if let Some(assignability) = self.check_union_intersection_assignability(
-            module, profile, symbols, target_id, source_id, &target, &source, types, options,
+            &mut ctx.reborrow(),
+            target_id,
+            source_id,
+            &target,
+            &source,
         ) {
             return assignability;
         }
 
         // wrapper relations
-        if let Some(assignability) = self.check_wrapper_type_assignability(
-            module, profile, symbols, &target, &source, types, options,
-        ) {
+        if let Some(assignability) =
+            self.check_wrapper_type_assignability(&mut ctx.reborrow(), &target, &source)
+        {
             return assignability;
         }
 
         // array and tuple relations
-        if let Some(assignability) = self.check_array_tuple_assignability(
-            module, profile, symbols, target_id, &target, &source, types, options,
-        ) {
+        if let Some(assignability) =
+            self.check_array_tuple_assignability(&mut ctx.reborrow(), target_id, &target, &source)
+        {
             return assignability;
         }
 
         // object, function, and interface bridge relations
         // reference nominal and structural relations
         {
-            let mut relation_ctx = AssignContext::new(module, profile, symbols, types, options);
+            let mut relation_ctx = ctx.reborrow();
             if let Some(assignability) = self.check_object_callable_assignability(
                 &mut relation_ctx,
                 target_id,
@@ -410,18 +346,15 @@ impl Compiler {
                 },
                 source_type,
             ) if let Some(index_signature) = self.record_like_index_signature_for_target(
-                module,
-                profile,
+                &mut ctx.type_tables_reborrow(),
                 target_symbol,
                 static_arguments.as_deref(),
-                symbols,
-                types,
                 target_id,
             ) =>
             {
                 // check implicit collection conversion policy for record-like targets
-                let anchor = types.get_type_source(target_id);
-                self.check_implicit_collection_conversion(module, profile, anchor);
+                let anchor = ctx.types.get_type_source(target_id);
+                self.check_implicit_collection_conversion(ctx.module, ctx.profile, anchor);
 
                 // accept record-like references when static arguments align
                 if let Type::Reference {
@@ -430,23 +363,20 @@ impl Compiler {
                 } = source_type
                 {
                     let record_symbol =
-                        self.get_well_known_type_symbol(profile, WellKnownSymbol::Record);
-                    let map_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Map);
+                        self.get_well_known_type_symbol(ctx.profile, WellKnownSymbol::Record);
+                    let map_symbol =
+                        self.get_well_known_type_symbol(ctx.profile, WellKnownSymbol::Map);
                     let is_record_like_source = record_symbol
                         .is_some_and(|record_symbol| record_symbol == source_symbol)
                         || map_symbol.is_some_and(|map_symbol| map_symbol == source_symbol);
                     if is_record_like_source
                         && self.are_reference_static_arguments_assignable(
-                            module,
-                            profile,
+                            &mut ctx.type_tables_reborrow(),
                             target_id,
                             source_id,
                             target_symbol,
                             static_arguments.as_ref(),
                             source_arguments.as_ref(),
-                            symbols,
-                            types,
-                            options,
                         )
                     {
                         return Assignability::Assignable;
@@ -458,15 +388,14 @@ impl Compiler {
                     _source_call_signatures,
                     _source_construct_signatures,
                     source_index_signatures,
-                )) = self.record_like_source_object_parts(&source_type, types)
+                )) = self.record_like_source_object_parts(&source_type, ctx.types)
                 else {
                     return Assignability::NotAssignable;
                 };
 
                 let target_index_signatures = vec![index_signature];
-                let mut ctx = AssignContext::new(module, profile, symbols, types, options);
                 if self.is_index_signatures_assignable(
-                    &mut ctx,
+                    &mut ctx.reborrow(),
                     &target_index_signatures,
                     &source_index_signatures,
                     &source_fields,
@@ -479,7 +408,7 @@ impl Compiler {
 
             // type literals: must match exactly (with some exceptions)
             (Type::TypeLiteral { value: target_lit }, Type::TypeLiteral { value: source_lit }) => {
-                self.is_type_literal_assignable(&target_lit, &source_lit, options)
+                self.is_type_literal_assignable(&target_lit, &source_lit, ctx.options)
             }
             (
                 Type::TypeLiteral {
@@ -487,65 +416,55 @@ impl Compiler {
                 },
                 Type::TemplateLiteral { .. },
             ) => Assignability::Assignable,
-            (
-                Type::TemplateLiteral { strings, spans },
+            (Type::TemplateLiteral { strings, spans }, source_type) => match source_type {
                 Type::TypeLiteral {
                     value: TypeLiteral::Primitive(PrimitiveType::String),
-                },
-            ) => {
-                let tree = module.dir(profile).tree.read();
-                let mut type_tables =
-                    TypeTablesContext::new(module, profile, options, &tree, symbols, types);
-                if self.template_literal_is_string_supertype(&mut type_tables, &strings, &spans) {
-                    Assignability::Assignable
-                } else {
-                    Assignability::NotAssignable
+                } => {
+                    if self.template_literal_is_string_supertype(
+                        &mut ctx.type_tables_reborrow(),
+                        &strings,
+                        &spans,
+                    ) {
+                        Assignability::Assignable
+                    } else {
+                        Assignability::NotAssignable
+                    }
                 }
-            }
-            (
-                Type::TemplateLiteral { strings, spans },
                 Type::TypeLiteral {
                     value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(string_id)),
-                },
-            ) => {
-                let value = self.program.strings.get(string_id).to_string();
-                let tree = module.dir(profile).tree.read();
-                let mut type_tables =
-                    TypeTablesContext::new(module, profile, options, &tree, symbols, types);
-                if self.template_literal_matches_string(&mut type_tables, &strings, &spans, &value)
-                {
-                    Assignability::Assignable
-                } else {
-                    Assignability::NotAssignable
+                } => {
+                    let value = self.program.strings.get(string_id).to_string();
+                    if self.template_literal_matches_string(
+                        &mut ctx.type_tables_reborrow(),
+                        &strings,
+                        &spans,
+                        &value,
+                    ) {
+                        Assignability::Assignable
+                    } else {
+                        Assignability::NotAssignable
+                    }
                 }
-            }
-            (
-                Type::TemplateLiteral {
-                    strings: target_strings,
-                    spans: target_spans,
-                },
                 Type::TemplateLiteral {
                     strings: source_strings,
                     spans: source_spans,
-                },
-            ) => {
-                let tree = module.dir(profile).tree.read();
-                let mut type_tables =
-                    TypeTablesContext::new(module, profile, options, &tree, symbols, types);
-                if self.template_literal_matches_template(
-                    &mut type_tables,
-                    &target_strings,
-                    &target_spans,
-                    &source_strings,
-                    &source_spans,
-                ) {
-                    Assignability::Assignable
-                } else {
-                    Assignability::NotAssignable
+                } => {
+                    if self.template_literal_matches_template(
+                        &mut ctx.type_tables_reborrow(),
+                        &strings,
+                        &spans,
+                        &source_strings,
+                        &source_spans,
+                    ) {
+                        Assignability::Assignable
+                    } else {
+                        Assignability::NotAssignable
+                    }
                 }
-            }
+                _ => Assignability::NotAssignable,
+            },
 
-            // type descriptors: compare underlying value types
+            // type descriptors: compare underlying value ctx.types
             (
                 Type::Value {
                     value: target_value,
@@ -553,15 +472,9 @@ impl Compiler {
                 Type::Value {
                     value: source_value,
                 },
-            ) => self.is_type_assignable(
-                module,
-                profile,
-                symbols,
-                target_value,
-                source_value,
-                types,
-                options,
-            ),
+            ) => {
+                self.is_type_assignable(&mut ctx.type_tables_reborrow(), target_value, source_value)
+            }
 
             // error types: always assignable (to suppress cascading errors)
             (Type::Error, _) | (_, Type::Error) => Assignability::Assignable,
@@ -574,41 +487,29 @@ impl Compiler {
     /// Normalize conditional types before structural matching.
     fn normalize_conditional_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         target_id: LocalTypeId,
         source_id: LocalTypeId,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Option<Assignability> {
         // normalize target conditionals that can collapse in flow mode
         if let Some(normalized_target) =
-            self.normalize_conditional_for_assignability(module, profile, target_id, symbols, types)
+            self.normalize_conditional_for_assignability(&mut ctx.type_tables_reborrow(), target_id)
         {
             return Some(self.is_type_assignable(
-                module,
-                profile,
-                symbols,
+                &mut ctx.type_tables_reborrow(),
                 normalized_target,
                 source_id,
-                types,
-                options,
             ));
         }
 
         // normalize source conditionals that can collapse in flow mode
         if let Some(normalized_source) =
-            self.normalize_conditional_for_assignability(module, profile, source_id, symbols, types)
+            self.normalize_conditional_for_assignability(&mut ctx.type_tables_reborrow(), source_id)
         {
             return Some(self.is_type_assignable(
-                module,
-                profile,
-                symbols,
+                &mut ctx.type_tables_reborrow(),
                 target_id,
                 normalized_source,
-                types,
-                options,
             ));
         }
 
@@ -618,27 +519,19 @@ impl Compiler {
     /// Resolve infer placeholders as wildcard constraints.
     fn resolve_infer_type_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         target_id: LocalTypeId,
         source_id: LocalTypeId,
         target: &Type,
         source: &Type,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Option<Assignability> {
         // infer targets: treat as wildcard with optional constraints
         if let Type::Infer { constraint, .. } = target {
             if let Some(constraint_id) = *constraint {
                 return Some(self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    &mut ctx.type_tables_reborrow(),
                     constraint_id,
                     source_id,
-                    types,
-                    options,
                 ));
             }
 
@@ -649,13 +542,9 @@ impl Compiler {
         if let Type::Infer { constraint, .. } = source {
             if let Some(constraint_id) = *constraint {
                 return Some(self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    &mut ctx.type_tables_reborrow(),
                     target_id,
                     constraint_id,
-                    types,
-                    options,
                 ));
             }
 
@@ -668,15 +557,11 @@ impl Compiler {
     /// Evaluate conditional branch assignability semantics.
     fn check_conditional_type_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         target_id: LocalTypeId,
         source_id: LocalTypeId,
         target: &Type,
         source: &Type,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Option<Assignability> {
         // conditional targets: at least one branch must accept the source
         if let Type::Conditional {
@@ -686,14 +571,10 @@ impl Compiler {
         } = target
         {
             let then_assignable = self
-                .is_type_assignable(
-                    module, profile, symbols, *then_type, source_id, types, options,
-                )
+                .is_type_assignable(&mut ctx.type_tables_reborrow(), *then_type, source_id)
                 .is_assignable();
             let else_assignable = self
-                .is_type_assignable(
-                    module, profile, symbols, *else_type, source_id, types, options,
-                )
+                .is_type_assignable(&mut ctx.type_tables_reborrow(), *else_type, source_id)
                 .is_assignable();
 
             if then_assignable || else_assignable {
@@ -713,23 +594,16 @@ impl Compiler {
         } = source
         {
             let narrowed_then = self.narrow_conditional_then_for_assignability(
-                module, profile, *left, *right, *then_type, symbols, types,
+                &mut ctx.type_tables_reborrow(),
+                *left,
+                *right,
+                *then_type,
             );
             let then_assignable = self
-                .is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
-                    target_id,
-                    narrowed_then,
-                    types,
-                    options,
-                )
+                .is_type_assignable(&mut ctx.type_tables_reborrow(), target_id, narrowed_then)
                 .is_assignable();
             let else_assignable = self
-                .is_type_assignable(
-                    module, profile, symbols, target_id, *else_type, types, options,
-                )
+                .is_type_assignable(&mut ctx.type_tables_reborrow(), target_id, *else_type)
                 .is_assignable();
 
             if then_assignable && else_assignable {
@@ -745,15 +619,11 @@ impl Compiler {
     /// Evaluate union and intersection relation semantics.
     fn check_union_intersection_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         target_id: LocalTypeId,
         source_id: LocalTypeId,
         target: &Type,
         source: &Type,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Option<Assignability> {
         match (target, source) {
             // union to union: each source element must fit a target element
@@ -771,13 +641,9 @@ impl Compiler {
                     for target_element in target_elements {
                         if self
                             .is_type_assignable(
-                                module,
-                                profile,
-                                symbols,
+                                &mut ctx.type_tables_reborrow(),
                                 *target_element,
                                 *source_element,
-                                types,
-                                options,
                             )
                             .is_assignable()
                         {
@@ -804,13 +670,9 @@ impl Compiler {
                 for target_element in target_elements {
                     if self
                         .is_type_assignable(
-                            module,
-                            profile,
-                            symbols,
+                            &mut ctx.type_tables_reborrow(),
                             *target_element,
                             source_id,
-                            types,
-                            options,
                         )
                         .is_assignable()
                     {
@@ -831,13 +693,9 @@ impl Compiler {
                 for source_element in source_elements {
                     if !self
                         .is_type_assignable(
-                            module,
-                            profile,
-                            symbols,
+                            &mut ctx.type_tables_reborrow(),
                             target_id,
                             *source_element,
-                            types,
-                            options,
                         )
                         .is_assignable()
                     {
@@ -858,13 +716,9 @@ impl Compiler {
                 for target_element in target_elements {
                     if !self
                         .is_type_assignable(
-                            module,
-                            profile,
-                            symbols,
+                            &mut ctx.type_tables_reborrow(),
                             *target_element,
                             source_id,
-                            types,
-                            options,
                         )
                         .is_assignable()
                     {
@@ -885,13 +739,9 @@ impl Compiler {
                 for source_element in source_elements {
                     if self
                         .is_type_assignable(
-                            module,
-                            profile,
-                            symbols,
+                            &mut ctx.type_tables_reborrow(),
                             target_id,
                             *source_element,
-                            types,
-                            options,
                         )
                         .is_assignable()
                     {
@@ -909,13 +759,9 @@ impl Compiler {
     /// Evaluate wrapper relation semantics.
     fn check_wrapper_type_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         target: &Type,
         source: &Type,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Option<Assignability> {
         match (target, source) {
             // owned values: invariant in mutability, variance, and inner type
@@ -936,13 +782,9 @@ impl Compiler {
                 }
 
                 Some(self.check_bidirectional_inner_assignability(
-                    module,
-                    profile,
-                    symbols,
+                    &mut ctx.reborrow(),
                     *target_right,
                     *source_right,
-                    types,
-                    options,
                 ))
             }
 
@@ -964,13 +806,9 @@ impl Compiler {
                 }
 
                 Some(self.check_bidirectional_inner_assignability(
-                    module,
-                    profile,
-                    symbols,
+                    &mut ctx.reborrow(),
                     *target_right,
                     *source_right,
-                    types,
-                    options,
                 ))
             }
 
@@ -990,13 +828,9 @@ impl Compiler {
                 }
 
                 Some(self.check_bidirectional_inner_assignability(
-                    module,
-                    profile,
-                    symbols,
+                    &mut ctx.reborrow(),
                     *target_right,
                     *source_right,
-                    types,
-                    options,
                 ))
             }
 
@@ -1007,14 +841,10 @@ impl Compiler {
     /// Evaluate array and tuple relation semantics.
     fn check_array_tuple_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         target_id: LocalTypeId,
         target: &Type,
         source: &Type,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Option<Assignability> {
         match (target, source) {
             // arrays: covariant in element type
@@ -1033,28 +863,20 @@ impl Compiler {
                 }
 
                 let assignability = self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    &mut ctx.type_tables_reborrow(),
                     *target_element,
                     *source_element,
-                    types,
-                    options,
                 );
 
                 if assignability.is_assignable() {
-                    let anchor = types.get_type_source(target_id);
+                    let anchor = ctx.types.get_type_source(target_id);
                     self.check_unsound_array_variance(
-                        module,
-                        profile,
-                        symbols,
+                        &mut ctx.reborrow(),
                         anchor,
                         *target_readonly,
                         *source_readonly,
                         *target_element,
                         *source_element,
-                        types,
-                        options,
                     );
                 }
 
@@ -1073,35 +895,27 @@ impl Compiler {
                     ..
                 },
             ) => {
-                let anchor = types.get_type_source(target_id);
-                self.check_implicit_collection_conversion(module, profile, anchor);
+                let anchor = ctx.types.get_type_source(target_id);
+                self.check_implicit_collection_conversion(ctx.module, ctx.profile, anchor);
 
                 if !self.array_readonly_assignable(*target_readonly, *source_readonly) {
                     return Some(Assignability::NotAssignable);
                 }
 
                 let assignability = self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    &mut ctx.type_tables_reborrow(),
                     *target_element,
                     *source_element,
-                    types,
-                    options,
                 );
 
                 if assignability.is_assignable() {
                     self.check_unsound_array_variance(
-                        module,
-                        profile,
-                        symbols,
+                        &mut ctx.reborrow(),
                         anchor,
                         *target_readonly,
                         *source_readonly,
                         *target_element,
                         *source_element,
-                        types,
-                        options,
                     );
                 }
 
@@ -1119,8 +933,8 @@ impl Compiler {
                     ..
                 },
             ) => {
-                let anchor = types.get_type_source(target_id);
-                self.check_implicit_collection_conversion(module, profile, anchor);
+                let anchor = ctx.types.get_type_source(target_id);
+                self.check_implicit_collection_conversion(ctx.module, ctx.profile, anchor);
 
                 if !self.array_readonly_assignable(*target_readonly, *source_readonly) {
                     return Some(Assignability::NotAssignable);
@@ -1166,7 +980,7 @@ impl Compiler {
                 if !self.array_sized_count_matches_length(
                     *target_count,
                     source_elements.len(),
-                    types,
+                    ctx.types,
                 ) {
                     return Some(Assignability::NotAssignable);
                 }
@@ -1174,13 +988,9 @@ impl Compiler {
                 for element in source_elements {
                     if element.is_rest
                         || self.is_type_assignable(
-                            module,
-                            profile,
-                            symbols,
+                            &mut ctx.type_tables_reborrow(),
                             *target_element,
                             element.ty,
-                            types,
-                            options,
                         ) == Assignability::NotAssignable
                     {
                         return Some(Assignability::NotAssignable);
@@ -1208,33 +1018,25 @@ impl Compiler {
                 }
 
                 let assignability = self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    &mut ctx.type_tables_reborrow(),
                     *target_element,
                     *source_element,
-                    types,
-                    options,
                 );
                 if !assignability.is_assignable() {
                     return Some(Assignability::NotAssignable);
                 }
 
-                let anchor = types.get_type_source(target_id);
+                let anchor = ctx.types.get_type_source(target_id);
                 self.check_unsound_array_variance(
-                    module,
-                    profile,
-                    symbols,
+                    &mut ctx.reborrow(),
                     anchor,
                     *target_readonly,
                     *source_readonly,
                     *target_element,
                     *source_element,
-                    types,
-                    options,
                 );
 
-                if self.array_sized_counts_match(*target_count, *source_count, types) {
+                if self.array_sized_counts_match(*target_count, *source_count, ctx.types) {
                     Some(Assignability::Assignable)
                 } else {
                     Some(Assignability::NotAssignable)
@@ -1274,13 +1076,9 @@ impl Compiler {
 
                     if !self
                         .is_type_assignable(
-                            module,
-                            profile,
-                            symbols,
+                            &mut ctx.type_tables_reborrow(),
                             target_element.ty,
                             source_element.ty,
-                            types,
-                            options,
                         )
                         .is_assignable()
                     {
@@ -1310,13 +1108,9 @@ impl Compiler {
                 for source_element in source_elements {
                     if !self
                         .is_type_assignable(
-                            module,
-                            profile,
-                            symbols,
+                            &mut ctx.type_tables_reborrow(),
                             *target_element,
                             source_element.ty,
-                            types,
-                            options,
                         )
                         .is_assignable()
                     {
@@ -1341,11 +1135,6 @@ impl Compiler {
         target: &Type,
         source: &Type,
     ) -> Option<Assignability> {
-        let module = ctx.module;
-        let profile = ctx.profile;
-        let symbols = ctx.symbols;
-        let types = &mut *ctx.types;
-
         match (target, source) {
             // objects: structural subtyping
             (
@@ -1363,8 +1152,8 @@ impl Compiler {
                 },
             ) => {
                 if !target_index_signatures.is_empty() {
-                    let anchor = types.get_type_source(target_id);
-                    self.check_implicit_collection_conversion(module, profile, anchor);
+                    let anchor = ctx.types.get_type_source(target_id);
+                    self.check_implicit_collection_conversion(ctx.module, ctx.profile, anchor);
                 }
 
                 let mut relation_ctx = ctx.reborrow();
@@ -1395,11 +1184,11 @@ impl Compiler {
                 source_call_signatures,
                 source_construct_signatures,
                 source_index_signatures,
-            )) = self.record_like_source_object_parts(source_type, types) =>
+            )) = self.record_like_source_object_parts(source_type, ctx.types) =>
             {
                 if !target_index_signatures.is_empty() {
-                    let anchor = types.get_type_source(target_id);
-                    self.check_implicit_collection_conversion(module, profile, anchor);
+                    let anchor = ctx.types.get_type_source(target_id);
+                    self.check_implicit_collection_conversion(ctx.module, ctx.profile, anchor);
                 }
 
                 let mut relation_ctx = ctx.reborrow();
@@ -1431,7 +1220,7 @@ impl Compiler {
                     ..
                 },
             ) => {
-                let assignment_anchor = types.get_type_source(target_id);
+                let assignment_anchor = ctx.types.get_type_source(target_id);
                 let mut relation_ctx = ctx.reborrow();
                 Some(self.is_function_type_assignable(
                     &mut relation_ctx,
@@ -1461,8 +1250,8 @@ impl Compiler {
                 },
             ) => {
                 if !target_index_signatures.is_empty() {
-                    let anchor = types.get_type_source(target_id);
-                    self.check_implicit_collection_conversion(module, profile, anchor);
+                    let anchor = ctx.types.get_type_source(target_id);
+                    self.check_implicit_collection_conversion(ctx.module, ctx.profile, anchor);
                 }
 
                 let mut relation_ctx = ctx.reborrow();
@@ -1491,7 +1280,7 @@ impl Compiler {
                     ..
                 },
             ) => {
-                let assignment_anchor = types.get_type_source(target_id);
+                let assignment_anchor = ctx.types.get_type_source(target_id);
                 let mut relation_ctx = ctx.reborrow();
                 Some(self.is_function_assignable_from_object(
                     &mut relation_ctx,
@@ -1521,17 +1310,14 @@ impl Compiler {
                 }
 
                 let Some(target_instance_id) = self.require_instance_type(
-                    module,
-                    profile,
+                    &mut ctx.type_tables_reborrow(),
                     target_source_id,
                     *target_symbol,
-                    symbols,
-                    types,
                 ) else {
                     return Some(Assignability::NotAssignable);
                 };
 
-                let target_instance = types.get_type(target_instance_id).clone();
+                let target_instance = ctx.types.get_type(target_instance_id).clone();
                 if let Type::Object {
                     fields: target_fields,
                     call_signatures: target_call_signatures,
@@ -1574,17 +1360,14 @@ impl Compiler {
                 }
 
                 let Some(source_instance_id) = self.require_instance_type(
-                    module,
-                    profile,
+                    &mut ctx.type_tables_reborrow(),
                     source_source_id,
                     *source_symbol,
-                    symbols,
-                    types,
                 ) else {
                     return Some(Assignability::NotAssignable);
                 };
 
-                let source_instance = types.get_type(source_instance_id).clone();
+                let source_instance = ctx.types.get_type(source_instance_id).clone();
                 if let Type::Object {
                     fields: source_fields,
                     call_signatures: source_call_signatures,
@@ -1627,17 +1410,14 @@ impl Compiler {
                 }
 
                 let Some(target_instance_id) = self.require_instance_type(
-                    module,
-                    profile,
+                    &mut ctx.type_tables_reborrow(),
                     target_source_id,
                     *target_symbol,
-                    symbols,
-                    types,
                 ) else {
                     return Some(Assignability::NotAssignable);
                 };
 
-                let target_instance = types.get_type(target_instance_id).clone();
+                let target_instance = ctx.types.get_type(target_instance_id).clone();
                 if let Type::Object {
                     fields: target_fields,
                     call_signatures: target_call_signatures,
@@ -1679,23 +1459,20 @@ impl Compiler {
                 }
 
                 let Some(source_instance_id) = self.require_instance_type(
-                    module,
-                    profile,
+                    &mut ctx.type_tables_reborrow(),
                     source_source_id,
                     *source_symbol,
-                    symbols,
-                    types,
                 ) else {
                     return Some(Assignability::NotAssignable);
                 };
 
-                let source_instance = types.get_type(source_instance_id).clone();
+                let source_instance = ctx.types.get_type(source_instance_id).clone();
                 if let Type::Object {
                     call_signatures: source_call_signatures,
                     ..
                 } = source_instance
                 {
-                    let assignment_anchor = types.get_type_source(target_id);
+                    let assignment_anchor = ctx.types.get_type_source(target_id);
                     let mut relation_ctx = ctx.reborrow();
                     return Some(self.is_function_assignable_from_object(
                         &mut relation_ctx,
@@ -1724,12 +1501,6 @@ impl Compiler {
         target: &Type,
         source: &Type,
     ) -> Option<Assignability> {
-        let module = ctx.module;
-        let profile = ctx.profile;
-        let symbols = ctx.symbols;
-        let types = &mut *ctx.types;
-        let options = ctx.options;
-
         let (
             Type::Reference {
                 symbol: target_symbol,
@@ -1745,51 +1516,43 @@ impl Compiler {
         };
 
         let target_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            ctx.module,
+            ctx.symbols,
+            ctx.profile,
             *target_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         let source_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            ctx.module,
+            ctx.symbols,
+            ctx.profile,
             *source_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
 
         // expand target alias references into their structural targets
         if target_symbol.ty() == SymbolType::TypeAlias {
-            let target_source_id = types.get_type_source(target_id);
+            let target_source_id = ctx.types.get_type_source(target_id);
             if let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
-                module,
-                profile,
+                &mut ctx.type_tables_reborrow(),
                 target_symbol,
                 target_source_id,
-                symbols,
-                types,
             ) {
-                let prepared_alias_target_id = self.prepare_assignability_type(
-                    module,
-                    profile,
-                    alias_target_id,
-                    symbols,
-                    types,
-                );
+                let prepared_alias_target_id = self
+                    .prepare_assignability_type(&mut ctx.type_tables_reborrow(), alias_target_id);
 
                 if let Type::Object {
                     fields: target_fields,
                     call_signatures: target_call_signatures,
                     construct_signatures: target_construct_signatures,
                     index_signatures: target_index_signatures,
-                } = types.get_type(prepared_alias_target_id).clone()
+                } = ctx.types.get_type(prepared_alias_target_id).clone()
                     && let Some((
                         source_fields,
                         source_call_signatures,
                         source_construct_signatures,
                         source_index_signatures,
-                    )) = self.record_like_source_object_parts(source, types)
+                    )) = self.record_like_source_object_parts(source, ctx.types)
                 {
                     let mut relation_ctx = ctx.reborrow();
                     return Some(self.is_object_type_assignable(
@@ -1807,13 +1570,9 @@ impl Compiler {
 
                 if prepared_alias_target_id != target_id {
                     return Some(self.is_type_assignable(
-                        module,
-                        profile,
-                        symbols,
+                        &mut ctx.type_tables_reborrow(),
                         prepared_alias_target_id,
                         source_id,
-                        types,
-                        options,
                     ));
                 }
             }
@@ -1821,31 +1580,19 @@ impl Compiler {
 
         // expand source alias references into their structural targets
         if source_symbol.ty() == SymbolType::TypeAlias {
-            let source_source_id = types.get_type_source(source_id);
+            let source_source_id = ctx.types.get_type_source(source_id);
             if let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
-                module,
-                profile,
+                &mut ctx.type_tables_reborrow(),
                 source_symbol,
                 source_source_id,
-                symbols,
-                types,
             ) {
-                let prepared_alias_target_id = self.prepare_assignability_type(
-                    module,
-                    profile,
-                    alias_target_id,
-                    symbols,
-                    types,
-                );
+                let prepared_alias_target_id = self
+                    .prepare_assignability_type(&mut ctx.type_tables_reborrow(), alias_target_id);
                 if prepared_alias_target_id != source_id {
                     return Some(self.is_type_assignable(
-                        module,
-                        profile,
-                        symbols,
+                        &mut ctx.type_tables_reborrow(),
                         target_id,
                         prepared_alias_target_id,
-                        types,
-                        options,
                     ));
                 }
             }
@@ -1853,16 +1600,12 @@ impl Compiler {
 
         if target_symbol == source_symbol {
             if self.are_reference_static_arguments_assignable(
-                module,
-                profile,
+                &mut ctx.type_tables_reborrow(),
                 target_id,
                 source_id,
                 target_symbol,
                 target_arguments.as_ref(),
                 source_arguments.as_ref(),
-                symbols,
-                types,
-                options,
             ) {
                 return Some(Assignability::Assignable);
             }
@@ -1878,33 +1621,30 @@ impl Compiler {
         }
 
         if self.is_type_lineage_assignable(
-            module,
-            profile,
+            ctx.module,
+            ctx.profile,
             source_symbol,
             target_symbol,
-            symbols,
-            types,
+            ctx.symbols,
+            ctx.types,
         ) {
             return Some(Assignability::Assignable);
         }
 
         if target_symbol.ty().is_interface()
             && let Some(target_instance_id) = self.require_instance_type(
-                module,
-                profile,
+                &mut ctx.type_tables_reborrow(),
                 target_source_id,
                 target_symbol,
-                symbols,
-                types,
             )
         {
-            let target_instance = types.get_type(target_instance_id).clone();
+            let target_instance = ctx.types.get_type(target_instance_id).clone();
             let Some((
                 source_fields,
                 source_call_signatures,
                 source_construct_signatures,
                 source_index_signatures,
-            )) = self.record_like_source_object_parts(source, types)
+            )) = self.record_like_source_object_parts(source, ctx.types)
             else {
                 return Some(Assignability::NotAssignable);
             };
@@ -1937,32 +1677,14 @@ impl Compiler {
     /// Evaluate bidirectional inner assignability for invariant wrappers.
     fn check_bidirectional_inner_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: &mut AssignContext<'_>,
         target_inner: LocalTypeId,
         source_inner: LocalTypeId,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Assignability {
-        let target_assignable = self.is_type_assignable(
-            module,
-            profile,
-            symbols,
-            target_inner,
-            source_inner,
-            types,
-            options,
-        );
-        let source_assignable = self.is_type_assignable(
-            module,
-            profile,
-            symbols,
-            source_inner,
-            target_inner,
-            types,
-            options,
-        );
+        let target_assignable =
+            self.is_type_assignable(&mut ctx.type_tables_reborrow(), target_inner, source_inner);
+        let source_assignable =
+            self.is_type_assignable(&mut ctx.type_tables_reborrow(), source_inner, target_inner);
 
         if target_assignable.is_assignable() && source_assignable.is_assignable() {
             Assignability::Assignable

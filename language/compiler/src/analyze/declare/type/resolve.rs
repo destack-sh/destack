@@ -90,53 +90,35 @@ impl Compiler {
 
     pub(crate) fn resolve_array_size_parameter_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // skip comptime size validation outside destack modules
-        if !module.language_type.is_destack() {
+        if !tables.module.language_type.is_destack() {
             return Ok(None);
         }
-
         let (candidate_expression_id, is_explicit_comptime) =
-            self.unwrap_as_comptime_expression(expression_id, tree);
+            self.unwrap_as_comptime_expression(expression_id, tables.tree);
 
         // skip expressions that are not static value references
-        let kind = if let Some(kind) = self.static_parameter_reference_kind(
-            module,
-            profile,
-            candidate_expression_id,
-            tree,
-            symbols,
-            types,
-        )? {
+        let kind = if let Some(kind) =
+            self.static_parameter_reference_kind(&mut tables.reborrow(), candidate_expression_id)?
+        {
             kind
         } else {
             let index_ty_id = self.resolve_declared_type_expression(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 candidate_expression_id,
-                tree,
-                symbols,
-                types,
                 validate_static_argument_bounds,
                 enforce_implicit_managed,
             )?;
-            let symbol = self.unwrap_type_value_symbol(types, index_ty_id);
+            let symbol = self.unwrap_type_value_symbol(tables.types, index_ty_id);
             let selection = if symbol.is_none() {
                 self.associated_comptime_selection_from_expression(
-                    module,
-                    profile,
+                    &mut tables.reborrow(),
                     candidate_expression_id,
-                    tree,
-                    symbols,
-                    types,
                 )?
             } else {
                 None
@@ -150,17 +132,26 @@ impl Compiler {
                 if is_explicit_comptime {
                     self.error(AnalyzeError::InvalidComptimeExpression {
                         node: expression_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(profile)),
+                            .into_global_any(tables.module.id)
+                            .into_anchored(Some(tables.profile)),
                     });
                 }
                 return Ok(None);
             };
-            let is_static_parameter =
-                self.symbol_is_static_parameter(module, profile, symbol, symbols, types);
+            let is_static_parameter = self.symbol_is_static_parameter(
+                tables.module,
+                tables.profile,
+                symbol,
+                tables.symbols,
+                tables.types,
+            );
             let is_associated_comptime = matches!(
                 self.query_static_member_symbol_kind_for_symbol(
-                    module, profile, symbol, tree, symbols,
+                    tables.module,
+                    tables.profile,
+                    symbol,
+                    tables.tree,
+                    tables.symbols,
                 )?,
                 Some(StaticMemberSymbolKind::AssociatedComptimeConst)
             );
@@ -168,38 +159,40 @@ impl Compiler {
                 if is_explicit_comptime {
                     self.error(AnalyzeError::InvalidComptimeExpression {
                         node: expression_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(profile)),
+                            .into_global_any(tables.module.id)
+                            .into_anchored(Some(tables.profile)),
                     });
                 }
                 return Ok(None);
             }
             if is_associated_comptime {
                 // non-this projections must already fold to a concrete integer count
-                if !self.associated_projection_receiver_is_this(candidate_expression_id, tree) {
+                if !self
+                    .associated_projection_receiver_is_this(candidate_expression_id, tables.tree)
+                {
                     let has_unresolved_receiver_arguments =
                         selection.as_ref().is_some_and(|selection| {
                             self.receiver_projection_arguments_require_deferral(
-                                module,
-                                profile,
+                                tables.module,
+                                tables.profile,
                                 &selection.receiver_arguments,
-                                symbols,
-                                types,
+                                tables.symbols,
+                                tables.types,
                             )
                         });
                     if has_unresolved_receiver_arguments {
                         if is_explicit_comptime {
                             self.error(AnalyzeError::InvalidComptimeExpression {
                                 node: expression_id
-                                    .into_global_any(module.id)
-                                    .into_anchored(Some(profile)),
+                                    .into_global_any(tables.module.id)
+                                    .into_anchored(Some(tables.profile)),
                             });
                             return Ok(None);
                         }
 
-                        let inferred_id = types.unwrap_value_type_id(index_ty_id);
-                        types.set_inferred_type(
-                            expression_id.into_global_any(module.id),
+                        let inferred_id = tables.types.unwrap_value_type_id(index_ty_id);
+                        tables.types.set_inferred_type(
+                            expression_id.into_global_any(tables.module.id),
                             inferred_id,
                         );
                         return Ok(Some(inferred_id));
@@ -207,19 +200,15 @@ impl Compiler {
 
                     let has_concrete_count = self
                         .evaluate_integer_static_literal(
-                            module,
-                            profile,
+                            &mut tables.reborrow(),
                             candidate_expression_id,
-                            tree,
-                            symbols,
-                            types,
                         )?
                         .is_some();
                     if !has_concrete_count {
                         self.error(AnalyzeError::InvalidComptimeExpression {
                             node: expression_id
-                                .into_global_any(module.id)
-                                .into_anchored(Some(profile)),
+                                .into_global_any(tables.module.id)
+                                .into_anchored(Some(tables.profile)),
                         });
                         return Ok(None);
                     }
@@ -230,42 +219,43 @@ impl Compiler {
                     symbol,
                     static_arguments: None,
                 };
-                let reference_type_id =
-                    types.insert_type_from_any(reference_type, expression_id.into_any());
-                types
-                    .set_inferred_type(expression_id.into_global_any(module.id), reference_type_id);
+                let reference_type_id = tables
+                    .types
+                    .insert_type_from_any(reference_type, expression_id.into_any());
+                tables.types.set_inferred_type(
+                    expression_id.into_global_any(tables.module.id),
+                    reference_type_id,
+                );
                 return Ok(Some(reference_type_id));
             }
-            self.static_parameter_kind_for_symbol(module, profile, symbol, tree, symbols, types)
+            self.static_parameter_kind_for_symbol(&mut tables.reborrow(), symbol)
         };
 
         // require comptime for value usage
         if kind != StaticParameterKind::Value {
             self.error(AnalyzeError::StaticParameterRequiresComptime {
                 node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
+                    .into_global_any(tables.module.id)
+                    .into_anchored(Some(tables.profile)),
             });
             return Ok(None);
         }
 
         // resolve the parameter type and cache it as the inferred type
         let index_id = self.resolve_declared_type_expression(
-            module,
-            profile,
+            &mut tables.reborrow(),
             candidate_expression_id,
-            tree,
-            symbols,
-            types,
             validate_static_argument_bounds,
             enforce_implicit_managed,
         )?;
-        let inferred_id = if let Type::Value { value } = types.get_type(index_id) {
+        let inferred_id = if let Type::Value { value } = tables.types.get_type(index_id) {
             *value
         } else {
             index_id
         };
-        types.set_inferred_type(expression_id.into_global_any(module.id), inferred_id);
+        tables
+            .types
+            .set_inferred_type(expression_id.into_global_any(tables.module.id), inferred_id);
         Ok(Some(inferred_id))
     }
 
@@ -273,30 +263,25 @@ impl Compiler {
 
     pub(crate) fn expression_is_array_size_candidate(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<bool> {
         let (expression_id, is_explicit_comptime) =
-            self.unwrap_as_comptime_expression(expression_id, tree);
+            self.unwrap_as_comptime_expression(expression_id, tables.tree);
         if is_explicit_comptime {
             return Ok(true);
         }
 
-        if let Some(symbol) = self.associated_comptime_symbol_from_expression(
-            module,
-            profile,
-            expression_id,
-            tree,
-            symbols,
-            types,
-        )? {
+        if let Some(symbol) =
+            self.associated_comptime_symbol_from_expression(&mut tables.reborrow(), expression_id)?
+        {
             if matches!(
                 self.query_static_member_symbol_kind_for_symbol(
-                    module, profile, symbol, tree, symbols,
+                    tables.module,
+                    tables.profile,
+                    symbol,
+                    tables.tree,
+                    tables.symbols,
                 )?,
                 Some(StaticMemberSymbolKind::AssociatedComptimeConst)
             ) {
@@ -304,45 +289,41 @@ impl Compiler {
             }
         }
 
-        let target_symbol = if let Some(target_symbol) = tree.get(expression_id).target_symbol() {
-            Some(target_symbol)
-        } else {
-            let index_type_id = self.resolve_declared_type_expression(
-                module,
-                profile,
-                expression_id,
-                tree,
-                symbols,
-                types,
-                true,
-                true,
-            )?;
-            self.unwrap_type_value_symbol(types, index_type_id)
-        };
+        let target_symbol =
+            if let Some(target_symbol) = tables.tree.get(expression_id).target_symbol() {
+                Some(target_symbol)
+            } else {
+                let index_type_id = self.resolve_declared_type_expression(
+                    &mut tables.reborrow(),
+                    expression_id,
+                    true,
+                    true,
+                )?;
+                self.unwrap_type_value_symbol(tables.types, index_type_id)
+            };
 
         let Some(target_symbol) = target_symbol else {
             return Ok(false);
         };
 
-        if self.symbol_is_static_parameter(module, profile, target_symbol, symbols, types) {
-            let kind = self.static_parameter_kind_for_symbol(
-                module,
-                profile,
-                target_symbol,
-                tree,
-                symbols,
-                types,
-            );
+        if self.symbol_is_static_parameter(
+            tables.module,
+            tables.profile,
+            target_symbol,
+            tables.symbols,
+            tables.types,
+        ) {
+            let kind = self.static_parameter_kind_for_symbol(&mut tables.reborrow(), target_symbol);
             return Ok(matches!(kind, StaticParameterKind::Value));
         }
 
         let is_associated_comptime = matches!(
             self.query_static_member_symbol_kind_for_symbol(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 target_symbol,
-                tree,
-                symbols,
+                tables.tree,
+                tables.symbols,
             )?,
             Some(StaticMemberSymbolKind::AssociatedComptimeConst)
         );
@@ -353,27 +334,19 @@ impl Compiler {
     /// Resolve an associated comptime member symbol from one projection expression.
     pub(crate) fn associated_comptime_selection_from_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<AssociatedProjectionSelection>> {
-        let Expression::Member { left, name, .. } = tree.get(expression_id) else {
+        let Expression::Member { left, name, .. } = tables.tree.get(expression_id) else {
             return Ok(None);
         };
 
         self.select_associated_projection_member_symbol(
-            module,
-            profile,
+            &mut tables.reborrow(),
             expression_id,
             *left,
             StaticKey::Name(*name),
             Some(StaticMemberSymbolKind::AssociatedComptimeConst),
-            tree,
-            symbols,
-            types,
             true,
             true,
         )
@@ -382,21 +355,11 @@ impl Compiler {
     /// Resolve an associated comptime member symbol from one projection expression.
     pub(crate) fn associated_comptime_symbol_from_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        let selection = self.associated_comptime_selection_from_expression(
-            module,
-            profile,
-            expression_id,
-            tree,
-            symbols,
-            types,
-        )?;
+        let selection = self
+            .associated_comptime_selection_from_expression(&mut tables.reborrow(), expression_id)?;
         Ok(selection.map(|selection| selection.target_symbol))
     }
 
@@ -418,84 +381,53 @@ impl Compiler {
 
     pub(crate) fn type_index_interpretation(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         left_type_id: LocalTypeId,
         index_expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<TypeIndexResolutionKind> {
         let (_, is_explicit_comptime) =
-            self.unwrap_as_comptime_expression(index_expression_id, tree);
-        if module.language_type.is_declaration() {
+            self.unwrap_as_comptime_expression(index_expression_id, tables.tree);
+        if tables.module.language_type.is_declaration() {
             return Ok(if is_explicit_comptime {
                 TypeIndexResolutionKind::ArraySized
             } else {
                 TypeIndexResolutionKind::IndexAccess
             });
         }
-        let index_is_array_size_candidate = self.expression_is_array_size_candidate(
-            module,
-            profile,
-            index_expression_id,
-            tree,
-            symbols,
-            types,
-        )?;
+        let index_is_array_size_candidate =
+            self.expression_is_array_size_candidate(&mut tables.reborrow(), index_expression_id)?;
         let should_evaluate_static_integer = index_is_array_size_candidate
-            || self.type_index_is_integer_literal(index_expression_id, tree);
+            || self.type_index_is_integer_literal(index_expression_id, tables.tree);
         let index_static_integer = if should_evaluate_static_integer {
-            self.evaluate_integer_static_literal(
-                module,
-                profile,
-                index_expression_id,
-                tree,
-                symbols,
-                types,
-            )?
+            self.evaluate_integer_static_literal(&mut tables.reborrow(), index_expression_id)?
         } else {
             None
         };
-        let left_is_array_sized = matches!(types.get_type(left_type_id), Type::ArraySized { .. });
-        let supports_index_access = self.type_supports_index_access(
-            module,
-            profile,
-            left_type_id,
-            tree,
-            symbols,
-            types,
-            true,
-        )?;
+        let left_is_array_sized =
+            matches!(tables.types.get_type(left_type_id), Type::ArraySized { .. });
+        let supports_index_access =
+            self.type_supports_index_access(&mut tables.reborrow(), left_type_id, true)?;
 
         if !is_explicit_comptime
             && self.type_index_is_ambiguous_without_comptime(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 left_type_id,
                 index_expression_id,
-                tree,
-                symbols,
-                types,
             )?
         {
             self.error(AnalyzeError::InvalidStaticArgument {
                 node: index_expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
+                    .into_global_any(tables.module.id)
+                    .into_anchored(Some(tables.profile)),
                 message: "ambiguous type index: use `as comptime` for array sizes or constrain the index for type access".to_string(),
             });
             return Ok(TypeIndexResolutionKind::IndexAccess);
         }
 
         let is_index_access = self.type_index_should_use_index_access(
-            module,
-            profile,
+            &mut tables.reborrow(),
             left_type_id,
             index_expression_id,
-            tree,
-            symbols,
-            types,
             supports_index_access,
             left_is_array_sized,
             index_is_array_size_candidate,
@@ -513,39 +445,32 @@ impl Compiler {
 
     pub(crate) fn type_index_should_use_index_access(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         left_type_id: LocalTypeId,
         index_expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         supports_index_access: bool,
         left_is_array_sized: bool,
         index_is_array_size_candidate: bool,
         index_is_static_integer: bool,
     ) -> AnalyzeResult<bool> {
         // receivers that are primitive literals cannot use indexed-access type semantics
-        let is_primitive_literal_receiver = self.type_is_primitive_literal(left_type_id, types);
+        let is_primitive_literal_receiver =
+            self.type_is_primitive_literal(left_type_id, tables.types);
         if !supports_index_access || is_primitive_literal_receiver {
             return Ok(false);
         }
 
         // resolve strict index admissibility for the current receiver and key
         let index_access_is_admissible = self.type_index_is_index_access_admissible(
-            module,
-            profile,
+            &mut tables.reborrow(),
             left_type_id,
             index_expression_id,
-            tree,
-            symbols,
-            types,
         )?;
 
         // detect explicit fixed-array intent
         let force_array_from_value_candidate = index_is_array_size_candidate;
-        let force_array_from_nested_sized =
-            left_is_array_sized && self.type_index_is_integer_literal(index_expression_id, tree);
+        let force_array_from_nested_sized = left_is_array_sized
+            && self.type_index_is_integer_literal(index_expression_id, tables.tree);
 
         // plain integer literals select fixed arrays only when indexed access is inadmissible
         let force_array_from_static_integer =
@@ -560,23 +485,13 @@ impl Compiler {
 
     pub(crate) fn type_index_is_index_access_admissible(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         left_type_id: LocalTypeId,
         index_expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<bool> {
         // normalize the receiver before index admissibility checks
-        let receiver_resolution = self.resolve_type_index_receiver_type(
-            module,
-            profile,
-            left_type_id,
-            tree,
-            symbols,
-            types,
-        )?;
+        let receiver_resolution =
+            self.resolve_type_index_receiver_type(&mut tables.reborrow(), left_type_id)?;
         let receiver_type_id = match receiver_resolution {
             TypeIndexReceiverState::Resolved(receiver_type_id) => receiver_type_id,
             TypeIndexReceiverState::UnconstrainedStaticParameter => return Ok(true),
@@ -585,27 +500,20 @@ impl Compiler {
 
         // resolve the index operand type before compatibility checks
         let index_type_id = self.resolve_declared_type_expression(
-            module,
-            profile,
+            &mut tables.reborrow(),
             index_expression_id,
-            tree,
-            symbols,
-            types,
             true,
             true,
         )?;
-        let index_type_id = types.unwrap_value_type_id(index_type_id);
+        let index_type_id = tables.types.unwrap_value_type_id(index_type_id);
 
         // resolve indexed-access types and collect missing literal keys
         let mut visited = Vec::new();
         let resolution = self.resolve_index_access_types(
-            module,
-            profile,
+            &mut tables.reborrow(),
             index_expression_id.into_any(),
             receiver_type_id,
             index_type_id,
-            symbols,
-            types,
             NormalizationMode::Flow,
             RelationMode::INDEX_ACCESS,
             &mut visited,
@@ -618,12 +526,8 @@ impl Compiler {
 
     fn resolve_type_index_receiver_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         receiver_type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<TypeIndexReceiverState> {
         // track visited types to avoid loops in alias or constraint chains
         let mut visited = HashSet::new();
@@ -635,18 +539,19 @@ impl Compiler {
                 return Ok(TypeIndexReceiverState::Unresolved);
             }
 
-            match types.get_type(receiver_type_id).clone() {
+            match tables.types.get_type(receiver_type_id).clone() {
                 Type::Reference { symbol, .. } => {
                     // follow static parameter constraints when available
-                    if self.symbol_is_static_parameter(module, profile, symbol, symbols, types) {
-                        let tree = module.dir(profile).tree.read();
-                        let options = self.analyze_context_options_for_module(module.id);
-                        let mut type_tables = TypeTablesContext::new(
-                            module, profile, &options, &tree, symbols, types,
-                        );
-                        let source_id = type_tables.types.get_type_source(receiver_type_id);
+                    if self.symbol_is_static_parameter(
+                        tables.module,
+                        tables.profile,
+                        symbol,
+                        tables.symbols,
+                        tables.types,
+                    ) {
+                        let source_id = tables.types.get_type_source(receiver_type_id);
                         if let Some(constraint_type_id) = self.static_parameter_constraint_type(
-                            &mut type_tables,
+                            &mut tables.reborrow(),
                             symbol,
                             source_id,
                         ) {
@@ -658,13 +563,15 @@ impl Compiler {
                     }
 
                     // follow alias targets when available
-                    if let Some(alias_target_type_id) = types.get_alias_target_type_id(symbol) {
+                    if let Some(alias_target_type_id) =
+                        tables.types.get_alias_target_type_id(symbol)
+                    {
                         receiver_type_id = alias_target_type_id;
                         continue;
                     }
 
                     // follow instance types when available
-                    if let Some(instance_type_id) = types.get_instance_type_id(symbol) {
+                    if let Some(instance_type_id) = tables.types.get_instance_type_id(symbol) {
                         receiver_type_id = instance_type_id;
                         continue;
                     }
@@ -673,14 +580,7 @@ impl Compiler {
                 }
                 Type::Unevaluated(_) => {
                     // evaluate before resolving index-query semantics
-                    self.resolve_declared_type(
-                        module,
-                        profile,
-                        receiver_type_id,
-                        tree,
-                        symbols,
-                        types,
-                    )?;
+                    self.resolve_declared_type(&mut tables.reborrow(), receiver_type_id)?;
                     continue;
                 }
                 _ => return Ok(TypeIndexReceiverState::Resolved(receiver_type_id)),
@@ -692,58 +592,50 @@ impl Compiler {
 
     pub(crate) fn type_index_is_ambiguous_without_comptime(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         left_type_id: LocalTypeId,
         index_expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<bool> {
         let (candidate_expression_id, is_explicit_comptime) =
-            self.unwrap_as_comptime_expression(index_expression_id, tree);
+            self.unwrap_as_comptime_expression(index_expression_id, tables.tree);
         if is_explicit_comptime {
             return Ok(false);
         }
 
-        let Some(target_symbol) = tree.get(candidate_expression_id).target_symbol() else {
+        let Some(target_symbol) = tables.tree.get(candidate_expression_id).target_symbol() else {
             return Ok(false);
         };
 
         // mapped key parameters are always type-space index operands
         if self.type_index_symbol_is_mapped_parameter(
-            module,
+            tables.module,
             target_symbol,
             candidate_expression_id,
-            tree,
+            tables.tree,
         ) {
             return Ok(false);
         }
 
-        if !self.symbol_is_static_parameter(module, profile, target_symbol, symbols, types) {
+        if !self.symbol_is_static_parameter(
+            tables.module,
+            tables.profile,
+            target_symbol,
+            tables.symbols,
+            tables.types,
+        ) {
             return Ok(false);
         }
-        if self.static_parameter_kind_for_symbol(
-            module,
-            profile,
-            target_symbol,
-            tree,
-            symbols,
-            types,
-        ) != StaticParameterKind::Type
+        if self.static_parameter_kind_for_symbol(&mut tables.reborrow(), target_symbol)
+            != StaticParameterKind::Type
         {
             return Ok(false);
         }
 
         if self.type_index_constraint_matches_left_keyof(
-            module,
-            profile,
+            &mut tables.reborrow(),
             target_symbol,
             left_type_id,
             candidate_expression_id.into_any(),
-            tree,
-            symbols,
-            types,
         ) {
             return Ok(false);
         }
@@ -785,25 +677,17 @@ impl Compiler {
 
     pub(crate) fn type_index_constraint_matches_left_keyof(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         parameter_symbol: GlobalSymbolId,
         left_type_id: LocalTypeId,
         source_id: LocalNodeIdAny,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> bool {
         let mut visited_symbols = HashSet::new();
         self.type_index_constraint_matches_left_keyof_inner(
-            module,
-            profile,
+            &mut tables.reborrow(),
             parameter_symbol,
             left_type_id,
             source_id,
-            tree,
-            symbols,
-            types,
             &mut visited_symbols,
         )
     }
@@ -812,44 +696,41 @@ impl Compiler {
 
     pub(crate) fn type_index_constraint_matches_left_keyof_inner(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         parameter_symbol: GlobalSymbolId,
         left_type_id: LocalTypeId,
         source_id: LocalNodeIdAny,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
         if !visited_symbols.insert(parameter_symbol) {
             return false;
         }
 
-        let options = self.analyze_context_options_for_module(module.id);
-        let mut type_tables =
-            TypeTablesContext::new(module, profile, &options, tree, symbols, types);
-        let Some(constraint_id) =
-            self.static_parameter_constraint_type(&mut type_tables, parameter_symbol, source_id)
-        else {
+        let Some(constraint_id) = self.static_parameter_constraint_type(
+            &mut tables.reborrow(),
+            parameter_symbol,
+            source_id,
+        ) else {
             return false;
         };
 
-        let constraint_id = types.unwrap_value_type_id(constraint_id);
-        let constraint_ty = types.get_type(constraint_id).clone();
+        let constraint_id = tables.types.unwrap_value_type_id(constraint_id);
+        let constraint_ty = tables.types.get_type(constraint_id).clone();
 
         if let Type::Reference { symbol, .. } = constraint_ty
-            && self.symbol_is_static_parameter(module, profile, symbol, symbols, types)
+            && self.symbol_is_static_parameter(
+                tables.module,
+                tables.profile,
+                symbol,
+                tables.symbols,
+                tables.types,
+            )
         {
             return self.type_index_constraint_matches_left_keyof_inner(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 symbol,
                 left_type_id,
                 source_id,
-                tree,
-                symbols,
-                types,
                 visited_symbols,
             );
         }
@@ -862,8 +743,8 @@ impl Compiler {
             return false;
         };
 
-        let left_type_id = types.unwrap_value_type_id(left_type_id);
-        let right_type_id = types.unwrap_value_type_id(right);
+        let left_type_id = tables.types.unwrap_value_type_id(left_type_id);
+        let right_type_id = tables.types.unwrap_value_type_id(right);
         if left_type_id == right_type_id {
             return true;
         }
@@ -877,35 +758,30 @@ impl Compiler {
                 symbol: right_symbol,
                 ..
             },
-        ) = (types.get_type(left_type_id), types.get_type(right_type_id))
+        ) = (
+            tables.types.get_type(left_type_id),
+            tables.types.get_type(right_type_id),
+        )
         else {
             return false;
         };
 
-        self.resolve_type_reference_symbol(module, profile, *left_symbol, tree, symbols)
-            == self.resolve_type_reference_symbol(module, profile, *right_symbol, tree, symbols)
+        self.resolve_type_reference_symbol(tables, *left_symbol)
+            == self.resolve_type_reference_symbol(tables, *right_symbol)
     }
 
     /// Decide whether one `TypeIndex` expression should use index-access semantics.
 
     pub(crate) fn type_index_uses_index_access(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         left_type_id: LocalTypeId,
         index_expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<bool> {
         Ok(self.type_index_interpretation(
-            module,
-            profile,
+            &mut tables.reborrow(),
             left_type_id,
             index_expression_id,
-            tree,
-            symbols,
-            types,
         )? == TypeIndexResolutionKind::IndexAccess)
     }
 
@@ -970,17 +846,13 @@ impl Compiler {
 
     pub(crate) fn type_supports_index_access(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         treat_unknown_as_indexable: bool,
     ) -> AnalyzeResult<bool> {
         // normalize the receiver before checking index support
         let receiver_resolution =
-            self.resolve_type_index_receiver_type(module, profile, type_id, tree, symbols, types)?;
+            self.resolve_type_index_receiver_type(&mut tables.reborrow(), type_id)?;
         let receiver_type_id = match receiver_resolution {
             TypeIndexReceiverState::Resolved(receiver_type_id) => receiver_type_id,
             TypeIndexReceiverState::UnconstrainedStaticParameter => {
@@ -990,7 +862,7 @@ impl Compiler {
         };
 
         // classify one normalized receiver shape
-        let receiver_type = types.get_type(receiver_type_id).clone();
+        let receiver_type = tables.types.get_type(receiver_type_id).clone();
         match receiver_type {
             Type::Tuple { .. } | Type::Array { .. } | Type::ArraySized { .. } => Ok(true),
             Type::TypeLiteral {
@@ -1112,26 +984,22 @@ impl Compiler {
 
     pub(crate) fn resolve_type_member_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
         member_key: StaticKey,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Option<TypeMemberResolution>> {
         // select namespace imports before projection lookups
         if let Some(namespace_symbol) = self.resolve_namespace_member_symbol(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             expression_id,
             left,
             member_key,
-            tree,
-            symbols,
+            tables.tree,
+            tables.symbols,
         ) {
             return Ok(Some(TypeMemberResolution::Namespace {
                 target_symbol: namespace_symbol,
@@ -1140,27 +1008,19 @@ impl Compiler {
 
         // select projected members through nominal receivers
         let Some(selection) = self.select_associated_projection_member_symbol(
-            module,
-            profile,
+            &mut tables.reborrow(),
             expression_id,
             left,
             member_key,
             Some(StaticMemberSymbolKind::AssociatedType),
-            tree,
-            symbols,
-            types,
             validate_static_argument_bounds,
             enforce_implicit_managed,
         )?
         else {
             if let Some(enum_member_symbol) = self.resolve_enum_member_symbol(
-                module,
-                profile,
+                tables,
                 left,
                 member_key,
-                tree,
-                symbols,
-                types,
                 validate_static_argument_bounds,
                 enforce_implicit_managed,
             )? {
@@ -1168,14 +1028,14 @@ impl Compiler {
                     target_symbol: enum_member_symbol,
                 }));
             }
-            if let Some(projected_symbol) = tree.get(expression_id).target_symbol() {
+            if let Some(projected_symbol) = tables.tree.get(expression_id).target_symbol() {
                 let is_enum_field = self
                     .with_module_tree_symbols_or_local_at_stage(
-                        module,
-                        profile,
+                        tables.module,
+                        tables.profile,
                         projected_symbol.module_id,
-                        tree,
-                        symbols,
+                        tables.tree,
+                        tables.symbols,
                         AnalyzeDependencyStage::Declare,
                         |_owner_module, _owner_tree, owner_symbols| {
                             let symbol_entry = owner_symbols.get_symbol(projected_symbol.local_id);
@@ -1197,11 +1057,11 @@ impl Compiler {
         };
 
         let selection_kind = self.query_static_member_symbol_kind_for_symbol(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             selection.target_symbol,
-            tree,
-            symbols,
+            tables.tree,
+            tables.symbols,
         )?;
 
         match selection_kind {
@@ -1220,51 +1080,46 @@ impl Compiler {
 
     pub(crate) fn resolve_enum_member_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         left: LocalNodeId<Expression>,
         member_key: StaticKey,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         let left_target_symbol = self
-            .reference_symbol_for_expression(module, left, profile, tree, symbols)
-            .or_else(|| tree.get(left).target_symbol())
-            .map(|symbol| {
-                self.resolve_type_reference_symbol(module, profile, symbol, tree, symbols)
-            })
+            .reference_symbol_for_expression(
+                tables.module,
+                left,
+                tables.profile,
+                tables.tree,
+                tables.symbols,
+            )
+            .or_else(|| tables.tree.get(left).target_symbol())
+            .map(|symbol| self.resolve_type_reference_symbol(tables, symbol))
             .or_else(|| {
                 let left_ty_id = self
                     .resolve_declared_type_expression(
-                        module,
-                        profile,
+                        &mut tables.reborrow(),
                         left,
-                        tree,
-                        symbols,
-                        types,
                         validate_static_argument_bounds,
                         enforce_implicit_managed,
                     )
                     .ok()?;
-                let left_ty = types.get_type(left_ty_id);
-                self.enum_symbol_for_type(left_ty, types).map(|symbol| {
-                    self.resolve_type_reference_symbol(module, profile, symbol, tree, symbols)
-                })
+                let left_ty = tables.types.get_type(left_ty_id);
+                self.enum_symbol_for_type(left_ty, tables.types)
+                    .map(|symbol| self.resolve_type_reference_symbol(tables, symbol))
             });
         let Some(left_target_symbol) = left_target_symbol else {
             return Ok(None);
         };
 
         self.enum_field_symbol_for_member_key(
-            module,
+            tables.module,
             left_target_symbol,
             &member_key,
-            profile,
-            tree,
-            symbols,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
         )
     }
 
@@ -1272,16 +1127,13 @@ impl Compiler {
 
     pub(crate) fn resolve_type_reference_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &TypeTablesContext<'_>,
         target_symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> GlobalSymbolId {
         // follow import dependency items before normalization
         let mut resolved_symbol = target_symbol;
-        if resolved_symbol.module_id == module.id {
-            let symbol_entry = symbols.get_symbol(resolved_symbol.local_id);
+        if resolved_symbol.module_id == tables.module.id {
+            let symbol_entry = tables.symbols.get_symbol(resolved_symbol.local_id);
             if let Some(primary_declaration) = symbol_entry.primary_declaration
                 && primary_declaration.local_id.ty == NodeType::DependencyItem
             {
@@ -1293,7 +1145,7 @@ impl Compiler {
                 | DependencyItem::Remote {
                     target_symbol: dependency_target,
                     ..
-                } = tree.get(item_id)
+                } = tables.tree.get(item_id)
                 {
                     resolved_symbol = *dependency_target;
                 }
@@ -1301,11 +1153,11 @@ impl Compiler {
         }
 
         // keep simple local type-space symbols in fast path form
-        if resolved_symbol.module_id == module.id {
-            let symbol_entry = symbols.get_symbol(resolved_symbol.local_id);
+        if resolved_symbol.module_id == tables.module.id {
+            let symbol_entry = tables.symbols.get_symbol(resolved_symbol.local_id);
             if symbol_entry.is_static_parameter() {
                 return GlobalSymbolId::new(
-                    module.id,
+                    tables.module.id,
                     resolved_symbol.local_id.with_type(symbol_entry.ty),
                 );
             }
@@ -1320,40 +1172,37 @@ impl Compiler {
             );
             if is_simple && is_type_space {
                 return GlobalSymbolId::new(
-                    module.id,
+                    tables.module.id,
                     resolved_symbol.local_id.with_type(symbol_entry.ty),
                 );
             }
         }
 
         // normalize and canonicalize for all non-fast-path cases
-        let normalized = self.normalize_reference_symbol_id(module, profile, resolved_symbol);
+        let normalized =
+            self.normalize_reference_symbol_id(tables.module, tables.profile, resolved_symbol);
         let canonical = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
+            tables.module,
+            tables.symbols,
+            tables.profile,
             normalized,
             CanonicalSymbolMode::PreserveAliases,
         );
 
-        self.merged_type_symbol_id(module, symbols, profile, canonical)
+        self.merged_type_symbol_id(tables.module, tables.symbols, tables.profile, canonical)
     }
 
     /// Evaluate a reference to a nominal symbol into a Type.
 
     pub(crate) fn resolve_type_reference_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         target_symbol: GlobalSymbolId,
         static_arguments: Option<Vec<StaticArgument>>,
         resolve_static_arguments: bool,
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Type> {
         // check cached reference types first
         let reference_cache_key = self.type_reference_cache_key(
@@ -1364,7 +1213,7 @@ impl Compiler {
             resolve_static_arguments,
         );
         let cached_reference = reference_cache_key
-            .and_then(|cache_key| types.get_type_reference_cache(cache_key).cloned());
+            .and_then(|cache_key| tables.types.get_type_reference_cache(cache_key).cloned());
         if let Some(cached) = cached_reference {
             return Ok(cached);
         }
@@ -1375,22 +1224,21 @@ impl Compiler {
                 symbol: target_symbol,
                 static_arguments,
             };
-            self.cache_type_reference_maybe(reference_cache_key, &ty, types);
+            self.cache_type_reference_maybe(reference_cache_key, &ty, tables.types);
             return Ok(ty);
         }
 
         // resolve static arguments against declared bounds
-        let options = self.analyze_context_options_for_module(module.id);
         let has_explicit_arguments = static_arguments
             .as_ref()
             .is_some_and(|arguments| !arguments.is_empty());
         let parameter_symbols = self.collect_static_parameter_symbols(
-            module,
+            tables.module,
             target_symbol,
-            profile,
-            tree,
-            symbols,
-            types,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
+            tables.types,
         );
         let parameters_known = parameter_symbols.is_some();
         let has_parameters = parameter_symbols.is_some_and(|parameters| !parameters.is_empty());
@@ -1398,10 +1246,8 @@ impl Compiler {
             None
         } else {
             let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_ARGUMENTS);
-            let mut type_tables =
-                TypeTablesContext::new(module, profile, &options, tree, symbols, types);
             self.resolve_type_reference_static_arguments(
-                &mut type_tables,
+                &mut tables.reborrow(),
                 expression_id.into_any(),
                 target_symbol,
                 static_arguments.as_deref(),
@@ -1416,7 +1262,7 @@ impl Compiler {
                 StaticArgument::Evaluated {
                     value: StaticExpression::Type { ty },
                     ..
-                } => types.get_type(*ty).is_error(),
+                } => tables.types.get_type(*ty).is_error(),
                 _ => false,
             })
         });
@@ -1426,20 +1272,16 @@ impl Compiler {
 
         // fold value-space constant references used in type positions
         let symbol_space = self.query_symbol_space_for_reference_if_declared(
-            module,
-            profile,
+            tables.module,
+            tables.profile,
             target_symbol,
-            symbols,
+            tables.symbols,
         );
         if symbol_space == Some(SymbolSpace::Value) {
             let mut visited = HashSet::new();
             if let Some(static_value) = self.resolve_static_constant_reference_parametric(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 target_symbol,
-                tree,
-                symbols,
-                types,
                 &mut visited,
             )? {
                 let constant_type = match static_value {
@@ -1447,12 +1289,16 @@ impl Compiler {
                         value: TypeLiteral::ScalarLiteral(value),
                     }),
                     StaticExpression::TypeLiteral { value } => Some(Type::TypeLiteral { value }),
-                    StaticExpression::Type { ty } => Some(types.get_type(ty).clone()),
+                    StaticExpression::Type { ty } => Some(tables.types.get_type(ty).clone()),
                     _ => None,
                 };
 
                 if let Some(constant_type) = constant_type {
-                    self.cache_type_reference_maybe(reference_cache_key, &constant_type, types);
+                    self.cache_type_reference_maybe(
+                        reference_cache_key,
+                        &constant_type,
+                        tables.types,
+                    );
                     return Ok(constant_type);
                 }
             }
@@ -1462,23 +1308,23 @@ impl Compiler {
 
         // normalize well known references into canonical structural types
         let normalized =
-            if let Some(well_known) = self.well_known_array_kind(profile, target_symbol) {
+            if let Some(well_known) = self.well_known_array_kind(tables.profile, target_symbol) {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_WELL_KNOWN);
                 self.normalize_well_known_type_reference(
-                    module,
-                    symbols,
-                    profile,
+                    tables.module,
+                    tables.symbols,
+                    tables.profile,
                     expression_id.into_any(),
                     target_symbol,
                     well_known,
                     static_arguments.as_deref(),
-                    types,
+                    tables.types,
                 )
             } else {
                 None
             };
         if let Some(normalized) = normalized {
-            self.cache_type_reference_maybe(reference_cache_key, &normalized, types);
+            self.cache_type_reference_maybe(reference_cache_key, &normalized, tables.types);
             return Ok(normalized);
         }
 
@@ -1487,7 +1333,7 @@ impl Compiler {
             symbol: target_symbol,
             static_arguments,
         };
-        self.cache_type_reference_maybe(reference_cache_key, &ty, types);
+        self.cache_type_reference_maybe(reference_cache_key, &ty, tables.types);
         Ok(ty)
     }
 
@@ -1518,63 +1364,69 @@ impl Compiler {
 
     pub(crate) fn resolve_typeof_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Type> {
         let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_TYPEOF);
 
         // unwrap parenthesized targets
         let mut target_id = right_id;
         loop {
-            let Expression::Parenthesized { expression } = tree.get(target_id) else {
+            let Expression::Parenthesized { expression } = tables.tree.get(target_id) else {
                 break;
             };
             target_id = *expression;
         }
 
         // resolve the target symbol for a typeof reference
-        let Some(target_symbol) = tree.get(target_id).target_symbol() else {
+        let Some(target_symbol) = tables.tree.get(target_id).target_symbol() else {
             return Ok(Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             });
         };
 
         // resolve the value type for the target symbol
-        if let Some(value_ty_id) = types.get_value_type_id(target_symbol) {
-            return Ok(types.get_type(value_ty_id).clone());
+        if let Some(value_ty_id) = tables.types.get_value_type_id(target_symbol) {
+            return Ok(tables.types.get_type(value_ty_id).clone());
         }
 
-        if target_symbol.module_id != module.id {
+        if target_symbol.module_id != tables.module.id {
             let value_ty_id = self.resolve_remote_symbol_value_type_for_surface(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 expression_id.into_any(),
                 target_symbol,
-                types,
+                tables.types,
             )?;
-            return Ok(types.get_type(value_ty_id).clone());
+            return Ok(tables.types.get_type(value_ty_id).clone());
         }
 
         // fall back to local declaration types when available
-        if let Some(declarator_id) =
-            self.direct_binding_declarator_for_symbol(module, target_symbol, tree, symbols)
-        {
-            let declared_ty_id =
-                types.get_declared_type_id(declarator_id.into_global_any(module.id));
+        if let Some(declarator_id) = self.direct_binding_declarator_for_symbol(
+            tables.module,
+            target_symbol,
+            tables.tree,
+            tables.symbols,
+        ) {
+            let declared_ty_id = tables
+                .types
+                .get_declared_type_id(declarator_id.into_global_any(tables.module.id));
             if let Some(declared_ty_id) = declared_ty_id {
-                self.resolve_declared_type(module, profile, declared_ty_id, tree, symbols, types)?;
-                return Ok(types.get_type(declared_ty_id).clone());
+                self.resolve_declared_type(&mut tables.reborrow(), declared_ty_id)?;
+                return Ok(tables.types.get_type(declared_ty_id).clone());
             }
 
-            let declarator = tree.get(declarator_id);
+            let declarator = tables.tree.get(declarator_id);
             if let Some(value_id) = declarator.value {
                 let ty = self.resolve_declared_type_expression_value(
-                    module, profile, value_id, tree, symbols, types, true, true, true, true,
+                    &mut tables.reborrow(),
+                    value_id,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
                 )?;
                 if !matches!(ty, Type::Unevaluated(_)) {
                     return Ok(ty);

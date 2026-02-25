@@ -1,3 +1,4 @@
+use crate::analyze::common::TypeTablesContext;
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, Task, TaskDependencyError,
@@ -84,6 +85,9 @@ impl Compiler {
 
         let exported_symbols = dir.exported_symbols.read();
         let binding_exports = dir.module_binding_exports.read();
+        let options = self.analyze_context_options_for_module(module_id);
+        let mut type_tables =
+            TypeTablesContext::new(&module, profile, &options, &tree, &symbols, &mut types);
 
         {
             let _timing = self.timing_scope(tags::ANALYZE_INTERFACE_VALUES);
@@ -92,12 +96,8 @@ impl Compiler {
             self.collect(
                 &mut collector,
                 self.infer_interface_value_types(
-                    &module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     &exported_symbols,
-                    &tree,
-                    &symbols,
-                    &mut types,
                     false,
                 ),
             );
@@ -107,12 +107,8 @@ impl Compiler {
                 self.collect(
                     &mut collector,
                     self.infer_interface_value_types(
-                        &module,
-                        profile,
+                        &mut type_tables.reborrow(),
                         &binding.exports,
-                        &tree,
-                        &symbols,
-                        &mut types,
                         false,
                     ),
                 );
@@ -126,11 +122,11 @@ impl Compiler {
             self.collect(
                 &mut collector,
                 self.collect_module_namespace_value_type(
-                    &module,
-                    profile,
+                    type_tables.module,
+                    type_tables.profile,
                     &exported_symbols,
-                    &tree,
-                    &mut types,
+                    type_tables.tree,
+                    type_tables.types,
                 ),
             );
         }

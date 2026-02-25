@@ -1,3 +1,4 @@
+use crate::analyze::common::TypeTablesContext;
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
     Argument, BinaryOperator, Expression, LocalNodeId, LocalTypeId, NodeTree, PrimitiveType,
@@ -9,34 +10,24 @@ use destack_workspace::{Module, ProfileId};
 impl Compiler {
     pub(crate) fn evaluate_integer_static_literal(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<i64>> {
         // prefer existing type commitments before re-evaluating the expression tree
-        let expression_global = expression_id.into_global_any(module.id);
-        if let Some(type_id) = types
+        let expression_global = expression_id.into_global_any(tables.module.id);
+        if let Some(type_id) = tables
+            .types
             .get_inferred_type_id(expression_global)
-            .or_else(|| types.get_declared_type_id(expression_global))
+            .or_else(|| tables.types.get_declared_type_id(expression_global))
         {
-            if let Some(value) = self.integer_literal_value_for_type_id(type_id, types) {
+            if let Some(value) = self.integer_literal_value_for_type_id(type_id, tables.types) {
                 return Ok(Some(value));
             }
         }
 
-        let (expression_id, _) = self.unwrap_as_comptime_expression(expression_id, tree);
-        let value = self.evaluate_static_expression_value(
-            module,
-            profile,
-            expression_id,
-            tree,
-            symbols,
-            types,
-            None,
-        )?;
+        let (expression_id, _) = self.unwrap_as_comptime_expression(expression_id, tables.tree);
+        let value =
+            self.evaluate_static_expression_value(&mut tables.reborrow(), expression_id, None)?;
         let literal = match value {
             Some(StaticExpression::ScalarLiteral {
                 value: ScalarLiteral::Integer(value),
@@ -44,7 +35,7 @@ impl Compiler {
             Some(StaticExpression::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
             }) => Some(value),
-            Some(StaticExpression::Type { ty }) => match types.get_type(ty) {
+            Some(StaticExpression::Type { ty }) => match tables.types.get_type(ty) {
                 Type::TypeLiteral {
                     value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
                 } => Some(*value),

@@ -17,13 +17,9 @@ impl Compiler {
             for source_signature in source_signatures {
                 if self
                     .is_type_assignable(
-                        ctx.module,
-                        ctx.profile,
-                        ctx.symbols,
+                        &mut ctx.type_tables_reborrow(),
                         *target_signature,
                         *source_signature,
-                        ctx.types,
-                        ctx.options,
                     )
                     .is_assignable()
                 {
@@ -138,13 +134,9 @@ impl Compiler {
 
         if !self
             .is_type_assignable(
-                ctx.module,
-                ctx.profile,
-                ctx.symbols,
+                &mut ctx.type_tables_reborrow(),
                 target_signature.value_type,
                 source_signature.value_type,
-                ctx.types,
-                ctx.options,
             )
             .is_assignable()
         {
@@ -192,28 +184,12 @@ impl Compiler {
         );
 
         let mut is_assignable = self
-            .is_type_assignable(
-                ctx.module,
-                ctx.profile,
-                ctx.symbols,
-                value_type,
-                field.ty,
-                ctx.types,
-                ctx.options,
-            )
+            .is_type_assignable(&mut ctx.type_tables_reborrow(), value_type, field.ty)
             .is_assignable();
 
         if !ctx.options.exact_optional_property_types && field.is_optional {
             let undefined_assignable = self
-                .is_type_assignable(
-                    ctx.module,
-                    ctx.profile,
-                    ctx.symbols,
-                    value_type,
-                    undefined_ty_id,
-                    ctx.types,
-                    ctx.options,
-                )
+                .is_type_assignable(&mut ctx.type_tables_reborrow(), value_type, undefined_ty_id)
                 .is_assignable();
             is_assignable &= undefined_assignable;
         }
@@ -239,26 +215,10 @@ impl Compiler {
         // this parameter: contravariant when strict, bivariant otherwise
         if let (Some(target_this), Some(source_this)) = (target_this, source_this) {
             let strict_assignable = self
-                .is_type_assignable(
-                    ctx.module,
-                    ctx.profile,
-                    ctx.symbols,
-                    *source_this,
-                    *target_this,
-                    ctx.types,
-                    ctx.options,
-                )
+                .is_type_assignable(&mut ctx.type_tables_reborrow(), *source_this, *target_this)
                 .is_assignable();
             let loose_assignable = self
-                .is_type_assignable(
-                    ctx.module,
-                    ctx.profile,
-                    ctx.symbols,
-                    *target_this,
-                    *source_this,
-                    ctx.types,
-                    ctx.options,
-                )
+                .is_type_assignable(&mut ctx.type_tables_reborrow(), *target_this, *source_this)
                 .is_assignable();
             if ctx.options.strict_function_types {
                 if !strict_assignable {
@@ -286,24 +246,16 @@ impl Compiler {
             for source_param in source_params {
                 let strict_assignable = self
                     .is_type_assignable(
-                        ctx.module,
-                        ctx.profile,
-                        ctx.symbols,
+                        &mut ctx.type_tables_reborrow(),
                         rest_element,
                         *source_param,
-                        ctx.types,
-                        ctx.options,
                     )
                     .is_assignable();
                 let loose_assignable = self
                     .is_type_assignable(
-                        ctx.module,
-                        ctx.profile,
-                        ctx.symbols,
+                        &mut ctx.type_tables_reborrow(),
                         *source_param,
                         rest_element,
-                        ctx.types,
-                        ctx.options,
                     )
                     .is_assignable();
                 if ctx.options.strict_function_types {
@@ -336,24 +288,16 @@ impl Compiler {
             for (target_param, source_param) in target_params.iter().zip(source_params.iter()) {
                 let strict_assignable = self
                     .is_type_assignable(
-                        ctx.module,
-                        ctx.profile,
-                        ctx.symbols,
+                        &mut ctx.type_tables_reborrow(),
                         *source_param,
                         *target_param,
-                        ctx.types,
-                        ctx.options,
                     )
                     .is_assignable();
                 let loose_assignable = self
                     .is_type_assignable(
-                        ctx.module,
-                        ctx.profile,
-                        ctx.symbols,
+                        &mut ctx.type_tables_reborrow(),
                         *target_param,
                         *source_param,
-                        ctx.types,
-                        ctx.options,
                     )
                     .is_assignable();
                 if ctx.options.strict_function_types {
@@ -392,15 +336,9 @@ impl Compiler {
             {
                 Assignability::Assignable
             }
-            (Some(target_ret), Some(source_ret)) => self.is_type_assignable(
-                ctx.module,
-                ctx.profile,
-                ctx.symbols,
-                *target_ret,
-                *source_ret,
-                ctx.types,
-                ctx.options,
-            ),
+            (Some(target_ret), Some(source_ret)) => {
+                self.is_type_assignable(&mut ctx.type_tables_reborrow(), *target_ret, *source_ret)
+            }
             (None, _) => Assignability::Assignable,
             (Some(_), None) => Assignability::NotAssignable,
         }

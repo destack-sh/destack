@@ -411,15 +411,8 @@ impl Compiler {
                 return true;
             }
 
-            return self.is_type_assignable(
-                tables.module,
-                tables.profile,
-                tables.symbols,
-                span_ty_id,
-                segment.spans[0],
-                tables.types,
-                tables.options,
-            ) == Assignability::Assignable;
+            return self.is_type_assignable(&mut tables.reborrow(), span_ty_id, segment.spans[0])
+                == Assignability::Assignable;
         }
 
         // require string like span types for mixed segments
@@ -463,9 +456,7 @@ impl Compiler {
             )
         {
             let symbol = *symbol;
-            let tree = tables.module.dir(tables.profile).tree.read();
-            let mut module_tables =
-                tables.reborrow_for_module(tables.module, &tree, tables.symbols);
+            let mut module_tables = tables.reborrow();
             let constraint_id =
                 self.static_parameter_constraint_type(&mut module_tables, symbol, source_id);
             let Some(constraint_id) = constraint_id else {
@@ -509,14 +500,8 @@ impl Compiler {
         }
 
         // normalize the span type
-        let normalized_id = self.normalize_type(
-            tables.module,
-            tables.profile,
-            span_ty_id,
-            tables.symbols,
-            tables.types,
-            NormalizationMode::Flow,
-        );
+        let normalized_id =
+            self.normalize_type(&mut tables.reborrow(), span_ty_id, NormalizationMode::Flow);
         let span_ty = tables.types.get_type(normalized_id).clone();
 
         // check template string compatibility
@@ -575,14 +560,8 @@ impl Compiler {
         }
 
         // normalize the span type
-        let normalized_id = self.normalize_type(
-            tables.module,
-            tables.profile,
-            span_ty_id,
-            tables.symbols,
-            tables.types,
-            NormalizationMode::Flow,
-        );
+        let normalized_id =
+            self.normalize_type(&mut tables.reborrow(), span_ty_id, NormalizationMode::Flow);
         let span_ty = tables.types.get_type(normalized_id).clone();
 
         // evaluate matching rules
@@ -1322,11 +1301,8 @@ impl Compiler {
         // normalize span types before extracting literals
         let mut normalize_visited = Vec::new();
         let normalized_id = self.normalize_type_inner(
-            tables.module,
-            tables.profile,
+            &mut tables.reborrow(),
             span_type_id,
-            tables.symbols,
-            tables.types,
             NormalizationMode::Assign,
             relation_mode,
             &mut normalize_visited,
@@ -1470,14 +1446,8 @@ impl Compiler {
         }
 
         // normalize the span type
-        let normalized_id = self.normalize_type(
-            tables.module,
-            tables.profile,
-            span_ty_id,
-            tables.symbols,
-            tables.types,
-            NormalizationMode::Flow,
-        );
+        let normalized_id =
+            self.normalize_type(&mut tables.reborrow(), span_ty_id, NormalizationMode::Flow);
         let span_ty = tables.types.get_type(normalized_id).clone();
 
         // check for string like spans

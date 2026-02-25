@@ -1,22 +1,14 @@
-use crate::analyze::common::TypeRewriteCache;
+use crate::analyze::common::{TypeRewriteCache, TypeTablesContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
-use destack_dir::{
-    GlobalSymbolId, InferTable, LocalTypeId, NodeTree, StaticArgument, StaticExpression,
-    SymbolTable, TypeTable,
-};
-use destack_workspace::{Module, ProfileId};
+use destack_dir::{GlobalSymbolId, InferTable, LocalTypeId, StaticArgument, StaticExpression};
 use std::collections::HashMap;
 
 impl Compiler {
     /// Rewrite inferred-type overlays using solved instance substitutions.
     pub(in crate::analyze::solve) fn rewrite_inferred_type_overlays_for_instance_substitutions(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
+        type_tables: &mut TypeTablesContext<'_>,
         infer: &mut InferTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // apply substitutions to inferred overlays using explicit instance obligations
         let mut node_attachments = infer
@@ -25,7 +17,7 @@ impl Compiler {
         node_attachments.sort_by_key(|(node_id, _)| *node_id);
         for (node_id, obligation_id) in node_attachments {
             // skip attachments that do not belong to this module
-            if node_id.module_id != module.id {
+            if node_id.module_id != type_tables.module.id {
                 continue;
             }
 
@@ -53,7 +45,10 @@ impl Compiler {
                 else {
                     continue;
                 };
-                substitutions.insert(*parameter_symbol, types.unwrap_value_type_id(*ty));
+                substitutions.insert(
+                    *parameter_symbol,
+                    type_tables.types.unwrap_value_type_id(*ty),
+                );
             }
             if substitutions.is_empty() {
                 continue;
@@ -63,15 +58,11 @@ impl Compiler {
             let mut materialize_cache = TypeRewriteCache::new();
             let mut substitution_cache = HashMap::new();
             let mapped_type_id = self.instantiate_type_with_substitutions(
-                module,
-                profile,
+                &mut type_tables.reborrow(),
                 node_id.local_id,
                 None,
                 inferred_type_id,
                 &substitutions,
-                tree,
-                symbols,
-                types,
                 &mut materialize_cache,
                 &mut substitution_cache,
             );

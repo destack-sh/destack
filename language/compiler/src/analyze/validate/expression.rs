@@ -1,4 +1,4 @@
-use crate::analyze::common::{NormalizationMode, RelationMode};
+use crate::analyze::common::{NormalizationMode, RelationMode, TypeTablesContext};
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 use destack_ast::Keyword;
 use destack_dir::{
@@ -7,11 +7,9 @@ use destack_dir::{
     ForEachBinding, ForEachKind, GlobalSymbolId, Heritage, LocalNodeId, LocalNodeIdAny,
     LocalScopeId, LocalTypeId, MatchCase, MatchKind, MatchSelector, Member, Mutability, NodeTree,
     NodeType, Parameter, Path, Pattern, PatternField, Property, RuntimeCheckKind, ScalarLiteral,
-    ScopeKind, StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral, Timing, Type,
-    TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator, WhereClause,
+    ScopeKind, StaticKey, StringId, SymbolType, TemplateLiteral, Timing, Type, TypeBinaryOperator,
+    TypeLiteral, TypeUnaryOperator, UnaryOperator, WhereClause,
 };
-use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId};
 use std::str::FromStr;
 
 /// Step result when climbing expression parents for type-position classification.
@@ -30,24 +28,19 @@ impl Compiler {
     /// Validate a single expression node.
     pub(super) fn validate_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        type_tables: &mut TypeTablesContext<'_>,
         options: AnalyzeOptions,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
         // cache strict mode once per expression validation
-        let is_strict = module.source_type.is_module() || options.always_strict;
+        let is_strict = type_tables.module.source_type.is_module() || options.always_strict;
 
         match expression {
             Expression::Labelled { label, .. } => {
-                self.validate_duplicate_label(module, profile, tree, expression_id, *label);
+                self.validate_duplicate_label(&mut type_tables.reborrow(), expression_id, *label);
                 self.validate_strict_reserved_label_identifier(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     *label,
                     is_strict,
@@ -59,10 +52,7 @@ impl Compiler {
                 ..
             } => {
                 self.validate_label_target_function_boundary(
-                    module,
-                    profile,
-                    tree,
-                    symbols,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     *target,
                     *target_symbol,
@@ -75,10 +65,7 @@ impl Compiler {
                 ..
             } => {
                 self.validate_label_target_function_boundary(
-                    module,
-                    profile,
-                    tree,
-                    symbols,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     *target,
                     *target_symbol,
@@ -93,8 +80,7 @@ impl Compiler {
                 ..
             } => {
                 self.validate_try_requires_catch_or_finally(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     *catch_expression,
                     *finally_expression,
@@ -102,16 +88,12 @@ impl Compiler {
 
                 if let Some(catch_pattern_id) = catch_pattern {
                     self.validate_catch_binding_pattern(
-                        module,
-                        profile,
-                        tree,
+                        &mut type_tables.reborrow(),
                         expression_id,
                         *catch_pattern_id,
                     );
                     self.validate_catch_annotation_type(
-                        module,
-                        profile,
-                        tree,
+                        &mut type_tables.reborrow(),
                         expression_id,
                         *catch_ty,
                     );
@@ -126,7 +108,10 @@ impl Compiler {
             | Expression::Index { .. } => {}
             Expression::Maybe { .. } => {}
             Expression::PrivateIdentifier { .. } => {
-                self.validate_private_identifier_expression(module, profile, tree, expression_id);
+                self.validate_private_identifier_expression(
+                    &mut type_tables.reborrow(),
+                    expression_id,
+                );
             }
             Expression::UnresolvedPath { .. }
             | Expression::LocalReference { .. }
@@ -136,11 +121,7 @@ impl Compiler {
                 kind, value, cases, ..
             } => {
                 self.validate_match_expression(
-                    module,
-                    profile,
-                    tree,
-                    symbols,
-                    types,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     *kind,
                     *value,
@@ -149,34 +130,27 @@ impl Compiler {
             }
             Expression::Must { .. } => {
                 self.validate_must_assertion(
-                    module,
-                    profile,
-                    tree,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     options.no_must_assertions,
                 );
             }
             Expression::TypePredicate { .. } => {
                 self.validate_custom_type_guard(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     options.no_custom_type_guards,
                 );
             }
             Expression::Binary { left, operator, .. } => {
                 self.validate_unsound_narrowing_operator(
-                    module,
-                    profile,
-                    types,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     *operator,
                     options.no_unsound_narrowing,
                 );
                 self.validate_exponent_left_operand(
-                    module,
-                    profile,
-                    tree,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     *left,
                     *operator,
@@ -184,30 +158,28 @@ impl Compiler {
             }
             Expression::TypeBinary { operator, .. } => {
                 self.validate_unsound_narrowing_type_operator(
-                    module,
-                    profile,
-                    types,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     *operator,
                     options.no_unsound_narrowing,
                 );
 
                 // reject satisfies expressions in javascript modules
-                if module.language_type.is_javascript()
+                if type_tables.module.language_type.is_javascript()
                     && *operator == TypeBinaryOperator::Satisfies
                 {
                     let node = expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile));
+                        .into_global_any(type_tables.module.id)
+                        .into_anchored(Some(type_tables.profile));
                     self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
                 }
             }
             Expression::ExportNamespace { .. } => {
-                if !module.language_type.is_declaration() {
+                if !type_tables.module.language_type.is_declaration() {
                     self.error(AnalyzeError::ExportNamespaceOutsideDeclaration {
                         node: expression_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(profile)),
+                            .into_global_any(type_tables.module.id)
+                            .into_anchored(Some(type_tables.profile)),
                     });
                 }
             }
@@ -224,9 +196,7 @@ impl Compiler {
                 ..
             } => {
                 self.validate_dependency_expression(
-                    module,
-                    profile,
-                    tree,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     *source,
                     *kind,
@@ -237,9 +207,7 @@ impl Compiler {
             | Expression::ReExport { kind, .. }
             | Expression::UnresolvedReExport { kind, .. } => {
                 self.validate_dependency_expression(
-                    module,
-                    profile,
-                    tree,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     DependencySource::ExportStatement,
                     *kind,
@@ -248,44 +216,44 @@ impl Compiler {
             }
             Expression::ObjectExpression { properties }
             | Expression::TaggedObjectExpression { properties, .. } => {
-                self.validate_object_literal_properties(module, profile, tree, properties);
+                self.validate_object_literal_properties(&mut type_tables.reborrow(), properties);
             }
             Expression::TypeUnary {
                 operator: TypeUnaryOperator::Readonly,
                 right,
             } => {
-                self.validate_readonly_type_operator(module, profile, tree, expression_id, *right);
+                self.validate_readonly_type_operator(
+                    &mut type_tables.reborrow(),
+                    expression_id,
+                    *right,
+                );
             }
             Expression::Unary { operator, right } => {
-                self.validate_update_target(module, profile, tree, *operator, *right, is_strict);
+                self.validate_update_target(
+                    &mut type_tables.reborrow(),
+                    *operator,
+                    *right,
+                    is_strict,
+                );
             }
             Expression::TypeIndex { left, .. } => {
-                self.validate_intrinsic_type_index(module, profile, tree, expression_id, *left);
-                self.validate_type_index_access(
-                    module,
-                    profile,
-                    tree,
-                    symbols,
-                    types,
+                self.validate_intrinsic_type_index(
+                    &mut type_tables.reborrow(),
                     expression_id,
+                    *left,
                 );
             }
             Expression::TypeImport {
                 target, qualifier, ..
             } => {
                 let target_string = self.validate_type_import_target_expression(
-                    module,
-                    profile,
-                    tree,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     *target,
                 );
                 if let Some(target_string) = target_string {
                     self.validate_type_import_expression(
-                        module,
-                        profile,
-                        symbols,
-                        types,
+                        &mut type_tables.reborrow(),
                         expression_id,
                         target_string,
                         qualifier.as_ref(),
@@ -293,14 +261,17 @@ impl Compiler {
                 }
             }
             Expression::TypeInfer { .. } => {
-                self.validate_infer_type_expression(module, profile, tree, symbols, expression_id);
+                self.validate_infer_type_expression(&mut type_tables.reborrow(), expression_id);
             }
             Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
-                self.validate_tuple_optional_order(module, profile, tree, expression_id, elements);
+                self.validate_tuple_optional_order(
+                    &mut type_tables.reborrow(),
+                    expression_id,
+                    elements,
+                );
                 if matches!(expression, Expression::TupleExpression { .. }) {
                     self.validate_empty_parenthesized_expression(
-                        module,
-                        profile,
+                        &mut type_tables.reborrow(),
                         expression_id,
                         elements,
                     );
@@ -308,17 +279,14 @@ impl Compiler {
             }
             Expression::SequenceExpression { expressions } => {
                 self.validate_empty_parenthesized_sequence(
-                    module,
-                    profile,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     expressions,
                 );
             }
             Expression::Delete { value } => {
                 self.validate_delete_expression(
-                    module,
-                    profile,
-                    tree,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     *value,
                     is_strict,
@@ -326,9 +294,7 @@ impl Compiler {
             }
             Expression::TaggedTemplateExpression { tag, .. } => {
                 self.validate_tagged_template_expression(
-                    module,
-                    profile,
-                    tree,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     *tag,
                 );
@@ -340,46 +306,40 @@ impl Compiler {
                 ..
             } => {
                 let is_in_declare_namespace =
-                    self.is_in_declare_namespace(tree, expression_id.into_any());
+                    self.is_in_declare_namespace(type_tables.tree, expression_id.into_any());
                 let is_in_declare_module =
-                    self.is_in_declare_module(tree, expression_id.into_any());
+                    self.is_in_declare_module(type_tables.tree, expression_id.into_any());
                 let is_declare_context =
                     descriptor.kind == DeclarationKind::Declaration || is_in_declare_namespace;
                 let allow_ambient_const_initializers = is_in_declare_module;
                 for declarator_id in declarators {
                     self.validate_js_ts_compat_declarator_pattern(
-                        module,
-                        profile,
-                        tree,
+                        &mut type_tables.reborrow(),
                         *declarator_id,
                     );
                     self.validate_definite_assignment_declarator(
-                        module,
-                        profile,
-                        tree,
+                        &mut type_tables.reborrow(),
                         *declarator_id,
                         options.no_definite_assignment_assertions,
                     );
                     self.validate_declare_binding_initializer(
-                        module,
-                        profile,
-                        tree,
+                        &mut type_tables.reborrow(),
                         *declarator_id,
                         *mutability,
                         is_declare_context,
                         allow_ambient_const_initializers,
                     );
                     self.validate_const_initializer(
-                        module,
-                        profile,
-                        tree,
-                        symbols,
+                        &mut type_tables.reborrow(),
                         *declarator_id,
                         *mutability,
                         is_declare_context,
                         allow_ambient_const_initializers,
                     );
-                    self.validate_destructuring_initializer(module, profile, tree, *declarator_id);
+                    self.validate_destructuring_initializer(
+                        &mut type_tables.reborrow(),
+                        *declarator_id,
+                    );
                 }
             }
             Expression::Using {
@@ -389,34 +349,30 @@ impl Compiler {
                 ..
             } => {
                 let is_declare_context = descriptor.kind == DeclarationKind::Declaration
-                    || self.is_in_declare_namespace(tree, expression_id.into_any());
+                    || self.is_in_declare_namespace(type_tables.tree, expression_id.into_any());
                 for declarator_id in declarators {
                     self.validate_js_ts_compat_declarator_pattern(
-                        module,
-                        profile,
-                        tree,
+                        &mut type_tables.reborrow(),
                         *declarator_id,
                     );
                     self.validate_definite_assignment_declarator(
-                        module,
-                        profile,
-                        tree,
+                        &mut type_tables.reborrow(),
                         *declarator_id,
                         options.no_definite_assignment_assertions,
                     );
                 }
                 if *asynchrony == Asynchrony::Async
-                    && !self.can_await_in(tree, expression_id.into_any())
+                    && !self.can_await_in(type_tables.tree, expression_id.into_any())
                 {
                     let node = expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile));
+                        .into_global_any(type_tables.module.id)
+                        .into_anchored(Some(type_tables.profile));
                     self.error(AnalyzeError::InvalidAwait { node });
                 }
                 if is_declare_context {
                     let node = expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile));
+                        .into_global_any(type_tables.module.id)
+                        .into_anchored(Some(type_tables.profile));
                     self.error(AnalyzeError::InvalidDeclareInitializer { node });
                 }
             }
@@ -427,9 +383,7 @@ impl Compiler {
                 ..
             } => {
                 self.validate_for_of_binding(
-                    module,
-                    profile,
-                    tree,
+                    &mut type_tables.reborrow(),
                     expression_id,
                     *asynchrony,
                     *kind,
@@ -444,10 +398,7 @@ impl Compiler {
     /// Validate that labelled jump targets stay in the same function lexical owner.
     fn validate_label_target_function_boundary(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         target: Option<StringId>,
         target_symbol: Option<GlobalSymbolId>,
@@ -464,12 +415,12 @@ impl Compiler {
         };
 
         // label targets are always local to the current module
-        if target_symbol.module_id != module.id {
+        if target_symbol.module_id != type_tables.module.id {
             return;
         }
 
         // skip malformed symbols without declaration anchors
-        let symbol = symbols.get_symbol(target_symbol.local_id);
+        let symbol = type_tables.symbols.get_symbol(target_symbol.local_id);
         let Some(label_declaration) = symbol.primary_declaration else {
             return;
         };
@@ -478,16 +429,18 @@ impl Compiler {
         }
 
         // compare lexical function owners for jump and target label
-        let jump_owner = self.nearest_function_like_owner(tree, expression_id.into_any());
+        let jump_owner =
+            self.nearest_function_like_owner(type_tables.tree, expression_id.into_any());
         let label_expression_id = LocalNodeId::<Expression>::new(label_declaration.local_id.id);
-        let label_owner = self.nearest_function_like_owner(tree, label_expression_id.into_any());
+        let label_owner =
+            self.nearest_function_like_owner(type_tables.tree, label_expression_id.into_any());
         if jump_owner == label_owner {
             return;
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
 
         // report cross-function jumps with the appropriate control-flow diagnostic
         if is_break {
@@ -524,13 +477,12 @@ impl Compiler {
     /// Validate strict-mode identifier references for reserved names.
     pub(crate) fn validate_strict_reserved_identifier_reference(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         path: &Path,
         is_strict: bool,
     ) {
-        if !module.is_user() || !is_strict {
+        if !type_tables.module.is_user() || !is_strict {
             return;
         }
 
@@ -540,21 +492,20 @@ impl Compiler {
         };
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::ReservedIdentifier { node, name });
     }
 
     /// Validate strict-mode labels for reserved names.
     fn validate_strict_reserved_label_identifier(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         label: StringId,
         is_strict: bool,
     ) {
-        if !module.is_user() || !is_strict {
+        if !type_tables.module.is_user() || !is_strict {
             return;
         }
 
@@ -564,8 +515,8 @@ impl Compiler {
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::ReservedIdentifier { node, name: label });
     }
 
@@ -597,79 +548,65 @@ impl Compiler {
     /// Validate `new.target` usage context.
     pub(crate) fn validate_new_target_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) {
         // skip expressions that are not exactly `new.target`
-        if !self.expression_is_new_target(tree, expression_id) {
+        if !self.expression_is_new_target(type_tables.tree, expression_id) {
             return;
         }
 
         // allow valid lexical owners for `new.target`
-        if self.can_access_new_target_in_context(tree, expression_id) {
+        if self.can_access_new_target_in_context(type_tables.tree, expression_id) {
             return;
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::InvalidNewTarget { node });
     }
 
     /// Validate `new` constructor expressions that use optional chaining.
     pub(crate) fn validate_new_optional_chain_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
     ) {
-        if !self.expression_contains_optional_chain(tree, left) {
+        if !self.expression_contains_optional_chain(type_tables.tree, left) {
             return;
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::InvalidNewOptionalChain { node });
     }
 
     /// Validate member and index access after instantiation expressions.
     pub(crate) fn validate_instantiation_access(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        type_tables: &TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) {
-        if !self.has_invalid_instantiation_access_receiver(tree, expression_id) {
+        if !self.has_invalid_instantiation_access_receiver(type_tables.tree, expression_id) {
             return;
         }
 
         // type positions reuse member and index syntax for projections
-        if self.is_type_position_for_instantiation_access(module, tree, types, expression_id) {
+        if self.is_type_position_for_instantiation_access(type_tables, expression_id) {
             return;
         }
 
         // allow projection-style access when the instantiation receiver is type-like
-        if self.expression_has_type_like_instantiation_receiver(
-            module,
-            profile,
-            tree,
-            symbols,
-            expression_id,
-        ) {
+        if self.expression_has_type_like_instantiation_receiver(type_tables, expression_id) {
             return;
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::InvalidInstantiationAccess { node });
     }
 
@@ -693,20 +630,17 @@ impl Compiler {
     /// Return true when a member-like expression follows an instantiation of a type-like symbol.
     fn expression_has_type_like_instantiation_receiver(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
+        type_tables: &TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
         // extract the receiver for member-like expressions
-        let left_expression_id = match tree.get(expression_id) {
+        let left_expression_id = match type_tables.tree.get(expression_id) {
             Expression::Member { left, .. }
             | Expression::PrivateMember { left, .. }
             | Expression::Index { left, .. } => *left,
             _ => return false,
         };
-        let receiver_expression_id = match tree.get(left_expression_id) {
+        let receiver_expression_id = match type_tables.tree.get(left_expression_id) {
             Expression::Instantiation { left, .. } => *left,
             Expression::UnresolvedPath {
                 static_arguments: Some(_),
@@ -728,13 +662,24 @@ impl Compiler {
         };
 
         // resolve the instantiated base symbol
-        let Some(mut lookup_symbol) = tree.get(receiver_expression_id).target_symbol() else {
+        let Some(mut lookup_symbol) = type_tables.tree.get(receiver_expression_id).target_symbol()
+        else {
             return false;
         };
 
-        lookup_symbol = self.forwarded_symbol_id(module, profile, lookup_symbol, symbols);
+        lookup_symbol = self.forwarded_symbol_id(
+            type_tables.module,
+            type_tables.profile,
+            lookup_symbol,
+            type_tables.symbols,
+        );
         lookup_symbol = self
-            .declaration_symbol_id(module, symbols, profile, lookup_symbol)
+            .declaration_symbol_id(
+                type_tables.module,
+                type_tables.symbols,
+                type_tables.profile,
+                lookup_symbol,
+            )
             .unwrap_or(lookup_symbol);
 
         matches!(
@@ -751,14 +696,12 @@ impl Compiler {
     /// Return true when this expression is in a type position.
     fn is_type_position_for_instantiation_access(
         &self,
-        module: &Module,
-        tree: &NodeTree,
-        types: &TypeTable,
+        type_tables: &TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
         let mut current_expression_id = expression_id;
         loop {
-            let Some(parent) = tree.get_parent(current_expression_id.id) else {
+            let Some(parent) = type_tables.tree.get_parent(current_expression_id.id) else {
                 return false;
             };
 
@@ -766,7 +709,7 @@ impl Compiler {
                 // expression parents can either be type operators or wrappers
                 NodeType::Expression => {
                     let parent_expression_id = parent.into_typed::<Expression>();
-                    let parent_expression = tree.get(parent_expression_id);
+                    let parent_expression = type_tables.tree.get(parent_expression_id);
 
                     match self.type_position_step_for_parent_expression(
                         parent_expression,
@@ -783,13 +726,13 @@ impl Compiler {
 
                 // declarator annotations are type positions
                 NodeType::Declarator => {
-                    let declarator = tree.get(parent.into_typed::<Declarator>());
+                    let declarator = type_tables.tree.get(parent.into_typed::<Declarator>());
                     return declarator.ty == Some(current_expression_id);
                 }
 
                 // declaration type slots carry type context
                 NodeType::Declaration => {
-                    let declaration = tree.get(parent.into_typed::<Declaration>());
+                    let declaration = type_tables.tree.get(parent.into_typed::<Declaration>());
                     return self.declaration_expression_is_type_position(
                         declaration,
                         current_expression_id,
@@ -798,13 +741,13 @@ impl Compiler {
 
                 // member type slots carry type context
                 NodeType::Member => {
-                    let member = tree.get(parent.into_typed::<Member>());
+                    let member = type_tables.tree.get(parent.into_typed::<Member>());
                     return self.member_expression_is_type_position(member, current_expression_id);
                 }
 
                 // property method return types carry type context
                 NodeType::Property => {
-                    let property = tree.get(parent.into_typed::<Property>());
+                    let property = type_tables.tree.get(parent.into_typed::<Property>());
                     return self
                         .property_expression_is_type_position(property, current_expression_id);
                 }
@@ -812,9 +755,7 @@ impl Compiler {
                 // parameter annotations are tracked through declared types
                 NodeType::Parameter => {
                     return self.parameter_expression_is_type_position(
-                        module,
-                        tree,
-                        types,
+                        type_tables,
                         parent.into_typed::<Parameter>(),
                         current_expression_id,
                     );
@@ -822,7 +763,7 @@ impl Compiler {
 
                 // where clause right sides are type constraints
                 NodeType::WhereClause => {
-                    let where_clause = tree.get(parent.into_typed::<WhereClause>());
+                    let where_clause = type_tables.tree.get(parent.into_typed::<WhereClause>());
                     return where_clause.right == current_expression_id;
                 }
 
@@ -998,22 +939,27 @@ impl Compiler {
     /// Return true when a parameter expression slot is a type position.
     fn parameter_expression_is_type_position(
         &self,
-        module: &Module,
-        tree: &NodeTree,
-        types: &TypeTable,
+        type_tables: &TypeTablesContext<'_>,
         parameter_id: LocalNodeId<Parameter>,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
-        let Some(declared_type_id) =
-            types.get_declared_type_id(parameter_id.into_global_any(module.id))
+        let Some(declared_type_id) = type_tables
+            .types
+            .get_declared_type_id(parameter_id.into_global_any(type_tables.module.id))
         else {
             return false;
         };
-        let Type::Unevaluated(type_root_expression_id) = types.get_type(declared_type_id) else {
+        let Type::Unevaluated(type_root_expression_id) =
+            type_tables.types.get_type(declared_type_id)
+        else {
             return false;
         };
 
-        self.expression_is_within_expression_subtree(tree, expression_id, *type_root_expression_id)
+        self.expression_is_within_expression_subtree(
+            type_tables.tree,
+            expression_id,
+            *type_root_expression_id,
+        )
     }
 
     /// Return true when a child expression is inside an ancestor expression subtree.
@@ -1233,9 +1179,7 @@ impl Compiler {
     /// Validate update expression targets.
     fn validate_update_target(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         operator: UnaryOperator,
         target: LocalNodeId<Expression>,
         is_strict: bool,
@@ -1252,15 +1196,13 @@ impl Compiler {
         }
 
         // update operators share assignment target constraints
-        self.validate_assignment_target(module, profile, tree, target, is_strict);
+        self.validate_assignment_target(type_tables, target, is_strict);
     }
 
     /// Validate for of binding constraints.
     fn validate_for_of_binding(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         asynchrony: Asynchrony,
         kind: ForEachKind,
@@ -1268,7 +1210,7 @@ impl Compiler {
         is_strict: bool,
     ) {
         // validate assignment targets for non declaration bindings
-        self.validate_for_each_assignment_binding(module, profile, tree, binding, is_strict);
+        self.validate_for_each_assignment_binding(&mut type_tables.reborrow(), binding, is_strict);
 
         // this rule applies only to sync for of loops
         if asynchrony != Asynchrony::Sync || kind != ForEachKind::Of {
@@ -1276,10 +1218,10 @@ impl Compiler {
         }
 
         // reject bindings named async
-        if self.for_of_binding_is_async_identifier(tree, binding) {
+        if self.for_of_binding_is_async_identifier(type_tables.tree, binding) {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidForOfBinding { node });
         }
     }
@@ -1287,9 +1229,7 @@ impl Compiler {
     /// Validate assignment target rules for for each non declaration bindings.
     fn validate_for_each_assignment_binding(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         binding: &ForEachBinding,
         is_strict: bool,
     ) {
@@ -1303,37 +1243,38 @@ impl Compiler {
         };
 
         // recurse through the binding pattern and validate assignment leaves
-        self.validate_for_each_assignment_pattern(module, profile, tree, *pattern, is_strict);
+        self.validate_for_each_assignment_pattern(&mut type_tables.reborrow(), *pattern, is_strict);
     }
 
     /// Validate assignment target rules for for each binding patterns.
     pub(super) fn validate_for_each_assignment_pattern(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
         is_strict: bool,
     ) {
-        match tree.get(pattern_id) {
+        match type_tables.tree.get(pattern_id) {
             // expression patterns must be valid assignment targets
             Pattern::Expression { value } => {
-                self.validate_assignment_target(module, profile, tree, *value, is_strict);
+                self.validate_assignment_target(type_tables, *value, is_strict);
             }
 
             // binding names in strict mode cannot use reserved identifiers
             Pattern::Binding { name, pattern, .. } => {
                 if let Some(pattern) = pattern {
                     self.validate_for_each_assignment_pattern(
-                        module, profile, tree, *pattern, is_strict,
+                        &mut type_tables.reborrow(),
+                        *pattern,
+                        is_strict,
                     );
                     return;
                 }
 
-                if module.is_user() && is_strict && self.is_reserved_binding_name(*name) {
+                if type_tables.module.is_user() && is_strict && self.is_reserved_binding_name(*name)
+                {
                     let node = pattern_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile));
+                        .into_global_any(type_tables.module.id)
+                        .into_anchored(Some(type_tables.profile));
                     self.error(AnalyzeError::ReservedIdentifier { node, name: *name });
                 }
             }
@@ -1342,7 +1283,11 @@ impl Compiler {
             Pattern::Must(right)
             | Pattern::ReferenceOf { right, .. }
             | Pattern::ValueOf { right, .. } => {
-                self.validate_for_each_assignment_pattern(module, profile, tree, *right, is_strict);
+                self.validate_for_each_assignment_pattern(
+                    &mut type_tables.reborrow(),
+                    *right,
+                    is_strict,
+                );
             }
 
             // recurse into tuple, array and object fields
@@ -1353,7 +1298,9 @@ impl Compiler {
             | Pattern::TaggedObject { fields, .. } => {
                 for field_id in fields {
                     self.validate_for_each_assignment_field(
-                        module, profile, tree, *field_id, is_strict,
+                        &mut type_tables.reborrow(),
+                        *field_id,
+                        is_strict,
                     );
                 }
             }
@@ -1362,9 +1309,7 @@ impl Compiler {
             Pattern::Union { patterns } => {
                 for pattern_id in patterns {
                     self.validate_for_each_assignment_pattern(
-                        module,
-                        profile,
-                        tree,
+                        &mut type_tables.reborrow(),
                         *pattern_id,
                         is_strict,
                     );
@@ -1379,26 +1324,27 @@ impl Compiler {
     /// Validate assignment target rules for pattern fields in for each bindings.
     fn validate_for_each_assignment_field(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         field_id: LocalNodeId<PatternField>,
         is_strict: bool,
     ) {
-        match tree.get(field_id) {
+        match type_tables.tree.get(field_id) {
             // shorthand named fields bind directly by field name
             PatternField::Named { name, pattern, .. } => {
                 if let Some(pattern) = pattern {
                     self.validate_for_each_assignment_pattern(
-                        module, profile, tree, *pattern, is_strict,
+                        &mut type_tables.reborrow(),
+                        *pattern,
+                        is_strict,
                     );
                     return;
                 }
 
-                if module.is_user() && is_strict && self.is_reserved_binding_name(*name) {
+                if type_tables.module.is_user() && is_strict && self.is_reserved_binding_name(*name)
+                {
                     let node = field_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile));
+                        .into_global_any(type_tables.module.id)
+                        .into_anchored(Some(type_tables.profile));
                     self.error(AnalyzeError::ReservedIdentifier { node, name: *name });
                 }
             }
@@ -1407,17 +1353,22 @@ impl Compiler {
             PatternField::Computed { pattern, .. } => {
                 if let Some(pattern) = pattern {
                     self.validate_for_each_assignment_pattern(
-                        module, profile, tree, *pattern, is_strict,
+                        &mut type_tables.reborrow(),
+                        *pattern,
+                        is_strict,
                     );
                 }
             }
 
             // aliases bind by alias name
             PatternField::Alias { alias, .. } => {
-                if module.is_user() && is_strict && self.is_reserved_binding_name(*alias) {
+                if type_tables.module.is_user()
+                    && is_strict
+                    && self.is_reserved_binding_name(*alias)
+                {
                     let node = field_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile));
+                        .into_global_any(type_tables.module.id)
+                        .into_anchored(Some(type_tables.profile));
                     self.error(AnalyzeError::ReservedIdentifier { node, name: *alias });
                 }
             }
@@ -1425,7 +1376,9 @@ impl Compiler {
             // positional fields forward to their pattern
             PatternField::Positional { pattern, .. } => {
                 self.validate_for_each_assignment_pattern(
-                    module, profile, tree, *pattern, is_strict,
+                    &mut type_tables.reborrow(),
+                    *pattern,
+                    is_strict,
                 );
             }
 
@@ -1433,7 +1386,9 @@ impl Compiler {
             PatternField::Spread { pattern, .. } => {
                 if let Some(pattern) = pattern {
                     self.validate_for_each_assignment_pattern(
-                        module, profile, tree, *pattern, is_strict,
+                        &mut type_tables.reborrow(),
+                        *pattern,
+                        is_strict,
                     );
                 }
             }
@@ -1508,22 +1463,20 @@ impl Compiler {
     /// Validate duplicate labels in nested label scopes.
     fn validate_duplicate_label(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         label: StringId,
     ) {
         // walk parent labels until a function-like boundary
         let mut current = Some(expression_id.into_any());
         while let Some(node_id) = current {
-            let Some(parent) = tree.get_parent(node_id.id) else {
+            let Some(parent) = type_tables.tree.get_parent(node_id.id) else {
                 break;
             };
 
             // duplicate labels are invalid in the same label scope chain
             if parent.ty == NodeType::Expression {
-                let parent_expression = tree.get(parent.into_typed::<Expression>());
+                let parent_expression = type_tables.tree.get(parent.into_typed::<Expression>());
                 if let Expression::Labelled {
                     label: parent_label,
                     ..
@@ -1531,15 +1484,15 @@ impl Compiler {
                     && *parent_label == label
                 {
                     let node = expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile));
+                        .into_global_any(type_tables.module.id)
+                        .into_anchored(Some(type_tables.profile));
                     self.error(AnalyzeError::DuplicateLabel { node });
                     return;
                 }
             }
 
             // labels do not cross function-like boundaries
-            if self.node_starts_function_scope(tree, parent) {
+            if self.node_starts_function_scope(type_tables.tree, parent) {
                 break;
             }
 
@@ -1550,42 +1503,40 @@ impl Compiler {
     /// Validate catch parameter shape rules for JS/TS.
     fn validate_catch_binding_pattern(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         catch_pattern_id: LocalNodeId<Pattern>,
     ) {
         // this restriction only applies to JS/TS source forms
-        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+        if !(type_tables.module.language_type.is_javascript()
+            || type_tables.module.language_type.is_typescript())
+        {
             return;
         }
 
         // JS/TS allow identifier bindings and destructuring binding patterns
         if matches!(
-            tree.get(catch_pattern_id),
+            type_tables.tree.get(catch_pattern_id),
             Pattern::Binding { .. } | Pattern::Array { .. } | Pattern::Object { .. }
         ) {
             return;
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::InvalidCatchBinding { node });
     }
 
     /// Validate catch type annotations for JS/TS compatibility.
     fn validate_catch_annotation_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         catch_ty_id: Option<LocalNodeId<Expression>>,
     ) {
         // this restriction only applies to typed ts catch bindings
-        if !module.language_type.is_typescript() {
+        if !type_tables.module.language_type.is_typescript() {
             return;
         }
 
@@ -1594,10 +1545,10 @@ impl Compiler {
         };
 
         // reject annotations that are not `any` or `unknown`
-        if !self.catch_annotation_expression_is_any_or_unknown(tree, catch_ty_id) {
+        if !self.catch_annotation_expression_is_any_or_unknown(type_tables.tree, catch_ty_id) {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidCatchAnnotationType { node });
         }
     }
@@ -1605,8 +1556,7 @@ impl Compiler {
     /// Validate try expressions include a catch or finally clause.
     fn validate_try_requires_catch_or_finally(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         catch_expression: Option<LocalNodeId<Expression>>,
         finally_expression: Option<LocalNodeId<Expression>>,
@@ -1616,8 +1566,8 @@ impl Compiler {
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::IncompleteTry { node });
     }
 
@@ -1674,15 +1624,15 @@ impl Compiler {
     /// Validate left operands for exponentiation operators.
     fn validate_exponent_left_operand(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
         operator: BinaryOperator,
     ) {
         // only enforce the JS/TS exponentiation grammar
-        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+        if !(type_tables.module.language_type.is_javascript()
+            || type_tables.module.language_type.is_typescript())
+        {
             return;
         }
 
@@ -1692,14 +1642,14 @@ impl Compiler {
         }
 
         // reject unparenthesized unary and delete operands
-        let left_expression = tree.get(left);
+        let left_expression = type_tables.tree.get(left);
         if matches!(
             left_expression,
             Expression::Unary { .. } | Expression::Delete { .. }
         ) {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidExponentLeftUnary { node });
         }
     }
@@ -1707,21 +1657,22 @@ impl Compiler {
     /// Validate empty parenthesized expressions in JS/TS.
     fn validate_empty_parenthesized_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         elements: &[LocalNodeId<Argument>],
     ) {
         // only enforce for JS/TS modules
-        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+        if !(type_tables.module.language_type.is_javascript()
+            || type_tables.module.language_type.is_typescript())
+        {
             return;
         }
 
         // tuple expressions in value position represent parenthesized expressions
         if elements.is_empty() {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::EmptyParenthesizedExpression { node });
         }
     }
@@ -1729,21 +1680,22 @@ impl Compiler {
     /// Validate empty sequence expressions used as parenthesized forms in JS/TS.
     fn validate_empty_parenthesized_sequence(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         expressions: &[LocalNodeId<Expression>],
     ) {
         // only enforce for JS/TS modules
-        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+        if !(type_tables.module.language_type.is_javascript()
+            || type_tables.module.language_type.is_typescript())
+        {
             return;
         }
 
         // JS/TS represent `()` as an empty sequence expression
         if expressions.is_empty() {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::EmptyParenthesizedExpression { node });
         }
     }
@@ -1751,35 +1703,33 @@ impl Compiler {
     /// Validate delete expression restrictions.
     fn validate_delete_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
         is_strict: bool,
     ) {
         // skip non-user modules
-        if !module.is_user() {
+        if !type_tables.module.is_user() {
             return;
         }
 
         // classify the effective delete target
-        let target_id = self.effective_delete_target(tree, value);
+        let target_id = self.effective_delete_target(type_tables.tree, value);
 
         // reject private member deletes
-        if self.delete_target_contains_private_member(tree, target_id) {
+        if self.delete_target_contains_private_member(type_tables.tree, target_id) {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidStrictDelete { node });
             return;
         }
 
         // enforce strict mode delete restrictions for identifier targets
-        if is_strict && self.delete_target_is_binding_reference(tree, target_id) {
+        if is_strict && self.delete_target_is_binding_reference(type_tables.tree, target_id) {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidStrictDelete { node });
         }
     }
@@ -1849,25 +1799,23 @@ impl Compiler {
     /// Validate tagged templates after optional chains.
     fn validate_tagged_template_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         tag: LocalNodeId<Expression>,
     ) {
         // optional chain tagged templates are invalid in js, ts, and destack
-        if !module.language_type.is_javascript()
-            && !module.language_type.is_typescript()
-            && !module.language_type.is_destack()
+        if !type_tables.module.language_type.is_javascript()
+            && !type_tables.module.language_type.is_typescript()
+            && !type_tables.module.language_type.is_destack()
         {
             return;
         }
 
         // check the tag chain for optional segments
-        if self.expression_contains_optional_chain(tree, tag) {
+        if self.expression_contains_optional_chain(type_tables.tree, tag) {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidOptionalChainTemplate { node });
         }
     }
@@ -1875,123 +1823,115 @@ impl Compiler {
     /// Validate super call expressions.
     pub(crate) fn validate_super_call_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
     ) {
         // parenthesized super calls are always invalid
-        if self.has_parenthesized_super_reference(tree, left) {
+        if self.has_parenthesized_super_reference(type_tables.tree, left) {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidSuperCall { node });
             return;
         }
 
         // skip non super calls
-        let left = self.unwrap_parenthesized_expression(left, tree);
-        if !matches!(tree.get(left), Expression::Super) {
+        let left = self.unwrap_parenthesized_expression(left, type_tables.tree);
+        if !matches!(type_tables.tree.get(left), Expression::Super) {
             return;
         }
 
         // allow super calls only in derived constructors
-        if self.super_call_is_valid_context(tree, expression_id) {
+        if self.super_call_is_valid_context(type_tables.tree, expression_id) {
             return;
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::InvalidSuperCall { node });
     }
 
     /// Validate optional chains rooted at super.
     pub(crate) fn validate_super_optional_chain(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
     ) {
         // skip non super chains
-        if !self.expression_roots_in_super(tree, left) {
+        if !self.expression_roots_in_super(type_tables.tree, left) {
             return;
         }
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::InvalidSuperOptionalChain { node });
     }
 
     /// Validate non-call super property access.
     pub(crate) fn validate_super_property_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) {
         // skip plain super calls, they are checked separately
-        if let Expression::Call { left, .. } = tree.get(expression_id)
-            && self.expression_is_super_reference(tree, *left)
+        if let Expression::Call { left, .. } = type_tables.tree.get(expression_id)
+            && self.expression_is_super_reference(type_tables.tree, *left)
         {
             return;
         }
 
         // parenthesized super access is always invalid
-        if self.has_parenthesized_super_reference(tree, expression_id) {
+        if self.has_parenthesized_super_reference(type_tables.tree, expression_id) {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidSuperCall { node });
             return;
         }
 
         // reject `new super` and `new super(...)` forms in all contexts
-        if let Expression::New { left, .. } = tree.get(expression_id)
-            && self.expression_roots_in_super(tree, *left)
+        if let Expression::New { left, .. } = type_tables.tree.get(expression_id)
+            && self.expression_roots_in_super(type_tables.tree, *left)
         {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidSuperCall { node });
             return;
         }
 
         // skip expressions that are not rooted in super
-        if !self.expression_roots_in_super(tree, expression_id) {
+        if !self.expression_roots_in_super(type_tables.tree, expression_id) {
             return;
         }
 
         // allow contexts that have valid super bindings
-        if self.super_property_is_valid_context(tree, expression_id) {
+        if self.super_property_is_valid_context(type_tables.tree, expression_id) {
             return;
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::InvalidSuperCall { node });
     }
 
     /// Validate bare super references.
     pub(crate) fn validate_super_reference_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) {
-        if self.super_reference_is_part_of_expression_chain(tree, expression_id) {
+        if self.super_reference_is_part_of_expression_chain(type_tables.tree, expression_id) {
             return;
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::InvalidSuperCall { node });
     }
 
@@ -2135,11 +2075,7 @@ impl Compiler {
     /// Validate a match or switch expression.
     fn validate_match_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         kind: MatchKind,
         value: LocalNodeId<Expression>,
@@ -2148,7 +2084,7 @@ impl Compiler {
         // switch cases require expressions without guards
         if kind == MatchKind::Switch {
             for case_id in cases {
-                let (selector, case_span_id) = match tree.get(*case_id) {
+                let (selector, case_span_id) = match type_tables.tree.get(*case_id) {
                     MatchCase::Expression { selector, .. } | MatchCase::Block { selector, .. } => {
                         (selector, *case_id)
                     }
@@ -2159,27 +2095,27 @@ impl Compiler {
                     if guard.is_some() {
                         self.error(AnalyzeError::InvalidSwitchCaseGuard {
                             node: case_span_id
-                                .into_global_any(module.id)
-                                .into_anchored(Some(profile)),
+                                .into_global_any(type_tables.module.id)
+                                .into_anchored(Some(type_tables.profile)),
                         });
                     }
 
                     // reject non expression switch cases
-                    match tree.get(*pattern) {
+                    match type_tables.tree.get(*pattern) {
                         Pattern::Expression { value } => {
-                            if self.is_invalid_switch_case_expression(tree, *value) {
+                            if self.is_invalid_switch_case_expression(type_tables.tree, *value) {
                                 self.error(AnalyzeError::InvalidSwitchCasePattern {
                                     node: pattern
-                                        .into_global_any(module.id)
-                                        .into_anchored(Some(profile)),
+                                        .into_global_any(type_tables.module.id)
+                                        .into_anchored(Some(type_tables.profile)),
                                 });
                             }
                         }
                         _ => {
                             self.error(AnalyzeError::InvalidSwitchCasePattern {
                                 node: pattern
-                                    .into_global_any(module.id)
-                                    .into_anchored(Some(profile)),
+                                    .into_global_any(type_tables.module.id)
+                                    .into_anchored(Some(type_tables.profile)),
                             });
                         }
                     }
@@ -2191,11 +2127,7 @@ impl Compiler {
 
         // match expressions require exhaustiveness checks
         self.validate_match_exhaustiveness(
-            module,
-            profile,
-            tree,
-            symbols,
-            types,
+            &mut type_tables.reborrow(),
             expression_id,
             value,
             cases,
@@ -2205,9 +2137,7 @@ impl Compiler {
     /// Validate must assertion usage.
     fn validate_must_assertion(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        _tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         no_must_assertions: bool,
     ) {
@@ -2216,16 +2146,15 @@ impl Compiler {
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::MustAssertionDisabled { node });
     }
 
     /// Validate custom type guard usage.
     fn validate_custom_type_guard(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         no_custom_type_guards: bool,
     ) {
@@ -2234,17 +2163,15 @@ impl Compiler {
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::CustomTypeGuardDisabled { node });
     }
 
     /// Validate narrowing guards that depend on runtime checks.
     fn validate_unsound_narrowing_operator(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        types: &TypeTable,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         operator: BinaryOperator,
         no_unsound_narrowing: bool,
@@ -2257,7 +2184,9 @@ impl Compiler {
             return;
         }
 
-        let runtime_check = types.get_runtime_check_kind(expression_id.into_global_any(module.id));
+        let runtime_check = type_tables
+            .types
+            .get_runtime_check_kind(expression_id.into_global_any(type_tables.module.id));
         if matches!(
             runtime_check,
             Some(RuntimeCheckKind::UnionTag) | Some(RuntimeCheckKind::Constant(_))
@@ -2266,17 +2195,15 @@ impl Compiler {
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::UnsoundNarrowingDisabled { node });
     }
 
     /// Validate type guard expressions that rely on runtime narrowing.
     fn validate_unsound_narrowing_type_operator(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        types: &TypeTable,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         operator: TypeBinaryOperator,
         no_unsound_narrowing: bool,
@@ -2291,7 +2218,9 @@ impl Compiler {
             return;
         }
 
-        let runtime_check = types.get_runtime_check_kind(expression_id.into_global_any(module.id));
+        let runtime_check = type_tables
+            .types
+            .get_runtime_check_kind(expression_id.into_global_any(type_tables.module.id));
         if matches!(
             runtime_check,
             Some(RuntimeCheckKind::UnionTag) | Some(RuntimeCheckKind::Constant(_))
@@ -2300,38 +2229,36 @@ impl Compiler {
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::UnsoundNarrowingDisabled { node });
     }
 
     /// Validate assignment targets for assignment expressions.
     pub(crate) fn validate_assignment_target(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &TypeTablesContext<'_>,
         target: LocalNodeId<Expression>,
         is_strict: bool,
     ) {
         // reject non-assignable targets
-        if !self.is_valid_assignment_target(tree, target) {
+        if !self.is_valid_assignment_target(type_tables.tree, target) {
             let node = target
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidAssignmentTarget { node });
             return;
         }
 
         // reject strict mode assignments to reserved binding names
-        if module.is_user()
+        if type_tables.module.is_user()
             && is_strict
             && let Some((reserved_target, name)) =
-                self.strict_reserved_assignment_target_binding(tree, target)
+                self.strict_reserved_assignment_target_binding(type_tables.tree, target)
         {
             let node = reserved_target
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::ReservedIdentifier { node, name });
         }
     }
@@ -2455,19 +2382,17 @@ impl Compiler {
     /// Validate an import or export expression.
     fn validate_dependency_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         source: DependencySource,
         kind: DependencyKind,
         items: Option<&[LocalNodeId<DependencyItem>]>,
     ) {
         // reject type-only dependencies in JavaScript modules
-        if module.language_type.is_javascript() && kind == DependencyKind::Type {
+        if type_tables.module.language_type.is_javascript() && kind == DependencyKind::Type {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
         }
 
@@ -2478,26 +2403,24 @@ impl Compiler {
                 DependencySource::ImportStatement | DependencySource::ImportEquals
             )
         {
-            self.validate_type_only_import_bindings(module, profile, tree, kind, items);
+            self.validate_type_only_import_bindings(&mut type_tables.reborrow(), kind, items);
         }
     }
 
     /// Validate private identifier usage inside expressions.
     fn validate_private_identifier_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) {
         // allow private identifiers only as the left operand of an `in` expression
-        if self.private_identifier_is_in_expression(tree, expression_id) {
+        if self.private_identifier_is_in_expression(type_tables.tree, expression_id) {
             return;
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::InvalidPrivateIdentifier { node });
     }
 
@@ -2543,9 +2466,7 @@ impl Compiler {
     /// Validate defaults on object literal properties.
     fn validate_object_literal_properties(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         properties: &[LocalNodeId<Property>],
     ) {
         // reserve the proto setter key once per object
@@ -2553,13 +2474,13 @@ impl Compiler {
 
         // validate each property for object literal restrictions
         for property_id in properties {
-            let property = tree.get(*property_id);
+            let property = type_tables.tree.get(*property_id);
 
             // reject object literal `__proto__` setter fields
             if self.is_object_proto_setter_field(property, proto_name) {
                 let node = property_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile));
+                    .into_global_any(type_tables.module.id)
+                    .into_anchored(Some(type_tables.profile));
                 self.error(AnalyzeError::UnsupportedObjectPrototypeSetter { node });
             }
 
@@ -2567,8 +2488,8 @@ impl Compiler {
             if self.is_associated_comptime_field_in_object_literal(property) {
                 self.error(AnalyzeError::InvalidStaticArgument {
                     node: property_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile)),
+                        .into_global_any(type_tables.module.id)
+                        .into_anchored(Some(type_tables.profile)),
                     message:
                         "associated comptime constants are only allowed on declaration members"
                             .to_string(),
@@ -2585,8 +2506,8 @@ impl Compiler {
             ) {
                 self.error(AnalyzeError::ObjectLiteralDefault {
                     node: property_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile)),
+                        .into_global_any(type_tables.module.id)
+                        .into_anchored(Some(type_tables.profile)),
                 });
             }
 
@@ -2596,26 +2517,23 @@ impl Compiler {
             } = property
             {
                 // strict directive prologues require simple parameter lists in JS/TS modes
-                if !module.language_type.is_destack()
+                if !type_tables.module.language_type.is_destack()
                     && let Some(body) = body
-                    && self.has_non_simple_dynamic_parameters(tree, &signature.dynamic_parameters)
-                    && self.body_declares_use_strict_directive(tree, *body)
+                    && self.has_non_simple_dynamic_parameters(
+                        type_tables.tree,
+                        &signature.dynamic_parameters,
+                    )
+                    && self.body_declares_use_strict_directive(type_tables.tree, *body)
                 {
                     self.error(AnalyzeError::InvalidFunction {
                         node: property_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(profile)),
+                            .into_global_any(type_tables.module.id)
+                            .into_anchored(Some(type_tables.profile)),
                     });
                 }
 
                 // object literal accessors still use accessor signature validation
-                self.validate_accessor_signature(
-                    module,
-                    profile,
-                    tree,
-                    (*property_id).into_any(),
-                    signature,
-                );
+                self.validate_accessor_signature(type_tables, (*property_id).into_any(), signature);
             }
         }
     }
@@ -2690,15 +2608,13 @@ impl Compiler {
     /// Validate type-only import bindings.
     fn validate_type_only_import_bindings(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         kind: DependencyKind,
         items: &[LocalNodeId<DependencyItem>],
     ) {
         // diagnostics
         let report_error = |node: LocalNodeIdAny| {
-            let node = node.into_anchored(module.id, Some(profile));
+            let node = node.into_anchored(type_tables.module.id, Some(type_tables.profile));
             self.error(AnalyzeError::InvalidTypeOnlyImportBindings { node });
         };
 
@@ -2711,7 +2627,7 @@ impl Compiler {
         let mut has_default = false;
         let mut named_item = None;
         for item_id in items {
-            let mode = match tree.get(*item_id) {
+            let mode = match type_tables.tree.get(*item_id) {
                 DependencyItem::UnresolvedRemote { mode, .. }
                 | DependencyItem::UnresolvedLocal { mode, .. }
                 | DependencyItem::Local { mode, .. }
@@ -2733,21 +2649,19 @@ impl Compiler {
     /// Validate readonly type operator placement.
     fn validate_readonly_type_operator(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         right: LocalNodeId<Expression>,
     ) {
         // validate readonly target shape
-        if self.is_readonly_type_target(tree, right) {
+        if self.is_readonly_type_target(type_tables.tree, right) {
             return;
         }
 
         // report invalid readonly usage
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::InvalidReadonlyType { node });
     }
 
@@ -2780,16 +2694,14 @@ impl Compiler {
     /// Validate tuple optional element ordering.
     fn validate_tuple_optional_order(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         elements: &[LocalNodeId<Argument>],
     ) {
         // skip non tuple arrays
         if !elements
             .iter()
-            .any(|argument_id| self.tuple_element_is_optional(tree, *argument_id))
+            .any(|argument_id| self.tuple_element_is_optional(type_tables.tree, *argument_id))
         {
             return;
         }
@@ -2797,22 +2709,22 @@ impl Compiler {
         // enforce optional element ordering
         let mut optional_seen = false;
         for argument_id in elements {
-            let is_optional = self.tuple_element_is_optional(tree, *argument_id);
-            let is_rest = matches!(tree.get(*argument_id), Argument::Spread { .. });
+            let is_optional = self.tuple_element_is_optional(type_tables.tree, *argument_id);
+            let is_rest = matches!(type_tables.tree.get(*argument_id), Argument::Spread { .. });
 
             // tuple members cannot be both optional and rest
             if is_optional && is_rest {
                 let node = expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile));
+                    .into_global_any(type_tables.module.id)
+                    .into_anchored(Some(type_tables.profile));
                 self.error(AnalyzeError::InvalidTupleElementOrder { node });
                 return;
             }
 
             if optional_seen && !is_optional && !is_rest {
                 let node = expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile));
+                    .into_global_any(type_tables.module.id)
+                    .into_anchored(Some(type_tables.profile));
                 self.error(AnalyzeError::InvalidTupleElementOrder { node });
                 return;
             }
@@ -2841,19 +2753,17 @@ impl Compiler {
     /// Validate intrinsic type indexing.
     fn validate_intrinsic_type_index(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
     ) {
         // reject indexing intrinsic types
-        if !self.is_intrinsic_type_target(tree, left) {
+        if !self.is_intrinsic_type_target(type_tables.tree, left) {
             return;
         }
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::InvalidIntrinsicTypeIndex { node });
     }
 
@@ -2909,9 +2819,7 @@ impl Compiler {
     /// Validate a declare binding initializer.
     fn validate_declare_binding_initializer(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         declarator_id: LocalNodeId<Declarator>,
         mutability: Mutability,
         is_declare_context: bool,
@@ -2928,11 +2836,11 @@ impl Compiler {
         }
 
         // report initializers in declare bindings
-        let declarator = tree.get(declarator_id);
+        let declarator = type_tables.tree.get(declarator_id);
         if declarator.value.is_some() {
             let node = declarator_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InvalidDeclareInitializer { node });
         }
     }
@@ -2940,10 +2848,7 @@ impl Compiler {
     /// Validate a const binding initializer.
     fn validate_const_initializer(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
+        type_tables: &mut TypeTablesContext<'_>,
         declarator_id: LocalNodeId<Declarator>,
         mutability: Mutability,
         is_declare_context: bool,
@@ -2959,60 +2864,58 @@ impl Compiler {
             if !allow_ambient_const_initializers {
                 return;
             }
-            let declarator = tree.get(declarator_id);
+            let declarator = type_tables.tree.get(declarator_id);
             let Some(value) = declarator.value else {
                 return;
             };
-            if !self.is_valid_ambient_const_initializer(module, profile, tree, symbols, value) {
+            if !self.is_valid_ambient_const_initializer(&mut type_tables.reborrow(), value) {
                 let node = declarator_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile));
+                    .into_global_any(type_tables.module.id)
+                    .into_anchored(Some(type_tables.profile));
                 self.error(AnalyzeError::InvalidAmbientConstInitializer { node });
             }
             return;
         }
 
         // report missing initializers in const bindings
-        let declarator = tree.get(declarator_id);
+        let declarator = type_tables.tree.get(declarator_id);
         if declarator.value.is_some() {
             return;
         }
 
         // destructuring bindings already report a dedicated initializer error
-        if self.is_destructuring_pattern(tree, declarator.pattern) {
+        if self.is_destructuring_pattern(type_tables.tree, declarator.pattern) {
             return;
         }
 
         let node = declarator_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::MissingConstInitializer { node });
     }
 
     /// Validate definite assignment assertions in variable declarators.
     fn validate_definite_assignment_declarator(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         declarator_id: LocalNodeId<Declarator>,
         no_definite_assignment_assertions: bool,
     ) {
         // report definite assignment assertions in variable declarators
-        let declarator = tree.get(declarator_id);
-        if !self.pattern_has_definite_assignment(tree, declarator.pattern) {
+        let declarator = type_tables.tree.get(declarator_id);
+        if !self.pattern_has_definite_assignment(type_tables.tree, declarator.pattern) {
             return;
         }
         let node = declarator_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
 
         if no_definite_assignment_assertions {
             self.error(AnalyzeError::DefiniteAssignmentAssertionDisabled { node });
             return;
         }
 
-        if !module.language_type.is_destack() {
+        if !type_tables.module.language_type.is_destack() {
             self.error(AnalyzeError::InvalidDefiniteAssignmentDeclarator { node });
         }
     }
@@ -3020,13 +2923,10 @@ impl Compiler {
     /// Check whether an ambient const initializer is valid.
     fn is_valid_ambient_const_initializer(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
-        let expression = tree.get(expression_id);
+        let expression = type_tables.tree.get(expression_id);
 
         // allow scalar literals
         if let Expression::ScalarLiteral { value } = expression {
@@ -3052,7 +2952,7 @@ impl Compiler {
             right,
         } = expression
         {
-            let right_expression = tree.get(*right);
+            let right_expression = type_tables.tree.get(*right);
             return matches!(
                 right_expression,
                 Expression::ScalarLiteral {
@@ -3070,7 +2970,7 @@ impl Compiler {
             ..
         } = expression
         {
-            return self.is_ambient_const_enum_reference(module, profile, tree, symbols, *left);
+            return self.is_ambient_const_enum_reference(&mut type_tables.reborrow(), *left);
         }
 
         false
@@ -3079,30 +2979,29 @@ impl Compiler {
     /// Read one expression type from existing analyze commitments.
     fn expression_type_id_for_validate(
         &self,
-        module_id: ModuleId,
+        type_tables: &TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        types: &TypeTable,
     ) -> Option<LocalTypeId> {
-        types.get_declared_or_inferred_type_id(expression_id.into_global_any(module_id))
+        type_tables
+            .types
+            .get_declared_or_inferred_type_id(expression_id.into_global_any(type_tables.module.id))
     }
 
     /// Select a stable receiver type id for validate diagnostics.
     fn diagnostic_receiver_type_id_for_validate(
         &self,
-        module_id: ModuleId,
+        type_tables: &TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        types: &TypeTable,
     ) -> Option<LocalTypeId> {
         // prefer the expression type for local diagnostic context
-        if let Some(type_id) = self.expression_type_id_for_validate(module_id, expression_id, types)
-        {
+        if let Some(type_id) = self.expression_type_id_for_validate(type_tables, expression_id) {
             return Some(type_id);
         }
 
         // otherwise reuse an existing unknown type id when available
-        if let Some(unknown_type_id) = types.iter_type_ids().find(|type_id| {
+        if let Some(unknown_type_id) = type_tables.types.iter_type_ids().find(|type_id| {
             matches!(
-                types.get_type(*type_id),
+                type_tables.types.get_type(*type_id),
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 }
@@ -3112,39 +3011,43 @@ impl Compiler {
         }
 
         // fall back to any existing type id to keep the diagnostic anchored
-        types.iter_type_ids().next()
+        type_tables.types.iter_type_ids().next()
     }
 
     /// Validate type index access for missing members.
-    fn validate_type_index_access(
+    pub(super) fn validate_type_index_access(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) {
-        let Expression::TypeIndex { left, index } = tree.get(expression_id) else {
+        let Expression::TypeIndex { left, index } = type_tables.tree.get(expression_id) else {
             return;
         };
 
         // read operand types from existing declare or infer commitments
-        let Some(left_ty_id) = self.expression_type_id_for_validate(module.id, *left, types) else {
+        let Some(left_ty_id) = self.expression_type_id_for_validate(type_tables, *left) else {
             return;
         };
 
         // skip missing checks for unresolved type parameters
-        if let Some(symbol) = types.get_type(left_ty_id).symbol()
-            && self.symbol_is_static_parameter(module, profile, symbol, symbols, types)
+        if let Some(symbol) = type_tables.types.get_type(left_ty_id).symbol()
+            && self.symbol_is_static_parameter(
+                type_tables.module,
+                type_tables.profile,
+                symbol,
+                type_tables.symbols,
+                type_tables.types,
+            )
         {
             return;
         }
 
         // skip missing checks when the type index builds a fixed-size array
-        let is_index_access = match self
-            .type_index_uses_index_access(module, profile, left_ty_id, *index, tree, symbols, types)
-        {
+        let is_index_access = match self.type_index_uses_index_access(
+            &mut type_tables.reborrow(),
+            left_ty_id,
+            *index,
+        ) {
             Ok(value) => value,
             Err(error) => {
                 self.error(error);
@@ -3156,14 +3059,13 @@ impl Compiler {
         }
 
         // read index types only for true index-access expressions
-        let Some(index_ty_id) = self.expression_type_id_for_validate(module.id, *index, types)
-        else {
+        let Some(index_ty_id) = self.expression_type_id_for_validate(type_tables, *index) else {
             return;
         };
 
         // skip missing checks for any or unknown receivers
         if matches!(
-            types.get_type(left_ty_id),
+            type_tables.types.get_type(left_ty_id),
             Type::TypeLiteral {
                 value: TypeLiteral::Any | TypeLiteral::Unknown,
             }
@@ -3174,13 +3076,10 @@ impl Compiler {
         // resolve index access types to detect missing keys
         let mut visited = Vec::new();
         let resolution = self.resolve_index_access_types(
-            module,
-            profile,
+            &mut type_tables.reborrow(),
             expression_id.into_any(),
             left_ty_id,
             index_ty_id,
-            symbols,
-            types,
             NormalizationMode::Flow,
             RelationMode::INDEX_ACCESS,
             &mut visited,
@@ -3191,13 +3090,13 @@ impl Compiler {
 
         // report missing key access unless a primary receiver error blocks cascades
         let reported = self.report_missing_member_diagnostic(
-            module,
-            profile,
+            type_tables.module,
+            type_tables.profile,
             expression_id,
             left_ty_id,
             *missing_key,
-            symbols,
-            types,
+            type_tables.symbols,
+            type_tables.types,
             false,
         );
         if let Err(error) = reported {
@@ -3208,35 +3107,32 @@ impl Compiler {
     /// Validate infer type expressions are scoped to conditional extends clauses.
     fn validate_infer_type_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) {
-        let (scope_id, _) = tree.get_scope(expression_id);
-        if self.scope_has_ancestor_kind(symbols, scope_id, ScopeKind::TypeConditional) {
+        let (scope_id, _) = type_tables.tree.get_scope(expression_id);
+        if self.scope_has_ancestor_kind(type_tables, scope_id, ScopeKind::TypeConditional) {
             return;
         }
 
         self.error(AnalyzeError::InferOutsideConditional {
             node: expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile)),
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile)),
         });
     }
 
     /// Return true when the scope or any parent scope matches the requested kind.
     fn scope_has_ancestor_kind(
         &self,
-        symbols: &SymbolTable,
+        type_tables: &TypeTablesContext<'_>,
         start_scope_id: LocalScopeId,
         kind: ScopeKind,
     ) -> bool {
         let mut scope_id = start_scope_id;
 
         loop {
-            let scope = symbols.get_scope_by_id(scope_id);
+            let scope = type_tables.symbols.get_scope_by_id(scope_id);
             if scope.kind == kind {
                 return true;
             }
@@ -3251,10 +3147,7 @@ impl Compiler {
     /// Validate import type accesses for missing exports.
     fn validate_type_import_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         target: StringId,
         qualifier: Option<&Path>,
@@ -3275,8 +3168,8 @@ impl Compiler {
 
         // resolve the import type symbol
         let resolved = self.resolve_import_type_symbol(
-            module,
-            profile,
+            type_tables.module,
+            type_tables.profile,
             expression_id.into_any(),
             target,
             Some(qualifier),
@@ -3292,18 +3185,18 @@ impl Compiler {
 
         // emit missing member when the export is absent
         let Some(receiver_ty_id) =
-            self.diagnostic_receiver_type_id_for_validate(module.id, expression_id, types)
+            self.diagnostic_receiver_type_id_for_validate(type_tables, expression_id)
         else {
             return;
         };
         let reported = self.report_missing_member_diagnostic(
-            module,
-            profile,
+            type_tables.module,
+            type_tables.profile,
             expression_id,
             receiver_ty_id,
             member_key,
-            symbols,
-            types,
+            type_tables.symbols,
+            type_tables.types,
             false,
         );
         if let Err(error) = reported {
@@ -3314,22 +3207,20 @@ impl Compiler {
     /// Validate that a type import target is a string literal and return the string id.
     fn validate_type_import_target_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         target: LocalNodeId<Expression>,
     ) -> Option<StringId> {
         if let Expression::ScalarLiteral {
             value: ScalarLiteral::String(target_string),
-        } = tree.get(target)
+        } = type_tables.tree.get(target)
         {
             return Some(*target_string);
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::InvalidTypeImportTarget { node });
         None
     }
@@ -3337,40 +3228,35 @@ impl Compiler {
     /// Check whether an expression is an enum reference for ambient const initializers.
     fn is_ambient_const_enum_reference(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
+        type_tables: &mut TypeTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
-        let target_symbol = match tree.get(expression_id) {
+        let target_symbol = match type_tables.tree.get(expression_id) {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
             _ => return false,
         };
 
-        self.symbol_is_enum(module, profile, symbols, target_symbol)
+        self.symbol_is_enum(&mut type_tables.reborrow(), target_symbol)
     }
 
     /// Check whether a symbol resolves to an enum declaration.
     fn symbol_is_enum(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        type_tables: &mut TypeTablesContext<'_>,
         symbol_id: GlobalSymbolId,
     ) -> bool {
         // check symbols from the current module
-        if symbol_id.module_id == module.id {
-            let symbol = symbols.get_symbol(symbol_id.local_id);
+        if symbol_id.module_id == type_tables.module.id {
+            let symbol = type_tables.symbols.get_symbol(symbol_id.local_id);
             return symbol.ty == SymbolType::Enum;
         }
 
         // check symbols from dependent modules
         let target_module = self.program.modules.get(symbol_id.module_id);
         let target_module = target_module.read();
-        let Some(target_dir) = target_module.dir_maybe(profile) else {
+        let Some(target_dir) = target_module.dir_maybe(type_tables.profile) else {
             return false;
         };
         let target_symbols = target_dir.symbols.read();
@@ -3382,28 +3268,28 @@ impl Compiler {
     /// (Destack is more permissive around declarators and patterns)
     fn validate_js_ts_compat_declarator_pattern(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         declarator_id: LocalNodeId<Declarator>,
     ) {
         // only JS/TS require assignment style declarator bindings
-        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+        if !(type_tables.module.language_type.is_javascript()
+            || type_tables.module.language_type.is_typescript())
+        {
             return;
         }
 
-        let declarator = tree.get(declarator_id);
-        let Pattern::Expression { value } = tree.get(declarator.pattern) else {
+        let declarator = type_tables.tree.get(declarator_id);
+        let Pattern::Expression { value } = type_tables.tree.get(declarator.pattern) else {
             return;
         };
-        if self.is_valid_js_ts_compat_declarator_binding(tree, *value) {
+        if self.is_valid_js_ts_compat_declarator_binding(type_tables.tree, *value) {
             return;
         }
 
         let node = declarator
             .pattern
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
+            .into_global_any(type_tables.module.id)
+            .into_anchored(Some(type_tables.profile));
         self.error(AnalyzeError::InvalidAssignmentTarget { node });
     }
 
@@ -3441,21 +3327,19 @@ impl Compiler {
     /// Validate a destructuring declaration without an initializer.
     fn validate_destructuring_initializer(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        type_tables: &mut TypeTablesContext<'_>,
         declarator_id: LocalNodeId<Declarator>,
     ) {
-        let declarator = tree.get(declarator_id);
+        let declarator = type_tables.tree.get(declarator_id);
         if declarator.value.is_some() {
             return;
         }
 
         // destructuring bindings require initializers
-        if self.is_destructuring_pattern(tree, declarator.pattern) {
+        if self.is_destructuring_pattern(type_tables.tree, declarator.pattern) {
             let node = declarator_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::MissingDestructuringInitializer { node });
         }
     }

@@ -592,22 +592,14 @@ impl Compiler {
             .zip(right.dynamic_parameters.iter())
         {
             let left_assignable = self.is_type_assignable(
-                tables.module,
-                tables.profile,
-                tables.symbols,
+                &mut tables.type_tables_reborrow(),
                 *left_ty_id,
                 *right_ty_id,
-                tables.types,
-                tables.options,
             );
             let right_assignable = self.is_type_assignable(
-                tables.module,
-                tables.profile,
-                tables.symbols,
+                &mut tables.type_tables_reborrow(),
                 *right_ty_id,
                 *left_ty_id,
-                tables.types,
-                tables.options,
             );
             if left_assignable == Assignability::NotAssignable
                 || right_assignable == Assignability::NotAssignable
@@ -621,22 +613,14 @@ impl Compiler {
             (None, None) => true,
             (Some(left_return), Some(right_return)) => {
                 let left_assignable = self.is_type_assignable(
-                    tables.module,
-                    tables.profile,
-                    tables.symbols,
+                    &mut tables.type_tables_reborrow(),
                     left_return,
                     right_return,
-                    tables.types,
-                    tables.options,
                 );
                 let right_assignable = self.is_type_assignable(
-                    tables.module,
-                    tables.profile,
-                    tables.symbols,
+                    &mut tables.type_tables_reborrow(),
                     right_return,
                     left_return,
-                    tables.types,
-                    tables.options,
                 );
                 left_assignable != Assignability::NotAssignable
                     && right_assignable != Assignability::NotAssignable
@@ -815,13 +799,9 @@ impl Compiler {
 
         // emit a constraint violation error when needed
         if self.is_type_assignable(
-            tables.module,
-            ctx.profile,
-            tables.symbols,
+            &mut tables.type_tables_reborrow(),
             constraint_id,
             argument_ty_id,
-            tables.types,
-            tables.options,
         ) == Assignability::NotAssignable
         {
             self.emit_unassignable_type_for_types(
@@ -887,15 +867,14 @@ impl Compiler {
                 );
             }
 
-            if !self.is_type_assignable_or_deferred(
-                tables.module,
-                tables.profile,
-                tables.symbols,
+            let has_unresolved_infer = self.is_infer_var_type(*param_ty_id, tables.types)
+                || self.is_infer_var_type(*argument_ty_id, tables.types);
+            let is_assignable = self.is_type_assignable(
+                &mut tables.type_tables_reborrow(),
                 *param_ty_id,
                 *argument_ty_id,
-                &mut *tables.types,
-                tables.options,
-            ) {
+            ) != Assignability::NotAssignable;
+            if !has_unresolved_infer && !is_assignable {
                 // allow static literal arguments to flow to literal parameter types
                 if let Some(argument) = dynamic_arguments.get(index)
                     && {
@@ -908,13 +887,9 @@ impl Compiler {
                     }
                     .is_some_and(|literal_ty_id| {
                         self.is_type_assignable(
-                            tables.module,
-                            tables.profile,
-                            tables.symbols,
+                            &mut tables.type_tables_reborrow(),
                             *param_ty_id,
                             literal_ty_id,
-                            &mut *tables.types,
-                            tables.options,
                         ) != Assignability::NotAssignable
                     })
                 {
@@ -983,11 +958,9 @@ impl Compiler {
 
         let argument_value_id = argument.value();
         self.ensure_reference_instance_types_for_type(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             argument_value_id.into_any(),
             param_ty_id,
-            &mut *tables.types,
         )?;
 
         if !self.is_signature_lambda_argument_applicable(
@@ -1155,12 +1128,8 @@ impl Compiler {
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // evaluate to a scalar literal when possible
         let value = self.evaluate_static_expression_value(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             argument_value_id,
-            tables.tree,
-            tables.symbols,
-            &mut *tables.types,
             None,
         )?;
         let Some(StaticExpression::ScalarLiteral { value }) = value else {
@@ -1230,14 +1199,11 @@ impl Compiler {
         // infer member type for this receiver
         let mut member_type_visited = Vec::new();
         let member_ty_id = self.infer_member_of_type(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             receiver_expression_id.into_any(),
-            tables.symbols,
             receiver_ty,
             member_key,
             lookup_mode,
-            tables.types,
             &mut member_type_visited,
         )?;
 
@@ -1278,13 +1244,9 @@ impl Compiler {
     ) -> AnalyzeResult<Option<Vec<UnionMemberCallCandidate>>> {
         // query receiver context used by per element lookup filtering
         let receiver_context = self.query_member_receiver_context_for_expression(
-            tables.module,
+            &tables.type_tables_reborrow(),
             receiver_expression_id,
             Some(receiver_union_ty_id),
-            tables.profile,
-            tables.tree,
-            tables.symbols,
-            tables.types,
         );
         let context = UnionMemberCallResolutionContext {
             module: tables.module,
@@ -1564,16 +1526,7 @@ impl Compiler {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_CALL);
 
         // enforce call restrictions from options
-        self.validate_call_expression(
-            tables.module,
-            expression_id,
-            left_id,
-            tables.tree,
-            tables.symbols,
-            tables.options,
-            tables.profile,
-            false,
-        );
+        self.validate_call_expression(tables, expression_id, left_id, false);
 
         // query and normalize the callee state
         let callee = match self.infer_call_expression_callee(
@@ -1595,11 +1548,9 @@ impl Compiler {
         };
         // ensure instance types for callable references
         self.ensure_reference_instance_types_for_type(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             expression_id.into_any(),
             callee.callee_ty_id,
-            &mut *tables.types,
         )?;
 
         // resolve symbols, inherited substitutions, and member-call context
@@ -1806,12 +1757,8 @@ impl Compiler {
             .iter()
             .map(|parameter| {
                 let materialized = self.materialize_static_arguments_in_type(
-                    tables.module,
-                    tables.profile,
+                    &mut tables.type_tables_reborrow(),
                     *parameter,
-                    tables.tree,
-                    tables.symbols,
-                    &mut *tables.types,
                     &mut materialize_cache,
                 );
                 self.substitute_static_parameters(
@@ -1824,12 +1771,8 @@ impl Compiler {
             .collect();
         let return_type = resolved_signature.return_type.map(|return_type| {
             let materialized = self.materialize_static_arguments_in_type(
-                tables.module,
-                tables.profile,
+                &mut tables.type_tables_reborrow(),
                 return_type,
-                tables.tree,
-                tables.symbols,
-                &mut *tables.types,
                 &mut materialize_cache,
             );
             self.substitute_static_parameters(
@@ -2126,13 +2069,9 @@ impl Compiler {
             self.infer_member_call_receiver_type(&mut tables.reborrow(), receiver_id, ctx)?;
         let receiver_ty = tables.types.get_type(receiver_ty_id).clone();
         let receiver_context = self.query_member_receiver_context_for_expression(
-            tables.module,
+            &tables.type_tables_reborrow(),
             receiver_id,
             Some(receiver_ty_id),
-            tables.profile,
-            tables.tree,
-            tables.symbols,
-            &mut *tables.types,
         );
 
         // build member-call context and inherited static substitutions
@@ -2590,15 +2529,14 @@ impl Compiler {
         source_type_id: LocalTypeId,
     ) -> bool {
         // fast path: direct infer vars defer to solve
-        if self.is_type_assignable_or_deferred(
-            tables.module,
-            tables.profile,
-            tables.symbols,
+        let has_unresolved_infer = self.is_infer_var_type(target_type_id, tables.types)
+            || self.is_infer_var_type(source_type_id, tables.types);
+        let is_assignable = self.is_type_assignable(
+            &mut tables.type_tables_reborrow(),
             target_type_id,
             source_type_id,
-            tables.types,
-            tables.options,
-        ) {
+        ) != Assignability::NotAssignable;
+        if has_unresolved_infer || is_assignable {
             return true;
         }
 
@@ -2747,10 +2685,8 @@ impl Compiler {
         tables: &mut InferTablesContext<'_>,
         super_ty_id: LocalTypeId,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        let types = &*tables.types;
-
         // resolve the base symbol from the inferred super type
-        let Some(base_symbol) = self.super_symbol_for_type(super_ty_id, types) else {
+        let Some(base_symbol) = self.super_symbol_for_type(super_ty_id, tables.types) else {
             return Ok(None);
         };
 
@@ -2857,16 +2793,7 @@ impl Compiler {
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // enforce constructor restrictions from options
-        self.validate_call_expression(
-            tables.module,
-            expression_id,
-            left_id,
-            tables.tree,
-            tables.symbols,
-            tables.options,
-            tables.profile,
-            true,
-        );
+        self.validate_call_expression(tables, expression_id, left_id, true);
 
         // query and normalize the constructor target
         let target =
@@ -2983,11 +2910,9 @@ impl Compiler {
 
         // ensure instance types for constructor references
         self.ensure_reference_instance_types_for_type(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             expression_id.into_any(),
             callee_ty_id,
-            tables.types,
         )?;
 
         // resolve the constructor symbol when possible
@@ -3291,13 +3216,10 @@ impl Compiler {
             parameters_for_call.push(parameter.clone());
         }
         let assigned_for_call = self.assign_static_argument_values(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             node_id,
             &argument_values,
             &parameters_for_call,
-            tables.tree,
-            tables.symbols,
         );
 
         for (index, argument) in assigned_for_call.into_iter().enumerate() {
@@ -3542,15 +3464,11 @@ impl Compiler {
                 .iter()
                 .map(|parameter| {
                     self.instantiate_signature_type(
-                        tables.module,
-                        tables.profile,
+                        &mut tables.type_tables_reborrow(),
                         node_id,
                         owner_symbol,
                         &state.substitutions,
                         *parameter,
-                        tables.tree,
-                        tables.symbols,
-                        tables.types,
                         &mut materialize_cache,
                         &mut substitute_cache,
                     )
@@ -3562,15 +3480,11 @@ impl Compiler {
         } else {
             return_type.map(|return_type| {
                 self.instantiate_signature_type(
-                    tables.module,
-                    tables.profile,
+                    &mut tables.type_tables_reborrow(),
                     node_id,
                     owner_symbol,
                     &state.substitutions,
                     return_type,
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
                     &mut materialize_cache,
                     &mut substitute_cache,
                 )
@@ -3584,24 +3498,16 @@ impl Compiler {
                 .iter()
                 .map(|parameter| {
                     self.materialize_static_arguments_in_type(
-                        tables.module,
-                        tables.profile,
+                        &mut tables.type_tables_reborrow(),
                         *parameter,
-                        tables.tree,
-                        tables.symbols,
-                        tables.types,
                         &mut normalize_cache,
                     )
                 })
                 .collect::<Vec<_>>();
             let normalized_return_type = resolved_return_type.map(|return_type| {
                 self.materialize_static_arguments_in_type(
-                    tables.module,
-                    tables.profile,
+                    &mut tables.type_tables_reborrow(),
                     return_type,
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
                     &mut normalize_cache,
                 )
             });
@@ -3634,13 +3540,9 @@ impl Compiler {
 
         // decide how to filter member lookups for this receiver
         let receiver_context = self.query_member_receiver_context_for_expression(
-            tables.module,
+            &tables.type_tables_reborrow(),
             receiver_expression_id,
             receiver_ty_id,
-            tables.profile,
-            tables.tree,
-            tables.symbols,
-            &mut *tables.types,
         );
         let lookup_mode = receiver_context.lookup_mode;
 

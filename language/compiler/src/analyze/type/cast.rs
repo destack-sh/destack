@@ -1,28 +1,27 @@
 use super::*;
+use crate::analyze::common::TypeTablesContext;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     fn enum_backing_type_for_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         ty: &Type,
-        types: &mut TypeTable,
     ) -> Option<EnumBackingType> {
         match ty {
             // read backing types directly from enum references
             Type::Reference { symbol, .. } => {
-                self.query_enum_backing_type_for_symbol(module, profile, *symbol, types)
+                self.enum_backing_type_for_symbol_in_tables(&mut tables.reborrow(), *symbol)
             }
             // unwrap value containers to reach enum references
             Type::Value { value } => {
-                let inner_ty = types.get_type(*value).clone();
-                self.enum_backing_type_for_type(module, profile, &inner_ty, types)
+                let inner_ty = tables.types.get_type(*value).clone();
+                self.enum_backing_type_for_type(&mut tables.reborrow(), &inner_ty)
             }
             // scan intersections for a matching enum reference
             Type::Intersection { elements } => elements.iter().find_map(|element_id| {
-                let element_ty = types.get_type(*element_id).clone();
-                self.enum_backing_type_for_type(module, profile, &element_ty, types)
+                let element_ty = tables.types.get_type(*element_id).clone();
+                self.enum_backing_type_for_type(&mut tables.reborrow(), &element_ty)
             }),
             _ => None,
         }
@@ -54,15 +53,13 @@ impl Compiler {
     /// Return true when an enum cast targets its backing type.
     pub(crate) fn is_enum_backing_cast(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         left_ty: &Type,
         right_ty: &Type,
-        types: &mut TypeTable,
     ) -> bool {
         // read backing types
-        let left_backing = self.enum_backing_type_for_type(module, profile, left_ty, types);
-        let right_backing = self.enum_backing_type_for_type(module, profile, right_ty, types);
+        let left_backing = self.enum_backing_type_for_type(&mut tables.reborrow(), left_ty);
+        let right_backing = self.enum_backing_type_for_type(&mut tables.reborrow(), right_ty);
 
         // compare backing types against the other side
         match (left_backing, right_backing) {

@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::common::TypeTablesContext;
 use destack_dir::TypeIndexSignature;
 
 #[allow(clippy::too_many_arguments)]
@@ -43,11 +44,8 @@ impl Compiler {
 
         // resolve receiver type
         let receiver_ty_id = self.normalize_apparent_type(
-            tables.module,
-            ctx.profile,
+            &mut tables.type_tables_reborrow(),
             receiver_ty_id,
-            tables.symbols,
-            tables.types,
             NormalizationMode::Assign,
             RelationMode::ASSIGN,
         );
@@ -69,11 +67,9 @@ impl Compiler {
 
         // ensure instance types for reference receivers
         self.ensure_reference_instance_types_for_type(
-            tables.module,
-            ctx.profile,
+            &mut tables.type_tables_reborrow(),
             expression_id.into_any(),
             receiver_ty_id,
-            tables.types,
         )?;
 
         // resolve index expression and literal string when possible
@@ -157,14 +153,11 @@ impl Compiler {
         if let Some(static_key) = static_key.as_ref() {
             let mut visited = Vec::new();
             if let Some(member_ty_id) = self.infer_member_of_type(
-                tables.module,
-                ctx.profile,
+                &mut tables.type_tables_reborrow(),
                 expression_id.into_any(),
-                tables.symbols,
                 &receiver_ty,
                 static_key,
                 MemberLookupMode::Any,
-                tables.types,
                 &mut visited,
             )? {
                 return Ok(finish_result(member_ty_id, tables.types));
@@ -312,11 +305,8 @@ impl Compiler {
         // resolve receiver type
         let receiver_ty_id = self.infer_expression(&mut tables.reborrow(), *receiver_id, ctx)?;
         let receiver_ty_id = self.normalize_apparent_type(
-            tables.module,
-            ctx.profile,
+            &mut tables.type_tables_reborrow(),
             receiver_ty_id,
-            tables.symbols,
-            tables.types,
             NormalizationMode::Assign,
             RelationMode::ASSIGN,
         );
@@ -363,13 +353,10 @@ impl Compiler {
 
         // reject writes to readonly index targets
         if self.index_access_is_readonly(
-            tables.module,
-            ctx.profile,
+            &mut tables.type_tables_reborrow(),
             receiver_ty_id,
             index_ty_id,
             literal_string.as_deref(),
-            tables.symbols,
-            tables.types,
         ) {
             let member_key = static_key.unwrap_or_else(|| {
                 let name_id = self.program.strings.intern("<index>");
@@ -763,13 +750,10 @@ impl Compiler {
     /// Check whether an index access target is readonly for assignment.
     fn index_access_is_readonly(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         receiver_ty_id: LocalTypeId,
         index_ty_id: Option<LocalTypeId>,
         literal_string: Option<&str>,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> bool {
         let mut found = false;
         let mut is_readonly = false;
@@ -783,7 +767,7 @@ impl Compiler {
             }
             visited.push(current_id);
 
-            let current_ty = types.get_type(current_id).clone();
+            let current_ty = tables.types.get_type(current_id).clone();
             match current_ty {
                 Type::Value { value } => {
                     pending.push(value);
@@ -821,7 +805,7 @@ impl Compiler {
                     if let Some(index_ty_id) = index_ty_id
                         && let Type::TypeLiteral {
                             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(index)),
-                        } = types.get_type(index_ty_id)
+                        } = tables.types.get_type(index_ty_id)
                         && *index >= 0
                     {
                         let index = *index as usize;
@@ -843,13 +827,14 @@ impl Compiler {
                     let Some(key_kind) = index_key_kind_for_index(
                         index_ty_id,
                         literal_string,
-                        types,
+                        tables.types,
                         &self.program.strings,
                     ) else {
                         continue;
                     };
                     for signature in index_signatures {
-                        let signature_kind = index_key_kind_for_type(signature.key_type, types);
+                        let signature_kind =
+                            index_key_kind_for_type(signature.key_type, tables.types);
                         if index_key_kinds_compatible_for_access(signature_kind, key_kind) {
                             found = true;
                             if signature.is_readonly {
@@ -859,13 +844,13 @@ impl Compiler {
                     }
                 }
                 Type::Reference { symbol, .. } => {
-                    if let Some(instance_id) = types.get_instance_type_id(symbol) {
+                    if let Some(instance_id) = tables.types.get_instance_type_id(symbol) {
                         pending.push(instance_id);
                         continue;
                     }
-                    let source_id = types.get_type_source(current_id);
-                    if let Some(apparent_id) = self
-                        .apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+                    let source_id = tables.types.get_type_source(current_id);
+                    if let Some(apparent_id) =
+                        self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
                     {
                         pending.push(apparent_id);
                     }

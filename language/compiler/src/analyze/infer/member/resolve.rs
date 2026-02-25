@@ -244,12 +244,8 @@ impl Compiler {
                     }
 
                     let declared_type_id = self.resolve_declared_type_expression(
-                        tables.module,
-                        tables.profile,
+                        &mut tables.type_tables_reborrow(),
                         *member_type,
-                        tables.tree,
-                        tables.symbols,
-                        tables.types,
                         true,
                         true,
                     )?;
@@ -303,13 +299,19 @@ impl Compiler {
                                 member_type.into_global_any(primary_declaration.module_id),
                             );
                             if remote_type_id.is_none() {
+                                let remote_options =
+                                    self.analyze_context_options_for_module(remote_module.id);
+                                let mut remote_tables = tables
+                                    .type_tables_reborrow_for_module_with_options_and_types(
+                                        remote_module,
+                                        &remote_options,
+                                        remote_tree,
+                                        remote_symbols,
+                                        &mut remote_snapshot,
+                                    );
                                 let evaluated_type_id = self.resolve_declared_type_expression(
-                                    remote_module,
-                                    tables.profile,
+                                    &mut remote_tables,
                                     *member_type,
-                                    remote_tree,
-                                    remote_symbols,
-                                    &mut remote_snapshot,
                                     true,
                                     true,
                                 )?;
@@ -519,15 +521,11 @@ impl Compiler {
         // owner projections like `Owner.AssociatedComptime`
         if (receiver_context.has_static_arguments || nominal_receiver)
             && let Some(selection) = self.select_associated_projection_member_symbol(
-                tables.module,
-                tables.profile,
+                &mut tables.type_tables_reborrow(),
                 receiver_id,
                 receiver_id,
                 *member_key,
                 Some(StaticMemberSymbolKind::AssociatedComptimeConst),
-                tables.tree,
-                tables.symbols,
-                tables.types,
                 true,
                 true,
             )?
@@ -646,13 +644,10 @@ impl Compiler {
         // infer index signature access for missing concrete members
         let mut index_visited = Vec::new();
         let index_signature_ty_id = self.resolve_index_signature_value_type_for_key(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             expression_id.into_any(),
-            tables.symbols,
             receiver_ty,
             member_key,
-            tables.types,
             &mut index_visited,
         );
         if let Some(index_signature_ty_id) = index_signature_ty_id {

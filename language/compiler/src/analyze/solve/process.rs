@@ -1,3 +1,4 @@
+use crate::analyze::common::InferTablesContext;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
@@ -59,19 +60,29 @@ impl Compiler {
             let tree = module.dir(profile).tree.read();
             let symbols = module.dir(profile).symbols.read();
             let mut types = module.dir(profile).types.write();
-            self.solve_infer_table(&module, profile, &symbols, infer, &mut types, &options);
-
-            self.rewrite_inferred_type_overlays_for_instance_substitutions(
-                &module, profile, &tree, &symbols, infer, &mut types,
-            )?;
-
-            self.discharge_projection_obligations_in_solve(&module, profile, infer, &mut types)?;
-            self.discharge_missing_member_obligations_in_solve(
-                &module, profile, infer, &mut types, &options,
-            )?;
-            self.discharge_relation_obligations_in_solve(
-                &module, profile, &symbols, infer, &mut types, &options,
-            )?;
+            let mut tables = InferTablesContext::new(
+                &module, profile, &options, &tree, &symbols, &mut types, infer,
+            );
+            {
+                let (mut type_tables, infer) = tables.split_type_tables_and_infer();
+                self.solve_infer_table(&mut type_tables, infer);
+            }
+            {
+                let (mut type_tables, infer) = tables.split_type_tables_and_infer();
+                self.rewrite_inferred_type_overlays_for_instance_substitutions(
+                    &mut type_tables,
+                    infer,
+                )?;
+            }
+            {
+                let (mut type_tables, infer) = tables.split_type_tables_and_infer();
+                self.discharge_projection_obligations_in_solve(&mut type_tables, infer)?;
+            }
+            self.discharge_missing_member_obligations_in_solve(&mut tables.reborrow())?;
+            {
+                let (mut type_tables, infer) = tables.split_type_tables_and_infer();
+                self.discharge_relation_obligations_in_solve(&mut type_tables, infer)?;
+            }
 
             Ok::<(), AnalyzeError>(())
         })

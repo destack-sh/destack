@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::common::TypeTablesContext;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -86,17 +87,15 @@ impl Compiler {
     /// Resolve a record-like index signature for the target symbol.
     pub(super) fn record_like_index_signature_for_target(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         target_symbol: GlobalSymbolId,
         static_arguments: Option<&[StaticArgument]>,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         target_id: LocalTypeId,
     ) -> Option<TypeIndexSignature> {
         // resolve record and map symbols
-        let record_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Record)?;
-        let map_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Map)?;
+        let record_symbol =
+            self.get_well_known_type_symbol(tables.profile, WellKnownSymbol::Record)?;
+        let map_symbol = self.get_well_known_type_symbol(tables.profile, WellKnownSymbol::Map)?;
         let is_record_like = target_symbol == record_symbol || target_symbol == map_symbol;
         if !is_record_like {
             return None;
@@ -104,21 +103,19 @@ impl Compiler {
 
         // resolve key and value arguments when available
         let static_arguments = static_arguments.unwrap_or(&[]);
-        let unknown_literal_type_id = types.intern_literal_type(target_id, TypeLiteral::Unknown);
+        let unknown_literal_type_id = tables
+            .types
+            .intern_literal_type(target_id, TypeLiteral::Unknown);
         let key_type_id = static_arguments
             .first()
             .and_then(|argument| {
-                self.record_like_type_id_for_static_argument(
-                    module, profile, argument, symbols, types, target_id,
-                )
+                self.record_like_type_id_for_static_argument(argument, tables.types, target_id)
             })
             .unwrap_or(unknown_literal_type_id);
         let value_type_id = static_arguments
             .get(1)
             .and_then(|argument| {
-                self.record_like_type_id_for_static_argument(
-                    module, profile, argument, symbols, types, target_id,
-                )
+                self.record_like_type_id_for_static_argument(argument, tables.types, target_id)
             })
             .unwrap_or(unknown_literal_type_id);
 
@@ -135,10 +132,7 @@ impl Compiler {
     /// Resolve a static type argument to a type id.
     pub(super) fn record_like_type_id_for_static_argument(
         &self,
-        _module: &Module,
-        _profile: ProfileId,
         argument: &StaticArgument,
-        _symbols: &SymbolTable,
         types: &mut TypeTable,
         target_id: LocalTypeId,
     ) -> Option<LocalTypeId> {
@@ -282,18 +276,12 @@ impl Compiler {
             match source_field {
                 Some(source_field) => {
                     let target_field_ty_id = self.prepare_assignability_type(
-                        ctx.module,
-                        ctx.profile,
+                        &mut ctx.type_tables_reborrow(),
                         target_field.ty,
-                        ctx.symbols,
-                        ctx.types,
                     );
                     let source_field_ty_id = self.prepare_assignability_type(
-                        ctx.module,
-                        ctx.profile,
+                        &mut ctx.type_tables_reborrow(),
                         source_field.ty,
-                        ctx.symbols,
-                        ctx.types,
                     );
                     let target_field_ty = ctx.types.get_type(target_field_ty_id);
                     let source_field_ty = ctx.types.get_type(source_field_ty_id);
@@ -315,26 +303,18 @@ impl Compiler {
 
                     let mut is_assignable = self
                         .is_type_assignable(
-                            ctx.module,
-                            ctx.profile,
-                            ctx.symbols,
+                            &mut ctx.type_tables_reborrow(),
                             target_field_ty_id,
                             source_field_ty_id,
-                            ctx.types,
-                            ctx.options,
                         )
                         .is_assignable();
 
                     if !ctx.options.exact_optional_property_types && target_field.is_optional {
                         is_assignable |= self
                             .is_type_assignable(
-                                ctx.module,
-                                ctx.profile,
-                                ctx.symbols,
+                                &mut ctx.type_tables_reborrow(),
                                 undefined_ty_id,
                                 source_field_ty_id,
-                                ctx.types,
-                                ctx.options,
                             )
                             .is_assignable();
                     }
@@ -342,13 +322,9 @@ impl Compiler {
                     if !ctx.options.exact_optional_property_types && source_field.is_optional {
                         let undefined_assignable = self
                             .is_type_assignable(
-                                ctx.module,
-                                ctx.profile,
-                                ctx.symbols,
+                                &mut ctx.type_tables_reborrow(),
                                 target_field_ty_id,
                                 undefined_ty_id,
-                                ctx.types,
-                                ctx.options,
                             )
                             .is_assignable();
                         is_assignable &= undefined_assignable;

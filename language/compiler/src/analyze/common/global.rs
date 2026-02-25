@@ -1,32 +1,24 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    Expression, GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId, Mutability, NodeTree,
-    SymbolSpace, SymbolTable, Type, TypeField, TypeTable,
+    Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, Mutability, SymbolSpace, Type, TypeField,
 };
-use destack_workspace::Module;
 
 use super::{AnalyzeDependencyStage, InferTablesContext, ObjectShape};
 use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext};
 
-// allow wide signature for globalThis synthesis
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Build the globalThis value type from global symbol bindings.
     pub(crate) fn infer_global_this_value_type(
         &self,
-        module: &Module,
+        tables: &mut InferTablesContext<'_>,
         expression_id: LocalNodeId<Expression>,
         global_this_symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
         ctx: &InferContext,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // reuse object types that already exist
-        if let Some(existing) = types.get_value_type_id(global_this_symbol)
-            && matches!(types.get_type(existing), Type::Object { .. })
+        if let Some(existing) = tables.types.get_value_type_id(global_this_symbol)
+            && matches!(tables.types.get_type(existing), Type::Object { .. })
         {
             return Ok(Some(existing));
         }
@@ -39,7 +31,9 @@ impl Compiler {
             .iter()
             .find_map(|entry| {
                 let (key, table) = entry.pair();
-                if key.profile_id == ctx.profile && table.module_versions.contains_key(&module.id) {
+                if key.profile_id == ctx.profile
+                    && table.module_versions.contains_key(&tables.module.id)
+                {
                     return Some(table.clone());
                 }
                 None
@@ -47,9 +41,6 @@ impl Compiler {
         let Some(global_table) = global_table else {
             return Ok(None);
         };
-        let options = ctx.options;
-        let mut tables =
-            InferTablesContext::new(module, ctx.profile, &options, tree, symbols, types, infer);
 
         // collect global value bindings into a single shape
         let mut shape = ObjectShape::default();
@@ -96,7 +87,7 @@ impl Compiler {
                         tables.module,
                         ctx.profile,
                         symbol_id.module_id,
-                        symbols,
+                        tables.symbols,
                         AnalyzeDependencyStage::Declare,
                         |_, owner_symbols| {
                             owner_symbols

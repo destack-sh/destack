@@ -7,6 +7,7 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 
 use super::RelationMode;
+use crate::analyze::common::TypeTablesContext;
 use crate::{Assignability, Compiler};
 
 #[allow(clippy::too_many_arguments)]
@@ -135,14 +136,11 @@ impl Compiler {
     /// Normalize decidable type operators into boolean literal types.
     pub(crate) fn normalize_decidable_type_operator(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         source_id: LocalNodeIdAny,
         operator: TypeBinaryOperator,
         left: LocalTypeId,
         right: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         mode: NormalizationMode,
         _relation_mode: RelationMode,
     ) -> Option<LocalTypeId> {
@@ -165,35 +163,41 @@ impl Compiler {
             Type::Value { value } => *value,
             _ => ty_id,
         };
-        let left = unwrap_value(left, types);
-        let right = unwrap_value(right, types);
+        let left = unwrap_value(left, tables.types);
+        let right = unwrap_value(right, tables.types);
 
         // treat evaluation dependent checks as undecidable
-        let left_needs_evaluation =
-            self.type_requires_evaluative_normalization(module, profile, left, symbols, types);
-        let right_needs_evaluation =
-            self.type_requires_evaluative_normalization(module, profile, right, symbols, types);
+        let left_needs_evaluation = self.type_requires_evaluative_normalization(
+            tables.module,
+            tables.profile,
+            left,
+            tables.symbols,
+            tables.types,
+        );
+        let right_needs_evaluation = self.type_requires_evaluative_normalization(
+            tables.module,
+            tables.profile,
+            right,
+            tables.symbols,
+            tables.types,
+        );
         let is_decidable = !(left_needs_evaluation || right_needs_evaluation);
-        let options = self.analyze_context_options_for_module(module.id);
 
         // compute assignability for operator semantics
         let assignability = if operator == TypeBinaryOperator::In {
             let mut key_visited = Vec::new();
             let key_type_id = self.normalize_keyof_type(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 source_id,
                 None,
                 right,
-                symbols,
-                types,
                 mode,
                 relation_mode,
                 &mut key_visited,
             );
-            self.is_type_assignable(module, profile, symbols, key_type_id, left, types, &options)
+            self.is_type_assignable(&mut tables.reborrow(), key_type_id, left)
         } else {
-            self.is_type_assignable(module, profile, symbols, right, left, types, &options)
+            self.is_type_assignable(&mut tables.reborrow(), right, left)
         };
 
         let ty = if !is_decidable {
@@ -206,6 +210,6 @@ impl Compiler {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(value)),
             }
         };
-        Some(types.insert_type_from_any(ty, source_id))
+        Some(tables.types.insert_type_from_any(ty, source_id))
     }
 }

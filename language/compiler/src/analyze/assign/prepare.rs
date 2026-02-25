@@ -1,6 +1,5 @@
 use super::*;
 use crate::analyze::common::TypeTablesContext;
-use destack_dir::NodeTree;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -50,68 +49,55 @@ impl Compiler {
     /// Normalize a type id for assignability checks.
     pub(super) fn prepare_assignability_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> LocalTypeId {
         // unwrap cached alias instances first
-        let type_id = self.unwrap_assignability_alias_type(type_id, types);
+        let type_id = self.unwrap_assignability_alias_type(type_id, tables.types);
 
         // expand alias references that carry static arguments
-        let type_id =
-            self.expand_assignability_alias_reference(module, profile, type_id, symbols, types);
+        let type_id = self.expand_assignability_alias_reference(&mut tables.reborrow(), type_id);
 
         // substitute static parameter references with constraints
-        let type_id =
-            self.resolve_assignability_static_constraint(module, profile, type_id, symbols, types);
+        let type_id = self.resolve_assignability_static_constraint(&mut tables.reborrow(), type_id);
 
         // preserve newtype references as nominal assignability boundaries
-        if let Some(symbol) = self.unwrap_type_value_symbol(types, type_id)
+        if let Some(symbol) = self.unwrap_type_value_symbol(tables.types, type_id)
             && symbol.ty() == SymbolType::Newtype
         {
             return type_id;
         }
 
         // normalize the prepared type once so downstream checks see a stable shape
-        self.normalize_type(
-            module,
-            profile,
-            type_id,
-            symbols,
-            types,
-            NormalizationMode::Assign,
-        )
+        self.normalize_type(&mut tables.reborrow(), type_id, NormalizationMode::Assign)
     }
 
     /// Resolve static parameter references to their constraints for assignability.
     pub(super) fn resolve_assignability_static_constraint(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> LocalTypeId {
-        let Type::Reference { symbol, .. } = types.get_type(type_id) else {
+        let Type::Reference { symbol, .. } = tables.types.get_type(type_id) else {
             return type_id;
         };
         let symbol = *symbol;
 
         // only substitute actual static parameters
-        if !self.symbol_is_static_parameter(module, profile, symbol, symbols, types) {
+        if !self.symbol_is_static_parameter(
+            tables.module,
+            tables.profile,
+            symbol,
+            tables.symbols,
+            tables.types,
+        ) {
             return type_id;
         }
 
         // resolve the declared constraint type
-        let tree = module.dir(profile).tree.read();
-        let options = self.analyze_context_options_for_module(module.id);
-        let mut type_tables =
-            TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
-        let source_id = type_tables.types.get_type_source(type_id);
+        let source_id = tables.types.get_type_source(type_id);
         let constraint_id =
-            self.static_parameter_constraint_type(&mut type_tables, symbol, source_id);
+            self.static_parameter_constraint_type(&mut tables.reborrow(), symbol, source_id);
         let Some(constraint_id) = constraint_id else {
             return type_id;
         };
@@ -171,16 +157,12 @@ impl Compiler {
     /// Check assignability of static arguments on the same reference symbol.
     pub(super) fn are_reference_static_arguments_assignable(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         target_id: LocalTypeId,
         source_id: LocalTypeId,
         symbol: GlobalSymbolId,
         target_arguments: Option<&Vec<StaticArgument>>,
         source_arguments: Option<&Vec<StaticArgument>>,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> bool {
         let target_has_arguments = target_arguments.is_some_and(|args| !args.is_empty());
         let source_has_arguments = source_arguments.is_some_and(|args| !args.is_empty());
@@ -188,27 +170,22 @@ impl Compiler {
             return true;
         }
 
+        let target_source_id = tables.types.get_type_source(target_id);
+        let source_source_id = tables.types.get_type_source(source_id);
+
         let target_arguments = self.resolve_reference_static_arguments(
-            module,
-            profile,
-            types.get_type_source(target_id),
+            &mut tables.reborrow(),
+            target_source_id,
             symbol,
             target_arguments,
             source_has_arguments && !target_has_arguments,
-            symbols,
-            types,
-            options,
         );
         let source_arguments = self.resolve_reference_static_arguments(
-            module,
-            profile,
-            types.get_type_source(source_id),
+            &mut tables.reborrow(),
+            source_source_id,
             symbol,
             source_arguments,
             target_has_arguments && !source_has_arguments,
-            symbols,
-            types,
-            options,
         );
 
         if target_arguments.is_empty() && source_arguments.is_empty() {
@@ -218,24 +195,15 @@ impl Compiler {
             return false;
         }
 
-        let local_tree = module.dir(profile).tree.try_read();
-        let parameter_symbols = if let Some(tree) = local_tree.as_ref() {
-            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols, types)
-        } else {
-            self.with_module_types_or_local_at_stage(
-                module,
-                profile,
-                symbol.module_id,
-                types,
-                AnalyzeDependencyStage::Declare,
-                |_, owner_types| owner_types.query_published_static_parameter_symbols(symbol),
-            )
-            .ok()
-            .flatten()
-        };
+        let parameter_symbols = self.collect_static_parameter_symbols(
+            tables.module,
+            symbol,
+            tables.profile,
+            tables.tree,
+            tables.symbols,
+            tables.types,
+        );
 
-        let target_source_id = types.get_type_source(target_id);
-        let source_source_id = types.get_type_source(source_id);
         for (index, (target_argument, source_argument)) in target_arguments
             .iter()
             .zip(source_arguments.iter())
@@ -246,77 +214,54 @@ impl Compiler {
                 .and_then(|symbols| symbols.get(index))
                 .copied();
             let (parameter_kind, parameter_variance) = if let Some(symbol) = parameter_symbol {
-                self.static_parameter_metadata_for_symbol(
-                    module,
-                    profile,
-                    symbol,
-                    local_tree.as_deref(),
-                    symbols,
-                    types,
-                )
+                self.static_parameter_metadata_for_symbol(&mut tables.reborrow(), symbol)
             } else {
                 (None, None)
             };
 
             let target_ty_id =
-                self.convert_static_argument_type(target_argument, target_source_id, types);
+                self.convert_static_argument_type(target_argument, target_source_id, tables.types);
             let source_ty_id =
-                self.convert_static_argument_type(source_argument, source_source_id, types);
-            if self.type_blocks_cascading_diagnostic(target_ty_id, types)
-                || self.type_blocks_cascading_diagnostic(source_ty_id, types)
+                self.convert_static_argument_type(source_argument, source_source_id, tables.types);
+            if self.type_blocks_cascading_diagnostic(target_ty_id, tables.types)
+                || self.type_blocks_cascading_diagnostic(source_ty_id, tables.types)
             {
                 continue;
             }
 
             let mut static_visited = HashSet::new();
             let target_has_static = self.type_contains_static_parameters(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 target_ty_id,
-                symbols,
-                types,
+                tables.symbols,
+                tables.types,
                 &mut static_visited,
             );
             let mut static_visited = HashSet::new();
             let source_has_static = self.type_contains_static_parameters(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 source_ty_id,
-                symbols,
-                types,
+                tables.symbols,
+                tables.types,
                 &mut static_visited,
             );
             let mut infer_visited = HashSet::new();
             let target_has_infer =
-                self.type_contains_infer_vars(target_ty_id, types, &mut infer_visited);
+                self.type_contains_infer_vars(target_ty_id, tables.types, &mut infer_visited);
             let mut infer_visited = HashSet::new();
             let source_has_infer =
-                self.type_contains_infer_vars(source_ty_id, types, &mut infer_visited);
+                self.type_contains_infer_vars(source_ty_id, tables.types, &mut infer_visited);
             if target_has_static || source_has_static || target_has_infer || source_has_infer {
                 continue;
             }
 
             let target_assignable = self
-                .is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
-                    target_ty_id,
-                    source_ty_id,
-                    types,
-                    options,
-                )
+                .is_type_assignable(&mut tables.reborrow(), target_ty_id, source_ty_id)
                 .is_assignable();
             let source_assignable = self
-                .is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
-                    source_ty_id,
-                    target_ty_id,
-                    types,
-                    options,
-                )
+                .is_type_assignable(&mut tables.reborrow(), source_ty_id, target_ty_id)
                 .is_assignable();
 
             let use_variance = matches!(parameter_kind, Some(StaticParameterKind::Type));
@@ -350,15 +295,11 @@ impl Compiler {
     /// Resolve static arguments for assignability comparisons.
     pub(super) fn resolve_reference_static_arguments(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         static_arguments: Option<&Vec<StaticArgument>>,
         resolve_defaults: bool,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
     ) -> Vec<StaticArgument> {
         let has_arguments = static_arguments.is_some_and(|args| !args.is_empty());
         if !has_arguments && !resolve_defaults {
@@ -383,12 +324,9 @@ impl Compiler {
             return static_arguments.cloned().unwrap_or_default();
         }
 
-        let tree = module.dir(profile).tree.read();
-        let mut type_tables =
-            TypeTablesContext::new(module, profile, options, &tree, symbols, types);
         let resolved = self
             .resolve_type_reference_static_arguments(
-                &mut type_tables,
+                &mut tables.reborrow(),
                 node_id,
                 symbol,
                 static_arguments.map(|args| args.as_slice()),
@@ -405,14 +343,11 @@ impl Compiler {
     /// Expand type alias references for assignability checks.
     pub(super) fn expand_assignability_alias_reference(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> LocalTypeId {
         // extract the alias reference and static arguments
-        let (symbol, static_arguments) = match types.get_type(type_id) {
+        let (symbol, static_arguments) = match tables.types.get_type(type_id) {
             Type::Reference {
                 symbol,
                 static_arguments,
@@ -426,42 +361,36 @@ impl Compiler {
         }
 
         // resolve the alias target directly for assignability
-        let source_id = types.get_type_source(type_id);
-        let Some(alias_target_id) = self
-            .alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
+        let source_id = tables.types.get_type_source(type_id);
+        let Some(alias_target_id) =
+            self.alias_target_type_id_for_symbol(&mut tables.reborrow(), symbol, source_id)
         else {
             return type_id;
         };
 
         // ensure the alias target is evaluated before substitution
-        if matches!(types.get_type(alias_target_id), Type::Unevaluated(_)) {
+        if matches!(tables.types.get_type(alias_target_id), Type::Unevaluated(_)) {
             // resolve local alias targets directly from this module state
-            if symbol.module_id == module.id && types.module_id == module.id {
-                let tree = module.dir(profile).tree.read();
-                self.resolve_declared_type_or_report(
-                    module,
-                    profile,
-                    alias_target_id,
-                    &tree,
-                    symbols,
-                    types,
-                );
+            if symbol.module_id == tables.module.id && tables.types.module_id == tables.module.id {
+                let mut local_tables =
+                    tables.reborrow_for_module(tables.module, tables.tree, tables.symbols);
+                self.resolve_declared_type_or_report(&mut local_tables, alias_target_id);
             }
             // resolve remote alias targets through stage-gated reads
             else if let Err(error) = self.with_module_tree_symbols_at_stage(
-                module,
-                profile,
+                tables.module,
+                tables.profile,
                 symbol.module_id,
                 AnalyzeDependencyStage::Declare,
                 |owner_module, owner_tree, owner_symbols| {
-                    self.resolve_declared_type_or_report(
+                    let options = self.analyze_context_options_for_module(owner_module.id);
+                    let mut owner_tables = tables.reborrow_for_module_with_options(
                         owner_module,
-                        profile,
-                        alias_target_id,
+                        &options,
                         owner_tree,
                         owner_symbols,
-                        types,
                     );
+                    self.resolve_declared_type_or_report(&mut owner_tables, alias_target_id);
                 },
             ) {
                 self.error(AnalyzeError::from(error));
@@ -471,33 +400,25 @@ impl Compiler {
         // normalize directly for aliases without explicit static arguments
         let Some(arguments) = static_arguments.as_ref() else {
             return self.normalize_type(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 alias_target_id,
-                symbols,
-                types,
                 NormalizationMode::Assign,
             );
         };
         if arguments.is_empty() {
             return self.normalize_type(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 alias_target_id,
-                symbols,
-                types,
                 NormalizationMode::Assign,
             );
         }
 
         // resolve static arguments for substitution
-        let tree = module.dir(profile).tree.read();
-        let options = self.analyze_context_options_for_module(module.id);
-        let mut type_tables =
-            TypeTablesContext::new(module, profile, &options, &tree, symbols, types);
+        let mut local_tables =
+            tables.reborrow_for_module(tables.module, tables.tree, tables.symbols);
         let resolved_arguments = self
             .resolve_type_reference_static_arguments(
-                &mut type_tables,
+                &mut local_tables.reborrow(),
                 source_id,
                 symbol,
                 Some(arguments.as_slice()),
@@ -512,32 +433,30 @@ impl Compiler {
 
         // substitute parameters into the alias target
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            &mut type_tables.reborrow(),
+            &mut local_tables.reborrow(),
             symbol,
             source_id,
             arguments,
         );
         if substitutions.is_empty() {
             return self.normalize_type(
-                module,
-                profile,
+                &mut tables.reborrow(),
                 alias_target_id,
-                symbols,
-                types,
                 NormalizationMode::Assign,
             );
         }
 
         // apply substitutions and normalize the result
         let mut cache = HashMap::new();
-        let substituted =
-            self.substitute_static_parameters(alias_target_id, &substitutions, types, &mut cache);
+        let substituted = self.substitute_static_parameters(
+            alias_target_id,
+            &substitutions,
+            tables.types,
+            &mut cache,
+        );
         self.normalize_type(
-            module,
-            profile,
+            &mut tables.reborrow(),
             substituted,
-            symbols,
-            types,
             NormalizationMode::Assign,
         )
     }
@@ -545,16 +464,10 @@ impl Compiler {
     /// Resolve one declared type id and emit diagnostics on failure.
     fn resolve_declared_type_or_report(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) {
-        if let Err(error) =
-            self.resolve_declared_type(module, profile, type_id, tree, symbols, types)
-        {
+        if let Err(error) = self.resolve_declared_type(&mut tables.reborrow(), type_id) {
             self.error(error);
         }
     }
@@ -562,30 +475,33 @@ impl Compiler {
     /// Narrow the conditional then branch for assignability checks.
     pub(super) fn narrow_conditional_then_for_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         left_id: LocalTypeId,
         right_id: LocalTypeId,
         then_type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> LocalTypeId {
         // prefer the condition right side when the branch mirrors the left
-        if types.get_type(left_id) == types.get_type(then_type_id) {
+        if tables.types.get_type(left_id) == tables.types.get_type(then_type_id) {
             return right_id;
         }
 
         // narrow static parameters with intersection constraints
-        let symbol = match types.get_type(left_id) {
+        let symbol = match tables.types.get_type(left_id) {
             Type::Reference { symbol, .. } => *symbol,
             _ => return then_type_id,
         };
-        if !self.symbol_is_static_parameter(module, profile, symbol, symbols, types) {
+        if !self.symbol_is_static_parameter(
+            tables.module,
+            tables.profile,
+            symbol,
+            tables.symbols,
+            tables.types,
+        ) {
             return then_type_id;
         }
 
-        let source_id = types.get_type_source(left_id);
-        let narrowed_left = types.insert_type_from_any(
+        let source_id = tables.types.get_type_source(left_id);
+        let narrowed_left = tables.types.insert_type_from_any(
             Type::Intersection {
                 elements: vec![left_id, right_id],
             },
@@ -594,6 +510,6 @@ impl Compiler {
         let mut substitutions = HashMap::new();
         substitutions.insert(symbol, narrowed_left);
         let mut cache = HashMap::new();
-        self.substitute_static_parameters(then_type_id, &substitutions, types, &mut cache)
+        self.substitute_static_parameters(then_type_id, &substitutions, tables.types, &mut cache)
     }
 }

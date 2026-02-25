@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::analyze::common::{InferTablesContext, NormalizationMode};
+use crate::analyze::common::{InferTablesContext, NormalizationMode, TypeTablesContext};
 use crate::analyze::r#type::json_value_to_type;
 use crate::timing::tags;
 use crate::{
@@ -74,28 +74,27 @@ impl Compiler {
                 return Ok(());
             }
 
+            let options = self.analyze_context_options_for_module(module.id);
+            let mut tables =
+                TypeTablesContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+
             // infer enum backing types when declaration validation is enabled
             for root_id in dir.roots.iter() {
-                let Expression::Declaration { declaration } = tree.get(*root_id) else {
+                let Expression::Declaration { declaration } = tables.tree.get(*root_id) else {
                     continue;
                 };
                 let Declaration::Enum {
                     descriptor, fields, ..
-                } = tree.get(*declaration)
+                } = tables.tree.get(*declaration)
                 else {
                     continue;
                 };
-                let enum_symbol = descriptor.symbol.into_global(module.id);
-                let backing_type = self.infer_enum_field_values(
-                    &module,
-                    profile,
-                    enum_symbol,
-                    fields,
-                    &tree,
-                    &symbols,
-                    &mut types,
-                )?;
-                types.set_enum_backing_type(enum_symbol, backing_type);
+                let enum_symbol = descriptor.symbol.into_global(tables.module.id);
+                let backing_type =
+                    self.infer_enum_field_values(&mut tables.reborrow(), enum_symbol, fields)?;
+                tables
+                    .types
+                    .set_enum_backing_type(enum_symbol, backing_type);
             }
 
             return Ok(());
@@ -128,6 +127,16 @@ impl Compiler {
 
         // initialize infer session state
         let mut session = InferSession::new(profile, options);
+        let (infer_table, context) = session.parts_mut();
+        let mut tables = InferTablesContext::new(
+            &module,
+            profile,
+            &options,
+            &tree,
+            &symbols,
+            &mut types,
+            infer_table,
+        );
 
         // build a module level flow graph and flow table when needed
         let flow_roots = {
@@ -135,22 +144,23 @@ impl Compiler {
             runtime_roots
                 .iter()
                 .copied()
-                .filter(|root_id| self.expression_requires_flow(&tree, *root_id))
+                .filter(|root_id| self.expression_requires_flow(tables.tree, *root_id))
                 .collect::<Vec<_>>()
         };
         if !flow_roots.is_empty() {
             let graph = {
                 let _timing = self.timing_scope(tags::ANALYZE_FLOW_GRAPH_BUILD);
-                FlowGraphBuilder::new(module.id, &tree).build_roots(&flow_roots)
+                FlowGraphBuilder::new(module.id, tables.tree).build_roots(&flow_roots)
             };
             let flow = {
                 let _timing = self.timing_scope(tags::ANALYZE_FLOW_TABLE_COMPUTE);
-                let (_, context) = session.parts_mut();
                 self.compute_flow_table_for_graph(
-                    &module, &graph, &tree, &symbols, &mut types, context,
+                    &mut tables.type_tables_reborrow(),
+                    &graph,
+                    context,
                 )?
             };
-            session.context_mut().flow = Some(FlowContext {
+            context.flow = Some(FlowContext {
                 module_id: module.id,
                 graph: Arc::new(graph),
                 table: Arc::new(flow),
@@ -160,20 +170,15 @@ impl Compiler {
         // report expression form diagnostics once before type inference
         {
             let _timing = self.timing_scope(tags::ANALYZE_EXPRESSION_INFER);
-            for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
-                if !self.is_node_active(&tree, &symbols, expression_id.into_any()) {
+            for (expression_id, expression) in tables.tree.iter_nodes_of_type::<Expression>() {
+                if !self.is_node_active(tables.tree, tables.symbols, expression_id.into_any()) {
                     continue;
                 }
 
                 self.report_pre_infer_expression_form_diagnostics(
-                    &module,
-                    profile,
-                    &tree,
-                    &symbols,
-                    &types,
+                    &mut tables.type_tables_reborrow(),
                     expression_id,
                     expression,
-                    options,
                 );
             }
         }
@@ -181,17 +186,6 @@ impl Compiler {
         // infer each root expression
         {
             let _timing = self.timing_scope(tags::ANALYZE_EXPRESSION_INFER);
-            let (infer_table, context) = session.parts_mut();
-            let mut tables = InferTablesContext::new(
-                &module,
-                profile,
-                &options,
-                &tree,
-                &symbols,
-                &mut types,
-                infer_table,
-            );
-
             // resolve declarator annotation types before runtime root inference
             self.prepare_declarator_annotation_types_for_infer(&mut tables.reborrow())?;
 
@@ -252,12 +246,8 @@ impl Compiler {
                 annotation_ty_id
             } else {
                 let annotation_ty_id = self.resolve_declared_type_expression(
-                    tables.module,
-                    tables.profile,
+                    &mut tables.type_tables_reborrow(),
                     annotation_id,
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
                     true,
                     true,
                 )?;
@@ -267,14 +257,7 @@ impl Compiler {
                 annotation_ty_id
             };
 
-            self.resolve_declared_type(
-                tables.module,
-                tables.profile,
-                annotation_ty_id,
-                tables.tree,
-                tables.symbols,
-                tables.types,
-            )?;
+            self.resolve_declared_type(&mut tables.type_tables_reborrow(), annotation_ty_id)?;
 
             if declarator.value.is_some() {
                 continue;
@@ -292,11 +275,8 @@ impl Compiler {
             }
 
             let _ = self.normalize_type(
-                tables.module,
-                tables.profile,
+                &mut tables.type_tables_reborrow(),
                 annotation_ty_id,
-                tables.symbols,
-                tables.types,
                 NormalizationMode::Assign,
             );
         }

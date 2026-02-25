@@ -1,4 +1,5 @@
 use super::*;
+use crate::analyze::common::TypeTablesContext;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -205,25 +206,24 @@ impl Compiler {
     /// Normalize a conditional type for assignability when it resolves in flow mode.
     pub(super) fn normalize_conditional_for_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        tables: &mut TypeTablesContext<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         // only conditional types participate in flow normalization
-        if !matches!(types.get_type(type_id), Type::Conditional { .. }) {
+        if !matches!(tables.types.get_type(type_id), Type::Conditional { .. }) {
             return None;
         }
         // normalize in flow mode to resolve conditionals
-        let normalized = self.normalize_type(
-            module,
-            profile,
-            type_id,
-            symbols,
-            types,
-            NormalizationMode::Flow,
-        );
+        let normalized = {
+            let mut normalize_visited = Vec::new();
+            self.normalize_type_inner(
+                &mut tables.reborrow(),
+                type_id,
+                NormalizationMode::Flow,
+                RelationMode::ASSIGN,
+                &mut normalize_visited,
+            )
+        };
         if normalized == type_id {
             return None;
         }

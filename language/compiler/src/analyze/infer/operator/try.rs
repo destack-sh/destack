@@ -392,14 +392,7 @@ impl Compiler {
     ) -> AnalyzeResult<Option<(LocalTypeId, LocalTypeId)>> {
         // evaluate unevaluated return types before inspecting
         if matches!(tables.types.get_type(return_ty_id), Type::Unevaluated(_)) {
-            self.resolve_declared_type(
-                tables.module,
-                tables.profile,
-                return_ty_id,
-                tables.tree,
-                tables.symbols,
-                tables.types,
-            )?;
+            self.resolve_declared_type(&mut tables.type_tables_reborrow(), return_ty_id)?;
         }
 
         // skip when the branch type already errored
@@ -409,20 +402,15 @@ impl Compiler {
 
         // ensure alias instance types are available for normalization
         self.ensure_reference_instance_types_for_type(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             expression_id.into_any(),
             return_ty_id,
-            tables.types,
         )?;
 
         // normalize alias references for structural inspection
         let normalized_id = self.normalize_type(
-            tables.module,
-            tables.profile,
+            &mut tables.type_tables_reborrow(),
             return_ty_id,
-            tables.symbols,
-            tables.types,
             NormalizationMode::Assign,
         );
         let normalized = tables.types.get_type(normalized_id).clone();
@@ -481,12 +469,9 @@ impl Compiler {
                 }
 
                 let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
-                    tables.module,
-                    tables.profile,
+                    &mut tables.type_tables_reborrow(),
                     canonical_symbol,
                     expression_id.into_any(),
-                    tables.symbols,
-                    tables.types,
                 ) else {
                     return Ok(None);
                 };
@@ -527,14 +512,7 @@ impl Compiler {
                 };
 
                 if matches!(tables.types.get_type(alias_ty_id), Type::Unevaluated(_)) {
-                    self.resolve_declared_type(
-                        tables.module,
-                        tables.profile,
-                        alias_ty_id,
-                        tables.tree,
-                        tables.symbols,
-                        tables.types,
-                    )?;
+                    self.resolve_declared_type(&mut tables.type_tables_reborrow(), alias_ty_id)?;
                 }
 
                 let alias_type = tables.types.get_type(alias_ty_id).clone();
@@ -798,14 +776,7 @@ impl Compiler {
 
         // evaluate unevaluated return types before checking assignability
         if matches!(tables.types.get_type(return_ty_id), Type::Unevaluated(_)) {
-            self.resolve_declared_type(
-                tables.module,
-                tables.profile,
-                return_ty_id,
-                tables.tree,
-                tables.symbols,
-                tables.types,
-            )?;
+            self.resolve_declared_type(&mut tables.type_tables_reborrow(), return_ty_id)?;
         }
 
         // skip additional diagnostics when the branch already errors
@@ -861,13 +832,9 @@ impl Compiler {
         if self.should_check_try_value_error_assignability(value_ty_id, tables.types)
             && !branch_value_is_parameter
             && self.is_type_assignable(
-                tables.module,
-                tables.profile,
-                tables.symbols,
+                &mut tables.type_tables_reborrow(),
                 value_ty_id,
                 branch_value_ty_id,
-                tables.types,
-                tables.options,
             ) == Assignability::NotAssignable
         {
             return Ok(false);
@@ -876,13 +843,9 @@ impl Compiler {
         if self.should_check_try_value_error_assignability(error_ty_id, tables.types)
             && !branch_error_is_parameter
             && self.is_type_assignable(
-                tables.module,
-                tables.profile,
-                tables.symbols,
+                &mut tables.type_tables_reborrow(),
                 error_ty_id,
                 branch_error_ty_id,
-                tables.types,
-                tables.options,
             ) == Assignability::NotAssignable
         {
             return Ok(false);
@@ -1146,13 +1109,9 @@ impl Compiler {
 
         // warn when error type is not assignable to Error
         if self.is_type_assignable(
-            tables.module,
-            tables.profile,
-            tables.symbols,
+            &mut tables.type_tables_reborrow(),
             error_reference_id,
             error_ty_id,
-            tables.types,
-            tables.options,
         ) == Assignability::NotAssignable
         {
             self.warning(AnalyzeWarning::TryErrorNotError {

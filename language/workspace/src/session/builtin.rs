@@ -17,7 +17,7 @@ use destack_source::{
 use indexmap::IndexMap;
 
 use crate::{
-    Loader, Module, ModuleFormat, ModuleRegistry, ModuleSource, Package, PackageKind,
+    Loader, Module, ModuleFormat, ModuleRegistry, ModuleSource, OutputFormat, Package, PackageKind,
     PackageRegistry, Platform, ProfileId, ProfileKey, Runtime, SourceType, TargetArch, TargetEnv,
     TargetVendor,
 };

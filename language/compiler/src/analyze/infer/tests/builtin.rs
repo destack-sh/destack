@@ -70,14 +70,16 @@ const bad: AgeOnly = { name: "Ada" };
     // normalize to the object shape and ensure it only contains the picked key
     let module = test.program.modules.get(module_id);
     let module = module.read();
+    let tree = module.dir(profile).tree.read();
+    let options = test.compiler.analyze_context_options_for_module(module.id);
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();
+    let mut type_tables = crate::analyze::common::TypeTablesContext::new(
+        &module, profile, &options, &tree, &symbols, &mut types,
+    );
     let normalized = test.compiler.normalize_type(
-        &module,
-        profile,
+        &mut type_tables.reborrow(),
         alias_target_id,
-        &symbols,
-        &mut types,
         NormalizationMode::Assign,
     );
 
@@ -218,12 +220,14 @@ type Alias = Pick<Person, "name">;
         &mut types,
         &mut cache,
     );
+    let tree = module.dir(profile).tree.read();
+    let options = test.compiler.analyze_context_options_for_module(module.id);
+    let mut type_tables = crate::analyze::common::TypeTablesContext::new(
+        &module, profile, &options, &tree, &symbols, &mut types,
+    );
     let normalized_constraint_id = test.compiler.normalize_type(
-        &module,
-        profile,
+        &mut type_tables.reborrow(),
         substituted_constraint_id,
-        &symbols,
-        &mut types,
         NormalizationMode::Assign,
     );
     assert!(

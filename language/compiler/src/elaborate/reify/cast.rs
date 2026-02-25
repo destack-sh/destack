@@ -14,6 +14,7 @@ use super::r#type::{
     is_nullable_union, is_object_type, is_pointer_type, is_scalar_literal_type, is_string_type,
     is_union_type, is_unknown_type, numeric_cast_operator,
 };
+use crate::analyze::TypeTablesContext;
 use crate::{Compiler, ElaborateError, ElaborateResult, ElaborateWarning};
 
 /// The resolved record-like target data for reification.
@@ -103,6 +104,7 @@ impl Compiler {
         let operator = self.cast_operator_for_types(
             module_id,
             profile,
+            tree,
             symbols,
             types,
             value_type_id,
@@ -193,6 +195,7 @@ impl Compiler {
         let operator = self.cast_operator_for_types(
             module_id,
             profile,
+            tree,
             symbols,
             types,
             source_type_id,
@@ -595,23 +598,17 @@ impl Compiler {
                 types,
             ) {
                 let options = self.analyze_context_options_for_module(module_id);
+                let mut type_tables =
+                    TypeTablesContext::new(module, profile, &options, tree, symbols, types);
                 let to_outer = self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    &mut type_tables.reborrow(),
                     outer_target_type_id,
                     inner_target_type_id,
-                    types,
-                    &options,
                 );
                 let to_inner = self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
+                    &mut type_tables.reborrow(),
                     inner_target_type_id,
                     outer_target_type_id,
-                    types,
-                    &options,
                 );
                 if !(to_outer.is_assignable() && to_inner.is_assignable()) {
                     continue;
@@ -993,14 +990,18 @@ impl Compiler {
         }
 
         // resolve unevaluated target types for cast classification
-        let target_type_id = self
-            .ensure_type_evaluated(module, profile, target_type_id, tree, symbols, types)
-            .map_err(|_| ElaborateError::UnsupportedConstruct {
-                node: types
-                    .get_type_source(target_type_id)
-                    .into_global(module_id)
-                    .into_anchored(Some(profile)),
-            })?;
+        let options = self.analyze_context_options_for_module(module.id);
+        let target_type_source = types.get_type_source(target_type_id);
+        let target_type_id = {
+            let mut type_tables =
+                TypeTablesContext::new(module, profile, &options, tree, symbols, types);
+            self.ensure_type_evaluated(&mut type_tables, target_type_id)
+                .map_err(|_| ElaborateError::UnsupportedConstruct {
+                    node: target_type_source
+                        .into_global(module_id)
+                        .into_anchored(Some(profile)),
+                })?
+        };
 
         // check casts that change representation despite matching type ids
         let value_type = types.get_type(value_type_id).clone();
@@ -1033,25 +1034,15 @@ impl Compiler {
         }
 
         // skip when the types are mutually assignable
-        let options = self.analyze_context_options_for_module(module_id);
-        let to_target = self.is_type_assignable(
-            module,
-            profile,
-            symbols,
-            target_type_id,
-            value_type_id,
-            types,
-            &options,
-        );
-        let to_source = self.is_type_assignable(
-            module,
-            profile,
-            symbols,
-            value_type_id,
-            target_type_id,
-            types,
-            &options,
-        );
+        let (to_target, to_source) = {
+            let mut type_tables =
+                TypeTablesContext::new(module, profile, &options, tree, symbols, types);
+            let to_target =
+                self.is_type_assignable(&mut type_tables.reborrow(), target_type_id, value_type_id);
+            let to_source =
+                self.is_type_assignable(&mut type_tables.reborrow(), value_type_id, target_type_id);
+            (to_target, to_source)
+        };
 
         // skip only semantic identity casts
         // true upcasts still need explicit reify so lower can change representation
@@ -1068,24 +1059,21 @@ impl Compiler {
             && let Some(existing_target_type_id) =
                 self.type_id_for_type_expression(module_id, *target_type, tree, types)
         {
-            let to_target = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
-                target_type_id,
-                existing_target_type_id,
-                types,
-                &options,
-            );
-            let to_source = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
-                existing_target_type_id,
-                target_type_id,
-                types,
-                &options,
-            );
+            let (to_target, to_source) = {
+                let mut type_tables =
+                    TypeTablesContext::new(module, profile, &options, tree, symbols, types);
+                let to_target = self.is_type_assignable(
+                    &mut type_tables.reborrow(),
+                    target_type_id,
+                    existing_target_type_id,
+                );
+                let to_source = self.is_type_assignable(
+                    &mut type_tables.reborrow(),
+                    existing_target_type_id,
+                    target_type_id,
+                );
+                (to_target, to_source)
+            };
             if to_target.is_assignable() && to_source.is_assignable() {
                 return Ok(value_id);
             }
@@ -1095,6 +1083,7 @@ impl Compiler {
         let mut operator = self.cast_operator_for_types(
             module_id,
             profile,
+            tree,
             symbols,
             types,
             value_type_id,
@@ -1116,25 +1105,21 @@ impl Compiler {
             operator,
             CastOperator::UnionUpcast | CastOperator::NullableUpcast
         ) {
-            let options = self.analyze_context_options_for_module(module_id);
-            let to_target = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
-                target_type_id,
-                value_type_id,
-                types,
-                &options,
-            );
-            let to_source = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
-                value_type_id,
-                target_type_id,
-                types,
-                &options,
-            );
+            let (to_target, to_source) = {
+                let mut type_tables =
+                    TypeTablesContext::new(module, profile, &options, tree, symbols, types);
+                let to_target = self.is_type_assignable(
+                    &mut type_tables.reborrow(),
+                    target_type_id,
+                    value_type_id,
+                );
+                let to_source = self.is_type_assignable(
+                    &mut type_tables.reborrow(),
+                    value_type_id,
+                    target_type_id,
+                );
+                (to_target, to_source)
+            };
             if to_target.is_assignable() && to_source.is_assignable() {
                 return Ok(value_id);
             }
@@ -1281,6 +1266,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
+        tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
         source_id: LocalTypeId,
@@ -1381,9 +1367,9 @@ impl Compiler {
 
         // fall back to assignability based instance casts
         let options = self.analyze_context_options_for_module(module_id);
-        let assignable = self.is_type_assignable(
-            module, profile, symbols, target_id, source_id, types, &options,
-        );
+        let mut type_tables =
+            TypeTablesContext::new(module, profile, &options, tree, symbols, types);
+        let assignable = self.is_type_assignable(&mut type_tables.reborrow(), target_id, source_id);
         if assignable.is_assignable() {
             CastOperator::InstanceUpcast
         } else {
@@ -1716,23 +1702,17 @@ impl Compiler {
         // ensure element compatibility when the target is explicit
         if let Some(target_element_type_id) = target_element_type_id {
             let options = self.analyze_context_options_for_module(module.id);
+            let mut type_tables =
+                TypeTablesContext::new(module, profile, &options, tree, symbols, types);
             let to_target = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
+                &mut type_tables.reborrow(),
                 target_element_type_id,
                 element_type_id,
-                types,
-                &options,
             );
             let to_source = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
+                &mut type_tables.reborrow(),
                 element_type_id,
                 target_element_type_id,
-                types,
-                &options,
             );
             if !to_target.is_assignable() || !to_source.is_assignable() {
                 return Ok(None);

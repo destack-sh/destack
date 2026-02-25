@@ -25,20 +25,14 @@ impl Compiler {
 
         // resolve apparent operand types for builtin operator checks
         let left_operator_ty_id = self.normalize_apparent_type(
-            tables.module,
-            ctx.profile,
+            &mut tables.type_tables_reborrow(),
             left_ty_id,
-            tables.symbols,
-            tables.types,
             NormalizationMode::Assign,
             RelationMode::OPERATOR_COMPAT,
         );
         let right_operator_ty_id = self.normalize_apparent_type(
-            tables.module,
-            ctx.profile,
+            &mut tables.type_tables_reborrow(),
             right_ty_id,
-            tables.symbols,
-            tables.types,
             NormalizationMode::Assign,
             RelationMode::OPERATOR_COMPAT,
         );
@@ -70,25 +64,17 @@ impl Compiler {
         // cache runtime check kind for instanceof guards
         if matches!(operator, BinaryOperator::InstanceOf) {
             let target_type_id = self.resolve_declared_type_expression(
-                tables.module,
-                ctx.profile,
+                &mut tables.type_tables_reborrow(),
                 right_id,
-                tables.tree,
-                tables.symbols,
-                tables.types,
                 true,
                 true,
             );
             if let Ok(target_type_id) = target_type_id {
                 let target_type_id = self.unwrap_type_value(target_type_id, tables.types);
                 let runtime_check_kind = self.runtime_check_kind_for_relation(
-                    tables.module,
-                    ctx.profile,
-                    tables.symbols,
+                    &mut tables.type_tables_reborrow(),
                     left_ty_id,
                     target_type_id,
-                    tables.types,
-                    &ctx.options,
                 );
                 if let Some(kind) = runtime_check_kind {
                     tables.types.set_runtime_check_kind(
@@ -113,20 +99,10 @@ impl Compiler {
                     | BinaryOperator::NotEqualStrict
             )
         {
-            let left_is_object = self.type_is_object_like(
-                tables.module,
-                ctx.profile,
-                left_ty_id,
-                tables.symbols,
-                tables.types,
-            );
-            let right_is_object = self.type_is_object_like(
-                tables.module,
-                ctx.profile,
-                right_ty_id,
-                tables.symbols,
-                tables.types,
-            );
+            let left_is_object =
+                self.type_is_object_like(&mut tables.type_tables_reborrow(), left_ty_id);
+            let right_is_object =
+                self.type_is_object_like(&mut tables.type_tables_reborrow(), right_ty_id);
             if left_is_object || right_is_object {
                 referential_equality_violation = true;
                 self.error(AnalyzeError::ReferentialEqualityDisabled {
@@ -405,6 +381,7 @@ impl Compiler {
         types.insert_type_from(result_type, expression_id)
     }
 
+    /// Whether the given types and operator have a builtin operator.
     fn should_use_builtin_binary_operator(
         &self,
         operator: &BinaryOperator,
@@ -566,13 +543,9 @@ impl Compiler {
         // allow comparisons when the left literal is assignable
         if let Some(left_literal_type_id) = left_literal_type_id {
             let assignable = self.is_type_assignable(
-                tables.module,
-                tables.profile,
-                tables.symbols,
+                &mut tables.type_tables_reborrow(),
                 right_ty_id,
                 left_literal_type_id,
-                tables.types,
-                tables.options,
             );
 
             return assignable.is_assignable();
@@ -581,13 +554,9 @@ impl Compiler {
         // allow comparisons when the right literal is assignable
         if let Some(right_literal_type_id) = right_literal_type_id {
             let assignable = self.is_type_assignable(
-                tables.module,
-                tables.profile,
-                tables.symbols,
+                &mut tables.type_tables_reborrow(),
                 left_ty_id,
                 right_literal_type_id,
-                tables.types,
-                tables.options,
             );
 
             return assignable.is_assignable();

@@ -1,3 +1,4 @@
+use crate::analyze::common::TypeTablesContext;
 use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeTask, AnalyzeWarning, Compiler, TaskDependencyError,
 };
@@ -327,24 +328,19 @@ impl Compiler {
             let symbols = dir.symbols.read();
             let mut types = dir.types.write();
             let exported_symbols = dir.exported_symbols.read();
+            let binding_exports = dir.module_binding_exports.read();
+            let options = self.analyze_context_options_for_module(component_module_id);
+            let mut type_tables =
+                TypeTablesContext::new(&module, profile, &options, &tree, &symbols, &mut types);
             self.report_interface_cycle_exports_for_table(
-                &module,
-                profile,
-                &tree,
-                &symbols,
-                &mut types,
+                &mut type_tables.reborrow(),
                 &exported_symbols,
                 component_set,
             )?;
 
-            let binding_exports = dir.module_binding_exports.read();
             for binding in binding_exports.values() {
                 self.report_interface_cycle_exports_for_table(
-                    &module,
-                    profile,
-                    &tree,
-                    &symbols,
-                    &mut types,
+                    &mut type_tables.reborrow(),
                     &binding.exports,
                     component_set,
                 )?;
@@ -357,36 +353,37 @@ impl Compiler {
     /// Report unresolved interface cycles for one export table.
     fn report_interface_cycle_exports_for_table(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        type_tables: &mut TypeTablesContext<'_>,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         component_set: &FxHashSet<ModuleId>,
     ) -> AnalyzeResult<()> {
         for export in exports.values() {
-            let Some((export_symbol, value_symbol)) =
-                self.interface_value_symbol_for_export(symbols, module.id, export)
-            else {
+            let Some((export_symbol, value_symbol)) = self.interface_value_symbol_for_export(
+                type_tables.symbols,
+                type_tables.module.id,
+                export,
+            ) else {
                 continue;
             };
 
-            let Some(value_type_id) = types.get_value_type_id(export_symbol) else {
+            let Some(value_type_id) = type_tables.types.get_value_type_id(export_symbol) else {
                 continue;
             };
-            if !self.interface_value_requires_solver(types, value_type_id)
-                && !self.interface_value_is_semantic_unknown(types, value_type_id)
+            if !self.interface_value_requires_solver(type_tables.types, value_type_id)
+                && !self.interface_value_is_semantic_unknown(type_tables.types, value_type_id)
             {
                 continue;
             }
 
-            let Some(declarator_id) =
-                self.direct_binding_declarator_for_symbol(module, value_symbol, tree, symbols)
-            else {
+            let Some(declarator_id) = self.direct_binding_declarator_for_symbol(
+                type_tables.module,
+                value_symbol,
+                type_tables.tree,
+                type_tables.symbols,
+            ) else {
                 continue;
             };
-            let declarator = tree.get(declarator_id);
+            let declarator = type_tables.tree.get(declarator_id);
 
             // explicit export contracts break cycle-inference requirements
             if declarator.ty.is_some() {
@@ -397,7 +394,12 @@ impl Compiler {
                 continue;
             };
 
-            let references = self.interface_value_references(module, tree, symbols, value_id);
+            let references = self.interface_value_references(
+                type_tables.module,
+                type_tables.tree,
+                type_tables.symbols,
+                value_id,
+            );
             let has_component_dependency = references
                 .iter()
                 .any(|symbol_id| component_set.contains(&symbol_id.module_id));
@@ -406,12 +408,16 @@ impl Compiler {
             }
 
             let error_node = value_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(type_tables.module.id)
+                .into_anchored(Some(type_tables.profile));
             self.error(AnalyzeError::InterfaceInferenceRequiresAnnotation { node: error_node });
 
-            let error_type_id = types.insert_type_from_any(Type::Error, declarator_id.into());
-            types.set_value_type(export_symbol, error_type_id);
+            let error_type_id = type_tables
+                .types
+                .insert_type_from_any(Type::Error, declarator_id.into());
+            type_tables
+                .types
+                .set_value_type(export_symbol, error_type_id);
         }
 
         Ok(())
