@@ -12,8 +12,8 @@ use crate::format::expression::{expression_has_static_type_arguments, format_exp
 use crate::{Annotation, DestackFormatter, FormatNode, empty_block_with_infix_annotations};
 use destack_ast::{
     AnnotationPosition, Declaration, DeclarationAbstraction, DeclarationDescriptor,
-    DeclarationKind, EnumField, EnumKind, Expression, Generics, Heritage, Keyword, LocalNodeId,
-    Member, NodeType, TypeKind, WhereClause,
+    DeclarationKind, EnumField, EnumKind, Expression, FunctionKind, Generics, Heritage, Keyword,
+    LocalNodeId, Member, NodeType, TypeKind, WhereClause,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -58,6 +58,51 @@ fn is_parenthesized_class_extends_type(
         f.context().tree.get(*declaration_id),
         Declaration::Class { .. }
     )
+}
+
+/// Return whether one class extends head requires explicit parenthesized grouping.
+fn class_extends_expression_requires_parentheses(
+    f: &DestackFormatter<'_, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    // unparenthesized lambdas are not valid in class heritage heads
+    if matches!(
+        f.context().tree.get(expression_id),
+        Expression::Declaration(declaration_id)
+            if matches!(
+                f.context().tree.get(*declaration_id),
+                Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+            )
+    ) {
+        return true;
+    }
+
+    // these forms require explicit parentheses in class heritage expressions
+    matches!(
+        f.context().tree.get(expression_id),
+        Expression::ObjectExpression { .. }
+            | Expression::Unary { .. }
+            | Expression::Binary { .. }
+            | Expression::TypeBinary { .. }
+            | Expression::TypeConditional { .. }
+            | Expression::If { .. }
+            | Expression::Assign { .. }
+            | Expression::SequenceExpression { .. }
+    )
+}
+
+/// Format one class extends expression, adding wrappers for invalid unparenthesized heads.
+fn format_class_extends_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    if class_extends_expression_requires_parentheses(f, expression_id) {
+        write!(f, [token("("), expression_id, token(")")])?;
+    } else {
+        write!(f, [expression_id])?;
+    }
+
+    Ok(())
 }
 
 /// Format an expanded implements clause with one type per line.
@@ -315,7 +360,9 @@ fn format_anonymous_class_heritage<'ast>(
                     soft_line_break_or_space(),
                     format_with(|f| {
                         f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                            .entries(extends_types)
+                            .entries(extends_types.iter().copied().map(|type_id| {
+                                format_with(move |f| format_class_extends_expression(f, type_id))
+                            }))
                             .finish()
                     })
                 ]))]
@@ -327,7 +374,9 @@ fn format_anonymous_class_heritage<'ast>(
                 f,
                 [format_with(|f| {
                     f.join_with(&format_args![&token(","), space()])
-                        .entries(extends_types)
+                        .entries(extends_types.iter().copied().map(|type_id| {
+                            format_with(move |f| format_class_extends_expression(f, type_id))
+                        }))
                         .finish()
                 })]
             )?;
