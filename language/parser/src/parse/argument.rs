@@ -9,6 +9,13 @@ use destack_source::NodeSpanType;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
+/// Parsed parameter head as either one pattern or one named binding.
+type ParsedParameterPatternOrName = (
+    Option<LocalNodeId<Pattern>>,
+    Option<StringId>,
+    Option<destack_source::Span>,
+);
+
 impl Parser {
     /// Return true when the next token can start a member name.
     pub(crate) fn next_token_starts_member_name(&mut self) -> bool {
@@ -598,13 +605,7 @@ impl Parser {
     }
 
     /// Eat either a parameter pattern or a parameter name.
-    fn eat_parameter_pattern_or_name(
-        &mut self,
-    ) -> ParseResult<(
-        Option<LocalNodeId<Pattern>>,
-        Option<StringId>,
-        Option<destack_source::Span>,
-    )> {
+    fn eat_parameter_pattern_or_name(&mut self) -> ParseResult<ParsedParameterPatternOrName> {
         // pattern
         if matches!(
             self.peek_token_type(),

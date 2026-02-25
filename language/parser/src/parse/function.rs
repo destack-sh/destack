@@ -170,7 +170,7 @@ impl Parser {
         };
         let function_id = self.tree.insert(
             Declaration::Function {
-                descriptor: descriptor.clone(),
+                descriptor: *descriptor,
                 signature,
                 body: Some(body),
             },

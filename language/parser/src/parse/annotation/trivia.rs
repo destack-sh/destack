@@ -149,12 +149,12 @@ impl Parser {
         let neighbor_index = {
             let _collect_wrappers_timing =
                 self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_COLLECT_WRAPPERS);
-            Self::build_token_neighbor_index(&semantic_tokens)
+            Self::build_token_neighbor_index(semantic_tokens)
         };
         let documentation_target_token_indexes = self.collect_documentation_target_token_indexes(
-            &semantic_tokens,
-            &side_tokens,
-            &comment_side_token_indexes,
+            semantic_tokens,
+            side_tokens,
+            comment_side_token_indexes,
             &comment_owner_token_indexes,
             &neighbor_index,
         );
@@ -163,7 +163,7 @@ impl Parser {
                 crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_BUILD_OWNER_INDEX,
             );
             self.build_documentation_owner_index(
-                &semantic_tokens,
+                semantic_tokens,
                 &documentation_target_token_indexes,
             )
         };
@@ -173,9 +173,9 @@ impl Parser {
             let _attach_side_timing =
                 self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE);
             self.emit_comment_and_documentation_trivia(
-                &semantic_tokens,
-                &side_tokens,
-                &comment_side_token_indexes,
+                semantic_tokens,
+                side_tokens,
+                comment_side_token_indexes,
                 &comment_owner_token_indexes,
                 &neighbor_index,
                 &documentation_owner_index,
@@ -186,7 +186,7 @@ impl Parser {
         {
             let _group_loop_timing = self
                 .timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_GROUP_LOOP);
-            self.emit_blank_trivia(&semantic_tokens, &neighbor_index);
+            self.emit_blank_trivia(semantic_tokens, &neighbor_index);
         }
 
         // keep semantic annotation order stable after doc inserts
@@ -725,13 +725,13 @@ impl Parser {
         let token_after = self.normalize_documentation_token_after(token_after, semantic_tokens);
 
         // direct seam owner: use the precomputed owner that starts at the following token
-        if let Some(token_after) = token_after {
-            if let Some(owner_id) = documentation_owner_index.owner_start(token_after) {
-                let owner_id = self.normalize_documentation_owner(owner_id);
-                let owner_id =
-                    self.normalize_documentation_target(owner_id, token_after, semantic_tokens);
-                return Some(owner_id);
-            }
+        if let Some(token_after) = token_after
+            && let Some(owner_id) = documentation_owner_index.owner_start(token_after)
+        {
+            let owner_id = self.normalize_documentation_owner(owner_id);
+            let owner_id =
+                self.normalize_documentation_target(owner_id, token_after, semantic_tokens);
+            return Some(owner_id);
         }
 
         // fallback seam owner: resolve from the following token span

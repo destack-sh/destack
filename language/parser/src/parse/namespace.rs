@@ -112,9 +112,9 @@ impl Parser {
         let base_descriptor = descriptor;
         for (index, (name, span)) in names.into_iter().enumerate().rev() {
             let mut local_descriptor = if index == 0 {
-                base_descriptor.clone()
+                base_descriptor
             } else {
-                let mut inner_descriptor = base_descriptor.clone();
+                let mut inner_descriptor = base_descriptor;
                 inner_descriptor.export = None;
                 inner_descriptor
             };
