@@ -1,7 +1,19 @@
-import { Array } from "native";
+import { Array, Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { CryptoCertificateHandle, CryptoKeyHandle, CryptoStoreHandle } from "../resource/index.ds";
-import { CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyUsageMask } from "./algorithm.ds";
+import {
+    CryptoAsymmetricEncryptionAlgorithm,
+    CryptoCipherAlgorithm,
+    CryptoDigestAlgorithm,
+    CryptoKeyAgreementAlgorithm,
+    CryptoKeyAlgorithm,
+    CryptoKeyFormat,
+    CryptoKeyResidency,
+    CryptoKeyUsageMask,
+    CryptoKeyWrapAlgorithm,
+    CryptoMacAlgorithm,
+    CryptoSignatureAlgorithm,
+} from "./algorithm.ds";
 
 /// Crypto store backend kind.
 export enum CryptoStoreKind {
@@ -24,14 +36,11 @@ export enum CryptoStoreKind {
     Ephemeral = 4,
 }
 
-/// Crypto store provider lane.
+/// Crypto software provider selector.
 export enum CryptoStoreProvider {
-    /// No explicit provider.
+    /// OpenSSL software provider.
     ///
-    /// This is the default for non-provider lanes.
-    /// For provider lanes, runtime resolves this to the default provider.
-    Unknown = 0,
-    /// OpenSSL software provider lane.
+    /// This is currently the only provider selector.
     OpenSsl = 1,
 }
 
@@ -45,23 +54,163 @@ export struct CryptoStoreOptions {
     namespace?: string;
 }
 
-/// Effective store provenance for created crypto objects.
-export struct CryptoStoreProvenance {
-    /// Effective store backend kind.
+/// Canonical identity for one store.
+export struct CryptoStoreIdentity {
+    /// Store backend kind.
     kind: CryptoStoreKind;
-    /// Effective provider lane.
+    /// Provider selector.
     provider?: CryptoStoreProvider;
-    /// Effective provider namespace.
+    /// Provider namespace.
     namespace?: string;
 }
 
-/// Capability descriptor for one store backend lane.
+/// Effective store provenance for created crypto objects.
+export struct CryptoStoreProvenance {
+    /// Effective store identity.
+    identity: CryptoStoreIdentity;
+}
+
+/// Key operation capability row for one store identity.
+export struct CryptoStoreKeyCapability {
+    /// Key algorithm family.
+    algorithm: CryptoKeyAlgorithm;
+    /// Key residency policy.
+    residency: CryptoKeyResidency;
+    /// Whether secret-key generation is supported.
+    supportsGenerateSecret: boolean;
+    /// Whether asymmetric key-pair generation is supported.
+    supportsGeneratePair: boolean;
+    /// Whether key import is supported.
+    supportsImport: boolean;
+    /// Whether public-key export is supported.
+    supportsExportPublic: boolean;
+    /// Whether private-key export is supported.
+    supportsExportPrivate: boolean;
+    /// Whether secret-key export is supported.
+    supportsExportSecret: boolean;
+    /// Supported key usage bits.
+    supportedUsageMask: CryptoKeyUsageMask;
+    /// Supported import formats.
+    supportedImportFormats: Slice<CryptoKeyFormat>;
+    /// Supported export formats.
+    supportedExportFormats: Slice<CryptoKeyFormat>;
+}
+
+/// Signature capability row for one store identity.
+export struct CryptoStoreSignatureCapability {
+    /// Key algorithm family.
+    keyAlgorithm: CryptoKeyAlgorithm;
+    /// Signature algorithm selector.
+    signatureAlgorithm: CryptoSignatureAlgorithm;
+    /// Whether sign is supported.
+    supportsSign: boolean;
+    /// Whether verify is supported.
+    supportsVerify: boolean;
+    /// Supported digest algorithms.
+    supportedDigests: Slice<CryptoDigestAlgorithm>;
+}
+
+/// Asymmetric-encryption capability row for one store identity.
+export struct CryptoStoreAsymmetricEncryptionCapability {
+    /// Key algorithm family.
+    keyAlgorithm: CryptoKeyAlgorithm;
+    /// Asymmetric encryption algorithm selector.
+    algorithm: CryptoAsymmetricEncryptionAlgorithm;
+    /// Whether encrypt is supported.
+    supportsEncrypt: boolean;
+    /// Whether decrypt is supported.
+    supportsDecrypt: boolean;
+    /// Supported digest algorithms.
+    supportedDigests: Slice<CryptoDigestAlgorithm>;
+}
+
+/// Key-wrap capability row for one store identity.
+export struct CryptoStoreKeyWrapCapability {
+    /// Wrapping-key algorithm family.
+    wrappingKeyAlgorithm: CryptoKeyAlgorithm;
+    /// Key-wrap algorithm selector.
+    algorithm: CryptoKeyWrapAlgorithm;
+    /// Whether key wrap is supported.
+    supportsWrap: boolean;
+    /// Whether key unwrap is supported.
+    supportsUnwrap: boolean;
+    /// Supported digest algorithms for digest-parameterized wrap algorithms.
+    supportedDigests: Slice<CryptoDigestAlgorithm>;
+}
+
+/// Symmetric-cipher capability row for one store identity.
+export struct CryptoStoreCipherCapability {
+    /// Key algorithm family.
+    keyAlgorithm: CryptoKeyAlgorithm;
+    /// Cipher algorithm selector.
+    algorithm: CryptoCipherAlgorithm;
+    /// Whether one-shot operation is supported.
+    supportsOneShot: boolean;
+    /// Whether streaming operation is supported.
+    supportsStreaming: boolean;
+    /// Whether additional authenticated data is supported.
+    supportsAdditionalData: boolean;
+    /// Whether detached tag semantics are supported.
+    supportsDetachedTag: boolean;
+    /// Minimum supported tag length in bytes.
+    minTagLengthBytes: uint32;
+    /// Maximum supported tag length in bytes.
+    maxTagLengthBytes: uint32;
+}
+
+/// Message-authentication capability row for one store identity.
+export struct CryptoStoreMacCapability {
+    /// Key algorithm family.
+    keyAlgorithm: CryptoKeyAlgorithm;
+    /// MAC algorithm selector.
+    algorithm: CryptoMacAlgorithm;
+    /// Whether one-shot operation is supported.
+    supportsOneShot: boolean;
+    /// Whether streaming operation is supported.
+    supportsStreaming: boolean;
+    /// Supported digest algorithms.
+    supportedDigests: Slice<CryptoDigestAlgorithm>;
+    /// Minimum supported tag length in bytes.
+    minTagLengthBytes: uint32;
+    /// Maximum supported tag length in bytes.
+    maxTagLengthBytes: uint32;
+}
+
+/// Key-agreement capability row for one store identity.
+export struct CryptoStoreAgreementCapability {
+    /// Local private-key algorithm family.
+    privateKeyAlgorithm: CryptoKeyAlgorithm;
+    /// Peer public-key algorithm family.
+    peerPublicKeyAlgorithm: CryptoKeyAlgorithm;
+    /// Agreement algorithm selector.
+    algorithm: CryptoKeyAgreementAlgorithm;
+    /// Whether shared-secret derivation is supported.
+    supportsDeriveSharedSecret: boolean;
+    /// Whether key derivation is supported.
+    supportsDeriveKey: boolean;
+}
+
+/// Certificate capability row for one store identity.
+export struct CryptoStoreCertificateCapability {
+    /// Whether certificate import is supported.
+    supportsImport: boolean;
+    /// Whether certificate export is supported.
+    supportsExport: boolean;
+    /// Whether certificate descriptor reads are supported.
+    supportsDescriptor: boolean;
+    /// Whether certificate verification is supported.
+    supportsVerify: boolean;
+    /// Whether certificate deletion is supported.
+    supportsDelete: boolean;
+    /// Whether system trust-anchor reads are supported.
+    supportsSystemTrustAnchors: boolean;
+}
+
+/// Capability descriptor for one store backend identity.
 export struct CryptoStoreCapability {
-    /// Store backend kind lane.
-    kind: CryptoStoreKind;
-    /// Provider lane selector.
-    provider?: CryptoStoreProvider;
-    /// Whether this lane is available for open calls.
+    /// Store identity.
+    identity: CryptoStoreIdentity;
+    /// Whether this store identity is available for open calls.
     isAvailable: boolean;
     /// Whether hardware-backed key operations are supported.
     supportsHardwareBacked: boolean;
@@ -69,10 +218,28 @@ export struct CryptoStoreCapability {
     supportsPersistent: boolean;
     /// Whether key export operations are supported by policy.
     supportsKeyExport: boolean;
-    /// Supported key algorithm families for this store lane.
+    /// Supported key algorithm families for this store identity.
     supportedKeyAlgorithms: Array<CryptoKeyAlgorithm>;
-    /// Supported key formats for this store lane.
+    /// Supported key formats for this store identity.
     supportedKeyFormats: Array<CryptoKeyFormat>;
+    /// Supported key residencies for this store identity.
+    supportedKeyResidencies: Array<CryptoKeyResidency>;
+    /// Operation-scoped key capability rows.
+    keyCapabilities: Array<CryptoStoreKeyCapability>;
+    /// Operation-scoped signature capability rows.
+    signatureCapabilities: Array<CryptoStoreSignatureCapability>;
+    /// Operation-scoped asymmetric-encryption capability rows.
+    asymmetricEncryptionCapabilities: Array<CryptoStoreAsymmetricEncryptionCapability>;
+    /// Operation-scoped key-wrap capability rows.
+    keyWrapCapabilities: Array<CryptoStoreKeyWrapCapability>;
+    /// Operation-scoped symmetric-cipher capability rows.
+    cipherCapabilities: Array<CryptoStoreCipherCapability>;
+    /// Operation-scoped message-authentication capability rows.
+    macCapabilities: Array<CryptoStoreMacCapability>;
+    /// Operation-scoped key-agreement capability rows.
+    agreementCapabilities: Array<CryptoStoreAgreementCapability>;
+    /// Operation-scoped certificate capability row.
+    certificateCapabilities: CryptoStoreCertificateCapability;
 }
 
 /// Key query selector for store enumeration.
@@ -155,7 +322,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store capability introspection over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+    /// Uses runtime crypto store capability introspection over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -178,13 +345,13 @@ declare namespace crypto {
     )
     export function storeProbeKinds(): Result<Array<CryptoStoreKind>, PlatformError>;
 
-    /// Return capabilities for one store backend lane.
+    /// Return capabilities for one store backend identity.
     ///
     /// Query one store kind and optional provider and return effective capability policy.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store capability introspection over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+    /// Uses runtime crypto store capability introspection over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -216,12 +383,12 @@ declare namespace crypto {
     /// Provider selection and access scope follow runtime crypto store semantics.
     /// `Ephemeral` and `Provider` store support is required.
     /// Host-backed `System`, `User`, and `Machine` support is host dependent.
-    /// Host-backed lanes may expose certificate reads while rejecting key or certificate writes.
+    /// Host-backed stores may expose certificate reads while rejecting key or certificate writes.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
-    /// Operations may return `notSupported` when host store lanes are unavailable.
+    /// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+    /// Operations may return `notSupported` when host stores are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -251,8 +418,8 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
-    /// Operations may return `notSupported` when host store lanes are unavailable.
+    /// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+    /// Operations may return `notSupported` when host stores are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -282,8 +449,8 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
-    /// Operations may return `notSupported` when host store lanes are unavailable.
+    /// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+    /// Operations may return `notSupported` when host stores are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -316,8 +483,8 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
-    /// Operations may return `notSupported` when host store lanes are unavailable.
+    /// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+    /// Operations may return `notSupported` when host stores are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.

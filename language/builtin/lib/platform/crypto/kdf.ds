@@ -62,7 +62,7 @@ export struct CryptoArgon2idRequest {
     iterations: uint32;
     /// Memory size in kibibytes.
     memoryKiB: uint32;
-    /// Parallel lanes.
+    /// Parallel workers.
     parallelism: uint32;
     /// Output length in bytes.
     length: uint32;
