@@ -136,6 +136,30 @@ jobs:
     with:
       rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
+  runtime-ios:
+    name: Runtime iOS
+    needs:
+      - verify
+    uses: ./.github/workflows/runtime-ios.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+  runtime-macos:
+    name: Runtime macOS
+    needs:
+      - verify
+    uses: ./.github/workflows/runtime-macos.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+  runtime-windows:
+    name: Runtime Windows
+    needs:
+      - verify
+    uses: ./.github/workflows/runtime-windows.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
   build-artifacts:
     name: Build Release Artifacts
     runs-on: ubuntu-latest
@@ -143,6 +167,9 @@ jobs:
     needs:
       - verify
       - runtime-android
+      - runtime-ios
+      - runtime-macos
+      - runtime-windows
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -184,6 +211,9 @@ jobs:
     needs:
       - verify
       - runtime-android
+      - runtime-ios
+      - runtime-macos
+      - runtime-windows
     strategy:
       fail-fast: false
       matrix:

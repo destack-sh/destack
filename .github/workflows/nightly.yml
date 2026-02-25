@@ -200,3 +200,27 @@ jobs:
     uses: ./.github/workflows/runtime-android.yml
     with:
       rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+  runtime-ios:
+    name: Runtime iOS
+    needs:
+      - nightly-core
+    uses: ./.github/workflows/runtime-ios.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+  runtime-macos:
+    name: Runtime macOS
+    needs:
+      - nightly-core
+    uses: ./.github/workflows/runtime-macos.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+  runtime-windows:
+    name: Runtime Windows
+    needs:
+      - nightly-core
+    uses: ./.github/workflows/runtime-windows.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}

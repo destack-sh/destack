@@ -132,12 +132,29 @@ test:
 test-ide:
     just platform/test-ide
 
-# backward compatibility alias
-alias test-editor := test-ide
-
 # run language runtime windows target tests through wine
-test-windows-runtime:
-    just language/test-windows-runtime
+test-runtime-windows-cross:
+    just language/test-runtime-windows-cross
+
+# run language runtime android target checks
+check-runtime-android:
+    just language/check-runtime-android
+
+# run language runtime ios target checks
+check-runtime-ios:
+    just language/check-runtime-ios
+
+# run language runtime macos host checks
+check-runtime-macos:
+    just language/check-runtime-macos
+
+# run language runtime windows host checks
+check-runtime-windows-host:
+    just language/check-runtime-windows-host
+
+# run language runtime windows target checks via zig cross
+check-runtime-windows-cross:
+    just language/check-runtime-windows-cross
 
 # run language resolver windows target tests through wine
 test-windows-resolver:
