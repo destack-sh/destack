@@ -174,7 +174,7 @@ fn runtime_platform_name() -> &'static str {
 
     #[cfg(target_os = "windows")]
     {
-        return "windows";
+        "windows"
     }
 
     #[cfg(target_os = "wasi")]

@@ -1,20 +1,16 @@
 use openssl::bn::BigNum;
-use openssl::derive::Deriver;
-use openssl::ec::{EcGroup, EcKey};
-use openssl::encrypt::Decrypter;
-use openssl::hash::MessageDigest;
 use openssl::nid::Nid;
-use openssl::pkey::{Id, PKey, Private};
-use openssl::rsa::{Padding, Rsa};
-use openssl::sign::{RsaPssSaltlen, Signer};
+use openssl::pkey::{PKey, Private};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::core::{
     self as crypto_core, HostGeneratedKeyPair, HostKeyBackend, HostKeyMaterial,
 };
+use crate::platform::crypto::host::unix::core as unix_core;
 use crate::platform::crypto::{
     CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters,
-    CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyUsageMask, CryptoNamedCurve,
+    CryptoCipherAlgorithm, CryptoCipherParameters, CryptoDigestAlgorithm, CryptoKeyAlgorithm,
+    CryptoKeyUsageMask, CryptoMacAlgorithm, CryptoMacParameters, CryptoNamedCurve,
     CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreKind,
 };
 use crate::platform::{NativeSlice, NativeStringRef};
@@ -27,160 +23,11 @@ use super::abi::{
 };
 use super::core::{invalid_data, not_supported, permission_denied};
 
-/// Return one digest lane for one signature request.
-fn signature_digest(
-    digest: CryptoDigestAlgorithm,
-    operation: &'static str,
-) -> RuntimeResult<MessageDigest> {
-    let digest = match digest {
-        CryptoDigestAlgorithm::Sha1 => MessageDigest::sha1(),
-        CryptoDigestAlgorithm::Sha256 => MessageDigest::sha256(),
-        CryptoDigestAlgorithm::Sha384 => MessageDigest::sha384(),
-        CryptoDigestAlgorithm::Sha512 => MessageDigest::sha512(),
-        _ => return Err(not_supported(operation)),
-    };
-
-    Ok(digest)
-}
-
-/// Resolve one supported EC curve into runtime and OpenSSL metadata.
-fn resolve_ec_curve(named_curve: CryptoNamedCurve) -> Option<(CryptoNamedCurve, Nid, u32)> {
-    match named_curve {
-        CryptoNamedCurve::Unknown => Some((CryptoNamedCurve::P256, Nid::X9_62_PRIME256V1, 256)),
-        CryptoNamedCurve::P256 => Some((CryptoNamedCurve::P256, Nid::X9_62_PRIME256V1, 256)),
-        CryptoNamedCurve::P384 => Some((CryptoNamedCurve::P384, Nid::SECP384R1, 384)),
-        CryptoNamedCurve::P521 => Some((CryptoNamedCurve::P521, Nid::SECP521R1, 521)),
-        _ => None,
-    }
-}
-
-/// Resolve one runtime named curve from one private EC key.
-fn curve_from_private_key(
-    private_key: &PKey<Private>,
-    operation: &'static str,
-) -> RuntimeResult<CryptoNamedCurve> {
-    let ec_key = private_key
-        .ec_key()
-        .map_err(|error| invalid_data(operation, format!("{error}")))?;
-    let Some(curve_name) = ec_key.group().curve_name() else {
-        return Err(invalid_data(
-            operation,
-            "host ec private key does not expose one named curve",
-        ));
-    };
-
-    let named_curve = match curve_name {
-        Nid::X9_62_PRIME256V1 => CryptoNamedCurve::P256,
-        Nid::SECP384R1 => CryptoNamedCurve::P384,
-        Nid::SECP521R1 => CryptoNamedCurve::P521,
-        _ => return Err(not_supported(operation)),
-    };
-
-    Ok(named_curve)
-}
-
-/// Build one host material payload from one software private key.
-fn host_material_from_private_key(
-    backend: HostKeyBackend,
-    key_label: &str,
-    private_key: &PKey<Private>,
-    operation: &'static str,
-) -> RuntimeResult<HostKeyMaterial> {
-    // derive one public key snapshot payload
-    let public_key_spki_der = private_key
-        .public_key_to_der()
-        .map_err(|error| invalid_data(operation, format!("{error}")))?;
-
-    // export private key as pkcs#8 der for persistent host material
-    let private_key_der = private_key
-        .private_key_to_der()
-        .map_err(|error| invalid_data(operation, format!("{error}")))?;
-
-    Ok(HostKeyMaterial {
-        backend,
-        key_label: key_label.to_string(),
-        public_key_spki_der,
-        private_key_der,
-    })
-}
-
-/// Parse one host private key payload from one host key material descriptor.
-fn parse_host_private_key(
-    key: &HostKeyMaterial,
-    operation: &'static str,
-) -> RuntimeResult<PKey<Private>> {
-    // enforce backend lane
-    if !matches!(
-        key.backend,
-        HostKeyBackend::AndroidSoftwareKeyStorageRsa | HostKeyBackend::AndroidSoftwareKeyStorageEc
-    ) {
-        return Err(not_supported(operation));
-    }
-
-    // decode stored pkcs#8 payload
-    if key.private_key_der.is_empty() {
-        return Err(invalid_data(
-            operation,
-            "host key payload is missing one private key",
-        ));
-    }
-
-    PKey::private_key_from_der(&key.private_key_der)
-        .map_err(|error| invalid_data(operation, format!("{error}")))
-}
-
-/// Return one generated software RSA key pair.
-fn generate_rsa_key_pair(
-    modulus_bits: u32,
-    public_exponent: u32,
-    operation: &'static str,
-) -> RuntimeResult<(PKey<Private>, u32, u32)> {
-    // resolve keygen defaults and constraints
-    let resolved_modulus_bits = if modulus_bits == 0 {
-        2048
-    } else {
-        modulus_bits
-    };
-    let resolved_public_exponent = if public_exponent == 0 {
-        65537
-    } else {
-        public_exponent
-    };
-    if resolved_public_exponent != 65537 {
-        return Err(not_supported(operation));
-    }
-
-    // generate one RSA private key
-    let exponent = BigNum::from_u32(resolved_public_exponent)
-        .map_err(|error| invalid_data(operation, format!("{error}")))?;
-    let rsa = Rsa::generate_with_e(resolved_modulus_bits, &exponent)
-        .map_err(|error| invalid_data(operation, format!("{error}")))?;
-    let private_key =
-        PKey::from_rsa(rsa).map_err(|error| invalid_data(operation, format!("{error}")))?;
-
-    Ok((private_key, resolved_modulus_bits, resolved_public_exponent))
-}
-
-/// Return one generated software EC key pair.
-fn generate_ec_key_pair(
-    named_curve: CryptoNamedCurve,
-    operation: &'static str,
-) -> RuntimeResult<(PKey<Private>, CryptoNamedCurve, u32)> {
-    // resolve one supported named curve
-    let Some((resolved_named_curve, curve_nid, size_bits)) = resolve_ec_curve(named_curve) else {
-        return Err(not_supported(operation));
-    };
-
-    // generate one EC private key
-    let group = EcGroup::from_curve_name(curve_nid)
-        .map_err(|error| invalid_data(operation, format!("{error}")))?;
-    let ec_key =
-        EcKey::generate(&group).map_err(|error| invalid_data(operation, format!("{error}")))?;
-    let private_key =
-        PKey::from_ec_key(ec_key).map_err(|error| invalid_data(operation, format!("{error}")))?;
-
-    Ok((private_key, resolved_named_curve, size_bits))
-}
+/// Supported software host-key backends for Android key operations.
+const ANDROID_SOFTWARE_BACKENDS: [HostKeyBackend; 2] = [
+    HostKeyBackend::AndroidSoftwareKeyStorageRsa,
+    HostKeyBackend::AndroidSoftwareKeyStorageEc,
+];
 
 /// Resolve one callback runtime identifier for Android host callback routing.
 fn callback_runtime_id(
@@ -216,6 +63,8 @@ fn host_key_algorithm(
     let encoded = match algorithm {
         CryptoKeyAlgorithm::Rsa => 1,
         CryptoKeyAlgorithm::Ec => 2,
+        CryptoKeyAlgorithm::Aes => 3,
+        CryptoKeyAlgorithm::Hmac => 4,
         _ => return Err(not_supported(operation)),
     };
 
@@ -280,6 +129,35 @@ fn host_asymmetric_algorithm(
     Ok(encoded)
 }
 
+/// Encode one cipher algorithm for Android host callback ABI values.
+fn host_cipher_algorithm(
+    algorithm: CryptoCipherAlgorithm,
+    operation: &'static str,
+) -> RuntimeResult<u32> {
+    let encoded = match algorithm {
+        CryptoCipherAlgorithm::AesGcm => 1,
+        CryptoCipherAlgorithm::AesCtr => 2,
+        CryptoCipherAlgorithm::AesCbc => 3,
+        CryptoCipherAlgorithm::ChaCha20Poly1305 => 4,
+        _ => return Err(not_supported(operation)),
+    };
+
+    Ok(encoded)
+}
+
+/// Encode one mac algorithm for Android host callback ABI values.
+fn host_mac_algorithm(
+    algorithm: CryptoMacAlgorithm,
+    operation: &'static str,
+) -> RuntimeResult<u32> {
+    let encoded = match algorithm {
+        CryptoMacAlgorithm::Hmac => 1,
+        _ => return Err(not_supported(operation)),
+    };
+
+    Ok(encoded)
+}
+
 /// Map one Android host callback status into one runtime result.
 fn host_status_result(
     status: u32,
@@ -328,6 +206,70 @@ fn host_status_result(
     ))
 }
 
+/// Run one host output callback with one two-pass ciphertext and tag flow.
+fn run_host_cipher_output<F>(
+    operation: &'static str,
+    action: &'static str,
+    mut callback: F,
+) -> RuntimeResult<(Vec<u8>, Vec<u8>)>
+where
+    F: FnMut(NativeSlice<u8>, NativeSlice<u8>, *mut u32, *mut u32) -> u32,
+{
+    // first pass: query required ciphertext and tag sizes
+    let mut required_ciphertext_bytes = 0u32;
+    let mut required_tag_bytes = 0u32;
+    let first_status = callback(
+        NativeSlice {
+            data: std::ptr::null_mut(),
+            len: 0,
+        },
+        NativeSlice {
+            data: std::ptr::null_mut(),
+            len: 0,
+        },
+        &mut required_ciphertext_bytes as *mut u32,
+        &mut required_tag_bytes as *mut u32,
+    );
+    if first_status != HOST_STATUS_OK && first_status != HOST_STATUS_BUFFER_TOO_SMALL {
+        host_status_result(first_status, operation, action)?;
+    }
+
+    // second pass: allocate and fetch ciphertext and tag payloads
+    let mut ciphertext = vec![0u8; required_ciphertext_bytes as usize];
+    let mut tag = vec![0u8; required_tag_bytes as usize];
+    let mut ciphertext_written = ciphertext.len() as u32;
+    let mut tag_written = tag.len() as u32;
+    let second_status = callback(
+        NativeSlice {
+            data: ciphertext.as_mut_ptr(),
+            len: ciphertext.len() as u32,
+        },
+        NativeSlice {
+            data: tag.as_mut_ptr(),
+            len: tag.len() as u32,
+        },
+        &mut ciphertext_written as *mut u32,
+        &mut tag_written as *mut u32,
+    );
+    host_status_result(second_status, operation, action)?;
+    if ciphertext_written > ciphertext.len() as u32 {
+        return Err(invalid_data(
+            operation,
+            format!("android host crypto {action} produced one oversized ciphertext payload"),
+        ));
+    }
+    if tag_written > tag.len() as u32 {
+        return Err(invalid_data(
+            operation,
+            format!("android host crypto {action} produced one oversized tag payload"),
+        ));
+    }
+    ciphertext.truncate(ciphertext_written as usize);
+    tag.truncate(tag_written as usize);
+
+    Ok((ciphertext, tag))
+}
+
 /// Run one host output callback with one two-pass output buffer flow.
 fn run_host_output<F>(
     operation: &'static str,
@@ -372,6 +314,76 @@ where
     Ok(output)
 }
 
+/// Generate one host-backed hardware secret key.
+pub(crate) fn host_generate_hardware_backed_secret_key(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    digest: CryptoDigestAlgorithm,
+    size_bits: u32,
+    usage_mask: CryptoKeyUsageMask,
+    persistent_key_label: &str,
+    operation: &'static str,
+) -> RuntimeResult<HostKeyMaterial> {
+    // enforce user-lane hardware secret generation
+    if kind != CryptoStoreKind::User {
+        return Err(not_supported(operation));
+    }
+
+    // enforce supported hardware-backed secret families
+    if !matches!(
+        algorithm,
+        CryptoKeyAlgorithm::Aes | CryptoKeyAlgorithm::Hmac
+    ) {
+        return Err(not_supported(operation));
+    }
+
+    // resolve runtime id and host callback table
+    let runtime_id = callback_runtime_id(context, operation)?;
+    let callbacks = android_host_crypto_api();
+    let Some(generate_callback) = callbacks.generate_hardware_secret_key else {
+        return Err(not_supported(operation));
+    };
+
+    // encode host callback arguments
+    let encoded_kind = host_store_kind(kind, operation)?;
+    let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
+    let encoded_digest = if algorithm == CryptoKeyAlgorithm::Hmac {
+        host_digest_algorithm(digest, operation)?
+    } else {
+        0
+    };
+    let key_label = NativeStringRef::from(persistent_key_label);
+
+    // run one host hardware secret-key generation operation
+    let status = unsafe {
+        generate_callback(
+            runtime_id,
+            encoded_kind,
+            encoded_algorithm,
+            encoded_digest,
+            size_bits,
+            usage_mask.0,
+            key_label,
+        )
+    };
+    host_status_result(status, operation, "generate_hardware_secret_key")?;
+
+    // build one host secret-key material descriptor
+    let backend = match algorithm {
+        CryptoKeyAlgorithm::Aes => HostKeyBackend::AndroidHardwareKeystoreAes,
+        CryptoKeyAlgorithm::Hmac => HostKeyBackend::AndroidHardwareKeystoreHmac,
+        _ => return Err(not_supported(operation)),
+    };
+
+    Ok(HostKeyMaterial {
+        backend,
+        key_label: persistent_key_label.to_string(),
+        public_key_spki_der: Vec::new(),
+        private_key_der: Vec::new(),
+    })
+}
+
 /// Return whether one host store lane supports hardware-backed keys.
 pub(crate) fn host_store_supports_hardware_backed_key(
     context: &BindingCallContext,
@@ -414,7 +426,7 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
     if algorithm == CryptoKeyAlgorithm::Rsa && named_curve != CryptoNamedCurve::Unknown {
         return Err(not_supported(operation));
     }
-    if algorithm == CryptoKeyAlgorithm::Ec && resolve_ec_curve(named_curve).is_none() {
+    if algorithm == CryptoKeyAlgorithm::Ec && unix_core::resolve_ec_curve(named_curve).is_none() {
         return Err(not_supported(operation));
     }
 
@@ -530,75 +542,18 @@ pub(crate) fn host_generate_persistent_key_pair(
     operation: &'static str,
 ) -> RuntimeResult<Option<HostGeneratedKeyPair>> {
     let _ = (context, usage_mask);
-
-    // persistent host-managed lanes are available on user and machine stores
-    if !matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine) {
-        return Ok(None);
-    }
-
-    // rsa key generation
-    if algorithm == CryptoKeyAlgorithm::Rsa {
-        if named_curve != CryptoNamedCurve::Unknown {
-            return Ok(None);
-        }
-
-        let (private_key, resolved_modulus_bits, resolved_public_exponent) =
-            generate_rsa_key_pair(modulus_bits, public_exponent, operation)?;
-        let public_key_der = private_key
-            .public_key_to_der()
-            .map_err(|error| invalid_data(operation, format!("{error}")))?;
-        let public_key = PKey::public_key_from_der(&public_key_der)
-            .map_err(|error| invalid_data(operation, format!("{error}")))?;
-        let private_material = host_material_from_private_key(
-            HostKeyBackend::AndroidSoftwareKeyStorageRsa,
-            persistent_key_label,
-            &private_key,
-            operation,
-        )?;
-
-        return Ok(Some(HostGeneratedKeyPair {
-            private_material: crypto_core::CryptoKeyMaterial::Host(private_material),
-            public_key,
-            algorithm: CryptoKeyAlgorithm::Rsa,
-            named_curve: CryptoNamedCurve::Unknown,
-            size_bits: resolved_modulus_bits,
-            modulus_bits: resolved_modulus_bits,
-            public_exponent: resolved_public_exponent,
-        }));
-    }
-
-    // ec key generation
-    if algorithm == CryptoKeyAlgorithm::Ec {
-        if modulus_bits != 0 || public_exponent != 0 {
-            return Ok(None);
-        }
-
-        let (private_key, resolved_named_curve, size_bits) =
-            generate_ec_key_pair(named_curve, operation)?;
-        let public_key_der = private_key
-            .public_key_to_der()
-            .map_err(|error| invalid_data(operation, format!("{error}")))?;
-        let public_key = PKey::public_key_from_der(&public_key_der)
-            .map_err(|error| invalid_data(operation, format!("{error}")))?;
-        let private_material = host_material_from_private_key(
-            HostKeyBackend::AndroidSoftwareKeyStorageEc,
-            persistent_key_label,
-            &private_key,
-            operation,
-        )?;
-
-        return Ok(Some(HostGeneratedKeyPair {
-            private_material: crypto_core::CryptoKeyMaterial::Host(private_material),
-            public_key,
-            algorithm: CryptoKeyAlgorithm::Ec,
-            named_curve: resolved_named_curve,
-            size_bits,
-            modulus_bits: 0,
-            public_exponent: 0,
-        }));
-    }
-
-    Ok(None)
+    unix_core::generate_software_persistent_key_pair(
+        kind,
+        algorithm,
+        named_curve,
+        modulus_bits,
+        public_exponent,
+        persistent_key_label,
+        false,
+        HostKeyBackend::AndroidSoftwareKeyStorageRsa,
+        HostKeyBackend::AndroidSoftwareKeyStorageEc,
+        operation,
+    )
 }
 
 /// Import one persistent host-managed private key when available.
@@ -613,48 +568,25 @@ pub(crate) fn host_import_persistent_private_key(
     operation: &'static str,
 ) -> RuntimeResult<Option<HostKeyMaterial>> {
     let _ = (context, usage_mask);
-
-    // persistent host-managed lanes are available on user and machine stores
-    if !matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine) {
-        return Ok(None);
-    }
-
-    // derive one import backend from key family
-    let backend = match private_key.id() {
-        Id::RSA => HostKeyBackend::AndroidSoftwareKeyStorageRsa,
-        Id::EC => HostKeyBackend::AndroidSoftwareKeyStorageEc,
-        _ => return Ok(None),
-    };
-
-    // enforce requested algorithm lane
-    match (backend, algorithm) {
-        (HostKeyBackend::AndroidSoftwareKeyStorageRsa, CryptoKeyAlgorithm::Rsa) => {}
-        (HostKeyBackend::AndroidSoftwareKeyStorageEc, CryptoKeyAlgorithm::Ec) => {}
-        _ => return Ok(None),
-    }
-
-    // enforce requested named curve lane
-    if backend == HostKeyBackend::AndroidSoftwareKeyStorageRsa {
-        if named_curve != CryptoNamedCurve::Unknown {
-            return Ok(None);
-        }
-    } else {
-        let curve = curve_from_private_key(private_key, operation)?;
-        if named_curve != CryptoNamedCurve::Unknown && named_curve != curve {
-            return Ok(None);
-        }
-    }
-
-    let host_material =
-        host_material_from_private_key(backend, persistent_key_label, private_key, operation)?;
-
-    Ok(Some(host_material))
+    unix_core::import_software_persistent_private_key(
+        kind,
+        algorithm,
+        named_curve,
+        private_key,
+        persistent_key_label,
+        false,
+        false,
+        HostKeyBackend::AndroidSoftwareKeyStorageRsa,
+        HostKeyBackend::AndroidSoftwareKeyStorageEc,
+        operation,
+    )
 }
 
 /// Sign one payload with one host-managed key.
 pub(crate) fn host_key_sign(
     context: &BindingCallContext,
     key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     parameters: CryptoSignatureParameters,
     payload: &[u8],
@@ -665,6 +597,10 @@ pub(crate) fn host_key_sign(
         key.backend,
         HostKeyBackend::AndroidHardwareKeystoreRsa | HostKeyBackend::AndroidHardwareKeystoreEc
     ) {
+        if store_kind != CryptoStoreKind::User {
+            return Err(not_supported(operation));
+        }
+
         if key.backend == HostKeyBackend::AndroidHardwareKeystoreRsa
             && algorithm != CryptoKeyAlgorithm::Rsa
         {
@@ -709,79 +645,21 @@ pub(crate) fn host_key_sign(
         return Ok(signature);
     }
 
-    // load one private key from host key material
-    let private_key = parse_host_private_key(key, operation)?;
-
-    // rsa signing lanes
-    if algorithm == CryptoKeyAlgorithm::Rsa {
-        if private_key.id() != Id::RSA {
-            return Err(not_supported(operation));
-        }
-
-        let digest = signature_digest(parameters.digest, operation)?;
-        let mut signer = Signer::new(digest, &private_key)
-            .map_err(|error| invalid_data(operation, format!("{error}")))?;
-        match parameters.algorithm {
-            CryptoSignatureAlgorithm::RsaPkcs1v15 => {
-                signer
-                    .set_rsa_padding(Padding::PKCS1)
-                    .map_err(|error| invalid_data(operation, format!("{error}")))?;
-            }
-            CryptoSignatureAlgorithm::RsaPss => {
-                signer
-                    .set_rsa_padding(Padding::PKCS1_PSS)
-                    .map_err(|error| invalid_data(operation, format!("{error}")))?;
-                signer
-                    .set_rsa_mgf1_md(digest)
-                    .map_err(|error| invalid_data(operation, format!("{error}")))?;
-                let salt_length = if parameters.salt_length_bytes == 0 {
-                    RsaPssSaltlen::DIGEST_LENGTH
-                } else {
-                    RsaPssSaltlen::custom(parameters.salt_length_bytes as i32)
-                };
-                signer
-                    .set_rsa_pss_saltlen(salt_length)
-                    .map_err(|error| invalid_data(operation, format!("{error}")))?;
-            }
-            _ => return Err(not_supported(operation)),
-        }
-
-        signer
-            .update(payload)
-            .map_err(|error| invalid_data(operation, format!("{error}")))?;
-        let signature = signer
-            .sign_to_vec()
-            .map_err(|error| invalid_data(operation, format!("{error}")))?;
-
-        return Ok(signature);
-    }
-
-    // ec signing lanes
-    if algorithm == CryptoKeyAlgorithm::Ec {
-        if private_key.id() != Id::EC || parameters.algorithm != CryptoSignatureAlgorithm::Ecdsa {
-            return Err(not_supported(operation));
-        }
-
-        let digest = signature_digest(parameters.digest, operation)?;
-        let mut signer = Signer::new(digest, &private_key)
-            .map_err(|error| invalid_data(operation, format!("{error}")))?;
-        signer
-            .update(payload)
-            .map_err(|error| invalid_data(operation, format!("{error}")))?;
-        let signature = signer
-            .sign_to_vec()
-            .map_err(|error| invalid_data(operation, format!("{error}")))?;
-
-        return Ok(signature);
-    }
-
-    Err(not_supported(operation))
+    unix_core::sign_with_software_host_key(
+        key,
+        &ANDROID_SOFTWARE_BACKENDS,
+        algorithm,
+        parameters,
+        payload,
+        operation,
+    )
 }
 
 /// Decrypt one payload with one host-managed key.
 pub(crate) fn host_key_decrypt(
     context: &BindingCallContext,
     key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     parameters: CryptoAsymmetricEncryptionParameters,
     payload: &[u8],
@@ -789,6 +667,10 @@ pub(crate) fn host_key_decrypt(
 ) -> RuntimeResult<Vec<u8>> {
     // route hardware-backed decryption through host callbacks
     if key.backend == HostKeyBackend::AndroidHardwareKeystoreRsa {
+        if store_kind != CryptoStoreKind::User {
+            return Err(not_supported(operation));
+        }
+
         if algorithm != CryptoKeyAlgorithm::Rsa {
             return Err(not_supported(operation));
         }
@@ -837,64 +719,21 @@ pub(crate) fn host_key_decrypt(
         return Ok(plaintext);
     }
 
-    // only RSA host keys are currently supported for decrypt
-    if algorithm != CryptoKeyAlgorithm::Rsa {
-        return Err(not_supported(operation));
-    }
-    let private_key = parse_host_private_key(key, operation)?;
-    if private_key.id() != Id::RSA {
-        return Err(not_supported(operation));
-    }
-
-    // configure one decrypter from runtime parameters
-    let mut decrypter = Decrypter::new(&private_key)
-        .map_err(|error| invalid_data(operation, format!("{error}")))?;
-    match parameters.algorithm {
-        CryptoAsymmetricEncryptionAlgorithm::RsaPkcs1v15 => {
-            decrypter
-                .set_rsa_padding(Padding::PKCS1)
-                .map_err(|error| invalid_data(operation, format!("{error}")))?;
-        }
-        CryptoAsymmetricEncryptionAlgorithm::RsaOaep => {
-            let digest = signature_digest(parameters.digest, operation)?;
-            decrypter
-                .set_rsa_padding(Padding::PKCS1_OAEP)
-                .map_err(|error| invalid_data(operation, format!("{error}")))?;
-            decrypter
-                .set_rsa_oaep_md(digest)
-                .map_err(|error| invalid_data(operation, format!("{error}")))?;
-            decrypter
-                .set_rsa_mgf1_md(digest)
-                .map_err(|error| invalid_data(operation, format!("{error}")))?;
-            if parameters.label.len > 0 {
-                let label = crypto_core::decode_native_bytes(parameters.label, "parameters.label")?;
-                decrypter
-                    .set_rsa_oaep_label(&label)
-                    .map_err(|error| invalid_data(operation, format!("{error}")))?;
-            }
-        }
-        _ => return Err(not_supported(operation)),
-    }
-
-    // run one decryption operation in two passes
-    let mut plaintext = vec![
-        0u8;
-        decrypter
-            .decrypt_len(payload)
-            .map_err(|error| invalid_data(operation, format!("{error}")))?
-    ];
-    let written = decrypter
-        .decrypt(payload, &mut plaintext)
-        .map_err(|error| invalid_data(operation, format!("{error}")))?;
-    plaintext.truncate(written);
-
-    Ok(plaintext)
+    unix_core::decrypt_with_software_host_key(
+        key,
+        &ANDROID_SOFTWARE_BACKENDS,
+        algorithm,
+        parameters,
+        payload,
+        operation,
+    )
 }
 
 /// Delete one host-managed key.
 pub(crate) fn host_key_delete(
     context: &BindingCallContext,
     key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // route hardware-backed key deletion through host callbacks
@@ -902,6 +741,10 @@ pub(crate) fn host_key_delete(
         key.backend,
         HostKeyBackend::AndroidHardwareKeystoreRsa | HostKeyBackend::AndroidHardwareKeystoreEc
     ) {
+        if store_kind != CryptoStoreKind::User {
+            return Err(not_supported(operation));
+        }
+
         let runtime_id = callback_runtime_id(context, operation)?;
         let callbacks = android_host_crypto_api();
         let Some(delete_callback) = callbacks.delete_hardware_key else {
@@ -915,6 +758,12 @@ pub(crate) fn host_key_delete(
             HostKeyBackend::AndroidHardwareKeystoreEc => {
                 host_key_algorithm(CryptoKeyAlgorithm::Ec, operation)?
             }
+            HostKeyBackend::AndroidHardwareKeystoreAes => {
+                host_key_algorithm(CryptoKeyAlgorithm::Aes, operation)?
+            }
+            HostKeyBackend::AndroidHardwareKeystoreHmac => {
+                host_key_algorithm(CryptoKeyAlgorithm::Hmac, operation)?
+            }
             _ => return Err(not_supported(operation)),
         };
         let key_label = NativeStringRef::from(&key.key_label);
@@ -924,20 +773,14 @@ pub(crate) fn host_key_delete(
         return Ok(());
     }
 
-    if !matches!(
-        key.backend,
-        HostKeyBackend::AndroidSoftwareKeyStorageRsa | HostKeyBackend::AndroidSoftwareKeyStorageEc
-    ) {
-        return Err(not_supported(operation));
-    }
-
-    Ok(())
+    unix_core::delete_software_host_key(key, &ANDROID_SOFTWARE_BACKENDS, operation)
 }
 
 /// Derive one shared secret with one host-managed private key.
 pub(crate) fn host_key_derive_shared_secret(
     context: &BindingCallContext,
     key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
     peer_public_spki_der: &[u8],
@@ -945,6 +788,10 @@ pub(crate) fn host_key_derive_shared_secret(
 ) -> RuntimeResult<Vec<u8>> {
     // route hardware-backed derive through host callbacks
     if key.backend == HostKeyBackend::AndroidHardwareKeystoreEc {
+        if store_kind != CryptoStoreKind::User {
+            return Err(not_supported(operation));
+        }
+
         let runtime_id = callback_runtime_id(context, operation)?;
         let callbacks = android_host_crypto_api();
         let Some(derive_callback) = callbacks.derive_hardware_shared_secret else {
@@ -977,32 +824,190 @@ pub(crate) fn host_key_derive_shared_secret(
         return Ok(shared_secret);
     }
 
-    // only EC host keys are currently supported for derive
-    if algorithm != CryptoKeyAlgorithm::Ec {
-        return Err(not_supported(operation));
-    }
-    let private_key = parse_host_private_key(key, operation)?;
-    if private_key.id() != Id::EC {
+    unix_core::derive_shared_secret_with_software_host_key(
+        key,
+        &ANDROID_SOFTWARE_BACKENDS,
+        algorithm,
+        named_curve,
+        peer_public_spki_der,
+        false,
+        operation,
+    )
+}
+
+/// Encrypt one payload with one host-managed secret key.
+pub(crate) fn host_key_cipher_encrypt(
+    context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoCipherParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<(Vec<u8>, Vec<u8>)> {
+    // route hardware-backed secret-key encryption through host callbacks
+    if key.backend != HostKeyBackend::AndroidHardwareKeystoreAes
+        || algorithm != CryptoKeyAlgorithm::Aes
+        || store_kind != CryptoStoreKind::User
+    {
         return Err(not_supported(operation));
     }
 
-    // enforce one supported named curve
-    let private_curve = curve_from_private_key(&private_key, operation)?;
-    if named_curve != CryptoNamedCurve::Unknown && named_curve != private_curve {
+    let runtime_id = callback_runtime_id(context, operation)?;
+    let callbacks = android_host_crypto_api();
+    let Some(encrypt_callback) = callbacks.encrypt_hardware_secret_key else {
+        return Err(not_supported(operation));
+    };
+
+    let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
+    let encoded_cipher_algorithm = host_cipher_algorithm(parameters.algorithm, operation)?;
+    let key_label = NativeStringRef::from(&key.key_label);
+    let nonce = crypto_core::decode_native_bytes(parameters.nonce, "parameters.nonce")?;
+    let additional_data =
+        crypto_core::decode_native_bytes(parameters.additional_data, "parameters.additionalData")?;
+
+    run_host_cipher_output(
+        operation,
+        "encrypt_hardware_secret_key",
+        |output_ciphertext, output_tag, output_ciphertext_written, output_tag_written| unsafe {
+            encrypt_callback(
+                runtime_id,
+                encoded_algorithm,
+                key_label,
+                encoded_cipher_algorithm,
+                NativeSlice {
+                    data: nonce.as_ptr() as *mut u8,
+                    len: nonce.len() as u32,
+                },
+                NativeSlice {
+                    data: additional_data.as_ptr() as *mut u8,
+                    len: additional_data.len() as u32,
+                },
+                parameters.tag_length_bytes,
+                NativeSlice {
+                    data: payload.as_ptr() as *mut u8,
+                    len: payload.len() as u32,
+                },
+                output_ciphertext,
+                output_tag,
+                output_ciphertext_written,
+                output_tag_written,
+            )
+        },
+    )
+}
+
+/// Decrypt one payload with one host-managed secret key.
+pub(crate) fn host_key_cipher_decrypt(
+    context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoCipherParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    // route hardware-backed secret-key decryption through host callbacks
+    if key.backend != HostKeyBackend::AndroidHardwareKeystoreAes
+        || algorithm != CryptoKeyAlgorithm::Aes
+        || store_kind != CryptoStoreKind::User
+    {
         return Err(not_supported(operation));
     }
 
-    // decode one peer public key and derive shared secret
-    let peer_public_key = PKey::public_key_from_der(peer_public_spki_der)
-        .map_err(|error| invalid_data(operation, format!("{error}")))?;
-    let mut deriver =
-        Deriver::new(&private_key).map_err(|error| invalid_data(operation, format!("{error}")))?;
-    deriver
-        .set_peer(&peer_public_key)
-        .map_err(|error| invalid_data(operation, format!("{error}")))?;
-    let shared_secret = deriver
-        .derive_to_vec()
-        .map_err(|error| invalid_data(operation, format!("{error}")))?;
+    let runtime_id = callback_runtime_id(context, operation)?;
+    let callbacks = android_host_crypto_api();
+    let Some(decrypt_callback) = callbacks.decrypt_hardware_secret_key else {
+        return Err(not_supported(operation));
+    };
 
-    Ok(shared_secret)
+    let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
+    let encoded_cipher_algorithm = host_cipher_algorithm(parameters.algorithm, operation)?;
+    let key_label = NativeStringRef::from(&key.key_label);
+    let nonce = crypto_core::decode_native_bytes(parameters.nonce, "parameters.nonce")?;
+    let additional_data =
+        crypto_core::decode_native_bytes(parameters.additional_data, "parameters.additionalData")?;
+    let tag = crypto_core::decode_native_bytes(parameters.tag, "parameters.tag")?;
+
+    run_host_output(
+        operation,
+        "decrypt_hardware_secret_key",
+        |output, written| unsafe {
+            decrypt_callback(
+                runtime_id,
+                encoded_algorithm,
+                key_label,
+                encoded_cipher_algorithm,
+                NativeSlice {
+                    data: nonce.as_ptr() as *mut u8,
+                    len: nonce.len() as u32,
+                },
+                NativeSlice {
+                    data: additional_data.as_ptr() as *mut u8,
+                    len: additional_data.len() as u32,
+                },
+                NativeSlice {
+                    data: tag.as_ptr() as *mut u8,
+                    len: tag.len() as u32,
+                },
+                NativeSlice {
+                    data: payload.as_ptr() as *mut u8,
+                    len: payload.len() as u32,
+                },
+                output,
+                written,
+            )
+        },
+    )
+}
+
+/// Compute one MAC with one host-managed secret key.
+pub(crate) fn host_key_mac_compute(
+    context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoMacParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    // route hardware-backed hmac through host callbacks
+    if key.backend != HostKeyBackend::AndroidHardwareKeystoreHmac
+        || algorithm != CryptoKeyAlgorithm::Hmac
+        || store_kind != CryptoStoreKind::User
+    {
+        return Err(not_supported(operation));
+    }
+
+    let runtime_id = callback_runtime_id(context, operation)?;
+    let callbacks = android_host_crypto_api();
+    let Some(mac_callback) = callbacks.compute_hardware_mac else {
+        return Err(not_supported(operation));
+    };
+
+    let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
+    let encoded_mac_algorithm = host_mac_algorithm(parameters.algorithm, operation)?;
+    let encoded_digest = host_digest_algorithm(parameters.digest, operation)?;
+    let key_label = NativeStringRef::from(&key.key_label);
+
+    run_host_output(
+        operation,
+        "compute_hardware_mac",
+        |output, written| unsafe {
+            mac_callback(
+                runtime_id,
+                encoded_algorithm,
+                key_label,
+                encoded_mac_algorithm,
+                encoded_digest,
+                parameters.tag_length_bytes,
+                NativeSlice {
+                    data: payload.as_ptr() as *mut u8,
+                    len: payload.len() as u32,
+                },
+                output,
+                written,
+            )
+        },
+    )
 }

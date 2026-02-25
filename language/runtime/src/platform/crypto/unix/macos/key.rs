@@ -22,12 +22,13 @@ use crate::platform::crypto::core::{
     self as crypto_core, HostGeneratedKeyPair, HostKeyBackend, HostKeyMaterial,
 };
 use crate::platform::crypto::{
-    CryptoAsymmetricEncryptionParameters, CryptoKeyAlgorithm, CryptoKeyUsageMask, CryptoNamedCurve,
+    CryptoAsymmetricEncryptionParameters, CryptoCipherParameters, CryptoDigestAlgorithm,
+    CryptoKeyAlgorithm, CryptoKeyUsageMask, CryptoMacParameters, CryptoNamedCurve,
     CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreKind,
 };
 use crate::runtime::BindingCallContext;
 
-use super::constants::MACOS_SECURE_ENCLAVE_KEY_SIZE_BITS;
+use super::constants::{MACOS_SECURE_ENCLAVE_KEY_SIZE_BITS, MACOS_SECURE_ENCLAVE_PROBE_LABEL};
 use super::core::{
     copy_cf_data_bytes, create_cf_string, filesystem_mode_enabled, invalid_data, not_supported,
     permission_denied, security_operation_error,
@@ -58,7 +59,11 @@ pub(crate) fn host_store_supports_hardware_backed_key(
         return false;
     }
 
-    probe_secure_enclave_support()
+    probe_secure_enclave_support(
+        MACOS_SECURE_ENCLAVE_PROBE_LABEL,
+        MACOS_SECURE_ENCLAVE_KEY_SIZE_BITS,
+        "destack.crypto.store.probeCapability",
+    )
 }
 
 /// Generate one host-backed hardware key pair.
@@ -90,7 +95,12 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
     }
 
     // create private key and derive public key
-    let private_key = create_secure_enclave_private_key(persistent_key_label, true, operation)?;
+    let private_key = create_secure_enclave_private_key(
+        persistent_key_label,
+        true,
+        MACOS_SECURE_ENCLAVE_KEY_SIZE_BITS,
+        operation,
+    )?;
     let public_key = unsafe { SecKeyCopyPublicKey(private_key) };
     if public_key.is_null() {
         unsafe {
@@ -135,6 +145,30 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
         modulus_bits: 0,
         public_exponent: 0,
     })
+}
+
+/// Generate one host-backed hardware secret key.
+pub(crate) fn host_generate_hardware_backed_secret_key(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    digest: CryptoDigestAlgorithm,
+    size_bits: u32,
+    usage_mask: CryptoKeyUsageMask,
+    persistent_key_label: &str,
+    operation: &'static str,
+) -> RuntimeResult<HostKeyMaterial> {
+    let _ = (
+        context,
+        kind,
+        algorithm,
+        digest,
+        size_bits,
+        usage_mask,
+        persistent_key_label,
+    );
+
+    Err(not_supported(operation))
 }
 
 /// Generate one host-managed persistent key pair when available.
@@ -447,6 +481,7 @@ pub(crate) fn host_import_persistent_private_key(
 pub(crate) fn host_key_sign(
     context: &BindingCallContext,
     key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     parameters: CryptoSignatureParameters,
     payload: &[u8],
@@ -454,6 +489,9 @@ pub(crate) fn host_key_sign(
 ) -> RuntimeResult<Vec<u8>> {
     // filesystem override does not expose secure-enclave lanes
     if filesystem_mode_enabled(context) {
+        return Err(not_supported(operation));
+    }
+    if store_kind != CryptoStoreKind::User {
         return Err(not_supported(operation));
     }
 
@@ -466,7 +504,7 @@ pub(crate) fn host_key_sign(
                 return Err(not_supported(operation));
             }
 
-            ecdsa_signature_algorithm(parameters.digest)?
+            ecdsa_signature_algorithm(parameters.digest, operation)?
         }
         HostKeyBackend::KeychainEc => {
             if algorithm != CryptoKeyAlgorithm::Ec
@@ -475,7 +513,7 @@ pub(crate) fn host_key_sign(
                 return Err(not_supported(operation));
             }
 
-            ecdsa_signature_algorithm(parameters.digest)?
+            ecdsa_signature_algorithm(parameters.digest, operation)?
         }
         HostKeyBackend::KeychainRsa => {
             if algorithm != CryptoKeyAlgorithm::Rsa {
@@ -492,6 +530,8 @@ pub(crate) fn host_key_sign(
         | HostKeyBackend::AndroidSoftwareKeyStorageEc
         | HostKeyBackend::AndroidHardwareKeystoreRsa
         | HostKeyBackend::AndroidHardwareKeystoreEc
+        | HostKeyBackend::AndroidHardwareKeystoreAes
+        | HostKeyBackend::AndroidHardwareKeystoreHmac
         | HostKeyBackend::IosSoftwareKeyStorageRsa
         | HostKeyBackend::IosSoftwareKeyStorageEc
         | HostKeyBackend::PosixSoftwareKeyStorageRsa
@@ -557,6 +597,7 @@ pub(crate) fn host_key_sign(
 pub(crate) fn host_key_decrypt(
     context: &BindingCallContext,
     key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     parameters: CryptoAsymmetricEncryptionParameters,
     payload: &[u8],
@@ -564,6 +605,9 @@ pub(crate) fn host_key_decrypt(
 ) -> RuntimeResult<Vec<u8>> {
     // filesystem override does not expose keychain host-lane keys
     if filesystem_mode_enabled(context) {
+        return Err(not_supported(operation));
+    }
+    if store_kind != CryptoStoreKind::User {
         return Err(not_supported(operation));
     }
 
@@ -632,10 +676,14 @@ pub(crate) fn host_key_decrypt(
 pub(crate) fn host_key_delete(
     context: &BindingCallContext,
     key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // filesystem override does not expose secure-enclave lanes
     if filesystem_mode_enabled(context) {
+        return Err(not_supported(operation));
+    }
+    if store_kind != CryptoStoreKind::User {
         return Err(not_supported(operation));
     }
 
@@ -704,6 +752,7 @@ pub(crate) fn host_key_delete(
 pub(crate) fn host_key_derive_shared_secret(
     context: &BindingCallContext,
     key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
     peer_public_spki_der: &[u8],
@@ -711,6 +760,9 @@ pub(crate) fn host_key_derive_shared_secret(
 ) -> RuntimeResult<Vec<u8>> {
     // filesystem override does not expose keychain host-lane keys
     if filesystem_mode_enabled(context) {
+        return Err(not_supported(operation));
+    }
+    if store_kind != CryptoStoreKind::User {
         return Err(not_supported(operation));
     }
 
@@ -789,4 +841,49 @@ pub(crate) fn host_key_derive_shared_secret(
     let shared_secret = shared_secret?;
 
     Ok(shared_secret)
+}
+
+/// Encrypt one payload with one host-managed secret key.
+pub(crate) fn host_key_cipher_encrypt(
+    context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoCipherParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<(Vec<u8>, Vec<u8>)> {
+    let _ = (context, key, store_kind, algorithm, parameters, payload);
+
+    Err(not_supported(operation))
+}
+
+/// Decrypt one payload with one host-managed secret key.
+pub(crate) fn host_key_cipher_decrypt(
+    context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoCipherParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    let _ = (context, key, store_kind, algorithm, parameters, payload);
+
+    Err(not_supported(operation))
+}
+
+/// Compute one MAC with one host-managed secret key.
+pub(crate) fn host_key_mac_compute(
+    context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    store_kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoMacParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    let _ = (context, key, store_kind, algorithm, parameters, payload);
+
+    Err(not_supported(operation))
 }

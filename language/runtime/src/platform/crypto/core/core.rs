@@ -63,6 +63,10 @@ pub(crate) enum HostKeyBackend {
     AndroidHardwareKeystoreRsa,
     /// Android hardware-backed keystore EC lane.
     AndroidHardwareKeystoreEc,
+    /// Android hardware-backed keystore AES lane.
+    AndroidHardwareKeystoreAes,
+    /// Android hardware-backed keystore HMAC lane.
+    AndroidHardwareKeystoreHmac,
     /// iOS software-backed host-managed key-storage RSA lane.
     IosSoftwareKeyStorageRsa,
     /// iOS software-backed host-managed key-storage EC lane.
@@ -84,6 +88,13 @@ pub(crate) struct HostKeyMaterial {
     pub(crate) public_key_spki_der: Vec<u8>,
     /// Optional host-private key PKCS#8 DER payload for software host lanes.
     pub(crate) private_key_der: Vec<u8>,
+}
+
+impl Drop for HostKeyMaterial {
+    fn drop(&mut self) {
+        // wipe software-lane private-key bytes on drop
+        self.private_key_der.zeroize();
+    }
 }
 
 /// Host-generated asymmetric key pair payload.

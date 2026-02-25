@@ -17,6 +17,7 @@ use super::core::{decode_bytes, write_out_bytes, write_out_value};
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
 /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Hardware-backed secret-key generation is available when the selected host lane exposes symmetric hardware-key callbacks.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.

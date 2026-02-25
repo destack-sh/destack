@@ -9,7 +9,7 @@ use super::core::{decode_bytes, write_out_bytes, write_out_value};
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -35,7 +35,7 @@ pub(crate) unsafe fn destack_crypto_mac_compute(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -63,7 +63,7 @@ pub(crate) unsafe fn destack_crypto_mac_verify(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -87,7 +87,7 @@ pub(crate) unsafe fn destack_crypto_mac_open(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -110,7 +110,7 @@ pub(crate) unsafe fn destack_crypto_mac_update(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -133,7 +133,7 @@ pub(crate) unsafe fn destack_crypto_mac_finish(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -154,7 +154,7 @@ pub(crate) unsafe fn destack_crypto_mac_reset(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.

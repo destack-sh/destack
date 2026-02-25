@@ -87,6 +87,31 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
 
+/// Generate one host-backed hardware secret key.
+#[cfg(any(unix, windows))]
+pub(crate) fn host_generate_hardware_backed_secret_key(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    digest: CryptoDigestAlgorithm,
+    size_bits: u32,
+    usage_mask: CryptoKeyUsageMask,
+    persistent_key_label: &str,
+    operation: &'static str,
+) -> RuntimeResult<HostKeyMaterial> {
+    let _ = (
+        context,
+        kind,
+        algorithm,
+        digest,
+        size_bits,
+        usage_mask,
+        persistent_key_label,
+    );
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
 /// Generate one host-managed persistent key pair when available.
 #[cfg(any(unix, windows))]
 pub(crate) fn host_generate_persistent_key_pair(
@@ -146,12 +171,13 @@ pub(crate) fn host_import_persistent_private_key(
 pub(crate) fn host_key_sign(
     context: &BindingCallContext,
     key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     parameters: CryptoSignatureParameters,
     payload: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
-    let _ = (context, key, algorithm, parameters, payload);
+    let _ = (context, key, kind, algorithm, parameters, payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -161,12 +187,13 @@ pub(crate) fn host_key_sign(
 pub(crate) fn host_key_decrypt(
     context: &BindingCallContext,
     key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     parameters: CryptoAsymmetricEncryptionParameters,
     payload: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
-    let _ = (context, key, algorithm, parameters, payload);
+    let _ = (context, key, kind, algorithm, parameters, payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -176,9 +203,10 @@ pub(crate) fn host_key_decrypt(
 pub(crate) fn host_key_delete(
     context: &BindingCallContext,
     key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    let _ = (context, key);
+    let _ = (context, key, kind);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -188,12 +216,68 @@ pub(crate) fn host_key_delete(
 pub(crate) fn host_key_derive_shared_secret(
     context: &BindingCallContext,
     key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
     peer_public_spki_der: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
-    let _ = (context, key, algorithm, named_curve, peer_public_spki_der);
+    let _ = (
+        context,
+        key,
+        kind,
+        algorithm,
+        named_curve,
+        peer_public_spki_der,
+    );
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
+/// Encrypt one payload with one host-managed secret key.
+#[cfg(any(unix, windows))]
+pub(crate) fn host_key_cipher_encrypt(
+    context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoCipherParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<(Vec<u8>, Vec<u8>)> {
+    let _ = (context, key, kind, algorithm, parameters, payload);
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
+/// Decrypt one payload with one host-managed secret key.
+#[cfg(any(unix, windows))]
+pub(crate) fn host_key_cipher_decrypt(
+    context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoCipherParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    let _ = (context, key, kind, algorithm, parameters, payload);
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
+/// Compute one MAC with one host-managed secret key.
+#[cfg(any(unix, windows))]
+pub(crate) fn host_key_mac_compute(
+    context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoMacParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    let _ = (context, key, kind, algorithm, parameters, payload);
 
     Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
 }
@@ -503,7 +587,7 @@ pub(crate) unsafe fn destack_crypto_certificate_verify(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.
@@ -526,7 +610,7 @@ pub(crate) unsafe fn destack_crypto_cipher_close(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -558,7 +642,7 @@ pub(crate) unsafe fn destack_crypto_cipher_decrypt(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -593,7 +677,7 @@ pub(crate) unsafe fn destack_crypto_cipher_encrypt(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -621,7 +705,7 @@ pub(crate) unsafe fn destack_crypto_cipher_finish(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -650,7 +734,7 @@ pub(crate) unsafe fn destack_crypto_cipher_open(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -674,7 +758,7 @@ pub(crate) unsafe fn destack_crypto_cipher_reset(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -702,7 +786,7 @@ pub(crate) unsafe fn destack_crypto_cipher_update(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1253,6 +1337,7 @@ pub(crate) unsafe fn destack_crypto_key_generate_pair(
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
 /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Hardware-backed secret-key generation is available when the selected host lane exposes symmetric hardware-key callbacks.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1461,7 +1546,7 @@ pub(crate) unsafe fn destack_crypto_key_wrap(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.
@@ -1484,7 +1569,7 @@ pub(crate) unsafe fn destack_crypto_mac_close(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1513,7 +1598,7 @@ pub(crate) unsafe fn destack_crypto_mac_compute(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1540,7 +1625,7 @@ pub(crate) unsafe fn destack_crypto_mac_finish(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1568,7 +1653,7 @@ pub(crate) unsafe fn destack_crypto_mac_open(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1591,7 +1676,7 @@ pub(crate) unsafe fn destack_crypto_mac_reset(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1615,7 +1700,7 @@ pub(crate) unsafe fn destack_crypto_mac_update(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.

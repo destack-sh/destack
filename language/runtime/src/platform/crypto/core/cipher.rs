@@ -6,7 +6,7 @@ use zeroize::{Zeroize, Zeroizing};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
-    CryptoCipherAlgorithm, CryptoCipherDirection, CryptoCipherParameters,
+    CryptoCipherAlgorithm, CryptoCipherDirection, CryptoCipherParameters, host as crypto_host,
 };
 use crate::platform::resource;
 use crate::platform::resource::ResourceEntry;
@@ -15,10 +15,10 @@ use crate::runtime::BindingCallContext;
 use super::constants::DEFAULT_AEAD_TAG_LENGTH_BYTES;
 use super::core::{
     CRYPTO_CIPHER_LABEL, CRYPTO_CIPHER_RESOURCE_KIND, CryptoCipherResource, KEY_USAGE_DECRYPT,
-    KEY_USAGE_ENCRYPT, decode_native_bytes, handle_not_found, invalid_argument, openssl_error,
-    resolve_cipher_resource,
+    KEY_USAGE_ENCRYPT, decode_native_bytes, handle_not_found, invalid_argument, not_supported,
+    openssl_error, resolve_cipher_resource,
 };
-use super::key::{require_key_usage, resolve_secret_key_bytes};
+use super::key::{require_key_usage, resolve_host_secret_key_material, resolve_secret_key_bytes};
 
 /// Encrypt one payload in one shot.
 pub(crate) fn cipher_encrypt(
@@ -34,6 +34,21 @@ pub(crate) fn cipher_encrypt(
         KEY_USAGE_ENCRYPT,
         "destack.crypto.cipher.encrypt",
     )?;
+
+    // route host-managed secret-key lanes through host cipher primitives
+    if let Some((host_key, store_kind, key_algorithm)) =
+        resolve_host_secret_key_material(context, key, "destack.crypto.cipher.encrypt")?
+    {
+        return crypto_host::host_key_cipher_encrypt(
+            context,
+            &host_key,
+            store_kind,
+            key_algorithm,
+            parameters,
+            payload,
+            "destack.crypto.cipher.encrypt",
+        );
+    }
 
     // resolve secret key bytes and keep them zeroized on all paths
     let key_bytes = resolve_secret_key_bytes(context, key, "destack.crypto.cipher.encrypt")?;
@@ -63,6 +78,21 @@ pub(crate) fn cipher_decrypt(
         KEY_USAGE_DECRYPT,
         "destack.crypto.cipher.decrypt",
     )?;
+
+    // route host-managed secret-key lanes through host cipher primitives
+    if let Some((host_key, store_kind, key_algorithm)) =
+        resolve_host_secret_key_material(context, key, "destack.crypto.cipher.decrypt")?
+    {
+        return crypto_host::host_key_cipher_decrypt(
+            context,
+            &host_key,
+            store_kind,
+            key_algorithm,
+            parameters,
+            payload,
+            "destack.crypto.cipher.decrypt",
+        );
+    }
 
     // resolve secret key bytes and keep them zeroized on all paths
     let key_bytes = resolve_secret_key_bytes(context, key, "destack.crypto.cipher.decrypt")?;
@@ -95,6 +125,11 @@ pub(crate) fn cipher_open(
 
     // enforce key usage policy
     require_key_usage(context, key, required_usage, "destack.crypto.cipher.open")?;
+
+    // reject streaming cipher open for host-managed secret-key lanes
+    if resolve_host_secret_key_material(context, key, "destack.crypto.cipher.open")?.is_some() {
+        return Err(not_supported("destack.crypto.cipher.open"));
+    }
 
     // resolve key bytes and initialize streaming cipher state
     let key = resolve_secret_key_bytes(context, key, "destack.crypto.cipher.open")?;

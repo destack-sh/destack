@@ -161,7 +161,7 @@ fn run_monitor_thread(stop: Arc<AtomicBool>, ready_sender: SyncSender<RuntimeRes
             continue;
         }
 
-        if wait_status < WAIT_OBJECT_0 || wait_status >= WAIT_OBJECT_0 + wait_handles.len() as u32 {
+        if wait_status >= WAIT_OBJECT_0.saturating_add(wait_handles.len() as u32) {
             break;
         }
 
@@ -174,7 +174,7 @@ fn run_monitor_thread(stop: Arc<AtomicBool>, ready_sender: SyncSender<RuntimeRes
             audio_core::publish_device_snapshot_native(audio_core::AudioBackend::Asio);
         });
 
-        if let Err(_) = arm_registry_watcher(&watchers[watcher_index]) {
+        if arm_registry_watcher(&watchers[watcher_index]).is_err() {
             break;
         }
     }

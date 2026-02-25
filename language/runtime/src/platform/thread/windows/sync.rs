@@ -73,7 +73,7 @@ pub(crate) unsafe fn destack_thread_address_wait(
     }
 
     // validate word alignment for wait-on-address
-    if address % (std::mem::size_of::<u32>() as u64) != 0 {
+    if !address.is_multiple_of(std::mem::size_of::<u32>() as u64) {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "address",
             "address must be aligned to 4 bytes",
@@ -147,7 +147,7 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
     }
 
     // validate word alignment for wait-on-address
-    if address % (std::mem::size_of::<u32>() as u64) != 0 {
+    if !address.is_multiple_of(std::mem::size_of::<u32>() as u64) {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "address",
             "address must be aligned to 4 bytes",
@@ -194,7 +194,7 @@ pub(crate) unsafe fn destack_thread_address_wake_one(
     }
 
     // validate word alignment for wait-on-address
-    if address % (std::mem::size_of::<u32>() as u64) != 0 {
+    if !address.is_multiple_of(std::mem::size_of::<u32>() as u64) {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "address",
             "address must be aligned to 4 bytes",

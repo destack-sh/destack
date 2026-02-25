@@ -96,13 +96,15 @@ Primary references are listed below.
 | Android Activity lifecycle docs (`https://developer.android.com/guide/components/activities/activity-lifecycle`) | Canonical callback ordering and meaning (`onCreate`, `onStart`, `onResume`, `onPause`, `onStop`, `onDestroy`). |
 | Apple app lifecycle docs (`https://developer.apple.com/documentation/appkit/nsapplicationdelegate`) | Canonical application callback meanings (`applicationDidFinishLaunching`, `applicationDidBecomeActive`, `applicationWillResignActive`, `applicationWillTerminate`). |
 
-## Target Support Matrix
+## Targets
 
 Runtime target support policy is defined in the repo-wide `TARGETS.md`.
 `workspace` build `Platform` configuration selects product build behavior, while target support tiers define runtime and CI guarantees by Rust target triple.
 Runtime-specific support rows are maintained in `../../TARGETS.md` under the runtime support view.
 
-## Modules
+## Platform
+
+### Architecture
 
 Every platform module follows one canonical layout.
 Generated files (`*.generated.rs`) define the control plane and handwritten files define implementation adapters.
@@ -163,57 +165,35 @@ The exact backend target depends on scope.
 5. run backend adapter and implementation.
 6. encode result and return status.
 
-Scope specific backend calls are listed below.
-
-| Scope | VM engine | Native engine |
-|-----------|--------|--------|
-| `runtime` | `bindings.generated.rs -> runtime/vm.rs -> runtime subsystem or core helpers` | `bindings.generated.rs -> runtime/native.rs -> runtime subsystem or core helpers` |
-| `host` | `bindings.generated.rs -> resolve world -> vm.rs or simulation/vm.rs -> host backend or simulation backend` | `bindings.generated.rs -> resolve world -> native.rs or simulation/native.rs -> host backend or simulation backend` |
-
-Flow chart by scope is listed below.
-
-```text
-runtime scope:
-  bindings.generated.rs
-    -> runtime/{vm,native}.rs
-      -> runtime subsystem implementation
-
-host scope:
-  bindings.generated.rs
-    -> resolve world (host|simulation)
-      -> {vm,native}.rs or simulation/{vm,native}.rs
-        -> host.rs cfg route or simulation backend
-```
+### Modules
 
 The platform module scope matrix is listed below.
 Counts come from `bindings.generated.rs` and represent unique binding descriptors per module.
 Scope is declared per binding descriptor in builtin metadata.
 Generator validation enforces one effective scope per module.
 
-| Module | Description | `host` | `runtime` | Total |
-|-----------|--------|--------|--------|--------|
-| `audio` | Audio device and stream operations. | 28 | 0 | 28 |
-| `crypto` | Cryptographic primitives and key operations. | 18 | 0 | 18 |
-| `debug` | Debugger, tracing, profiling, and inspector hooks. | 0 | 11 | 11 |
-| `display` | Display surfaces, modes, and presentation control. | 11 | 0 | 11 |
-| `error` | Runtime error bridge and conversion helpers. | 0 | 1 | 1 |
-| `ffi` | Dynamic libraries, symbols, and foreign calls. | 7 | 0 | 7 |
-| `fs` | Filesystem paths, metadata, and file or directory operations. | 116 | 0 | 116 |
-| `gpu` | GPU devices, queues, resources, and command submission. | 132 | 0 | 132 |
-| `input` | Input devices, events, and state queries. | 43 | 0 | 43 |
-| `io` | Generic host I/O primitives and descriptors. | 36 | 0 | 36 |
-| `ipc` | Interprocess communication channels and message transfer. | 21 | 0 | 21 |
-| `memory` | Runtime memory controls and host memory integration. | 14 | 0 | 14 |
-| `net` | Sockets, addresses, protocols, and network I/O. | 102 | 0 | 102 |
-| `os` | Operating system identity and host environment data. | 10 | 0 | 10 |
-| `process` | Process identity, spawn, wait, signals, and limits. | 80 | 0 | 80 |
-| `random` | Secure entropy and deterministic random streams. | 0 | 13 | 13 |
-| `resource` | Runtime resource table and handle lifecycle management. | 0 | 4 | 4 |
-| `security` | Policy, capability checks, and security controls. | 0 | 11 | 11 |
-| `thread` | Thread local state, spawn, sync, and priority controls. | 30 | 0 | 30 |
-| `time` | Clocks, timestamps, and time source access. | 0 | 20 | 20 |
-| `tls` | Transport security sessions and certificate paths. | 20 | 0 | 20 |
-| `tty` | TTY mode, capabilities, and terminal controls. | 8 | 0 | 8 |
+| Module | Description | Path |
+|-----------|--------|--------|
+| `audio` | Audio device and stream operations. | [`./src/platform/audio`](./src/platform/audio) |
+| `crypto` | Cryptographic primitives and key operations. | [`./src/platform/crypto`](./src/platform/crypto) |\| `debug` | Debugger, tracing, profiling, and inspector hooks. | [`./src/platform/debug`](./src/platform/debug) |
+| `display` | Display surfaces, modes, and presentation control. | [`./src/platform/display`](./src/platform/display) |
+| `error` | Runtime error bridge and conversion helpers. | [`./src/platform/error`](./src/platform/error) |
+| `ffi` | Dynamic libraries, symbols, and foreign calls. | [`./src/platform/ffi`](./src/platform/ffi) |
+| `fs` | Filesystem paths, metadata, and file or directory operations. | [`./src/platform/fs`](./src/platform/fs) |
+| `gpu` | GPU devices, queues, resources, and command submission. | [`./src/platform/gpu`](./src/platform/gpu) |
+| `input` | Input devices, events, and state queries. | [`./src/platform/input`](./src/platform/input) |
+| `io` | Generic host I/O primitives and descriptors. | [`./src/platform/io`](./src/platform/io) |
+| `ipc` | Interprocess communication channels and message transfer. | [`./src/platform/ipc`](./src/platform/ipc) |
+| `memory` | Runtime memory controls and host memory integration. | [`./src/platform/memory`](./src/platform/memory) |\| `net` | Sockets, addresses, protocols, and network I/O. | [`./src/platform/net`](./src/platform/net) |
+| `os` | Operating system identity and host environment data. | [`./src/platform/os`](./src/platform/os) |
+| `process` | Process identity, spawn, wait, signals, and limits. | [`./src/platform/process`](./src/platform/process) |
+| `random` | Secure entropy and deterministic random streams. | [`./src/platform/random`](./src/platform/random) |\| `resource` | Runtime resource table and handle lifecycle management. | [`./src/platform/resource`](./src/platform/resource) |
+| `security` | Policy, capability checks, and security controls. | [`./src/platform/security`](./src/platform/security) |
+| `thread` | Thread local state, spawn, sync, and priority controls. | [`./src/platform/thread`](./src/platform/thread) |
+| `time` | Clocks, timestamps, and time source access. | [`./src/platform/time`](./src/platform/time) |
+| `tls` | Transport security sessions and certificate paths. | [`./src/platform/tls`](./src/platform/tls) |
+| `tty` | TTY mode, capabilities, and terminal controls. | [`./src/platform/tty`](./src/platform/tty) |
+
 
 Runtime scope ignores the world dimension.
 Only `host` scope branches on world.

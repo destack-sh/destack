@@ -45,7 +45,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -76,7 +76,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -107,7 +107,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -138,7 +138,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -168,7 +168,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -201,7 +201,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -231,7 +231,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -261,7 +261,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.

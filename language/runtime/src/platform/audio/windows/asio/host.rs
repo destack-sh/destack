@@ -547,7 +547,7 @@ pub(super) fn resolve_buffer_size(
     // align to one explicit granularity step when required by the driver
     if granularity > 1 {
         let step = granularity as u32;
-        let rounded = ((resolved + step - 1) / step) * step;
+        let rounded = resolved.div_ceil(step) * step;
         return rounded.max(min_size).min(max_size.max(min_size));
     }
 

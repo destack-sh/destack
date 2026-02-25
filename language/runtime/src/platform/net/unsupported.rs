@@ -4,11 +4,13 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::OsPath;
 use crate::platform::net::{
     AcceptFlags, Linger, ResolveFlags, SocketAddress, SocketFamily, SocketMessageFlags,
-    SocketRecvMessage, SocketSendMessage, SocketShutdown, UdpReceive,
+    SocketRecvMessage, SocketSendMessage, SocketShutdown, UdpMessageFlags, UdpReceive,
 };
 use crate::platform::resource::{ListenerHandle, SocketHandle};
 use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
 use crate::runtime::BindingCallContext;
+
+pub(crate) use crate::platform::net::simulation::native::*;
 
 /// Accept a new connection from a listener.
 ///
@@ -1215,6 +1217,95 @@ pub(crate) unsafe fn destack_net_uds_listen(
 ) -> RuntimeResult<()> {
     let _ = (context, out, path, backlog);
     Err(RuntimeError::from(PlatformError::not_supported("destack.net.udsListen")).boxed())
+}
+
+/// Connect one socket to one raw remote address.
+pub(crate) unsafe fn destack_net_connect_raw(
+    context: &BindingCallContext,
+    handle: SocketHandle,
+    address: SocketAddress,
+) -> RuntimeResult<()> {
+    let _ = (context, handle, address);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.connect")).boxed())
+}
+
+/// Start one listener on one raw local address.
+pub(crate) unsafe fn destack_net_listen_raw(
+    context: &BindingCallContext,
+    out: *mut ListenerHandle,
+    address: SocketAddress,
+    backlog: u32,
+) -> RuntimeResult<()> {
+    let _ = (context, out, address, backlog);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.listen")).boxed())
+}
+
+/// Resolve one host query into raw socket addresses.
+pub(crate) unsafe fn destack_net_resolve_raw(
+    context: &BindingCallContext,
+    out: *mut NativeArray<SocketAddress>,
+    host: NativeStringRef,
+    port: u16,
+    family: SocketFamily,
+    flags: ResolveFlags,
+) -> RuntimeResult<()> {
+    let _ = (context, out, host, port, family, flags);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.resolve")).boxed())
+}
+
+/// Resolve one raw socket address into host names.
+pub(crate) unsafe fn destack_net_reverse_lookup_raw(
+    context: &BindingCallContext,
+    out: *mut NativeArray<NativeStringRef>,
+    address: SocketAddress,
+) -> RuntimeResult<()> {
+    let _ = (context, out, address);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.reverseLookup")).boxed())
+}
+
+/// Bind one udp socket to one raw local address.
+pub(crate) unsafe fn destack_net_udp_bind_raw(
+    context: &BindingCallContext,
+    handle: SocketHandle,
+    address: SocketAddress,
+) -> RuntimeResult<()> {
+    let _ = (context, handle, address);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpBind")).boxed())
+}
+
+/// Connect one udp socket to one raw remote address.
+pub(crate) unsafe fn destack_net_udp_connect_raw(
+    context: &BindingCallContext,
+    handle: SocketHandle,
+    address: SocketAddress,
+) -> RuntimeResult<()> {
+    let _ = (context, handle, address);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpConnect")).boxed())
+}
+
+/// Receive one udp datagram with one raw source address.
+pub(crate) unsafe fn destack_net_udp_recv_from_raw(
+    context: &BindingCallContext,
+    out: *mut UdpReceive,
+    handle: SocketHandle,
+    buffer: NativeSlice<u8>,
+    recv_flags: UdpMessageFlags,
+) -> RuntimeResult<()> {
+    let _ = (context, out, handle, buffer, recv_flags);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpRecvFrom")).boxed())
+}
+
+/// Send one udp datagram to one raw destination address.
+pub(crate) unsafe fn destack_net_udp_send_to_raw(
+    context: &BindingCallContext,
+    out: *mut u64,
+    handle: SocketHandle,
+    address: SocketAddress,
+    buffer: NativeSlice<u8>,
+    send_flags: UdpMessageFlags,
+) -> RuntimeResult<()> {
+    let _ = (context, out, handle, address, buffer, send_flags);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.net.udpSendTo")).boxed())
 }
 
 /// Accept a connection from a UDS listener.

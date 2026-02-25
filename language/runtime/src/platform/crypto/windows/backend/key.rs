@@ -39,8 +39,9 @@ use crate::platform::crypto::core::{
 };
 use crate::platform::crypto::{
     CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters,
-    CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyUsageMask, CryptoNamedCurve,
-    CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreKind,
+    CryptoCipherParameters, CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyUsageMask,
+    CryptoMacParameters, CryptoNamedCurve, CryptoSignatureAlgorithm, CryptoSignatureParameters,
+    CryptoStoreKind,
 };
 use crate::runtime::BindingCallContext;
 
@@ -240,9 +241,41 @@ fn open_persisted_key_with_kind(
     Ok((provider, key))
 }
 
+/// Open one persisted key and return none when the key label is absent in the selected lane.
+fn try_open_persisted_key_with_kind(
+    provider_kind: WindowsProviderKind,
+    kind: CryptoStoreKind,
+    key_label: &str,
+    operation: &'static str,
+) -> RuntimeResult<Option<(NCRYPT_PROV_HANDLE, NCRYPT_KEY_HANDLE)>> {
+    // open one provider and derive key-open flags for the lane
+    let provider = open_provider_with_kind(provider_kind, operation)?;
+    let flags = lane_key_flags(kind);
+
+    // open one persisted key by label
+    let key_name = key_name_utf16(key_label, operation)?;
+    let mut key = 0usize;
+    let status = unsafe { NCryptOpenKey(provider, &mut key, key_name.as_ptr(), 0, flags) };
+    if !status_is_success(status) {
+        close_handle(provider);
+        if status_is_key_not_found(status) {
+            return Ok(None);
+        }
+
+        return Err(status_error(
+            operation,
+            "open one persisted host key",
+            status,
+        ));
+    }
+
+    Ok(Some((provider, key)))
+}
+
 /// Open one persisted key from one backend lane.
 fn open_persisted_key_for_backend(
     backend: HostKeyBackend,
+    kind: CryptoStoreKind,
     key_label: &str,
     operation: &'static str,
 ) -> RuntimeResult<(NCRYPT_PROV_HANDLE, NCRYPT_KEY_HANDLE)> {
@@ -250,15 +283,12 @@ fn open_persisted_key_for_backend(
         return Err(not_supported(operation));
     };
 
-    open_persisted_key_with_kind(provider_kind, CryptoStoreKind::User, key_label, operation)
-        .or_else(|_| {
-            open_persisted_key_with_kind(
-                provider_kind,
-                CryptoStoreKind::Machine,
-                key_label,
-                operation,
-            )
-        })
+    // enforce explicit user or machine lane provenance for persisted windows host keys
+    if kind != CryptoStoreKind::User && kind != CryptoStoreKind::Machine {
+        return Err(not_supported(operation));
+    }
+
+    open_persisted_key_with_kind(provider_kind, kind, key_label, operation)
 }
 
 /// Return digest metadata for one signature request.
@@ -1162,6 +1192,29 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
     Ok(generated)
 }
 
+/// Generate one host-backed hardware secret key.
+pub(crate) fn host_generate_hardware_backed_secret_key(
+    _context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    digest: CryptoDigestAlgorithm,
+    size_bits: u32,
+    usage_mask: CryptoKeyUsageMask,
+    persistent_key_label: &str,
+    operation: &'static str,
+) -> RuntimeResult<HostKeyMaterial> {
+    let _ = (
+        kind,
+        algorithm,
+        digest,
+        size_bits,
+        usage_mask,
+        persistent_key_label,
+    );
+
+    Err(not_supported(operation))
+}
+
 /// Generate one host-managed persistent key pair when available.
 pub(crate) fn host_generate_persistent_key_pair(
     _context: &BindingCallContext,
@@ -1276,14 +1329,9 @@ pub(crate) fn host_import_persistent_private_key(
         let public_key_spki_der = public_key
             .public_key_to_der()
             .map_err(|error| invalid_data(operation, format!("{error}")))?;
-        let backend = if requests_derive {
-            HostKeyBackend::WindowsSoftwareKeyStorageEc
-        } else {
-            HostKeyBackend::WindowsSoftwareKeyStorageEc
-        };
 
         Ok(Some(HostKeyMaterial {
-            backend,
+            backend: HostKeyBackend::WindowsSoftwareKeyStorageEc,
             key_label: persistent_key_label.to_string(),
             public_key_spki_der,
             private_key_der: Vec::new(),
@@ -1300,6 +1348,7 @@ pub(crate) fn host_import_persistent_private_key(
 pub(crate) fn host_key_sign(
     _context: &BindingCallContext,
     key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     parameters: CryptoSignatureParameters,
     payload: &[u8],
@@ -1318,7 +1367,7 @@ pub(crate) fn host_key_sign(
 
     // open one persisted key and call NCryptSignHash in two passes
     let (provider, persisted_key) =
-        open_persisted_key_for_backend(key.backend, &key.key_label, operation)?;
+        open_persisted_key_for_backend(key.backend, kind, &key.key_label, operation)?;
     let sign_result = (|| -> RuntimeResult<Vec<u8>> {
         // rsa signing
         if algorithm == CryptoKeyAlgorithm::Rsa {
@@ -1458,6 +1507,7 @@ pub(crate) fn host_key_sign(
 pub(crate) fn host_key_decrypt(
     _context: &BindingCallContext,
     key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     parameters: CryptoAsymmetricEncryptionParameters,
     payload: &[u8],
@@ -1501,7 +1551,7 @@ pub(crate) fn host_key_decrypt(
 
     // open one persisted key and call NCryptDecrypt in two passes
     let (provider, persisted_key) =
-        open_persisted_key_for_backend(key.backend, &key.key_label, operation)?;
+        open_persisted_key_for_backend(key.backend, kind, &key.key_label, operation)?;
     let decrypt_result = (|| -> RuntimeResult<Vec<u8>> {
         let mut plaintext_size = 0u32;
         let size_status = unsafe {
@@ -1560,50 +1610,23 @@ pub(crate) fn host_key_decrypt(
 pub(crate) fn host_key_delete(
     _context: &BindingCallContext,
     key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     // enforce one supported windows host-key backend lane
     let Some(provider_kind) = provider_kind_from_backend(key.backend) else {
         return Err(not_supported(operation));
     };
+    if kind != CryptoStoreKind::User && kind != CryptoStoreKind::Machine {
+        return Err(not_supported(operation));
+    }
 
-    // open the provider and resolve the persisted key handle
-    let provider = open_provider_with_kind(provider_kind, operation)?;
-    let lane_flags = lane_key_flags(CryptoStoreKind::User);
-    let machine_flags = lane_key_flags(CryptoStoreKind::Machine);
-    let key_name = key_name_utf16(&key.key_label, operation)?;
-    let mut persisted_key = 0usize;
-    let mut open_status = unsafe {
-        NCryptOpenKey(
-            provider,
-            &mut persisted_key,
-            key_name.as_ptr(),
-            0,
-            lane_flags,
-        )
+    // open one persisted key with explicit store provenance
+    let selected_key =
+        try_open_persisted_key_with_kind(provider_kind, kind, &key.key_label, operation)?;
+    let Some((provider, mut persisted_key)) = selected_key else {
+        return Ok(());
     };
-    if !status_is_success(open_status) {
-        open_status = unsafe {
-            NCryptOpenKey(
-                provider,
-                &mut persisted_key,
-                key_name.as_ptr(),
-                0,
-                machine_flags,
-            )
-        };
-    }
-    if !status_is_success(open_status) {
-        close_handle(provider);
-        if status_is_key_not_found(open_status) {
-            return Ok(());
-        }
-        return Err(status_error(
-            operation,
-            "open one persisted host key",
-            open_status,
-        ));
-    }
 
     // delete the resolved persisted key and ignore already-deleted outcomes
     let delete_status = unsafe { NCryptDeleteKey(persisted_key, 0) };
@@ -1627,6 +1650,7 @@ pub(crate) fn host_key_delete(
 pub(crate) fn host_key_derive_shared_secret(
     _context: &BindingCallContext,
     key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
     peer_public_spki_der: &[u8],
@@ -1646,7 +1670,7 @@ pub(crate) fn host_key_derive_shared_secret(
 
     // open one persisted host private key and import peer public key
     let (provider, private_key) =
-        open_persisted_key_for_backend(key.backend, &key.key_label, operation)?;
+        open_persisted_key_for_backend(key.backend, kind, &key.key_label, operation)?;
     let derive_result = (|| -> RuntimeResult<Vec<u8>> {
         let peer_public_blob =
             encode_ecdh_public_blob_from_spki(peer_public_spki_der, named_curve, operation)?;
@@ -1736,4 +1760,49 @@ pub(crate) fn host_key_derive_shared_secret(
     close_handle(provider);
 
     derive_result
+}
+
+/// Encrypt one payload with one host-managed secret key.
+pub(crate) fn host_key_cipher_encrypt(
+    _context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoCipherParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<(Vec<u8>, Vec<u8>)> {
+    let _ = (key, kind, algorithm, parameters, payload);
+
+    Err(not_supported(operation))
+}
+
+/// Decrypt one payload with one host-managed secret key.
+pub(crate) fn host_key_cipher_decrypt(
+    _context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoCipherParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    let _ = (key, kind, algorithm, parameters, payload);
+
+    Err(not_supported(operation))
+}
+
+/// Compute one MAC with one host-managed secret key.
+pub(crate) fn host_key_mac_compute(
+    _context: &BindingCallContext,
+    key: &HostKeyMaterial,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+    parameters: CryptoMacParameters,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    let _ = (key, kind, algorithm, parameters, payload);
+
+    Err(not_supported(operation))
 }

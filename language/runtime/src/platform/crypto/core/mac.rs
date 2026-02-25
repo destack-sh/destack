@@ -6,17 +6,20 @@ use parking_lot::Mutex;
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::crypto::{CryptoDigestAlgorithm, CryptoMacAlgorithm, CryptoMacParameters};
+use crate::platform::crypto::{
+    CryptoDigestAlgorithm, CryptoMacAlgorithm, CryptoMacParameters, host as crypto_host,
+};
 use crate::platform::resource;
 use crate::platform::resource::ResourceEntry;
 use crate::runtime::BindingCallContext;
 
 use super::core::{
     CRYPTO_MAC_LABEL, CRYPTO_MAC_RESOURCE_KIND, CryptoMacResource, KEY_USAGE_SIGN,
-    KEY_USAGE_VERIFY, handle_not_found, invalid_argument, openssl_error, resolve_mac_resource,
+    KEY_USAGE_VERIFY, handle_not_found, invalid_argument, not_supported, openssl_error,
+    resolve_mac_resource,
 };
 use super::digest::message_digest;
-use super::key::{require_key_usage, resolve_secret_key_bytes};
+use super::key::{require_key_usage, resolve_host_secret_key_material, resolve_secret_key_bytes};
 
 /// Compute one mac in one shot.
 fn mac_compute_internal(
@@ -31,6 +34,21 @@ fn mac_compute_internal(
             "parameters.algorithm",
             "only HMAC is currently supported",
         ));
+    }
+
+    // route host-managed secret-key lanes through host mac primitives
+    if let Some((host_key, store_kind, key_algorithm)) =
+        resolve_host_secret_key_material(context, key, "destack.crypto.mac.compute")?
+    {
+        return crypto_host::host_key_mac_compute(
+            context,
+            &host_key,
+            store_kind,
+            key_algorithm,
+            parameters,
+            payload,
+            "destack.crypto.mac.compute",
+        );
     }
 
     // resolve secret key bytes and keep them zeroized on all paths
@@ -107,6 +125,11 @@ pub(crate) fn mac_open(
             "parameters.algorithm",
             "only HMAC is currently supported",
         ));
+    }
+
+    // reject streaming mac open for host-managed secret-key lanes
+    if resolve_host_secret_key_material(context, key, "destack.crypto.mac.open")?.is_some() {
+        return Err(not_supported("destack.crypto.mac.open"));
     }
 
     // resolve secret key bytes and keep them zeroized on all paths

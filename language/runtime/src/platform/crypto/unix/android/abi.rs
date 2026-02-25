@@ -31,6 +31,16 @@ pub(super) type HostGenerateHardwareKeyPairFn = unsafe extern "C" fn(
     public_exponent: u32,
     key_label: NativeStringRef,
 ) -> u32;
+/// Host callback for generating one hardware-backed secret key.
+pub(super) type HostGenerateHardwareSecretKeyFn = unsafe extern "C" fn(
+    runtime_id: u64,
+    store_kind: u32,
+    key_algorithm: u32,
+    digest_algorithm: u32,
+    key_size_bits: u32,
+    key_usage_mask: u32,
+    key_label: NativeStringRef,
+) -> u32;
 /// Host callback for exporting one hardware-backed public key.
 pub(super) type HostExportHardwarePublicKeyFn = unsafe extern "C" fn(
     runtime_id: u64,
@@ -63,6 +73,46 @@ pub(super) type HostDecryptHardwareKeyFn = unsafe extern "C" fn(
     output_plaintext: NativeSlice<u8>,
     output_written: *mut u32,
 ) -> u32;
+/// Host callback for encrypting one payload with one hardware-backed secret key.
+pub(super) type HostEncryptHardwareSecretKeyFn = unsafe extern "C" fn(
+    runtime_id: u64,
+    key_algorithm: u32,
+    key_label: NativeStringRef,
+    cipher_algorithm: u32,
+    nonce: NativeSlice<u8>,
+    additional_data: NativeSlice<u8>,
+    tag_length_bytes: u32,
+    payload: NativeSlice<u8>,
+    output_ciphertext: NativeSlice<u8>,
+    output_tag: NativeSlice<u8>,
+    output_ciphertext_written: *mut u32,
+    output_tag_written: *mut u32,
+) -> u32;
+/// Host callback for decrypting one payload with one hardware-backed secret key.
+pub(super) type HostDecryptHardwareSecretKeyFn = unsafe extern "C" fn(
+    runtime_id: u64,
+    key_algorithm: u32,
+    key_label: NativeStringRef,
+    cipher_algorithm: u32,
+    nonce: NativeSlice<u8>,
+    additional_data: NativeSlice<u8>,
+    tag: NativeSlice<u8>,
+    payload: NativeSlice<u8>,
+    output_plaintext: NativeSlice<u8>,
+    output_written: *mut u32,
+) -> u32;
+/// Host callback for computing one MAC with one hardware-backed secret key.
+pub(super) type HostComputeHardwareMacFn = unsafe extern "C" fn(
+    runtime_id: u64,
+    key_algorithm: u32,
+    key_label: NativeStringRef,
+    mac_algorithm: u32,
+    digest_algorithm: u32,
+    tag_length_bytes: u32,
+    payload: NativeSlice<u8>,
+    output_tag: NativeSlice<u8>,
+    output_written: *mut u32,
+) -> u32;
 /// Host callback for deriving one shared secret with one hardware-backed key.
 pub(super) type HostDeriveHardwareSharedSecretFn = unsafe extern "C" fn(
     runtime_id: u64,
@@ -83,12 +133,20 @@ pub(super) struct AndroidHostCryptoApi {
     pub(super) supports_hardware_key: Option<HostSupportsHardwareKeyFn>,
     /// Generate one hardware-backed key pair.
     pub(super) generate_hardware_key_pair: Option<HostGenerateHardwareKeyPairFn>,
+    /// Generate one hardware-backed secret key.
+    pub(super) generate_hardware_secret_key: Option<HostGenerateHardwareSecretKeyFn>,
     /// Export one hardware-backed public key payload.
     pub(super) export_hardware_public_key: Option<HostExportHardwarePublicKeyFn>,
     /// Sign one payload with one hardware-backed key.
     pub(super) sign_hardware_key: Option<HostSignHardwareKeyFn>,
     /// Decrypt one payload with one hardware-backed key.
     pub(super) decrypt_hardware_key: Option<HostDecryptHardwareKeyFn>,
+    /// Encrypt one payload with one hardware-backed secret key.
+    pub(super) encrypt_hardware_secret_key: Option<HostEncryptHardwareSecretKeyFn>,
+    /// Decrypt one payload with one hardware-backed secret key.
+    pub(super) decrypt_hardware_secret_key: Option<HostDecryptHardwareSecretKeyFn>,
+    /// Compute one MAC with one hardware-backed secret key.
+    pub(super) compute_hardware_mac: Option<HostComputeHardwareMacFn>,
     /// Derive one shared secret with one hardware-backed key.
     pub(super) derive_hardware_shared_secret: Option<HostDeriveHardwareSharedSecretFn>,
     /// Delete one hardware-backed key.
@@ -106,12 +164,24 @@ pub(super) fn android_host_crypto_api() -> &'static AndroidHostCryptoApi {
         generate_hardware_key_pair: load_symbol(
             b"destack_runtime_host_android_crypto_generate_hardware_key_pair\0",
         ),
+        generate_hardware_secret_key: load_symbol(
+            b"destack_runtime_host_android_crypto_generate_hardware_secret_key\0",
+        ),
         export_hardware_public_key: load_symbol(
             b"destack_runtime_host_android_crypto_export_hardware_public_key\0",
         ),
         sign_hardware_key: load_symbol(b"destack_runtime_host_android_crypto_sign_hardware_key\0"),
         decrypt_hardware_key: load_symbol(
             b"destack_runtime_host_android_crypto_decrypt_hardware_key\0",
+        ),
+        encrypt_hardware_secret_key: load_symbol(
+            b"destack_runtime_host_android_crypto_encrypt_hardware_secret_key\0",
+        ),
+        decrypt_hardware_secret_key: load_symbol(
+            b"destack_runtime_host_android_crypto_decrypt_hardware_secret_key\0",
+        ),
+        compute_hardware_mac: load_symbol(
+            b"destack_runtime_host_android_crypto_compute_hardware_mac\0",
         ),
         derive_hardware_shared_secret: load_symbol(
             b"destack_runtime_host_android_crypto_derive_hardware_shared_secret\0",

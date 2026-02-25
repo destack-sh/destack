@@ -110,7 +110,7 @@ pub(crate) fn os_path_from_utf8_string(context: &BindingCallContext, value: Stri
     {
         let utf16_values = value.encode_utf16().collect::<Vec<_>>();
         let utf16 = PathUtf16Abi::<NativeAbi>(context.store_array(utf16_values));
-        return path_ref_from_utf16(utf16);
+        path_ref_from_utf16(utf16)
     }
 
     #[cfg(not(any(unix, windows)))]

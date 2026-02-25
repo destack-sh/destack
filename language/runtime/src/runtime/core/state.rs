@@ -252,6 +252,7 @@ impl ResolvedModuleOptions {
     /// Resolve global and platform-specific module options for the current compile target.
     fn from_runtime_options(options: &RuntimeOptions) -> Self {
         // seed from global defaults first
+        #[allow(unused_mut)]
         let mut resolved = Self {
             fs: options.fs.clone(),
             net: options.net.clone(),
