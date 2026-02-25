@@ -2,20 +2,79 @@ use std::collections::HashSet;
 use std::fs;
 
 use openssl::x509::X509;
-use windows_sys::Win32::Security::Cryptography::{
-    CERT_SYSTEM_STORE_CURRENT_USER, CERT_SYSTEM_STORE_LOCAL_MACHINE,
-};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::CryptoStoreKind;
+use crate::platform::crypto::core::CRYPTO_STORE_OPEN_OPERATION;
 use crate::runtime::BindingCallContext;
 
 use super::certificate::windows_collect_certificates_from_location;
-use super::constants::STORE_OPEN_OPERATION;
+use super::constants::{
+    WINDOWS_CERT_STORE_CURRENT_USER, WINDOWS_CERT_STORE_LOCAL_MACHINE, WINDOWS_CERT_STORE_PROBE,
+    WINDOWS_CERT_STORE_SCAN_ORDER,
+};
 use super::core::{
     not_supported, permission_denied, windows_dpapi_protect, windows_dpapi_unprotect,
     windows_keystore_path, windows_try_open_store,
 };
+
+/// Windows host store locations for the system lane.
+const SYSTEM_STORE_LOCATIONS: [u32; 2] = [
+    WINDOWS_CERT_STORE_CURRENT_USER,
+    WINDOWS_CERT_STORE_LOCAL_MACHINE,
+];
+
+/// Windows host store locations for the user lane.
+const USER_STORE_LOCATIONS: [u32; 1] = [WINDOWS_CERT_STORE_CURRENT_USER];
+
+/// Windows host store locations for the machine lane.
+const MACHINE_STORE_LOCATIONS: [u32; 1] = [WINDOWS_CERT_STORE_LOCAL_MACHINE];
+
+/// Return certificate store locations for one host store lane.
+fn lane_store_locations(kind: CryptoStoreKind) -> Option<&'static [u32]> {
+    match kind {
+        CryptoStoreKind::System => Some(&SYSTEM_STORE_LOCATIONS),
+        CryptoStoreKind::User => Some(&USER_STORE_LOCATIONS),
+        CryptoStoreKind::Machine => Some(&MACHINE_STORE_LOCATIONS),
+        CryptoStoreKind::Provider | CryptoStoreKind::Ephemeral => None,
+    }
+}
+
+/// Return whether any native system store in one lane can be opened.
+fn lane_has_openable_system_store(kind: CryptoStoreKind) -> bool {
+    // probe one representative collection for each lane location
+    let Some(locations) = lane_store_locations(kind) else {
+        return false;
+    };
+    for location in locations {
+        if windows_try_open_store(*location, WINDOWS_CERT_STORE_PROBE) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Collect certificates from all configured windows collections in one lane.
+fn collect_lane_certificates(
+    locations: &[u32],
+    certificates: &mut Vec<X509>,
+    seen_der_certificates: &mut HashSet<Vec<u8>>,
+) -> RuntimeResult<()> {
+    // scan all lane locations in deterministic collection order
+    for location in locations {
+        for store_name in WINDOWS_CERT_STORE_SCAN_ORDER {
+            windows_collect_certificates_from_location(
+                *location,
+                store_name,
+                certificates,
+                seen_der_certificates,
+            )?;
+        }
+    }
+
+    Ok(())
+}
 
 pub(crate) fn host_store_persistence_backend_is_available(
     context: &BindingCallContext,
@@ -29,18 +88,15 @@ pub(crate) fn host_store_lane_is_available(
     context: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> bool {
-    // probe one representative store for each lane
+    // resolve lane availability through native store probes and snapshot lanes
     match kind {
-        CryptoStoreKind::System => {
-            windows_try_open_store(CERT_SYSTEM_STORE_CURRENT_USER, "ROOT")
-                || windows_try_open_store(CERT_SYSTEM_STORE_LOCAL_MACHINE, "ROOT")
-        }
+        CryptoStoreKind::System => lane_has_openable_system_store(CryptoStoreKind::System),
         CryptoStoreKind::User => {
-            windows_try_open_store(CERT_SYSTEM_STORE_CURRENT_USER, "ROOT")
+            lane_has_openable_system_store(CryptoStoreKind::User)
                 || windows_keystore_path(context, CryptoStoreKind::User).is_some()
         }
         CryptoStoreKind::Machine => {
-            windows_try_open_store(CERT_SYSTEM_STORE_LOCAL_MACHINE, "ROOT")
+            lane_has_openable_system_store(CryptoStoreKind::Machine)
                 || windows_keystore_path(context, CryptoStoreKind::Machine).is_some()
         }
         CryptoStoreKind::Provider | CryptoStoreKind::Ephemeral => false,
@@ -55,86 +111,25 @@ pub(crate) fn open_host_store_certificates(
     // merge certificates from all store collections in this lane
     let mut certificates = Vec::new();
     let mut seen_der_certificates = HashSet::new();
+
+    // collect lane certificates from all configured windows store locations
     match kind {
-        CryptoStoreKind::System => {
-            windows_collect_certificates_from_location(
-                CERT_SYSTEM_STORE_CURRENT_USER,
-                "ROOT",
-                &mut certificates,
-                &mut seen_der_certificates,
-            )?;
-            windows_collect_certificates_from_location(
-                CERT_SYSTEM_STORE_CURRENT_USER,
-                "CA",
-                &mut certificates,
-                &mut seen_der_certificates,
-            )?;
-            windows_collect_certificates_from_location(
-                CERT_SYSTEM_STORE_CURRENT_USER,
-                "TrustedPeople",
-                &mut certificates,
-                &mut seen_der_certificates,
-            )?;
-            windows_collect_certificates_from_location(
-                CERT_SYSTEM_STORE_LOCAL_MACHINE,
-                "ROOT",
-                &mut certificates,
-                &mut seen_der_certificates,
-            )?;
-            windows_collect_certificates_from_location(
-                CERT_SYSTEM_STORE_LOCAL_MACHINE,
-                "CA",
-                &mut certificates,
-                &mut seen_der_certificates,
-            )?;
-            windows_collect_certificates_from_location(
-                CERT_SYSTEM_STORE_LOCAL_MACHINE,
-                "TrustedPeople",
-                &mut certificates,
-                &mut seen_der_certificates,
-            )?;
-        }
-        CryptoStoreKind::User => {
-            windows_collect_certificates_from_location(
-                CERT_SYSTEM_STORE_CURRENT_USER,
-                "ROOT",
-                &mut certificates,
-                &mut seen_der_certificates,
-            )?;
-            windows_collect_certificates_from_location(
-                CERT_SYSTEM_STORE_CURRENT_USER,
-                "CA",
-                &mut certificates,
-                &mut seen_der_certificates,
-            )?;
-            windows_collect_certificates_from_location(
-                CERT_SYSTEM_STORE_CURRENT_USER,
-                "TrustedPeople",
-                &mut certificates,
-                &mut seen_der_certificates,
-            )?;
-        }
-        CryptoStoreKind::Machine => {
-            windows_collect_certificates_from_location(
-                CERT_SYSTEM_STORE_LOCAL_MACHINE,
-                "ROOT",
-                &mut certificates,
-                &mut seen_der_certificates,
-            )?;
-            windows_collect_certificates_from_location(
-                CERT_SYSTEM_STORE_LOCAL_MACHINE,
-                "CA",
-                &mut certificates,
-                &mut seen_der_certificates,
-            )?;
-            windows_collect_certificates_from_location(
-                CERT_SYSTEM_STORE_LOCAL_MACHINE,
-                "TrustedPeople",
-                &mut certificates,
-                &mut seen_der_certificates,
-            )?;
-        }
-        CryptoStoreKind::Provider => return Err(not_supported(STORE_OPEN_OPERATION)),
+        CryptoStoreKind::System => collect_lane_certificates(
+            &SYSTEM_STORE_LOCATIONS,
+            &mut certificates,
+            &mut seen_der_certificates,
+        )?,
+        CryptoStoreKind::User => collect_lane_certificates(
+            &USER_STORE_LOCATIONS,
+            &mut certificates,
+            &mut seen_der_certificates,
+        )?,
+        CryptoStoreKind::Machine => collect_lane_certificates(
+            &MACHINE_STORE_LOCATIONS,
+            &mut certificates,
+            &mut seen_der_certificates,
+        )?,
+        CryptoStoreKind::Provider => return Err(not_supported(CRYPTO_STORE_OPEN_OPERATION)),
         CryptoStoreKind::Ephemeral => return Ok(Vec::new()),
     }
 

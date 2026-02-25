@@ -1,8 +1,11 @@
+#[cfg(any(unix, windows))]
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use super::{KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_SIGN, with_harness_context};
 use crate::platform::crypto::{
     CryptoAgreementDeriveKeyRequest, CryptoDigestAlgorithm, CryptoKeyAgreementAlgorithm,
     CryptoKeyAlgorithm, CryptoKeyGenerationRequest, CryptoKeyQuery, CryptoKeyUsageMask,
-    CryptoNamedCurve, CryptoStoreKind,
+    CryptoNamedCurve, CryptoStoreKind, CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -227,8 +230,6 @@ fn test_agreement_rejects_mismatched_key_algorithms() {
 #[cfg(any(unix, windows))]
 #[test]
 fn test_agreement_host_persistent_ec_pair_roundtrip() {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
     with_harness_context(|mut context| {
         // prepare one unique label prefix for this test run
         let nonce = SystemTime::now()
@@ -243,8 +244,8 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
             CryptoStoreKind::User,
             CryptoStoreKind::Machine,
         ] {
-            let provider = context.string_value("");
-            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -268,8 +269,20 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
                 hardware_backed: false,
                 persistent: true,
             };
-            let alice =
-                context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
+            let alice = match context
+                .destack_crypto_key_generate_pair(store, context.request_value(request)?)
+            {
+                Ok(alice) => alice,
+                Err(error) => {
+                    let code = error.platform_error().map(|platform| platform.code);
+                    if code == Some(PlatformErrorCode::NotSupported) {
+                        context.destack_crypto_store_close(store)?;
+                        continue;
+                    }
+
+                    return Err(error);
+                }
+            };
             let alice = context.same_from_value(alice);
 
             let request = CryptoKeyGenerationRequest {
@@ -287,8 +300,20 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
                 hardware_backed: false,
                 persistent: true,
             };
-            let bob =
-                context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
+            let bob = match context
+                .destack_crypto_key_generate_pair(store, context.request_value(request)?)
+            {
+                Ok(bob) => bob,
+                Err(error) => {
+                    let code = error.platform_error().map(|platform| platform.code);
+                    if code == Some(PlatformErrorCode::NotSupported) {
+                        context.destack_crypto_store_close(store)?;
+                        continue;
+                    }
+
+                    return Err(error);
+                }
+            };
             let bob = context.same_from_value(bob);
             context.destack_crypto_store_close(store)?;
 

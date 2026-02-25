@@ -14,6 +14,7 @@ mod store;
 pub(crate) use agreement::*;
 pub(crate) use certificate::*;
 pub(crate) use cipher::*;
+pub(crate) use constants::CRYPTO_STORE_OPEN_OPERATION;
 pub(crate) use core::*;
 pub(crate) use digest::*;
 pub(crate) use kdf::*;

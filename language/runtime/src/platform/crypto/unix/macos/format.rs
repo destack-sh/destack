@@ -1,3 +1,5 @@
+use std::os::raw::c_void;
+
 use core_foundation_sys::base::{CFRelease, CFTypeRef, kCFAllocatorDefault};
 use core_foundation_sys::data::CFDataCreate;
 use core_foundation_sys::dictionary::{
@@ -71,8 +73,6 @@ pub(super) fn create_ec_public_key_from_x963(
     public_key_x963_bytes: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<SecKeyRef> {
-    use std::os::raw::c_void;
-
     // encode x9.63 bytes and key-size metadata
     let data = unsafe {
         CFDataCreate(

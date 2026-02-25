@@ -1,6 +1,3 @@
-/// Store-open operation name.
-pub(super) const STORE_OPEN_OPERATION: &str = "destack.crypto.store.open";
-
 /// Unix user-lane host key snapshot relative path.
 pub(super) const UNIX_USER_KEYSTORE_RELATIVE_PATH: &str =
     ".local/share/destack/crypto/user-store.keys";

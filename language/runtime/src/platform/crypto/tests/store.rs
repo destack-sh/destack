@@ -1,10 +1,19 @@
+use std::collections::HashSet;
+
 use super::{placeholder_store_handle, with_harness_context};
 use crate::platform::crypto::{
     CryptoCertificateQuery, CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyFormat,
     CryptoKeyGenerationRequest, CryptoKeyQuery, CryptoKeyUsageMask, CryptoNamedCurve,
-    CryptoStoreKind, CryptoStoreOptions,
+    CryptoStoreKind, CryptoStoreOptions, CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
+
+/// Assert that one store-kind list has no duplicate entries.
+fn assert_unique_store_kinds(kinds: &[CryptoStoreKind]) {
+    // collect unique kinds and compare with the full sequence length
+    let unique_kinds = kinds.iter().copied().collect::<HashSet<_>>();
+    assert_eq!(unique_kinds.len(), kinds.len());
+}
 
 /// Open one ephemeral store, list entries, and close it.
 #[cfg(any(unix, windows))]
@@ -95,8 +104,8 @@ fn test_store_open_follows_probe_availability() {
             CryptoStoreKind::User,
             CryptoStoreKind::Machine,
         ] {
-            let provider = context.string_value("");
-            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
             let capability = context.store_capability_from_value(capability)?;
             let options = context.store_options_value(kind);
             let result = context.destack_crypto_store_open(options);
@@ -117,12 +126,13 @@ fn test_store_open_follows_probe_availability() {
         }
 
         // provider lane should be available through the software provider
-        let provider = context.string_value("");
-        let capability =
-            context.destack_crypto_store_probe_capability(CryptoStoreKind::Provider, provider)?;
+        let capability = context.destack_crypto_store_probe_capability(
+            CryptoStoreKind::Provider,
+            CryptoStoreProvider::Unknown,
+        )?;
         let capability = context.store_capability_from_value(capability)?;
         assert!(capability.is_available);
-        assert_eq!(capability.provider_name, "openssl");
+        assert_eq!(capability.provider, CryptoStoreProvider::OpenSsl);
         assert!(capability.supports_key_export);
 
         let options = context.store_options_value(CryptoStoreKind::Provider);
@@ -144,8 +154,8 @@ fn test_store_list_certificates_for_available_host_lanes() {
             CryptoStoreKind::User,
             CryptoStoreKind::Machine,
         ] {
-            let provider = context.string_value("");
-            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -181,8 +191,8 @@ fn test_store_probe_capability_host_lane_key_fields() {
             CryptoStoreKind::User,
             CryptoStoreKind::Machine,
         ] {
-            let provider = context.string_value("");
-            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -205,17 +215,18 @@ fn test_store_probe_capability_host_lane_key_fields() {
     });
 }
 
-/// Reject provider names on non-provider kinds.
+/// Reject providers on non-provider kinds.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_store_probe_capability_rejects_provider_for_non_provider_kind() {
     with_harness_context(|mut context| {
-        // provider names are invalid for non-provider lanes
-        let provider = context.string_value("provider");
-        let result =
-            context.destack_crypto_store_probe_capability(CryptoStoreKind::System, provider);
+        // providers are invalid for non-provider lanes
+        let result = context.destack_crypto_store_probe_capability(
+            CryptoStoreKind::System,
+            CryptoStoreProvider::OpenSsl,
+        );
         let Err(error) = result else {
-            panic!("providerName should be invalid for non-provider store kinds");
+            panic!("provider should be invalid for non-provider store kinds");
         };
         let platform = error
             .platform_error()
@@ -229,21 +240,21 @@ fn test_store_probe_capability_rejects_provider_for_non_provider_kind() {
     });
 }
 
-/// Reject provider names on ephemeral stores.
+/// Reject providers on ephemeral stores.
 #[cfg(any(unix, windows))]
 #[test]
-fn test_store_open_rejects_provider_name_for_ephemeral() {
+fn test_store_open_rejects_provider_for_ephemeral() {
     with_harness_context(|mut context| {
-        // provider names are invalid for ephemeral lanes
+        // providers are invalid for ephemeral lanes
         let options = CryptoStoreOptions {
             kind: CryptoStoreKind::Ephemeral,
-            provider_name: context.call_context.store_string("provider"),
+            provider: CryptoStoreProvider::OpenSsl,
             namespace: context.call_context.store_string("namespace"),
         };
         let options = context.request_value(options)?;
         let result = context.destack_crypto_store_open(options);
         let Err(error) = result else {
-            panic!("ephemeral stores should reject providerName");
+            panic!("ephemeral stores should reject provider");
         };
         let platform = error
             .platform_error()
@@ -265,7 +276,7 @@ fn test_store_open_rejects_namespace_for_ephemeral() {
         // namespaces are invalid for ephemeral lanes
         let options = CryptoStoreOptions {
             kind: CryptoStoreKind::Ephemeral,
-            provider_name: context.call_context.store_string(""),
+            provider: CryptoStoreProvider::Unknown,
             namespace: context.call_context.store_string("namespace"),
         };
         let options = context.request_value(options)?;
@@ -291,17 +302,20 @@ fn test_store_open_rejects_namespace_for_ephemeral() {
 fn test_store_probe_capability_ephemeral() {
     with_harness_context(|mut context| {
         // inspect one ephemeral lane capability descriptor
-        let provider = context.string_value("");
-        let capability =
-            context.destack_crypto_store_probe_capability(CryptoStoreKind::Ephemeral, provider)?;
+        let capability = context.destack_crypto_store_probe_capability(
+            CryptoStoreKind::Ephemeral,
+            CryptoStoreProvider::Unknown,
+        )?;
         let capability = context.store_capability_from_value(capability)?;
 
         assert_eq!(capability.kind, CryptoStoreKind::Ephemeral);
-        assert!(capability.provider_name.is_empty());
+        assert_eq!(capability.provider, CryptoStoreProvider::Unknown);
         assert!(capability.is_available);
         assert!(!capability.supports_hardware_backed);
         assert!(!capability.supports_persistent);
         assert!(capability.supports_key_export);
+        assert!(!capability.supported_key_algorithms.is_empty());
+        assert!(!capability.supported_key_formats.is_empty());
         assert!(
             capability
                 .supported_key_algorithms
@@ -312,61 +326,45 @@ fn test_store_probe_capability_ephemeral() {
                 .supported_key_formats
                 .contains(&CryptoKeyFormat::Raw)
         );
+        assert_eq!(
+            capability
+                .supported_key_algorithms
+                .iter()
+                .copied()
+                .collect::<HashSet<_>>()
+                .len(),
+            capability.supported_key_algorithms.len()
+        );
+        assert_eq!(
+            capability
+                .supported_key_formats
+                .iter()
+                .copied()
+                .collect::<HashSet<_>>()
+                .len(),
+            capability.supported_key_formats.len()
+        );
 
         Ok(())
     });
 }
 
-/// Report provider lane capability truthfully for known and unknown provider names.
+/// Report provider lane capability truthfully for known provider lanes.
 #[cfg(any(unix, windows))]
 #[test]
 fn test_store_probe_capability_provider() {
     with_harness_context(|mut context| {
         // default provider lane should resolve to openssl and stay available
-        let provider = context.string_value("");
-        let capability =
-            context.destack_crypto_store_probe_capability(CryptoStoreKind::Provider, provider)?;
+        let capability = context.destack_crypto_store_probe_capability(
+            CryptoStoreKind::Provider,
+            CryptoStoreProvider::Unknown,
+        )?;
         let capability = context.store_capability_from_value(capability)?;
 
         assert_eq!(capability.kind, CryptoStoreKind::Provider);
-        assert_eq!(capability.provider_name, "openssl");
+        assert_eq!(capability.provider, CryptoStoreProvider::OpenSsl);
         assert!(capability.is_available);
         assert!(capability.supports_key_export);
-
-        // unknown provider names should be unavailable
-        let provider = context.string_value("unknown-provider");
-        let capability =
-            context.destack_crypto_store_probe_capability(CryptoStoreKind::Provider, provider)?;
-        let capability = context.store_capability_from_value(capability)?;
-
-        assert_eq!(capability.kind, CryptoStoreKind::Provider);
-        assert_eq!(capability.provider_name, "unknown-provider");
-        assert!(!capability.is_available);
-
-        Ok(())
-    });
-}
-
-/// Reject unknown provider store backends.
-#[cfg(any(unix, windows))]
-#[test]
-fn test_store_open_rejects_unknown_provider_backend() {
-    with_harness_context(|mut context| {
-        // unknown provider backends should resolve to notSupported
-        let options = CryptoStoreOptions {
-            kind: CryptoStoreKind::Provider,
-            provider_name: context.call_context.store_string("unknown-provider"),
-            namespace: context.call_context.store_string(""),
-        };
-        let options = context.request_value(options)?;
-        let result = context.destack_crypto_store_open(options);
-        let Err(error) = result else {
-            panic!("unknown provider backend should not open");
-        };
-        let platform = error
-            .platform_error()
-            .expect("store.open error should contain one platform error");
-        assert_eq!(platform.code, PlatformErrorCode::NotSupported);
 
         Ok(())
     });
@@ -380,7 +378,7 @@ fn test_store_provider_open_generate_key() {
         // open one provider store lane using openssl backend
         let options = CryptoStoreOptions {
             kind: CryptoStoreKind::Provider,
-            provider_name: context.call_context.store_string("openssl"),
+            provider: CryptoStoreProvider::OpenSsl,
             namespace: context.call_context.store_string("project-a"),
         };
         let options = context.request_value(options)?;
@@ -403,11 +401,11 @@ fn test_store_provider_open_generate_key() {
         let key =
             context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
         let descriptor = context.destack_crypto_key_descriptor(key)?;
-        let (store_kind, provider_name, namespace) =
+        let (store_kind, provider, namespace) =
             context.key_descriptor_store_provenance_from_value(descriptor)?;
 
         assert_eq!(store_kind, CryptoStoreKind::Provider);
-        assert_eq!(provider_name, "openssl");
+        assert_eq!(provider, CryptoStoreProvider::OpenSsl);
         assert_eq!(namespace, "project-a");
 
         context.destack_crypto_store_close(store)?;
@@ -424,8 +422,17 @@ fn test_store_probe_kinds_reports_ephemeral() {
         // verify that ephemeral and provider lanes are available
         let kinds = context.destack_crypto_store_probe_kinds()?;
         let kinds = context.values_from_array(kinds)?;
+        assert_unique_store_kinds(&kinds);
         assert!(kinds.contains(&CryptoStoreKind::Ephemeral));
         assert!(kinds.contains(&CryptoStoreKind::Provider));
+
+        // verify each reported kind resolves to one available capability
+        for kind in kinds {
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+            let capability = context.store_capability_from_value(capability)?;
+            assert!(capability.is_available);
+        }
 
         Ok(())
     });

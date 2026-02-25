@@ -1,6 +1,8 @@
-use std::sync::{Arc, Mutex as StdMutex};
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock, Mutex as StdMutex};
 
 use openssl::pkey::PKey;
+use openssl::sha::sha256;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
@@ -9,10 +11,10 @@ use crate::platform::crypto::{
     CryptoCertificateListEntry, CryptoCertificateListPage, CryptoCertificateQuery,
     CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyKind, CryptoKeyListEntry,
     CryptoKeyListPage, CryptoKeyQuery, CryptoKeyUsageMask, CryptoNamedCurve, CryptoStoreCapability,
-    CryptoStoreKind, CryptoStoreOptions, host as crypto_host,
+    CryptoStoreKind, CryptoStoreOptions, CryptoStoreProvider, host as crypto_host,
 };
+use crate::platform::resource;
 use crate::platform::resource::ResourceEntry;
-use crate::platform::{NativeStringRef, resource};
 use crate::runtime::BindingCallContext;
 
 use super::certificate::{certificate_has_subject_alternative_name, x509_name_to_string};
@@ -27,12 +29,15 @@ use super::core::{
 };
 use super::probe::{probe_key_algorithms, probe_key_formats};
 
-/// Runtime provider name for software-backed provider stores.
-const OPENSSL_PROVIDER_NAME: &str = "openssl";
 /// Current version for serialized host-key store snapshots.
 const HOST_KEY_SNAPSHOT_VERSION: u32 = 1;
 /// Global lock for host key snapshot backend operations.
 static HOST_KEY_SNAPSHOT_LOCK: StdMutex<()> = StdMutex::new(());
+/// Global cache for deduplicated host-lane key and certificate handles.
+static HOST_STORE_HANDLE_CACHE: LazyLock<StdMutex<HashMap<usize, HostStoreHandleCache>>> =
+    LazyLock::new(|| StdMutex::new(HashMap::new()));
+/// Maximum runtime cache entries kept in the host-lane dedup cache.
+const HOST_STORE_HANDLE_CACHE_RUNTIME_LIMIT: usize = 64;
 
 /// Encoded host-key snapshot payload.
 #[derive(Serialize, Deserialize)]
@@ -87,6 +92,20 @@ struct PersistedHostKeyMaterial {
     key_label: String,
     /// Cached SPKI DER public-key payload.
     public_key_spki_der: Vec<u8>,
+    /// Optional host-private key PKCS#8 DER payload.
+    #[serde(default)]
+    private_key_der: Vec<u8>,
+}
+
+/// Legacy serialized host-managed key payload without embedded private-key bytes.
+#[derive(Serialize, Deserialize)]
+struct LegacyPersistedHostKeyMaterial {
+    /// Host backend lane code.
+    backend: u8,
+    /// Host key label.
+    key_label: String,
+    /// Cached SPKI DER public-key payload.
+    public_key_spki_der: Vec<u8>,
 }
 
 /// Host-lane capability state for key semantics.
@@ -101,12 +120,168 @@ struct HostStoreLaneCapability {
     supports_key_export: bool,
 }
 
+/// Cache of host-lane object handles for one runtime instance.
+#[derive(Default)]
+struct HostStoreHandleCache {
+    /// Cached host-lane key handles by lane and persistent identifier.
+    key_handles: HashMap<(CryptoStoreKind, String), resource::CryptoKeyHandle>,
+    /// Cached host-lane certificate handles by lane and fingerprint.
+    certificate_handles: HashMap<(CryptoStoreKind, [u8; 32]), resource::CryptoCertificateHandle>,
+}
+
+/// Return one stable cache key for the active runtime state.
+fn runtime_cache_key(context: &BindingCallContext) -> usize {
+    context.runtime().instance_id as usize
+}
+
+/// Acquire one host-store cache guard and recover from poisoning.
+fn host_store_cache_guard() -> std::sync::MutexGuard<'static, HashMap<usize, HostStoreHandleCache>>
+{
+    match HOST_STORE_HANDLE_CACHE.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    }
+}
+
+/// Resolve one cached host key handle when it still references the requested key.
+fn resolve_cached_host_key_handle(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    persistent_id: &str,
+) -> Option<resource::CryptoKeyHandle> {
+    // load one cached handle for this runtime and key identity
+    let cache_key = (kind, persistent_id.to_string());
+    let runtime_key = runtime_cache_key(context);
+    let mut cache_map = host_store_cache_guard();
+    let cache = cache_map.get_mut(&runtime_key)?;
+    let handle = cache.key_handles.get(&cache_key).copied()?;
+
+    // keep only cache entries that still point to the same key resource
+    let is_valid = context
+        .runtime()
+        .resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
+                return false;
+            }
+
+            let Some(resource) = entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoKeyResource>>>())
+                .map(Arc::clone)
+            else {
+                return false;
+            };
+            let resource = resource.lock();
+
+            resource.store_provenance.kind == kind && resource.persistent_id == persistent_id
+        })
+        .unwrap_or(false);
+    if is_valid {
+        return Some(handle);
+    }
+
+    cache.key_handles.remove(&cache_key);
+
+    None
+}
+
+/// Cache one host key handle for one runtime and persistent key identity.
+fn cache_host_key_handle(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    persistent_id: &str,
+    handle: resource::CryptoKeyHandle,
+) {
+    let runtime_key = runtime_cache_key(context);
+    let cache_key = (kind, persistent_id.to_string());
+    let mut cache_map = host_store_cache_guard();
+    if cache_map.len() > HOST_STORE_HANDLE_CACHE_RUNTIME_LIMIT {
+        cache_map.clear();
+    }
+    let runtime_cache = cache_map.entry(runtime_key).or_default();
+    runtime_cache.key_handles.insert(cache_key, handle);
+}
+
+/// Resolve one cached host certificate handle when it still references the requested lane.
+fn resolve_cached_host_certificate_handle(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    fingerprint: [u8; 32],
+) -> Option<resource::CryptoCertificateHandle> {
+    // load one cached handle for this runtime and certificate identity
+    let cache_key = (kind, fingerprint);
+    let runtime_key = runtime_cache_key(context);
+    let mut cache_map = host_store_cache_guard();
+    let cache = cache_map.get_mut(&runtime_key)?;
+    let handle = cache.certificate_handles.get(&cache_key).copied()?;
+
+    // keep only cache entries that still point to the requested lane
+    let is_valid = context
+        .runtime()
+        .resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != CRYPTO_CERTIFICATE_RESOURCE_KIND {
+                return false;
+            }
+
+            let Some(resource) = entry
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.downcast_ref::<Arc<Mutex<CryptoCertificateResource>>>())
+                .map(Arc::clone)
+            else {
+                return false;
+            };
+            let resource = resource.lock();
+
+            resource.store_provenance.kind == kind
+        })
+        .unwrap_or(false);
+    if is_valid {
+        return Some(handle);
+    }
+
+    cache.certificate_handles.remove(&cache_key);
+
+    None
+}
+
+/// Cache one host certificate handle for one runtime and certificate identity.
+fn cache_host_certificate_handle(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    fingerprint: [u8; 32],
+    handle: resource::CryptoCertificateHandle,
+) {
+    let runtime_key = runtime_cache_key(context);
+    let cache_key = (kind, fingerprint);
+    let mut cache_map = host_store_cache_guard();
+    if cache_map.len() > HOST_STORE_HANDLE_CACHE_RUNTIME_LIMIT {
+        cache_map.clear();
+    }
+    let runtime_cache = cache_map.entry(runtime_key).or_default();
+    runtime_cache.certificate_handles.insert(cache_key, handle);
+}
+
+/// Compute one stable certificate fingerprint for host-lane deduplication.
+fn host_certificate_fingerprint(
+    certificate: &openssl::x509::X509Ref,
+    operation: &'static str,
+) -> RuntimeResult<[u8; 32]> {
+    let der_bytes = certificate
+        .to_der()
+        .map_err(|error| openssl_error(operation, error))?;
+
+    Ok(sha256(&der_bytes))
+}
+
 /// List store backend kinds that are currently available.
 pub(crate) fn store_probe_kinds(
     context: &BindingCallContext,
 ) -> RuntimeResult<Vec<CryptoStoreKind>> {
     // probe all lanes and return the available subset
-    let empty_provider_name = context.store_string("");
     let mut kinds = Vec::new();
     for kind in [
         CryptoStoreKind::Ephemeral,
@@ -115,7 +290,7 @@ pub(crate) fn store_probe_kinds(
         CryptoStoreKind::Machine,
         CryptoStoreKind::Provider,
     ] {
-        let capability = store_probe_capability(context, kind, empty_provider_name)?;
+        let capability = store_probe_capability(context, kind, CryptoStoreProvider::Unknown)?;
         if capability.is_available {
             kinds.push(kind);
         }
@@ -128,16 +303,13 @@ pub(crate) fn store_probe_kinds(
 pub(crate) fn store_probe_capability(
     context: &BindingCallContext,
     kind: CryptoStoreKind,
-    provider_name: NativeStringRef,
+    provider: CryptoStoreProvider,
 ) -> RuntimeResult<CryptoStoreCapability> {
-    // decode provider-name filter lane
-    let provider_name = decode_native_string(provider_name, "providerName")?;
-
-    // reject provider-name filters for non-provider store kinds
-    if kind != CryptoStoreKind::Provider && !provider_name.is_empty() {
+    // reject provider selectors for non-provider store kinds
+    if kind != CryptoStoreKind::Provider && provider != CryptoStoreProvider::Unknown {
         return Err(invalid_argument(
-            "providerName",
-            "providerName is only valid for Provider store kind",
+            "provider",
+            "provider is only valid for Provider store kind",
         ));
     }
 
@@ -145,7 +317,7 @@ pub(crate) fn store_probe_capability(
     let capability = match kind {
         CryptoStoreKind::Ephemeral => CryptoStoreCapability {
             kind,
-            provider_name: context.store_string(""),
+            provider: CryptoStoreProvider::Unknown,
             is_available: true,
             supports_hardware_backed: false,
             supports_persistent: false,
@@ -157,7 +329,7 @@ pub(crate) fn store_probe_capability(
             let lane_capability = host_store_lane_capability(context, kind);
             CryptoStoreCapability {
                 kind,
-                provider_name: context.store_string(""),
+                provider: CryptoStoreProvider::Unknown,
                 is_available: lane_capability.is_available,
                 supports_hardware_backed: lane_capability.supports_hardware_backed,
                 supports_persistent: lane_capability.supports_persistent,
@@ -179,14 +351,15 @@ pub(crate) fn store_probe_capability(
             }
         }
         CryptoStoreKind::Provider => {
-            let is_available = provider_name.is_empty() || provider_name == OPENSSL_PROVIDER_NAME;
+            let provider = if provider == CryptoStoreProvider::Unknown {
+                CryptoStoreProvider::OpenSsl
+            } else {
+                provider
+            };
+            let is_available = provider == CryptoStoreProvider::OpenSsl;
             CryptoStoreCapability {
                 kind,
-                provider_name: context.store_string(if provider_name.is_empty() {
-                    OPENSSL_PROVIDER_NAME
-                } else {
-                    &provider_name
-                }),
+                provider,
                 is_available,
                 supports_hardware_backed: false,
                 supports_persistent: false,
@@ -214,15 +387,14 @@ pub(crate) fn store_open(
     options: CryptoStoreOptions,
 ) -> RuntimeResult<resource::CryptoStoreHandle> {
     // decode store option strings
-    let provider_name = decode_native_string(options.provider_name, "options.providerName")?;
     let namespace = decode_native_string(options.namespace, "options.namespace")?;
 
     // open one ephemeral in-memory store lane
     if options.kind == CryptoStoreKind::Ephemeral {
-        if !provider_name.is_empty() {
+        if options.provider != CryptoStoreProvider::Unknown {
             return Err(invalid_argument(
-                "options.providerName",
-                "providerName is not supported for ephemeral stores",
+                "options.provider",
+                "provider is not supported for ephemeral stores",
             ));
         }
         if !namespace.is_empty() {
@@ -234,7 +406,7 @@ pub(crate) fn store_open(
 
         let store = CryptoStoreResource {
             kind: options.kind,
-            provider_name,
+            provider: options.provider,
             namespace,
             keys: Vec::new(),
             certificates: Vec::new(),
@@ -244,19 +416,19 @@ pub(crate) fn store_open(
 
     // open one runtime provider store lane
     if options.kind == CryptoStoreKind::Provider {
-        let provider_name = if provider_name.is_empty() {
-            OPENSSL_PROVIDER_NAME.to_string()
+        let provider = if options.provider == CryptoStoreProvider::Unknown {
+            CryptoStoreProvider::OpenSsl
         } else {
-            provider_name
+            options.provider
         };
 
-        if provider_name != OPENSSL_PROVIDER_NAME {
+        if provider != CryptoStoreProvider::OpenSsl {
             return Err(not_supported("destack.crypto.store.open"));
         }
 
         let store = CryptoStoreResource {
             kind: options.kind,
-            provider_name,
+            provider,
             namespace,
             keys: Vec::new(),
             certificates: Vec::new(),
@@ -273,10 +445,10 @@ pub(crate) fn store_open(
             return Err(not_supported("destack.crypto.store.open"));
         }
 
-        if !provider_name.is_empty() {
+        if options.provider != CryptoStoreProvider::Unknown {
             return Err(invalid_argument(
-                "options.providerName",
-                "providerName is not supported for this store kind",
+                "options.provider",
+                "provider is not supported for this store kind",
             ));
         }
         if !namespace.is_empty() {
@@ -291,29 +463,55 @@ pub(crate) fn store_open(
             load_host_persistent_keys(context, options.kind, "destack.crypto.store.open")?;
         let store_provenance = CryptoStoreProvenanceResource {
             kind: options.kind,
-            provider_name: String::new(),
+            provider: CryptoStoreProvider::Unknown,
             namespace: String::new(),
         };
+
+        // reuse cached key resources for persistent host keys and insert missing handles
         let mut keys = Vec::with_capacity(host_keys.len());
         for mut key_resource in host_keys {
             key_resource.store_provenance = store_provenance.clone();
-            let handle = insert_key_resource(context, key_resource);
+
+            let persistent_id = key_resource.persistent_id.clone();
+            let handle = if persistent_id.is_empty() {
+                insert_key_resource(context, key_resource)
+            } else if let Some(handle) =
+                resolve_cached_host_key_handle(context, options.kind, &persistent_id)
+            {
+                handle
+            } else {
+                let handle = insert_key_resource(context, key_resource);
+                cache_host_key_handle(context, options.kind, &persistent_id, handle);
+                handle
+            };
+
             keys.push(handle);
         }
 
+        // reuse cached certificate resources for host certificate lanes
         let mut certificates = Vec::with_capacity(host_certificates.len());
         for certificate in host_certificates {
+            let fingerprint =
+                host_certificate_fingerprint(certificate.as_ref(), "destack.crypto.store.open")?;
+            if let Some(handle) =
+                resolve_cached_host_certificate_handle(context, options.kind, fingerprint)
+            {
+                certificates.push(handle);
+                continue;
+            }
+
             let certificate_resource = CryptoCertificateResource {
                 certificate,
                 store_provenance: store_provenance.clone(),
             };
             let handle = insert_certificate_resource(context, certificate_resource);
+            cache_host_certificate_handle(context, options.kind, fingerprint, handle);
             certificates.push(handle);
         }
 
         let store = CryptoStoreResource {
             kind: options.kind,
-            provider_name,
+            provider: options.provider,
             namespace,
             keys,
             certificates,
@@ -789,11 +987,24 @@ fn key_to_persisted_record(
                 HostKeyBackend::SecureEnclave => 1u8,
                 HostKeyBackend::KeychainRsa => 2u8,
                 HostKeyBackend::KeychainEc => 3u8,
+                HostKeyBackend::WindowsSoftwareKeyStorageRsa => 4u8,
+                HostKeyBackend::WindowsSoftwareKeyStorageEc => 5u8,
+                HostKeyBackend::WindowsPlatformKeyStorageRsa => 6u8,
+                HostKeyBackend::WindowsPlatformKeyStorageEc => 7u8,
+                HostKeyBackend::AndroidSoftwareKeyStorageRsa => 8u8,
+                HostKeyBackend::AndroidSoftwareKeyStorageEc => 9u8,
+                HostKeyBackend::IosSoftwareKeyStorageRsa => 10u8,
+                HostKeyBackend::IosSoftwareKeyStorageEc => 11u8,
+                HostKeyBackend::AndroidHardwareKeystoreRsa => 12u8,
+                HostKeyBackend::AndroidHardwareKeystoreEc => 13u8,
+                HostKeyBackend::PosixSoftwareKeyStorageRsa => 14u8,
+                HostKeyBackend::PosixSoftwareKeyStorageEc => 15u8,
             };
             let persisted = PersistedHostKeyMaterial {
                 backend,
                 key_label: host_key.key_label.clone(),
                 public_key_spki_der: host_key.public_key_spki_der.clone(),
+                private_key_der: host_key.private_key_der.clone(),
             };
             let bytes = postcard::to_allocvec(&persisted).map_err(|error| {
                 invalid_data(
@@ -851,17 +1062,42 @@ fn key_from_persisted_record(
             CryptoKeyMaterial::Public(public_key)
         }
         3 => {
-            let persisted: PersistedHostKeyMaterial = postcard::from_bytes(&record.material_bytes)
-                .map_err(|error| {
-                    invalid_data(
-                        operation,
-                        format!("failed to decode one host key payload: {error}"),
-                    )
-                })?;
+            let persisted =
+                match postcard::from_bytes::<PersistedHostKeyMaterial>(&record.material_bytes) {
+                    Ok(persisted) => persisted,
+                    Err(_) => {
+                        let legacy: LegacyPersistedHostKeyMaterial =
+                            postcard::from_bytes(&record.material_bytes).map_err(|error| {
+                                invalid_data(
+                                    operation,
+                                    format!("failed to decode one host key payload: {error}"),
+                                )
+                            })?;
+
+                        PersistedHostKeyMaterial {
+                            backend: legacy.backend,
+                            key_label: legacy.key_label,
+                            public_key_spki_der: legacy.public_key_spki_der,
+                            private_key_der: Vec::new(),
+                        }
+                    }
+                };
             let backend = match persisted.backend {
                 1 => HostKeyBackend::SecureEnclave,
                 2 => HostKeyBackend::KeychainRsa,
                 3 => HostKeyBackend::KeychainEc,
+                4 => HostKeyBackend::WindowsSoftwareKeyStorageRsa,
+                5 => HostKeyBackend::WindowsSoftwareKeyStorageEc,
+                6 => HostKeyBackend::WindowsPlatformKeyStorageRsa,
+                7 => HostKeyBackend::WindowsPlatformKeyStorageEc,
+                8 => HostKeyBackend::AndroidSoftwareKeyStorageRsa,
+                9 => HostKeyBackend::AndroidSoftwareKeyStorageEc,
+                10 => HostKeyBackend::IosSoftwareKeyStorageRsa,
+                11 => HostKeyBackend::IosSoftwareKeyStorageEc,
+                12 => HostKeyBackend::AndroidHardwareKeystoreRsa,
+                13 => HostKeyBackend::AndroidHardwareKeystoreEc,
+                14 => HostKeyBackend::PosixSoftwareKeyStorageRsa,
+                15 => HostKeyBackend::PosixSoftwareKeyStorageEc,
                 _ => {
                     return Err(invalid_data(
                         operation,
@@ -874,6 +1110,7 @@ fn key_from_persisted_record(
                 backend,
                 key_label: persisted.key_label,
                 public_key_spki_der: persisted.public_key_spki_der,
+                private_key_der: persisted.private_key_der,
             })
         }
         _ => {
@@ -900,7 +1137,7 @@ fn key_from_persisted_record(
         persistent_id: record.persistent_id,
         store_provenance: CryptoStoreProvenanceResource {
             kind,
-            provider_name: String::new(),
+            provider: CryptoStoreProvider::Unknown,
             namespace: String::new(),
         },
         material,

@@ -1,30 +1,17 @@
-use std::collections::HashSet;
-use std::path::PathBuf;
-use std::{env, fs, ptr};
-
-use openssl::x509::X509;
-use windows_sys::Win32::Foundation::{GetLastError, LocalFree};
-use windows_sys::Win32::Security::Cryptography::{
-    CERT_CONTEXT, CERT_STORE_OPEN_EXISTING_FLAG, CERT_STORE_PROV_SYSTEM_W,
-    CERT_STORE_READONLY_FLAG, CERT_SYSTEM_STORE_CURRENT_USER, CERT_SYSTEM_STORE_LOCAL_MACHINE,
-    CRYPT_INTEGER_BLOB, CRYPTPROTECT_LOCAL_MACHINE, CertCloseStore, CertEnumCertificatesInStore,
-    CertOpenStore, CryptProtectData, CryptUnprotectData,
-};
-
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
     CryptoCertificateListPage, CryptoCertificateQuery, CryptoKeyListPage, CryptoKeyQuery,
-    CryptoStoreCapability, CryptoStoreKind, CryptoStoreOptions, core as crypto_core,
+    CryptoStoreCapability, CryptoStoreKind, CryptoStoreOptions, CryptoStoreProvider,
+    core as crypto_core,
 };
-use crate::platform::diagnostic::PlatformErrorCode;
-use crate::platform::{NativeArray, NativeStringRef, PlatformError, resource};
+use crate::platform::{NativeArray, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core::write_out_value;
 
 /// Open one crypto store.
 ///
-/// Create one runtime provider store handle for key and certificate operations.
+/// Create one runtime crypto store handle for key and certificate operations.
 /// Provider selection and access scope follow runtime crypto store semantics.
 /// `Ephemeral` and `Provider` store support is required.
 /// Host-backed `System`, `User`, and `Machine` support is host dependent.
@@ -32,7 +19,8 @@ use super::core::write_out_value;
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
+/// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+/// Operations may return `notSupported` when host store lanes are unavailable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -53,12 +41,13 @@ pub(crate) unsafe fn destack_crypto_store_open(
 
 /// Close one crypto store.
 ///
-/// Release one runtime provider store handle.
-/// Open key and certificate handles remain valid according to runtime provider lifetime rules.
+/// Release one runtime crypto store handle.
+/// Open key and certificate handles remain valid according to runtime store lifetime rules.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
+/// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+/// Operations may return `notSupported` when host store lanes are unavailable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.
@@ -78,11 +67,12 @@ pub(crate) unsafe fn destack_crypto_store_close(
 /// List keys from one store.
 ///
 /// Enumerate key entries that match one query selector.
-/// Result ordering and visibility follow runtime provider policies and caller permissions.
+/// Result ordering and visibility follow runtime store policies and caller permissions.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
+/// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+/// Operations may return `notSupported` when host store lanes are unavailable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -105,11 +95,12 @@ pub(crate) unsafe fn destack_crypto_store_list_keys(
 /// List certificates from one store.
 ///
 /// Enumerate certificate entries that match one query selector.
-/// Result ordering and visibility follow runtime provider policies and caller permissions.
+/// Result ordering and visibility follow runtime store policies and caller permissions.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
+/// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+/// Operations may return `notSupported` when host store lanes are unavailable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -131,11 +122,11 @@ pub(crate) unsafe fn destack_crypto_store_list_certificates(
 
 /// Return capabilities for one store backend lane.
 ///
-/// Query one store kind and optional provider name and return effective capability policy.
+/// Query one store kind and optional provider and return effective capability policy.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store provider capability introspection.
+/// Uses runtime crypto store capability introspection over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -149,9 +140,9 @@ pub(crate) unsafe fn destack_crypto_store_probe_capability(
     context: &BindingCallContext,
     out: *mut CryptoStoreCapability,
     kind: CryptoStoreKind,
-    providername: NativeStringRef,
+    provider: CryptoStoreProvider,
 ) -> RuntimeResult<()> {
-    let capability = crypto_core::store_probe_capability(context, kind, providername)?;
+    let capability = crypto_core::store_probe_capability(context, kind, provider)?;
     unsafe { write_out_value(out, capability) }
 }
 
@@ -161,7 +152,7 @@ pub(crate) unsafe fn destack_crypto_store_probe_capability(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store provider capability introspection.
+/// Uses runtime crypto store capability introspection over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.

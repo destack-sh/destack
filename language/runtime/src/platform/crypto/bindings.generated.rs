@@ -25,11 +25,10 @@ use crate::platform::crypto::{
     CryptoScryptRequest, CryptoScryptRequestVm, CryptoSignatureAlgorithm,
     CryptoSignatureParameters, CryptoSignatureParametersVm, CryptoStoreCapability,
     CryptoStoreCapabilityReplayRecord, CryptoStoreCapabilityVm, CryptoStoreKind,
-    CryptoStoreOptions, CryptoStoreOptionsVm,
+    CryptoStoreOptions, CryptoStoreOptionsVm, CryptoStoreProvider,
 };
 use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
-    abi as platform_abi,
+    NativeArray, NativeSlice, PlatformError, RuntimeStatus, VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
     BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind, BindingReplayPolicy,
@@ -374,7 +373,7 @@ fn encode_destack_crypto_certificate_descriptor_result(
         let field_7 = vm::Value::uint(value.key_usage_mask as u64, 32);
         let field_8 = {
             let field_0 = vm::Value::uint(value.store_provenance.kind as u8 as u64, 8);
-            let field_1 = value.store_provenance.provider_name.value();
+            let field_1 = vm::Value::uint(value.store_provenance.provider as u8 as u64, 8);
             let field_2 = value.store_provenance.namespace.value();
             context.allocate_aggregate(vec![field_0, field_1, field_2])
         };
@@ -1636,7 +1635,7 @@ fn encode_destack_crypto_key_descriptor_result(
         let field_11 = vm::Value::bool(value.persistent);
         let field_12 = {
             let field_0 = vm::Value::uint(value.store_provenance.kind as u8 as u64, 8);
-            let field_1 = value.store_provenance.provider_name.value();
+            let field_1 = vm::Value::uint(value.store_provenance.provider as u8 as u64, 8);
             let field_2 = value.store_provenance.namespace.value();
             context.allocate_aggregate(vec![field_0, field_1, field_2])
         };
@@ -3513,12 +3512,22 @@ fn decode_destack_crypto_store_open_args(
                 .boxed());
             }
         };
-        let options_provider_name =
-            decode_string(slots[1], "options_provider_name", "providerName")?;
+        let options_provider_raw = decode_uint8(slots[1], "options_provider_raw", "provider")?;
+        let options_provider = match options_provider_raw {
+            0u8 => CryptoStoreProvider::Unknown,
+            1u8 => CryptoStoreProvider::OpenSsl,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "options_provider",
+                    "unknown CryptoStoreProvider value",
+                ))
+                .boxed());
+            }
+        };
         let options_namespace = decode_string(slots[2], "options_namespace", "namespace")?;
         CryptoStoreOptionsVm {
             kind: options_kind,
-            provider_name: options_provider_name,
+            provider: options_provider,
             namespace: options_namespace,
         }
     };
@@ -3539,7 +3548,7 @@ fn encode_destack_crypto_store_open_result(
 fn decode_destack_crypto_store_probe_capability_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(CryptoStoreKind, vm::StringHandle)> {
+) -> RuntimeResult<(CryptoStoreKind, CryptoStoreProvider)> {
     let kind_value = arg_value(args, 0, "kind", "CryptoStoreKind")?;
     let kind_raw = decode_uint8(kind_value, "kind_raw", "CryptoStoreKind")?;
     let kind = match kind_raw {
@@ -3556,9 +3565,20 @@ fn decode_destack_crypto_store_probe_capability_args(
             .boxed());
         }
     };
-    let providername_value = arg_value(args, 1, "providername", "string")?;
-    let providername = decode_string(providername_value, "providername", "string")?;
-    Ok((kind, providername))
+    let provider_value = arg_value(args, 1, "provider", "CryptoStoreProvider")?;
+    let provider_raw = decode_uint8(provider_value, "provider_raw", "CryptoStoreProvider")?;
+    let provider = match provider_raw {
+        0u8 => CryptoStoreProvider::Unknown,
+        1u8 => CryptoStoreProvider::OpenSsl,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "provider",
+                "unknown CryptoStoreProvider value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((kind, provider))
 }
 
 /// Encode the result for destack.crypto.store.probeCapability.
@@ -3569,7 +3589,7 @@ fn encode_destack_crypto_store_probe_capability_result(
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
         let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
-        let field_1 = value.provider_name.value();
+        let field_1 = vm::Value::uint(value.provider as u8 as u64, 8);
         let field_2 = vm::Value::bool(value.is_available);
         let field_3 = vm::Value::bool(value.supports_hardware_backed);
         let field_4 = vm::Value::bool(value.supports_persistent);
@@ -4627,7 +4647,7 @@ pub const CRYPTO_STORE_OPEN: BindingDescriptor = BindingDescriptor::external_wit
 /// Binding descriptor for destack.crypto.store.probeCapability.
 pub const CRYPTO_STORE_PROBE_CAPABILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.store.probeCapability",
-    "export function storeProbeCapability(kind: CryptoStoreKind, providerName: string): Result<CryptoStoreCapability, PlatformError>",
+    "export function storeProbeCapability(kind: CryptoStoreKind, provider: CryptoStoreProvider): Result<CryptoStoreCapability, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::Regular,
     &["crypto.probe"],
@@ -5679,28 +5699,20 @@ fn destack_crypto_store_probe_capability_replay(
     world: RuntimeWorld,
     out: *mut CryptoStoreCapability,
     kind: CryptoStoreKind,
-    providername: NativeStringRef,
+    provider: CryptoStoreProvider,
 ) -> RuntimeResult<()> {
-    let _ = (&kind, &providername);
+    let _ = (&kind, &provider);
 
     context.replay().run_binding_with_policy(
         CRYPTO_STORE_PROBE_CAPABILITY,
         context.replay_payload_for(CRYPTO_STORE_PROBE_CAPABILITY)?,
         || match world {
             RuntimeWorld::Host => unsafe {
-                platform_native::destack_crypto_store_probe_capability(
-                    context,
-                    out,
-                    kind,
-                    providername,
-                )
+                platform_native::destack_crypto_store_probe_capability(context, out, kind, provider)
             },
             RuntimeWorld::Simulation => unsafe {
                 platform_simulation_native::destack_crypto_store_probe_capability(
-                    context,
-                    out,
-                    kind,
-                    providername,
+                    context, out, kind, provider,
                 )
             },
         },
@@ -5713,8 +5725,7 @@ fn destack_crypto_store_probe_capability_replay(
                     *out
                 };
                 let result_recorded_kind = result_value.kind;
-                let result_recorded_provider_name =
-                    unsafe { result_value.provider_name.as_str()? }.to_string();
+                let result_recorded_provider = result_value.provider;
                 let result_recorded_is_available = result_value.is_available;
                 let result_recorded_supports_hardware_backed =
                     result_value.supports_hardware_backed;
@@ -5750,7 +5761,7 @@ fn destack_crypto_store_probe_capability_replay(
                 }
                 let result_recorded = CryptoStoreCapabilityReplayRecord {
                     kind: result_recorded_kind,
-                    provider_name: result_recorded_provider_name,
+                    provider: result_recorded_provider,
                     is_available: result_recorded_is_available,
                     supports_hardware_backed: result_recorded_supports_hardware_backed,
                     supports_persistent: result_recorded_supports_persistent,
@@ -5779,7 +5790,7 @@ fn destack_crypto_store_probe_capability_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_kind = value.kind;
-                    let value_native_provider_name = context.store_string(&value.provider_name);
+                    let value_native_provider = value.provider;
                     let value_native_is_available = value.is_available;
                     let value_native_supports_hardware_backed = value.supports_hardware_backed;
                     let value_native_supports_persistent = value.supports_persistent;
@@ -5807,7 +5818,7 @@ fn destack_crypto_store_probe_capability_replay(
                         context.store_array(value_native_supported_key_formats_values);
                     let value_native = CryptoStoreCapability {
                         kind: value_native_kind,
-                        provider_name: value_native_provider_name,
+                        provider: value_native_provider,
                         is_available: value_native_is_available,
                         supports_hardware_backed: value_native_supports_hardware_backed,
                         supports_persistent: value_native_supports_persistent,
@@ -7584,16 +7595,16 @@ pub unsafe extern "C" fn destack_crypto_store_open(
 pub unsafe extern "C" fn destack_crypto_store_probe_capability(
     out: *mut CryptoStoreCapability,
     kind: CryptoStoreKind,
-    providername: NativeStringRef,
+    provider: CryptoStoreProvider,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &kind, &providername);
+        let _ = (&out, &kind, &provider);
 
         let world = context.check_and_resolve_world(CRYPTO_STORE_PROBE_CAPABILITY)?;
-        destack_crypto_store_probe_capability_replay(context, world, out, kind, providername)
+        destack_crypto_store_probe_capability_replay(context, world, out, kind, provider)
     })
 }
 
@@ -8396,25 +8407,19 @@ fn destack_crypto_store_probe_capability_vm_replay(
     context: &mut vm::ExternalCallContext<'_>,
     world: RuntimeWorld,
     kind: CryptoStoreKind,
-    providername: vm::StringHandle,
+    provider: CryptoStoreProvider,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context_policy(
         CRYPTO_STORE_PROBE_CAPABILITY,
         runtime.replay_payload_for(CRYPTO_STORE_PROBE_CAPABILITY)?,
         context,
         |context| match world {
-            RuntimeWorld::Host => platform_vm::destack_crypto_store_probe_capability(
-                runtime,
-                context,
-                kind,
-                providername,
-            ),
+            RuntimeWorld::Host => {
+                platform_vm::destack_crypto_store_probe_capability(runtime, context, kind, provider)
+            }
             RuntimeWorld::Simulation => {
                 platform_simulation_vm::destack_crypto_store_probe_capability(
-                    runtime,
-                    context,
-                    kind,
-                    providername,
+                    runtime, context, kind, provider,
                 )
             }
         },
@@ -8423,12 +8428,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
             if let Ok(value) = result {
                 let result_value: CryptoStoreCapabilityVm = value.clone();
                 let result_recorded_kind = result_value.kind;
-                let result_recorded_provider_name = {
-                    let result_recorded_provider_name_ref = context
-                        .string_ref(result_value.provider_name)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_recorded_provider_name_ref.as_str().to_string()
-                };
+                let result_recorded_provider = result_value.provider;
                 let result_recorded_is_available = result_value.is_available;
                 let result_recorded_supports_hardware_backed =
                     result_value.supports_hardware_backed;
@@ -8513,7 +8513,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                 }
                 let result_recorded = CryptoStoreCapabilityReplayRecord {
                     kind: result_recorded_kind,
-                    provider_name: result_recorded_provider_name,
+                    provider: result_recorded_provider,
                     is_available: result_recorded_is_available,
                     supports_hardware_backed: result_recorded_supports_hardware_backed,
                     supports_persistent: result_recorded_supports_persistent,
@@ -8543,10 +8543,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
             match payload.result {
                 Ok(value) => {
                     let vm_result_kind = value.kind;
-                    let vm_result_provider_name_value =
-                        context.intern_string(value.provider_name.as_str());
-                    let vm_result_provider_name =
-                        vm::StringHandle::new(vm_result_provider_name_value);
+                    let vm_result_provider = value.provider;
                     let vm_result_is_available = value.is_available;
                     let vm_result_supports_hardware_backed = value.supports_hardware_backed;
                     let vm_result_supports_persistent = value.supports_persistent;
@@ -8579,7 +8576,7 @@ fn destack_crypto_store_probe_capability_vm_replay(
                         VmArray::from_values(context, &vm_result_supported_key_formats_values)?;
                     let vm_result = CryptoStoreCapabilityVm {
                         kind: vm_result_kind,
-                        provider_name: vm_result_provider_name,
+                        provider: vm_result_provider,
                         is_available: vm_result_is_available,
                         supports_hardware_backed: vm_result_supports_hardware_backed,
                         supports_persistent: vm_result_supports_persistent,
@@ -10515,17 +10512,13 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, args| {
                 with_binding_call_context(|runtime| {
                     // decode args
-                    let (kind, providername) =
+                    let (kind, provider) =
                         decode_destack_crypto_store_probe_capability_args(context, args)?;
 
                     // execute binding
                     let world = runtime.check_and_resolve_world(CRYPTO_STORE_PROBE_CAPABILITY)?;
                     destack_crypto_store_probe_capability_vm_replay(
-                        runtime,
-                        context,
-                        world,
-                        kind,
-                        providername,
+                        runtime, context, world, kind, provider,
                     )
                 })
                 .map_err(Into::into)

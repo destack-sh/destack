@@ -12,7 +12,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::crypto::{
     CryptoCipherAlgorithm, CryptoCipherDirection, CryptoDigestAlgorithm, CryptoKeyAlgorithm,
     CryptoKeyKind, CryptoKeyUsageMask, CryptoMacParameters, CryptoNamedCurve, CryptoStoreKind,
-    CryptoStoreProvenance, host as crypto_host,
+    CryptoStoreProvenance, CryptoStoreProvider, host as crypto_host,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::ResourceEntry;
@@ -41,12 +41,36 @@ pub(super) struct CryptoProbeSupport {
 /// Host key backend lanes.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum HostKeyBackend {
-    /// macOS secure enclave keychain lane.
+    /// Apple hardware-backed secure enclave lane.
     SecureEnclave,
-    /// macOS keychain RSA lane.
+    /// macOS software-backed host-managed keychain RSA lane.
     KeychainRsa,
-    /// macOS keychain EC lane.
+    /// macOS software-backed host-managed keychain EC lane.
     KeychainEc,
+    /// Windows software-backed host-managed key-storage RSA lane.
+    WindowsSoftwareKeyStorageRsa,
+    /// Windows software-backed host-managed key-storage EC lane.
+    WindowsSoftwareKeyStorageEc,
+    /// Windows platform-provider-backed key-storage RSA lane.
+    WindowsPlatformKeyStorageRsa,
+    /// Windows platform-provider-backed key-storage EC lane.
+    WindowsPlatformKeyStorageEc,
+    /// Android software-backed host-managed key-storage RSA lane.
+    AndroidSoftwareKeyStorageRsa,
+    /// Android software-backed host-managed key-storage EC lane.
+    AndroidSoftwareKeyStorageEc,
+    /// Android hardware-backed keystore RSA lane.
+    AndroidHardwareKeystoreRsa,
+    /// Android hardware-backed keystore EC lane.
+    AndroidHardwareKeystoreEc,
+    /// iOS software-backed host-managed key-storage RSA lane.
+    IosSoftwareKeyStorageRsa,
+    /// iOS software-backed host-managed key-storage EC lane.
+    IosSoftwareKeyStorageEc,
+    /// POSIX software-backed host-managed key-storage RSA lane.
+    PosixSoftwareKeyStorageRsa,
+    /// POSIX software-backed host-managed key-storage EC lane.
+    PosixSoftwareKeyStorageEc,
 }
 
 /// Host-managed key payload.
@@ -58,6 +82,8 @@ pub(crate) struct HostKeyMaterial {
     pub(crate) key_label: String,
     /// Cached SPKI DER public-key payload.
     pub(crate) public_key_spki_der: Vec<u8>,
+    /// Optional host-private key PKCS#8 DER payload for software host lanes.
+    pub(crate) private_key_der: Vec<u8>,
 }
 
 /// Host-generated asymmetric key pair payload.
@@ -140,8 +166,8 @@ pub(crate) struct CryptoKeyResource {
 pub(crate) struct CryptoStoreProvenanceResource {
     /// Store kind lane.
     pub(crate) kind: CryptoStoreKind,
-    /// Provider-name lane.
-    pub(crate) provider_name: String,
+    /// Provider lane.
+    pub(crate) provider: CryptoStoreProvider,
     /// Namespace lane.
     pub(crate) namespace: String,
 }
@@ -159,8 +185,8 @@ pub(crate) struct CryptoCertificateResource {
 pub(crate) struct CryptoStoreResource {
     /// Store kind lane.
     pub(crate) kind: CryptoStoreKind,
-    /// Provider-name lane.
-    pub(crate) provider_name: String,
+    /// Provider lane.
+    pub(crate) provider: CryptoStoreProvider,
     /// Namespace lane.
     pub(crate) namespace: String,
     /// Registered key handles.
@@ -420,8 +446,7 @@ fn store_key_policy_support(
 ) -> StoreKeyPolicySupport {
     // derive provider and ephemeral lane support
     if store.kind == CryptoStoreKind::Provider {
-        let supports_key_writes =
-            store.provider_name.is_empty() || store.provider_name == "openssl";
+        let supports_key_writes = store.provider == CryptoStoreProvider::OpenSsl;
         return StoreKeyPolicySupport {
             supports_key_writes,
             supports_persistent: false,
@@ -546,7 +571,7 @@ pub(super) fn store_provenance_from_store(
 ) -> CryptoStoreProvenanceResource {
     CryptoStoreProvenanceResource {
         kind: store.kind,
-        provider_name: store.provider_name.clone(),
+        provider: store.provider,
         namespace: store.namespace.clone(),
     }
 }
@@ -558,7 +583,7 @@ pub(super) fn store_provenance_to_descriptor(
 ) -> CryptoStoreProvenance {
     CryptoStoreProvenance {
         kind: store_provenance.kind,
-        provider_name: context.store_string(&store_provenance.provider_name),
+        provider: store_provenance.provider,
         namespace: context.store_string(&store_provenance.namespace),
     }
 }

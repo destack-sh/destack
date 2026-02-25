@@ -26,6 +26,9 @@ pub(super) const CRYPTO_MAC_LABEL: &str = "crypto.mac";
 /// Label used for crypto cipher resource entries.
 pub(super) const CRYPTO_CIPHER_LABEL: &str = "crypto.cipher";
 
+/// Store-open operation name.
+pub(crate) const CRYPTO_STORE_OPEN_OPERATION: &str = "destack.crypto.store.open";
+
 /// Default key-list page size.
 pub(super) const DEFAULT_KEY_LIST_LIMIT: usize = 128;
 /// Default certificate-list page size.

@@ -69,14 +69,16 @@ getrandom = { workspace = true }
 libc = { workspace = true }
 postcard = { workspace = true }
 parking_lot = { workspace = true }
-openssl = { workspace = true, features = ["vendored"] }
-openssl-sys = { workspace = true }
-rustls = { workspace = true, features = ["ring", "std"] }
-rustls-pemfile = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 rustc-hash = { workspace = true }
 tracing = { workspace = true }
 zeroize = { workspace = true }
+
+[target.'cfg(any(unix, windows))'.dependencies]
+openssl = { workspace = true, features = ["vendored"] }
+openssl-sys = { workspace = true }
+rustls = { workspace = true, features = ["ring", "std"] }
+rustls-pemfile = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true, features = [

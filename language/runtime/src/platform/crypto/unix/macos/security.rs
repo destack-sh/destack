@@ -1,3 +1,5 @@
+use std::os::raw::c_void;
+use std::ptr;
 use std::sync::OnceLock;
 
 use core_foundation_sys::base::{CFRelease, CFTypeRef, kCFAllocatorDefault};
@@ -59,8 +61,6 @@ pub(super) fn create_secure_enclave_private_key(
     is_permanent: bool,
     operation: &'static str,
 ) -> RuntimeResult<SecKeyRef> {
-    use std::os::raw::c_void;
-
     let label = create_cf_string(key_label, operation)?;
     let key_size_bits = MACOS_SECURE_ENCLAVE_KEY_SIZE_BITS;
     let key_size = unsafe {
@@ -174,8 +174,6 @@ pub(super) fn delete_private_key_by_label_if_present(
     key_label: &str,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    use std::os::raw::c_void;
-
     // build one label-scoped private-key deletion query
     let label = create_cf_string(key_label, operation)?;
     let query_keys = unsafe {
@@ -232,13 +230,11 @@ pub(super) fn delete_private_key_by_label_if_present(
 /// Import one keychain private key from DER bytes.
 pub(super) fn create_keychain_private_key_from_der(
     private_key_der_bytes: &[u8],
-    key_type: *const std::os::raw::c_void,
+    key_type: *const c_void,
     key_size_bits: i32,
     key_label: &str,
     operation: &'static str,
 ) -> RuntimeResult<SecKeyRef> {
-    use std::os::raw::c_void;
-
     // encode private-key bytes, key size, and label payloads
     let data = unsafe {
         CFDataCreate(
@@ -340,8 +336,6 @@ pub(super) fn create_keychain_rsa_private_key(
     modulus_bits: u32,
     operation: &'static str,
 ) -> RuntimeResult<SecKeyRef> {
-    use std::os::raw::c_void;
-
     // convert modulus size for cfnumber payload
     let modulus_bits = i32::try_from(modulus_bits).map_err(|_| {
         invalid_data(
@@ -455,8 +449,6 @@ pub(super) fn create_keychain_ec_private_key(
     key_size_bits: i32,
     operation: &'static str,
 ) -> RuntimeResult<SecKeyRef> {
-    use std::os::raw::c_void;
-
     // encode key label and ec key size
     let label = create_cf_string(key_label, operation)?;
     let key_size = unsafe {
@@ -563,9 +555,6 @@ pub(super) fn copy_private_key_by_label(
     key_label: &str,
     operation: &'static str,
 ) -> RuntimeResult<SecKeyRef> {
-    use std::os::raw::c_void;
-    use std::ptr;
-
     let label = create_cf_string(key_label, operation)?;
     let query_keys = unsafe {
         [

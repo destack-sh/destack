@@ -1,4 +1,6 @@
 use std::fs;
+#[cfg(target_family = "unix")]
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
 use core_foundation_sys::base::{CFRelease, CFTypeRef, kCFAllocatorDefault};
@@ -233,8 +235,6 @@ pub(super) fn store_host_key_snapshot_bytes_to_filesystem(
     // narrow snapshot permissions for local-key stores
     #[cfg(target_family = "unix")]
     {
-        use std::os::unix::fs::PermissionsExt;
-
         let permissions = fs::Permissions::from_mode(0o600);
         fs::set_permissions(path, permissions).map_err(|error| {
             permission_denied(

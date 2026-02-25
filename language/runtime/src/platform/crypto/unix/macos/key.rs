@@ -15,13 +15,14 @@ use security_framework_sys::key::{
     kSecKeyOperationTypeDecrypt, kSecKeyOperationTypeKeyExchange, kSecKeyOperationTypeSign,
 };
 use security_framework_sys::keychain_item::SecItemDelete;
+use std::os::raw::c_void;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::core::{
     self as crypto_core, HostGeneratedKeyPair, HostKeyBackend, HostKeyMaterial,
 };
 use crate::platform::crypto::{
-    CryptoAsymmetricEncryptionParameters, CryptoKeyAlgorithm, CryptoNamedCurve,
+    CryptoAsymmetricEncryptionParameters, CryptoKeyAlgorithm, CryptoKeyUsageMask, CryptoNamedCurve,
     CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreKind,
 };
 use crate::runtime::BindingCallContext;
@@ -122,6 +123,7 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
         backend: HostKeyBackend::SecureEnclave,
         key_label: persistent_key_label.to_string(),
         public_key_spki_der: public_key_spki_der.clone(),
+        private_key_der: Vec::new(),
     };
 
     Ok(HostGeneratedKeyPair {
@@ -141,6 +143,7 @@ pub(crate) fn host_generate_persistent_key_pair(
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
+    _usage_mask: CryptoKeyUsageMask,
     modulus_bits: u32,
     public_exponent: u32,
     persistent_key_label: &str,
@@ -213,6 +216,7 @@ pub(crate) fn host_generate_persistent_key_pair(
             backend: HostKeyBackend::KeychainRsa,
             key_label: persistent_key_label.to_string(),
             public_key_spki_der: public_key_spki_der.clone(),
+            private_key_der: Vec::new(),
         };
 
         return Ok(Some(HostGeneratedKeyPair {
@@ -273,6 +277,7 @@ pub(crate) fn host_generate_persistent_key_pair(
             backend: HostKeyBackend::KeychainEc,
             key_label: persistent_key_label.to_string(),
             public_key_spki_der: public_key_spki_der.clone(),
+            private_key_der: Vec::new(),
         };
 
         return Ok(Some(HostGeneratedKeyPair {
@@ -295,6 +300,7 @@ pub(crate) fn host_import_persistent_private_key(
     kind: CryptoStoreKind,
     algorithm: CryptoKeyAlgorithm,
     named_curve: CryptoNamedCurve,
+    _usage_mask: CryptoKeyUsageMask,
     private_key: &PKey<Private>,
     persistent_key_label: &str,
     operation: &'static str,
@@ -373,6 +379,7 @@ pub(crate) fn host_import_persistent_private_key(
             backend: HostKeyBackend::KeychainRsa,
             key_label: persistent_key_label.to_string(),
             public_key_spki_der,
+            private_key_der: Vec::new(),
         }));
     }
 
@@ -429,6 +436,7 @@ pub(crate) fn host_import_persistent_private_key(
             backend: HostKeyBackend::KeychainEc,
             key_label: persistent_key_label.to_string(),
             public_key_spki_der,
+            private_key_der: Vec::new(),
         }));
     }
 
@@ -475,6 +483,20 @@ pub(crate) fn host_key_sign(
             }
 
             rsa_signature_algorithm(parameters, operation)?
+        }
+        HostKeyBackend::WindowsSoftwareKeyStorageRsa
+        | HostKeyBackend::WindowsSoftwareKeyStorageEc
+        | HostKeyBackend::WindowsPlatformKeyStorageRsa
+        | HostKeyBackend::WindowsPlatformKeyStorageEc
+        | HostKeyBackend::AndroidSoftwareKeyStorageRsa
+        | HostKeyBackend::AndroidSoftwareKeyStorageEc
+        | HostKeyBackend::AndroidHardwareKeystoreRsa
+        | HostKeyBackend::AndroidHardwareKeystoreEc
+        | HostKeyBackend::IosSoftwareKeyStorageRsa
+        | HostKeyBackend::IosSoftwareKeyStorageEc
+        | HostKeyBackend::PosixSoftwareKeyStorageRsa
+        | HostKeyBackend::PosixSoftwareKeyStorageEc => {
+            return Err(not_supported(operation));
         }
     };
 
@@ -612,8 +634,6 @@ pub(crate) fn host_key_delete(
     key: &HostKeyMaterial,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    use std::os::raw::c_void;
-
     // filesystem override does not expose secure-enclave lanes
     if filesystem_mode_enabled(context) {
         return Err(not_supported(operation));
