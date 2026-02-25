@@ -30,6 +30,12 @@ impl ExtensionTable {
     }
 }
 
+impl Default for ExtensionTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeTable {
     /// Insert a new extension.
     pub fn insert_extension(&mut self, extension: Extension) -> LocalExtensionId {

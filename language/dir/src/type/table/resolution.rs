@@ -29,6 +29,12 @@ impl ResolutionTable {
     }
 }
 
+impl Default for ResolutionTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Remap one resolution candidate instance id when present.
 pub(super) fn remap_resolution_candidate_instance(
     candidate: &mut ResolutionCandidate,

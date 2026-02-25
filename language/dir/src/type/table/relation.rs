@@ -180,12 +180,24 @@ impl TypeNormalizationCache {
     }
 }
 
+impl Default for TypeNormalizationCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeRewriteCache {
     /// Create an empty rewrite cache table.
     pub fn new() -> Self {
         Self {
             rewrite_cache_by_key: IndexMap::new(),
         }
+    }
+}
+
+impl Default for TypeRewriteCache {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -200,6 +212,12 @@ impl TypeInternerCache {
     }
 }
 
+impl Default for TypeInternerCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeRelationCache {
     /// Create an empty type-relation cache table.
     pub fn new() -> Self {
@@ -208,6 +226,12 @@ impl TypeRelationCache {
             rewrite_cache: TypeRewriteCache::new(),
             interner: TypeInternerCache::new(),
         }
+    }
+}
+
+impl Default for TypeRelationCache {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

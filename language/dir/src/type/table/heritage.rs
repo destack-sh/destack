@@ -27,6 +27,12 @@ impl HeritageTable {
     }
 }
 
+impl Default for HeritageTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeTable {
     /// Insert a new lineage.
     pub fn insert_lineage(&mut self, lineage: Lineage) -> LocalLineageId {
