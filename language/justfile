@@ -111,9 +111,33 @@ check:
 lint:
     just check
 
-# check runtime against windows target via zig cross
+# check runtime against windows gnu cross target
 check-runtime-windows-cross:
-    CARGO_INCREMENTAL=0 cargo zigbuild -p destack_runtime --target x86_64-pc-windows-gnu
+    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target x86_64-pc-windows-gnu
+
+# run runtime smoke binary on the active host target
+run-runtime-smoke-host:
+    CARGO_INCREMENTAL=0 cargo run -p destack_runtime --bin runtime-smoke --quiet
+
+# run runtime smoke binary on windows gnu target through wine
+run-runtime-smoke-windows-gnu:
+    CARGO_INCREMENTAL=0 cargo build -p destack_runtime --target x86_64-pc-windows-gnu --bin runtime-smoke
+    EXE="../target/x86_64-pc-windows-gnu/debug/runtime-smoke.exe"; \
+    if [ ! -f "$EXE" ]; then \
+      EXE="target/x86_64-pc-windows-gnu/debug/runtime-smoke.exe"; \
+    fi; \
+    if [ ! -f "$EXE" ]; then \
+      echo "missing windows gnu runtime smoke executable"; \
+      exit 1; \
+    fi; \
+    WINEDEBUG="${WINEDEBUG:--all}" wine "$EXE"
+
+# check runtime on windows gnu target with compile, clippy, and executable tests
+check-runtime-windows-gnu:
+    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target x86_64-pc-windows-gnu
+    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo clippy -p destack_runtime --target x86_64-pc-windows-gnu --no-deps -- -D warnings
+    just test-runtime-windows-cross
+    just run-runtime-smoke-windows-gnu
 
 # build and run one crate's tests for windows target through wine
 test-windows-crate crate:
@@ -163,222 +187,43 @@ test-runtime-privileged:
 
 # check runtime for cross targets using Zig as the C toolchain
 check-runtime-cross-targets:
-    CARGO_INCREMENTAL=0 \
-    CRATE_CC_NO_DEFAULTS=1 \
-    CC_x86_64_unknown_linux_gnu="zig cc -target x86_64-linux-gnu" \
-    CC_aarch64_unknown_linux_gnu="zig cc -target aarch64-linux-gnu" \
-    CC_x86_64_pc_windows_gnu="zig cc -target x86_64-windows-gnu" \
-    cargo check -p destack_runtime --target x86_64-unknown-linux-gnu
-    CARGO_INCREMENTAL=0 \
-    CRATE_CC_NO_DEFAULTS=1 \
-    CC_x86_64_unknown_linux_gnu="zig cc -target x86_64-linux-gnu" \
-    CC_aarch64_unknown_linux_gnu="zig cc -target aarch64-linux-gnu" \
-    CC_x86_64_pc_windows_gnu="zig cc -target x86_64-windows-gnu" \
-    cargo check -p destack_runtime --target aarch64-unknown-linux-gnu
-    CARGO_INCREMENTAL=0 \
-    CRATE_CC_NO_DEFAULTS=1 \
-    CC_x86_64_unknown_linux_gnu="zig cc -target x86_64-linux-gnu" \
-    CC_aarch64_unknown_linux_gnu="zig cc -target aarch64-linux-gnu" \
-    CC_x86_64_pc_windows_gnu="zig cc -target x86_64-windows-gnu" \
-    cargo check -p destack_runtime --target x86_64-pc-windows-gnu
-    CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target wasm32-wasip1
+    # note: wasi is tracked separately until unsupported host modules are wired coherently
+    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target x86_64-unknown-linux-gnu
+    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target aarch64-unknown-linux-gnu
+    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target x86_64-pc-windows-gnu
 
 # check runtime for android target using one configured ndk toolchain
 check-runtime-android:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
-    api_level="${ANDROID_API_LEVEL:-24}"
-    ndk_root="${ANDROID_NDK_ROOT:-${ANDROID_NDK_HOME:-}}"
-
-    if [ -z "${ndk_root}" ]; then
-        echo "missing ANDROID_NDK_ROOT (or ANDROID_NDK_HOME)"
-        exit 1
-    fi
-
-    toolchain_prebuilt_root="${ndk_root}/toolchains/llvm/prebuilt"
-    toolchain_bin=""
-
-    case "$(uname -s):$(uname -m)" in
-        Linux:*)
-            candidates=("linux-x86_64")
-            ;;
-        Darwin:arm64)
-            candidates=("darwin-arm64" "darwin-x86_64")
-            ;;
-        Darwin:x86_64)
-            candidates=("darwin-x86_64" "darwin-arm64")
-            ;;
-        *)
-            candidates=("linux-x86_64" "darwin-arm64" "darwin-x86_64" "windows-x86_64")
-            ;;
-    esac
-
-    for candidate in "${candidates[@]}"; do
-        candidate_bin="${toolchain_prebuilt_root}/${candidate}/bin"
-        if [ -d "${candidate_bin}" ]; then
-            toolchain_bin="${candidate_bin}"
-            break
-        fi
-    done
-
-    if [ -z "${toolchain_bin}" ]; then
-        echo "missing android llvm toolchain bin directory under ${toolchain_prebuilt_root}"
-        exit 1
-    fi
-
-    linker="${toolchain_bin}/aarch64-linux-android${api_level}-clang"
-    ar="${toolchain_bin}/llvm-ar"
-    ranlib="${toolchain_bin}/llvm-ranlib"
-
-    if [ ! -x "${linker}" ]; then
-        echo "missing android linker: ${linker}"
-        exit 1
-    fi
-
-    if [ ! -x "${ar}" ]; then
-        echo "missing android archiver: ${ar}"
-        exit 1
-    fi
-
-    if [ ! -x "${ranlib}" ]; then
-        echo "missing android ranlib: ${ranlib}"
-        exit 1
-    fi
-
-    LC_ALL=C \
-    LANG=C \
-    LC_CTYPE=C \
-    CARGO_INCREMENTAL=0 \
-    CRATE_CC_NO_DEFAULTS=1 \
-    CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${linker}" \
-    CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${ar}" \
-    TARGET_RANLIB="${ranlib}" \
-    CC_aarch64_linux_android="${linker}" \
-    AR_aarch64_linux_android="${ar}" \
-    RANLIB_aarch64_linux_android="${ranlib}" \
-    CXX_aarch64_linux_android="${linker}" \
-    RANLIB="${ranlib}" \
-    cargo check -p destack_runtime --target aarch64-linux-android
-
-    LC_ALL=C \
-    LANG=C \
-    LC_CTYPE=C \
-    CARGO_INCREMENTAL=0 \
-    CRATE_CC_NO_DEFAULTS=1 \
-    CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${linker}" \
-    CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${ar}" \
-    TARGET_RANLIB="${ranlib}" \
-    CC_aarch64_linux_android="${linker}" \
-    AR_aarch64_linux_android="${ar}" \
-    RANLIB_aarch64_linux_android="${ranlib}" \
-    CXX_aarch64_linux_android="${linker}" \
-    RANLIB="${ranlib}" \
-    cargo clippy -p destack_runtime --target aarch64-linux-android --no-deps -- -D warnings
-
-    LC_ALL=C \
-    LANG=C \
-    LC_CTYPE=C \
-    CARGO_INCREMENTAL=0 \
-    CRATE_CC_NO_DEFAULTS=1 \
-    CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${linker}" \
-    CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${ar}" \
-    TARGET_RANLIB="${ranlib}" \
-    CC_aarch64_linux_android="${linker}" \
-    AR_aarch64_linux_android="${ar}" \
-    RANLIB_aarch64_linux_android="${ranlib}" \
-    CXX_aarch64_linux_android="${linker}" \
-    RANLIB="${ranlib}" \
-    cargo test -p destack_runtime --target aarch64-linux-android --no-run runtime::host::android::
+    ../scripts/toolchain/check-runtime-android.sh
 
 # check runtime for ios target using active xcode sdk
 check-runtime-ios:
-    #!/usr/bin/env bash
-    set -euo pipefail
+    ../scripts/toolchain/check-runtime-ios.sh
 
-    if ! command -v xcrun >/dev/null 2>&1; then
-        echo "missing xcrun: install xcode command line tools"
-        exit 1
-    fi
+# check runtime for wasip1 target
+check-runtime-wasip1:
+    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target wasm32-wasip1
 
-    sdk_path="$(xcrun --sdk iphoneos --show-sdk-path)"
-    platform_path="$(xcrun --sdk iphoneos --show-sdk-platform-path)"
-    deployment_target="${IOS_DEPLOYMENT_TARGET:-13.0}"
-    clang_path="$(xcrun --sdk iphoneos --find clang)"
-    ar_path="$(xcrun --sdk iphoneos --find ar)"
-    ranlib_path="$(xcrun --sdk iphoneos --find ranlib)"
-    cross_top="${platform_path}/Developer"
-    cross_sdk="$(basename "${sdk_path}")"
-
-    if [ -z "${sdk_path}" ] || [ ! -d "${sdk_path}" ]; then
-        echo "missing iphoneos sdk path from xcrun"
-        exit 1
-    fi
-
-    if [ -z "${platform_path}" ] || [ ! -d "${platform_path}" ]; then
-        echo "missing iphoneos platform path from xcrun"
-        exit 1
-    fi
-
-    LC_ALL=C \
-    LANG=C \
-    LC_CTYPE=C \
-    CARGO_INCREMENTAL=0 \
-    CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="${clang_path}" \
-    CC_aarch64_apple_ios="${clang_path}" \
-    AR_aarch64_apple_ios="${ar_path}" \
-    RANLIB_aarch64_apple_ios="${ranlib_path}" \
-    CROSS_TOP="${cross_top}" \
-    CROSS_SDK="${cross_sdk}" \
-    CFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
-    CXXFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
-    SDKROOT="${sdk_path}" \
-    IPHONEOS_DEPLOYMENT_TARGET="${deployment_target}" \
-    cargo check -p destack_runtime --target aarch64-apple-ios
-
-    LC_ALL=C \
-    LANG=C \
-    LC_CTYPE=C \
-    CARGO_INCREMENTAL=0 \
-    CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="${clang_path}" \
-    CC_aarch64_apple_ios="${clang_path}" \
-    AR_aarch64_apple_ios="${ar_path}" \
-    RANLIB_aarch64_apple_ios="${ranlib_path}" \
-    CROSS_TOP="${cross_top}" \
-    CROSS_SDK="${cross_sdk}" \
-    CFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
-    CXXFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
-    SDKROOT="${sdk_path}" \
-    IPHONEOS_DEPLOYMENT_TARGET="${deployment_target}" \
-    cargo clippy -p destack_runtime --target aarch64-apple-ios --no-deps -- -D warnings
-
-    LC_ALL=C \
-    LANG=C \
-    LC_CTYPE=C \
-    CARGO_INCREMENTAL=0 \
-    CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="${clang_path}" \
-    CC_aarch64_apple_ios="${clang_path}" \
-    AR_aarch64_apple_ios="${ar_path}" \
-    RANLIB_aarch64_apple_ios="${ranlib_path}" \
-    CROSS_TOP="${cross_top}" \
-    CROSS_SDK="${cross_sdk}" \
-    CFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
-    CXXFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
-    SDKROOT="${sdk_path}" \
-    IPHONEOS_DEPLOYMENT_TARGET="${deployment_target}" \
-    cargo test -p destack_runtime --target aarch64-apple-ios --no-run runtime::host::ios::
+# check runtime on linux host
+check-runtime-linux:
+    cargo check -p destack_runtime
+    cargo clippy -p destack_runtime --all-targets -- -D warnings
+    cargo test -p destack_runtime runtime::host::linux:: -- --nocapture
+    just run-runtime-smoke-host
 
 # check runtime on macos host
 check-runtime-macos:
     cargo check -p destack_runtime
     cargo clippy -p destack_runtime --all-targets -- -D warnings
     cargo test -p destack_runtime runtime::host::macos:: -- --nocapture
+    just run-runtime-smoke-host
 
 # check runtime on windows host
 check-runtime-windows-host:
     cargo check -p destack_runtime
     cargo clippy -p destack_runtime --all-targets -- -D warnings
     cargo test -p destack_runtime runtime::host::windows:: -- --nocapture
+    just run-runtime-smoke-host
 
 # build
 build:

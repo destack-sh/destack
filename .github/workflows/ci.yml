@@ -32,6 +32,34 @@ jobs:
       - name: Validate zed grammar pins
         run: python3 platform/zed/scripts/check_grammar_sources.py --require-pinned --pin-destack-revision "${GITHUB_SHA}"
 
+  ci-hygiene:
+    name: CI Hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - repo-integrity
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install shell lint tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck shfmt
+
+      - name: Install actionlint
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+        with:
+          tool: actionlint
+
+      - name: Install just
+        uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+
+      - name: Run ci hygiene checks
+        run: just check-ci-hygiene
+
   language-format:
     name: Language Format
     runs-on: ubuntu-latest
@@ -208,6 +236,14 @@ jobs:
     with:
       rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 
+  runtime-linux:
+    name: Runtime Linux
+    needs:
+      - repo-integrity
+    uses: ./.github/workflows/runtime-linux.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
   runtime-macos:
     name: Runtime macOS
     needs:
@@ -221,6 +257,22 @@ jobs:
     needs:
       - repo-integrity
     uses: ./.github/workflows/runtime-windows.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+  runtime-windows-gnu:
+    name: Runtime Windows GNU
+    needs:
+      - repo-integrity
+    uses: ./.github/workflows/runtime-windows-gnu.yml
+    with:
+      rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+  runtime-wasip1:
+    name: Runtime WASIp1
+    needs:
+      - repo-integrity
+    uses: ./.github/workflows/runtime-wasip1.yml
     with:
       rust_toolchain: ${{ env.RUST_TOOLCHAIN }}
 

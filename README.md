@@ -26,23 +26,31 @@ _Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and pl
 ## The Destack
 
 Destack is a fully integrated software engine with a language, runtime, libraries, and platform on top of TypeScript and the open web ecosystem.
-While Destack is designed for integration, we also value incremental adoption and developer freedom, and so you are of course free to pick only the components you like.
+At its essence, Destack is the antithesis to the very idea of a "stack".
+Instead of wrangling many disparate tools, libraries, and approaches, Destack unifies the process of software development into one integrated system:
 
 - [**Destack Language**](language/README.md): TypeScript(++) toolchain, VM, AOT compiler, runtime.
-- [**Destack Library**](library/README.md): Standard library packages for most things most software needs, written in TS++.
+- [**Destack Library**](library/README.md): Standard library packages for most things most software needs, (written in TS++).
 - [**Destack Client**](client/README.md): User-facing SDKs and bindings for JS/TS, WASM, Rust, and Python.
 - [**Destack Platform**](platform/README.md): CLI, daemon, LSP, editor integrations, everything to run, deploy, and integrate software.
 - [**Destack Examples**](examples/README.md): End-to-end sample projects that demonstrate language and platform usage.
 - [**Destack Templates**](templates/README.md): Starter project templates used by `destack new`.
 
+While Destack is designed from the ground up as an integrated system, you are of course free to pick and choose only the components you like.
+It's all open source.
+
 ### Higher-Order Programming
 
-Programming is still very immature: five decades after the invention of C, it _still_ takes years to build a database.
-We have a lot of software, and there is about to be much, much more while probabilistic software promises new amazing features with bugs already built-in.
+Over 50 years since the invention of higher order programming with the introduction of the C programming language, the production and deployment of software is still astoundingly immature. 
+We routinely fail to build even trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it's not well integrated with other software.
 
-Computers are miraciously fast, yet software is buggy, slow, and deceptively difficult to build right.
-Destack is an integrated system for describing the shape of software:
-the more we can express in one unified software system, the more software systems we can build.
+Software is very useful, we have a lot of it, and there is about to be much, much more. 
+Probabilistic computing promises new magical features, but is even harder to make robust and reliable.
+We believe the opaqueness, inefficiency, and fragmentation of software as a whole can only be fully solved by rethinking the entire development process and unifying the disparate parts that have been separated purely for historical reasons.
+
+The more we can express in one unified software system, the more great software systems we can build that understands more about what we're actually trying to do.
+At its best, software is not just a pale digital shadow of a real world process, but an enabling technology to support processes that weren't possible before.
+There is significant promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a unified system of production is the best way.
 
 ## Getting Started
 
@@ -53,11 +61,16 @@ Create a new app with `npm create destack@latest my-app` or `bun create destack 
 
 ---
 
-## Status
+## Targets
 
-Destack is in very active development and confidently pre-1.0, alpha-stage software.
-Core language and tooling surprisingly usable for experimentation and the earliest of adopters.
-APIs, CLI behavior, and project structure may change on minor releases.
+Destack supports Linux, MacOS and Windows as TIer 1 targets, with mobile (iOS, Android) still coming online. 
+See [TARGETS.md](TARGETS.md).
+
+| Tier | Target triples |
+|-----------|--------|
+| Tier 1 | `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`, `x86_64-pc-windows-gnu`, `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` |
+| Tier 2 | `aarch64-apple-ios`, `aarch64-linux-android` |
+| Tier 3 | `wasm32-wasip1` |
 
 ## Contributing
 

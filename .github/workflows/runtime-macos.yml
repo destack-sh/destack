@@ -36,4 +36,4 @@ jobs:
         uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
       - name: Run macOS runtime check
-        run: just language/check-runtime-macos
+        run: just check-runtime-macos

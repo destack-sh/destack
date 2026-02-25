@@ -6,7 +6,6 @@ cmdline_tools_version="${ANDROID_CMDLINE_TOOLS_VERSION:-13114758}"
 ndk_version="${ANDROID_NDK_VERSION:-27.2.12479018}"
 api_level="${ANDROID_API_LEVEL:-24}"
 host_os="$(uname -s)"
-host_arch="$(uname -m)"
 
 cmdline_tools_directory="${sdk_root}/cmdline-tools"
 latest_directory="${cmdline_tools_directory}/latest"
@@ -49,31 +48,7 @@ set -o pipefail
     "platforms;android-${api_level}" \
     "ndk;${ndk_version}" >/dev/null
 
-toolchain_prebuilt_root="${sdk_root}/ndk/${ndk_version}/toolchains/llvm/prebuilt"
-toolchain_bin=""
-
-if [ "${host_os}" = "Linux" ]; then
-    candidates=("linux-x86_64")
-elif [ "${host_os}" = "Darwin" ] && [ "${host_arch}" = "arm64" ]; then
-    candidates=("darwin-arm64" "darwin-x86_64")
-elif [ "${host_os}" = "Darwin" ] && [ "${host_arch}" = "x86_64" ]; then
-    candidates=("darwin-x86_64" "darwin-arm64")
-else
-    candidates=("linux-x86_64" "darwin-arm64" "darwin-x86_64")
-fi
-
-for candidate in "${candidates[@]}"; do
-    candidate_bin="${toolchain_prebuilt_root}/${candidate}/bin"
-    if [ -d "${candidate_bin}" ]; then
-        toolchain_bin="${candidate_bin}"
-        break
-    fi
-done
-
-if [ -z "${toolchain_bin}" ]; then
-    echo "missing ndk prebuilt toolchain under ${toolchain_prebuilt_root}" >&2
-    exit 1
-fi
+toolchain_bin="$("$(dirname "$0")/../../scripts/toolchain/android-ndk-toolchain-bin.sh" "${sdk_root}/ndk/${ndk_version}")"
 
 if [ ! -x "${toolchain_bin}/aarch64-linux-android${api_level}-clang" ]; then
     echo "missing android clang toolchain wrapper in ${toolchain_bin}" >&2
