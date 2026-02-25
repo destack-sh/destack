@@ -151,7 +151,7 @@
         },
         {
           "name": "keyword.other.type.ds",
-          "match": "\\b(?:any|never)\\b"
+          "match": "\\b(?:any|never|null)\\b"
         },
         {
           "name": "keyword.control.conditional.ds",
@@ -984,7 +984,7 @@
       "patterns": [
         {
           "name": "keyword.other.type.ds",
-          "match": "\\b(?:any|never)\\b"
+          "match": "\\b(?:any|never|null)\\b"
         },
         {
           "name": "keyword.operator.conditional.ds",

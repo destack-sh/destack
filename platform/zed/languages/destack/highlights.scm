@@ -479,6 +479,7 @@
   "where"
   "typeof"
   "void"
+  "null"
   "keyof"
   "infer"
   "any"
