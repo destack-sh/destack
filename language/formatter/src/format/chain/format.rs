@@ -70,6 +70,13 @@ fn first_grouped_line_attaches_to_base(
     _base: &ChainExpressionBase,
     lines: &[SmallVec<[ChainExpression; 2]>],
 ) -> bool {
+    if matches!(
+        lines.first().and_then(|line| line.first()),
+        Some(ChainExpression::Must { .. })
+    ) {
+        return true;
+    }
+
     if lines.len() != 1 {
         return false;
     }
@@ -301,6 +308,12 @@ fn format_chain_base_content<'ast>(
     lines: &[SmallVec<[ChainExpression; 2]>],
     instantiation_prefix_wrap_body_ops: Option<usize>,
 ) -> FormatResult<()> {
+    let root_is_decorator_expression =
+        f.context()
+            .parent(formatted_root_id)
+            .is_some_and(|(_, parent_type)| {
+                matches!(parent_type, NodeType::Decorator | NodeType::Annotation)
+            });
     let mut has_open_prefix_wrap = false;
     let mut has_closed_prefix_wrap = false;
     if instantiation_prefix_wrap_body_ops.is_some() {
@@ -315,7 +328,9 @@ fn format_chain_base_content<'ast>(
             static_arguments,
             emit_postfix_annotations,
         } => {
-            write!(f, [f.context().any_prefix_annotations(*node_id)])?;
+            if !root_is_decorator_expression {
+                write!(f, [f.context().any_prefix_annotations(*node_id)])?;
+            }
             write!(f, [*segment])?;
             if let Some(arguments) = static_arguments {
                 let next_operation = base
@@ -329,18 +344,8 @@ fn format_chain_base_content<'ast>(
             }
         }
         ChainExpressionBaseHead::Expression(node_id) => {
-            let expression = f.context().tree.get(*node_id);
-            debug_assert!(
-                !matches!(
-                    expression,
-                    Expression::Member { .. }
-                        | Expression::PrivateMember { .. }
-                        | Expression::Call { .. }
-                        | Expression::Index { .. }
-                        | Expression::Maybe { .. }
-                ),
-                "chain base expression should not be another chain node"
-            );
+            // chain normalization can still surface nested chain nodes as a base
+            // write the base expression directly instead of panicking in debug mode
             write_postfix_base_expression(f, *node_id)?;
         }
     }

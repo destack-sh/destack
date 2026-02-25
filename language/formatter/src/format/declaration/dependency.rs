@@ -48,10 +48,20 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
             write!(f, [Keyword::Type, space()])?;
         }
 
+        let is_default_binding = self.mode == DependencyMode::Default
+            || (self.mode == DependencyMode::Item && self.name.is_none());
+
         // default
-        if self.mode == DependencyMode::Default {
+        if is_default_binding {
             write!(f, [Keyword::Default])?;
             // alias
+            if let Some(alias) = self.alias {
+                write!(f, [space(), Keyword::As, space(), alias])?;
+            }
+        }
+        // namespace
+        else if self.mode == DependencyMode::Namespace {
+            write!(f, [token("*")])?;
             if let Some(alias) = self.alias {
                 write!(f, [space(), Keyword::As, space(), alias])?;
             }
@@ -206,7 +216,10 @@ pub fn should_insert_blank_between(
 
 #[cfg(test)]
 mod tests {
-    use crate::{DestackFormatOptions, TestFormatter, assert_format};
+    use crate::{
+        DestackFormatOptions, TestFormatter, assert_format, assert_format_roundtrip_with_file_type,
+    };
+    use destack_source::FileType;
 
     #[test]
     fn test_format_import() {
@@ -311,6 +324,50 @@ mod tests {
             "export { foo } from \"bar\" with { mode: \"strict\" }",
             |p| p.eat_expression(Default::default()),
             DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_import_default_and_namespace_roundtrip() {
+        assert_format_roundtrip_with_file_type(
+            r#"import a, * as b from "a""#,
+            r#"import a, * as b from "a""#,
+            FileType::JavaScript,
+            |p| p.eat_expression(Default::default()),
+            DestackFormatOptions::default(),
+        );
+    }
+
+    #[test]
+    fn test_format_export_default_and_namespace_roundtrip() {
+        assert_format_roundtrip_with_file_type(
+            r#"export a, * as b from "mod""#,
+            r#"export a, * as b from "mod""#,
+            FileType::JavaScript,
+            |p| p.eat_expression(Default::default()),
+            DestackFormatOptions::default(),
+        );
+    }
+
+    #[test]
+    fn test_format_import_type_empty_items_roundtrip() {
+        assert_format_roundtrip_with_file_type(
+            r#"import type {} from "a""#,
+            r#"import type {} from "a""#,
+            FileType::TypeScript,
+            |p| p.eat_expression(Default::default()),
+            DestackFormatOptions::default(),
+        );
+    }
+
+    #[test]
+    fn test_format_export_empty_items_with_target_roundtrip() {
+        assert_format_roundtrip_with_file_type(
+            r#"export {} from "a""#,
+            r#"export {} from "a""#,
+            FileType::JavaScript,
+            |p| p.eat_expression(Default::default()),
+            DestackFormatOptions::default(),
         );
     }
 }

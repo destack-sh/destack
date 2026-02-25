@@ -397,7 +397,6 @@ fn is_type_context_uncached(
                 let in_type_slot = match declaration {
                     Declaration::Type { value, .. } => value.id == current_id,
                     Declaration::Struct { heritage, .. }
-                    | Declaration::Class { heritage, .. }
                     | Declaration::Interface { heritage, .. }
                     | Declaration::Enum { heritage, .. } => {
                         heritage
@@ -409,6 +408,10 @@ fn is_type_context_uncached(
                                 .as_ref()
                                 .is_some_and(|types| types.iter().any(|ty| ty.id == current_id))
                     }
+                    Declaration::Class { heritage, .. } => heritage
+                        .implements_types
+                        .as_ref()
+                        .is_some_and(|types| types.iter().any(|ty| ty.id == current_id)),
                     Declaration::Extension {
                         target_type,
                         heritage,
@@ -1006,6 +1009,19 @@ pub(crate) fn needs_parens_in_postfix_position(
     tree: &NodeTree,
     expr_id: LocalNodeId<Expression>,
 ) -> bool {
+    if matches!(tree.get(expr_id), Expression::ObjectExpression { .. }) {
+        return true;
+    }
+
+    if let Expression::Declaration(declaration_id) = tree.get(expr_id)
+        && matches!(
+            tree.get(*declaration_id),
+            Declaration::Function { .. } | Declaration::Class { .. }
+        )
+    {
+        return true;
+    }
+
     expression_precedence(tree.get(expr_id)) < OperatorPrecedence::Postfix as u16
 }
 

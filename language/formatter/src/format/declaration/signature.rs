@@ -7,8 +7,8 @@ use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AnnotationPosition, Asynchrony, Comment, CommentStyle, Declaration, Expression,
     FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
-    Keyword, LocalNodeId, Member, NodeType, Parameter, Pattern, PatternField, Property, TokenType,
-    WhereClause,
+    Keyword, LocalNodeId, Member, Node, NodeTree, NodeTreeImpl, NodeType, Parameter, Pattern,
+    PatternField, Property, TokenType, WhereClause,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -603,6 +603,30 @@ pub(crate) fn write_signature_dynamic_parameter_list(
     }
 
     write!(f, [parameters_list])?;
+    Ok(())
+}
+
+/// Write one empty parameter list and keep delimiter-interior comments inside `()`.
+pub(crate) fn write_empty_parameter_list_with_interior_annotations<'ast, T: Node + Clone>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<T>,
+) -> FormatResult<()>
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    if !f.context().has_delimited_interior_annotation(node_id) {
+        write!(f, [token("()")])?;
+        return Ok(());
+    }
+
+    write!(
+        f,
+        [
+            token("("),
+            soft_block_indent(&f.context().delimited_interior_annotations(node_id)),
+            token(")")
+        ]
+    )?;
     Ok(())
 }
 

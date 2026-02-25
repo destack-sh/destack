@@ -1,8 +1,9 @@
 use crate::format::collection::list_like;
 use crate::format::declaration::signature::{
-    FunctionHeaderStyle, format_where_clause_with_break, signature_parameters_should_expand,
-    signature_return_type_has_line_postfix_boundary_annotation, signature_return_type_is_multiline,
-    signature_should_elide_space_before_body, single_parameter_should_hug,
+    FunctionHeaderStyle, format_where_clause_with_break, parameter_is_variadic,
+    signature_parameters_should_expand, signature_return_type_has_line_postfix_boundary_annotation,
+    signature_return_type_is_multiline, signature_should_elide_space_before_body,
+    single_parameter_should_hug, write_empty_parameter_list_with_interior_annotations,
     write_function_header_prefix, write_signature_dynamic_parameter_list,
 };
 use crate::format::directive::{
@@ -196,6 +197,10 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
     if modifiers.declaration == Some(DeclarationKind::Declaration) {
         write!(f, [Keyword::Declare, space()])?;
     }
+    // scope
+    if modifiers.anchor == Some(BindingAnchor::Static) {
+        write!(f, [Keyword::Static, space()])?;
+    }
     // abstraction
     if let Some(abstraction) = modifiers.abstraction {
         match abstraction {
@@ -206,10 +211,6 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
                 write!(f, [Keyword::Override, space()])?;
             }
         }
-    }
-    // scope
-    if modifiers.anchor == Some(BindingAnchor::Static) {
-        write!(f, [Keyword::Static, space()])?;
     }
     // mutability
     if modifiers.mutability == Some(Mutability::Immutable) {
@@ -548,7 +549,9 @@ where
         signature.return_type,
         false,
     );
-    if signature.dynamic_parameters.len() == 1
+    if signature.dynamic_parameters.is_empty() {
+        write_empty_parameter_list_with_interior_annotations(f, node_id)?;
+    } else if signature.dynamic_parameters.len() == 1
         && !should_expand_parameters
         && single_parameter_should_hug(f.context(), signature.dynamic_parameters[0])
         && !signature_return_type_is_multiline(f.context(), signature.return_type)
@@ -556,11 +559,15 @@ where
     {
         write!(f, [token("("), signature.dynamic_parameters[0], token(")")])?;
     } else {
+        let disallow_trailing_parameter_separator = signature
+            .dynamic_parameters
+            .last()
+            .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
         write_signature_dynamic_parameter_list(
             f,
             &signature.dynamic_parameters,
             should_expand_parameters,
-            false,
+            disallow_trailing_parameter_separator,
         )?;
     }
 

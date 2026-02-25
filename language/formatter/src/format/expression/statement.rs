@@ -1,4 +1,5 @@
 use crate::format::analysis::timing;
+use crate::format::annotation::statement_wrapper_needs_semicolon;
 use crate::format::declaration::dependency::sort_dependency_items;
 use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
@@ -161,6 +162,8 @@ pub(crate) fn format_import_expression<'ast>(
         write!(f, [Keyword::Type, space()])?;
     }
 
+    let import_type_empty_items = kind == DependencyKind::Type && items.is_empty();
+
     // items
     let first_item = items.first().map(|item| tree.get(*item));
 
@@ -181,9 +184,30 @@ pub(crate) fn format_import_expression<'ast>(
     else if let Some(first_item) = first_item
         && first_item.mode == DependencyMode::Default
     {
+        let default_alias = first_item.alias.ok_or(FormatError::SyntaxError {
+            message: "default import requires an alias",
+        })?;
         let rest_items = &items[1..];
-        write!(f, [first_item.alias])?;
-        if !rest_items.is_empty() {
+        write!(f, [default_alias])?;
+
+        if rest_items.len() == 1 && tree.get(rest_items[0]).mode == DependencyMode::Namespace {
+            let namespace_item = tree.get(rest_items[0]);
+            let namespace_alias = namespace_item.alias.ok_or(FormatError::SyntaxError {
+                message: "namespace import requires an alias",
+            })?;
+            write!(
+                f,
+                [
+                    token(","),
+                    space(),
+                    token("*"),
+                    space(),
+                    Keyword::As,
+                    space(),
+                    namespace_alias
+                ]
+            )?;
+        } else if !rest_items.is_empty() {
             // sort named imports when organize_imports is enabled
             let sorted_rest = if organize && !items_have_annotations {
                 sort_dependency_items(rest_items, tree, f.context().strings, sort_order)
@@ -213,10 +237,12 @@ pub(crate) fn format_import_expression<'ast>(
             .include_space()
             .should_expand(items_have_annotations);
         write!(f, [items_list])?;
+    } else if import_type_empty_items {
+        write!(f, [token("{"), token("}")])?;
     }
 
     // from clause
-    if !items.is_empty() {
+    if !items.is_empty() || import_type_empty_items {
         write!(f, [space(), Keyword::From, space()])?;
     }
     write!(f, [token("\""), target, token("\"")])?;
@@ -247,6 +273,8 @@ pub(crate) fn format_export_expression<'ast>(
     if kind == DependencyKind::Type {
         write!(f, [Keyword::Type, space()])?;
     }
+
+    let export_empty_items_with_target = items.is_empty() && target.is_some();
 
     // items
     let first_item = items.first().map(|item| tree.get(*item));
@@ -293,6 +321,35 @@ pub(crate) fn format_export_expression<'ast>(
         }
     }
     // named exports
+    else if let Some(first_item) = first_item
+        && first_item.mode == DependencyMode::Default
+        && items.len() == 2
+        && target.is_some()
+        && tree.get(items[1]).mode == DependencyMode::Namespace
+    {
+        let default_alias = first_item.alias.ok_or(FormatError::SyntaxError {
+            message: "default re-export requires an alias",
+        })?;
+        let namespace_item = tree.get(items[1]);
+        let namespace_alias = namespace_item.alias.ok_or(FormatError::SyntaxError {
+            message: "namespace re-export requires an alias",
+        })?;
+
+        write!(
+            f,
+            [
+                default_alias,
+                token(","),
+                space(),
+                token("*"),
+                space(),
+                Keyword::As,
+                space(),
+                namespace_alias
+            ]
+        )?;
+    }
+    // named exports
     else if !items.is_empty() {
         // sort named exports when organize_imports is enabled
         let sorted_items = if organize && !items_have_annotations {
@@ -306,6 +363,9 @@ pub(crate) fn format_export_expression<'ast>(
             .include_space()
             .should_expand(items_have_annotations);
         write!(f, [items_list])?;
+    } else if target.is_none() || export_empty_items_with_target {
+        // empty export clause: `export {}`
+        write!(f, [token("{"), token("}")])?;
     }
 
     // target
@@ -412,42 +472,6 @@ fn format_export_import_equals(
     Ok(true)
 }
 
-/// Return whether a statement wrapper should print a trailing semicolon.
-fn statement_expression_needs_semicolon(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let expression = context.tree.get(expression_id);
-
-    let is_declaration_statement = matches!(expression, Expression::Declaration(_));
-    let is_block_statement = matches!(expression, Expression::Block(_));
-    let is_control_flow_statement = matches!(
-        expression,
-        Expression::If {
-            kind: IfKind::If,
-            ..
-        } | Expression::While { .. }
-            | Expression::ForEach { .. }
-            | Expression::For { .. }
-            | Expression::Loop { .. }
-            | Expression::Match { .. }
-    );
-
-    let is_do_while_statement = matches!(
-        expression,
-        Expression::While {
-            kind: WhileKind::DoWhile,
-            ..
-        }
-    );
-
-    if is_do_while_statement {
-        return true;
-    }
-
-    !(is_declaration_statement || is_block_statement || is_control_flow_statement)
-}
-
 /// Return whether one expression has a multiline block postfix annotation.
 fn expression_has_multiline_block_postfix_annotation(
     context: &DestackFormatContext<'_>,
@@ -463,7 +487,9 @@ fn expression_has_multiline_block_postfix_annotation(
         };
         if !matches!(
             position,
-            AnnotationPosition::LinePostfixBoundary | AnnotationPosition::BlockPostfix
+            AnnotationPosition::LinePostfix
+                | AnnotationPosition::LinePostfixBoundary
+                | AnnotationPosition::BlockPostfix
         ) {
             return false;
         }
@@ -536,6 +562,14 @@ fn format_statement_wrapped_expression<'ast>(
                 ..
             } if dynamic_arguments.is_empty() && f.context().has_infix_annotation(node_id)
         );
+        let collection_handles_empty_infix = f.context().has_infix_annotation(node_id)
+            && (matches!(
+                expression,
+                Expression::ObjectExpression { properties, .. } if properties.is_empty()
+            ) || matches!(
+                expression,
+                Expression::ArrayExpression { elements } if elements.is_empty()
+            ));
 
         if matches!(
             expression,
@@ -545,7 +579,7 @@ fn format_statement_wrapped_expression<'ast>(
             }
         ) {
             write!(f, [f.context().any_postfix_annotations(node_id)])?;
-        } else if call_or_new_handles_empty_infix {
+        } else if call_or_new_handles_empty_infix || collection_handles_empty_infix {
             write!(f, [f.context().any_postfix_annotations(node_id)])?;
         } else {
             write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
@@ -923,6 +957,39 @@ fn format_try_expression<'ast>(
 }
 
 /// Format a `return` expression.
+fn format_adjacent_statement_argument<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let value_expression = f.context().tree.get(value_id);
+    let value_has_leading_prefix_comment =
+        expression_has_leading_prefix_comment(f.context(), value_id);
+    let value_is_parenthesized = matches!(value_expression, Expression::Parenthesized { .. });
+    let value_is_unwrapped_sequence =
+        matches!(value_expression, Expression::SequenceExpression { .. });
+    let should_wrap_value = !value_is_parenthesized
+        && (value_is_unwrapped_sequence || value_has_leading_prefix_comment);
+
+    // leading own-line comments on adjacent arguments need one paren wrapper
+    if should_wrap_value {
+        write!(
+            f,
+            [
+                space(),
+                token("("),
+                block_indent(&value_id),
+                hard_line_break(),
+                token(")")
+            ]
+        )?;
+        return Ok(());
+    }
+
+    write!(f, [space(), value_id])?;
+    Ok(())
+}
+
+/// Format a `return` expression.
 fn format_return_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
@@ -970,10 +1037,10 @@ fn format_return_expression<'ast>(
                     ]
                 )?;
             } else {
-                write!(f, [space(), value_id])?;
+                format_adjacent_statement_argument(f, value_id)?;
             }
         } else {
-            write!(f, [space(), value_id])?;
+            format_adjacent_statement_argument(f, value_id)?;
         }
     }
 
@@ -1000,7 +1067,7 @@ pub(crate) fn format_statement_expression<'ast>(
 
         // statement
         Expression::Statement(node) => {
-            let needs_semicolon = statement_expression_needs_semicolon(f.context(), *node);
+            let needs_semicolon = statement_wrapper_needs_semicolon(f.context(), *node);
             format_statement_wrapped_expression(f, *node, needs_semicolon)?;
         }
 
@@ -1226,27 +1293,7 @@ pub(crate) fn format_statement_expression<'ast>(
                 write!(f, [token("*")])?;
             }
             if let Some(value) = value {
-                let value_has_leading_prefix_comment =
-                    expression_has_leading_prefix_comment(f.context(), *value);
-                let should_wrap_value = value_has_leading_prefix_comment
-                    && !matches!(
-                        f.context().tree.get(*value),
-                        Expression::Parenthesized { .. }
-                    );
-                if should_wrap_value {
-                    write!(
-                        f,
-                        [
-                            space(),
-                            token("("),
-                            block_indent(value),
-                            hard_line_break(),
-                            token(")")
-                        ]
-                    )?;
-                } else {
-                    write!(f, [space(), value])?;
-                }
+                format_adjacent_statement_argument(f, *value)?;
             }
 
             // block statement yields should terminate like return/throw in statement position
@@ -1262,7 +1309,7 @@ pub(crate) fn format_statement_expression<'ast>(
         // throw
         Expression::Throw { value } => {
             write!(f, [token("throw")])?;
-            write!(f, [space(), value])?;
+            format_adjacent_statement_argument(f, *value)?;
         }
 
         // return

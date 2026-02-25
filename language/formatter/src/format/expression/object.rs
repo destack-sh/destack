@@ -209,6 +209,24 @@ pub(crate) fn format_struct_literal<'ast>(
         write!(f, [ty, space()])?;
     }
 
+    if properties_ids.is_empty() {
+        if f.context().has_infix_annotation(expression_id) {
+            write!(
+                f,
+                [group(&format_args![
+                    token("{"),
+                    block_indent(&f.context().block_infix_annotations(expression_id)),
+                    hard_line_break(),
+                    token("}")
+                ])]
+            )?;
+        } else {
+            write!(f, [token("{}")])?;
+        }
+
+        return Ok(());
+    }
+
     let properties = properties_ids
         .iter()
         .map(|property| f.context().tree.get(*property))

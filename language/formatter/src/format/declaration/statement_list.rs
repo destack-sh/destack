@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use crate::Annotation;
 use crate::format::analysis::timing;
+use crate::format::annotation::expression_needs_statement_terminator;
 use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
     ignore_ranges_for_nodes, write_ignored_span,
@@ -9,7 +10,7 @@ use crate::format::directive::{
 use crate::format::expression::format_expression;
 use destack_ast::{
     AnnotationPosition, Block, BlockContext, Declaration, Expression, FunctionKind, FunctionMode,
-    IfCondition, IfKind, LocalNodeId, Member, NodeType, Property, WhileKind,
+    IfCondition, IfKind, LocalNodeId, Member, NodeType, Property,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -77,6 +78,85 @@ fn expression_prefix_start(
     }
 
     start
+}
+
+/// Write postfix annotations for one block expression.
+fn write_expression_postfix_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+    expression: &Expression,
+    directive: Option<FormatterDirective>,
+    use_statement_inner_annotations: bool,
+) -> FormatResult<()> {
+    if use_statement_inner_annotations && let Expression::Statement(statement_id) = expression {
+        let statement_expression = f.context().tree.get(*statement_id);
+        let statement_directive = directive_for_node(f.context(), *statement_id);
+        let if_chain_handles_annotations = matches!(
+            statement_expression,
+            Expression::If {
+                kind: IfKind::If,
+                ..
+            }
+        );
+        if if_chain_handles_annotations
+            || matches!(
+                statement_directive,
+                Some(FormatterDirective {
+                    kind: FormatterDirectiveKind::IgnoreFormat,
+                    position: FormatterDirectivePosition::Postfix { .. },
+                })
+            )
+        {
+            return Ok(());
+        }
+
+        return write!(
+            f,
+            [f.context().any_infix_or_postfix_annotations(*statement_id)]
+        );
+    }
+
+    let if_chain_handles_annotations = matches!(
+        expression,
+        Expression::If {
+            kind: IfKind::If,
+            ..
+        }
+    );
+    if if_chain_handles_annotations
+        || matches!(
+            directive,
+            Some(FormatterDirective {
+                kind: FormatterDirectiveKind::IgnoreFormat,
+                position: FormatterDirectivePosition::Postfix { .. },
+            })
+        )
+    {
+        return Ok(());
+    }
+
+    write!(
+        f,
+        [f.context().any_infix_or_postfix_annotations(expression_id)]
+    )
+}
+
+/// Return whether one expression has non-blank infix or postfix annotations.
+fn expression_has_non_blank_infix_or_postfix_annotations(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    expression: &Expression,
+    use_statement_inner_annotations: bool,
+) -> bool {
+    if use_statement_inner_annotations && let Expression::Statement(statement_id) = expression {
+        return context.has_non_blank_infix_annotation(*statement_id)
+            || context.has_non_blank_postfix_annotation(*statement_id)
+            || context.has_non_blank_infix_annotation(expression_id)
+            || context.has_non_blank_postfix_annotation(expression_id);
+    }
+
+    context.has_non_blank_infix_annotation(expression_id)
+        || context.has_non_blank_postfix_annotation(expression_id)
 }
 
 /// Return whether an expression or declaration wrapper has one non-comment prefix annotation.
@@ -321,6 +401,7 @@ pub(crate) fn format_block_of_statements<'ast>(
         let is_import_expr = imports::is_import(expression_id, tree);
         let ignore_range = ignore_ranges.get(&expression_id.id).copied();
         let has_ignore_range = ignore_range.is_some();
+        let directive = directive_for_node(f.context(), expression_id);
 
         let expression_span = f.context().span(expression_id);
 
@@ -446,14 +527,26 @@ pub(crate) fn format_block_of_statements<'ast>(
             }
 
             write_ignored_span(f, range_span)?;
+            if expression_has_non_blank_infix_or_postfix_annotations(
+                f.context(),
+                expression_id,
+                expression,
+                true,
+            ) {
+                write_expression_postfix_annotations(
+                    f,
+                    expression_id,
+                    expression,
+                    directive,
+                    true,
+                )?;
+            }
             skip_until = Some(range_span.end);
             prev_was_import = false;
             prev_import_id = None;
             previous_output_end = Some((range_span.file, range_span.end));
             continue;
         }
-
-        let directive = directive_for_node(f.context(), expression_id);
 
         // expression itself (with prefix annotations)
         // lambda declaration line prefix comments are handled in declaration formatting
@@ -475,57 +568,15 @@ pub(crate) fn format_block_of_statements<'ast>(
 
         // add statement terminators for statement-context expression forms
         let is_expression_context_tail = allow_value_tail && i + 1 == effective_expressions.len();
-        let needs_statement_terminator = !is_expression_context_tail
-            && (matches!(
-                expression,
-                Expression::Import { .. } | Expression::Let { .. } | Expression::Using { .. }
-            ) || matches!(
-                expression,
-                Expression::While {
-                    kind: WhileKind::DoWhile,
-                    ..
-                }
-            ) || matches!(
-                expression,
-                Expression::Declaration(declaration_id)
-                    if matches!(
-                        tree.get(*declaration_id),
-                        Declaration::Function {
-                            descriptor,
-                            signature,
-                            ..
-                        }
-                        if descriptor.name.is_none() && signature.kind == FunctionKind::Lambda
-                    )
-            ) || (!matches!(expression, Expression::Statement(_))
-                && !matches!(expression, Expression::Stub | Expression::Error)
-                && !expression.ends_statement_on_newline()));
-        if needs_statement_terminator {
+        if expression_needs_statement_terminator(
+            f.context(),
+            expression,
+            is_expression_context_tail,
+        ) {
             write!(f, [token(";")])?;
         }
 
-        // postfix annotations
-        let if_chain_handles_annotations = matches!(
-            expression,
-            Expression::If {
-                kind: IfKind::If,
-                ..
-            }
-        );
-        if !if_chain_handles_annotations
-            && !matches!(
-                directive,
-                Some(FormatterDirective {
-                    kind: FormatterDirectiveKind::IgnoreFormat,
-                    position: FormatterDirectivePosition::Postfix { .. },
-                })
-            )
-        {
-            write!(
-                f,
-                [f.context().any_infix_or_postfix_annotations(expression_id)]
-            )?;
-        }
+        write_expression_postfix_annotations(f, expression_id, expression, directive, false)?;
 
         prev_was_import = is_import_expr;
         if is_import_expr {

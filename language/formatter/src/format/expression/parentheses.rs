@@ -241,6 +241,11 @@ pub(crate) fn should_unwrap_parenthesized_member_object(
         return false;
     }
 
+    // function and class declarations require grouping before postfix continuations
+    if expression_is_function_or_class_declaration(context, inner_expression_id) {
+        return false;
+    }
+
     // decorated class expressions require explicit grouping before member access
     if expression_is_decorated_class_declaration(context, inner_expression_id) {
         return false;
@@ -368,6 +373,21 @@ pub(crate) fn expression_is_decorated_class_declaration(
             })
         })
         .unwrap_or(false)
+}
+
+/// Return whether one expression is a function or class declaration expression.
+fn expression_is_function_or_class_declaration(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(*declaration_id),
+        Declaration::Function { .. } | Declaration::Class { .. }
+    )
 }
 
 /// Return whether a parenthesized expression wraps a decorated class in `extends`.
@@ -1133,6 +1153,8 @@ struct ParenthesizedExpressionDrop {
     should_drop_call_callee_instantiation_wrapper: bool,
     /// Whether one optional-chain wrapper must stay grouped in postfix parent contexts.
     should_keep_optional_chain_postfix_wrapper: bool,
+    /// Whether declaration wrappers must stay grouped in postfix parent contexts.
+    should_keep_declaration_postfix_wrapper: bool,
 }
 
 /// Return whether one parenthesized optional-chain wrapper must stay grouped in a postfix parent.
@@ -1151,6 +1173,31 @@ fn should_keep_optional_chain_postfix_wrapper(
         | Expression::PrivateMember { left, .. }
         | Expression::Instantiation { left, .. }
         | Expression::Must { left, .. }
+        | Expression::New { left, .. } => *left == node_id,
+        Expression::Call { left, position, .. } | Expression::Index { left, position, .. } => {
+            *left == node_id && *position == PostfixPosition::Direct
+        }
+        _ => false,
+    }
+}
+
+/// Return whether one declaration wrapper must stay grouped in a postfix parent context.
+fn should_keep_declaration_postfix_wrapper(
+    context: &DestackFormatContext<'_>,
+    parent_expression: &Expression,
+    node_id: LocalNodeId<Expression>,
+    inner_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if !expression_is_function_or_class_declaration(context, inner_expression_id) {
+        return false;
+    }
+
+    match parent_expression {
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Instantiation { left, .. }
+        | Expression::Must { left, .. }
+        | Expression::Maybe { left, .. }
         | Expression::New { left, .. } => *left == node_id,
         Expression::Call { left, position, .. } | Expression::Index { left, position, .. } => {
             *left == node_id && *position == PostfixPosition::Direct
@@ -1193,6 +1240,7 @@ fn parenthesized_expression_drop(
             should_drop_statement_lambda: false,
             should_drop_call_callee_instantiation_wrapper: false,
             should_keep_optional_chain_postfix_wrapper: false,
+            should_keep_declaration_postfix_wrapper: false,
         };
     };
 
@@ -1236,6 +1284,7 @@ fn parenthesized_expression_drop(
             should_drop_statement_lambda: false,
             should_drop_call_callee_instantiation_wrapper: false,
             should_keep_optional_chain_postfix_wrapper: false,
+            should_keep_declaration_postfix_wrapper: false,
         };
     }
 
@@ -1279,6 +1328,12 @@ fn parenthesized_expression_drop(
         node_id,
         inner_expression_id,
     );
+    let should_keep_declaration_postfix_wrapper = should_keep_declaration_postfix_wrapper(
+        context,
+        parent_expression,
+        node_id,
+        inner_expression_id,
+    );
 
     ParenthesizedExpressionDrop {
         wraps_decorated_class_extends_head,
@@ -1294,6 +1349,7 @@ fn parenthesized_expression_drop(
         should_drop_statement_lambda,
         should_drop_call_callee_instantiation_wrapper,
         should_keep_optional_chain_postfix_wrapper,
+        should_keep_declaration_postfix_wrapper,
     }
 }
 
@@ -1311,6 +1367,11 @@ fn should_drop_parenthesized_expression(signals: ParenthesizedExpressionDrop) ->
 
     // optional chain wrappers preserve non optional continuation semantics
     if signals.should_keep_optional_chain_postfix_wrapper {
+        return false;
+    }
+
+    // function and class declarations require explicit grouping in postfix continuations
+    if signals.should_keep_declaration_postfix_wrapper {
         return false;
     }
 

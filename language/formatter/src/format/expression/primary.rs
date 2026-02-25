@@ -37,6 +37,24 @@ pub(crate) fn format_primary_array_expression<'ast>(
         .context()
         .timing_scope(timing::FORMAT_EXPRESSION_PRIMARY_ARRAY);
 
+    if elements_ids.is_empty() {
+        if f.context().has_infix_annotation(node_id) {
+            write!(
+                f,
+                [group(&format_args![
+                    token("["),
+                    block_indent(&f.context().block_infix_annotations(node_id)),
+                    hard_line_break(),
+                    token("]")
+                ])]
+            )?;
+        } else {
+            write!(f, [token("[]")])?;
+        }
+
+        return Ok(());
+    }
+
     if array_has_sparse_holes(f.context(), elements_ids) {
         let span = f.context().span(node_id);
         let has_newline_in_source = f.context().has_newline(span);

@@ -946,6 +946,9 @@ fn extend_maybe_line(
             )
         ) {
             push_next_chain_operation(iter, line);
+            while matches!(iter.peek(), Some(ChainExpression::Must { .. })) {
+                push_next_chain_operation(iter, line);
+            }
         }
 
         // keep short member tails with optional call chains
@@ -1009,6 +1012,9 @@ fn extend_member_line(
         )
     ) {
         push_next_chain_operation(iter, line);
+        while matches!(iter.peek(), Some(ChainExpression::Must { .. })) {
+            push_next_chain_operation(iter, line);
+        }
     }
 
     // keep direct curried calls attached
@@ -1050,7 +1056,7 @@ fn extend_member_line(
         push_next_chain_operation(iter, line);
         merged_member_count += 1;
     }
-    if matches!(iter.peek(), Some(ChainExpression::Must { .. })) {
+    while matches!(iter.peek(), Some(ChainExpression::Must { .. })) {
         push_next_chain_operation(iter, line);
     }
     if matches!(
@@ -1088,10 +1094,20 @@ fn extend_call_like_line(
         }
         push_next_chain_operation(iter, line);
     }
+
+    // keep must tails attached after direct curried calls
+    if matches!(iter.peek(), Some(ChainExpression::Must { .. })) {
+        push_next_chain_operation(iter, line);
+    }
 }
 
 /// Extend a line that starts with a must chain operation.
 fn extend_must_line(iter: &mut ChainOperationIter, line: &mut SmallVec<[ChainExpression; 2]>) {
+    // attach consecutive must operations
+    while matches!(iter.peek(), Some(ChainExpression::Must { .. })) {
+        push_next_chain_operation(iter, line);
+    }
+
     // attach immediate member and call like operations
     if matches!(iter.peek(), Some(ChainExpression::Member { .. })) {
         push_next_chain_operation(iter, line);

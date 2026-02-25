@@ -474,9 +474,7 @@ pub(crate) fn format_assign_expression<'ast>(
                     Expression::Assign { left, .. } if left.id == node_id.id
                 )
             });
-    let left_has_annotation = context.has_annotation(left);
     let right_has_annotation = context.has_annotation(right);
-    let node_has_annotation = context.has_annotation(node_id);
     let is_index_operand_assignment = assignment_is_index_operand(context, node_id);
     let assignment_has_newline = context.node_has_newline(node_id);
     let left_has_newline = context.node_has_newline(left);
@@ -599,9 +597,7 @@ pub(crate) fn format_assign_expression<'ast>(
         && !assignment_has_newline
         && !left_has_newline
         && !right_has_newline
-        && !left_has_annotation
         && !right_has_annotation
-        && !node_has_annotation
         && !right_has_prefix_annotation_that_forces_operator_break
         && !right_has_between_comment;
     if should_use_inline_index_operand {
@@ -767,9 +763,7 @@ pub(crate) fn format_assign_expression<'ast>(
         && !right_is_chain
         && !left_has_newline
         && !right_has_newline
-        && !left_has_annotation
         && !right_has_annotation
-        && !node_has_annotation
         && !right_has_prefix_annotation_that_forces_operator_break
         && !right_has_between_comment
     {

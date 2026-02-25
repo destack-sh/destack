@@ -1,4 +1,5 @@
 use crate::format::analysis::{previous_non_whitespace_token_before_span, token_is_keyword};
+use crate::format::annotation::expression_needs_statement_terminator;
 use crate::format::declaration::statement::format_block_of_statements;
 use crate::format::directive::{
     FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, directive_for_node,
@@ -13,6 +14,45 @@ use crate::{FormatNode, empty_block_with_infix_annotations};
 use destack_ast::{BlockFormat, MatchCase, MatchSelector};
 use destack_fir::format::{Buffer, FormatError};
 use destack_fir::{format_args, write};
+
+/// Format one statement-body expression with statement-separator semantics.
+fn format_statement_body_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let expression = f.context().tree.get(expression_id);
+    let directive = directive_for_node(f.context(), expression_id);
+
+    write!(f, [f.context().any_prefix_annotations(expression_id)])?;
+    format_expression(f, expression_id, expression, directive)?;
+
+    if expression_needs_statement_terminator(f.context(), expression, false) {
+        write!(f, [token(";")])?;
+    }
+
+    let if_chain_handles_annotations = matches!(
+        expression,
+        Expression::If {
+            kind: destack_ast::IfKind::If,
+            ..
+        }
+    );
+    let directive_owns_postfix_annotations = matches!(
+        directive,
+        Some(FormatterDirective {
+            kind: FormatterDirectiveKind::IgnoreFormat,
+            position: FormatterDirectivePosition::Postfix { .. },
+        })
+    );
+    if !if_chain_handles_annotations && !directive_owns_postfix_annotations {
+        write!(
+            f,
+            [f.context().any_infix_or_postfix_annotations(expression_id)]
+        )?;
+    }
+
+    Ok(())
+}
 
 /// Format a statement body block, preserving wrapper semantics.
 pub(crate) fn format_statement_body_block<'ast>(
@@ -39,28 +79,12 @@ pub(crate) fn format_statement_body_block<'ast>(
                 [
                     hard_line_break(),
                     group(&block_indent(&format_with(|f| {
-                        write!(f, [expression_id])?;
-
-                        let expression = f.context().tree.get(expression_id);
-                        let needs_terminator = !matches!(expression, Expression::Statement(_))
-                            && !expression.is_top_level_statement();
-                        if needs_terminator {
-                            write!(f, [token(";")])?;
-                        }
-
-                        Ok(())
+                        format_statement_body_expression(f, expression_id)
                     })))
                 ]
             )?;
         } else {
-            write!(f, [expression_id])?;
-
-            let expression = f.context().tree.get(expression_id);
-            let needs_terminator = !matches!(expression, Expression::Statement(_))
-                && !expression.is_top_level_statement();
-            if needs_terminator {
-                write!(f, [token(";")])?;
-            }
+            format_statement_body_expression(f, expression_id)?;
         }
     } else {
         write!(f, [block_id])?;
@@ -224,6 +248,33 @@ fn if_branch_head_requires_space(
     !then_is_empty_statement
 }
 
+/// Return whether one expression span contains a line comment token.
+fn expression_span_has_line_comment(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_span = context.span(expression_id);
+    let first_line_comment_index = context
+        .line_comment_spans
+        .partition_point(|line_comment_span| line_comment_span.end <= expression_span.start);
+
+    context.line_comment_spans[first_line_comment_index..]
+        .iter()
+        .take_while(|line_comment_span| line_comment_span.start < expression_span.end)
+        .any(|line_comment_span| {
+            line_comment_span.start >= expression_span.start
+                && line_comment_span.end <= expression_span.end
+        })
+}
+
+/// Return whether one if-condition expression should be forced into multiline head layout.
+fn if_condition_requires_multiline_head(
+    context: &DestackFormatContext<'_>,
+    condition_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    expression_span_has_line_comment(context, condition_expression_id)
+}
+
 /// Walk a chain of if expressions and collect the if/else if/else nodes.
 pub(crate) fn format_if_else_chain<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -247,10 +298,16 @@ pub(crate) fn format_if_else_chain<'ast>(
                 // if <condition>
                 match condition {
                     IfCondition::Expression { condition } => {
-                        write!(
-                            f,
-                            [Keyword::If, space(), token("("), *condition, token(")")]
-                        )?;
+                        if if_condition_requires_multiline_head(f.context(), *condition) {
+                            write!(f, [Keyword::If, space(), token("("), hard_line_break()])?;
+                            write!(f, [group(&block_indent(condition))])?;
+                            write!(f, [hard_line_break(), token(")")])?;
+                        } else {
+                            write!(
+                                f,
+                                [Keyword::If, space(), token("("), *condition, token(")")]
+                            )?;
+                        }
                     }
                     IfCondition::Let {
                         kind,
@@ -482,17 +539,15 @@ pub(crate) fn format_match_case_with_style<'ast>(
                 MatchCaseStyle::Switch => {
                     let block = f.context().tree.get(*body);
                     if block.format == BlockFormat::Implicit {
-                        if block.expressions.is_empty() {
-                            return Ok(());
+                        if !block.expressions.is_empty() {
+                            write!(f, [hard_line_break()])?;
+                            write!(
+                                f,
+                                [block_indent(&format_with(|f| {
+                                    format_block_of_statements(f, &block.expressions, false)
+                                }))]
+                            )?;
                         }
-
-                        write!(f, [hard_line_break()])?;
-                        write!(
-                            f,
-                            [block_indent(&format_with(|f| {
-                                format_block_of_statements(f, &block.expressions, false)
-                            }))]
-                        )?;
                     } else {
                         write!(f, [space(), *body])?;
                     }
