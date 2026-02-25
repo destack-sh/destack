@@ -33,6 +33,12 @@ impl InstanceTable {
     }
 }
 
+impl Default for InstanceTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeTable {
     /// Insert a new instance.
     pub fn insert_instance(&mut self, instance: Instance) -> LocalInstanceId {

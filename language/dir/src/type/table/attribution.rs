@@ -73,6 +73,12 @@ impl AttributionTable {
     }
 }
 
+impl Default for AttributionTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeTable {
     /// Record a runtime check kind for a guard expression.
     pub fn set_runtime_check_kind(&mut self, node_id: GlobalNodeIdAny, kind: RuntimeCheckKind) {

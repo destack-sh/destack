@@ -58,6 +58,12 @@ impl GenericTable {
     }
 }
 
+impl Default for GenericTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TypeTable {
     /// Cache the constraint type for a static parameter symbol.
     pub fn set_static_parameter_constraint_type(
