@@ -21,7 +21,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime provider capability introspection over host crypto implementations.
+    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -51,7 +51,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime provider capability introspection over host crypto implementations.
+    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -81,7 +81,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime provider capability introspection over host crypto implementations.
+    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -111,7 +111,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime provider capability introspection over host crypto implementations.
+    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -141,7 +141,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime provider capability introspection over host crypto implementations.
+    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -171,7 +171,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime provider capability introspection over host crypto implementations.
+    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -201,7 +201,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime provider capability introspection over host crypto implementations.
+    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -231,7 +231,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime provider capability introspection over host crypto implementations.
+    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -261,7 +261,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime provider capability introspection over host crypto implementations.
+    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
