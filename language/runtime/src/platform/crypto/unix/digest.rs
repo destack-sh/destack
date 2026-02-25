@@ -9,7 +9,7 @@ use super::core::{decode_bytes, write_out_bytes, write_out_value};
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime digest provider primitives.
+/// Uses OpenSSL EVP digest primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -34,7 +34,7 @@ pub(crate) unsafe fn destack_crypto_digest_compute(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime digest provider primitives.
+/// Uses OpenSSL EVP digest primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -57,7 +57,7 @@ pub(crate) unsafe fn destack_crypto_digest_open(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime digest provider primitives.
+/// Uses OpenSSL EVP digest primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -80,7 +80,7 @@ pub(crate) unsafe fn destack_crypto_digest_update(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime digest provider primitives.
+/// Uses OpenSSL EVP digest primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -103,7 +103,7 @@ pub(crate) unsafe fn destack_crypto_digest_finish(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime digest provider primitives.
+/// Uses OpenSSL EVP digest primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -124,7 +124,7 @@ pub(crate) unsafe fn destack_crypto_digest_reset(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime digest provider primitives.
+/// Uses OpenSSL EVP digest primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.

@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::diagnostic::RuntimeErrorStore;
 use crate::platform::{PlatformContext, ResourceTable};
@@ -21,6 +22,8 @@ use destack_workspace::{
 
 /// Number of bytes in a megabyte for replay chunk sizing.
 const BYTES_PER_MB: u64 = 1024 * 1024;
+/// Global runtime-state id sequence for stable per-runtime identity.
+static NEXT_RUNTIME_STATE_ID: AtomicU64 = AtomicU64::new(1);
 
 /// Resolved module runtime options for the current compile target.
 #[derive(Debug, Clone)]
@@ -72,6 +75,8 @@ pub struct ResolvedModuleOptions {
 /// Shared runtime state for platform bindings and execution.
 #[derive(Debug)]
 pub struct RuntimeState {
+    /// Monotonic process-local runtime identity.
+    pub instance_id: u64,
     /// Platform context for host integrations.
     pub platform: PlatformContext,
     /// Runtime GC options for heap policy.
@@ -194,6 +199,7 @@ impl RuntimeState {
         };
 
         Self {
+            instance_id: NEXT_RUNTIME_STATE_ID.fetch_add(1, Ordering::Relaxed),
             platform,
             gc: options.gc.clone(),
             platform_options: options.platform.clone(),

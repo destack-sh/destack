@@ -16,7 +16,7 @@ use super::core::write_out_value;
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime provider capability introspection over host crypto implementations.
+/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -45,7 +45,7 @@ pub(crate) unsafe fn destack_crypto_probe_key_algorithms(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime provider capability introspection over host crypto implementations.
+/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -69,7 +69,7 @@ pub(crate) unsafe fn destack_crypto_probe_key_formats(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime provider capability introspection over host crypto implementations.
+/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -98,7 +98,7 @@ pub(crate) unsafe fn destack_crypto_probe_digest_algorithms(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime provider capability introspection over host crypto implementations.
+/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -127,7 +127,7 @@ pub(crate) unsafe fn destack_crypto_probe_signature_algorithms(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime provider capability introspection over host crypto implementations.
+/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -156,7 +156,7 @@ pub(crate) unsafe fn destack_crypto_probe_cipher_algorithms(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime provider capability introspection over host crypto implementations.
+/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -185,7 +185,7 @@ pub(crate) unsafe fn destack_crypto_probe_mac_algorithms(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime provider capability introspection over host crypto implementations.
+/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -214,7 +214,7 @@ pub(crate) unsafe fn destack_crypto_probe_kdf_algorithms(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime provider capability introspection over host crypto implementations.
+/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -243,7 +243,7 @@ pub(crate) unsafe fn destack_crypto_probe_agreement_algorithms(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime provider capability introspection over host crypto implementations.
+/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.

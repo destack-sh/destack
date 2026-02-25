@@ -1,4 +1,6 @@
 use std::collections::HashSet;
+use std::os::raw::c_void;
+use std::ptr;
 
 use core_foundation_sys::array::{CFArrayGetCount, CFArrayGetValueAtIndex, CFArrayRef};
 use core_foundation_sys::base::{CFEqual, CFRelease, CFTypeRef, kCFAllocatorDefault};
@@ -29,9 +31,9 @@ use security_framework_sys::trust_settings::{
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::CryptoStoreKind;
+use crate::platform::crypto::core::CRYPTO_STORE_OPEN_OPERATION;
 use crate::runtime::BindingCallContext;
 
-use super::constants::STORE_OPEN_OPERATION;
 use super::core::{
     create_cf_string, filesystem_mode_enabled, invalid_data, not_supported, permission_denied,
 };
@@ -52,8 +54,6 @@ fn evaluate_tls_trust_settings(
     trust_settings: CFArrayRef,
     operation: &'static str,
 ) -> RuntimeResult<TrustSettingsDecision> {
-    use std::os::raw::c_void;
-
     let result_key = create_cf_string("kSecTrustSettingsResult", operation)?;
     let policy_name_key = create_cf_string("kSecTrustSettingsPolicyName", operation)?;
     let tls_policy_name = create_cf_string("sslServer", operation)?;
@@ -131,8 +131,6 @@ fn certificate_is_trusted_for_tls_in_domain(
     domain: u32,
     operation: &'static str,
 ) -> RuntimeResult<bool> {
-    use std::ptr;
-
     let mut trust_settings: CFArrayRef = ptr::null();
     let status =
         unsafe { SecTrustSettingsCopyTrustSettings(certificate, domain, &mut trust_settings) };
@@ -160,9 +158,6 @@ fn certificate_is_trusted_for_tls_in_domain(
 
 /// Return whether one host certificate lane can be queried.
 pub(crate) fn host_store_certificate_lane_is_available(kind: CryptoStoreKind) -> bool {
-    use std::os::raw::c_void;
-    use std::ptr;
-
     // system lane availability is based on keychain certificate query capability
     if kind == CryptoStoreKind::System {
         let query_keys = unsafe {
@@ -243,9 +238,6 @@ pub(crate) fn host_store_import_certificate(
     certificate: &X509,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    use std::os::raw::c_void;
-    use std::ptr;
-
     // filesystem mode does not currently expose certificate persistence
     if filesystem_mode_enabled(context) {
         return Err(not_supported(operation));
@@ -332,8 +324,6 @@ pub(crate) fn host_store_delete_certificate(
     certificate: &X509,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    use std::os::raw::c_void;
-
     // filesystem mode does not currently expose certificate persistence
     if filesystem_mode_enabled(context) {
         return Err(not_supported(operation));
@@ -415,9 +405,6 @@ pub(crate) fn host_store_delete_certificate(
 
 /// Collect trusted certificates from default keychain lanes.
 pub(super) fn collect_trusted_certificates() -> RuntimeResult<Vec<X509>> {
-    use std::os::raw::c_void;
-    use std::ptr;
-
     let query_keys = unsafe {
         [
             kSecClass as *const c_void,
@@ -448,7 +435,7 @@ pub(super) fn collect_trusted_certificates() -> RuntimeResult<Vec<X509>> {
     };
     if query_dictionary.is_null() {
         return Err(invalid_data(
-            STORE_OPEN_OPERATION,
+            CRYPTO_STORE_OPEN_OPERATION,
             "failed to create macOS keychain query dictionary",
         ));
     }
@@ -464,7 +451,7 @@ pub(super) fn collect_trusted_certificates() -> RuntimeResult<Vec<X509>> {
     }
     if status != errSecSuccess {
         return Err(permission_denied(
-            STORE_OPEN_OPERATION,
+            CRYPTO_STORE_OPEN_OPERATION,
             format!("SecItemCopyMatching failed with status code {status}"),
         ));
     }
@@ -482,8 +469,6 @@ pub(super) fn collect_trusted_certificates() -> RuntimeResult<Vec<X509>> {
 
 /// Collect certificates from one trust-settings domain.
 pub(super) fn collect_trust_settings_certificates(domain: u32) -> RuntimeResult<Vec<X509>> {
-    use std::ptr;
-
     let mut certificate_array: CFArrayRef = ptr::null();
     let status = unsafe { SecTrustSettingsCopyCertificates(domain, &mut certificate_array) };
 
@@ -492,7 +477,7 @@ pub(super) fn collect_trust_settings_certificates(domain: u32) -> RuntimeResult<
     }
     if status != errSecSuccess {
         return Err(permission_denied(
-            STORE_OPEN_OPERATION,
+            CRYPTO_STORE_OPEN_OPERATION,
             format!("SecTrustSettingsCopyCertificates failed with status code {status}"),
         ));
     }
@@ -514,7 +499,7 @@ pub(super) fn collect_trust_settings_certificates(domain: u32) -> RuntimeResult<
         let is_trusted = certificate_is_trusted_for_tls_in_domain(
             certificate_ref,
             domain,
-            STORE_OPEN_OPERATION,
+            CRYPTO_STORE_OPEN_OPERATION,
         )?;
         if !is_trusted {
             continue;

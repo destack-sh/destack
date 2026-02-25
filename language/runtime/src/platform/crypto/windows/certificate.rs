@@ -8,14 +8,14 @@ use crate::runtime::BindingCallContext;
 
 use super::core::{decode_bytes, write_out_bytes, write_out_value};
 
-/// Import one certificate into one provider store.
+/// Import one certificate into one store lane.
 ///
 /// Parse and import one certificate blob into one store and return one certificate handle.
-/// Import visibility and persistence are enforced by runtime provider policies.
+/// Import visibility and persistence are enforced by runtime store policies.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime certificate parsing, store, and chain-verification provider primitives.
+/// Uses OpenSSL software certificate parsing and verification, plus host trust stores: Security.framework keychain and trust settings on Apple, and Crypt32 or CNG stores on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -43,7 +43,7 @@ pub(crate) unsafe fn destack_crypto_certificate_import(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime certificate parsing, store, and chain-verification provider primitives.
+/// Uses OpenSSL software certificate parsing and verification, plus host trust stores: Security.framework keychain and trust settings on Apple, and Crypt32 or CNG stores on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -69,7 +69,7 @@ pub(crate) unsafe fn destack_crypto_certificate_export(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime certificate parsing, store, and chain-verification provider primitives.
+/// Uses OpenSSL software certificate parsing and verification, plus host trust stores: Security.framework keychain and trust settings on Apple, and Crypt32 or CNG stores on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -91,11 +91,11 @@ pub(crate) unsafe fn destack_crypto_certificate_descriptor(
 /// Verify one certificate chain against one trust policy.
 ///
 /// Build and verify one certificate path for the requested purpose and verification time.
-/// Chain building and policy evaluation follow runtime provider trust engine behavior.
+/// Chain building and policy evaluation follow runtime trust engine behavior.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime certificate parsing, store, and chain-verification provider primitives.
+/// Uses OpenSSL software certificate parsing and verification, plus host trust stores: Security.framework keychain and trust settings on Apple, and Crypt32 or CNG stores on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -114,14 +114,14 @@ pub(crate) unsafe fn destack_crypto_certificate_verify(
     unsafe { write_out_value(out, result) }
 }
 
-/// Delete one certificate from one provider store when allowed.
+/// Delete one certificate from one store lane when allowed.
 ///
 /// Remove one certificate object and invalidate the handle.
-/// Deletion permissions and persistence are enforced by runtime provider policies.
+/// Deletion permissions and persistence are enforced by runtime store policies.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime certificate parsing, store, and chain-verification provider primitives.
+/// Uses OpenSSL software certificate parsing and verification, plus host trust stores: Security.framework keychain and trust settings on Apple, and Crypt32 or CNG stores on Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.

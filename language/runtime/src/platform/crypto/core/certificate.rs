@@ -37,7 +37,6 @@ fn verify_certificate_chain(
     leaf: &X509,
     intermediates: &openssl::stack::Stack<X509>,
     trust_anchors: &[X509],
-    include_system_trust_anchors: bool,
     purpose: X509PurposeId,
     verification_unix_seconds: u64,
     revocation_mode: CryptoCertificateRevocationMode,
@@ -45,14 +44,9 @@ fn verify_certificate_chain(
 ) -> RuntimeResult<(bool, u32, u32)> {
     let operation = "destack.crypto.certificate.verify";
 
-    // build trust store from explicit anchors and optional system roots
+    // build trust store from explicit trust anchors
     let mut store_builder =
         X509StoreBuilder::new().map_err(|error| openssl_error(operation, error))?;
-    if include_system_trust_anchors {
-        store_builder
-            .set_default_paths()
-            .map_err(|error| openssl_error(operation, error))?;
-    }
     for trust_anchor in trust_anchors {
         store_builder
             .add_cert(trust_anchor.clone())
@@ -114,6 +108,11 @@ fn verify_certificate_chain(
         .map_or(0, |chain| chain.len() as u32);
 
     Ok((valid, error_code, chain_length))
+}
+
+/// Load host system trust anchors for certificate verification.
+fn load_system_trust_anchors(context: &BindingCallContext) -> RuntimeResult<Vec<X509>> {
+    crypto_host::open_host_store_certificates(context, CryptoStoreKind::System)
 }
 
 /// Import one certificate object.
@@ -312,7 +311,6 @@ pub(crate) fn certificate_verify(
             &leaf,
             &intermediates,
             &trust_anchor_certificates,
-            false,
             purpose,
             request.verification_unix_seconds,
             request.revocation_mode,
@@ -329,13 +327,19 @@ pub(crate) fn certificate_verify(
         });
     }
 
-    // retry with system trust anchors enabled
+    // merge host system trust anchors into one second verification pass
+    let mut trust_anchor_certificates_with_system = trust_anchor_certificates;
+    let system_trust_anchors = load_system_trust_anchors(context)?;
+    for certificate in system_trust_anchors {
+        trust_anchor_certificates_with_system.push(certificate);
+    }
+
+    // retry with the merged trust-anchor set
     let (with_system_valid, with_system_error, with_system_chain_length) =
         verify_certificate_chain(
             &leaf,
             &intermediates,
-            &trust_anchor_certificates,
-            true,
+            &trust_anchor_certificates_with_system,
             purpose,
             request.verification_unix_seconds,
             request.revocation_mode,

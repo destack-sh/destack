@@ -297,6 +297,7 @@ pub(crate) fn key_generate_pair(
             store_provenance.kind,
             request.algorithm,
             request.named_curve,
+            request.usage_mask,
             request.modulus_bits,
             request.public_exponent,
             &private_persistent_id,
@@ -316,20 +317,12 @@ pub(crate) fn key_generate_pair(
                 false,
             )
         }
-        // otherwise fall back to software-backed pair generation
+        // reject when the host lane cannot satisfy non-extractable persistence guarantees
         else {
-            let pair = generate_software_key_pair(request, "destack.crypto.key.generatePair")?;
-
-            (
-                CryptoKeyMaterial::Private(pair.private_key),
-                CryptoKeyMaterial::Public(pair.public_key),
-                pair.algorithm,
-                pair.named_curve,
-                pair.modulus_bits,
-                pair.public_exponent,
-                pair.size_bits,
-                request.hardware_backed,
-            )
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.crypto.key.generatePair",
+            ))
+            .boxed());
         }
     }
     // otherwise generate one software-backed pair through openssl
@@ -864,12 +857,15 @@ fn key_import_with_bytes(
             store_provenance.kind,
             key_resource.algorithm,
             key_resource.named_curve,
+            request.usage_mask,
             private_key,
             &persistent_id,
             operation,
         )?;
         if let Some(host_material) = host_material {
             key_resource.material = CryptoKeyMaterial::Host(host_material);
+        } else {
+            return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
         }
     }
 

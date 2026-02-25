@@ -12,7 +12,7 @@ use super::core::write_out_bytes;
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime KDF provider primitives.
+/// Uses OpenSSL KDF primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -35,7 +35,7 @@ pub(crate) unsafe fn destack_crypto_kdf_hkdf(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime KDF provider primitives.
+/// Uses OpenSSL KDF primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -58,7 +58,7 @@ pub(crate) unsafe fn destack_crypto_kdf_pbkdf2(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime KDF provider primitives.
+/// Uses OpenSSL KDF primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -81,7 +81,7 @@ pub(crate) unsafe fn destack_crypto_kdf_scrypt(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime KDF provider primitives.
+/// Uses OpenSSL KDF primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.

@@ -18,18 +18,29 @@ export enum CryptoStoreKind {
     /// Key and certificate writes may return notSupported.
     Machine = 2,
     /// Provider-scoped runtime store.
-    /// Defaults to the `openssl` software provider when no provider name is supplied.
+    /// Defaults to the OpenSSL software provider when no provider is supplied.
     Provider = 3,
     /// Process-scoped ephemeral key and certificate store.
     Ephemeral = 4,
+}
+
+/// Crypto store provider lane.
+export enum CryptoStoreProvider {
+    /// No explicit provider.
+    ///
+    /// This is the default for non-provider lanes.
+    /// For provider lanes, runtime resolves this to the default provider.
+    Unknown = 0,
+    /// OpenSSL software provider lane.
+    OpenSsl = 1,
 }
 
 /// Crypto store options.
 export struct CryptoStoreOptions {
     /// Store backend kind.
     kind: CryptoStoreKind;
-    /// Provider name for provider-backed stores.
-    providerName?: string;
+    /// Provider selector for provider-backed stores.
+    provider?: CryptoStoreProvider;
     /// Optional logical namespace.
     namespace?: string;
 }
@@ -38,8 +49,8 @@ export struct CryptoStoreOptions {
 export struct CryptoStoreProvenance {
     /// Effective store backend kind.
     kind: CryptoStoreKind;
-    /// Effective provider name.
-    providerName?: string;
+    /// Effective provider lane.
+    provider?: CryptoStoreProvider;
     /// Effective provider namespace.
     namespace?: string;
 }
@@ -48,8 +59,8 @@ export struct CryptoStoreProvenance {
 export struct CryptoStoreCapability {
     /// Store backend kind lane.
     kind: CryptoStoreKind;
-    /// Provider lane name.
-    providerName?: string;
+    /// Provider lane selector.
+    provider?: CryptoStoreProvider;
     /// Whether this lane is available for open calls.
     isAvailable: boolean;
     /// Whether hardware-backed key operations are supported.
@@ -169,7 +180,7 @@ declare namespace crypto {
 
     /// Return capabilities for one store backend lane.
     ///
-    /// Query one store kind and optional provider name and return effective capability policy.
+    /// Query one store kind and optional provider and return effective capability policy.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
@@ -196,7 +207,7 @@ declare namespace crypto {
     )
     export function storeProbeCapability(
         kind: CryptoStoreKind,
-        providerName?: string,
+        provider?: CryptoStoreProvider,
     ): Result<CryptoStoreCapability, PlatformError>;
 
     /// Open one crypto store.

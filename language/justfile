@@ -134,10 +134,7 @@ run-runtime-smoke-windows-gnu:
 
 # check runtime on windows gnu target with compile, clippy, and executable tests
 check-runtime-windows-gnu:
-    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target x86_64-pc-windows-gnu
-    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo clippy -p destack_runtime --target x86_64-pc-windows-gnu --no-deps -- -D warnings
-    just test-runtime-windows-cross
-    just run-runtime-smoke-windows-gnu
+    ../scripts/toolchain/check-runtime-windows-gnu.sh
 
 # build and run one crate's tests for windows target through wine
 test-windows-crate crate:
@@ -202,7 +199,7 @@ check-runtime-ios:
 
 # check runtime for wasip1 target
 check-runtime-wasip1:
-    LC_ALL=C LANG=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime --target wasm32-wasip1
+    ../scripts/toolchain/check-runtime-wasip1.sh
 
 # check runtime on linux host
 check-runtime-linux:
@@ -220,10 +217,7 @@ check-runtime-macos:
 
 # check runtime on windows host
 check-runtime-windows-host:
-    cargo check -p destack_runtime
-    cargo clippy -p destack_runtime --all-targets -- -D warnings
-    cargo test -p destack_runtime runtime::host::windows:: -- --nocapture
-    just run-runtime-smoke-host
+    ../scripts/toolchain/check-runtime-windows-msvc.sh
 
 # build
 build:

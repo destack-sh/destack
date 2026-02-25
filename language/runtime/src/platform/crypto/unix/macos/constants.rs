@@ -1,6 +1,3 @@
-/// Store-open operation name.
-pub(super) const STORE_OPEN_OPERATION: &str = "destack.crypto.store.open";
-
 /// Secure enclave key-size in bits.
 pub(super) const MACOS_SECURE_ENCLAVE_KEY_SIZE_BITS: i32 = 256;
 

@@ -1,13 +1,13 @@
 # Runtime
 
-The runtime is how Destack actually does anything meaningful beyond pure computation.
-It wraps VM and/or native execution with scheduling, bindings, record/replay, and runtime rules.
-In effect, the runtime is where we marry Node/Bun/Deno-level semantics _with_ V8/JSC-runtime features.
+The runtime is how Destack actually does anything interesting beyond pure computation.
+The Destack runtime wraps VM and/or native execution with scheduling, bindings, host integration, record/replay, telemetry, and all the other "runtime stuff".
+In effect, the runtime is where we integrate Node/Bun/Deno-level semantics with V8/JSC-runtime features.
 
 ## Overview
 
 Destack has a single runtime that can drive both VM and native execution (even within the same process).
-The "runtime" owns everything outside of pure computation (and userland external bindings): time, randomness, scheduling, external bindings, resource tracking, and GC coordination.
+The "runtime" owns everything outside of pure computation (and userland external bindings): time, randomness, scheduling, external bindings, resource tracking, host adaption, and GC coordination.
 VM and native are "engines" that run until they yield back to the runtime (microtask-style).
 Runtime behavior is modeled along three basic dimensions:
 

@@ -4,16 +4,27 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
     CryptoCertificateFormat, CryptoCertificatePurpose, CryptoCertificateQuery,
     CryptoCertificateRevocationMode, CryptoCertificateVerifyRequest, CryptoStoreKind,
+    CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource;
 #[cfg(target_os = "macos")]
 use openssl::sha::sha256;
+use openssl::x509::X509;
 #[cfg(target_os = "macos")]
 use std::collections::HashSet;
 
 const TEST_CERTIFICATE_PEM: &[u8] = include_bytes!("fixtures/tls-test-server.cert.pem");
 const TEST_CERTIFICATE_AUTHORITY_PEM: &[u8] = include_bytes!("fixtures/tls-test-ca.cert.pem");
+
+/// Assert that one PEM certificate export has a complete envelope.
+fn assert_certificate_pem_envelope(pem_text: &str) {
+    // require canonical pem begin marker
+    assert!(pem_text.starts_with("-----BEGIN CERTIFICATE-----"));
+
+    // require canonical pem end marker
+    assert!(pem_text.trim_end().ends_with("-----END CERTIFICATE-----"));
+}
 
 /// Return one stable sha256 fingerprint for one certificate payload.
 #[cfg(target_os = "macos")]
@@ -47,17 +58,29 @@ fn test_certificate_import_export_descriptor_verify_delete() {
         let (descriptor_subject, descriptor_provenance) = context.duplicate_value(descriptor);
         let subject = context.certificate_subject_from_value(descriptor_subject)?;
         assert!(!subject.is_empty());
-        let (store_kind, provider_name, namespace) =
+        let (store_kind, provider, namespace) =
             context.certificate_descriptor_store_provenance_from_value(descriptor_provenance)?;
         assert_eq!(store_kind, CryptoStoreKind::Ephemeral);
-        assert!(provider_name.is_empty());
+        assert_eq!(provider, CryptoStoreProvider::Unknown);
         assert!(namespace.is_empty());
 
-        let exported =
+        let exported_pem =
             context.destack_crypto_certificate_export(certificate, CryptoCertificateFormat::Pem)?;
-        let exported = context.bytes_from_slice_value(exported)?;
-        let exported = String::from_utf8(exported).expect("certificate export should be utf-8 pem");
-        assert!(exported.contains("BEGIN CERTIFICATE"));
+        let exported_pem = context.bytes_from_slice_value(exported_pem)?;
+        let exported_pem = String::from_utf8(exported_pem)
+            .expect("certificate export should be one utf-8 pem payload");
+        assert_certificate_pem_envelope(&exported_pem);
+
+        // verify exported bytes decode back to the exact imported certificate
+        let exported_der = X509::from_pem(exported_pem.as_bytes())
+            .expect("exported pem should parse")
+            .to_der()
+            .expect("exported certificate should encode to der");
+        let expected_der = X509::from_pem(TEST_CERTIFICATE_PEM)
+            .expect("fixture certificate should parse")
+            .to_der()
+            .expect("fixture certificate should encode to der");
+        assert_eq!(exported_der, expected_der);
 
         // verify chain validation with explicit trust anchors
         let intermediates = context
@@ -128,8 +151,8 @@ fn test_certificate_import_follows_host_store_write_behavior() {
             CryptoStoreKind::User,
             CryptoStoreKind::Machine,
         ] {
-            let provider = context.string_value("");
-            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -202,9 +225,10 @@ fn test_certificate_system_lane_matches_rustls_native_certs_trust_subset() {
         }
 
         // skip when the host system lane is unavailable
-        let provider = context.string_value("");
-        let capability =
-            context.destack_crypto_store_probe_capability(CryptoStoreKind::System, provider)?;
+        let capability = context.destack_crypto_store_probe_capability(
+            CryptoStoreKind::System,
+            CryptoStoreProvider::Unknown,
+        )?;
         let capability = context.store_capability_from_value(capability)?;
         if !capability.is_available {
             return Ok(());

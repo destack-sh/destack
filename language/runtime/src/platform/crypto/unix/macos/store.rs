@@ -1,6 +1,8 @@
 use std::fs::{self, OpenOptions};
 use std::io::Write;
+use std::os::raw::c_void;
 use std::path::Path;
+use std::ptr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -25,13 +27,13 @@ use security_framework_sys::trust_settings::{
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::CryptoStoreKind;
+use crate::platform::crypto::core::CRYPTO_STORE_OPEN_OPERATION;
 use crate::runtime::BindingCallContext;
 
 use super::certificate::{
     collect_trust_settings_certificates, collect_trusted_certificates,
     host_store_certificate_lane_is_available,
 };
-use super::constants::STORE_OPEN_OPERATION;
 use super::core::{
     configured_keychain_snapshot_account, configured_keychain_snapshot_service,
     configured_store_path, create_cf_string, filesystem_mode_enabled,
@@ -125,9 +127,6 @@ fn probe_keychain_snapshot_writeability(
     context: &BindingCallContext,
     operation: &'static str,
 ) -> bool {
-    use std::os::raw::c_void;
-    use std::ptr;
-
     // build one unique probe account and payload for this writeability check
     let service_name = configured_keychain_snapshot_service(context);
     let account_name = configured_keychain_snapshot_account(context);
@@ -297,7 +296,7 @@ pub(crate) fn open_host_store_certificates(
                 Ok(Vec::new())
             }
             CryptoStoreKind::System | CryptoStoreKind::Provider => {
-                Err(not_supported(STORE_OPEN_OPERATION))
+                Err(not_supported(CRYPTO_STORE_OPEN_OPERATION))
             }
         };
     }
@@ -309,7 +308,7 @@ pub(crate) fn open_host_store_certificates(
         CryptoStoreKind::Machine => {
             collect_trust_settings_certificates(kSecTrustSettingsDomainAdmin)
         }
-        CryptoStoreKind::Provider => Err(not_supported(STORE_OPEN_OPERATION)),
+        CryptoStoreKind::Provider => Err(not_supported(CRYPTO_STORE_OPEN_OPERATION)),
         CryptoStoreKind::Ephemeral => Ok(Vec::new()),
     }
 }
@@ -329,9 +328,6 @@ pub(crate) fn load_host_key_snapshot_bytes(
     if kind != CryptoStoreKind::User {
         return Ok(None);
     }
-    use std::os::raw::c_void;
-    use std::ptr;
-
     // build keychain query values
     let service_name = configured_keychain_snapshot_service(context);
     let account_name = configured_keychain_snapshot_account(context);
@@ -430,9 +426,6 @@ pub(crate) fn store_host_key_snapshot_bytes(
     if kind != CryptoStoreKind::User {
         return Err(not_supported(operation));
     }
-    use std::os::raw::c_void;
-    use std::ptr;
-
     // build keychain data payload
     let service_name = configured_keychain_snapshot_service(context);
     let account_name = configured_keychain_snapshot_account(context);

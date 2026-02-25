@@ -1,3 +1,8 @@
+#[cfg(any(unix, windows))]
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use openssl::pkey::PKey;
+
 use super::{
     KEY_USAGE_DECRYPT, KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT, KEY_USAGE_SIGN, KEY_USAGE_UNWRAP,
     KEY_USAGE_VERIFY, KEY_USAGE_WRAP, with_harness_context,
@@ -6,9 +11,32 @@ use crate::platform::crypto::{
     CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters,
     CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyGenerationRequest,
     CryptoKeyImportRequest, CryptoKeyQuery, CryptoKeyUsageMask, CryptoNamedCurve,
-    CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreKind,
+    CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreKind, CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
+
+/// Assert that one SEC1 EC private-key export has a complete envelope.
+fn assert_sec1_private_key_pem_envelope(pem_text: &str) {
+    // require canonical sec1 pem begin marker
+    assert!(pem_text.starts_with("-----BEGIN EC PRIVATE KEY-----"));
+
+    // require canonical sec1 pem end marker
+    assert!(
+        pem_text
+            .trim_end()
+            .ends_with("-----END EC PRIVATE KEY-----")
+    );
+}
+
+/// Decode one SEC1 EC private-key PEM payload into one SPKI public key.
+fn ec_public_key_der_from_sec1_pem(pem_bytes: &[u8]) -> Vec<u8> {
+    // parse one private key from pem
+    let key = PKey::private_key_from_pem(pem_bytes).expect("sec1 pem should parse");
+
+    // export one stable public-key representation for roundtrip equality
+    key.public_key_to_der()
+        .expect("public key der export should succeed")
+}
 
 /// Generate an RSA key pair and run sign and encrypt operations.
 #[cfg(any(unix, windows))]
@@ -101,10 +129,10 @@ fn test_key_pair_sign_verify_encrypt_decrypt() {
         let (descriptor_algorithm, descriptor_provenance) = context.duplicate_value(descriptor);
         let algorithm = context.key_algorithm_from_value(descriptor_algorithm);
         assert_eq!(algorithm, CryptoKeyAlgorithm::Rsa);
-        let (store_kind, provider_name, namespace) =
+        let (store_kind, provider, namespace) =
             context.key_descriptor_store_provenance_from_value(descriptor_provenance)?;
         assert_eq!(store_kind, CryptoStoreKind::Ephemeral);
-        assert!(provider_name.is_empty());
+        assert_eq!(provider, CryptoStoreProvider::Unknown);
         assert!(namespace.is_empty());
 
         context.destack_crypto_store_close(store)?;
@@ -208,10 +236,10 @@ fn test_key_wrap_unwrap_roundtrip() {
 
         // verify unwrapped key descriptor provenance
         let descriptor = context.destack_crypto_key_descriptor(unwrapped)?;
-        let (store_kind, provider_name, namespace) =
+        let (store_kind, provider, namespace) =
             context.key_descriptor_store_provenance_from_value(descriptor)?;
         assert_eq!(store_kind, CryptoStoreKind::Ephemeral);
-        assert!(provider_name.is_empty());
+        assert_eq!(provider, CryptoStoreProvider::Unknown);
         assert!(namespace.is_empty());
 
         context.destack_crypto_store_close(store)?;
@@ -465,7 +493,8 @@ fn test_key_import_export_sec1_roundtrip() {
             .destack_crypto_key_export_private(pair.private_key, CryptoKeyFormat::Sec1Pem)?;
         let sec1 = context.bytes_from_slice_value(sec1)?;
         let sec1_text = String::from_utf8(sec1.clone()).expect("sec1 pem should be utf-8");
-        assert!(sec1_text.contains("BEGIN EC PRIVATE KEY"));
+        assert_sec1_private_key_pem_envelope(&sec1_text);
+        let original_public_key_der = ec_public_key_der_from_sec1_pem(&sec1);
 
         // import and re-export sec1 and verify pem envelope
         let import_request = CryptoKeyImportRequest {
@@ -485,7 +514,9 @@ fn test_key_import_export_sec1_roundtrip() {
             context.destack_crypto_key_export_private(imported, CryptoKeyFormat::Sec1Pem)?;
         let exported = context.bytes_from_slice_value(exported)?;
         let exported_text = String::from_utf8(exported).expect("sec1 pem should be utf-8");
-        assert!(exported_text.contains("BEGIN EC PRIVATE KEY"));
+        assert_sec1_private_key_pem_envelope(&exported_text);
+        let imported_public_key_der = ec_public_key_der_from_sec1_pem(exported_text.as_bytes());
+        assert_eq!(imported_public_key_der, original_public_key_der);
 
         context.destack_crypto_store_close(store)?;
 
@@ -725,8 +756,8 @@ fn test_key_generate_follows_host_lane_write_support() {
             CryptoStoreKind::User,
             CryptoStoreKind::Machine,
         ] {
-            let provider = context.string_value("");
-            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -774,8 +805,6 @@ fn test_key_generate_follows_host_lane_write_support() {
 #[cfg(any(unix, windows))]
 #[test]
 fn test_key_generate_nonpersistent_host_keys_do_not_survive_reopen() {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
     with_harness_context(|mut context| {
         // prepare one unique label prefix for this test run
         let nonce = SystemTime::now()
@@ -790,8 +819,8 @@ fn test_key_generate_nonpersistent_host_keys_do_not_survive_reopen() {
             CryptoStoreKind::User,
             CryptoStoreKind::Machine,
         ] {
-            let provider = context.string_value("");
-            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -842,8 +871,6 @@ fn test_key_generate_nonpersistent_host_keys_do_not_survive_reopen() {
 #[cfg(any(unix, windows))]
 #[test]
 fn test_key_generate_persistent_roundtrip_on_supported_host_lanes() {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
     with_harness_context(|mut context| {
         // prepare one unique label prefix for this test run
         let nonce = SystemTime::now()
@@ -858,8 +885,8 @@ fn test_key_generate_persistent_roundtrip_on_supported_host_lanes() {
             CryptoStoreKind::User,
             CryptoStoreKind::Machine,
         ] {
-            let provider = context.string_value("");
-            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -934,8 +961,6 @@ fn test_key_generate_persistent_roundtrip_on_supported_host_lanes() {
 #[cfg(any(unix, windows))]
 #[test]
 fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
     with_harness_context(|mut context| {
         // prepare one unique label prefix for this test run
         let nonce = SystemTime::now()
@@ -950,8 +975,8 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
             CryptoStoreKind::User,
             CryptoStoreKind::Machine,
         ] {
-            let provider = context.string_value("");
-            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -977,8 +1002,20 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
                 hardware_backed: false,
                 persistent: true,
             };
-            let pair = context
-                .destack_crypto_key_generate_pair(store, context.request_value(pair_request)?)?;
+            let pair = match context
+                .destack_crypto_key_generate_pair(store, context.request_value(pair_request)?)
+            {
+                Ok(pair) => pair,
+                Err(error) => {
+                    let code = error.platform_error().map(|platform| platform.code);
+                    if code == Some(PlatformErrorCode::NotSupported) {
+                        context.destack_crypto_store_close(store)?;
+                        continue;
+                    }
+
+                    return Err(error);
+                }
+            };
             let pair = context.same_from_value(pair);
 
             // sign and verify one payload
@@ -1086,8 +1123,6 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
 #[cfg(any(unix, windows))]
 #[test]
 fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
     with_harness_context(|mut context| {
         // prepare one reusable rsa source keypair for host-lane imports
         let source_store_options = context.store_options_value(CryptoStoreKind::Ephemeral);
@@ -1135,8 +1170,8 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
             CryptoStoreKind::User,
             CryptoStoreKind::Machine,
         ] {
-            let provider = context.string_value("");
-            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -1164,8 +1199,20 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
                 extractable: false,
                 persistent: true,
             };
-            let imported_key =
-                context.destack_crypto_key_import(store, context.request_value(import_request)?)?;
+            let imported_key = match context
+                .destack_crypto_key_import(store, context.request_value(import_request)?)
+            {
+                Ok(imported_key) => imported_key,
+                Err(error) => {
+                    let code = error.platform_error().map(|platform| platform.code);
+                    if code == Some(PlatformErrorCode::NotSupported) {
+                        context.destack_crypto_store_close(store)?;
+                        continue;
+                    }
+
+                    return Err(error);
+                }
+            };
 
             // decrypt payloads encrypted with the source public key
             let encrypt_parameters = CryptoAsymmetricEncryptionParameters {
@@ -1268,8 +1315,6 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
 #[cfg(any(unix, windows))]
 #[test]
 fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
     with_harness_context(|mut context| {
         // prepare one unique label prefix for this test run
         let nonce = SystemTime::now()
@@ -1284,8 +1329,8 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
             CryptoStoreKind::User,
             CryptoStoreKind::Machine,
         ] {
-            let provider = context.string_value("");
-            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -1309,8 +1354,20 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
                 hardware_backed: false,
                 persistent: true,
             };
-            let pair = context
-                .destack_crypto_key_generate_pair(store, context.request_value(pair_request)?)?;
+            let pair = match context
+                .destack_crypto_key_generate_pair(store, context.request_value(pair_request)?)
+            {
+                Ok(pair) => pair,
+                Err(error) => {
+                    let code = error.platform_error().map(|platform| platform.code);
+                    if code == Some(PlatformErrorCode::NotSupported) {
+                        context.destack_crypto_store_close(store)?;
+                        continue;
+                    }
+
+                    return Err(error);
+                }
+            };
             let pair = context.same_from_value(pair);
 
             // sign and verify one payload
@@ -1396,8 +1453,8 @@ fn test_key_generate_persistent_rejects_host_lanes_without_persistence() {
             CryptoStoreKind::User,
             CryptoStoreKind::Machine,
         ] {
-            let provider = context.string_value("");
-            let capability = context.destack_crypto_store_probe_capability(kind, provider)?;
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || capability.supports_persistent {
                 continue;

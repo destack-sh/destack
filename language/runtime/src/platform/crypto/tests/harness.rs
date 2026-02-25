@@ -14,6 +14,7 @@ use crate::platform::crypto::{
     CryptoKeyQueryVm, CryptoMacParameters, CryptoPbkdf2Request, CryptoPbkdf2RequestVm,
     CryptoScryptRequest, CryptoScryptRequestVm, CryptoSignatureParameters, CryptoStoreCapability,
     CryptoStoreCapabilityVm, CryptoStoreKind, CryptoStoreOptions, CryptoStoreOptionsVm,
+    CryptoStoreProvider,
 };
 use crate::platform::{NativeArray, PlatformError, VmArray, VmValueCodec, resource};
 
@@ -27,8 +28,8 @@ pub(crate) use generated::*;
 pub(crate) struct HarnessStoreCapability {
     /// Store backend kind lane.
     pub(crate) kind: CryptoStoreKind,
-    /// Provider-name lane.
-    pub(crate) provider_name: String,
+    /// Provider lane.
+    pub(crate) provider: CryptoStoreProvider,
     /// Availability lane.
     pub(crate) is_available: bool,
     /// Hardware-backed policy lane.
@@ -305,15 +306,14 @@ impl<'call> CryptoHarnessContext<'call> {
     pub(crate) fn certificate_descriptor_store_provenance_from_value(
         &self,
         value: HarnessValue<CryptoCertificateDescriptor, CryptoCertificateDescriptorVm>,
-    ) -> RuntimeResult<(CryptoStoreKind, String, String)> {
+    ) -> RuntimeResult<(CryptoStoreKind, CryptoStoreProvider, String)> {
         // decode store provenance from native or vm certificate descriptor values
         match value {
             HarnessValue::Native(value) => {
-                let provider_name = unsafe { value.store_provenance.provider_name.as_str()? };
                 let namespace = unsafe { value.store_provenance.namespace.as_str()? };
                 Ok((
                     value.store_provenance.kind,
-                    provider_name.to_string(),
+                    value.store_provenance.provider,
                     namespace.to_string(),
                 ))
             }
@@ -326,17 +326,16 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let provider_name = context
-                    .string_ref(value.store_provenance.provider_name)
-                    .map_err(|error| RuntimeError::from(error).boxed())?
-                    .as_str()
-                    .to_string();
                 let namespace = context
                     .string_ref(value.store_provenance.namespace)
                     .map_err(|error| RuntimeError::from(error).boxed())?
                     .as_str()
                     .to_string();
-                Ok((value.store_provenance.kind, provider_name, namespace))
+                Ok((
+                    value.store_provenance.kind,
+                    value.store_provenance.provider,
+                    namespace,
+                ))
             }
         }
     }
@@ -357,15 +356,14 @@ impl<'call> CryptoHarnessContext<'call> {
     pub(crate) fn key_descriptor_store_provenance_from_value(
         &self,
         value: HarnessValue<CryptoKeyDescriptor, CryptoKeyDescriptorVm>,
-    ) -> RuntimeResult<(CryptoStoreKind, String, String)> {
+    ) -> RuntimeResult<(CryptoStoreKind, CryptoStoreProvider, String)> {
         // decode store provenance from native or vm key descriptor values
         match value {
             HarnessValue::Native(value) => {
-                let provider_name = unsafe { value.store_provenance.provider_name.as_str()? };
                 let namespace = unsafe { value.store_provenance.namespace.as_str()? };
                 Ok((
                     value.store_provenance.kind,
-                    provider_name.to_string(),
+                    value.store_provenance.provider,
                     namespace.to_string(),
                 ))
             }
@@ -378,17 +376,16 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let provider_name = context
-                    .string_ref(value.store_provenance.provider_name)
-                    .map_err(|error| RuntimeError::from(error).boxed())?
-                    .as_str()
-                    .to_string();
                 let namespace = context
                     .string_ref(value.store_provenance.namespace)
                     .map_err(|error| RuntimeError::from(error).boxed())?
                     .as_str()
                     .to_string();
-                Ok((value.store_provenance.kind, provider_name, namespace))
+                Ok((
+                    value.store_provenance.kind,
+                    value.store_provenance.provider,
+                    namespace,
+                ))
             }
         }
     }
@@ -523,13 +520,12 @@ impl<'call> CryptoHarnessContext<'call> {
         // decode one store capability payload from native or vm values
         match value {
             HarnessValue::Native(value) => {
-                let provider_name = unsafe { value.provider_name.as_str()? };
                 let supported_key_algorithms =
                     unsafe { value.supported_key_algorithms.as_slice()? };
                 let supported_key_formats = unsafe { value.supported_key_formats.as_slice()? };
                 Ok(HarnessStoreCapability {
                     kind: value.kind,
-                    provider_name: provider_name.to_string(),
+                    provider: value.provider,
                     is_available: value.is_available,
                     supports_hardware_backed: value.supports_hardware_backed,
                     supports_persistent: value.supports_persistent,
@@ -547,17 +543,12 @@ impl<'call> CryptoHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let provider_name = context
-                    .string_ref(value.provider_name)
-                    .map_err(|error| RuntimeError::from(error).boxed())?
-                    .as_str()
-                    .to_string();
                 let supported_key_algorithms =
                     value.supported_key_algorithms.read_values(context)?;
                 let supported_key_formats = value.supported_key_formats.read_values(context)?;
                 Ok(HarnessStoreCapability {
                     kind: value.kind,
-                    provider_name,
+                    provider: value.provider,
                     is_available: value.is_available,
                     supports_hardware_backed: value.supports_hardware_backed,
                     supports_persistent: value.supports_persistent,
@@ -574,25 +565,21 @@ impl<'call> CryptoHarnessContext<'call> {
         &self,
         kind: CryptoStoreKind,
     ) -> HarnessValue<CryptoStoreOptions, CryptoStoreOptionsVm> {
-        // build empty provider and namespace defaults in the active engine
-        let provider_name = self.string_value("");
+        // build provider and namespace defaults in the active engine
         let namespace = self.string_value("");
 
         // materialize store options in one consistent variant
-        match (provider_name, namespace) {
-            (HarnessValue::Native(provider_name), HarnessValue::Native(namespace)) => self
-                .harness_value(CryptoStoreOptions {
-                    kind,
-                    provider_name,
-                    namespace,
-                }),
-            (HarnessValue::Vm(provider_name), HarnessValue::Vm(namespace)) => self
-                .harness_value_vm(CryptoStoreOptionsVm {
-                    kind,
-                    provider_name,
-                    namespace,
-                }),
-            _ => unreachable!("mixed harness value variants are invalid"),
+        match namespace {
+            HarnessValue::Native(namespace) => self.harness_value(CryptoStoreOptions {
+                kind,
+                provider: CryptoStoreProvider::Unknown,
+                namespace,
+            }),
+            HarnessValue::Vm(namespace) => self.harness_value_vm(CryptoStoreOptionsVm {
+                kind,
+                provider: CryptoStoreProvider::Unknown,
+                namespace,
+            }),
         }
     }
 }
@@ -631,7 +618,7 @@ impl CryptoHarnessRequestValue for CryptoStoreOptions {
     fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
         Ok(CryptoStoreOptionsVm {
             kind: self.kind,
-            provider_name: vm_string_from_native(context, self.provider_name)?,
+            provider: self.provider,
             namespace: vm_string_from_native(context, self.namespace)?,
         })
     }

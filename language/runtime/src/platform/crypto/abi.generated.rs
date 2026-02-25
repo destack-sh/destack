@@ -698,6 +698,38 @@ impl VmValueCodec for CryptoStoreKind {
     }
 }
 
+/// ABI enum for CryptoStoreProvider.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CryptoStoreProvider {
+    /// Unknown.
+    Unknown = 0,
+    /// OpenSsl.
+    OpenSsl = 1,
+}
+
+impl VmValueCodec for CryptoStoreProvider {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0u8 => Self::Unknown,
+            1u8 => Self::OpenSsl,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CryptoStoreProvider value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
 /// ABI struct for CryptoAgreementDeriveKeyRequest.
 #[repr(C)]
 pub struct CryptoAgreementDeriveKeyRequestAbi<A: BindingAbi> {
@@ -3014,8 +3046,8 @@ impl VmAggregateCodec for CryptoSignatureParameters {
 pub struct CryptoStoreCapabilityAbi<A: BindingAbi> {
     /// The kind field.
     pub kind: CryptoStoreKind,
-    /// The provider_name field.
-    pub provider_name: A::String,
+    /// The provider field.
+    pub provider: CryptoStoreProvider,
     /// The is_available field.
     pub is_available: bool,
     /// The supports_hardware_backed field.
@@ -3078,8 +3110,8 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
         }
         let field_kind =
             <CryptoStoreKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_provider_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_provider =
+            <CryptoStoreProvider as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_is_available =
             <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         let field_supports_hardware_backed =
@@ -3096,7 +3128,7 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
             <VmArray<CryptoKeyFormat> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         Ok(Self {
             kind: field_kind,
-            provider_name: field_provider_name,
+            provider: field_provider,
             is_available: field_is_available,
             supports_hardware_backed: field_supports_hardware_backed,
             supports_persistent: field_supports_persistent,
@@ -3112,10 +3144,7 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <CryptoStoreKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
-                self.provider_name,
-                context,
-            )?,
+            <CryptoStoreProvider as VmAggregateCodec>::encode_with_context(self.provider, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.is_available, context)?,
             <bool as VmAggregateCodec>::encode_with_context(
                 self.supports_hardware_backed,
@@ -3141,8 +3170,8 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
 pub struct CryptoStoreOptionsAbi<A: BindingAbi> {
     /// The kind field.
     pub kind: CryptoStoreKind,
-    /// The provider_name field.
-    pub provider_name: A::String,
+    /// The provider field.
+    pub provider: CryptoStoreProvider,
     /// The namespace field.
     pub namespace: A::String,
 }
@@ -3195,13 +3224,13 @@ impl VmAggregateCodec for CryptoStoreOptionsAbi<VmAbi> {
         }
         let field_kind =
             <CryptoStoreKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_provider_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_provider =
+            <CryptoStoreProvider as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_namespace =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
-            provider_name: field_provider_name,
+            provider: field_provider,
             namespace: field_namespace,
         })
     }
@@ -3212,10 +3241,7 @@ impl VmAggregateCodec for CryptoStoreOptionsAbi<VmAbi> {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <CryptoStoreKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
-                self.provider_name,
-                context,
-            )?,
+            <CryptoStoreProvider as VmAggregateCodec>::encode_with_context(self.provider, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.namespace, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -3227,8 +3253,8 @@ impl VmAggregateCodec for CryptoStoreOptionsAbi<VmAbi> {
 pub struct CryptoStoreProvenanceAbi<A: BindingAbi> {
     /// The kind field.
     pub kind: CryptoStoreKind,
-    /// The provider_name field.
-    pub provider_name: A::String,
+    /// The provider field.
+    pub provider: CryptoStoreProvider,
     /// The namespace field.
     pub namespace: A::String,
 }
@@ -3281,13 +3307,13 @@ impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
         }
         let field_kind =
             <CryptoStoreKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_provider_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_provider =
+            <CryptoStoreProvider as VmAggregateCodec>::decode_with_context(context, slots[1])?;
         let field_namespace =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
-            provider_name: field_provider_name,
+            provider: field_provider,
             namespace: field_namespace,
         })
     }
@@ -3298,10 +3324,7 @@ impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <CryptoStoreKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
-                self.provider_name,
-                context,
-            )?,
+            <CryptoStoreProvider as VmAggregateCodec>::encode_with_context(self.provider, context)?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.namespace, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -3632,8 +3655,8 @@ pub struct CryptoScryptRequestReplayRecord {
 pub struct CryptoStoreCapabilityReplayRecord {
     /// The kind field.
     pub kind: CryptoStoreKind,
-    /// The provider_name field.
-    pub provider_name: String,
+    /// The provider field.
+    pub provider: CryptoStoreProvider,
     /// The is_available field.
     pub is_available: bool,
     /// The supports_hardware_backed field.
@@ -3653,8 +3676,8 @@ pub struct CryptoStoreCapabilityReplayRecord {
 pub struct CryptoStoreOptionsReplayRecord {
     /// The kind field.
     pub kind: CryptoStoreKind,
-    /// The provider_name field.
-    pub provider_name: String,
+    /// The provider field.
+    pub provider: CryptoStoreProvider,
     /// The namespace field.
     pub namespace: String,
 }
@@ -3664,8 +3687,8 @@ pub struct CryptoStoreOptionsReplayRecord {
 pub struct CryptoStoreProvenanceReplayRecord {
     /// The kind field.
     pub kind: CryptoStoreKind,
-    /// The provider_name field.
-    pub provider_name: String,
+    /// The provider field.
+    pub provider: CryptoStoreProvider,
     /// The namespace field.
     pub namespace: String,
 }

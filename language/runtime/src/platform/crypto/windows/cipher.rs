@@ -11,7 +11,7 @@ use super::core::{cipher_output, decode_bytes, write_out_value};
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime symmetric cipher provider primitives.
+/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -38,7 +38,7 @@ pub(crate) unsafe fn destack_crypto_cipher_encrypt(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime symmetric cipher provider primitives.
+/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -64,7 +64,7 @@ pub(crate) unsafe fn destack_crypto_cipher_decrypt(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime symmetric cipher provider primitives.
+/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -89,7 +89,7 @@ pub(crate) unsafe fn destack_crypto_cipher_open(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime symmetric cipher provider primitives.
+/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -112,7 +112,7 @@ pub(crate) unsafe fn destack_crypto_cipher_update_additional_data(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime symmetric cipher provider primitives.
+/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -140,7 +140,7 @@ pub(crate) unsafe fn destack_crypto_cipher_update(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime symmetric cipher provider primitives.
+/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -166,7 +166,7 @@ pub(crate) unsafe fn destack_crypto_cipher_finish(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime symmetric cipher provider primitives.
+/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -188,7 +188,7 @@ pub(crate) unsafe fn destack_crypto_cipher_reset(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime symmetric cipher provider primitives.
+/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.

@@ -1,3 +1,4 @@
+use std::ffi::c_void;
 use std::path::PathBuf;
 use std::{env, ptr};
 
@@ -24,6 +25,35 @@ pub(super) fn permission_denied(
 ) -> Box<RuntimeError> {
     RuntimeError::from(PlatformError::io_with(
         Some(PlatformErrorCode::IoPermissionDenied),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        message.into(),
+    ))
+    .boxed()
+}
+
+/// Return one ioInvalidData runtime error.
+pub(super) fn invalid_data(
+    operation: &'static str,
+    message: impl Into<String>,
+) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoInvalidData),
+        None,
+        None,
+        Some(operation.to_string()),
+        None,
+        message.into(),
+    ))
+    .boxed()
+}
+
+/// Return one ioNotFound runtime error.
+pub(super) fn not_found(operation: &'static str, message: impl Into<String>) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::io_with(
+        Some(PlatformErrorCode::IoNotFound),
         None,
         None,
         Some(operation.to_string()),
@@ -203,8 +233,6 @@ pub(super) fn windows_dpapi_unprotect(
 
 /// Return whether one Windows store can be opened.
 pub(super) fn windows_try_open_store(location: u32, store_name: &str) -> bool {
-    use std::ffi::c_void;
-
     // open and close one read-only system store
     let store_name = windows_store_name_utf16(store_name);
     let flags = location | CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_READONLY_FLAG;
