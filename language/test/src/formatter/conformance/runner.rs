@@ -252,7 +252,7 @@ pub struct ConformanceResult {
     pub idempotence_failed: usize,
     /// tests that failed due to fixture read errors
     pub read_failed: usize,
-    /// tests that failed unexpectedly (not in known-failures or ignored list)
+    /// tests counted as failures for the conformance gate
     pub regressions: Vec<String>,
     /// tests that passed but were in known-failures (progress!)
     pub fixed: Vec<String>,
@@ -314,6 +314,7 @@ pub struct SuiteResult {
     pub name: String,
     pub result: ConformanceResult,
     pub duration: Duration,
+    pub include_known_failures: bool,
 }
 
 /// Run a conformance suite with the standard test harness.
@@ -591,12 +592,13 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     };
 
     // print results
-    print_conformance_result(suite.name(), &result, duration);
+    print_conformance_result(suite.name(), &result, duration, include_known_failures);
 
     Some(SuiteResult {
         name: suite.name().to_string(),
         result,
         duration,
+        include_known_failures,
     })
 }
 
@@ -613,6 +615,7 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
     let total_tests: usize = results.iter().map(|r| r.result.total_run()).sum();
     let total_duration: Duration = results.iter().map(|r| r.duration).sum();
     let total_regressions: usize = results.iter().map(|r| r.result.regressions.len()).sum();
+    let known_failures_included = results.iter().all(|suite| suite.include_known_failures);
 
     let overall_rate = if total_tests > 0 {
         total_passed as f64 / total_tests as f64 * 100.0
@@ -768,11 +771,19 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
         );
     }
     if total_regressions > 0 {
-        println!(
-            "  {} {} tests regressed across all suites",
-            color::red("FAILED:"),
-            total_regressions
-        );
+        if known_failures_included {
+            println!(
+                "  {} {} tests failed across all suites",
+                color::red("FAILED:"),
+                total_regressions
+            );
+        } else {
+            println!(
+                "  {} {} tests regressed across all suites",
+                color::red("FAILED:"),
+                total_regressions
+            );
+        }
     } else {
         println!(
             "  {} all {} tests accounted for",
@@ -798,6 +809,7 @@ fn print_conformance_result(
     suite_name: &str,
     result: &ConformanceResult,
     duration: std::time::Duration,
+    include_known_failures: bool,
 ) {
     let total = result.total();
     let pass_rate = result.pass_rate();
@@ -969,10 +981,21 @@ fn print_conformance_result(
 
     // regressions
     if !result.regressions.is_empty() {
+        let failure_header = if include_known_failures {
+            color::red("FAILURES")
+        } else {
+            color::red("REGRESSIONS")
+        };
+        let failure_description = if include_known_failures {
+            "tests failed"
+        } else {
+            "tests failed unexpectedly"
+        };
         println!(
-            "{} ({} tests failed unexpectedly):",
-            color::red("REGRESSIONS"),
-            result.regressions.len()
+            "{} ({} {}):",
+            failure_header,
+            result.regressions.len(),
+            failure_description
         );
         let show_count = result.regressions.len().min(20);
         for test in &result.regressions[..show_count] {
@@ -1032,11 +1055,19 @@ fn print_conformance_result(
 
     // final status
     if result.has_regressions() {
-        println!(
-            "test result: {}. {} regressions detected",
-            color::red("FAILED"),
-            result.regressions.len()
-        );
+        if include_known_failures {
+            println!(
+                "test result: {}. {} failures detected",
+                color::red("FAILED"),
+                result.regressions.len()
+            );
+        } else {
+            println!(
+                "test result: {}. {} regressions detected",
+                color::red("FAILED"),
+                result.regressions.len()
+            );
+        }
     } else if !result.fixed.is_empty() || !result.unskipped.is_empty() {
         let mut parts = Vec::new();
         if !result.fixed.is_empty() {

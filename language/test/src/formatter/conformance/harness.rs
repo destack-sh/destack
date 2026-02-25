@@ -106,6 +106,7 @@ impl Suite for ConformanceHarnessSuite {
 
         let regressions_len = suite_result.result.regressions.len();
         let has_regressions = suite_result.result.has_regressions();
+        let include_known_failures = suite_options.include_known_failures_effective();
 
         if let Ok(mut results) = self.results.lock() {
             results.push(suite_result);
@@ -113,7 +114,11 @@ impl Suite for ConformanceHarnessSuite {
 
         if has_regressions {
             return TestResult::Failed {
-                message: format!("{regressions_len} regressions"),
+                message: if include_known_failures {
+                    format!("{regressions_len} failures")
+                } else {
+                    format!("{regressions_len} regressions")
+                },
             };
         }
 
