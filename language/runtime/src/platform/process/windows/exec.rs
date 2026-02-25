@@ -183,7 +183,7 @@ fn exec_replace_with_path(
     let mut command_line_wide: Vec<u16> = command_line.encode_utf16().collect();
     command_line_wide.push(0);
 
-    let mut startup_info = STARTUPINFOW {
+    let startup_info = STARTUPINFOW {
         cb: std::mem::size_of::<STARTUPINFOW>() as u32,
         lpReserved: std::ptr::null_mut(),
         lpDesktop: std::ptr::null_mut(),
@@ -220,7 +220,7 @@ fn exec_replace_with_path(
             CREATE_UNICODE_ENVIRONMENT,
             environment_block.as_ptr() as *mut libc::c_void,
             std::ptr::null(),
-            &mut startup_info,
+            &startup_info,
             &mut process_info,
         )
     };

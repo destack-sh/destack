@@ -641,7 +641,7 @@ pub(crate) unsafe fn destack_net_socket(
 
     // create the socket
     let af = socket_family_to_raw(family);
-    let socket = unsafe { socket(af, socket_type.0 as i32, protocol.0 as i32) };
+    let socket = unsafe { socket(af, socket_type.0 as i32, protocol.0) };
     if socket == INVALID_SOCKET {
         return Err(last_net_error("socket"));
     }
@@ -693,7 +693,7 @@ pub(crate) unsafe fn destack_net_socket_pair(
 
     // choose the address family
     let family = socket_family_to_raw(family);
-    let protocol = protocol.0 as i32;
+    let protocol = protocol.0;
     let socket_type = socket_type.0 as i32;
 
     // emulate stream socket pairs through loopback connect+accept

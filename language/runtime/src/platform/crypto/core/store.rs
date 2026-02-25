@@ -5,6 +5,7 @@ use openssl::pkey::PKey;
 use openssl::sha::sha256;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use zeroize::Zeroizing;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
@@ -913,6 +914,7 @@ fn load_host_persistent_key_records(
     let Some(snapshot_bytes) = snapshot_bytes else {
         return Ok(Vec::new());
     };
+    let snapshot_bytes = Zeroizing::new(snapshot_bytes);
 
     // decode and validate snapshot payload
     let snapshot: HostKeySnapshot = postcard::from_bytes(&snapshot_bytes).map_err(|error| {
@@ -957,6 +959,7 @@ fn store_host_persistent_key_records(
             format!("failed to encode persisted host key snapshot: {error}"),
         )
     })?;
+    let snapshot_bytes = Zeroizing::new(snapshot_bytes);
 
     // write backend-specific snapshot bytes
     crypto_host::store_host_key_snapshot_bytes(context, kind, &snapshot_bytes, operation)
@@ -999,6 +1002,8 @@ fn key_to_persisted_record(
                 HostKeyBackend::AndroidHardwareKeystoreEc => 13u8,
                 HostKeyBackend::PosixSoftwareKeyStorageRsa => 14u8,
                 HostKeyBackend::PosixSoftwareKeyStorageEc => 15u8,
+                HostKeyBackend::AndroidHardwareKeystoreAes => 16u8,
+                HostKeyBackend::AndroidHardwareKeystoreHmac => 17u8,
             };
             let persisted = PersistedHostKeyMaterial {
                 backend,
@@ -1098,6 +1103,8 @@ fn key_from_persisted_record(
                 13 => HostKeyBackend::AndroidHardwareKeystoreEc,
                 14 => HostKeyBackend::PosixSoftwareKeyStorageRsa,
                 15 => HostKeyBackend::PosixSoftwareKeyStorageEc,
+                16 => HostKeyBackend::AndroidHardwareKeystoreAes,
+                17 => HostKeyBackend::AndroidHardwareKeystoreHmac,
                 _ => {
                     return Err(invalid_data(
                         operation,

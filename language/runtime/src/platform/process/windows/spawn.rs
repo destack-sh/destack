@@ -240,7 +240,7 @@ fn build_command_line(command: &str, arguments: &[String]) -> String {
 
 /// Open one inheritable null-device handle for stdio routing.
 fn open_null_stdio_handle(is_input: bool) -> RuntimeResult<HANDLE> {
-    let mut security_attributes = SECURITY_ATTRIBUTES {
+    let security_attributes = SECURITY_ATTRIBUTES {
         nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
         lpSecurityDescriptor: std::ptr::null_mut(),
         bInheritHandle: 1,
@@ -257,7 +257,7 @@ fn open_null_stdio_handle(is_input: bool) -> RuntimeResult<HANDLE> {
             path.as_ptr(),
             access,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
-            &mut security_attributes,
+            &security_attributes,
             OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL,
             0,
@@ -467,7 +467,7 @@ fn spawn_process(
             creation_flags,
             environment_block.as_ptr() as *mut libc::c_void,
             current_directory_pointer,
-            &mut startup_info,
+            &startup_info,
             &mut process_info,
         )
     };

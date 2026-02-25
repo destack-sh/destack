@@ -16,6 +16,7 @@ pub use event::{
     HostWindowFocusEvent,
 };
 pub(crate) use queue::HostEventQueue;
+#[allow(unused_imports)]
 pub(crate) use registry::{HostBridgeRegistration, host_bridge_for_runtime, register_host_bridge};
 pub use runtime::HostRuntime;
 pub use select::default_host_adapter;

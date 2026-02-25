@@ -912,7 +912,7 @@ struct HidDescriptorProbe {
 
 /// Return one hid value-capability usage range.
 fn hid_value_usage_range(capability: &HIDP_VALUE_CAPS) -> (u16, u16) {
-    if (capability.IsRange as u8) != 0 {
+    if capability.IsRange != 0 {
         let range = unsafe { capability.Anonymous.Range };
         return (range.UsageMin, range.UsageMax);
     }
@@ -923,7 +923,7 @@ fn hid_value_usage_range(capability: &HIDP_VALUE_CAPS) -> (u16, u16) {
 
 /// Return one hid button-capability usage range.
 fn hid_button_usage_range(capability: &HIDP_BUTTON_CAPS) -> (u16, u16) {
-    if (capability.IsRange as u8) != 0 {
+    if capability.IsRange != 0 {
         let range = unsafe { capability.Anonymous.Range };
         return (range.UsageMin, range.UsageMax);
     }
@@ -1166,7 +1166,7 @@ fn probe_hid_descriptor(path: &str) -> Option<HidDescriptorProbe> {
 
 /// Return one raw-input descriptor for one device-list entry.
 fn descriptor_from_device_entry(entry: RAWINPUTDEVICELIST) -> Option<RawInputDeviceDescriptor> {
-    let raw_device = entry.hDevice as isize;
+    let raw_device = entry.hDevice;
     let id = monitor_device_id(raw_device);
     let raw_path = raw_device_name(raw_device);
     let name = raw_path.clone().unwrap_or_else(|| id.clone());
@@ -1244,37 +1244,37 @@ fn descriptor_from_device_entry(entry: RAWINPUTDEVICELIST) -> Option<RawInputDev
         usage = hid.usUsage;
         supports_raw_hid = true;
 
-        if let Some(path) = raw_path.as_deref() {
-            if let Some(probe) = probe_hid_descriptor(path) {
-                report_size = probe.input_report_bytes;
-                output_report_size = probe.output_report_bytes;
-                feature_report_size = probe.feature_report_bytes;
-                value_capabilities = probe.input_value_capabilities;
-                button_capabilities = probe.input_button_capabilities;
+        if let Some(path) = raw_path.as_deref()
+            && let Some(probe) = probe_hid_descriptor(path)
+        {
+            report_size = probe.input_report_bytes;
+            output_report_size = probe.output_report_bytes;
+            feature_report_size = probe.feature_report_bytes;
+            value_capabilities = probe.input_value_capabilities;
+            button_capabilities = probe.input_button_capabilities;
 
-                if kind == InputDeviceKind::Keyboard {
-                    key_count = probe.input_button_count.max(255);
-                } else if kind == InputDeviceKind::Mouse {
-                    button_count = probe.input_button_count.max(5);
-                    axis_count = probe.input_value_count.max(2);
-                } else if kind == InputDeviceKind::Touch || kind == InputDeviceKind::Pen {
-                    button_count = probe.input_button_count.max(1);
-                    axis_count = probe.input_value_count.max(2);
-                } else if kind == InputDeviceKind::Gamepad {
-                    let probed_button_count =
-                        hid_button_count_for_page(&button_capabilities, HID_USAGE_PAGE_BUTTON);
-                    let probed_axis_count = hid_gamepad_axis_count(&value_capabilities);
-                    button_count = probed_button_count.max(10);
-                    axis_count = probed_axis_count.max(4);
-                    supports_rumble = output_report_size > 0;
-                    supports_battery = feature_report_size > 0;
-                    supports_light = vendor_id == SONY_VENDOR_ID
-                        && (output_report_size == SONY_DUALSHOCK4_USB_EFFECTS_REPORT_BYTES
-                            || output_report_size == SONY_DUALSENSE_USB_EFFECTS_REPORT_BYTES);
-                } else if kind == InputDeviceKind::Raw {
-                    button_count = probe.input_button_count;
-                    axis_count = probe.input_value_count;
-                }
+            if kind == InputDeviceKind::Keyboard {
+                key_count = probe.input_button_count.max(255);
+            } else if kind == InputDeviceKind::Mouse {
+                button_count = probe.input_button_count.max(5);
+                axis_count = probe.input_value_count.max(2);
+            } else if kind == InputDeviceKind::Touch || kind == InputDeviceKind::Pen {
+                button_count = probe.input_button_count.max(1);
+                axis_count = probe.input_value_count.max(2);
+            } else if kind == InputDeviceKind::Gamepad {
+                let probed_button_count =
+                    hid_button_count_for_page(&button_capabilities, HID_USAGE_PAGE_BUTTON);
+                let probed_axis_count = hid_gamepad_axis_count(&value_capabilities);
+                button_count = probed_button_count.max(10);
+                axis_count = probed_axis_count.max(4);
+                supports_rumble = output_report_size > 0;
+                supports_battery = feature_report_size > 0;
+                supports_light = vendor_id == SONY_VENDOR_ID
+                    && (output_report_size == SONY_DUALSHOCK4_USB_EFFECTS_REPORT_BYTES
+                        || output_report_size == SONY_DUALSENSE_USB_EFFECTS_REPORT_BYTES);
+            } else if kind == InputDeviceKind::Raw {
+                button_count = probe.input_button_count;
+                axis_count = probe.input_value_count;
             }
         }
     } else {
@@ -1866,15 +1866,14 @@ fn push_input_packet(queue: &mut VecDeque<RawInputPacket>, packet: RawInputPacke
         queue.pop_front();
 
         // coalesce one overflow marker in the queue tail when drops occur
-        if let Some(overflow) = queue.back_mut() {
-            if overflow.kind == InputEventKind::Device
-                && overflow.action == InputEventAction::Cancel
-                && overflow.code == RAW_INPUT_OVERFLOW_CODE
-            {
-                overflow.value = overflow.value.saturating_add(1);
-                queue.push_back(packet);
-                return;
-            }
+        if let Some(overflow) = queue.back_mut()
+            && overflow.kind == InputEventKind::Device
+            && overflow.action == InputEventAction::Cancel
+            && overflow.code == RAW_INPUT_OVERFLOW_CODE
+        {
+            overflow.value = overflow.value.saturating_add(1);
+            queue.push_back(packet);
+            return;
         }
 
         queue.push_back(RawInputPacket {
@@ -1909,14 +1908,13 @@ fn push_monitor_packet(queue: &mut VecDeque<RawMonitorPacket>, packet: RawMonito
         queue.pop_front();
 
         // coalesce one overflow marker in the queue tail when drops occur
-        if let Some(overflow) = queue.back_mut() {
-            if overflow.action == InputEventAction::Cancel
-                && overflow.code == RAW_MONITOR_OVERFLOW_CODE
-            {
-                overflow.value = overflow.value.saturating_add(1);
-                queue.push_back(packet);
-                return;
-            }
+        if let Some(overflow) = queue.back_mut()
+            && overflow.action == InputEventAction::Cancel
+            && overflow.code == RAW_MONITOR_OVERFLOW_CODE
+        {
+            overflow.value = overflow.value.saturating_add(1);
+            queue.push_back(packet);
+            return;
         }
 
         queue.push_back(RawMonitorPacket {
@@ -2159,15 +2157,15 @@ unsafe extern "system" fn raw_input_window_proc(
 ) -> LRESULT {
     match message {
         WM_INPUT => {
-            handle_raw_input_message(lparam as isize);
+            handle_raw_input_message(lparam);
             0
         }
         WM_INPUT_DEVICE_CHANGE => {
-            handle_raw_device_change_message(wparam as u32, lparam as isize);
+            handle_raw_device_change_message(wparam as u32, lparam);
             0
         }
         WM_TOUCH => {
-            handle_touch_message(wparam, lparam as isize);
+            handle_touch_message(wparam, lparam);
             0
         }
         WM_DESTROY => {
@@ -2286,7 +2284,7 @@ fn handle_touch_message(wparam: usize, lparam: isize) {
     let mut queues = state.queues.lock();
     let mut touched_devices = HashSet::new();
     for touch in touches {
-        let device_id = monitor_device_id(touch.hSource as isize);
+        let device_id = monitor_device_id(touch.hSource);
         let has_active_stream = queues
             .active_input_streams
             .get(&device_id)
@@ -2402,7 +2400,7 @@ fn handle_raw_input_message(raw_input_handle: isize) {
     let raw = unsafe { ptr::read_unaligned(buffer.as_ptr().cast::<RAWINPUT>()) };
     let mut queues = state.queues.lock();
     let timestamp = now_timestamp_ns();
-    let source_device_id = monitor_device_id(raw.header.hDevice as isize);
+    let source_device_id = monitor_device_id(raw.header.hDevice);
 
     // skip queueing events when no stream is currently subscribed to this device
     let has_active_stream = queues
@@ -3193,10 +3191,10 @@ pub(super) fn sensor_kinds_for_device(device: &RawInputDeviceDescriptor) -> Vec<
     }
 
     // fall back to top-level hid usage classification when capability metadata is absent
-    if supported.is_empty() {
-        if let Some(kind) = sensor_kind_from_usage(device.usage_page, device.usage) {
-            supported.insert(kind);
-        }
+    if supported.is_empty()
+        && let Some(kind) = sensor_kind_from_usage(device.usage_page, device.usage)
+    {
+        supported.insert(kind);
     }
 
     // emit kinds in deterministic canonical order

@@ -141,9 +141,9 @@ pub(crate) unsafe fn destack_tls_session_export_keying_material(
 
     // resolve and lock the session connection
     let session = core_tls::resolve_session_resource(context, handle)?;
-    let mut connection = session.connection.lock();
+    let connection = session.connection.lock();
     let output =
-        core_tls::export_keying_material(&mut connection, &label, &argument_context, outputlength)?;
+        core_tls::export_keying_material(&connection, &label, &argument_context, outputlength)?;
 
     // write the output bytes
     unsafe {

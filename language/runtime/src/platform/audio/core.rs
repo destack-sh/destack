@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 pub(crate) use std::collections::{HashMap, HashSet, VecDeque};
 pub(crate) use std::sync::{Arc, Condvar, Mutex, OnceLock};
 pub(crate) use std::thread;

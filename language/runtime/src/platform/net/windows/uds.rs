@@ -83,7 +83,7 @@ fn temporary_uds_socket_pair_path() -> String {
             "\\"
         };
         let temp_text = format!("{temp_directory}{separator}{file_name}");
-        if temp_text.as_bytes().len() < unsafe { mem::zeroed::<SOCKADDR_UN>() }.sun_path.len() {
+        if temp_text.len() < unsafe { mem::zeroed::<SOCKADDR_UN>() }.sun_path.len() {
             return temp_text;
         }
     }

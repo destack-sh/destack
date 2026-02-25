@@ -67,6 +67,7 @@ impl Runtime {
     }
 
     /// Create a runtime with explicit runtime options.
+    #[allow(clippy::arc_with_non_send_sync)]
     pub fn from_options(
         platform: PlatformContext,
         options: &RuntimeOptions,
@@ -198,6 +199,7 @@ impl Runtime {
 }
 
 impl Default for Runtime {
+    #[allow(clippy::arc_with_non_send_sync)]
     fn default() -> Self {
         Self::new(Arc::new(RuntimeState::new(
             PlatformContext::new(Vec::new()),

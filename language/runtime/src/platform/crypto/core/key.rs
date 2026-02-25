@@ -22,10 +22,10 @@ use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 use super::core::{
-    CRYPTO_KEY_RESOURCE_KIND, CryptoKeyMaterial, CryptoKeyResource, KEY_USAGE_DECRYPT,
-    KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT,
-    KEY_USAGE_SIGN, KEY_USAGE_UNWRAP, KEY_USAGE_VERIFY, KEY_USAGE_WRAP, attach_key_to_store,
-    create_persistent_identifier, decode_native_bytes, decode_native_string,
+    CRYPTO_KEY_RESOURCE_KIND, CryptoKeyMaterial, CryptoKeyResource, HostKeyMaterial,
+    KEY_USAGE_DECRYPT, KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_ENCRYPT,
+    KEY_USAGE_EXPORT, KEY_USAGE_SIGN, KEY_USAGE_UNWRAP, KEY_USAGE_VERIFY, KEY_USAGE_WRAP,
+    attach_key_to_store, create_persistent_identifier, decode_native_bytes, decode_native_string,
     enforce_store_key_policy, handle_not_found, insert_key_resource, invalid_argument,
     invalid_data, message_digest, openssl_error, permission_denied, resolve_key_resource,
     resolve_store_resource, store_provenance_from_store, store_provenance_to_descriptor,
@@ -130,14 +130,6 @@ pub(crate) fn key_generate_secret(
         store_provenance_from_store(&store_resource)
     };
 
-    // reject hardware-backed secret-key requests
-    if request.hardware_backed {
-        return Err(RuntimeError::from(PlatformError::not_supported(
-            "destack.crypto.key.generateSecret",
-        ))
-        .boxed());
-    }
-
     // resolve key metadata defaults
     let label = decode_native_string(request.label, "request.label")?;
     let mut key_size_bits = request.size_bits;
@@ -164,6 +156,74 @@ pub(crate) fn key_generate_secret(
             "request.sizeBits",
             "sizeBits must be divisible by 8",
         ));
+    }
+
+    // route hardware-backed secret-key generation through host backends
+    if request.hardware_backed {
+        // current hardware-backed secret-key lanes require persistence
+        if !request.persistent {
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.crypto.key.generateSecret",
+            ))
+            .boxed());
+        }
+
+        // current hardware-backed secret-key lanes are non-extractable
+        if request.extractable {
+            return Err(RuntimeError::from(PlatformError::not_supported(
+                "destack.crypto.key.generateSecret",
+            ))
+            .boxed());
+        }
+
+        // enforce algorithm and usage-mask constraints for current host lanes
+        enforce_hardware_backed_secret_generation(
+            request.algorithm,
+            request.usage_mask,
+            "destack.crypto.key.generateSecret",
+        )?;
+
+        // allocate one persistent identifier used as host key label
+        let persistent_id = create_persistent_identifier("destack.crypto.key.generateSecret")?;
+
+        // generate host-managed secret-key material
+        let host_material = crypto_host::host_generate_hardware_backed_secret_key(
+            context,
+            store_provenance.kind,
+            request.algorithm,
+            request.digest,
+            key_size_bits,
+            request.usage_mask,
+            &persistent_id,
+            "destack.crypto.key.generateSecret",
+        )?;
+
+        // insert host key resource and attach it to the store
+        let key_resource = CryptoKeyResource {
+            kind: CryptoKeyKind::Secret,
+            algorithm: request.algorithm,
+            named_curve: request.named_curve,
+            modulus_bits: request.modulus_bits,
+            public_exponent: request.public_exponent,
+            digest: request.digest,
+            size_bits: key_size_bits,
+            usage_mask: request.usage_mask,
+            label,
+            extractable: false,
+            hardware_backed: true,
+            persistent: true,
+            persistent_id,
+            store_provenance,
+            material: CryptoKeyMaterial::Host(host_material),
+        };
+        let handle = insert_attach_and_persist_key(
+            context,
+            store,
+            key_resource,
+            "destack.crypto.key.generateSecret",
+        )?;
+
+        return Ok(handle);
     }
 
     // generate random secret-key bytes
@@ -584,6 +644,47 @@ fn enforce_hardware_backed_pair_usage(
     Ok(())
 }
 
+/// Enforce secret-key generation lanes supported by current hardware-backed backends.
+fn enforce_hardware_backed_secret_generation(
+    algorithm: CryptoKeyAlgorithm,
+    usage_mask: CryptoKeyUsageMask,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // aes hardware lanes currently support encrypt and decrypt only
+    if algorithm == CryptoKeyAlgorithm::Aes {
+        let unsupported_usage_mask = KEY_USAGE_SIGN
+            | KEY_USAGE_VERIFY
+            | KEY_USAGE_WRAP
+            | KEY_USAGE_UNWRAP
+            | KEY_USAGE_DERIVE_BITS
+            | KEY_USAGE_DERIVE_KEYS
+            | KEY_USAGE_EXPORT;
+        if (usage_mask.0 & unsupported_usage_mask) != 0 {
+            return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+        }
+
+        return Ok(());
+    }
+
+    // hmac hardware lanes currently support sign and verify only
+    if algorithm == CryptoKeyAlgorithm::Hmac {
+        let unsupported_usage_mask = KEY_USAGE_ENCRYPT
+            | KEY_USAGE_DECRYPT
+            | KEY_USAGE_WRAP
+            | KEY_USAGE_UNWRAP
+            | KEY_USAGE_DERIVE_BITS
+            | KEY_USAGE_DERIVE_KEYS
+            | KEY_USAGE_EXPORT;
+        if (usage_mask.0 & unsupported_usage_mask) != 0 {
+            return Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed());
+        }
+
+        return Ok(());
+    }
+
+    Err(RuntimeError::from(PlatformError::not_supported(operation)).boxed())
+}
+
 /// Import one key into one store.
 pub(crate) fn key_import(
     context: &BindingCallContext,
@@ -988,6 +1089,14 @@ pub(crate) fn key_export_secret(
         ));
     }
 
+    // reject secret-key export for host-managed key lanes
+    if matches!(&key_resource.material, CryptoKeyMaterial::Host(_)) {
+        return Err(permission_denied(
+            "destack.crypto.key.exportSecret",
+            "key export is denied for host-managed secret keys",
+        ));
+    }
+
     match key_resource.kind {
         CryptoKeyKind::Secret => export_key_resource(
             context,
@@ -1051,6 +1160,7 @@ pub(crate) fn key_sign(
         return crypto_host::host_key_sign(
             context,
             material,
+            key_resource.store_provenance.kind,
             key_resource.algorithm,
             parameters,
             payload,
@@ -1166,6 +1276,7 @@ fn key_decrypt_internal(
         return crypto_host::host_key_decrypt(
             context,
             material,
+            key_resource.store_provenance.kind,
             key_resource.algorithm,
             parameters,
             payload,
@@ -1303,7 +1414,12 @@ pub(crate) fn key_delete(
 
     // delete host-managed key material when present
     if let CryptoKeyMaterial::Host(material) = &key_resource_snapshot.material {
-        crypto_host::host_key_delete(context, material, "destack.crypto.key.delete")?;
+        crypto_host::host_key_delete(
+            context,
+            material,
+            key_resource_snapshot.store_provenance.kind,
+            "destack.crypto.key.delete",
+        )?;
     }
 
     // zeroize secret payload before removing the resource entry
@@ -1461,6 +1577,35 @@ pub(super) fn resolve_secret_key_bytes(
     };
 
     Ok(bytes)
+}
+
+/// Resolve one host-managed secret key with store provenance metadata.
+pub(super) fn resolve_host_secret_key_material(
+    context: &BindingCallContext,
+    handle: resource::CryptoKeyHandle,
+    operation: &'static str,
+) -> RuntimeResult<Option<(HostKeyMaterial, CryptoStoreKind, CryptoKeyAlgorithm)>> {
+    let key = resolve_key_resource(context, handle, operation)?;
+    let key = key.lock();
+    if key.kind != CryptoKeyKind::Secret {
+        return Err(invalid_argument(
+            "key",
+            "key handle does not reference one secret key",
+        ));
+    }
+
+    let material = match &key.material {
+        CryptoKeyMaterial::Host(material) => material.clone(),
+        CryptoKeyMaterial::Secret(_) => return Ok(None),
+        _ => {
+            return Err(invalid_argument(
+                "key",
+                "key handle does not reference one secret key",
+            ));
+        }
+    };
+
+    Ok(Some((material, key.store_provenance.kind, key.algorithm)))
 }
 
 /// Resolve one public key object.

@@ -1,4 +1,6 @@
 mod agreement;
+#[cfg(any(target_os = "ios", target_os = "macos"))]
+mod apple;
 mod backend;
 mod certificate;
 mod cipher;

@@ -1,8 +1,7 @@
 # Target Support
 
 This file is the canonical support policy for build and runtime targets across the repository.
-Support is keyed by Rust target triple.
-Component READMEs may include scoped support views, but tier policy lives here.
+Support is keyed by Rust target triple (for now).
 
 ## Tiers
 

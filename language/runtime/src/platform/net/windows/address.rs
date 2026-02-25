@@ -176,9 +176,8 @@ pub(crate) unsafe fn destack_net_resolve_raw(
     while !current.is_null() {
         let info = unsafe { &*current };
         if !info.ai_addr.is_null() && info.ai_addrlen > 0 {
-            let bytes = unsafe {
-                std::slice::from_raw_parts(info.ai_addr as *const u8, info.ai_addrlen as usize)
-            };
+            let bytes =
+                unsafe { std::slice::from_raw_parts(info.ai_addr as *const u8, info.ai_addrlen) };
             let family = unsafe { (*info.ai_addr).sa_family };
             addresses.push(SocketAddress {
                 family,

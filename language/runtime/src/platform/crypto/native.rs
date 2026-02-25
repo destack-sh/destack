@@ -211,7 +211,7 @@ pub(crate) unsafe fn destack_crypto_certificate_verify(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.
@@ -232,7 +232,7 @@ pub(crate) unsafe fn destack_crypto_cipher_close(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -258,7 +258,7 @@ pub(crate) unsafe fn destack_crypto_cipher_decrypt(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -287,7 +287,7 @@ pub(crate) unsafe fn destack_crypto_cipher_encrypt(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -310,7 +310,7 @@ pub(crate) unsafe fn destack_crypto_cipher_finish(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -334,7 +334,7 @@ pub(crate) unsafe fn destack_crypto_cipher_open(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -356,7 +356,7 @@ pub(crate) unsafe fn destack_crypto_cipher_reset(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -379,7 +379,7 @@ pub(crate) unsafe fn destack_crypto_cipher_update(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -835,6 +835,7 @@ pub(crate) unsafe fn destack_crypto_key_generate_pair(
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
 /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Hardware-backed secret-key generation is available when the selected host lane exposes symmetric hardware-key callbacks.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1025,7 +1026,7 @@ pub(crate) unsafe fn destack_crypto_key_wrap(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.
@@ -1046,7 +1047,7 @@ pub(crate) unsafe fn destack_crypto_mac_close(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1072,7 +1073,7 @@ pub(crate) unsafe fn destack_crypto_mac_compute(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1094,7 +1095,7 @@ pub(crate) unsafe fn destack_crypto_mac_finish(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1117,7 +1118,7 @@ pub(crate) unsafe fn destack_crypto_mac_open(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1138,7 +1139,7 @@ pub(crate) unsafe fn destack_crypto_mac_reset(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1160,7 +1161,7 @@ pub(crate) unsafe fn destack_crypto_mac_update(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.

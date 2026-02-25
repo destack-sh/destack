@@ -27,13 +27,11 @@ pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDes
         let minimum_channels = profile
             .input_channels
             .min(profile.output_channels)
-            .max(1)
-            .min(ASIO_MAX_PROBED_CHANNELS);
+            .clamp(1, ASIO_MAX_PROBED_CHANNELS);
         let maximum_channels = profile
             .input_channels
             .max(profile.output_channels)
-            .max(1)
-            .min(ASIO_MAX_PROBED_CHANNELS);
+            .clamp(1, ASIO_MAX_PROBED_CHANNELS);
 
         let preferred_channels = if profile.output_channels > 0 {
             profile.output_channels
@@ -68,7 +66,7 @@ pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDes
                 max_sample_rate: profile.max_sample_rate,
                 preferred_period_frames: profile.preferred_period_frames,
                 min_channels: 1,
-                max_channels: profile.output_channels.max(1).min(ASIO_MAX_PROBED_CHANNELS),
+                max_channels: profile.output_channels.clamp(1, ASIO_MAX_PROBED_CHANNELS),
                 preferred_layout: channel_layout(profile.output_channels.max(1)),
                 preferred_channel_mask: channel_mask(profile.output_channels.max(1)),
                 supported_channel_mask: channel_mask(profile.output_channels.max(1)),
@@ -106,7 +104,7 @@ pub(super) fn enumerate_devices() -> RuntimeResult<Vec<audio_core::HostDeviceDes
                 max_sample_rate: profile.max_sample_rate,
                 preferred_period_frames: profile.preferred_period_frames,
                 min_channels: 1,
-                max_channels: profile.input_channels.max(1).min(ASIO_MAX_PROBED_CHANNELS),
+                max_channels: profile.input_channels.clamp(1, ASIO_MAX_PROBED_CHANNELS),
                 preferred_layout: channel_layout(profile.input_channels.max(1)),
                 preferred_channel_mask: channel_mask(profile.input_channels.max(1)),
                 supported_channel_mask: channel_mask(profile.input_channels.max(1)),

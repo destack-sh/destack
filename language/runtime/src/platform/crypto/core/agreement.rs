@@ -145,6 +145,7 @@ pub(crate) fn agreement_derive_shared_secret(
         CryptoKeyMaterial::Private(private_key) => Some(private_key.clone()),
         _ => None,
     };
+    let private_store_kind = private_resource.store_provenance.kind;
     let private_algorithm = private_resource.algorithm;
     let private_named_curve = private_resource.named_curve;
     drop(private_resource);
@@ -155,6 +156,7 @@ pub(crate) fn agreement_derive_shared_secret(
         return crypto_host::host_key_derive_shared_secret(
             context,
             &host_private_key,
+            private_store_kind,
             private_algorithm,
             private_named_curve,
             &peer_spki_der,

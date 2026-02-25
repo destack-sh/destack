@@ -345,13 +345,13 @@ pub(super) fn install_active_runtime(runtime: &Arc<AsioStreamRuntime>) -> Runtim
         .unwrap_or_else(|error| error.into_inner());
 
     // reject multiple simultaneous ASIO streams
-    if let Some(active) = slot.as_ref().and_then(Weak::upgrade) {
-        if !Arc::ptr_eq(&active, runtime) {
-            return Err(RuntimeError::from(PlatformError::not_supported(
-                "destack.audio.stream.open ASIO only supports one active stream",
-            ))
-            .boxed());
-        }
+    if let Some(active) = slot.as_ref().and_then(Weak::upgrade)
+        && !Arc::ptr_eq(&active, runtime)
+    {
+        return Err(RuntimeError::from(PlatformError::not_supported(
+            "destack.audio.stream.open ASIO only supports one active stream",
+        ))
+        .boxed());
     }
 
     *slot = Some(Arc::downgrade(runtime));

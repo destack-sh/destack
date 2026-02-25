@@ -212,14 +212,14 @@ const IID_IUNKNOWN: GUID = GUID::from_u128(0x00000000_0000_0000_c000_00000000004
 /// Shared vtable for WASAPI endpoint notification callbacks.
 static WASAPI_NOTIFICATION_CLIENT_VTABLE: WasapiNotificationClientVTable =
     WasapiNotificationClientVTable {
-        query_interface: query_interface,
-        add_ref: add_ref,
-        release: release,
-        on_device_state_changed: on_device_state_changed,
-        on_device_added: on_device_added,
-        on_device_removed: on_device_removed,
-        on_default_device_changed: on_default_device_changed,
-        on_property_value_changed: on_property_value_changed,
+        query_interface,
+        add_ref,
+        release,
+        on_device_state_changed,
+        on_device_added,
+        on_device_removed,
+        on_default_device_changed,
+        on_property_value_changed,
     };
 
 /// Return whether two COM interface identifiers are byte-for-byte equal.

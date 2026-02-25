@@ -127,7 +127,7 @@ pub(super) fn windows_dpapi_protect(
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
     // prepare input and output blobs for crypt32
-    let mut input_blob = CRYPT_INTEGER_BLOB {
+    let input_blob = CRYPT_INTEGER_BLOB {
         cbData: bytes.len() as u32,
         pbData: bytes.as_ptr() as *mut u8,
     };
@@ -143,7 +143,7 @@ pub(super) fn windows_dpapi_protect(
     // run crypt32 protection
     let status = unsafe {
         CryptProtectData(
-            &mut input_blob,
+            &input_blob,
             ptr::null(),
             ptr::null(),
             ptr::null(),
@@ -178,7 +178,7 @@ pub(super) fn windows_dpapi_unprotect(
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
     // prepare input and output blobs for crypt32
-    let mut input_blob = CRYPT_INTEGER_BLOB {
+    let input_blob = CRYPT_INTEGER_BLOB {
         cbData: protected_bytes.len() as u32,
         pbData: protected_bytes.as_ptr() as *mut u8,
     };
@@ -195,7 +195,7 @@ pub(super) fn windows_dpapi_unprotect(
     // run crypt32 unprotect
     let status = unsafe {
         CryptUnprotectData(
-            &mut input_blob,
+            &input_blob,
             &mut description,
             ptr::null(),
             ptr::null(),

@@ -174,15 +174,14 @@ fn transfer_playback_block(
     is_active: bool,
     output_volume: f32,
 ) {
-    let lane_count = output_lanes.len();
-    if lane_count == 0 {
+    if output_lanes.is_empty() {
         return;
     }
 
     // write one de-interleaved output block from the playback sample queue
     for frame_index in 0usize..runtime.period_frames as usize {
-        for lane_index in 0..lane_count {
-            let Some(pointer) = lane_buffer_pointer(output_lanes[lane_index], buffer_index) else {
+        for output_lane in output_lanes.iter().copied() {
+            let Some(pointer) = lane_buffer_pointer(output_lane, buffer_index) else {
                 mark_runtime_state_device_lost(
                     state,
                     "ASIO output lane buffer is unavailable for the callback half",
@@ -233,8 +232,8 @@ fn transfer_capture_block(
 
     // read one de-interleaved input block into the capture sample queue
     for frame_index in 0usize..runtime.period_frames as usize {
-        for lane_index in 0..input_lanes.len() {
-            let Some(pointer) = lane_buffer_pointer(input_lanes[lane_index], buffer_index) else {
+        for input_lane in input_lanes.iter().copied() {
+            let Some(pointer) = lane_buffer_pointer(input_lane, buffer_index) else {
                 mark_runtime_state_device_lost(
                     state,
                     "ASIO input lane buffer is unavailable for the callback half",

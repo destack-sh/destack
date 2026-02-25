@@ -1,10 +1,8 @@
-use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::diagnostic::RuntimeError;
-use crate::platform::PlatformError;
 use crate::platform::crypto::CryptoStoreKind;
-use crate::platform::diagnostic::PlatformErrorCode;
+use crate::platform::crypto::host::unix::core as unix_core;
 use crate::runtime::BindingCallContext;
 
 use super::constants::{
@@ -14,42 +12,20 @@ use super::constants::{
 
 /// Return configured or default Android system certificate bundle files.
 pub(super) fn configured_system_certificate_files(context: &BindingCallContext) -> Vec<PathBuf> {
-    // prefer explicit runtime option overrides
-    let configured = &context
-        .runtime()
-        .module_options
-        .crypto
-        .system_certificate_files;
-    if !configured.is_empty() {
-        return configured.clone();
-    }
-
-    // fall back to host-default bundle file candidates
-    DEFAULT_ANDROID_SYSTEM_CERTIFICATE_FILES
-        .iter()
-        .map(PathBuf::from)
-        .collect()
+    unix_core::configured_system_certificate_files(
+        context,
+        &DEFAULT_ANDROID_SYSTEM_CERTIFICATE_FILES,
+    )
 }
 
 /// Return configured or default Android system certificate directories.
 pub(super) fn configured_system_certificate_directories(
     context: &BindingCallContext,
 ) -> Vec<PathBuf> {
-    // prefer explicit runtime option overrides
-    let configured = &context
-        .runtime()
-        .module_options
-        .crypto
-        .system_certificate_directories;
-    if !configured.is_empty() {
-        return configured.clone();
-    }
-
-    // fall back to host-default certificate directory candidates
-    DEFAULT_ANDROID_SYSTEM_CERTIFICATE_DIRECTORIES
-        .iter()
-        .map(PathBuf::from)
-        .collect()
+    unix_core::configured_system_certificate_directories(
+        context,
+        &DEFAULT_ANDROID_SYSTEM_CERTIFICATE_DIRECTORIES,
+    )
 }
 
 /// Return one host key-store snapshot path for one lane when available.
@@ -57,38 +33,12 @@ pub(super) fn keystore_path(
     context: &BindingCallContext,
     kind: CryptoStoreKind,
 ) -> Option<PathBuf> {
-    // user-lane path can be configured or derived from HOME
-    if kind == CryptoStoreKind::User {
-        if let Some(path) = &context
-            .runtime()
-            .module_options
-            .crypto
-            .host_store_paths
-            .user
-        {
-            return Some(path.clone());
-        }
-
-        let home_directory = env::var_os("HOME")?;
-        return Some(Path::new(&home_directory).join(ANDROID_USER_KEYSTORE_RELATIVE_PATH));
-    }
-
-    // machine-lane path can be configured or use the default absolute path
-    if kind == CryptoStoreKind::Machine {
-        if let Some(path) = &context
-            .runtime()
-            .module_options
-            .crypto
-            .host_store_paths
-            .machine
-        {
-            return Some(path.clone());
-        }
-
-        return Some(PathBuf::from(ANDROID_MACHINE_KEYSTORE_ABSOLUTE_PATH));
-    }
-
-    None
+    unix_core::keystore_path(
+        context,
+        kind,
+        ANDROID_USER_KEYSTORE_RELATIVE_PATH,
+        ANDROID_MACHINE_KEYSTORE_ABSOLUTE_PATH,
+    )
 }
 
 /// Return one ioInvalidData runtime error.
@@ -96,15 +46,7 @@ pub(super) fn invalid_data(
     operation: &'static str,
     message: impl Into<String>,
 ) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoInvalidData),
-        None,
-        None,
-        Some(operation.to_string()),
-        None,
-        message.into(),
-    ))
-    .boxed()
+    unix_core::invalid_data(operation, message)
 }
 
 /// Return one ioPermissionDenied runtime error.
@@ -112,18 +54,10 @@ pub(super) fn permission_denied(
     operation: &'static str,
     message: impl Into<String>,
 ) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::io_with(
-        Some(PlatformErrorCode::IoPermissionDenied),
-        None,
-        None,
-        Some(operation.to_string()),
-        None,
-        message.into(),
-    ))
-    .boxed()
+    unix_core::permission_denied(operation, message)
 }
 
 /// Return one notSupported runtime error.
 pub(super) fn not_supported(operation: &'static str) -> Box<RuntimeError> {
-    RuntimeError::from(PlatformError::not_supported(operation)).boxed()
+    unix_core::not_supported(operation)
 }

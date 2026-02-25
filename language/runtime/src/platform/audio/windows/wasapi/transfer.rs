@@ -150,11 +150,11 @@ fn wait_for_stream_signal(runtime: &Arc<WasapiStreamRuntime>) -> RuntimeResult<(
     }
 
     // include capture event when the runtime exposes one
-    if let Some(event) = runtime.capture_event.as_ref() {
-        if handle_count < MAX_EVENT_WAIT_HANDLES {
-            handles[handle_count] = event.raw;
-            handle_count = handle_count.saturating_add(1);
-        }
+    if let Some(event) = runtime.capture_event.as_ref()
+        && handle_count < MAX_EVENT_WAIT_HANDLES
+    {
+        handles[handle_count] = event.raw;
+        handle_count = handle_count.saturating_add(1);
     }
 
     // fall back to periodic pacing when no event handles are attached
@@ -194,9 +194,7 @@ fn wait_for_stream_signal(runtime: &Arc<WasapiStreamRuntime>) -> RuntimeResult<(
         .boxed());
     }
 
-    if wait_status >= WAIT_OBJECT_0
-        && wait_status < WAIT_OBJECT_0.saturating_add(handle_count as u32)
-    {
+    if wait_status < WAIT_OBJECT_0.saturating_add(handle_count as u32) {
         return Ok(());
     }
 
@@ -278,7 +276,7 @@ fn process_playback_transfer(
     }
 
     let byte_count = (writable_frames as usize).saturating_mul(runtime.frame_bytes);
-    let output = unsafe { std::slice::from_raw_parts_mut(output_pointer as *mut u8, byte_count) };
+    let output = unsafe { std::slice::from_raw_parts_mut(output_pointer, byte_count) };
     write_playback_bytes(binding, runtime, output, writable_frames as usize);
 
     // commit one filled host buffer back to the endpoint engine

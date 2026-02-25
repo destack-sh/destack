@@ -382,7 +382,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -410,7 +410,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -462,7 +462,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -517,7 +517,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -564,7 +564,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -614,7 +614,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -656,7 +656,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -703,7 +703,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives on Unix and Windows.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1514,6 +1514,7 @@ impl<'call> CryptoHarnessContext<'call> {
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
     /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Hardware-backed secret-key generation is available when the selected host lane exposes symmetric hardware-key callbacks.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1850,7 +1851,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -1876,7 +1877,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1928,7 +1929,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1966,7 +1967,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -2013,7 +2014,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -2039,7 +2040,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -2081,7 +2082,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
