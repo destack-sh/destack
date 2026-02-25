@@ -1,12 +1,12 @@
 use ast::{AnnotationPosition, NodeParentIndex, NodeTree, NodeType, TokenType};
 use destack_ast as ast;
 
-use crate::format::comments::attachment::FormatterTriviaOwnerIndex;
-use crate::format::comments::boundary::{
+use crate::format::annotation::attachment::FormatterTriviaOwnerIndex;
+use crate::format::annotation::boundary::{
     CommentAttachment, CommentAttachmentOwners, CommentSeamContext, CommentSeamData,
     CommentSeamKeyword,
 };
-use crate::format::comments::ownership::{
+use crate::format::annotation::ownership::{
     find_owner_at_or_after_token_with_node_type, find_smallest_owner_enclosing_range,
     normalize_formatter_trivia_target_owner, promote_owner_to_declaration_ancestor,
     promote_owner_to_node_type_ancestor,

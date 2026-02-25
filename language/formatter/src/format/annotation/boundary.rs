@@ -3,7 +3,7 @@ use destack_ast as ast;
 use destack_source::{File, Span};
 use rustc_hash::FxHashMap;
 
-use crate::format::comments::ownership::find_smallest_owner_enclosing_range;
+use crate::format::annotation::ownership::find_smallest_owner_enclosing_range;
 
 /// Return whether one token kind is an opening delimiter.
 #[inline]
@@ -93,6 +93,63 @@ pub(crate) fn previous_non_newline_token_index(
         if semantic_tokens[cursor].token.ty != TokenType::Newline {
             return Some(cursor);
         }
+    }
+
+    None
+}
+
+/// Return the previous token index before one index that is not trivia.
+pub(crate) fn previous_non_trivia_token_index(
+    semantic_tokens: &[TokenSpan],
+    index: usize,
+) -> Option<usize> {
+    if index == 0 {
+        return None;
+    }
+
+    let mut cursor = index;
+    while cursor > 0 {
+        cursor -= 1;
+        let token_type = semantic_tokens[cursor].token.ty;
+        if !is_whitespace_trivia_token(token_type) && !is_comment_trivia_token(token_type) {
+            return Some(cursor);
+        }
+    }
+
+    None
+}
+
+/// Return whether one token kind is whitespace-like trivia.
+#[inline]
+fn is_whitespace_trivia_token(token_type: TokenType) -> bool {
+    matches!(token_type, TokenType::Newline | TokenType::Whitespace)
+}
+
+/// Return whether one token kind is comment trivia.
+#[inline]
+fn is_comment_trivia_token(token_type: TokenType) -> bool {
+    matches!(
+        token_type,
+        TokenType::LineComment
+            | TokenType::BlockComment
+            | TokenType::DocLineComment
+            | TokenType::DocBlockComment
+    )
+}
+
+/// Return the next token index after one index that is not trivia.
+pub(crate) fn next_non_trivia_token_index(
+    semantic_tokens: &[TokenSpan],
+    index: usize,
+) -> Option<usize> {
+    let mut cursor = index + 1;
+    while cursor < semantic_tokens.len() {
+        let token_type = semantic_tokens[cursor].token.ty;
+        if !is_whitespace_trivia_token(token_type) && !is_comment_trivia_token(token_type) {
+            return Some(cursor);
+        }
+
+        cursor += 1;
     }
 
     None

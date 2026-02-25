@@ -3,7 +3,6 @@ pub mod annotation;
 pub mod call;
 pub mod chain;
 pub mod collection;
-mod comments;
 mod context;
 pub mod declaration;
 pub mod directive;

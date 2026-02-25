@@ -2,6 +2,8 @@ use destack_fir::format::{FormatResult, hard_line_break};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
+use crate::format::directive::directive_for_node;
+use crate::format::expression::format_expression;
 use crate::{Annotation, DestackFormatter, FormatNode};
 use destack_ast::{
     Blank, Comment, CommentStyle, Decorator, Doc, DocStyle, Expression, LocalNodeId, NodeTree,
@@ -291,11 +293,15 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
     ) -> FormatResult<()> {
         let tree = f.context().tree;
         let needs_parentheses = decorator_needs_parentheses(tree, self.expression);
+        let expression_id = self.expression;
+        let expression = f.context().tree.get(expression_id);
+        let directive = directive_for_node(f.context(), expression_id);
+
         write!(f, [token("@")])?;
         if needs_parentheses {
             write!(f, [token("(")])?;
         }
-        write!(f, [self.expression])?;
+        format_expression(f, expression_id, expression, directive)?;
         if needs_parentheses {
             write!(f, [token(")")])?;
         }
@@ -760,6 +766,19 @@ export class MeetupSeries {
         );
     }
 
+    /// Decorator prefixed function return types should stay inline after a colon.
+    #[test]
+    fn test_format_function_return_type_decorator_annotation_stays_inline_after_colon() {
+        let source = "{\n    function build(value: Buffer): @addrspace(\"shared\") &Buffer { return value; }\n}";
+        let expected = "{\n    function build(value: Buffer): @addrspace(\"shared\") &Buffer {\n        return value;\n    }\n}";
+        assert_format!(
+            source,
+            expected,
+            |p| p.eat_block(destack_ast::BlockContext::Expression),
+            DestackFormatOptions::default()
+        );
+    }
+
     /// Decorator call object member trailing comments should stay attached to the object member.
     #[test]
     fn test_annotation_decorator_call_object_member_trailing_comment_attachment() {
@@ -855,7 +874,7 @@ export class MeetupSeries {
     /** some multiline
      * doc comment
      * over multiple lines */
-    const X = 1 
+    const X = 1
 }",
             "{
     /** some multiline
@@ -1153,6 +1172,44 @@ export class MeetupSeries {
             context.span_str(annotation_span),
             context.span_str(owner_span),
         );
+    }
+
+    /// TypeScript class property decorators should keep `@name` adjacency and stay idempotent.
+    #[test]
+    fn test_format_typescript_property_decorators_keep_at_adjacency() {
+        let source = r#"@Entity()
+export class Board {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column()
+    slug: string;
+}
+"#;
+        let options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
+
+        let (first_formatter, first_expressions) =
+            TestFormatter::parse_with_file_type(source, FileType::TypeScript, |p| Ok(p.parse()))
+                .expect("parse decorator source");
+        let first_output = first_formatter.format(
+            &statement_list(first_expressions.as_slice()),
+            options.clone(),
+        );
+
+        assert!(
+            !first_output.contains("@\n"),
+            "decorator head split after @:\n{first_output}"
+        );
+
+        let (second_formatter, second_expressions) =
+            TestFormatter::parse_with_file_type(&first_output, FileType::TypeScript, |p| {
+                Ok(p.parse())
+            })
+            .expect("parse first pass output");
+        let second_output =
+            second_formatter.format(&statement_list(second_expressions.as_slice()), options);
+
+        assert_eq!(first_output, second_output);
     }
 
     /// Own-line chain boundary comments after yield should keep member-call shape.

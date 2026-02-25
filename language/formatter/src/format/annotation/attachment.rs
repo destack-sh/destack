@@ -1,29 +1,30 @@
 use ast::{
-    AnnotationPosition, Argument, Expression, Keyword, LocalNodeId, NodeParentIndex, NodeTree,
-    NodeType, TokenSpan, TokenType,
+    AnnotationPosition, Argument, DependencyMode, Expression, Keyword, LocalNodeId,
+    NodeParentIndex, NodeTree, NodeType, TokenSpan, TokenType,
 };
 use destack_ast as ast;
 use destack_source::{File, Span};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 
-use crate::format::comments::blank::blank_trivia_attachment;
-use crate::format::comments::boundary::{
+use crate::format::annotation::blank::blank_trivia_attachment;
+use crate::format::annotation::boundary::{
     CommentAttachment, CommentAttachmentOwners, CommentSeamContext, CommentSeamData,
     CommentSeamKeyword, CommentSeamOwnerCache, comment_seam_owner, delimiters_match,
     is_close_delimiter_token, is_open_delimiter_token, previous_non_newline_token_index,
 };
-use crate::format::comments::declaration::try_attach_comment_declaration;
-use crate::format::comments::expression::try_attach_comment_expression;
-use crate::format::comments::operator::try_attach_comment_assignment;
-use crate::format::comments::ownership::{
+use crate::format::annotation::declaration::try_attach_comment_declaration;
+use crate::format::annotation::expression::try_attach_comment_expression;
+use crate::format::annotation::operator::try_attach_comment_assignment;
+use crate::format::annotation::ownership::{
     find_owner_at_or_after_token_with_node_type, find_preferred_owner_starting_at,
     find_smallest_owner_enclosing_range, find_smallest_owner_enclosing_token, is_block_like_owner,
     is_trivia_excluded_owner_node_id, lowest_common_owner_ancestor,
     normalize_formatter_trivia_target_owner, normalize_owner_with_shared_end,
-    promote_owner_by_shared_start, promote_owner_to_node_type_ancestor,
+    promote_owner_by_shared_start, promote_owner_to_declaration_ancestor,
+    promote_owner_to_node_type_ancestor,
 };
-use crate::format::comments::statement::{
+use crate::format::annotation::statement::{
     try_attach_comment_block_body, try_attach_comment_statement_prefix,
     try_attach_comment_statement_suffix,
 };
@@ -560,6 +561,48 @@ pub(crate) fn formatter_annotation_projection(
     let mut comment_targets = Vec::<(Span, u32)>::new();
     let owner_index = formatter_trivia_owner_index(tree, tokens);
 
+    let declaration_is_default_export_value = |target_node_id: u32| {
+        if tree.get_node_type(target_node_id) != NodeType::Declaration {
+            return false;
+        }
+
+        let Some(declaration_expression_node_id) = parents.get_by_id(target_node_id) else {
+            return false;
+        };
+        if tree.get_node_type(declaration_expression_node_id) != NodeType::Expression {
+            return false;
+        }
+
+        let declaration_expression_id =
+            LocalNodeId::<Expression>::new(declaration_expression_node_id);
+        let Expression::Declaration(declaration_id) = tree.get(declaration_expression_id) else {
+            return false;
+        };
+        if declaration_id.id != target_node_id {
+            return false;
+        }
+
+        let mut ancestor_id = parents.get_by_id(declaration_expression_node_id);
+        while let Some(node_id) = ancestor_id {
+            if tree.get_node_type(node_id) == NodeType::Expression {
+                let expression_id = LocalNodeId::<Expression>::new(node_id);
+                if let Expression::Export { items, .. } = tree.get(expression_id) {
+                    return items.iter().any(|item_id| {
+                        let item = tree.get(*item_id);
+                        item.mode == DependencyMode::Default
+                            && item
+                                .value
+                                .is_some_and(|value_id| value_id.id == declaration_expression_id.id)
+                    });
+                }
+            }
+
+            ancestor_id = parents.get_by_id(node_id);
+        }
+
+        false
+    };
+
     // add parser semantic annotations first
     for (&target_id, annotation_ids) in tree.get_all_annotations() {
         if target_id as usize >= by_node_id.len() {
@@ -568,11 +611,11 @@ pub(crate) fn formatter_annotation_projection(
 
         for &annotation_id in annotation_ids {
             let ast_annotation = tree.get(annotation_id);
+            let annotation_span = tree.get_span(annotation_id);
             let mut target_node_id = target_id;
 
             // doc comments that sit directly before decorators should bind to the decorated declaration
             if matches!(ast_annotation, ast::Annotation::Doc { .. }) {
-                let annotation_span = tree.get_span(annotation_id);
                 let mut token_index =
                     tokens.partition_point(|token| token.span.start < annotation_span.end);
                 while let Some(token) = tokens.get(token_index).copied() {
@@ -596,21 +639,101 @@ pub(crate) fn formatter_annotation_projection(
                 }
             }
 
+            // decorators should stay attached to declarations and members,
+            // not intermediary expression wrappers
+            if matches!(ast_annotation, ast::Annotation::Decorator { .. })
+                && tree.get_node_type(target_node_id) == NodeType::Expression
+            {
+                let mut token_index =
+                    tokens.partition_point(|token| token.span.start < annotation_span.end);
+                while let Some(token) = tokens.get(token_index).copied() {
+                    if matches!(token.token.ty, TokenType::Whitespace | TokenType::Newline) {
+                        token_index += 1;
+                        continue;
+                    }
+
+                    if let Some(member_target) = find_owner_at_or_after_token_with_node_type(
+                        tree,
+                        &owner_index,
+                        token_index,
+                        NodeType::Member,
+                    )
+                    .and_then(|owner| {
+                        promote_owner_to_node_type_ancestor(tree, parents, owner, NodeType::Member)
+                    }) {
+                        target_node_id = member_target;
+                    } else if let Some(property_target) =
+                        find_owner_at_or_after_token_with_node_type(
+                            tree,
+                            &owner_index,
+                            token_index,
+                            NodeType::Property,
+                        )
+                        .and_then(|owner| {
+                            promote_owner_to_node_type_ancestor(
+                                tree,
+                                parents,
+                                owner,
+                                NodeType::Property,
+                            )
+                        })
+                    {
+                        target_node_id = property_target;
+                    } else if let Some(declaration_target) =
+                        find_owner_at_or_after_token_with_node_type(
+                            tree,
+                            &owner_index,
+                            token_index,
+                            NodeType::Declaration,
+                        )
+                        .and_then(|owner| {
+                            promote_owner_to_declaration_ancestor(tree, parents, owner)
+                        })
+                    {
+                        target_node_id = declaration_target;
+                    }
+
+                    break;
+                }
+            }
+
             let annotation = match ast_annotation {
                 ast::Annotation::Doc { node, position } => Annotation::Doc {
                     node: *node,
                     position: *position,
                 },
-                ast::Annotation::Decorator { node, position } => Annotation::Decorator {
-                    node: *node,
-                    position: *position,
-                },
+                ast::Annotation::Decorator { node, position } => {
+                    let mut position = *position;
+
+                    // decorators that start on the owner's line should stay inline
+                    let owner_span = tree.get_span_by_id(target_node_id);
+                    let decorator_starts_on_owner_line = annotation_span.end
+                        > annotation_span.start
+                        && file
+                            .is_same_line(annotation_span.end.saturating_sub(1), owner_span.start);
+                    let owner_is_declaration =
+                        tree.get_node_type(target_node_id) == NodeType::Declaration;
+                    let owner_is_default_export_value =
+                        declaration_is_default_export_value(target_node_id);
+                    if position == AnnotationPosition::BlockPrefix
+                        && decorator_starts_on_owner_line
+                        && owner_is_declaration
+                        && owner_is_default_export_value
+                    {
+                        position = AnnotationPosition::LinePrefix;
+                    }
+
+                    Annotation::Decorator {
+                        node: *node,
+                        position,
+                    }
+                }
             };
 
             let local_id = LocalNodeId::new(entries.len() as u32);
             entries.push(FormatterAnnotationEntry {
                 annotation,
-                span: tree.get_span(annotation_id),
+                span: annotation_span,
             });
             if target_node_id as usize >= by_node_id.len() {
                 continue;
@@ -917,6 +1040,34 @@ fn owner_is_nested_if_expression(
     )
 }
 
+/// Return whether one owner belongs to a control-head expression ancestry.
+fn owner_has_control_head_expression_ancestor(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+) -> bool {
+    let mut current_id = Some(owner_id);
+    while let Some(node_id) = current_id {
+        if tree.get_node_type(node_id) == NodeType::Expression {
+            let expression_id = LocalNodeId::<Expression>::new(node_id);
+            if matches!(
+                tree.get(expression_id),
+                Expression::If { .. }
+                    | Expression::While { .. }
+                    | Expression::For { .. }
+                    | Expression::ForEach { .. }
+                    | Expression::Loop { .. }
+            ) {
+                return true;
+            }
+        }
+
+        current_id = parents.get_by_id(node_id);
+    }
+
+    false
+}
+
 /// Attach own line comments with dedicated own line rules.
 fn try_attach_own_line_comment(
     context: &CommentSeamContext<'_>,
@@ -1008,6 +1159,23 @@ fn try_attach_own_line_comment(
         }
     }
 
+    // own line comments before jsx statement heads should stay with the right statement
+    let token_before_is_statement_end = matches!(
+        seam.token_before_type,
+        Some(TokenType::Semicolon | TokenType::CloseBrace | TokenType::CloseParenthesis)
+    );
+    if seam.comment_is_line
+        && token_before_is_statement_end
+        && seam.token_after_is(ast::TokenType::LessThan)
+        && let Some(target_node) = right_owner
+    {
+        let target_node = token_after_span
+            .map(|span| promote_owner_by_shared_start(tree, parents, target_node, span.start))
+            .unwrap_or(target_node);
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+    }
+
     // own line comments before separators and closers belong to the left owner
     if seam.token_after_prefers_left
         && let Some(target_node) = left_owner
@@ -1032,7 +1200,12 @@ fn try_attach_own_line_comment(
             .map(|span| promote_owner_by_shared_start(tree, parents, target_node, span.start))
             .unwrap_or(target_node);
         let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
-        return Some((Some(target_node), AnnotationPosition::BlockPrefix));
+        let position = if seam.comment_is_line && left_owner.is_none() {
+            AnnotationPosition::LinePrefix
+        } else {
+            AnnotationPosition::BlockPrefix
+        };
+        return Some((Some(target_node), position));
     }
 
     None
@@ -1153,6 +1326,27 @@ fn try_attach_trailing_line_comment(
         return Some(attachment);
     }
 
+    // trailing inline block comments before semicolons should follow the terminated statement
+    if seam.comment_is_star
+        && !seam.has_leading_newline
+        && seam.has_trailing_newline
+        && seam.token_after_is(ast::TokenType::Semicolon)
+        && !left_owner
+            .is_some_and(|owner| owner_has_control_head_expression_ancestor(tree, parents, owner))
+        && let Some(target_owner) = right_owner
+        && tree.get_node_type(target_owner) == NodeType::Expression
+        && !matches!(
+            tree.get(LocalNodeId::<Expression>::new(target_owner)),
+            Expression::Block(_)
+        )
+    {
+        let target_owner = token_after_span
+            .map(|span| promote_owner_by_shared_start(tree, parents, target_owner, span.start))
+            .unwrap_or(target_owner);
+        let target_owner = normalize_formatter_trivia_target_owner(tree, target_owner);
+        return Some((Some(target_owner), AnnotationPosition::BlockPrefix));
+    }
+
     // comments after most : seams stay with the left segment
     let colon_prefers_left = seam.token_before_is(ast::TokenType::Colon)
         && !seam.token_before_is_return_type_colon
@@ -1236,6 +1430,18 @@ fn try_attach_same_line_default(
     let token_after_span = context.token_after_span.map(|token| token.span);
     let left_owner = owners.left;
     let right_owner = owners.right;
+    // same line inline block comments before semicolons stay on the left expression seam
+    if seam.comment_is_star
+        && !seam.has_leading_newline
+        && !seam.has_trailing_newline
+        && seam.token_after_is(ast::TokenType::Semicolon)
+        && let Some(target_node) = left_owner.or_else(|| {
+            token_before_span.and_then(|span| find_smallest_owner_enclosing_token(tree, span))
+        })
+    {
+        let target_node = normalize_formatter_trivia_target_owner(tree, target_node);
+        return Some((Some(target_node), AnnotationPosition::LinePostfixBoundary));
+    }
 
     // same line seams that precede separators and operators prefer left postfix
     if seam.token_after_prefers_left

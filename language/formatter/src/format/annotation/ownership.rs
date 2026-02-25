@@ -5,7 +5,7 @@ use destack_ast as ast;
 use destack_source::{EnclosingSpan, Span};
 use smallvec::SmallVec;
 
-use crate::format::comments::attachment::FormatterTriviaOwnerIndex;
+use crate::format::annotation::attachment::FormatterTriviaOwnerIndex;
 
 /// Return whether one node kind is excluded from trivia owner indexing.
 pub(crate) fn is_trivia_excluded_owner_node_id(tree: &NodeTree, node_id: u32) -> bool {
@@ -336,6 +336,88 @@ pub(crate) fn promote_owner_to_node_type_ancestor(
     }
 
     None
+}
+
+/// Promote one owner to one statement boundary owner.
+pub(crate) fn promote_owner_to_statement_boundary(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+) -> u32 {
+    if let Some(member_owner) =
+        promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Member)
+    {
+        return member_owner;
+    }
+
+    let mut statement_expression_owner = None;
+    let mut current_id = Some(owner_id);
+    while let Some(node_id) = current_id {
+        if tree.get_node_type(node_id) == NodeType::Expression
+            && tree
+                .get(LocalNodeId::<Expression>::new(node_id))
+                .is_top_level_statement()
+        {
+            statement_expression_owner = Some(node_id);
+        }
+
+        current_id = parents.get_by_id(node_id);
+    }
+    if let Some(statement_expression_owner) = statement_expression_owner {
+        return statement_expression_owner;
+    }
+
+    if let Some(declaration_owner) = promote_owner_to_declaration_ancestor(tree, parents, owner_id)
+    {
+        return declaration_owner;
+    }
+
+    if let Some(expression_owner) =
+        promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Expression)
+    {
+        return expression_owner;
+    }
+
+    owner_id
+}
+
+/// Promote one owner to the nearest enclosing statement boundary owner.
+pub(crate) fn promote_owner_to_nearest_statement_boundary(
+    tree: &NodeTree,
+    parents: &NodeParentIndex,
+    owner_id: u32,
+) -> u32 {
+    if let Some(member_owner) =
+        promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Member)
+    {
+        return member_owner;
+    }
+
+    let mut current_id = Some(owner_id);
+    while let Some(node_id) = current_id {
+        if tree.get_node_type(node_id) == NodeType::Expression
+            && tree
+                .get(LocalNodeId::<Expression>::new(node_id))
+                .is_top_level_statement()
+        {
+            return node_id;
+        }
+
+        current_id = parents.get_by_id(node_id);
+    }
+
+    if let Some(declaration_owner) = promote_owner_to_declaration_ancestor(tree, parents, owner_id)
+    {
+        return declaration_owner;
+    }
+
+    if let Some(expression_owner) =
+        promote_owner_to_node_type_ancestor(tree, parents, owner_id, NodeType::Expression)
+    {
+        return expression_owner;
+    }
+
+    owner_id
 }
 
 /// Promote one owner to the nearest `satisfies` expression ancestor.

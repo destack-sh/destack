@@ -23,6 +23,7 @@ pub enum AnnotationCapture {
     LinePrefix,
     LinePostfix,
     LinePostfixBoundary,
+    DelimitedInterior,
 
     AnyPrefix,
     AnyPostfix,
@@ -135,6 +136,36 @@ fn annotation_follows_opening_delimiter<'ast>(
 ) -> bool {
     previous_non_whitespace_before_annotation(context, annotation_id)
         .is_some_and(is_opening_delimiter_character)
+}
+
+/// Return whether one annotation ends right before a closing delimiter in source.
+fn annotation_precedes_closing_delimiter<'ast>(
+    context: &DestackFormatContext<'ast>,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    matches!(
+        next_non_whitespace_after_span(context, annotation_content_span(context, annotation_id)),
+        Some(')' | ']' | '}' | '>')
+    )
+}
+
+/// Return whether one annotation is one delimiter-interior infix comment.
+fn annotation_is_delimited_interior_comment(
+    context: &DestackFormatContext<'_>,
+    annotation: Annotation,
+    annotation_id: LocalNodeId<Annotation>,
+) -> bool {
+    if annotation.position() != AnnotationPosition::BlockInfix {
+        return false;
+    }
+
+    match annotation {
+        Annotation::Comment { .. } | Annotation::Doc { .. } | Annotation::Blank { .. } => {}
+        _ => return false,
+    }
+
+    annotation_follows_opening_delimiter(context, annotation_id)
+        && annotation_precedes_closing_delimiter(context, annotation_id)
 }
 
 /// Return whether an annotation directly follows a separator in source.
@@ -655,7 +686,13 @@ impl<'ast> DestackFormatContext<'ast> {
 
         annotation_ids.iter().copied().any(|annotation_id| {
             let annotation = self.annotation(annotation_id);
-            annotation_is_declaration_arrow_infix_comment(self, node_id, annotation, annotation_id)
+            annotation_is_included_for_capture(
+                self,
+                AnnotationCapture::DeclarationArrowInfix,
+                node_id,
+                annotation,
+                annotation_id,
+            )
         })
     }
 
@@ -679,6 +716,36 @@ impl<'ast> DestackFormatContext<'ast> {
             node_id,
         }
     }
+
+    /// Format delimiter-interior infix annotations for a node.
+    #[inline]
+    pub fn delimited_interior_annotations<T: Node>(
+        &self,
+        node_id: LocalNodeId<T>,
+    ) -> Annotations<T> {
+        Annotations {
+            position: AnnotationCapture::DelimitedInterior,
+            node_id,
+        }
+    }
+
+    /// Return whether a node has delimiter-interior infix annotations.
+    pub fn has_delimited_interior_annotation<T: Node>(&self, node_id: LocalNodeId<T>) -> bool
+    where
+        NodeTree: NodeTreeImpl<T>,
+    {
+        let Some(annotation_ids) = self.annotations(node_id) else {
+            return false;
+        };
+
+        annotation_ids.iter().copied().any(|annotation_id| {
+            annotation_is_delimited_interior_comment(
+                self,
+                self.annotation(annotation_id),
+                annotation_id,
+            )
+        })
+    }
 }
 
 /// Return whether capture mode includes this annotation position.
@@ -689,6 +756,7 @@ pub(crate) fn annotation_capture_includes_position(
     match position {
         AnnotationPosition::BlockInfix => {
             capture == AnnotationCapture::BlockInfix
+                || capture == AnnotationCapture::DelimitedInterior
                 || capture == AnnotationCapture::DeclarationNewHead
                 || capture == AnnotationCapture::DeclarationArrowInfix
                 || capture == AnnotationCapture::MethodNameInfix
@@ -825,6 +893,12 @@ pub(crate) fn annotation_is_included_for_capture<T: Node>(
         return false;
     }
 
+    if capture == AnnotationCapture::DeclarationArrowInfix
+        && annotation_is_delimited_interior_comment(context, annotation, annotation_id)
+    {
+        return false;
+    }
+
     if capture == AnnotationCapture::MethodNameInfix
         && !annotation_is_method_name_infix_comment(
             context,
@@ -836,6 +910,12 @@ pub(crate) fn annotation_is_included_for_capture<T: Node>(
         return false;
     }
 
+    if capture == AnnotationCapture::MethodNameInfix
+        && annotation_is_delimited_interior_comment(context, annotation, annotation_id)
+    {
+        return false;
+    }
+
     if capture == AnnotationCapture::MethodParameterHeadInfix
         && !annotation_is_method_parameter_head_infix_comment(
             context,
@@ -843,6 +923,19 @@ pub(crate) fn annotation_is_included_for_capture<T: Node>(
             annotation,
             annotation_id,
         )
+    {
+        return false;
+    }
+
+    if capture == AnnotationCapture::DelimitedInterior
+        && !annotation_is_delimited_interior_comment(context, annotation, annotation_id)
+    {
+        return false;
+    }
+
+    if capture == AnnotationCapture::AnyInfixOrPostfix
+        && T::TYPE == NodeType::Pattern
+        && annotation_is_delimited_interior_comment(context, annotation, annotation_id)
     {
         return false;
     }
