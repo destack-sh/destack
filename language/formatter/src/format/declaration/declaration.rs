@@ -86,18 +86,95 @@ pub(crate) fn format_super_type_clause_with_expand<'ast>(
             keyword,
             space(),
             format_with(|f| {
+                let format_types = types.iter().copied().map(|type_id| {
+                    format_with(move |f| format_super_type_expression(f, keyword, type_id))
+                });
                 if start_on_new_line && !force_expand {
                     f.join_with(&format_args![&token(","), space()])
-                        .entries(types)
+                        .entries(format_types)
                         .finish()
                 } else {
                     f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                        .entries(types)
+                        .entries(format_types)
                         .finish()
                 }
             }),
         ]))
         .should_expand(force_expand)]
+    )
+}
+
+/// Format one super type expression.
+fn format_super_type_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    keyword: Keyword,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let should_wrap_class_extends_head = keyword == Keyword::Extends
+        && class_extends_expression_requires_parenthesized_head(f.context(), expression_id);
+    if should_wrap_class_extends_head {
+        write!(f, [token("("), expression_id, token(")")])?;
+    } else {
+        write!(f, [expression_id])?;
+    }
+
+    Ok(())
+}
+
+/// Return whether one class extends head requires explicit parenthesized grouping.
+fn class_extends_expression_requires_parenthesized_head(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some((parent_id, parent_type)) = context.parent(expression_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Declaration {
+        return false;
+    }
+
+    let declaration_id = LocalNodeId::<Declaration>::new(parent_id);
+    let Declaration::Class { heritage, .. } = context.tree.get(declaration_id) else {
+        return false;
+    };
+    let Some(extends_types) = heritage.extends_types.as_ref() else {
+        return false;
+    };
+    if !extends_types.contains(&expression_id) {
+        return false;
+    }
+
+    super_type_has_invalid_unparenthesized_head(context.tree, expression_id)
+}
+
+/// Return whether one class heritage expression starts with an invalid unparenthesized head.
+fn super_type_has_invalid_unparenthesized_head(
+    tree: &destack_ast::NodeTree,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    // unparenthesized lambdas are not valid in class heritage heads
+    if matches!(
+        tree.get(expression_id),
+        Expression::Declaration(declaration_id)
+            if matches!(
+                tree.get(*declaration_id),
+                Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
+            )
+    ) {
+        return true;
+    }
+
+    // these forms require explicit parentheses in class heritage expressions
+    matches!(
+        tree.get(expression_id),
+        Expression::ObjectExpression { .. }
+            | Expression::Unary { .. }
+            | Expression::Binary { .. }
+            | Expression::TypeBinary { .. }
+            | Expression::TypeConditional { .. }
+            | Expression::If { .. }
+            | Expression::Assign { .. }
+            | Expression::SequenceExpression { .. }
     )
 }
 
