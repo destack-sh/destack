@@ -842,7 +842,7 @@ pub(crate) unsafe fn destack_fs_syncfs(
     #[cfg(unix)]
     {
         let fd = file_descriptor(context, handle)?;
-        #[cfg(any(target_os = "linux", target_os = "android"))]
+        #[cfg(target_os = "linux")]
         {
             let result = unsafe { libc::syncfs(fd) };
             if result != 0 {
@@ -852,7 +852,7 @@ pub(crate) unsafe fn destack_fs_syncfs(
             }
             Ok(())
         }
-        #[cfg(not(any(target_os = "linux", target_os = "android")))]
+        #[cfg(not(target_os = "linux"))]
         {
             let result = unsafe { libc::fsync(fd) };
             if result != 0 {
