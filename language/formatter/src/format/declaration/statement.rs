@@ -184,23 +184,48 @@ fn empty_block_prefers_multiline<'ast>(
     let Some((container_id, container_type)) = context.parent(parent_expression_id) else {
         return false;
     };
-    if container_type != NodeType::Expression {
+    if container_type == NodeType::MatchCase {
+        return true;
+    }
+
+    if container_type == NodeType::Block {
+        let container_block_id = LocalNodeId::<Block>::new(container_id);
+        let container_block = context.tree.get(container_block_id);
+        if container_block.format == BlockFormat::Implicit {
+            let Some((container_owner_id, container_owner_type)) =
+                context.parent(container_block_id)
+            else {
+                return false;
+            };
+            if container_owner_type == NodeType::MatchCase {
+                let container_owner_id =
+                    LocalNodeId::<destack_ast::MatchCase>::new(container_owner_id);
+                let container_owner = context.tree.get(container_owner_id);
+                if matches!(container_owner, destack_ast::MatchCase::Block { .. }) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
-    let container_id = LocalNodeId::<Expression>::new(container_id);
-    match context.tree.get(container_id) {
-        Expression::Try { .. } => true,
-        Expression::If {
-            then_expression,
-            else_expression,
-            ..
-        } => {
-            then_expression.id == parent_expression_id.id
-                || else_expression.is_some_and(|id| id.id == parent_expression_id.id)
-        }
-        _ => false,
+    if container_type == NodeType::Expression {
+        let container_id = LocalNodeId::<Expression>::new(container_id);
+        return match context.tree.get(container_id) {
+            Expression::Try { .. } => true,
+            Expression::If {
+                then_expression,
+                else_expression,
+                ..
+            } => {
+                then_expression.id == parent_expression_id.id
+                    || else_expression.is_some_and(|id| id.id == parent_expression_id.id)
+            }
+            _ => false,
+        };
     }
+
+    false
 }
 
 /// Format a block (without a nested group!).

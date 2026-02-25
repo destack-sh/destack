@@ -241,11 +241,16 @@ fn format_prefixed_pattern<'ast>(
 /// Format one list-like pattern field collection with shared trailing-separator behavior.
 fn format_pattern_field_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Pattern>,
     open: &'static str,
     close: &'static str,
     fields: &[LocalNodeId<PatternField>],
     should_expand: bool,
 ) -> FormatResult<()> {
+    if fields.is_empty() {
+        return format_empty_pattern_delimiter_with_interior_annotations(f, node_id, open, close);
+    }
+
     let has_inline_comment_seams =
         pattern_fields_have_inline_spread_comment_seams(f.context(), fields);
     if !should_expand && has_inline_comment_seams {
@@ -269,6 +274,29 @@ fn format_pattern_field_list<'ast>(
 
     write!(f, [list])?;
 
+    Ok(())
+}
+
+/// Format one empty pattern delimiter pair with interior infix annotations.
+fn format_empty_pattern_delimiter_with_interior_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Pattern>,
+    open: &'static str,
+    close: &'static str,
+) -> FormatResult<()> {
+    if !f.context().has_delimited_interior_annotation(node_id) {
+        write!(f, [token(open), token(close)])?;
+        return Ok(());
+    }
+
+    write!(
+        f,
+        [group(&format_args![
+            token(open),
+            soft_block_indent(&f.context().delimited_interior_annotations(node_id)),
+            token(close)
+        ])]
+    )?;
     Ok(())
 }
 
@@ -429,6 +457,10 @@ fn format_object_pattern_like<'ast>(
     }
 
     let render_fields = object_pattern_render_fields(f.context().tree, fields);
+    if render_fields.is_empty() {
+        return format_empty_pattern_delimiter_with_interior_annotations(f, node_id, "{", "}");
+    }
+
     let should_expand = object_pattern_should_expand(f.context(), node_id, render_fields.as_ref());
     if !should_expand
         && pattern_fields_have_inline_spread_comment_seams(f.context(), render_fields.as_ref())
@@ -500,15 +532,15 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             }
             Pattern::Expression { value } => write!(f, [value])?,
             Pattern::Tuple { fields } => {
-                format_pattern_field_list(f, "(", ")", fields, false)?;
+                format_pattern_field_list(f, node_id, "(", ")", fields, false)?;
             }
             Pattern::TaggedTuple { ty, fields } => {
                 write!(f, [ty])?;
-                format_pattern_field_list(f, "(", ")", fields, false)?;
+                format_pattern_field_list(f, node_id, "(", ")", fields, false)?;
             }
             Pattern::Array { fields } => {
                 let should_expand = array_pattern_should_expand(f.context(), node_id, fields);
-                format_pattern_field_list(f, "[", "]", fields, should_expand)?;
+                format_pattern_field_list(f, node_id, "[", "]", fields, should_expand)?;
             }
             Pattern::Object { fields } => {
                 format_object_pattern_like(f, node_id, None, fields)?;

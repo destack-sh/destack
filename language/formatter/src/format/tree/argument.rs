@@ -264,6 +264,52 @@ fn format_inline_stub_argument_comments<'ast>(
     Ok(!first)
 }
 
+/// Collect comment annotation nodes from one annotation list.
+fn collect_stub_comment_nodes(
+    context: &DestackFormatContext<'_>,
+    annotations: Option<&[LocalNodeId<Annotation>]>,
+) -> Vec<LocalNodeId<destack_ast::Comment>> {
+    let mut comment_nodes = Vec::new();
+    let Some(annotations) = annotations else {
+        return comment_nodes;
+    };
+
+    for annotation_id in annotations {
+        let Annotation::Comment { node, .. } = context.annotation(*annotation_id) else {
+            continue;
+        };
+        comment_nodes.push(node);
+    }
+
+    comment_nodes
+}
+
+/// Return whether one comment list contains at least one line comment.
+fn stub_comment_nodes_have_line_comment(
+    context: &DestackFormatContext<'_>,
+    comment_nodes: &[LocalNodeId<destack_ast::Comment>],
+) -> bool {
+    comment_nodes.iter().any(|comment_id| {
+        let comment = context.tree.get::<destack_ast::Comment>(*comment_id);
+        comment.style == destack_ast::CommentStyle::Slash
+    })
+}
+
+/// Format comment nodes one per line for multiline stub expression containers.
+fn format_multiline_stub_comment_nodes<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    comment_nodes: &[LocalNodeId<destack_ast::Comment>],
+) -> FormatResult<()> {
+    for (index, comment_id) in comment_nodes.iter().enumerate() {
+        if index > 0 {
+            write!(f, [hard_line_break()])?;
+        }
+        write!(f, [*comment_id])?;
+    }
+
+    Ok(())
+}
+
 /// Resolve the token syntax style for one tree named attribute value.
 fn tree_named_attribute_syntax_style(
     context: &DestackFormatContext<'_>,
@@ -379,17 +425,48 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                     );
                 if needs_braces {
                     if matches!(value_expr, Expression::Stub) {
-                        write!(f, [token("{")])?;
-                        let mut wrote_stub_comment =
-                            format_inline_stub_expression_comments(f, *value)?;
-                        if !wrote_stub_comment {
-                            wrote_stub_comment =
-                                format_inline_stub_argument_comments(f, self.argument_id)?;
-                            if wrote_stub_comment {
+                        let expression_comment_nodes = collect_stub_comment_nodes(
+                            f.context(),
+                            f.context().annotations(*value).as_deref(),
+                        );
+                        let argument_comment_nodes = collect_stub_comment_nodes(
+                            f.context(),
+                            f.context().annotations(self.argument_id).as_deref(),
+                        );
+
+                        let mut comment_nodes = expression_comment_nodes;
+                        if comment_nodes.is_empty() {
+                            comment_nodes = argument_comment_nodes;
+                            if !comment_nodes.is_empty() {
                                 stub_argument_annotations_rendered_inline = true;
                             }
                         }
-                        write!(f, [token("}")])?;
+
+                        if stub_comment_nodes_have_line_comment(f.context(), &comment_nodes) {
+                            write!(
+                                f,
+                                [group(&format_args![
+                                    token("{"),
+                                    block_indent(&format_with(|f| {
+                                        format_multiline_stub_comment_nodes(f, &comment_nodes)
+                                    })),
+                                    hard_line_break(),
+                                    token("}")
+                                ])]
+                            )?;
+                        } else {
+                            write!(f, [token("{")])?;
+                            let mut wrote_stub_comment =
+                                format_inline_stub_expression_comments(f, *value)?;
+                            if !wrote_stub_comment {
+                                wrote_stub_comment =
+                                    format_inline_stub_argument_comments(f, self.argument_id)?;
+                                if wrote_stub_comment {
+                                    stub_argument_annotations_rendered_inline = true;
+                                }
+                            }
+                            write!(f, [token("}")])?;
+                        }
                     } else if force_multiline_braced_expression {
                         write!(
                             f,
@@ -1377,7 +1454,6 @@ fn expression_has_line_comment_annotation(
         let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
             return false;
         };
-
         let is_line_position = matches!(
             position,
             AnnotationPosition::LinePrefix
@@ -1406,7 +1482,6 @@ fn argument_has_line_comment_annotation(
         let Annotation::Comment { node, position } = context.annotation(annotation_id) else {
             return false;
         };
-
         let is_line_position = matches!(
             position,
             AnnotationPosition::LinePrefix

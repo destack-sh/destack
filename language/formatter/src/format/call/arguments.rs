@@ -16,15 +16,15 @@ use crate::format::call::layout::{
 use crate::format::collection::property::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };
-use crate::format::directive::any_ignore_range_for_nodes;
+use crate::format::directive::{any_ignore_range_for_nodes, directive_for_node};
 use crate::format::expression::{
     Annotation, AnnotationPosition, Argument, Declaration, DestackFormatContext, DestackFormatter,
     Expression, FormatResult, FunctionKind, GroupId, HugOptions, LocalNodeId, NodeType, Span,
     TokenType, TrailingComma, TypeBinaryOperator, argument_is_function_expression,
     argument_is_lambda_expression, argument_value_id, block_indent, empty_line,
-    format_block_of_properties, format_hugged, format_static_argument_list, format_with, group,
-    hard_line_break, if_group_breaks, is_trivial_expression, list_like, soft_block_indent,
-    soft_line_break_or_space, space, token, transparent_inner_expression,
+    format_block_of_properties, format_expression, format_hugged, format_static_argument_list,
+    format_with, group, hard_line_break, if_group_breaks, is_trivial_expression, list_like,
+    soft_block_indent, soft_line_break_or_space, space, token, transparent_inner_expression,
 };
 use destack_ast::{Comment, CommentStyle, PostfixPosition, TokenSpan};
 use destack_fir::format::{Buffer, Format};
@@ -985,7 +985,17 @@ pub(crate) fn format_call_expression<'ast>(
         dynamic_arguments,
     } = f.context().tree.get(node_id)
     {
-        write!(f, [*left])?;
+        let call_parent_is_decorator =
+            f.context().parent(node_id).is_some_and(|(_, parent_type)| {
+                matches!(parent_type, NodeType::Decorator | NodeType::Annotation)
+            });
+        if call_parent_is_decorator {
+            let left_expression = f.context().tree.get(*left);
+            let left_directive = directive_for_node(f.context(), *left);
+            format_expression(f, *left, left_expression, left_directive)?;
+        } else {
+            write!(f, [*left])?;
+        }
         if *position == PostfixPosition::Indirect {
             write!(f, [token(".")])?;
         }

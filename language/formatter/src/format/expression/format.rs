@@ -289,6 +289,14 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     ..
                 } if dynamic_arguments.is_empty() && f.context().has_infix_annotation(node_id)
             );
+            let collection_handles_empty_infix = f.context().has_infix_annotation(node_id)
+                && (matches!(
+                    self,
+                    Expression::ObjectExpression { properties, .. } if properties.is_empty()
+                ) || matches!(
+                    self,
+                    Expression::ArrayExpression { elements } if elements.is_empty()
+                ));
             if matches!(
                 self,
                 Expression::TypeUnary {
@@ -297,7 +305,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 }
             ) {
                 write!(f, [f.context().any_postfix_annotations(node_id)])?;
-            } else if call_or_new_handles_empty_infix {
+            } else if call_or_new_handles_empty_infix || collection_handles_empty_infix {
                 write!(f, [f.context().any_postfix_annotations(node_id)])?;
             } else {
                 write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;

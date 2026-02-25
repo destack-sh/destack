@@ -4,7 +4,8 @@ use crate::format::declaration::signature::{
     FunctionHeaderStyle, format_where_clause_with_break, parameter_is_variadic,
     signature_parameters_should_expand, signature_return_type_has_line_postfix_boundary_annotation,
     signature_should_elide_space_before_body, single_parameter_should_hug,
-    write_function_header_prefix, write_signature_dynamic_parameter_list,
+    write_empty_parameter_list_with_interior_annotations, write_function_header_prefix,
+    write_signature_dynamic_parameter_list,
 };
 use crate::{Annotation, DestackFormatContext, DestackFormatter};
 use destack_ast::{
@@ -312,7 +313,9 @@ pub(crate) fn format_function_declaration<'ast>(
         signature.return_type,
         true,
     );
-    if can_omit_parens {
+    if dynamic_parameters.is_empty() {
+        write_empty_parameter_list_with_interior_annotations(f, node_id)?;
+    } else if can_omit_parens {
         write!(f, [&dynamic_parameters[0]])?;
     } else if dynamic_parameters.len() == 1
         && !force_expand_parameters
