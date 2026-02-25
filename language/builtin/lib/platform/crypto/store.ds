@@ -136,7 +136,7 @@ export struct CryptoCertificateListPage {
     nextCursor?: string;
 }
 
-/// Crypto store bindings for runtime provider stores.
+/// Crypto store bindings.
 declare namespace crypto {
     /// List store backend kinds that are currently available.
     ///
@@ -144,7 +144,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store provider capability introspection.
+    /// Uses runtime crypto store capability introspection over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -173,7 +173,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store provider capability introspection.
+    /// Uses runtime crypto store capability introspection over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -201,7 +201,7 @@ declare namespace crypto {
 
     /// Open one crypto store.
     ///
-    /// Create one runtime provider store handle for key and certificate operations.
+    /// Create one runtime crypto store handle for key and certificate operations.
     /// Provider selection and access scope follow runtime crypto store semantics.
     /// `Ephemeral` and `Provider` store support is required.
     /// Host-backed `System`, `User`, and `Machine` support is host dependent.
@@ -209,7 +209,8 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
+    /// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+    /// Operations may return `notSupported` when host store lanes are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -234,12 +235,13 @@ declare namespace crypto {
 
     /// Close one crypto store.
     ///
-    /// Release one runtime provider store handle.
-    /// Open key and certificate handles remain valid according to runtime provider lifetime rules.
+    /// Release one runtime crypto store handle.
+    /// Open key and certificate handles remain valid according to runtime store lifetime rules.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
+    /// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+    /// Operations may return `notSupported` when host store lanes are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -265,11 +267,12 @@ declare namespace crypto {
     /// List keys from one store.
     ///
     /// Enumerate key entries that match one query selector.
-    /// Result ordering and visibility follow runtime provider policies and caller permissions.
+    /// Result ordering and visibility follow runtime store policies and caller permissions.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
+    /// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+    /// Operations may return `notSupported` when host store lanes are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -298,11 +301,12 @@ declare namespace crypto {
     /// List certificates from one store.
     ///
     /// Enumerate certificate entries that match one query selector.
-    /// Result ordering and visibility follow runtime provider policies and caller permissions.
+    /// Result ordering and visibility follow runtime store policies and caller permissions.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store provider primitives, and may return `notSupported` when host store backends are unavailable.
+    /// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+    /// Operations may return `notSupported` when host store lanes are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.

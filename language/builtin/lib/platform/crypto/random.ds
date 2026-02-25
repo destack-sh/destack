@@ -7,7 +7,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime CSPRNG provider primitives.
+    /// Uses OpenSSL RAND primitives backed by host entropy sources on Unix and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioWouldBlock, ioInvalidData, notSupported.
@@ -34,7 +34,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime CSPRNG provider primitives.
+    /// Uses OpenSSL RAND primitives backed by host entropy sources on Unix and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioWouldBlock, ioInvalidData, notSupported.

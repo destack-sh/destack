@@ -21,7 +21,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime MAC provider primitives.
+    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -52,7 +52,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime MAC provider primitives.
+    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -84,7 +84,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime MAC provider primitives.
+    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -114,7 +114,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime MAC provider primitives.
+    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -141,7 +141,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime MAC provider primitives.
+    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -168,7 +168,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime MAC provider primitives.
+    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -195,7 +195,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime MAC provider primitives.
+    /// Uses OpenSSL EVP MAC primitives on Unix and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.

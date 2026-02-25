@@ -74,7 +74,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime KDF provider primitives.
+    /// Uses OpenSSL KDF primitives on Unix and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -101,7 +101,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime KDF provider primitives.
+    /// Uses OpenSSL KDF primitives on Unix and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -128,7 +128,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime KDF provider primitives.
+    /// Uses OpenSSL KDF primitives on Unix and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -155,7 +155,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime KDF provider primitives.
+    /// Uses OpenSSL KDF primitives on Unix and Windows.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
