@@ -299,6 +299,7 @@ pub(crate) fn refresh_backend_device_monitor(backend: AudioBackend) -> RuntimeRe
 }
 
 /// Publish one backend-native device snapshot diff to active subscriptions.
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 pub(crate) fn publish_device_snapshot_native(backend: AudioBackend) {
     let now = host_monotonic_nanos();
     let snapshot = match monitor_snapshot(backend) {

@@ -3,10 +3,12 @@ use super::super::{
     AudioEventOverflowPolicy, AudioEventSource, AudioEventSubscriptionFlags,
     AudioEventSubscriptionOptions, core as audio_core,
 };
+#[cfg(windows)]
+use super::core::backend_availability_rows;
 use super::core::{
-    DeterministicSequence, backend_availability_rows, backend_event_support_rows,
-    event_batch_kind_rows, event_batch_len, event_batch_sequence_rows, harness_event_options,
-    open_null_duplex_stream, open_null_playback_stream,
+    DeterministicSequence, backend_event_support_rows, event_batch_kind_rows, event_batch_len,
+    event_batch_sequence_rows, harness_event_options, open_null_duplex_stream,
+    open_null_playback_stream,
 };
 use super::{assert_ok_or_expected_error, assert_platform_error_code, with_harness_context};
 use crate::platform::diagnostic::PlatformErrorCode;

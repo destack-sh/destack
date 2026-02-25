@@ -96,7 +96,7 @@ pub(crate) const DEVICE_CAPABILITY_SHARED_MODE: AudioDeviceCapabilityFlags =
 #[cfg(any(
     all(windows, feature = "audio-wasapi"),
     all(windows, feature = "audio-asio"),
-    all(target_vendor = "apple", feature = "audio-coreaudio"),
+    all(target_os = "macos", feature = "audio-coreaudio"),
     all(target_os = "linux", feature = "audio-alsa"),
     all(target_os = "android", feature = "audio-aaudio"),
 ))]
