@@ -2,6 +2,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_workspace::{DsConfig, NodeLinker};
 use indexmap::IndexMap;
 
 /// Resolution options (derived from `oxc-resolver` / `enhanced-resolve`).
@@ -68,6 +69,9 @@ pub struct ResolveOptions {
     /// Whether to resolve symlinks to their symlinked location, if possible.
     /// (May cause module resolution to fail when using tools that symlink packages like `npm link`).
     pub canonicalize_symlinks: bool,
+
+    /// Whether to resolve modules through Yarn Plug'n'Play manifests (`.pnp.cjs`).
+    pub yarn_pnp: bool,
 }
 
 impl Default for ResolveOptions {
@@ -102,11 +106,72 @@ impl Default for ResolveOptions {
             restrictions: vec![],
             roots: vec![],
             canonicalize_symlinks: true,
+            yarn_pnp: false,
         }
     }
 }
 
 impl ResolveOptions {
+    /// Create default options for one working directory with workspace linker policy.
+    pub fn default_for_workspace(cwd: PathBuf, workspace_config: Option<&DsConfig>) -> Self {
+        let node_linker = workspace_config
+            .map(|workspace_config| workspace_config.options.compiler.node_linker)
+            .unwrap_or_default();
+
+        Self::default_for_cwd_with_node_linker(cwd, node_linker)
+    }
+
+    /// Create default options for one working directory with automatic linker detection.
+    /// Use this when workspace config is not available yet.
+    pub fn default_for_cwd(cwd: PathBuf) -> Self {
+        Self::default_for_cwd_with_node_linker(cwd, NodeLinker::Auto)
+    }
+
+    /// Create default options for one working directory with explicit linker policy.
+    pub fn default_for_cwd_with_node_linker(cwd: PathBuf, node_linker: NodeLinker) -> Self {
+        let yarn_pnp = Self::yarn_pnp_for_node_linker(node_linker, cwd.as_path());
+
+        Self {
+            cwd: Some(cwd),
+            yarn_pnp,
+            ..Self::default()
+        }
+    }
+
+    /// Apply one node linker policy to these resolve options.
+    pub fn apply_node_linker_for_cwd(&mut self, node_linker: NodeLinker, cwd: &Path) {
+        if self.cwd.is_none() {
+            self.cwd = Some(cwd.to_path_buf());
+        }
+
+        self.yarn_pnp = Self::yarn_pnp_for_node_linker(node_linker, cwd);
+    }
+
+    /// Resolve yarn pnp state from one node linker policy.
+    pub fn yarn_pnp_for_node_linker(node_linker: NodeLinker, cwd: &Path) -> bool {
+        match node_linker {
+            NodeLinker::Auto => Self::detect_yarn_pnp_for_cwd(cwd),
+            NodeLinker::NodeModules => false,
+            NodeLinker::Pnp => true,
+        }
+    }
+
+    /// Detect whether Yarn Plug'n'Play should be enabled for one working directory.
+    pub fn detect_yarn_pnp_for_cwd(cwd: &Path) -> bool {
+        // find a pnp manifest from cwd up to the root
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            return pnp::find_pnp_manifest(cwd).ok().flatten().is_some();
+        }
+
+        // wasm targets do not support pnp filesystem access
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = cwd;
+            false
+        }
+    }
+
     /// Create a new blank resolve options.
     pub fn blank() -> Self {
         Self {
@@ -129,6 +194,7 @@ impl ResolveOptions {
             restrictions: vec![],
             roots: vec![],
             canonicalize_symlinks: true,
+            yarn_pnp: false,
         }
     }
 
@@ -239,6 +305,12 @@ impl ResolveOptions {
         self.canonicalize_symlinks = canonicalize_symlinks;
         self
     }
+
+    /// Set yarn pnp resolution.
+    pub fn with_yarn_pnp(mut self, yarn_pnp: bool) -> Self {
+        self.yarn_pnp = yarn_pnp;
+        self
+    }
 }
 
 impl fmt::Display for ResolveOptions {
@@ -304,6 +376,9 @@ impl fmt::Display for ResolveOptions {
         }
         if self.canonicalize_symlinks {
             write!(f, "symlinks:{:?},", self.canonicalize_symlinks)?;
+        }
+        if self.yarn_pnp {
+            write!(f, "yarn_pnp:{:?},", self.yarn_pnp)?;
         }
         Ok(())
     }
@@ -401,4 +476,36 @@ pub enum TypeScriptOptionsReferences {
     Automatic,
     /// Manually provided paths to the TypeScript configuration files.
     Paths(Vec<PathBuf>),
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use super::ResolveOptions;
+    use destack_workspace::NodeLinker;
+
+    /// Apply node-modules policy and disable yarn pnp.
+    #[test]
+    fn test_apply_node_linker_for_cwd_sets_node_modules_policy() {
+        let mut options = ResolveOptions::default().with_yarn_pnp(true);
+        let cwd = Path::new("/workspace");
+
+        options.apply_node_linker_for_cwd(NodeLinker::NodeModules, cwd);
+
+        assert_eq!(options.cwd, Some(PathBuf::from("/workspace")));
+        assert!(!options.yarn_pnp);
+    }
+
+    /// Apply pnp policy and keep yarn pnp enabled.
+    #[test]
+    fn test_apply_node_linker_for_cwd_sets_pnp_policy() {
+        let mut options = ResolveOptions::default();
+        let cwd = Path::new("/workspace");
+
+        options.apply_node_linker_for_cwd(NodeLinker::Pnp, cwd);
+
+        assert_eq!(options.cwd, Some(PathBuf::from("/workspace")));
+        assert!(options.yarn_pnp);
+    }
 }

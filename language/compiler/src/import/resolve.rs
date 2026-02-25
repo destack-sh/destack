@@ -6,12 +6,12 @@ use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
 use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{
-    ImportEdgeKind, Loader, Module, ModuleSource, Package, PackageKind, ProfileId, ProfileKey,
-    TsCompilerOptions,
+    ImportEdgeKind, Loader, Module, ModuleSource, NodeLinker, Package, PackageKind, ProfileId,
+    ProfileKey, TsCompilerOptions,
 };
 
 use crate::import::{
-    ImportResolveContext, apply_typescript_import_resolve_policy,
+    ImportResolveContext, apply_node_linker_resolve_policy, apply_typescript_import_resolve_policy,
     declaration_companion_path_for_module_path, materialize_import_resolve_options,
 };
 use crate::{Compiler, ImportError, ImportResult};
@@ -29,7 +29,10 @@ const BUILTIN_NAMESPACE_ROOTS: &[(&str, &str)] =
 #[derive(Debug, Clone)]
 enum SourceImportResolvePolicy {
     /// Package owns dsconfig, so tsconfig path mapping is disabled.
-    DsConfig,
+    DsConfig {
+        /// The linker mode from source package dsconfig.
+        node_linker: NodeLinker,
+    },
     /// Source module uses tsconfig with compiler settings.
     TsConfig {
         /// Path to the source tsconfig file.
@@ -563,9 +566,22 @@ impl Compiler {
     ) -> ResolveOptions {
         let mut base_options = self.options.import_resolve.clone();
         let source_policy = self.source_import_resolve_policy(source_module);
+        let node_linker = match &source_policy {
+            SourceImportResolvePolicy::DsConfig { node_linker } => *node_linker,
+            SourceImportResolvePolicy::TsConfig { .. } | SourceImportResolvePolicy::None => {
+                NodeLinker::Auto
+            }
+        };
+
+        // apply package manager linker behavior before source specific overlays
+        apply_node_linker_resolve_policy(
+            &mut base_options,
+            node_linker,
+            self.program.cwd.as_path(),
+        );
 
         // dsconfig packages own resolver behavior and suppress tsconfig overlays
-        if matches!(source_policy, SourceImportResolvePolicy::DsConfig) {
+        if matches!(source_policy, SourceImportResolvePolicy::DsConfig { .. }) {
             base_options.tsconfig = None;
         }
 
@@ -610,9 +626,13 @@ impl Compiler {
 
         // prefer package dsconfig ownership over tsconfig fallbacks
         let package = self.program.packages.get(package_id);
-        if package.read().dsconfig.is_some() {
-            return SourceImportResolvePolicy::DsConfig;
+        let package = package.read();
+        if let Some(dsconfig) = package.dsconfig.as_ref() {
+            return SourceImportResolvePolicy::DsConfig {
+                node_linker: dsconfig.options.compiler.node_linker,
+            };
         }
+        drop(package);
 
         // use source tsconfig policy when present
         let Some(tsconfig_id) = tsconfig_id else {
@@ -639,7 +659,7 @@ impl Compiler {
         let resolver_options =
             self.resolver_options_for_kind(kind, source_module, source_language_type, edge_kind);
 
-        Resolver::from_program(&self.program, resolver_options)
+        self.resolver_with_options(resolver_options)
     }
 
     /// Return the source language used when resolving one import.

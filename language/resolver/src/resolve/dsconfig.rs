@@ -132,7 +132,7 @@ impl Resolver {
         cache_policy: CachePolicy,
     ) -> Result<DsConfig, ResolveError> {
         // resolve path to actual dsconfig file
-        let meta = self.fs().metadata(path).ok();
+        let meta = self.metadata(path).ok();
         let dsconfig_path = if meta.is_some_and(|m| m.is_file) {
             Cow::Borrowed(path)
         } else if meta.is_some_and(|m| m.is_directory) {
@@ -156,7 +156,7 @@ impl Resolver {
         }
 
         // read `dsconfig.json` file
-        let content = self.fs().read_to_string(&dsconfig_path).map_err(|_| {
+        let content = self.read_path_to_string(&dsconfig_path).map_err(|_| {
             ResolveError::DsConfigNotFound {
                 path: path.to_path_buf(),
             }

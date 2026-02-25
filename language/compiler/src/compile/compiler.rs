@@ -3,6 +3,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 
 use destack_base::ImmutableStringPool;
+use destack_resolver::Resolver;
 use destack_source::{DiagnosticCollector, DiagnosticOptions, DiagnosticSeverity, ModuleId, Uri};
 use destack_workspace::{Builtins, Program, Session, Target};
 use parking_lot::Mutex;
@@ -188,6 +189,8 @@ pub struct Compiler {
     pub program: Arc<Program>,
     /// The options for compiling.
     pub options: CompilerOptions,
+    /// Base resolver reused for import resolution option variants.
+    pub(crate) base_resolver: Resolver,
 
     /// Seen errors for deduplication.
     seen_errors: Mutex<Vec<TaskError>>,
@@ -238,11 +241,13 @@ impl Compiler {
     pub fn new(session: Arc<Session>, program: Arc<Program>, options: CompilerOptions) -> Self {
         let comptime_target = destack_workspace::Target::comptime("comptime");
         let timings = options.timings;
+        let base_resolver = Resolver::from_program(&program, options.import_resolve.clone());
 
         let compiler = Self {
             session,
             program,
             options,
+            base_resolver,
             seen_errors: Mutex::new(Vec::new()),
             seen_warnings: Mutex::new(Vec::new()),
             pending_diagnostics: DiagnosticCollector::new(),
@@ -292,6 +297,14 @@ impl Compiler {
     /// Get the builtins (if loaded in program).
     pub fn builtins(&self) -> Option<&Arc<Builtins>> {
         self.program.builtins.as_ref()
+    }
+
+    /// Clone the base resolver with one request specific option set.
+    pub(crate) fn resolver_with_options(
+        &self,
+        options: destack_resolver::ResolveOptions,
+    ) -> Resolver {
+        self.base_resolver.with_options(options)
     }
 
     /// Check if a module is a code module (vs data/text/binary).

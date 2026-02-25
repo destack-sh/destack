@@ -306,7 +306,15 @@ impl<'a> CommandContext<'a> {
 
     /// Build a resolver for the current program.
     pub(super) fn resolver(&self) -> Resolver {
-        Resolver::from_program(&self.program, ResolveOptions::default())
+        let workspace_config = self.daemon.session.workspace_config();
+
+        Resolver::from_program(
+            &self.program,
+            ResolveOptions::default_for_workspace(
+                self.program.cwd.clone(),
+                workspace_config.as_deref(),
+            ),
+        )
     }
 
     /// Resolve a dsconfig.json path for the current program.

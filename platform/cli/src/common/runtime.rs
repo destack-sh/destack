@@ -74,6 +74,10 @@ pub struct RuntimeArgs {
     #[arg(long = "runtime-scheduler-microtask-budget")]
     pub scheduler_microtask_budget: Option<u64>,
 
+    /// Runtime host semantic event budget before forcing one poller event.
+    #[arg(long = "runtime-scheduler-host-event-budget")]
+    pub scheduler_host_event_budget: Option<u64>,
+
     /// Runtime microtask nesting depth cap.
     #[arg(long = "runtime-scheduler-max-microtask-depth")]
     pub scheduler_max_microtask_depth: Option<u64>,
@@ -146,6 +150,7 @@ impl RuntimeArgs {
             && self.scheduler_policy.is_none()
             && self.scheduler_tick_budget_ns.is_none()
             && self.scheduler_microtask_budget.is_none()
+            && self.scheduler_host_event_budget.is_none()
             && self.scheduler_max_microtask_depth.is_none()
             && self.scheduler_timer_resolution_ns.is_none()
             && self.scheduler_max_timer_coalesce_ns.is_none()
@@ -217,6 +222,7 @@ impl RuntimeArgs {
         let scheduler = if self.scheduler_policy.is_some()
             || self.scheduler_tick_budget_ns.is_some()
             || self.scheduler_microtask_budget.is_some()
+            || self.scheduler_host_event_budget.is_some()
             || self.scheduler_max_microtask_depth.is_some()
             || self.scheduler_timer_resolution_ns.is_some()
             || self.scheduler_max_timer_coalesce_ns.is_some()
@@ -229,6 +235,7 @@ impl RuntimeArgs {
             Some(SchedulerOptionsJson {
                 tick_budget_ns: self.scheduler_tick_budget_ns,
                 microtask_budget: self.scheduler_microtask_budget,
+                host_event_budget: self.scheduler_host_event_budget,
                 max_microtask_depth: self.scheduler_max_microtask_depth,
                 timer_resolution_ns: self.scheduler_timer_resolution_ns,
                 max_timer_coalesce_ns: self.scheduler_max_timer_coalesce_ns,

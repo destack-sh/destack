@@ -83,16 +83,17 @@ install-resolver:
     done
 
     # install pnpm fixture dependencies
-    for dir in "$FIXTURES_DIR/pnpm" "$FIXTURES_DIR/pnpm-workspace"; do
-        if [ -f "$dir/package.json" ]; then
-            (cd "$dir" && pnpm install --ignore-workspace)
-        fi
-    done
+    if [ -f "$FIXTURES_DIR/pnpm/package.json" ]; then
+        (cd "$FIXTURES_DIR/pnpm" && pnpm install --ignore-workspace)
+    fi
+    if [ -f "$FIXTURES_DIR/pnpm-workspace/package.json" ]; then
+        (cd "$FIXTURES_DIR/pnpm-workspace" && pnpm install)
+    fi
 
     # install yarn fixture dependencies
     for dir in "$FIXTURES_DIR/yarn" "$FIXTURES_DIR/global-pnp" "$FIXTURES_DIR/pnp"; do
         if [ -f "$dir/package.json" ]; then
-            (cd "$dir" && yarn install)
+            (cd "$dir" && corepack yarn install)
         fi
     done
 
@@ -114,19 +115,35 @@ lint:
 check-windows-runtime:
     CARGO_INCREMENTAL=0 cargo zigbuild -p destack_runtime --target x86_64-pc-windows-gnu
 
-# build and run runtime tests for windows target through wine
-test-windows-runtime:
-    CARGO_INCREMENTAL=0 CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc cargo test -p destack_runtime --target x86_64-pc-windows-gnu --no-run
+# build and run one crate's tests for windows target through wine
+test-windows-crate crate:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    crate="{{crate}}"
+    crate_pattern="${crate//-/_}"
+
+    CARGO_INCREMENTAL=0 CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc \
+      cargo test -p "$crate" --target x86_64-pc-windows-gnu --no-run
+
     # locate newest windows test binary from cargo output layout
-    EXE=$(ls -t ../target/x86_64-pc-windows-gnu/debug/deps/destack_runtime-*.exe 2>/dev/null | head -n1); \
+    EXE=$(ls -t ../target/x86_64-pc-windows-gnu/debug/deps/${crate_pattern}-*.exe 2>/dev/null | head -n1); \
     if [ -z "$EXE" ]; then \
-      EXE=$(ls -t target/x86_64-pc-windows-gnu/debug/deps/destack_runtime-*.exe 2>/dev/null | head -n1); \
+      EXE=$(ls -t target/x86_64-pc-windows-gnu/debug/deps/${crate_pattern}-*.exe 2>/dev/null | head -n1); \
     fi; \
     if [ -z "$EXE" ]; then \
-      echo "missing windows runtime test executable"; \
+      echo "missing windows test executable for crate: $crate"; \
       exit 1; \
     fi; \
     WINEDEBUG="${WINEDEBUG:--all}" wine "$EXE"
+
+# build and run runtime tests for windows target through wine
+test-windows-runtime:
+    just test-windows-crate destack_runtime
+
+# build and run resolver tests for windows target through wine
+test-windows-resolver:
+    just test-windows-crate destack_resolver
 
 # run privileged runtime platform tests for process, fs, and net
 test-runtime-privileged:

@@ -29,7 +29,7 @@ impl Resolver {
         }
 
         // read file
-        let bytes = match self.fs().read(&package_json_path) {
+        let bytes = match self.read_path(&package_json_path) {
             Ok(bytes) => bytes,
             Err(_) => {
                 ctx.track_missing_dependency(&package_json_path);

@@ -1,10 +1,14 @@
 //! <https://github.com/webpack/enhanced-resolve/blob/main/test/alias.test.js>
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(not(target_os = "windows"))]
+use std::path::PathBuf;
 
 use indexmap::IndexMap;
 
-use destack_source::{MemoryFileSystem, PathExt};
+#[cfg(not(target_os = "windows"))]
+use destack_source::MemoryFileSystem;
+use destack_source::PathExt;
 
 use crate::{AliasValue, Resolution, ResolveContext, ResolveError, ResolveOptions, Resolver};
 

@@ -4,6 +4,9 @@ use destack_source::{FileType, PathExt};
 
 use crate::{CachePolicy, ResolveContext, ResolveError, Resolver};
 
+#[cfg(not(target_arch = "wasm32"))]
+use pnp::Resolution;
+
 #[allow(clippy::too_many_arguments)]
 impl Resolver {
     pub(crate) fn load_package_self_or_modules(
@@ -72,6 +75,14 @@ impl Resolver {
             ?subpath,
             "resolver.load.modules"
         );
+        // resolve through yarn pnp before node_modules lookup
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.options.yarn_pnp
+            && let Some(resolved) = self.load_pnp(path, specifier, ctx)?
+        {
+            return Ok(Some(resolved));
+        }
+
         // check each module directory (node_modules)
         for module_name in &self.options.modules {
             // walk up parent directories
@@ -121,6 +132,111 @@ impl Resolver {
             }
         }
         Ok(None)
+    }
+
+    /// Resolve one bare specifier through the active Yarn PnP manifest.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn load_pnp(
+        &self,
+        path: &Path,
+        specifier: &str,
+        ctx: &mut ResolveContext,
+    ) -> Result<Option<PathBuf>, ResolveError> {
+        let manifest = self.load_pnp_manifest()?;
+
+        // pnpapi is a builtin for pnp-aware runtimes
+        if specifier == "pnpapi" {
+            return Ok(Some(manifest.manifest_path.clone()));
+        }
+
+        // resolve_to_unqualified requires a trailing slash
+        let mut issuer_path = path.to_path_buf();
+        issuer_path.push("");
+
+        let resolution =
+            pnp::resolve_to_unqualified_via_manifest(manifest, specifier, &issuer_path);
+        let (pnp_path, subpath) = match resolution {
+            Ok(Resolution::Resolved(path, subpath)) => (path, subpath),
+            Ok(Resolution::Skipped) => return Ok(None),
+            Err(error) => {
+                return Err(ResolveError::YarnPnpError { error });
+            }
+        };
+
+        // allow package self/exports checks first
+        if let Some(resolved) = self.load_package_self(&pnp_path, specifier, ctx)? {
+            return Ok(Some(resolved));
+        }
+
+        // derive one request relative to the resolved pnp package path
+        let inner_request = Self::pnp_inner_request(&pnp_path, specifier, subpath.as_deref());
+        let nested_candidate = pnp_path.join(&inner_request);
+
+        // first try directory resolution for package redirects
+        if self.is_directory(&nested_candidate, ctx)
+            && let Some(resolved) = self.load_directory(&nested_candidate, ctx)?
+        {
+            return Ok(Some(resolved));
+        }
+
+        // then run regular file/directory resolution from the pnp package location
+        match self.require(&pnp_path, &inner_request, ctx) {
+            Ok(resolved) => Ok(Some(resolved)),
+            Err(_) => Err(ResolveError::NotFound {
+                specifier: specifier.to_string(),
+            }),
+        }
+    }
+
+    /// Compute one inner request for a path returned by Yarn PnP.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn pnp_inner_request(pnp_path: &Path, specifier: &str, subpath: Option<&str>) -> String {
+        let pnp_path_text = pnp_path.to_string_lossy();
+        let package_name_in_path = pnp_path_text
+            .rsplit_once("node_modules/")
+            .map(|(_, tail)| tail.strip_suffix('/').unwrap_or(tail));
+
+        // linked package paths may not include node_modules package segments
+        if package_name_in_path.is_none() {
+            return match subpath {
+                Some(subpath) => format!("./{subpath}"),
+                None => ".".to_string(),
+            };
+        }
+
+        let (first, rest) = specifier.split_once('/').unwrap_or((specifier, ""));
+        let package_name = if first.starts_with('@') {
+            let scope_tail = rest.split_once('/').map_or(rest, |(tail, _)| tail);
+            format!("{first}/{scope_tail}")
+        } else {
+            first.to_string()
+        };
+        let inner_specifier = specifier
+            .strip_prefix(package_name.as_str())
+            .unwrap_or(specifier);
+        format!("./{}", inner_specifier.trim_start_matches('/'))
+    }
+
+    /// Load and cache one Yarn PnP manifest for the resolver cwd.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn load_pnp_manifest(&self) -> Result<&pnp::Manifest, ResolveError> {
+        let manifest = self.state.pnp_manifest.get_or_try_init(|| {
+            let cwd = match self.options.cwd.as_deref() {
+                Some(path) => path.to_path_buf(),
+                None => std::env::current_dir().map_err(|error| ResolveError::IoError {
+                    path: PathBuf::from("."),
+                    kind: error.kind(),
+                })?,
+            };
+
+            match pnp::find_pnp_manifest(&cwd) {
+                Ok(Some(manifest)) => Ok(manifest),
+                Ok(None) => Err(ResolveError::FailedToFindYarnPnpManifest { cwd }),
+                Err(error) => Err(ResolveError::YarnPnpError { error }),
+            }
+        })?;
+
+        Ok(manifest)
     }
 
     /// Resolve one specifier from one concrete modules directory.

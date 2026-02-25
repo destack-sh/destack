@@ -95,6 +95,7 @@ impl CacheHasher {
         self.hash_restrictions(&options.restrictions);
         self.hash_value(&options.roots);
         self.hash_value(&options.canonicalize_symlinks);
+        self.hash_value(&options.yarn_pnp);
     }
 
     /// Hash alias settings into the cache hash.

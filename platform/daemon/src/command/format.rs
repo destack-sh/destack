@@ -72,7 +72,14 @@ impl CommandContext<'_> {
         // build formatter state
         let mut summary = FmtSummary::new(check);
         let default_formatting = self.program.formatter;
-        let resolver = Resolver::from_program(self.program.as_ref(), ResolveOptions::default());
+        let workspace_config = self.daemon.session.workspace_config();
+        let resolver = Resolver::from_program(
+            self.program.as_ref(),
+            ResolveOptions::default_for_workspace(
+                self.program.cwd.clone(),
+                workspace_config.as_deref(),
+            ),
+        );
 
         // format inline eval when provided
         if let Some(eval) = format_options.eval.as_ref() {

@@ -8,7 +8,6 @@ use crate::{BorrowMode, EsTarget, ModuleDetection, ModuleResolution, ModuleTarge
 /// Path alias mapping (resolved from dsconfig paths).
 pub type DsPathAliases = IndexMap<String, Vec<String>>;
 
-
 /// Normalized Destack compiler options.
 ///
 /// **By default, strict mode is ON.**
@@ -395,7 +394,7 @@ impl DsConfigCompilerOptions {
 /// Node package linker mode for module resolution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum NodeLinker {
-    /// Detect linker mode automatically from environment and workspace files.
+    /// Detect linker mode automatically from workspace files.
     #[default]
     Auto,
     /// Resolve packages through node_modules directory traversal.

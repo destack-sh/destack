@@ -40,6 +40,14 @@ pub enum ResolveError {
     /// Circular dsconfig extends.
     DsConfigCircular { paths: Vec<PathBuf> },
 
+    /// Yarn PnP manifest file was not found from the configured cwd.
+    #[cfg(not(target_arch = "wasm32"))]
+    FailedToFindYarnPnpManifest { cwd: PathBuf },
+
+    /// Yarn PnP returned one resolver error.
+    #[cfg(not(target_arch = "wasm32"))]
+    YarnPnpError { error: pnp::Error },
+
     /// IO error.
     IoError { path: PathBuf, kind: io::ErrorKind },
 
@@ -118,6 +126,10 @@ impl ResolveError {
             Self::DsConfigNotFound { .. } => 21,
             Self::DsConfigInvalid { .. } => 22,
             Self::DsConfigCircular { .. } => 23,
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::FailedToFindYarnPnpManifest { .. } => 24,
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::YarnPnpError { .. } => 25,
             Self::IoError { .. } => 7,
             Self::UnsupportedPath { .. } => 8,
             Self::ExtensionAliasNotFound { .. } => 10,
@@ -155,6 +167,12 @@ impl ResolveError {
             Self::DsConfigCircular { paths } => {
                 format!("dsconfig extends configs circularly: {paths:?}")
             }
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::FailedToFindYarnPnpManifest { cwd } => {
+                format!("failed to find yarn pnp manifest in {cwd:?}")
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::YarnPnpError { error } => format!("yarn pnp error: {error}"),
             Self::IoError { path, kind } => format!("IO error at {path:?}: {kind}"),
             Self::UnsupportedPath { path } => {
                 format!("path {path:?} contains unsupported construct.")

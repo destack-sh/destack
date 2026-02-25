@@ -236,7 +236,7 @@ impl Resolver {
         path: &Path,
     ) -> Result<TsConfig, ResolveError> {
         // resolve path to actual tsconfig file
-        let meta = self.fs().metadata(path).ok();
+        let meta = self.metadata(path).ok();
         let tsconfig_path = if meta.is_some_and(|m| m.is_file) {
             Cow::Borrowed(path)
         } else if meta.is_some_and(|m| m.is_directory) {
@@ -248,7 +248,7 @@ impl Resolver {
         };
 
         // read `tsconfig.json` file
-        let content = self.fs().read_to_string(&tsconfig_path).map_err(|_| {
+        let content = self.read_path_to_string(&tsconfig_path).map_err(|_| {
             ResolveError::TsConfigNotFound {
                 path: path.to_path_buf(),
             }
@@ -413,9 +413,11 @@ impl Resolver {
             // package specifier
             _ => self
                 .with_options(ResolveOptions {
+                    cwd: self.options.cwd.clone(),
                     tsconfig: None,
                     extensions: vec![".json".into()],
                     main_files: vec!["tsconfig".into()],
+                    yarn_pnp: self.options.yarn_pnp,
                     ..ResolveOptions::default()
                 })
                 .load_package_self_or_modules(directory, specifier, &mut ResolveContext::default())

@@ -518,7 +518,8 @@ impl ProgramArgs {
         }
 
         // discover workspace
-        let resolver = Resolver::from_session(&session, ResolveOptions::default());
+        let resolver =
+            Resolver::from_session(&session, ResolveOptions::default_for_cwd(cwd.clone()));
         let workspace = resolver
             .discover_workspace(&workspace_root)
             .unwrap_or_else(|_| destack_workspace::Workspace::single_package(workspace_root));
