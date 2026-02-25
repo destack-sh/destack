@@ -199,6 +199,13 @@
             "type": "string"
           }
         },
+        "nodeLinker": {
+          "description": "Package linker strategy for bare module resolution (`auto`, `node-modules`, `pnp`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "moduleDetection": {
           "description": "How to detect modules versus scripts (e.g., \"auto\", \"force\", \"legacy\").",
           "type": [
