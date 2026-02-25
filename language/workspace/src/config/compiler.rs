@@ -8,6 +8,7 @@ use crate::{BorrowMode, EsTarget, ModuleDetection, ModuleResolution, ModuleTarge
 /// Path alias mapping (resolved from dsconfig paths).
 pub type DsPathAliases = IndexMap<String, Vec<String>>;
 
+
 /// Normalized Destack compiler options.
 ///
 /// **By default, strict mode is ON.**
@@ -33,6 +34,8 @@ pub struct DsConfigCompilerOptions {
     pub resolve_package_json_imports: bool,
     /// Custom package export conditions for module resolution.
     pub custom_conditions: Vec<String>,
+    /// Package linker strategy for bare module resolution.
+    pub node_linker: NodeLinker,
     /// How to detect modules versus scripts.
     pub module_detection: ModuleDetection,
     /// Library files to include (e.g., "es2024", "dom", "worker").
@@ -202,6 +205,7 @@ impl Default for DsConfigCompilerOptions {
             resolve_package_json_exports: true,
             resolve_package_json_imports: true,
             custom_conditions: Vec::new(),
+            node_linker: NodeLinker::default(),
             module: ModuleTarget::default(),
             es_target: EsTarget::default(),
             module_detection: ModuleDetection::default(),
@@ -387,6 +391,31 @@ impl DsConfigCompilerOptions {
         self.apply_no_managed_defaults();
     }
 }
+
+/// Node package linker mode for module resolution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum NodeLinker {
+    /// Detect linker mode automatically from environment and workspace files.
+    #[default]
+    Auto,
+    /// Resolve packages through node_modules directory traversal.
+    NodeModules,
+    /// Resolve packages through Yarn Plug'n'Play manifests.
+    Pnp,
+}
+
+impl NodeLinker {
+    /// Parse one node linker value from config text.
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "auto" => Some(Self::Auto),
+            "node-modules" | "node_modules" | "nodeModules" => Some(Self::NodeModules),
+            "pnp" => Some(Self::Pnp),
+            _ => None,
+        }
+    }
+}
+
 /// Borrow checking mode for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -573,6 +602,8 @@ pub struct CompilerOptionsJson {
     pub resolve_package_json_imports: Option<bool>,
     /// Custom package export conditions for module resolution.
     pub custom_conditions: Option<Vec<String>>,
+    /// Package linker strategy for bare module resolution (`auto`, `node-modules`, `pnp`).
+    pub node_linker: Option<String>,
     /// How to detect modules versus scripts (e.g., "auto", "force", "legacy").
     pub module_detection: Option<String>,
     /// Library files to include (e.g., ["es2024", "dom"]).
@@ -758,6 +789,11 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
                 .resolve_package_json_imports
                 .unwrap_or(resolve_package_json_default),
             custom_conditions: json.custom_conditions.clone().unwrap_or_default(),
+            node_linker: json
+                .node_linker
+                .as_deref()
+                .and_then(NodeLinker::parse)
+                .unwrap_or_default(),
             module: json
                 .module
                 .as_deref()
@@ -1000,7 +1036,7 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
 
 #[cfg(test)]
 mod tests {
-    use super::{CompilerOptionsJson, DsConfigCompilerOptions};
+    use super::{CompilerOptionsJson, DsConfigCompilerOptions, NodeLinker};
     use crate::ModuleResolution;
 
     /// Parse js_as_jsx as false by default.
@@ -1063,6 +1099,27 @@ mod tests {
         assert_eq!(options.module_resolution, ModuleResolution::Node16);
         assert!(options.resolve_package_json_exports);
         assert!(options.resolve_package_json_imports);
+    }
+
+    /// Parse node linker as auto by default.
+    #[test]
+    fn test_parse_compiler_options_node_linker_default_auto() {
+        let json = CompilerOptionsJson::default();
+        let options = DsConfigCompilerOptions::from(&json);
+
+        assert_eq!(options.node_linker, NodeLinker::Auto);
+    }
+
+    /// Parse explicit node linker values from compiler options.
+    #[test]
+    fn test_parse_compiler_options_node_linker_explicit_value() {
+        let json = CompilerOptionsJson {
+            node_linker: Some("pnp".to_string()),
+            ..CompilerOptionsJson::default()
+        };
+        let options = DsConfigCompilerOptions::from(&json);
+
+        assert_eq!(options.node_linker, NodeLinker::Pnp);
     }
 
     /// Parse no internal import policy from compiler options.

@@ -430,6 +430,9 @@ impl DsConfig {
         if self.content.compiler_options.custom_conditions.is_none() {
             compiler.custom_conditions = parent_compiler.custom_conditions.clone();
         }
+        if self.content.compiler_options.node_linker.is_none() {
+            compiler.node_linker = parent_compiler.node_linker;
+        }
         if self.content.compiler_options.module_detection.is_none() {
             compiler.module_detection = parent_compiler.module_detection;
         }
