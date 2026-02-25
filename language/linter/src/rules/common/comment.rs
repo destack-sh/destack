@@ -222,7 +222,7 @@ mod tests {
 
     /// Return test keyword prefixes.
     fn test_keywords() -> Vec<String> {
-        vec!["NOTE".to_string(), "TODO".to_string(), "FUGU".to_string()]
+        vec!["ABC".to_string(), "XYZ".to_string()]
     }
 
     /// Return test keyword tags.
@@ -245,12 +245,12 @@ mod tests {
         let keywords = test_keywords();
         let tags = test_keyword_tags();
         let info = parse_keyword_comment_with_options(
-            "NOTE #Suspicious: this allocation might be expensive",
+            "ABC #Suspicious: this allocation might be expensive",
             &keywords,
             &tags,
         )
         .unwrap();
-        assert_eq!(info.keyword, "NOTE");
+        assert_eq!(info.keyword, "ABC");
         assert!(info.keyword_is_uppercase);
         assert!(info.has_known_tag);
         assert!(!info.has_unknown_tag);
@@ -262,12 +262,12 @@ mod tests {
         let keywords = test_keywords();
         let tags = test_keyword_tags();
         let info = parse_keyword_comment_with_options(
-            "todo #Cleanup: refactor this path",
+            "xyz #Cleanup: refactor this path",
             &keywords,
             &tags,
         )
         .unwrap();
-        assert_eq!(info.keyword, "TODO");
+        assert_eq!(info.keyword, "XYZ");
         assert!(!info.keyword_is_uppercase);
         assert!(info.has_known_tag);
         assert!(!info.has_unknown_tag);
@@ -279,9 +279,9 @@ mod tests {
         let keywords = test_keywords();
         let tags = test_keyword_tags();
         let info =
-            parse_keyword_comment_with_options("TODO #Whatever: unknown tag", &keywords, &tags)
+            parse_keyword_comment_with_options("XYZ #Whatever: unknown tag", &keywords, &tags)
                 .unwrap();
-        assert_eq!(info.keyword, "TODO");
+        assert_eq!(info.keyword, "XYZ");
         assert!(info.keyword_is_uppercase);
         assert!(!info.has_known_tag);
         assert!(info.has_unknown_tag);
