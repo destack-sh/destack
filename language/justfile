@@ -111,8 +111,8 @@ check:
 lint:
     just check
 
-# check runtime against windows via zig
-check-windows-runtime:
+# check runtime against windows target via zig cross
+check-runtime-windows-cross:
     CARGO_INCREMENTAL=0 cargo zigbuild -p destack_runtime --target x86_64-pc-windows-gnu
 
 # build and run one crate's tests for windows target through wine
@@ -125,7 +125,6 @@ test-windows-crate crate:
 
     CARGO_INCREMENTAL=0 CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc \
       cargo test -p "$crate" --target x86_64-pc-windows-gnu --no-run
-
     # locate newest windows test binary from cargo output layout
     EXE=$(ls -t ../target/x86_64-pc-windows-gnu/debug/deps/${crate_pattern}-*.exe 2>/dev/null | head -n1); \
     if [ -z "$EXE" ]; then \
@@ -138,8 +137,12 @@ test-windows-crate crate:
     WINEDEBUG="${WINEDEBUG:--all}" wine "$EXE"
 
 # build and run runtime tests for windows target through wine
-test-windows-runtime:
+test-runtime-windows-cross:
     just test-windows-crate destack_runtime
+
+# build and run runtime tests for windows target through wine
+test-windows-runtime:
+    just test-runtime-windows-cross
 
 # build and run resolver tests for windows target through wine
 test-windows-resolver:
@@ -159,7 +162,7 @@ test-runtime-privileged:
 
 
 # check runtime for cross targets using Zig as the C toolchain
-check-runtime-targets:
+check-runtime-cross-targets:
     CARGO_INCREMENTAL=0 \
     CRATE_CC_NO_DEFAULTS=1 \
     CC_x86_64_unknown_linux_gnu="zig cc -target x86_64-linux-gnu" \
@@ -226,6 +229,7 @@ check-runtime-android:
 
     linker="${toolchain_bin}/aarch64-linux-android${api_level}-clang"
     ar="${toolchain_bin}/llvm-ar"
+    ranlib="${toolchain_bin}/llvm-ranlib"
 
     if [ ! -x "${linker}" ]; then
         echo "missing android linker: ${linker}"
@@ -237,32 +241,144 @@ check-runtime-android:
         exit 1
     fi
 
+    if [ ! -x "${ranlib}" ]; then
+        echo "missing android ranlib: ${ranlib}"
+        exit 1
+    fi
+
+    LC_ALL=C \
+    LANG=C \
+    LC_CTYPE=C \
     CARGO_INCREMENTAL=0 \
     CRATE_CC_NO_DEFAULTS=1 \
     CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${linker}" \
     CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${ar}" \
+    TARGET_RANLIB="${ranlib}" \
     CC_aarch64_linux_android="${linker}" \
     AR_aarch64_linux_android="${ar}" \
+    RANLIB_aarch64_linux_android="${ranlib}" \
     CXX_aarch64_linux_android="${linker}" \
+    RANLIB="${ranlib}" \
     cargo check -p destack_runtime --target aarch64-linux-android
 
+    LC_ALL=C \
+    LANG=C \
+    LC_CTYPE=C \
     CARGO_INCREMENTAL=0 \
     CRATE_CC_NO_DEFAULTS=1 \
     CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${linker}" \
     CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${ar}" \
+    TARGET_RANLIB="${ranlib}" \
     CC_aarch64_linux_android="${linker}" \
     AR_aarch64_linux_android="${ar}" \
+    RANLIB_aarch64_linux_android="${ranlib}" \
     CXX_aarch64_linux_android="${linker}" \
-    cargo clippy -p destack_runtime --target aarch64-linux-android -- -D warnings
+    RANLIB="${ranlib}" \
+    cargo clippy -p destack_runtime --target aarch64-linux-android --no-deps -- -D warnings
 
+    LC_ALL=C \
+    LANG=C \
+    LC_CTYPE=C \
     CARGO_INCREMENTAL=0 \
     CRATE_CC_NO_DEFAULTS=1 \
     CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${linker}" \
     CARGO_TARGET_AARCH64_LINUX_ANDROID_AR="${ar}" \
+    TARGET_RANLIB="${ranlib}" \
     CC_aarch64_linux_android="${linker}" \
     AR_aarch64_linux_android="${ar}" \
+    RANLIB_aarch64_linux_android="${ranlib}" \
     CXX_aarch64_linux_android="${linker}" \
+    RANLIB="${ranlib}" \
     cargo test -p destack_runtime --target aarch64-linux-android --no-run runtime::host::android::
+
+# check runtime for ios target using active xcode sdk
+check-runtime-ios:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if ! command -v xcrun >/dev/null 2>&1; then
+        echo "missing xcrun: install xcode command line tools"
+        exit 1
+    fi
+
+    sdk_path="$(xcrun --sdk iphoneos --show-sdk-path)"
+    platform_path="$(xcrun --sdk iphoneos --show-sdk-platform-path)"
+    deployment_target="${IOS_DEPLOYMENT_TARGET:-13.0}"
+    clang_path="$(xcrun --sdk iphoneos --find clang)"
+    ar_path="$(xcrun --sdk iphoneos --find ar)"
+    ranlib_path="$(xcrun --sdk iphoneos --find ranlib)"
+    cross_top="${platform_path}/Developer"
+    cross_sdk="$(basename "${sdk_path}")"
+
+    if [ -z "${sdk_path}" ] || [ ! -d "${sdk_path}" ]; then
+        echo "missing iphoneos sdk path from xcrun"
+        exit 1
+    fi
+
+    if [ -z "${platform_path}" ] || [ ! -d "${platform_path}" ]; then
+        echo "missing iphoneos platform path from xcrun"
+        exit 1
+    fi
+
+    LC_ALL=C \
+    LANG=C \
+    LC_CTYPE=C \
+    CARGO_INCREMENTAL=0 \
+    CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="${clang_path}" \
+    CC_aarch64_apple_ios="${clang_path}" \
+    AR_aarch64_apple_ios="${ar_path}" \
+    RANLIB_aarch64_apple_ios="${ranlib_path}" \
+    CROSS_TOP="${cross_top}" \
+    CROSS_SDK="${cross_sdk}" \
+    CFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
+    CXXFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
+    SDKROOT="${sdk_path}" \
+    IPHONEOS_DEPLOYMENT_TARGET="${deployment_target}" \
+    cargo check -p destack_runtime --target aarch64-apple-ios
+
+    LC_ALL=C \
+    LANG=C \
+    LC_CTYPE=C \
+    CARGO_INCREMENTAL=0 \
+    CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="${clang_path}" \
+    CC_aarch64_apple_ios="${clang_path}" \
+    AR_aarch64_apple_ios="${ar_path}" \
+    RANLIB_aarch64_apple_ios="${ranlib_path}" \
+    CROSS_TOP="${cross_top}" \
+    CROSS_SDK="${cross_sdk}" \
+    CFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
+    CXXFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
+    SDKROOT="${sdk_path}" \
+    IPHONEOS_DEPLOYMENT_TARGET="${deployment_target}" \
+    cargo clippy -p destack_runtime --target aarch64-apple-ios --no-deps -- -D warnings
+
+    LC_ALL=C \
+    LANG=C \
+    LC_CTYPE=C \
+    CARGO_INCREMENTAL=0 \
+    CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="${clang_path}" \
+    CC_aarch64_apple_ios="${clang_path}" \
+    AR_aarch64_apple_ios="${ar_path}" \
+    RANLIB_aarch64_apple_ios="${ranlib_path}" \
+    CROSS_TOP="${cross_top}" \
+    CROSS_SDK="${cross_sdk}" \
+    CFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
+    CXXFLAGS="-isysroot ${sdk_path} -miphoneos-version-min=${deployment_target}" \
+    SDKROOT="${sdk_path}" \
+    IPHONEOS_DEPLOYMENT_TARGET="${deployment_target}" \
+    cargo test -p destack_runtime --target aarch64-apple-ios --no-run runtime::host::ios::
+
+# check runtime on macos host
+check-runtime-macos:
+    cargo check -p destack_runtime
+    cargo clippy -p destack_runtime --all-targets -- -D warnings
+    cargo test -p destack_runtime runtime::host::macos:: -- --nocapture
+
+# check runtime on windows host
+check-runtime-windows-host:
+    cargo check -p destack_runtime
+    cargo clippy -p destack_runtime --all-targets -- -D warnings
+    cargo test -p destack_runtime runtime::host::windows:: -- --nocapture
 
 # build
 build:
