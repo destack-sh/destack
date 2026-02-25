@@ -1,7 +1,7 @@
-use std::ffi::{CStr, CString, c_char, c_int, c_void};
+use std::ffi::{CStr, c_int, c_void};
 use std::sync::{Arc, OnceLock};
 
-use super::abi::{AAudioApi, AAudioStream, AAudioStreamBuilder};
+use super::abi::AAudioApi;
 use super::constants::*;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::audio::core as audio_core;

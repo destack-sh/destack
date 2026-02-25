@@ -11,7 +11,7 @@ use crate::platform::audio::core as audio_core;
 pub(crate) fn is_backend_supported() -> bool {
     #[cfg(target_os = "android")]
     {
-        return host_backend_supported();
+        host_backend_supported()
     }
 
     #[cfg(not(target_os = "android"))]

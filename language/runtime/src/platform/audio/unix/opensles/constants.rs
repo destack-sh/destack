@@ -1,3 +1,5 @@
+use super::abi::{SLboolean, SLresult, SLuint32};
+
 /// Prefix for one OpenSL ES playback stable id.
 pub(super) const OPENSLES_PLAYBACK_STABLE_ID_PREFIX: &str = "opensles:playback:";
 /// Prefix for one OpenSL ES capture stable id.
