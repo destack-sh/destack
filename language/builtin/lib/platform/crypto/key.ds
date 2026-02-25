@@ -7,7 +7,9 @@ import {
     CryptoKeyAlgorithm,
     CryptoKeyFormat,
     CryptoKeyKind,
+    CryptoKeyResidency,
     CryptoKeyUsageMask,
+    CryptoKeyWrapAlgorithm,
     CryptoNamedCurve,
     CryptoSignatureAlgorithm,
 } from "./algorithm.ds";
@@ -34,8 +36,10 @@ export struct CryptoKeyGenerationRequest {
     label: string;
     /// Whether key material is exportable.
     extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
     /// Whether host hardware-backed storage is required.
-    /// Secret-key hardware lanes are host-dependent.
+    /// Secret-key hardware stores are host-dependent.
     hardwareBacked: boolean;
     /// Whether key material should persist beyond process lifetime.
     persistent: boolean;
@@ -60,6 +64,12 @@ export struct CryptoKeyImportRequest {
     label: string;
     /// Whether key material is exportable.
     extractable: boolean;
+    /// Requested key residency policy.
+    residency?: CryptoKeyResidency;
+    /// Passphrase bytes for encrypted private-key formats.
+    ///
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    passphrase?: Slice<uint8>;
     /// Whether key material should persist beyond process lifetime.
     persistent: boolean;
 }
@@ -95,6 +105,8 @@ export struct CryptoKeyDescriptor {
     label: string;
     /// Whether key material is exportable.
     extractable: boolean;
+    /// Effective key residency policy.
+    residency: CryptoKeyResidency;
     /// Whether key storage is hardware-backed.
     hardwareBacked: boolean;
     /// Whether key material persists beyond process lifetime.
@@ -127,6 +139,29 @@ export struct CryptoAsymmetricEncryptionParameters {
     label: Slice<uint8>;
 }
 
+/// Private-key export request.
+export struct CryptoPrivateKeyExportRequest {
+    /// Requested output format.
+    format: CryptoKeyFormat;
+    /// Passphrase bytes for encrypted private-key formats.
+    ///
+    /// Provide one non-empty passphrase for `Pkcs8EncryptedPem` and `Pkcs8EncryptedDer`.
+    /// Use one empty slice for unencrypted private-key formats.
+    passphrase: Slice<uint8>;
+}
+
+/// Key-wrap parameters.
+export struct CryptoKeyWrapParameters {
+    /// Key-wrap algorithm.
+    algorithm: CryptoKeyWrapAlgorithm;
+    /// Digest algorithm for RSA-OAEP wrapping.
+    digest?: CryptoDigestAlgorithm;
+    /// OAEP label for RSA-OAEP wrapping.
+    ///
+    /// Use one empty slice for no label.
+    label: Slice<uint8>;
+}
+
 /// Key bindings for runtime store key objects.
 declare namespace crypto {
     /// Generate one symmetric key.
@@ -136,8 +171,8 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
-    /// Hardware-backed secret-key generation is available when the selected host lane exposes symmetric hardware-key callbacks.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+    /// Hardware-backed secret-key generation is available when the selected host store exposes symmetric hardware-key callbacks.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -170,7 +205,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -198,12 +233,13 @@ declare namespace crypto {
 
     /// Import one key object.
     ///
-    /// Parse and import one key blob into one store lane.
+    /// Parse and import one key blob into one store.
     /// Key visibility and persistence follow runtime store policies.
+    /// Encrypted PKCS#8 inputs require one non-empty `request.passphrase`.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -235,7 +271,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -264,11 +300,13 @@ declare namespace crypto {
     /// Export one private key.
     ///
     /// Export one private key representation in the requested encoding format.
+    /// Output format and passphrase are provided by `CryptoPrivateKeyExportRequest`.
+    /// Encrypted PKCS#8 output requires one non-empty passphrase.
     /// The operation fails when store policy marks this key as non-exportable.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -291,7 +329,7 @@ declare namespace crypto {
     )
     export function keyExportPrivate(
         handle: CryptoKeyHandle,
-        format: CryptoKeyFormat,
+        request: CryptoPrivateKeyExportRequest,
     ): Result<Slice<uint8>, PlatformError>;
 
     /// Export one secret key.
@@ -301,7 +339,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -333,7 +371,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -363,7 +401,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -397,7 +435,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -432,7 +470,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -466,7 +504,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -496,11 +534,12 @@ declare namespace crypto {
     /// Wrap one key.
     ///
     /// Export and encrypt one key object under one wrapping key.
-    /// Wrapping format and encryption semantics follow runtime store behavior.
+    /// Wrapping semantics are selected by `CryptoKeyWrapParameters`.
+    /// `RsaOaep` uses asymmetric OAEP wrapping and `AesKw` or `AesKwp` use RFC 3394 or RFC 5649 key-wrap semantics.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -525,17 +564,17 @@ declare namespace crypto {
         wrappingKey: CryptoKeyHandle,
         keyToWrap: CryptoKeyHandle,
         format: CryptoKeyFormat,
-        parameters: CryptoAsymmetricEncryptionParameters,
+        parameters: CryptoKeyWrapParameters,
     ): Result<Slice<uint8>, PlatformError>;
 
     /// Unwrap one key.
     ///
-    /// Decrypt and import one wrapped key object into one store lane.
+    /// Decrypt and import one wrapped key object into one store.
     /// Import semantics follow runtime store policy and the import request.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -560,7 +599,7 @@ declare namespace crypto {
         store: CryptoStoreHandle,
         wrappingKey: CryptoKeyHandle,
         wrappedKey: Slice<uint8>,
-        parameters: CryptoAsymmetricEncryptionParameters,
+        parameters: CryptoKeyWrapParameters,
         request: CryptoKeyImportRequest,
     ): Result<CryptoKeyHandle, PlatformError>;
 
@@ -571,7 +610,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.

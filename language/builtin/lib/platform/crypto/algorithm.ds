@@ -8,6 +8,18 @@ export enum CryptoKeyKind {
     Private = 3,
 }
 
+/// Key material residency policy.
+export enum CryptoKeyResidency {
+    /// Unspecified residency policy.
+    Unknown = 0,
+    /// Software-managed key material that can be exported.
+    SoftwareExportable = 1,
+    /// Software-managed key material that is policy non-exportable.
+    SoftwareNonExportable = 2,
+    /// Hardware-managed opaque key material.
+    HardwareOpaque = 3,
+}
+
 /// Key algorithm family.
 export enum CryptoKeyAlgorithm {
     /// Unspecified algorithm.
@@ -74,6 +86,10 @@ export enum CryptoKeyFormat {
     Sec1Pem = 7,
     /// SEC1 DER.
     Sec1Der = 8,
+    /// Encrypted PKCS#8 PEM.
+    Pkcs8EncryptedPem = 9,
+    /// Encrypted PKCS#8 DER.
+    Pkcs8EncryptedDer = 10,
 }
 
 /// Digest algorithm selector.
@@ -126,6 +142,18 @@ export enum CryptoAsymmetricEncryptionAlgorithm {
     RsaPkcs1v15 = 1,
     /// RSAES-OAEP.
     RsaOaep = 2,
+}
+
+/// Key wrap algorithm selector.
+export enum CryptoKeyWrapAlgorithm {
+    /// Unspecified key wrap algorithm.
+    Unknown = 0,
+    /// RSAES-OAEP key wrap.
+    RsaOaep = 1,
+    /// AES key wrap, RFC 3394.
+    AesKw = 2,
+    /// AES key wrap with padding, RFC 5649.
+    AesKwp = 3,
 }
 
 /// Symmetric encryption algorithm selector.

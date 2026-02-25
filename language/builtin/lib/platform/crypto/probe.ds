@@ -7,6 +7,8 @@ import {
     CryptoKeyAgreementAlgorithm,
     CryptoKeyAlgorithm,
     CryptoKeyFormat,
+    CryptoKeyResidency,
+    CryptoKeyWrapAlgorithm,
     CryptoMacAlgorithm,
     CryptoNamedCurve,
     CryptoSignatureAlgorithm,
@@ -21,7 +23,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -51,7 +53,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -74,6 +76,36 @@ declare namespace crypto {
     )
     export function probeKeyFormats(): Result<Slice<CryptoKeyFormat>, PlatformError>;
 
+    /// List supported key residencies.
+    ///
+    /// Return key residencies available through active host provider implementations.
+    /// Results are capability snapshots and may vary across hosts and runtime builds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.crypto.probe.keyResidencies",
+        {
+            effect: "external",
+            replay: "recordable",
+            capabilities: ["crypto.probe"],
+            platforms: ["windows", "unix"],
+            scope: "host",
+            blocking: "never",
+        },
+    )
+    export function probeKeyResidencies(): Result<Slice<CryptoKeyResidency>, PlatformError>;
+
     /// List supported digest algorithms.
     ///
     /// Return digest algorithms available through active host provider implementations.
@@ -81,7 +113,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -111,7 +143,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -141,7 +173,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -171,7 +203,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -201,7 +233,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -231,7 +263,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -254,6 +286,36 @@ declare namespace crypto {
     )
     export function probeAgreementAlgorithms(): Result<Slice<CryptoKeyAgreementAlgorithm>, PlatformError>;
 
+    /// List supported key-wrap algorithms.
+    ///
+    /// Return key-wrap algorithms available through active host provider implementations.
+    /// Results are capability snapshots and may vary across hosts and runtime builds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    @binding(
+        "destack.crypto.probe.keyWrapAlgorithms",
+        {
+            effect: "external",
+            replay: "recordable",
+            capabilities: ["crypto.probe"],
+            platforms: ["windows", "unix"],
+            scope: "host",
+            blocking: "never",
+        },
+    )
+    export function probeKeyWrapAlgorithms(): Result<Slice<CryptoKeyWrapAlgorithm>, PlatformError>;
+
     /// List supported named curves.
     ///
     /// Return elliptic-curve families available through active host provider implementations.
@@ -261,7 +323,7 @@ declare namespace crypto {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
