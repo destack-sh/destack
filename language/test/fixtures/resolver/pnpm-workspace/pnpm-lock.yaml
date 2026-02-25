@@ -12,6 +12,18 @@ importers:
         specifier: ^5.18.2
         version: 5.18.3
 
+  packages/app:
+    dependencies:
+      '@monorepo/lib':
+        specifier: workspace:*
+        version: link:../lib
+
+  packages/lib:
+    dependencies:
+      react:
+        specifier: ^19.1.0
+        version: 19.2.4
+
 packages:
 
   enhanced-resolve@5.18.3:
@@ -20,6 +32,10 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  react@19.2.4:
+    resolution: {integrity: sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ==}
+    engines: {node: '>=0.10.0'}
 
   tapable@2.3.0:
     resolution: {integrity: sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg==}
@@ -33,5 +49,7 @@ snapshots:
       tapable: 2.3.0
 
   graceful-fs@4.2.11: {}
+
+  react@19.2.4: {}
 
   tapable@2.3.0: {}

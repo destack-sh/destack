@@ -40,7 +40,11 @@ pub fn workspace_context(
         .next()
         .map(|entry| entry.value().clone())
         .ok_or_else(|| CliError::message("session did not create a program"))?;
-    let resolver = Resolver::from_session(&session, ResolveOptions::default());
+    let workspace_config = session.workspace_config();
+    let resolver = Resolver::from_session(
+        &session,
+        ResolveOptions::default_for_workspace(session.cwd.clone(), workspace_config.as_deref()),
+    );
     let workspace = Arc::new(session.workspace_snapshot());
 
     Ok(WorkspaceContext {
@@ -156,7 +160,11 @@ pub fn default_target_for_session(
     session: &Session,
 ) -> CliResult<Option<String>> {
     // build a resolver using the session configuration
-    let resolver = Resolver::from_session(session, ResolveOptions::default());
+    let workspace_config = session.workspace_config();
+    let resolver = Resolver::from_session(
+        session,
+        ResolveOptions::default_for_workspace(session.cwd.clone(), workspace_config.as_deref()),
+    );
 
     default_target_for_program(program_args, &resolver, &session.cwd)
 }

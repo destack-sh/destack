@@ -804,7 +804,8 @@ impl LanguageServer for DestackLanguageServer {
         let session = Session::new(cwd.clone()).with_fs(self.overlay_fs.clone());
 
         // discover workspace and attach configuration
-        let resolver = Resolver::from_session(&session, ResolveOptions::default());
+        let resolver =
+            Resolver::from_session(&session, ResolveOptions::default_for_cwd(cwd.clone()));
         let workspace = match resolver.discover_workspace(&cwd) {
             Ok(workspace) => workspace,
             Err(error) => {

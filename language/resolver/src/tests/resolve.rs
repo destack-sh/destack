@@ -1,3 +1,4 @@
+#[cfg(not(target_os = "windows"))]
 use destack_source::MemoryFileSystem;
 use indexmap::IndexMap;
 
@@ -382,6 +383,74 @@ fn test_resolve_styled_components() {
     );
 }
 
+/// Test resolving against one long pnpm package directory name.
+#[test]
+fn test_resolve_pnpm_symlinked_longfilename() {
+    let dir = fixture_root();
+    let path = dir.join("pnpm");
+    let package_name = "fixture-test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    let module_path = path
+        .join("node_modules")
+        .join(".pnpm")
+        .join(
+            "fixture-test-longfilename-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@file+longfilename",
+        )
+        .join("node_modules")
+        .join(package_name)
+        .join("index.js");
+
+    // pnpm v10 shortens long store directory names unless virtual-store-dir-max-length is set
+    assert!(
+        module_path.as_os_str().len() > 260,
+        "fixture path must keep long store directory names"
+    );
+
+    let resolution = Resolver::physical(ResolveOptions::default())
+        .resolve(&path, package_name)
+        .map(|r| r.full_path());
+    assert_eq!(resolution, Ok(module_path));
+}
+
+/// Test resolving one linked package from one pnpm workspace app package.
+#[test]
+fn test_resolve_pnpm_workspace_linked_package() {
+    let root = fixture_root().join("pnpm-workspace");
+    let app_path = root.join("packages/app");
+    let specifier = "@monorepo/lib/package.json";
+    let expected = root.join("packages/lib/package.json");
+
+    let resolution = Resolver::physical(ResolveOptions::default())
+        .resolve(&app_path, specifier)
+        .map(|r| r.full_path());
+    assert_eq!(resolution, Ok(expected));
+}
+
+/// Test resolving one transitive dependency from one pnpm workspace symlinked package.
+#[test]
+fn test_resolve_pnpm_workspace_transitive_dependency() {
+    let root = fixture_root().join("pnpm-workspace");
+    let symlinked_package_path = root.join("packages/app/node_modules/@monorepo/lib");
+    assert!(
+        symlinked_package_path.is_dir(),
+        "missing pnpm workspace symlink fixture directory"
+    );
+
+    let resolution = Resolver::physical(ResolveOptions::default())
+        .resolve(&symlinked_package_path, "react")
+        .map(|r| r.full_path())
+        .expect("expected react to resolve from pnpm workspace package");
+    let normalized = resolution.to_string_lossy().replace('\\', "/");
+
+    assert!(
+        normalized.contains("/pnpm-workspace/node_modules/.pnpm/react@"),
+        "unexpected react resolution path: {normalized}"
+    );
+    assert!(
+        normalized.ends_with("/node_modules/react/index.js"),
+        "unexpected react resolution path: {normalized}"
+    );
+}
+
 /// Test resolving against the axios package with various conditions.
 #[test]
 fn test_resolve_axios() {
@@ -603,7 +672,7 @@ fn test_resolve_normalized_on_windows() {
     let absolute = f.join("./foo/index.js").normalize();
     let absolute_str = absolute.to_string_lossy();
     let normalized_absolute = absolute_str.replace('\\', "/");
-    let resolver = Resolver::blank(ResolveOptions::default());
+    let resolver = Resolver::physical(ResolveOptions::default());
 
     let resolution = resolver
         .resolve(&f, &normalized_absolute)
@@ -634,7 +703,7 @@ fn test_resolve_file_protocol() {
     let main1_js_path = f.join("main1.js").to_string_lossy().to_string();
     let file_protocol_path = Url::from_file_path(main1_js_path.clone()).unwrap();
 
-    let resolver = Resolver::blank(ResolveOptions::default());
+    let resolver = Resolver::physical(ResolveOptions::default());
 
     let resolution = resolver.resolve(&f, file_protocol_path.as_str()).ok();
     let resolved_path = resolution.as_ref().map(Resolution::full_path);

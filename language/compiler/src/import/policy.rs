@@ -6,7 +6,9 @@ use destack_resolver::{
     TypeScriptOptionsReferences,
 };
 use destack_source::LanguageType;
-use destack_workspace::{ImportEdgeKind, ModuleFormat, ModuleResolution, TsCompilerOptions};
+use destack_workspace::{
+    ImportEdgeKind, ModuleFormat, ModuleResolution, NodeLinker, TsCompilerOptions,
+};
 use indexmap::IndexMap;
 
 /// Extension alias order for TypeScript source imports.
@@ -149,6 +151,15 @@ pub fn apply_typescript_import_resolve_policy(
         source_language_type,
         compiler_options.resolve_json_module,
     );
+}
+
+/// Apply node linker policy to import resolve options for one workspace context.
+pub fn apply_node_linker_resolve_policy(
+    options: &mut ResolveOptions,
+    node_linker: NodeLinker,
+    cwd: &Path,
+) {
+    options.apply_node_linker_for_cwd(node_linker, cwd);
 }
 
 /// Append condition names when missing.
@@ -307,16 +318,18 @@ fn apply_import_extension_alias_policy(
 #[cfg(test)]
 mod tests {
     use super::{
-        ImportResolveContext, apply_typescript_import_resolve_policy,
-        declaration_companion_path_for_module_path, materialize_import_resolve_options,
-        typescript_commonjs_default_interop_is_enabled,
+        ImportResolveContext, apply_node_linker_resolve_policy,
+        apply_typescript_import_resolve_policy, declaration_companion_path_for_module_path,
+        materialize_import_resolve_options, typescript_commonjs_default_interop_is_enabled,
     };
     use std::path::{Path, PathBuf};
 
     use destack_dir::DependencyKind;
     use destack_resolver::{ResolveOptions, TypeScriptOptionsDiscovery};
     use destack_source::LanguageType;
-    use destack_workspace::{ImportEdgeKind, ModuleFormat, ModuleResolution, TsCompilerOptions};
+    use destack_workspace::{
+        ImportEdgeKind, ModuleFormat, ModuleResolution, NodeLinker, TsCompilerOptions,
+    };
 
     /// Build default import options for value dependencies.
     #[test]
@@ -479,6 +492,32 @@ mod tests {
 
         // verify javascript resolution keeps runtime json imports
         assert_eq!(options.extensions, vec![".js", ".json"]);
+    }
+
+    /// Apply explicit node_modules linker policy to resolver options.
+    #[test]
+    fn test_apply_node_linker_resolve_policy_node_modules() {
+        let mut options = ResolveOptions::blank();
+
+        apply_node_linker_resolve_policy(
+            &mut options,
+            NodeLinker::NodeModules,
+            Path::new("/workspace"),
+        );
+
+        assert_eq!(options.cwd, Some(PathBuf::from("/workspace")));
+        assert!(!options.yarn_pnp);
+    }
+
+    /// Apply explicit pnp linker policy to resolver options.
+    #[test]
+    fn test_apply_node_linker_resolve_policy_pnp() {
+        let mut options = ResolveOptions::blank();
+
+        apply_node_linker_resolve_policy(&mut options, NodeLinker::Pnp, Path::new("/workspace"));
+
+        assert_eq!(options.cwd, Some(PathBuf::from("/workspace")));
+        assert!(options.yarn_pnp);
     }
 
     /// Build declaration companion paths from JavaScript module paths.

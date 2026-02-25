@@ -187,6 +187,7 @@ thiserror = "2.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5.8"
+pnp = "0.12.8"
 windows = { version = "0.60.0", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 windows-sys = "0.52.0"
 zeroize = "1.8.1"

@@ -260,7 +260,14 @@ impl LanguageService {
         let config_file_id = if self.is_config_filename(path) {
             let mut file_id = program.files.get_id_by_path(path);
             if file_id.is_none() {
-                let resolver = Resolver::from_program(&program, ResolveOptions::default());
+                let workspace_config = self.session.workspace_config();
+                let resolver = Resolver::from_program(
+                    &program,
+                    ResolveOptions::default_for_workspace(
+                        program.cwd.clone(),
+                        workspace_config.as_deref(),
+                    ),
+                );
                 if path
                     .file_name()
                     .and_then(|name| name.to_str())
@@ -321,7 +328,14 @@ impl LanguageService {
         // refresh config state when config files changed
         let mut messages = Vec::new();
         if self.should_refresh_configs(&program, &invalidation, path) {
-            let resolver = Resolver::from_program(&program, ResolveOptions::default());
+            let workspace_config = self.session.workspace_config();
+            let resolver = Resolver::from_program(
+                &program,
+                ResolveOptions::default_for_workspace(
+                    program.cwd.clone(),
+                    workspace_config.as_deref(),
+                ),
+            );
             messages.extend(self.refresh_program_configs(&resolver, &program));
         }
 
@@ -404,7 +418,11 @@ impl LanguageService {
         }
 
         // refresh config state after the rescan
-        let resolver = Resolver::from_program(program, ResolveOptions::default());
+        let workspace_config = self.session.workspace_config();
+        let resolver = Resolver::from_program(
+            program,
+            ResolveOptions::default_for_workspace(program.cwd.clone(), workspace_config.as_deref()),
+        );
         messages.extend(self.refresh_program_configs(&resolver, program));
 
         // run incremental analysis when requested

@@ -289,10 +289,7 @@ impl Resolver {
         }
 
         // bail if path is module directory (like `ipaddr.js`)
-        if !self.is_file(path, ctx) {
-            ctx.is_fully_specified = false;
-            return Ok(None);
-        } else if !self.check_restrictions(path) {
+        if !self.is_file(path, ctx) || !self.check_restrictions(path) {
             ctx.is_fully_specified = false;
             return Ok(None);
         }

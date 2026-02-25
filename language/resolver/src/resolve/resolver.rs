@@ -1,10 +1,35 @@
 use std::fmt;
 use std::sync::Arc;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::OnceLock;
 
 use destack_source::{FileRegistry, FileSystem, PhysicalFileSystem};
 use destack_workspace::{PackageRegistry, Program, Session, TsConfigRegistry};
 
 use crate::ResolveOptions;
+
+/// Shared resolver runtime state reused across option variants.
+#[derive(Debug)]
+pub(crate) struct ResolverState {
+    /// Cached Yarn PnP manifest for this resolver state.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) pnp_manifest: OnceLock<pnp::Manifest>,
+    /// Cached opened zip archives for Yarn PnP zip path reads.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) pnp_lru: pnp::fs::LruZipCache<Vec<u8>>,
+}
+
+impl ResolverState {
+    /// Create a new resolver state.
+    pub(crate) fn new() -> Self {
+        Self {
+            #[cfg(not(target_arch = "wasm32"))]
+            pnp_manifest: OnceLock::new(),
+            #[cfg(not(target_arch = "wasm32"))]
+            pnp_lru: pnp::fs::LruZipCache::new(50, pnp::fs::open_zip_via_read_p),
+        }
+    }
+}
 
 /// Module resolver implementing Node.js-style resolution.
 pub struct Resolver {
@@ -18,6 +43,8 @@ pub struct Resolver {
     pub tsconfigs: Arc<TsConfigRegistry>,
     /// Configuration options controlling resolution behavior.
     pub options: ResolveOptions,
+    /// Shared runtime state for resolver caches.
+    pub(crate) state: Arc<ResolverState>,
 }
 
 impl fmt::Debug for Resolver {
@@ -42,6 +69,7 @@ impl Resolver {
             packages,
             tsconfigs,
             options,
+            state: Arc::new(ResolverState::new()),
         }
     }
 
@@ -53,6 +81,7 @@ impl Resolver {
             packages: program.packages.clone(),
             tsconfigs: program.tsconfigs.clone(),
             options,
+            state: Arc::new(ResolverState::new()),
         }
     }
 
@@ -64,18 +93,39 @@ impl Resolver {
             packages: session.packages.clone(),
             tsconfigs: session.tsconfigs.clone(),
             options,
+            state: Arc::new(ResolverState::new()),
         }
     }
 
     /// Clone the resolver with new options.
     pub fn with_options(&self, options: ResolveOptions) -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
+        let recreate_pnp_cache = options.yarn_pnp != self.options.yarn_pnp;
+
+        // recreate shared state only when pnp mode changes
+        #[cfg(not(target_arch = "wasm32"))]
+        let state = if recreate_pnp_cache {
+            Arc::new(ResolverState::new())
+        } else {
+            self.state.clone()
+        };
+        #[cfg(target_arch = "wasm32")]
+        let state = self.state.clone();
+
         Self {
             fs: self.fs.clone(),
             files: self.files.clone(),
             packages: self.packages.clone(),
             tsconfigs: self.tsconfigs.clone(),
             options,
+            state,
         }
+    }
+
+    /// Check if two resolvers share one PnP cache.
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    pub(crate) fn shares_pnp_cache_with(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.state, &other.state)
     }
 
     /// Get a reference to the file system.

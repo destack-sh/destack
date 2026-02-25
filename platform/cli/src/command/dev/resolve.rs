@@ -79,7 +79,9 @@ pub fn run(args: &ResolveArgs) -> i32 {
     };
 
     // set up resolve options
-    let mut options = ResolveOptions::default();
+    let workspace_config = session.workspace_config();
+    let mut options =
+        ResolveOptions::default_for_workspace(directory.clone(), workspace_config.as_deref());
     if !args.condition.is_empty() {
         options.conditions = args.condition.clone();
     }

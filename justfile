@@ -139,6 +139,10 @@ alias test-editor := test-ide
 test-windows-runtime:
     just language/test-windows-runtime
 
+# run language resolver windows target tests through wine
+test-windows-resolver:
+    just language/test-windows-resolver
+
 # run privileged language runtime platform tests
 test-runtime-privileged:
     just language/test-runtime-privileged
