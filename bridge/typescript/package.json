@@ -1,0 +1,44 @@
+{
+    "name": "@destack/typescript",
+    "version": "0.55.2",
+    "description": "Destack client for TypeScript and JavaScript",
+    "license": "MIT",
+    "type": "module",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/destack-sh/destack.git",
+        "directory": "bridge/typescript"
+    },
+    "homepage": "https://github.com/destack-sh/destack/tree/main/bridge/typescript",
+    "bugs": {
+        "url": "https://github.com/destack-sh/destack/issues"
+    },
+    "keywords": [
+        "destack",
+        "typescript",
+        "sdk",
+        "client"
+    ],
+    "files": [
+        "src",
+        "README.md",
+        "tsconfig.json"
+    ],
+    "main": "./src/index.ts",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "sideEffects": false,
+    "scripts": {
+        "build": "bunx --bun tsc -p tsconfig.json",
+        "test": "bunx --bun tsc -p tsconfig.json",
+        "prepublishOnly": "bun run build",
+        "publish:dry": "npm publish --dry-run --access public",
+        "publish:live": "npm publish --access public"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "dependencies": {},
+    "devDependencies": {}
+}

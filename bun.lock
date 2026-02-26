@@ -5,51 +5,7 @@
     "": {
       "name": "destack-monorepo",
     },
-    "client/napi": {
-      "name": "@destack/napi",
-      "version": "0.55.2",
-    },
-    "client/typescript": {
-      "name": "@destack/typescript",
-      "version": "0.55.2",
-    },
-    "client/wasm": {
-      "name": "@destack/wasm",
-      "version": "0.55.2",
-    },
-    "examples/tetris": {
-      "name": "@destack/tetris",
-      "version": "0.55.2",
-      "devDependencies": {
-        "@destack/bun": "workspace:*",
-        "@types/bun": "latest",
-      },
-    },
-    "library/schema": {
-      "name": "@destack/schema",
-      "version": "0.55.2",
-      "devDependencies": {
-        "@types/bun": "latest",
-      },
-    },
-    "library/test": {
-      "name": "@destack/test",
-      "version": "0.55.2",
-      "devDependencies": {
-        "@types/bun": "latest",
-      },
-    },
-    "platform/bun": {
-      "name": "@destack/bun",
-      "version": "0.55.2",
-      "dependencies": {
-        "@destack/napi": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/bun": "latest",
-      },
-    },
-    "platform/cli": {
+    "app/cli": {
       "name": "@destack/cli",
       "version": "0.55.2",
       "bin": {
@@ -66,27 +22,45 @@
         "@destack/cli-win32-x64-msvc": "0.55.2",
       },
     },
-    "platform/cli/npm-darwin-arm64": {
+    "app/cli/npm-darwin-arm64": {
       "name": "@destack/cli-darwin-arm64",
       "version": "0.55.2",
     },
-    "platform/cli/npm-darwin-x64": {
+    "app/cli/npm-darwin-x64": {
       "name": "@destack/cli-darwin-x64",
       "version": "0.55.2",
     },
-    "platform/cli/npm-linux-arm64-gnu": {
+    "app/cli/npm-linux-arm64-gnu": {
       "name": "@destack/cli-linux-arm64-gnu",
       "version": "0.55.2",
     },
-    "platform/cli/npm-linux-x64-gnu": {
+    "app/cli/npm-linux-x64-gnu": {
       "name": "@destack/cli-linux-x64-gnu",
       "version": "0.55.2",
     },
-    "platform/cli/npm-win32-x64-msvc": {
+    "app/cli/npm-win32-x64-msvc": {
       "name": "@destack/cli-win32-x64-msvc",
       "version": "0.55.2",
     },
-    "platform/vite": {
+    "bridge/bun": {
+      "name": "@destack/bun",
+      "version": "0.55.2",
+      "dependencies": {
+        "@destack/napi": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "bridge/napi": {
+      "name": "@destack/napi",
+      "version": "0.55.2",
+    },
+    "bridge/typescript": {
+      "name": "@destack/typescript",
+      "version": "0.55.2",
+    },
+    "bridge/vite": {
       "name": "@destack/vite",
       "version": "0.55.2",
       "dependencies": {
@@ -99,7 +73,7 @@
         "vite": "^7.0.0",
       },
     },
-    "platform/vscode": {
+    "bridge/vscode": {
       "name": "destack",
       "version": "0.55.2",
       "devDependencies": {
@@ -116,7 +90,25 @@
         "vscode-tmgrammar-test": "^0.1.3",
       },
     },
-    "templates/create-destack": {
+    "bridge/wasm": {
+      "name": "@destack/wasm",
+      "version": "0.55.2",
+    },
+    "library/schema": {
+      "name": "@destack/schema",
+      "version": "0.55.2",
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "library/test": {
+      "name": "@destack/test",
+      "version": "0.55.2",
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "template/create-destack": {
       "name": "create-destack",
       "version": "0.55.2",
       "bin": {
@@ -158,33 +150,31 @@
     },
   },
   "packages": {
-    "@destack/bun": ["@destack/bun@workspace:platform/bun"],
+    "@destack/bun": ["@destack/bun@workspace:bridge/bun"],
 
-    "@destack/cli": ["@destack/cli@workspace:platform/cli"],
+    "@destack/cli": ["@destack/cli@workspace:app/cli"],
 
-    "@destack/cli-darwin-arm64": ["@destack/cli-darwin-arm64@workspace:platform/cli/npm-darwin-arm64"],
+    "@destack/cli-darwin-arm64": ["@destack/cli-darwin-arm64@workspace:app/cli/npm-darwin-arm64"],
 
-    "@destack/cli-darwin-x64": ["@destack/cli-darwin-x64@workspace:platform/cli/npm-darwin-x64"],
+    "@destack/cli-darwin-x64": ["@destack/cli-darwin-x64@workspace:app/cli/npm-darwin-x64"],
 
-    "@destack/cli-linux-arm64-gnu": ["@destack/cli-linux-arm64-gnu@workspace:platform/cli/npm-linux-arm64-gnu"],
+    "@destack/cli-linux-arm64-gnu": ["@destack/cli-linux-arm64-gnu@workspace:app/cli/npm-linux-arm64-gnu"],
 
-    "@destack/cli-linux-x64-gnu": ["@destack/cli-linux-x64-gnu@workspace:platform/cli/npm-linux-x64-gnu"],
+    "@destack/cli-linux-x64-gnu": ["@destack/cli-linux-x64-gnu@workspace:app/cli/npm-linux-x64-gnu"],
 
-    "@destack/cli-win32-x64-msvc": ["@destack/cli-win32-x64-msvc@workspace:platform/cli/npm-win32-x64-msvc"],
+    "@destack/cli-win32-x64-msvc": ["@destack/cli-win32-x64-msvc@workspace:app/cli/npm-win32-x64-msvc"],
 
-    "@destack/napi": ["@destack/napi@workspace:client/napi"],
+    "@destack/napi": ["@destack/napi@workspace:bridge/napi"],
 
     "@destack/schema": ["@destack/schema@workspace:library/schema"],
 
     "@destack/test": ["@destack/test@workspace:library/test"],
 
-    "@destack/tetris": ["@destack/tetris@workspace:examples/tetris"],
+    "@destack/typescript": ["@destack/typescript@workspace:bridge/typescript"],
 
-    "@destack/typescript": ["@destack/typescript@workspace:client/typescript"],
+    "@destack/vite": ["@destack/vite@workspace:bridge/vite"],
 
-    "@destack/vite": ["@destack/vite@workspace:platform/vite"],
-
-    "@destack/wasm": ["@destack/wasm@workspace:client/wasm"],
+    "@destack/wasm": ["@destack/wasm@workspace:bridge/wasm"],
 
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.25.9", "", { "os": "aix", "cpu": "ppc64" }, "sha512-OaGtL73Jck6pBKjNIe24BnFE6agGl+6KxDtTfHhy1HmhthfKouEcOhqpSL64K4/0WCtbKFLOdzD/44cJ4k9opA=="],
 
@@ -364,7 +354,7 @@
 
     "core-util-is": ["core-util-is@1.0.3", "", {}, "sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ=="],
 
-    "create-destack": ["create-destack@workspace:templates/create-destack"],
+    "create-destack": ["create-destack@workspace:template/create-destack"],
 
     "cross-spawn": ["cross-spawn@7.0.6", "", { "dependencies": { "path-key": "^3.1.0", "shebang-command": "^2.0.0", "which": "^2.0.1" } }, "sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA=="],
 
@@ -380,7 +370,7 @@
 
     "deep-extend": ["deep-extend@0.6.0", "", {}, "sha512-LOHxIOaPYdHlJRtCQfDIVZtfw/ufM8+rVj649RIHzcm/vGwQRXFt6OPqIFWsm2XEMrNIEtWR64sY1LEKD2vAOA=="],
 
-    "destack": ["destack@workspace:platform/vscode"],
+    "destack": ["destack@workspace:bridge/vscode"],
 
     "detect-libc": ["detect-libc@2.0.4", "", {}, "sha512-3UDv+G9CsCKO1WKMGw9fwq/SWJYbI0c5Y7LU1AXYoDdbhE2AHQ6N6Nb34sG8Fj7T5APy8qXDCKuuIHd1BR0tVA=="],
 

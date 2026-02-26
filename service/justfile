@@ -1,0 +1,82 @@
+set shell := ["bash", "-cu"]
+set dotenv-load := true
+set dotenv-filename := "../.env.local"
+
+# all service crates
+packages := "-p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types"
+format-packages := "-p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types"
+test-packages := "-p destack_daemon -p destack_lsp -p destack_lsp_server -p destack_lsp_types"
+
+_default:
+    @just --list --unsorted
+
+# --- ci ---
+
+# run service format gate
+ci-format:
+    just format-check
+
+# run service lint gate
+ci-lint:
+    just lint
+
+# run service test gate
+ci-tests:
+    just test-ci
+
+# run all blocking service ci gates locally
+ci:
+    just ci-format
+    just ci-lint
+    just ci-tests
+
+# --- build ---
+
+# check service crates
+check:
+    cargo clippy --release {{ packages }}
+
+# lint alias
+lint:
+    just check
+
+# build all service crates
+build:
+    cargo build --release {{ packages }}
+
+# format code
+format:
+    cargo fmt {{ format-packages }}
+
+# check formatting
+format-check:
+    cargo fmt --check {{ format-packages }}
+
+# alias for format
+alias fmt := format
+
+# clean build artifacts
+clean:
+    cargo clean
+
+# --- test ---
+
+# run quick tests for local development
+test-quick:
+    cargo test --release --all-targets {{ test-packages }}
+
+# run blocking ci test gates
+test-ci:
+    just test-quick
+
+# run nightly test gates
+test-nightly:
+    just test-ci
+
+# run release test gates
+test-release:
+    just test-ci
+
+# run quick tests alias
+test:
+    just test-quick

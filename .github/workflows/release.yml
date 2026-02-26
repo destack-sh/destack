@@ -41,7 +41,7 @@ jobs:
           persist-credentials: false
 
       - name: Validate zed grammar pins
-        run: python3 platform/zed/scripts/check_grammar_sources.py --require-pinned --pin-destack-revision "${GITHUB_SHA}"
+        run: python3 bridge/zed/scripts/check_grammar_sources.py --require-pinned --pin-destack-revision "${GITHUB_SHA}"
 
       - name: Install Rust toolchain
         run: |
@@ -110,23 +110,32 @@ jobs:
       - name: Run library release tests
         run: just library/test-release
 
-      - name: Run platform format check
-        run: just platform/ci-format
+      - name: Run service format check
+        run: just service/ci-format
 
-      - name: Run client format check
-        run: just client/ci-format
+      - name: Run app format check
+        run: just app/ci-format
 
-      - name: Run platform lint
-        run: just platform/ci-lint
+      - name: Run bridge format check
+        run: just bridge/ci-format
 
-      - name: Run client lint
-        run: just client/ci-lint
+      - name: Run service lint
+        run: just service/ci-lint
 
-      - name: Run platform release tests
-        run: just platform/test-release
+      - name: Run app lint
+        run: just app/ci-lint
 
-      - name: Run client release tests
-        run: just client/test-release
+      - name: Run bridge lint
+        run: just bridge/ci-lint
+
+      - name: Run service release tests
+        run: just service/test-release
+
+      - name: Run app release tests
+        run: just app/test-release
+
+      - name: Run bridge release tests
+        run: just bridge/test-release
 
   runtime-android:
     name: Runtime Android
@@ -338,7 +347,7 @@ jobs:
         run: just language/build
 
       - name: Generate CLI schema
-        run: just platform/generate-schema
+        run: just app/generate-schema
 
       - name: Upload release schemas
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -346,7 +355,7 @@ jobs:
           name: release-schemas-${{ github.sha }}
           path: |
             workspace/generated/dsconfig.schema.json
-            platform/cli/generated/cli-report.schema.json
+            app/cli/generated/cli-report.schema.json
           if-no-files-found: error
 
   build-cli-binaries:
@@ -495,13 +504,13 @@ jobs:
           cp release-binaries/x86_64-pc-windows-msvc/* target/x86_64-pc-windows-msvc/release/
 
       - name: Package cli release archives
-        run: bash platform/cli/install/package-release-artifacts.sh "$(cat version.txt)" release-cli-assets
+        run: bash app/cli/install/package-release-artifacts.sh "$(cat VERSION)" release-cli-assets
 
       - name: Validate cli release archives
-        run: bash platform/cli/install/validate-release-artifacts.sh "$(cat version.txt)" release-cli-assets
+        run: bash app/cli/install/validate-release-artifacts.sh "$(cat VERSION)" release-cli-assets
 
       - name: Run installer smoke test
-        run: bash platform/cli/install/test-install.sh "$(cat version.txt)" release-cli-assets
+        run: bash app/cli/install/test-install.sh "$(cat VERSION)" release-cli-assets
 
       - name: Upload cli release assets
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -531,7 +540,7 @@ jobs:
       - name: Run windows installer smoke test
         shell: powershell
         run: |
-          $version = (Get-Content "version.txt").Trim()
+          $version = (Get-Content "VERSION").Trim()
           $releaseTag = "v$version"
           $tempRoot = Join-Path $env:RUNNER_TEMP "destack-install-smoke-$env:GITHUB_RUN_ID"
           $releaseDirectory = Join-Path $tempRoot "releases\download\$releaseTag"
@@ -582,7 +591,7 @@ jobs:
             $env:DESTACK_RELEASE_BASE_URL = "http://127.0.0.1:$port/releases/download"
             $env:DESTACK_INSTALL = $installDirectory
             $env:DESTACK_NO_MODIFY_PATH = "1"
-            .\platform\cli\install\install.ps1
+            .\app\cli\install\install.ps1
 
             & (Join-Path $installDirectory "destack.exe") --version | Out-Null
             & (Join-Path $installDirectory "ds.exe") --version | Out-Null
@@ -627,8 +636,8 @@ jobs:
           files: |
             release-schemas/*
             release-cli-assets/*
-            platform/cli/install/install.sh
-            platform/cli/install/install.ps1
+            app/cli/install/install.sh
+            app/cli/install/install.ps1
 
   publish-packages:
     name: Publish Packages
@@ -676,7 +685,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Stage cli npm binaries from release artifacts
-        run: just platform/stage-cli-binaries-from-artifacts "$(cat version.txt)" "release-cli-assets"
+        run: just app/stage-cli-binaries-from-artifacts "$(cat VERSION)" "release-cli-assets"
 
       - name: Validate publish secrets
         run: |
@@ -731,7 +740,7 @@ jobs:
 
       - name: Publish zed registry PR
         if: inputs.publish_zed == true
-        run: just platform/publish-zed "" "$(cat version.txt)"
+        run: just bridge/publish-zed "" "$(cat VERSION)"
         env:
           GH_TOKEN: ${{ secrets.ZED_GITHUB_TOKEN }}
           DESTACK_ZED_REGISTRY_PUSH_TO: ${{ vars.ZED_REGISTRY_PUSH_TO }}

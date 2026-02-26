@@ -6,9 +6,8 @@
 # Destack: Universal Software Engine
 
 **Destack is a universal software engine for building correct, optimal, integrated software systems.**
- 
-Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and platform built on open standards.
 
+Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, service, app, bridge, and template built on open standards.
 
 <p>
     <a href="VERSION"><img src="https://img.shields.io/badge/version-0.55.2-2ea44f?style=for-the-badge" alt="Version"></a>
@@ -23,16 +22,16 @@ Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and pla
 
 ## The Destack
 
-Destack is a universal software engine with a language, runtime, libraries, services, and apps built on top of TypeScript and the open web ecosystem.
+Destack is a universal software engine with a language, runtime, libraries, services, apps, and bridges built on top of TypeScript and the open web ecosystem.
 Conceptually, Destack is the antithesis to the very idea of a "stack":
 instead of wrangling many disparate languages, tools, libraries, approaches, and products, Destack unifies the processes of software development into _one_ computing stack:
 
 - [**Destack Language**](language/README.md): TypeScript(++) toolchain, VM, AOT compiler, runtime.
 - [**Destack Library**](library/README.md): Standard library for most things most software needs.
-- [**Destack Services**](services/README.md): TODO
-- [**Destack Apps**](apps/README.md): TODO
-- [**Destack Bridge**](client/README.md): External-facing SDKs (JS/TS, WASM, Rust, Python), IDE integrations, etc.
-- [**Destack Templates**](templates/README.md): Ready-to-clone starter kits for common use cases
+- [**Destack Services**](service/README.md): Runtime, infra and developer services.
+- [**Destack Apps**](app/README.md): First-party applications and developer tools.
+- [**Destack Bridge**](bridge/README.md): External-facing SDKs, editor integrations, and host tooling bridges.
+- [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
 
 While Destack is designed from the ground up as an integrated system, you are of course free to pick and choose only the components you like.
 It's all open source, open standards, zero lock-in.
@@ -41,7 +40,7 @@ It's all open source, open standards, zero lock-in.
 
 ### Higher-Order Programming
 
-It has been over 50 years since C introduced higher order programming as we still know it, yet programming is still astoundingly immature. 
+It has been over 50 years since C introduced higher order programming as we still know it, yet programming is still astoundingly immature.
 We routinely fail to build trivial software correctly, and even when it works, it is incredibly inefficient, and even when it is, it's not well integrated with other software.
 
 Software is very useful, we have a lot of it, and there is about to be much, much more.
@@ -50,7 +49,7 @@ But we believe the deep opaqueness, inefficiency, and fragmentation of software 
 
 The more we can express in software, the higher order the abstractions we can program.
 In the beginning, software was the digital shadow of "real" systems, but done correctly, software is an enabling technology for new systems that were previously impossible.
-There is significant promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a universal software engine is the best way to enable them.
+There is great promise in turning more things _into_ correct, optimal, integrated software systems, and we believe a universal software engine is the best way to enable them.
 
 ---
 
@@ -69,12 +68,13 @@ Create a new app with `npm create destack@latest my-app` or `bun create destack 
 
 ## Targets
 
-Destack supports Linux, MacOS and Windows as TIer 1 targets, with mobile (iOS, Android) still coming online. 
+Destack supports Linux, macOS, and Windows as Tier 1 targets, with mobile (iOS, Android) still coming online.
 
-| Tier | Target triples |\|-----------|--------|
+| Tier | Target triples |
+|------|----------------|
 | **Tier 1: full support** | `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`, `x86_64-pc-windows-gnu`, `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` |
 | **Tier 2: pending support** | `aarch64-apple-ios`, `aarch64-linux-android` |
-| **Tier 3: eventual support** | `wasm32-wasip1` |\
+| **Tier 3: eventual support** | `wasm32-wasip1` |
 
 See [TARGETS.md](TARGETS.md).
 
@@ -87,7 +87,7 @@ See [TESTING.md](TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
 ## License
 
-The Destack language, toolchain, library, and platform are fully open source under the MIT license.
+The Destack language, toolchain, library, service, app, bridge, and template are fully open source under the MIT license.
 See [LICENSE.txt](LICENSE.txt).
 
 Destack includes components licensed, vendored and integrated from third parties, which come with their own licenses including the Apache-2.0 (WITH LLVM-exception) license.

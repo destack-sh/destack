@@ -45,19 +45,20 @@ members = [
 	"language/unicode",
 	"language/workspace",
 	"language/service",
-	# client
-	"client/napi",
-	"client/wasm",
-	"client/rust",
-	"client/python/rust",
-	# platform
-	"platform/cli",
-	"platform/daemon",
-	"platform/lsp",
-	"platform/lsp/server",
-	"platform/lsp/types",
-	"platform/vscode",
-	"platform/zed",
+	# service
+	"service/daemon",
+	"service/lsp",
+	"service/lsp/server",
+	"service/lsp/types",
+	# app
+	"app/cli",
+	# bridge
+	"bridge/napi",
+	"bridge/python/rust",
+	"bridge/rust",
+	"bridge/vscode",
+	"bridge/wasm",
+	"bridge/zed",
 ]
 
 [workspace.package]
@@ -97,20 +98,22 @@ destack_unicode = { path = "language/unicode" }
 destack_workspace = { path = "language/workspace" }
 destack_service = { path = "language/service" }
 
-# client
-destack_napi = { path = "client/napi" }
-destack_wasm = { path = "client/wasm" }
-destack = { path = "client/rust" }
-destack_python = { path = "client/python/rust" }
+# service
+destack_daemon = { path = "service/daemon" }
+destack_lsp = { path = "service/lsp" }
+destack_lsp_server = { path = "service/lsp/server" }
+destack_lsp_types = { path = "service/lsp/types" }
 
-# platform
-destack_cli = { path = "platform/cli" }
-destack_daemon = { path = "platform/daemon" }
-destack_lsp = { path = "platform/lsp" }
-destack_lsp_server = { path = "platform/lsp/server" }
-destack_lsp_types = { path = "platform/lsp/types" }
-destack_vscode = { path = "platform/vscode" }
-destack_zed = { path = "platform/zed" }
+# app
+destack_cli = { path = "app/cli" }
+
+# bridge
+destack_napi = { path = "bridge/napi" }
+destack_wasm = { path = "bridge/wasm" }
+destack = { path = "bridge/rust" }
+destack_python = { path = "bridge/python/rust" }
+destack_vscode = { path = "bridge/vscode" }
+destack_zed = { path = "bridge/zed" }
 
 # codegen
 cranelift-assembler-x64 = { path = "language/codegen/native/cranelift/assembler-x64" }
