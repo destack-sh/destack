@@ -831,12 +831,19 @@ pub(crate) type BinaryOperands = SmallVec<[BinaryOperand; 8]>;
 ///
 /// For `a + b + c`, returns [(None, a), (Some(+), b), (Some(+), c)].
 pub(crate) fn flatten_binary_expression(
-    tree: &NodeTree,
+    context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
 ) -> BinaryOperands {
     let mut operands = BinaryOperands::new();
-    flatten_binary_recursive(tree, expression_id, target_operator, &mut operands, None);
+    flatten_binary_recursive(
+        context,
+        expression_id,
+        target_operator,
+        &mut operands,
+        None,
+        true,
+    );
     operands
 }
 
@@ -853,11 +860,11 @@ pub(crate) fn flatten_type_binary_expression(
 
 /// Return the operand count for a flattened binary expression chain.
 pub(crate) fn flattened_binary_operand_count(
-    tree: &NodeTree,
+    context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
 ) -> usize {
-    count_flattened_binary_recursive(tree, expression_id, target_operator)
+    count_flattened_binary_recursive(context, expression_id, target_operator, true)
 }
 
 /// Recursively flatten type binary chains and preserve operand operators.
@@ -907,6 +914,7 @@ pub(crate) fn normalize_type_binary_operand_expression(
         let Expression::Parenthesized { expression } = context.tree.get(current_id) else {
             break;
         };
+
         if context.has_annotation(current_id) {
             break;
         }
@@ -930,21 +938,23 @@ pub(crate) fn normalize_type_binary_operand_expression(
 
 /// Recursively collect binary expression operands.
 fn flatten_binary_recursive(
-    tree: &NodeTree,
+    context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
     operands: &mut BinaryOperands,
     preceding_operator: Option<BinaryOperator>,
+    is_root: bool,
 ) {
     if let Expression::Binary {
         left,
         operator,
         right,
-    } = tree.get(expression_id)
+    } = context.tree.get(expression_id)
         && should_flatten_binary(*operator, target_operator)
+        && (!context.has_annotation(expression_id) || is_root)
     {
         // recursively flatten the left side
-        flatten_binary_recursive(tree, *left, target_operator, operands, None);
+        flatten_binary_recursive(context, *left, target_operator, operands, None, false);
 
         // add the right operand with its operator
         operands.push(BinaryOperand {
@@ -963,19 +973,21 @@ fn flatten_binary_recursive(
 
 /// Recursively count flattened binary operands without allocating.
 fn count_flattened_binary_recursive(
-    tree: &NodeTree,
+    context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     target_operator: BinaryOperator,
+    is_root: bool,
 ) -> usize {
     if let Expression::Binary {
         left,
         operator,
         right,
-    } = tree.get(expression_id)
+    } = context.tree.get(expression_id)
         && should_flatten_binary(*operator, target_operator)
+        && (!context.has_annotation(expression_id) || is_root)
     {
-        let left_count = count_flattened_binary_recursive(tree, *left, target_operator);
-        let right_count = count_flattened_binary_recursive(tree, *right, target_operator);
+        let left_count = count_flattened_binary_recursive(context, *left, target_operator, false);
+        let right_count = count_flattened_binary_recursive(context, *right, target_operator, false);
         return left_count.saturating_add(right_count);
     }
 

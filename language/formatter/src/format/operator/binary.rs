@@ -384,7 +384,7 @@ pub(crate) fn try_format_logical_right_prefix_block_comment<'ast>(
     if !expression_has_inline_block_prefix_star_comment(f.context(), right) {
         return Ok(false);
     }
-    if flatten_binary_expression(f.context().tree, node_id, operator).len() > 2 {
+    if flatten_binary_expression(f.context(), node_id, operator).len() > 2 {
         return Ok(false);
     }
 
@@ -1334,16 +1334,12 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
         expression_has_line_prefix_slash_comment(f.context(), operand_expression);
     let current_prefers_trailing_operator = is_logical_binary_operator(operand_operator)
         && expression_has_leading_prefix_comment(f.context(), operand_expression);
-    let left_logical_comment_allows_space = previous_expression.is_some_and(|expression_id| {
-        is_logical_binary_operator(operand_operator)
-            && expression_has_line_postfix_slash_comment(f.context(), expression_id)
-    });
     let left_inline_block_postfix_comment_allows_space =
         previous_expression.is_some_and(|expression_id| {
             expression_has_inline_block_postfix_boundary_star_comment(f.context(), expression_id)
         });
     let left_postfix_comment_allows_space =
-        left_logical_comment_allows_space || left_inline_block_postfix_comment_allows_space;
+        left_inline_block_postfix_comment_allows_space && !previous_has_line_postfix_slash_comment;
 
     // elementwise intersections with grouped multiline left operand
     if operand_operator == BinaryOperator::ElementwiseAnd
@@ -1500,36 +1496,25 @@ pub(crate) fn write_default_flattened_non_head_operand<'ast>(
         return Ok(());
     }
 
-    // generic indented seam rendering
-    write!(
-        f,
-        [indent(&format_with(
-            |f: &mut DestackFormatter<'ast, '_>| {
-                if !has_postfix {
-                    if previous_is_parenthesized_multiline
-                        && is_logical_binary_operator(operand_operator)
-                    {
-                        write!(f, [space()])?;
-                    } else {
-                        write!(f, [soft_line_break_or_space()])?;
-                    }
-                } else if left_postfix_comment_allows_space {
-                    write!(f, [space()])?;
-                } else if previous_requires_type_grouping_break
-                    || previous_has_line_postfix_slash_comment
-                {
-                    write!(f, [hard_line_break()])?;
-                }
-
-                write!(f, [operand_operator, space()])?;
-                format_binary_operand_with_grouping_parentheses(
-                    f,
-                    root_operator,
-                    operand_expression,
-                )
+    // generic seam rendering
+    let seam_document = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        if !has_postfix {
+            if previous_is_parenthesized_multiline && is_logical_binary_operator(operand_operator) {
+                write!(f, [space()])?;
+            } else {
+                write!(f, [soft_line_break_or_space()])?;
             }
-        ))]
-    )?;
+        } else if left_postfix_comment_allows_space {
+            write!(f, [space()])?;
+        } else if previous_requires_type_grouping_break || previous_has_line_postfix_slash_comment {
+            write!(f, [hard_line_break()])?;
+        }
+
+        write!(f, [operand_operator, space()])?;
+        format_binary_operand_with_grouping_parentheses(f, root_operator, operand_expression)
+    });
+
+    write!(f, [indent(&seam_document)])?;
 
     Ok(())
 }
@@ -1642,7 +1627,7 @@ pub(crate) fn format_binary_expression<'ast>(
     let operands = if is_type_union || is_type_intersection {
         flatten_type_binary_expression(f.context(), node_id, *operator)
     } else {
-        flatten_binary_expression(f.context().tree, node_id, *operator)
+        flatten_binary_expression(f.context(), node_id, *operator)
     };
     let should_force_type_binary_expansion = is_type_intersection
         && type_binary_operands_are_structurally_complex(f.context(), &operands);

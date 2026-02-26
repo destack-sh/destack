@@ -25,6 +25,34 @@ fn is_assignment_operator_token(token_type: TokenType) -> bool {
     AssignOperator::from_token(token_type).is_some()
 }
 
+/// Return whether one expression has any own-line prefix annotation.
+fn expression_has_own_line_prefix_annotation(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .visit_annotations(expression_id, |annotation_ids| {
+            annotation_ids.iter().any(|annotation_id| {
+                let annotation = context.annotation(*annotation_id);
+                let is_prefix = matches!(
+                    annotation,
+                    Annotation::Comment {
+                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                        ..
+                    } | Annotation::Doc {
+                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                        ..
+                    } | Annotation::Decorator {
+                        position: AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix,
+                        ..
+                    }
+                );
+                is_prefix && context.annotation_starts_on_own_line(*annotation_id)
+            })
+        })
+        .unwrap_or(false)
+}
+
 /// Return whether one expression has an inline prefix comment on an assignment seam.
 pub(crate) fn expression_has_assignment_seam_inline_prefix_comment(
     context: &DestackFormatContext<'_>,
@@ -42,17 +70,32 @@ pub(crate) fn expression_has_assignment_seam_inline_prefix_comment(
                 }
 
                 let comment = context.tree.get::<Comment>(node);
-                if !previous_non_whitespace_token_before_annotation(context, *annotation_id)
-                    .is_some_and(|token| is_assignment_operator_token(token.token.ty))
-                {
+                let Some(previous_token) =
+                    previous_non_whitespace_token_before_annotation(context, *annotation_id)
+                else {
+                    return false;
+                };
+                if !is_assignment_operator_token(previous_token.token.ty) {
+                    return false;
+                }
+
+                let comment_span = context.span(node);
+                let assignment_and_comment_share_line = context.file.is_same_line(
+                    previous_token.span.end.saturating_sub(1),
+                    comment_span.start,
+                );
+                if !assignment_and_comment_share_line {
+                    return false;
+                }
+
+                if context.annotation_starts_on_own_line(*annotation_id) {
                     return false;
                 }
 
                 match comment.style {
                     CommentStyle::Slash => true,
                     CommentStyle::Star => {
-                        let annotation_span = context.annotation_span(*annotation_id);
-                        !context.has_newline(annotation_span)
+                        !context.has_newline(comment_span)
                             && context.annotation_next_token_is_on_same_line(*annotation_id)
                     }
                 }
@@ -482,6 +525,8 @@ pub(crate) fn format_assign_expression<'ast>(
         || right_is_chain_tail_lambda
         || right_is_lambda;
     let right_has_prefix_annotation = context.has_prefix_annotation(right);
+    let right_has_own_line_prefix_annotation =
+        expression_has_own_line_prefix_annotation(context, right);
     let right_has_assignment_seam_inline_prefix_comment =
         expression_has_assignment_seam_inline_prefix_comment(context, right)
             || assignment_seam_has_line_comment_between(context, left, right);
@@ -526,7 +571,7 @@ pub(crate) fn format_assign_expression<'ast>(
     let right_is_multiline_binary = right_is_binary && {
         let binary_operand_count = match inner_right_expression {
             Expression::Binary { operator, .. } => {
-                flattened_binary_operand_count(context.tree, inner_right_id, *operator)
+                flattened_binary_operand_count(context, inner_right_id, *operator)
             }
             _ => 0,
         };
@@ -605,21 +650,28 @@ pub(crate) fn format_assign_expression<'ast>(
         );
     }
 
-    // left associative assignment chains: keep inner chain steps inline
-    if has_left_assignment_parent
-        && !right_has_prefix_annotation_that_forces_operator_break
-        && !right_has_between_comment
-        && !right_has_newline
-        && !left_assignment_chain_is_multiline
+    // non-inline seam comments between `=` and rhs always break at the operator
+    if right_has_prefix_annotation_that_forces_operator_break
+        || right_has_between_comment
+        || right_has_own_line_prefix_annotation
     {
+        return write_grouped_hardline_assignment(
+            f,
+            left,
+            operator,
+            right,
+            has_left_postfix,
+            false,
+        );
+    }
+
+    // left associative assignment chains: keep inner chain steps inline
+    if has_left_assignment_parent && !right_has_newline && !left_assignment_chain_is_multiline {
         return write_grouped_inline_assignment(f, left, operator, right, has_left_postfix);
     }
 
     // expanded right-associative assignment chains should break on each seam
-    if right_assignment_chain_is_multiline
-        && !right_has_prefix_annotation_that_forces_operator_break
-        && !right_has_between_comment
-    {
+    if right_assignment_chain_is_multiline {
         return write_grouped_hardline_assignment(
             f,
             left,

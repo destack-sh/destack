@@ -236,17 +236,19 @@ fn format_interpolated_template_literal<'ast>(
     let template_has_newline = f.context().has_newline(template_span);
 
     for (argument, segment) in arguments.iter().zip(string_segments) {
-        let should_force_inline =
-            template_argument_should_force_inline(f.context(), *argument, template_has_newline);
+        let should_force_inline_ternary = template_argument_should_force_inline_ternary(
+            f.context(),
+            *argument,
+            template_has_newline,
+        );
         let should_expand =
             template_argument_should_expand(f.context(), *argument, template_has_newline);
 
-        if should_force_inline {
-            let expression_id = template_argument_expression_id(f.context(), *argument);
+        if should_force_inline_ternary {
             write!(
                 f,
                 [
-                    group(&format_args![token("${"), expression_id, token("}")]),
+                    group(&format_args![token("${"), *argument, token("}")]),
                     *segment,
                 ]
             )?;
@@ -297,55 +299,22 @@ fn template_argument_expression_id(
     unwrap_template_expression(context, value)
 }
 
-/// Decide whether a template interpolation should stay fully inline.
-fn template_argument_should_force_inline(
+/// Decide whether one template interpolation ternary should stay fully inline.
+fn template_argument_should_force_inline_ternary(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
     template_has_newline: bool,
 ) -> bool {
     let expression_id = template_argument_expression_id(context, argument_id);
 
-    // keep multiline source interpolations expanded
-    if context.node_has_newline(expression_id) {
+    if context.node_has_newline(expression_id) || context.node_has_newline(argument_id) {
         return false;
     }
 
-    // boundary annotations should block aggressive inline forcing
-    let has_boundary_annotation = context.has_postfix_annotation(expression_id)
-        || context.has_postfix_annotation(argument_id)
-        || context.has_infix_annotation(expression_id)
-        || context.has_infix_annotation(argument_id);
-    let allows_annotation_inline = !has_boundary_annotation;
-
-    // keep trivial inline expressions hugged
-    let expression_is_inline_trivial =
-        is_trivial_expression(context.tree, context.tree.get(expression_id))
-            && !context.has_annotation(expression_id)
-            && !context.has_annotation(argument_id)
-            && !context.node_has_newline(expression_id)
-            && !context.node_has_newline(argument_id);
-    if expression_is_inline_trivial {
-        return true;
+    if context.has_annotation(expression_id) || context.has_annotation(argument_id) {
+        return false;
     }
 
-    // keep simple reference expressions inline
-    let expression_is_simple_reference = matches!(
-        context.tree.get(expression_id),
-        Expression::Path { .. }
-            | Expression::Member { .. }
-            | Expression::PrivateMember { .. }
-            | Expression::Index { .. }
-            | Expression::This
-            | Expression::Super
-            | Expression::PrivateIdentifier { .. }
-    ) && allows_annotation_inline
-        && !context.node_has_newline(expression_id)
-        && !context.node_has_newline(argument_id);
-    if expression_is_simple_reference {
-        return true;
-    }
-
-    // keep short single line ternaries inline
     matches!(
         context.tree.get(expression_id),
         Expression::If {
@@ -353,9 +322,6 @@ fn template_argument_should_force_inline(
             ..
         }
     ) && !template_has_newline
-        && allows_annotation_inline
-        && !context.node_has_newline(expression_id)
-        && !context.node_has_newline(argument_id)
 }
 
 /// Decide whether a template literal interpolation should break across lines.
@@ -780,7 +746,10 @@ fn normalize_float(input: &str) -> Cow<'_, str> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DestackFormatOptions, TestFormatter, assert_format};
+    use crate::{
+        DestackFormatOptions, TestFormatter, assert_format, assert_format_roundtrip_with_file_type,
+    };
+    use destack_source::FileType;
 
     /// Multi-char strings use double quotes in semantic mode.
     #[test]
@@ -846,6 +815,18 @@ mod tests {
     fn test_format_template_literal_complex_sql() {
         let source = r#"sql.stmt`SELECT * FROM users WHERE name = ${name} AND age > ${group.age()} LIMIT 10`"#;
         assert_format!(source, source, |p| p.eat_expression(Default::default()));
+    }
+
+    /// Ternary interpolations in one-line templates should remain inline and idempotent.
+    #[test]
+    fn test_format_template_literal_ternary_interpolation_stays_inline_roundtrip() {
+        assert_format_roundtrip_with_file_type(
+            r#"`"${isSSR ? "------------------------------------------------------------------------------" : false}" TEST`"#,
+            r#"`"${isSSR ? "------------------------------------------------------------------------------" : false}" TEST`"#,
+            FileType::JavaScript,
+            |p| p.eat_expression(Default::default()),
+            DestackFormatOptions::default(),
+        );
     }
 
     /// Long strings are NOT broken even when they exceed line width (like Prettier).
