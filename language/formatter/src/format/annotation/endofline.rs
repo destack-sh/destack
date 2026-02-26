@@ -12,29 +12,14 @@ use super::attachment::{
 };
 use super::boundary::{
     CommentAttachment, CommentAttachmentNeighbors, CommentEnclosingOwnerCache, CommentSeamContext,
-    CommentSeamData, comment_enclosing_owner, previous_non_newline_token_index,
+    CommentSeamData, comment_enclosing_owner,
 };
 use super::ownership::{
     find_smallest_owner_enclosing_token, normalize_formatter_trivia_target_owner,
     normalize_owner_with_shared_end, promote_owner_by_shared_start,
     promote_owner_to_nearest_statement_boundary, promote_owner_to_node_type_ancestor,
 };
-
-/// Resolve one preceding owner with one previous non-newline token fallback owner.
-fn preceding_owner_with_previous_non_newline_token_fallback(
-    context: &CommentSeamContext<'_>,
-    preceding_owner: Option<u32>,
-) -> Option<u32> {
-    let fallback_owner = context
-        .token_before
-        .and_then(|token_index| {
-            previous_non_newline_token_index(context.semantic_tokens, token_index)
-        })
-        .and_then(|token_index| context.semantic_tokens.get(token_index))
-        .and_then(|token| find_smallest_owner_enclosing_token(context.tree, token.span));
-
-    preceding_owner.or(fallback_owner)
-}
+use super::semicolon::preceding_owner_with_non_newline_token_fallback;
 
 /// Attach one same-line line comment after one empty if statement.
 fn attach_empty_if_comment(
@@ -294,7 +279,7 @@ pub(crate) fn attach_end_of_line_comment(
     let token_before_span = context.token_before_span.map(|token| token.span);
     let token_after_span = context.token_after_span.map(|token| token.span);
     let preceding_owner_with_semicolon_fallback =
-        preceding_owner_with_previous_non_newline_token_fallback(context, preceding_owner);
+        preceding_owner_with_non_newline_token_fallback(tree, context, preceding_owner);
     let enclosing_owner = comment_enclosing_owner(context, enclosing_owner_cache);
     let is_same_line_line_comment = seam.comment_is_line && !seam.has_leading_newline;
     let is_same_line_trailing_block_comment =

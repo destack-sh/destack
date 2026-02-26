@@ -91,6 +91,18 @@ pub(crate) fn semicolon_guard_seam_prefers_preceding_boundary_continuation(
     )
 }
 
+/// Return whether one semicolon guard seam targets one `[` array guard head.
+#[inline]
+pub(crate) fn semicolon_guard_targets_array_literal(
+    seam: SemicolonGuardCommentSeam,
+    token_before_is_semicolon: bool,
+    token_after_type: Option<TokenType>,
+) -> bool {
+    (token_after_type == Some(TokenType::Semicolon)
+        && seam.after_comment_target_type() == Some(TokenType::OpenBracket))
+        || (token_before_is_semicolon && token_after_type == Some(TokenType::OpenBracket))
+}
+
 /// Classify one semicolon guard seam around one own-line comment.
 pub(crate) fn classify_semicolon_guard_comment_seam(
     semantic_tokens: &[TokenSpan],
@@ -126,6 +138,23 @@ pub(crate) fn classify_semicolon_guard_comment_seam(
     }
 
     SemicolonGuardCommentSeam::None
+}
+
+/// Return one preceding owner with one previous non-newline token fallback owner.
+pub(crate) fn preceding_owner_with_non_newline_token_fallback(
+    tree: &NodeTree,
+    context: &CommentSeamContext<'_>,
+    preceding_owner: Option<u32>,
+) -> Option<u32> {
+    let fallback_owner = context
+        .token_before
+        .and_then(|token_index| {
+            previous_non_newline_token_index(context.semantic_tokens, token_index)
+        })
+        .and_then(|token_index| context.semantic_tokens.get(token_index))
+        .and_then(|token| find_smallest_owner_enclosing_token(tree, token.span));
+
+    preceding_owner.or(fallback_owner)
 }
 
 /// Return one following expression owner for one semicolon guard seam.
