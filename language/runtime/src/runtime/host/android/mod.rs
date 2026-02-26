@@ -5,9 +5,13 @@ mod adapter;
 #[cfg(any(test, target_os = "android"))]
 mod callback;
 #[cfg(any(test, target_os = "android"))]
+mod credentials;
+#[cfg(any(test, target_os = "android"))]
 mod crypto;
 #[cfg(any(test, target_os = "android"))]
 mod ffi;
+#[cfg(test)]
+mod tests;
 
 #[cfg(any(test, target_os = "android"))]
 pub use abi::{
@@ -28,6 +32,19 @@ pub use callback::{
     android_notify_window_terminated,
 };
 #[cfg(any(test, target_os = "android"))]
+#[allow(unused_imports)]
+pub use credentials::{
+    AndroidHostCredentialsAuthenticateCallback, AndroidHostCredentialsCallbacks,
+    AndroidHostCredentialsContainsCallback, AndroidHostCredentialsDeleteCallback,
+    AndroidHostCredentialsReadCallback, AndroidHostCredentialsWriteCallback,
+    destack_runtime_host_android_credentials_authenticate,
+    destack_runtime_host_android_credentials_callbacks_abi_version,
+    destack_runtime_host_android_credentials_contains,
+    destack_runtime_host_android_credentials_delete, destack_runtime_host_android_credentials_read,
+    destack_runtime_host_android_credentials_set_callbacks,
+    destack_runtime_host_android_credentials_write, set_android_host_credentials_callbacks,
+};
+#[cfg(any(test, target_os = "android"))]
 pub use crypto::{
     AndroidHostComputeHardwareMacCallback, AndroidHostCryptoCallbacks,
     AndroidHostDecryptHardwareKeyCallback, AndroidHostDecryptHardwareSecretKeyCallback,
@@ -36,6 +53,7 @@ pub use crypto::{
     AndroidHostExportHardwarePublicKeyCallback, AndroidHostGenerateHardwareKeyPairCallback,
     AndroidHostGenerateHardwareSecretKeyCallback, AndroidHostImportCertificateCallback,
     AndroidHostSignHardwareKeyCallback, AndroidHostSupportsHardwareKeyCallback,
+    android_host_crypto_callbacks_snapshot,
     destack_runtime_host_android_crypto_callbacks_abi_version,
     destack_runtime_host_android_crypto_compute_hardware_mac,
     destack_runtime_host_android_crypto_decrypt_hardware_key,
