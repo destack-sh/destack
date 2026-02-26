@@ -552,8 +552,10 @@ impl Compiler {
             let Some(var_type_id) = infer.type_for_var(InferVarId::new(index as u32)) else {
                 continue;
             };
+            let freshness = types.type_freshness(resolved_id);
             let resolved_ty = types.get_type(resolved_id).clone();
             types.update_type(var_type_id, resolved_ty);
+            types.set_type_freshness(var_type_id, freshness);
         }
     }
 }

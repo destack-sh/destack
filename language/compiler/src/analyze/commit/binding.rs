@@ -58,7 +58,6 @@ impl Compiler {
             let committed_type_id = self.materialize_declarator_initializer_type(
                 &mut ctx.type_context_reborrow(),
                 declarator_id,
-                value_id,
                 inferred_type_id,
                 &materialize_ctx,
             );

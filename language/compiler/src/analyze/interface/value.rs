@@ -284,7 +284,6 @@ impl Compiler {
             let committed_ty_id = self.materialize_declarator_initializer_type(
                 &mut ctx.type_context_reborrow(),
                 export.declarator_id,
-                value_id,
                 inferred_ty_id,
                 &state,
             );

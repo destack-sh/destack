@@ -82,7 +82,7 @@ impl Compiler {
         let mut referential_equality_violation = false;
 
         // reject referential equality when configured
-        if ctx.options.no_referential_equality
+        if state.options.no_referential_equality
             && matches!(ctx.module.source, ModuleSource::User)
             && matches!(
                 operator,
@@ -199,12 +199,16 @@ impl Compiler {
                 ctx.infer,
                 ctx.types,
             );
-            return Ok(ctx.types.insert_type_from(ty, expression_id));
+            let ty_id = ctx.types.insert_type_from(ty, expression_id);
+            self.apply_infer_state_type_freshness(ctx.types, ty_id, state);
+            return Ok(ty_id);
         }
 
         let Some(operator_item) = operator_item else {
             let ty = self.infer_binary_operation(operator, &left_ty, &right_ty, ctx.types);
-            return Ok(ctx.types.insert_type_from(ty, expression_id));
+            let ty_id = ctx.types.insert_type_from(ty, expression_id);
+            self.apply_infer_state_type_freshness(ctx.types, ty_id, state);
+            return Ok(ty_id);
         };
 
         // require explicit operator interface implementation
@@ -283,7 +287,7 @@ impl Compiler {
                 variance: None,
             });
 
-            let options = *ctx.options;
+            let options = state.options;
             self.enforce_assignability_or_defer_diagnostic(
                 &mut ctx.reborrow(),
                 expression_id.into_any(),

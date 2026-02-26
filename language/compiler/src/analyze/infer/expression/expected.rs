@@ -55,11 +55,6 @@ impl Compiler {
             return Ok(None);
         };
 
-        // skip normalization while the contextual type still depends on infer convergence
-        if self.type_requires_infer_convergence(ctx.type_view(), expected_ty_id) {
-            return Ok(None);
-        }
-
         // normalize mapped, alias, and object shapes into concrete object types
         let normalized_ty_id = self.normalize_type_with_relation(
             &mut ctx.type_context_reborrow(),
@@ -565,6 +560,19 @@ impl Compiler {
         self.match_scalar_literal_expected(value, expected_ty_id, types, options)
     }
 
+    /// Return true when the expected type is a scalar-literal union that should keep literal precision.
+    pub(crate) fn expected_type_is_scalar_literal_union(
+        &self,
+        expected_ty_id: Option<LocalTypeId>,
+        types: &TypeTable,
+    ) -> bool {
+        let Some(expected_ty_id) = self.expected_value_type(expected_ty_id, types) else {
+            return false;
+        };
+
+        self.type_is_scalar_literal_union(expected_ty_id, types)
+    }
+
     /// Strip a Type::Value wrapper from a type id.
     pub(crate) fn expected_value_type(
         &self,
@@ -622,6 +630,22 @@ impl Compiler {
                 None
             }
             _ => None,
+        }
+    }
+
+    /// Return true when a type is one scalar literal or a union of scalar literals.
+    fn type_is_scalar_literal_union(&self, ty_id: LocalTypeId, types: &TypeTable) -> bool {
+        match types.get_type(ty_id) {
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(_),
+            } => true,
+            Type::Union { elements } => {
+                !elements.is_empty()
+                    && elements
+                        .iter()
+                        .all(|element| self.type_is_scalar_literal_union(*element, types))
+            }
+            _ => false,
         }
     }
 }

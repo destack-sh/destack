@@ -1409,7 +1409,7 @@ impl Compiler {
         // apply decorator options for this function
         let function_options = {
             let symbol = ctx.symbols.get_symbol(descriptor.symbol);
-            ctx.options.with_symbol_decorators(&symbol.decorators)
+            state.options.with_symbol_decorators(&symbol.decorators)
         };
 
         // enforce runtime constraints up front
@@ -2027,7 +2027,7 @@ impl Compiler {
                 // apply decorator options for this method
                 let method_options = {
                     let symbol = ctx.symbols.get_symbol(member.symbol());
-                    ctx.options.with_symbol_decorators(&symbol.decorators)
+                    state.options.with_symbol_decorators(&symbol.decorators)
                 };
 
                 // assign the implicit this binding type when available
@@ -2262,7 +2262,7 @@ impl Compiler {
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         let module_options = self.analyze_context_options_for_module(ctx.module.id);
-        let enforce_decorator_no_managed = ctx.options.no_managed && !module_options.no_managed;
+        let enforce_decorator_no_managed = state.options.no_managed && !module_options.no_managed;
 
         // walk generics
         let where_clauses = signature
@@ -2301,7 +2301,7 @@ impl Compiler {
             let expected_ty_id = expected_this_ty_id;
 
             // report implicit this when no declared type exists
-            if ctx.options.no_implicit_this
+            if state.options.no_implicit_this
                 && declared_ty_id.is_none()
                 && expected_ty_id.is_none()
                 && !matches!(ctx.module.source, ModuleSource::Builtin(_))
@@ -2589,7 +2589,7 @@ impl Compiler {
 
         // enforce no-managed decorators on signature types
         let module_options = self.analyze_context_options_for_module(ctx.module.id);
-        let enforce_decorator_no_managed = ctx.options.no_managed && !module_options.no_managed;
+        let enforce_decorator_no_managed = state.options.no_managed && !module_options.no_managed;
         if enforce_decorator_no_managed {
             self.check_no_managed_signature(
                 &mut ctx.type_context_reborrow(),
@@ -3245,11 +3245,10 @@ impl Compiler {
         // commit binding types for inferred values without annotations
         let binding_ty_id = declared_annotation_ty_id.or(inferred_ty_id);
         let committed_binding_ty_id = if declared_annotation_ty_id.is_none() {
-            if let (Some(binding_ty_id), Some(value_id)) = (binding_ty_id, value) {
+            if let (Some(binding_ty_id), Some(_)) = (binding_ty_id, value) {
                 Some(self.materialize_declarator_initializer_type(
                     &mut ctx.type_context_reborrow(),
                     declarator_id,
-                    *value_id,
                     binding_ty_id,
                     state,
                 ))
@@ -3290,7 +3289,7 @@ impl Compiler {
                     declared_relation_ty_id,
                     inferred_ty_id,
                     ctx.tree,
-                    ctx.options,
+                    &state.options,
                 );
             } else {
                 self.check_no_implicit_managed_inferred(
@@ -3298,7 +3297,7 @@ impl Compiler {
                     *value_id,
                     inferred_ty_id,
                     ctx.tree,
-                    ctx.options,
+                    &state.options,
                 );
             }
         }

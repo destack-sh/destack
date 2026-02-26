@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use destack_dir::{
-    Asynchrony, FlowGraph, FlowTable, FunctionCardinality, FunctionSignature, GlobalSymbolId,
-    LocalNodeIdAny, LocalTypeId, Mutability,
+    Asynchrony, FlowGraph, FlowTable, Freshness, FunctionCardinality, FunctionSignature,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Mutability,
 };
 use destack_source::ModuleId;
 use destack_workspace::{DsConfigCompilerOptions, ProfileId};
 
 use crate::AnalyzeOptions;
-use crate::analyze::common::{ConstContext, ContextualTypingMode, LiteralFreshness, WideningMode};
+use crate::analyze::common::{ConstContext, ContextualTypingMode, FreshnessMode, WideningMode};
 
 /// InferState holds contextual, flow sensitive information during type analysis.
 #[derive(Debug)]
@@ -59,8 +59,8 @@ pub struct InferState {
     pub is_surface_inference: bool,
     /// Whether the current expression is under an explicit ownership operator.
     pub is_explicit_ownership: bool,
-    /// The literal freshness mode for this context.
-    pub literal_freshness: LiteralFreshness,
+    /// The freshness mode for this context.
+    pub freshness_mode: FreshnessMode,
     /// The widening mode for this context.
     pub widening_mode: WideningMode,
     /// The const context mode for this context.
@@ -147,7 +147,7 @@ impl InferState {
             flow: None,
             is_surface_inference: false,
             is_explicit_ownership: false,
-            literal_freshness: LiteralFreshness::Fresh,
+            freshness_mode: FreshnessMode::Fresh,
             widening_mode: WideningMode::Widen,
             const_context: ConstContext::None,
             contextual_typing: ContextualTypingMode::Default,
@@ -180,7 +180,7 @@ impl InferState {
             flow: self.flow.clone(),
             is_surface_inference: self.is_surface_inference,
             is_explicit_ownership: self.is_explicit_ownership,
-            literal_freshness: self.literal_freshness,
+            freshness_mode: self.freshness_mode,
             widening_mode: self.widening_mode,
             const_context: self.const_context,
             contextual_typing: self.contextual_typing,
@@ -199,8 +199,16 @@ impl InferState {
     /// Return the cache key for literal widening.
     pub fn widening_cache_key(&self) -> u64 {
         (self.widening_mode as u64)
-            | ((self.literal_freshness as u64) << 4)
+            | ((self.freshness_mode as u64) << 4)
             | ((self.const_context as u64) << 8)
+    }
+
+    /// Return the type-table freshness state for this inference context.
+    pub fn type_freshness(&self) -> Freshness {
+        match self.freshness_mode {
+            FreshnessMode::Fresh => Freshness::Fresh,
+            FreshnessMode::Regularized => Freshness::Regular,
+        }
     }
 
     /// Reset flow context.
@@ -229,7 +237,7 @@ impl InferState {
             flow: self.flow.clone(),
             is_surface_inference: self.is_surface_inference,
             is_explicit_ownership: self.is_explicit_ownership,
-            literal_freshness: self.literal_freshness,
+            freshness_mode: self.freshness_mode,
             widening_mode: self.widening_mode,
             const_context: self.const_context,
             contextual_typing: self.contextual_typing,
@@ -254,15 +262,15 @@ impl InferState {
         self
     }
 
-    /// Mark this context as preserving literal freshness.
-    pub fn with_fresh_literals(mut self) -> Self {
-        self.literal_freshness = LiteralFreshness::Fresh;
+    /// Mark this context as preserving freshness.
+    pub fn with_freshness(mut self) -> Self {
+        self.freshness_mode = FreshnessMode::Fresh;
         self
     }
 
-    /// Mark this context as regularizing literal freshness.
-    pub fn with_regularized_literals(mut self) -> Self {
-        self.literal_freshness = LiteralFreshness::Regularized;
+    /// Mark this context as regularizing freshness.
+    pub fn with_regularized_freshness(mut self) -> Self {
+        self.freshness_mode = FreshnessMode::Regularized;
         self
     }
 
@@ -290,11 +298,11 @@ impl InferState {
             Mutability::Immutable => self
                 .with_const_context(ConstContext::Const)
                 .with_preserve_literals()
-                .with_fresh_literals(),
+                .with_freshness(),
             Mutability::Mutable => self
                 .with_const_context(ConstContext::None)
                 .with_widening()
-                .with_fresh_literals(),
+                .with_freshness(),
         }
     }
 
@@ -316,32 +324,32 @@ impl InferState {
     pub fn with_binding_initializer_defaults(self) -> Self {
         self.without_const_context()
             .with_widening()
-            .with_fresh_literals()
+            .with_freshness()
     }
 
     /// Apply binding defaults for using bindings.
     pub fn with_using_binding(self) -> Self {
         self.with_const_context(ConstContext::Const)
             .with_preserve_literals()
-            .with_fresh_literals()
+            .with_freshness()
     }
 
     /// Apply explicit const assertion defaults.
     pub fn with_const_assertion_context(self) -> Self {
         self.with_const_context(ConstContext::AsConst)
             .with_preserve_literals()
-            .with_fresh_literals()
+            .with_regularized_freshness()
     }
 
     /// Build a nested literal context for child expressions.
     pub fn nested_literal_context(&self) -> Self {
         if matches!(self.contextual_typing, ContextualTypingMode::Satisfies) {
-            self.fork().with_preserve_literals().with_fresh_literals()
+            self.fork().with_preserve_literals().with_freshness()
         } else if matches!(self.const_context, ConstContext::Const) {
             self.fork()
                 .with_const_context(ConstContext::None)
                 .with_widening()
-                .with_regularized_literals()
+                .with_regularized_freshness()
         } else {
             self.fork()
         }
@@ -358,7 +366,7 @@ impl InferState {
 
     /// Build a context for literal widening commitment points.
     pub fn for_widening_commit(&self) -> Self {
-        self.fork().with_regularized_literals().with_widening()
+        self.fork().with_regularized_freshness().with_widening()
     }
 
     /// Override contextual typing behavior for this context.

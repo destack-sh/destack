@@ -100,7 +100,7 @@ impl Compiler {
             };
 
         // reject computed property access when configured
-        if ctx.options.no_computed_property_access
+        if state.options.no_computed_property_access
             && matches!(ctx.module.source, ModuleSource::User)
             && let Some(index_id) = index_id
         {
@@ -131,7 +131,7 @@ impl Compiler {
             literal_integer,
             static_key.as_ref(),
             ctx.types,
-            ctx.options.no_unchecked_indexed_access,
+            state.options.no_unchecked_indexed_access,
         );
         if let Some(builtin_ty_id) = builtin_ty_id {
             self.record_provisional_builtin_resolution(
@@ -238,7 +238,7 @@ impl Compiler {
                 variance: None,
             });
 
-            let options = *ctx.options;
+            let options = state.options;
             self.enforce_assignability_or_defer_diagnostic(
                 &mut ctx.reborrow(),
                 expression_id.into_any(),
@@ -354,7 +354,7 @@ impl Compiler {
         }
 
         // reject computed property access when configured
-        if ctx.options.no_computed_property_access
+        if state.options.no_computed_property_access
             && matches!(ctx.module.source, ModuleSource::User)
             && let Some(index_id) = *index_id
         {
@@ -394,7 +394,7 @@ impl Compiler {
                 builtin_value_ty_id,
                 value_ty_id,
                 ctx.tree,
-                ctx.options,
+                &state.options,
             );
 
             ctx.infer.push_constraint(Constraint::Subtype {
@@ -403,7 +403,7 @@ impl Compiler {
                 variance: None,
             });
 
-            let options = *ctx.options;
+            let options = state.options;
             self.enforce_assignability_or_defer_diagnostic(
                 &mut ctx.reborrow(),
                 expression_id.into_any(),
@@ -518,7 +518,7 @@ impl Compiler {
                 value_param_ty_id,
                 value_ty_id,
                 ctx.tree,
-                ctx.options,
+                &state.options,
             );
         }
 
@@ -530,7 +530,7 @@ impl Compiler {
                 variance: None,
             });
 
-            let options = *ctx.options;
+            let options = state.options;
             self.enforce_assignability_or_defer_diagnostic(
                 &mut ctx.reborrow(),
                 expression_id.into_any(),

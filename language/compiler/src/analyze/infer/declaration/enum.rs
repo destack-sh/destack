@@ -315,9 +315,6 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         enum_symbol: GlobalSymbolId,
     ) -> Option<EnumBackingType> {
-        // validate module ownership for symbol table lookups
-        debug_assert_eq!(enum_symbol.module_id, ctx.module.id);
-
         // reuse cached backing types
         if let Some(backing) = ctx.types.get_enum_backing_type(enum_symbol) {
             return Some(backing);
@@ -342,6 +339,9 @@ impl Compiler {
                 }
             }
         }
+
+        // local enum lookups require local symbol ownership
+        debug_assert_eq!(enum_symbol.module_id, ctx.module.id);
 
         // infer local enum field values to determine the backing type
         let fields = self.enum_fields_for_symbol_in_tree(ctx.tree_symbol_view(), enum_symbol);

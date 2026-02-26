@@ -66,7 +66,7 @@ impl Compiler {
             left_ty_id,
             right_ty_id,
             ctx.tree,
-            ctx.options,
+            &state.options,
         );
 
         // add the subtype constraint
@@ -77,7 +77,7 @@ impl Compiler {
         });
 
         // enforce assignment relation after convergence when needed
-        let options = *ctx.options;
+        let options = state.options;
         self.enforce_assignability_or_defer_diagnostic(
             &mut ctx.reborrow(),
             expression_id.into_any(),
@@ -176,7 +176,7 @@ impl Compiler {
                 left_ty_id,
                 right_ty_id,
                 ctx.tree,
-                ctx.options,
+                &state.options,
             );
 
             // add the subtype constraint
@@ -187,7 +187,7 @@ impl Compiler {
             });
 
             // enforce assignment relation after convergence when needed
-            let options = *ctx.options;
+            let options = state.options;
             self.enforce_assignability_or_defer_diagnostic(
                 &mut ctx.reborrow(),
                 expression_id.into_any(),

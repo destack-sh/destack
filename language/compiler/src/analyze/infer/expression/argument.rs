@@ -9,11 +9,11 @@ use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferState};
 use destack_dir::{
     AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DependencyItem,
-    DynamicKey, EnumFieldValue, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId,
-    InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
-    Mutability, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticParameter,
-    StaticParameterKind, StaticProperty, StringId, SymbolType, Type, TypeElement, TypeField,
-    TypeLiteral, TypeTable,
+    DynamicKey, EnumFieldValue, Expression, Freshness, GlobalNodeId, GlobalNodeIdAny,
+    GlobalSymbolId, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny,
+    LocalSymbolId, LocalTypeId, Mutability, ScalarLiteral, StaticArgument, StaticExpression,
+    StaticKey, StaticParameter, StaticParameterKind, StaticProperty, StringId, SymbolType, Type,
+    TypeElement, TypeField, TypeLiteral, TypeTable,
 };
 use destack_workspace::ProfileId;
 
@@ -2022,6 +2022,9 @@ impl Compiler {
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         treat_type_arguments_as_types: bool,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
+        // preserve caller module context for bound validation
+        let call_site = ctx.module_context();
+
         // ensure remote declarations are resolved before reading defaults
         if symbol.module_id != ctx.module.id {
             self.require_resolve_module_direct(symbol.module_id, ctx.profile)
@@ -2030,7 +2033,6 @@ impl Compiler {
 
         if symbol.module_id == ctx.module.id {
             let mut ctx = ctx.reborrow();
-            let call_site = ctx.module_context();
             return self.resolve_type_reference_static_arguments_in_owner(
                 &mut ctx,
                 call_site,
@@ -2054,7 +2056,6 @@ impl Compiler {
             &reference_tree,
             &reference_symbols,
         );
-        let call_site = ctx.module_context();
         self.resolve_type_reference_static_arguments_in_owner(
             &mut ctx,
             call_site,
@@ -2751,6 +2752,14 @@ impl Compiler {
                     continue;
                 }
 
+                let argument_source_id = ctx.tree.get(*argument_id).value().into_any();
+                let argument_ty_id = self.regularize_constrained_type_argument_literal(
+                    &mut ctx.type_context_reborrow(),
+                    static_parameter,
+                    argument_ty_id,
+                    argument_source_id,
+                );
+
                 return Ok(Some(StaticArgument::Evaluated {
                     name: static_parameter.name,
                     value: StaticExpression::Type { ty: argument_ty_id },
@@ -2870,6 +2879,57 @@ impl Compiler {
         }
 
         Ok(None)
+    }
+
+    /// Regularize constrained static type arguments to non fresh literal precision.
+    fn regularize_constrained_type_argument_literal(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        static_parameter: &StaticParameter,
+        argument_ty_id: LocalTypeId,
+        source_id: LocalNodeIdAny,
+    ) -> LocalTypeId {
+        // resolve the constraint when the declared type is still symbolic
+        let mut constraint_ty_id = static_parameter.declared_type_id;
+        if matches!(
+            ctx.types.get_type(constraint_ty_id),
+            Type::Unevaluated(_)
+                | Type::InferVar { .. }
+                | Type::TypeLiteral {
+                    value: TypeLiteral::Unknown | TypeLiteral::Any,
+                }
+        ) && self.symbol_is_static_parameter(ctx.symbol_type_view(), static_parameter.symbol)
+        {
+            let argument_source_id = ctx.types.get_type_source(argument_ty_id);
+            if let Some(resolved_constraint_ty_id) = self.static_parameter_constraint_type(
+                &mut ctx.reborrow(),
+                static_parameter.symbol,
+                argument_source_id,
+            ) {
+                constraint_ty_id = resolved_constraint_ty_id;
+            }
+        }
+
+        // unconstrained type parameters should keep default widening behavior
+        if matches!(
+            ctx.types.get_type(constraint_ty_id),
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown | TypeLiteral::Any,
+            }
+        ) {
+            return argument_ty_id;
+        }
+
+        // detach from shared source slots before regularization
+        let argument_ty_id = if ctx.types.get_type_source(argument_ty_id) == source_id {
+            argument_ty_id
+        } else {
+            let ty = ctx.types.get_type(argument_ty_id).clone();
+            ctx.types.insert_type_from_any(ty, source_id)
+        };
+        self.set_type_freshness(ctx.types, argument_ty_id, Freshness::Regular);
+
+        argument_ty_id
     }
 
     /// Return true when one inferred type argument is stable enough for static argument commitment.

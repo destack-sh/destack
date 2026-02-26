@@ -1829,7 +1829,7 @@ impl Compiler {
         }
     }
 
-    /// Check whether two inferred type ids are equivalent for merging.
+    /// Check whether two inferred type ids are merge-compatible.
     fn inferred_type_ids_equivalent(
         &self,
         ctx: &mut TypeContext<'_>,
@@ -1844,8 +1844,14 @@ impl Compiler {
         // compare normalized shapes for conditional infer merge
         let left = self.normalize_type(&mut ctx.reborrow(), left, NormalizationMode::Assign);
         let right = self.normalize_type(&mut ctx.reborrow(), right, NormalizationMode::Assign);
+        if left == right {
+            return true;
+        }
 
-        left == right
+        // compare merge-compatibility for repeated infer spans
+        let left_assignable = self.is_type_assignable(&mut ctx.reborrow(), left, right);
+        let right_assignable = self.is_type_assignable(&mut ctx.reborrow(), right, left);
+        left_assignable.is_assignable() && right_assignable.is_assignable()
     }
 
     /// Apply inferred bindings to a type id.

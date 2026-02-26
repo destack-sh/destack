@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    Block, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
-    NodeType, PrimitiveType, RuntimeCheckKind, ScalarLiteral, StaticArgument, StaticExpression,
-    StaticKey, StaticParameterKind, SymbolType, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
-    TypeVisitor, TypeVisitorOptions, are_types_equal, walk_static_argument, walk_static_expression,
-    walk_type,
+    Block, Expression, Freshness, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId,
+    NodeTree, NodeType, PrimitiveType, RuntimeCheckKind, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, StaticParameterKind, SymbolType, Type, TypeLiteral, TypeTable,
+    TypeUnaryOperator, TypeVisitor, TypeVisitorOptions, are_types_equal, walk_static_argument,
+    walk_static_expression, walk_type,
 };
 use destack_source::ModuleId;
 use destack_workspace::Module;
@@ -15,7 +15,7 @@ use super::{
     NormalizationMode, RelationMode, SymbolTypeView, TypeContext, TypeView, TypeWalkContext,
     TypeWalkKey,
 };
-use crate::{AnalyzeError, AnalyzeResult, Compiler, ElaborateError, ElaborateResult};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, ElaborateError, ElaborateResult, InferState};
 
 /// Maximum number of unwrap steps when chasing type value wrappers.
 const MAX_TYPE_VALUE_UNWRAP_STEPS: usize = 8;
@@ -104,6 +104,54 @@ pub(super) struct TypeContainmentVisitor<'a> {
     kind: TypeContainmentKind<'a>,
     /// The visitor options.
     options: TypeVisitorOptions,
+}
+
+/// Collect type ids reachable from one root for freshness stamping.
+struct TypeFreshnessCollector {
+    /// The visited type ids.
+    visited: HashSet<LocalTypeId>,
+    /// The collected type ids in traversal order.
+    type_ids: Vec<LocalTypeId>,
+    /// The source node id used to scope freshness updates.
+    root_source_id: LocalNodeIdAny,
+    /// The visitor options.
+    options: TypeVisitorOptions,
+}
+
+impl TypeFreshnessCollector {
+    /// Create an empty freshness collector.
+    fn new(root_source_id: LocalNodeIdAny) -> Self {
+        Self {
+            visited: HashSet::new(),
+            type_ids: Vec::new(),
+            root_source_id,
+            options: base_visitor_options(),
+        }
+    }
+}
+
+impl TypeVisitor for TypeFreshnessCollector {
+    fn options(&self) -> &TypeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_type_id(&mut self, types: &TypeTable, id: LocalTypeId) {
+        if !self.visited.insert(id) {
+            return;
+        }
+
+        // stamp only type slots owned by the same source node
+        if types.get_type_source(id) == self.root_source_id {
+            self.type_ids.push(id);
+        }
+
+        let ty = types.get_type(id);
+        self.visit_type(types, id, ty);
+    }
+
+    fn visit_type(&mut self, types: &TypeTable, id: LocalTypeId, ty: &Type) {
+        walk_type(self, types, id, ty);
+    }
 }
 
 impl<'a> TypeContainmentVisitor<'a> {
@@ -803,6 +851,32 @@ impl Compiler {
         };
         let literal_type_id = types.insert_type_from(literal_type, expression_id);
         self.set_expression_type(types, module_id, expression_id, literal_type_id);
+    }
+
+    /// Set freshness for reachable type slots owned by one source node.
+    pub(crate) fn set_type_freshness(
+        &self,
+        types: &mut TypeTable,
+        type_id: LocalTypeId,
+        freshness: Freshness,
+    ) {
+        let root_source_id = types.get_type_source(type_id);
+        let mut collector = TypeFreshnessCollector::new(root_source_id);
+        collector.visit_type_id(types, type_id);
+
+        for id in collector.type_ids {
+            types.set_type_freshness(id, freshness);
+        }
+    }
+
+    /// Apply inference-state freshness to one inferred type.
+    pub(crate) fn apply_infer_state_type_freshness(
+        &self,
+        types: &mut TypeTable,
+        type_id: LocalTypeId,
+        state: &InferState,
+    ) {
+        self.set_type_freshness(types, type_id, state.type_freshness());
     }
 
     /// Record a void type for a synthesized expression.
