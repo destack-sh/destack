@@ -1,5 +1,8 @@
 use ast::{AnnotationPosition, NodeParentIndex, NodeTree, NodeType, TokenType};
 use destack_ast as ast;
+use destack_fir::format::FormatResult;
+use destack_fir::prelude::*;
+use destack_fir::write;
 
 use super::attachment::FormatterTriviaOwnerIndex;
 use super::boundary::{
@@ -11,6 +14,75 @@ use super::ownership::{
     normalize_formatter_trivia_target_owner, promote_owner_to_declaration_ancestor,
     promote_owner_to_node_type_ancestor,
 };
+use crate::format::directive::directive_for_node;
+use crate::format::expression::format_expression;
+use crate::{DestackFormatter, FormatNode};
+
+impl<'ast> FormatNode<'ast, ast::Decorator> for ast::Decorator {
+    /// Format one decorator annotation.
+    fn format_node(
+        &self,
+        _node_id: ast::LocalNodeId<ast::Decorator>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        let tree = f.context().tree;
+        let needs_parentheses = decorator_needs_parentheses(tree, self.expression);
+        let expression_id = self.expression;
+        let expression = f.context().tree.get(expression_id);
+        let directive = directive_for_node(f.context(), expression_id);
+
+        write!(f, [token("@")])?;
+        if needs_parentheses {
+            write!(f, [token("(")])?;
+        }
+
+        format_expression(f, expression_id, expression, directive)?;
+
+        if needs_parentheses {
+            write!(f, [token(")")])?;
+        }
+
+        Ok(())
+    }
+}
+
+/// Return whether a decorator expression requires parentheses.
+fn decorator_needs_parentheses(
+    tree: &NodeTree,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    match tree.get(expression_id) {
+        ast::Expression::Parenthesized { .. } => false,
+        ast::Expression::Path {
+            static_arguments, ..
+        } => static_arguments.is_some(),
+        ast::Expression::Call { left, .. } => !is_identifier_or_static_member_only(tree, *left),
+        ast::Expression::Member {
+            left,
+            static_arguments,
+            ..
+        } => static_arguments.is_some() || !is_identifier_or_static_member_only(tree, *left),
+        _ => true,
+    }
+}
+
+/// Return whether an expression is an identifier or static-member-only path.
+fn is_identifier_or_static_member_only(
+    tree: &NodeTree,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    match tree.get(expression_id) {
+        ast::Expression::Path {
+            static_arguments, ..
+        } => static_arguments.is_none(),
+        ast::Expression::Member {
+            left,
+            static_arguments,
+            ..
+        } => static_arguments.is_none() && is_identifier_or_static_member_only(tree, *left),
+        _ => false,
+    }
+}
 
 /// Return whether a declaration owner supports inline head comments before `{`.
 fn declaration_owner_has_head_before_open_brace(tree: &NodeTree, owner_id: u32) -> bool {

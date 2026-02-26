@@ -1,9 +1,14 @@
 use destack_ast::{
-    AnnotationPosition, Expression, Keyword, LocalNodeId, NodeParentIndex, NodeTree, NodeType,
-    TokenSpan, TokenType,
+    AnnotationPosition, Blank, Expression, Keyword, LocalNodeId, NodeParentIndex, NodeTree,
+    NodeType, TokenSpan, TokenType,
 };
+use destack_fir::format::FormatResult;
+use destack_fir::prelude::*;
+use destack_fir::write;
 use destack_source::Span;
 use rustc_hash::FxHashMap;
+
+use crate::{DestackFormatter, FormatNode};
 
 use super::attachment::{
     FormatterTriviaOwnerIndex, FormatterTriviaSeamIndex, decode_token_index, encode_trivia_seam,
@@ -24,6 +29,19 @@ use super::semicolon::{
     SemicolonGuardCommentSeam, classify_semicolon_guard_comment_seam,
     semicolon_guard_targets_array_literal,
 };
+
+impl<'ast> FormatNode<'ast, Blank> for Blank {
+    /// Format one blank annotation node.
+    fn format_node(
+        &self,
+        _node_id: LocalNodeId<Blank>,
+        f: &mut DestackFormatter<'ast, '_>,
+    ) -> FormatResult<()> {
+        // reduce any number of blank lines to a single one
+        write!(f, [empty_line()])?;
+        Ok(())
+    }
+}
 
 /// Return one blank infix attachment.
 #[inline]
@@ -737,6 +755,8 @@ pub(crate) fn blank_trivia_attachment(
     let blank_before_first_comment = comment_state.blank_before_first_comment;
     let blank_before_first_comment_in_after_range =
         comment_state.blank_before_first_comment_in_after_range;
+    let token_before_is_comment = token_before_type.is_some_and(token_type_is_comment_trivia);
+    let token_after_is_comment = token_after_type.is_some_and(token_type_is_comment_trivia);
 
     let preceding_token_owner = owner_state.preceding_token_owner;
     let preceding_owner = owner_state.preceding_owner;
@@ -747,6 +767,16 @@ pub(crate) fn blank_trivia_attachment(
     let following_owner_is_argument = owner_state.following_owner_is_argument;
     let token_after_comment_continues_chain_or_index =
         owner_state.token_after_comment_continues_chain_or_index;
+
+    // preserve blank seams between adjacent comments
+    if seam_has_comment
+        && blank_before_first_comment
+        && token_before_is_comment
+        && token_after_is_comment
+        && let Some(target_node) = following_owner.or(preceding_owner)
+    {
+        return block_prefix_attachment(tree, target_node);
+    }
 
     // statement-end chain seams with comments
     if (blank_before_first_comment || blank_before_first_comment_in_after_range)
