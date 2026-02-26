@@ -1359,6 +1359,7 @@ dependencies = [
  "rustls-pemfile",
  "security-framework-sys",
  "serde",
+ "serde_json",
  "tracing",
  "windows-sys 0.52.0",
  "zeroize",
