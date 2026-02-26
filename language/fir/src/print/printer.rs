@@ -884,8 +884,63 @@ impl<'a> Printer<'a> {
         }
     }
 
+    /// trim trailing spaces and tabs for the current line before writing a newline
+    fn trim_trailing_line_whitespace(&mut self) {
+        let line_start = self.state.line_start;
+        let mut trimmed_len = self.state.buffer.len();
+
+        while trimmed_len > line_start {
+            let byte = self.state.buffer.as_bytes()[trimmed_len - 1];
+            if matches!(byte, b' ' | b'\t') {
+                trimmed_len -= 1;
+            } else {
+                break;
+            }
+        }
+
+        if trimmed_len == self.state.buffer.len() {
+            return;
+        }
+
+        self.state.buffer.truncate(trimmed_len);
+
+        while self
+            .state
+            .source_markers
+            .last()
+            .is_some_and(|marker| marker.dest as usize > trimmed_len)
+        {
+            self.state.source_markers.pop();
+        }
+
+        for verbatim in self.state.verbatim_markers.iter_mut().rev() {
+            if verbatim.end as usize <= trimmed_len {
+                break;
+            }
+
+            if verbatim.start as usize >= trimmed_len {
+                *verbatim = Span::new(verbatim.file, trimmed_len as u32, trimmed_len as u32);
+            } else {
+                verbatim.end = trimmed_len as u32;
+            }
+        }
+
+        while self
+            .state
+            .verbatim_markers
+            .last()
+            .is_some_and(|range| range.start == range.end)
+        {
+            self.state.verbatim_markers.pop();
+        }
+    }
+
     /// print a newline with the configured line ending
     fn print_newline(&mut self) {
+        if self.options.trim_trailing_whitespace {
+            self.trim_trailing_line_whitespace();
+        }
+
         self.state
             .buffer
             .push_str(self.options.line_ending.as_str());
@@ -1752,6 +1807,53 @@ a",
             "function main() {\r\n    let x = `This is a multiline\r\nstring`;\r\n}\r\n",
             result.as_str()
         );
+    }
+
+    /// Trailing spaces should remain when trim trailing whitespace is disabled.
+    #[test]
+    fn test_preserves_trailing_whitespace_before_newline_when_disabled() {
+        let result = format_with_options(
+            &format_args![
+                token("a  "),
+                hard_line_break(),
+                token("b "),
+                hard_line_break(),
+                token("c  "),
+                hard_line_break(),
+            ],
+            PrintOptions::default().with_trim_trailing_whitespace(false),
+        );
+
+        assert_eq!("a  \nb \nc  \n", result.as_str());
+    }
+
+    /// Trailing spaces should be trimmed before newline when trim trailing whitespace is enabled.
+    #[test]
+    fn test_trims_trailing_whitespace_before_newline_when_enabled() {
+        let result = format_with_options(
+            &format_args![
+                token("a  "),
+                hard_line_break(),
+                token("b "),
+                hard_line_break(),
+                token("c  "),
+                hard_line_break(),
+            ],
+            PrintOptions::default().with_trim_trailing_whitespace(true),
+        );
+
+        assert_eq!("a\nb\nc\n", result.as_str());
+    }
+
+    /// Trailing tab characters should be trimmed before newline when trim trailing whitespace is enabled.
+    #[test]
+    fn test_trims_trailing_tab_before_newline_when_enabled() {
+        let result = format_with_options(
+            &format_args![text("a\t"), hard_line_break()],
+            PrintOptions::default().with_trim_trailing_whitespace(true),
+        );
+
+        assert_eq!("a\n", result.as_str());
     }
 
     /// Groups containing strings with newlines should break.
