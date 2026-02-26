@@ -3,6 +3,8 @@ mod abi;
 #[cfg(target_os = "android")]
 mod adapter;
 #[cfg(any(test, target_os = "android"))]
+mod bindings;
+#[cfg(any(test, target_os = "android"))]
 mod callback;
 #[cfg(any(test, target_os = "android"))]
 mod credentials;
@@ -22,6 +24,11 @@ pub use abi::{
 #[cfg(target_os = "android")]
 pub(super) use adapter::AndroidHostAdapter;
 #[cfg(any(test, target_os = "android"))]
+pub use bindings::{
+    AndroidHostBindings, android_host_crypto_callbacks_snapshot,
+    destack_runtime_host_android_register_bindings,
+};
+#[cfg(any(test, target_os = "android"))]
 pub use callback::{
     AndroidActivityLifecycle, android_notify_activity_lifecycle,
     android_notify_interruption_changed, android_notify_memory_pressure_changed,
@@ -38,11 +45,9 @@ pub use credentials::{
     AndroidHostCredentialsContainsCallback, AndroidHostCredentialsDeleteCallback,
     AndroidHostCredentialsReadCallback, AndroidHostCredentialsWriteCallback,
     destack_runtime_host_android_credentials_authenticate,
-    destack_runtime_host_android_credentials_callbacks_abi_version,
     destack_runtime_host_android_credentials_contains,
     destack_runtime_host_android_credentials_delete, destack_runtime_host_android_credentials_read,
-    destack_runtime_host_android_credentials_set_callbacks,
-    destack_runtime_host_android_credentials_write, set_android_host_credentials_callbacks,
+    destack_runtime_host_android_credentials_write,
 };
 #[cfg(any(test, target_os = "android"))]
 pub use crypto::{
@@ -53,8 +58,6 @@ pub use crypto::{
     AndroidHostExportHardwarePublicKeyCallback, AndroidHostGenerateHardwareKeyPairCallback,
     AndroidHostGenerateHardwareSecretKeyCallback, AndroidHostImportCertificateCallback,
     AndroidHostSignHardwareKeyCallback, AndroidHostSupportsHardwareKeyCallback,
-    android_host_crypto_callbacks_snapshot,
-    destack_runtime_host_android_crypto_callbacks_abi_version,
     destack_runtime_host_android_crypto_compute_hardware_mac,
     destack_runtime_host_android_crypto_decrypt_hardware_key,
     destack_runtime_host_android_crypto_decrypt_hardware_secret_key,
@@ -66,9 +69,8 @@ pub use crypto::{
     destack_runtime_host_android_crypto_generate_hardware_key_pair,
     destack_runtime_host_android_crypto_generate_hardware_secret_key,
     destack_runtime_host_android_crypto_import_certificate,
-    destack_runtime_host_android_crypto_set_callbacks,
     destack_runtime_host_android_crypto_sign_hardware_key,
-    destack_runtime_host_android_crypto_supports_hardware_key, set_android_host_crypto_callbacks,
+    destack_runtime_host_android_crypto_supports_hardware_key,
 };
 #[cfg(any(test, target_os = "android"))]
 pub use ffi::{

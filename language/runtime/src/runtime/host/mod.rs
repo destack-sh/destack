@@ -61,7 +61,7 @@ pub use core::{
 
 #[cfg(any(test, target_os = "android"))]
 pub use android::{
-    AndroidActivityLifecycle, AndroidHostComputeHardwareMacCallback,
+    AndroidActivityLifecycle, AndroidHostBindings, AndroidHostComputeHardwareMacCallback,
     AndroidHostCredentialsAuthenticateCallback, AndroidHostCredentialsCallbacks,
     AndroidHostCredentialsContainsCallback, AndroidHostCredentialsDeleteCallback,
     AndroidHostCredentialsReadCallback, AndroidHostCredentialsWriteCallback,
@@ -81,12 +81,9 @@ pub use android::{
     android_notify_window_available, android_notify_window_focus_changed,
     android_notify_window_resized, android_notify_window_terminated,
     destack_runtime_host_android_credentials_authenticate,
-    destack_runtime_host_android_credentials_callbacks_abi_version,
     destack_runtime_host_android_credentials_contains,
     destack_runtime_host_android_credentials_delete, destack_runtime_host_android_credentials_read,
-    destack_runtime_host_android_credentials_set_callbacks,
     destack_runtime_host_android_credentials_write,
-    destack_runtime_host_android_crypto_callbacks_abi_version,
     destack_runtime_host_android_crypto_compute_hardware_mac,
     destack_runtime_host_android_crypto_decrypt_hardware_key,
     destack_runtime_host_android_crypto_decrypt_hardware_secret_key,
@@ -98,7 +95,6 @@ pub use android::{
     destack_runtime_host_android_crypto_generate_hardware_key_pair,
     destack_runtime_host_android_crypto_generate_hardware_secret_key,
     destack_runtime_host_android_crypto_import_certificate,
-    destack_runtime_host_android_crypto_set_callbacks,
     destack_runtime_host_android_crypto_sign_hardware_key,
     destack_runtime_host_android_crypto_supports_hardware_key,
     destack_runtime_host_android_notify_activity_lifecycle,
@@ -113,8 +109,8 @@ pub use android::{
     destack_runtime_host_android_notify_window_available,
     destack_runtime_host_android_notify_window_focus_changed,
     destack_runtime_host_android_notify_window_resized,
-    destack_runtime_host_android_notify_window_terminated, set_android_host_credentials_callbacks,
-    set_android_host_crypto_callbacks,
+    destack_runtime_host_android_notify_window_terminated,
+    destack_runtime_host_android_register_bindings,
 };
 
 #[cfg(target_os = "macos")]

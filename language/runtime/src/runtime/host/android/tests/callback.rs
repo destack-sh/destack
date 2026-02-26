@@ -1,4 +1,4 @@
-use super::{AndroidActivityLifecycle, host_lifecycle_state_for_android_activity};
+use super::super::callback::{AndroidActivityLifecycle, host_lifecycle_state_for_android_activity};
 use crate::runtime::host::HostLifecycleState;
 
 #[test]

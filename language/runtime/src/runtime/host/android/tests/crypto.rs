@@ -1,17 +1,24 @@
-use super::super::abi::HOST_STATUS_BUFFER_TOO_SMALL;
-use super::super::tests::{callback_test_lock, register_android_runtime};
-use super::{
-    ANDROID_HOST_CRYPTO_CALLBACKS_ABI_VERSION, AndroidHostCryptoCallbacks,
-    HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
-    clear_android_host_crypto_callbacks, destack_runtime_host_android_crypto_compute_hardware_mac,
+use super::super::abi::{
+    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_NOT_FOUND,
+    HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
+};
+use super::super::crypto::{
+    AndroidHostCryptoCallbacks, destack_runtime_host_android_crypto_compute_hardware_mac,
+    destack_runtime_host_android_crypto_decrypt_hardware_key,
     destack_runtime_host_android_crypto_decrypt_hardware_secret_key,
     destack_runtime_host_android_crypto_delete_certificate,
+    destack_runtime_host_android_crypto_delete_hardware_key,
+    destack_runtime_host_android_crypto_derive_hardware_shared_secret,
     destack_runtime_host_android_crypto_encrypt_hardware_secret_key,
     destack_runtime_host_android_crypto_export_hardware_public_key,
+    destack_runtime_host_android_crypto_generate_hardware_key_pair,
     destack_runtime_host_android_crypto_generate_hardware_secret_key,
     destack_runtime_host_android_crypto_import_certificate,
-    destack_runtime_host_android_crypto_set_callbacks,
+    destack_runtime_host_android_crypto_sign_hardware_key,
     destack_runtime_host_android_crypto_supports_hardware_key,
+};
+use super::super::tests::{
+    callback_test_lock, register_android_bindings_crypto, register_android_runtime,
 };
 use crate::platform::{NativeSlice, NativeStringRef};
 
@@ -221,31 +228,56 @@ unsafe extern "C" fn test_delete_certificate(
 #[test]
 fn test_default_callbacks_return_not_supported() {
     let _lock = callback_test_lock().lock().unwrap();
-    clear_android_host_crypto_callbacks();
+    let (_bridge, _registration, runtime_id) = register_android_runtime();
 
-    let support_status = unsafe { destack_runtime_host_android_crypto_supports_hardware_key(1, 2) };
-    assert_eq!(support_status, HOST_STATUS_NOT_FOUND);
+    let support_status =
+        unsafe { destack_runtime_host_android_crypto_supports_hardware_key(runtime_id, 2) };
+    assert_eq!(support_status, HOST_STATUS_NOT_SUPPORTED);
 }
 
 #[test]
-fn test_set_callbacks_routes_calls() {
+fn test_register_bindings_rejects_unknown_runtime() {
     let _lock = callback_test_lock().lock().unwrap();
-    clear_android_host_crypto_callbacks();
+
+    let callbacks = AndroidHostCryptoCallbacks::default();
+    let status = register_android_bindings_crypto(0, callbacks);
+
+    assert_eq!(status, HOST_STATUS_NOT_FOUND);
+}
+
+#[test]
+fn test_register_bindings_rejects_duplicate_registration() {
+    let _lock = callback_test_lock().lock().unwrap();
+    let (_bridge, _registration, runtime_id) = register_android_runtime();
+
+    let callbacks = AndroidHostCryptoCallbacks {
+        supports_hardware_key: Some(test_supports_hardware_key),
+        ..AndroidHostCryptoCallbacks::default()
+    };
+    let first_status = register_android_bindings_crypto(runtime_id, callbacks);
+    assert_eq!(first_status, HOST_STATUS_OK);
+
+    let duplicate_status = register_android_bindings_crypto(runtime_id, callbacks);
+    assert_eq!(duplicate_status, HOST_STATUS_FAILED);
+}
+
+#[test]
+fn test_register_bindings_routes_probe_and_public_export_calls() {
+    let _lock = callback_test_lock().lock().unwrap();
 
     // register one temporary android bridge for runtime-id validation
     let (_bridge, _registration, runtime_id) = register_android_runtime();
 
-    // set one callback table with support and export handlers
+    // register one bindings payload with support and export handlers
     let callbacks = AndroidHostCryptoCallbacks {
-        abi_version: ANDROID_HOST_CRYPTO_CALLBACKS_ABI_VERSION,
         supports_hardware_key: Some(test_supports_hardware_key),
         export_hardware_public_key: Some(test_export_hardware_public_key),
         ..AndroidHostCryptoCallbacks::default()
     };
-    let set_status = unsafe { destack_runtime_host_android_crypto_set_callbacks(callbacks) };
-    assert_eq!(set_status, HOST_STATUS_OK);
+    let register_status = register_android_bindings_crypto(runtime_id, callbacks);
+    assert_eq!(register_status, HOST_STATUS_OK);
 
-    // verify that support probing now routes into the callback table
+    // verify that support probing routes into the callback table
     let support_status =
         unsafe { destack_runtime_host_android_crypto_supports_hardware_key(runtime_id, 2) };
     assert_eq!(support_status, HOST_STATUS_OK);
@@ -288,38 +320,147 @@ fn test_set_callbacks_routes_calls() {
 }
 
 #[test]
-fn test_set_callbacks_rejects_unknown_abi_version() {
+fn test_register_bindings_missing_callback_reports_not_supported() {
     let _lock = callback_test_lock().lock().unwrap();
-    clear_android_host_crypto_callbacks();
+    let (_bridge, _registration, runtime_id) = register_android_runtime();
 
+    // register one callback table that omits generation callback
     let callbacks = AndroidHostCryptoCallbacks {
-        abi_version: ANDROID_HOST_CRYPTO_CALLBACKS_ABI_VERSION + 1,
+        supports_hardware_key: Some(test_supports_hardware_key),
         ..AndroidHostCryptoCallbacks::default()
     };
-    let status = unsafe { destack_runtime_host_android_crypto_set_callbacks(callbacks) };
+    let register_status = register_android_bindings_crypto(runtime_id, callbacks);
+    assert_eq!(register_status, HOST_STATUS_OK);
 
-    assert_eq!(status, HOST_STATUS_INVALID_ARGUMENT);
+    // verify unregistered callback lanes report not-supported
+    let generate_status = unsafe {
+        destack_runtime_host_android_crypto_generate_hardware_secret_key(
+            runtime_id,
+            2,
+            3,
+            3,
+            256,
+            0x0000_000c,
+            NativeStringRef::from("key"),
+        )
+    };
+    assert_eq!(generate_status, HOST_STATUS_NOT_SUPPORTED);
 }
 
 #[test]
-fn test_set_callbacks_routes_secret_key_calls() {
+fn test_register_bindings_missing_advanced_callbacks_report_not_supported() {
     let _lock = callback_test_lock().lock().unwrap();
-    clear_android_host_crypto_callbacks();
+    let (_bridge, _registration, runtime_id) = register_android_runtime();
+
+    // register one callback table that omits advanced keypair lanes
+    let callbacks = AndroidHostCryptoCallbacks {
+        supports_hardware_key: Some(test_supports_hardware_key),
+        ..AndroidHostCryptoCallbacks::default()
+    };
+    let register_status = register_android_bindings_crypto(runtime_id, callbacks);
+    assert_eq!(register_status, HOST_STATUS_OK);
+
+    let not_supported_key_pair = unsafe {
+        destack_runtime_host_android_crypto_generate_hardware_key_pair(
+            runtime_id,
+            2,
+            1,
+            23,
+            0,
+            0,
+            NativeStringRef::from("key"),
+        )
+    };
+    assert_eq!(not_supported_key_pair, HOST_STATUS_NOT_SUPPORTED);
+
+    let not_supported_sign = unsafe {
+        destack_runtime_host_android_crypto_sign_hardware_key(
+            runtime_id,
+            1,
+            NativeStringRef::from("key"),
+            2,
+            3,
+            0,
+            NativeSlice {
+                data: std::ptr::null_mut(),
+                len: 0,
+            },
+            NativeSlice {
+                data: std::ptr::null_mut(),
+                len: 0,
+            },
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(not_supported_sign, HOST_STATUS_NOT_SUPPORTED);
+
+    let not_supported_decrypt = unsafe {
+        destack_runtime_host_android_crypto_decrypt_hardware_key(
+            runtime_id,
+            1,
+            NativeStringRef::from("key"),
+            1,
+            3,
+            NativeSlice {
+                data: std::ptr::null_mut(),
+                len: 0,
+            },
+            NativeSlice {
+                data: std::ptr::null_mut(),
+                len: 0,
+            },
+            NativeSlice {
+                data: std::ptr::null_mut(),
+                len: 0,
+            },
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(not_supported_decrypt, HOST_STATUS_NOT_SUPPORTED);
+
+    let not_supported_derive = unsafe {
+        destack_runtime_host_android_crypto_derive_hardware_shared_secret(
+            runtime_id,
+            1,
+            NativeStringRef::from("key"),
+            23,
+            NativeSlice {
+                data: std::ptr::null_mut(),
+                len: 0,
+            },
+            NativeSlice {
+                data: std::ptr::null_mut(),
+                len: 0,
+            },
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(not_supported_derive, HOST_STATUS_NOT_SUPPORTED);
+
+    let not_supported_delete = unsafe {
+        destack_runtime_host_android_crypto_delete_hardware_key(
+            runtime_id,
+            1,
+            NativeStringRef::from("key"),
+        )
+    };
+    assert_eq!(not_supported_delete, HOST_STATUS_NOT_SUPPORTED);
+}
+
+#[test]
+fn test_register_bindings_routes_generate_secret_key_calls() {
+    let _lock = callback_test_lock().lock().unwrap();
 
     // register one temporary android bridge for runtime-id validation
     let (_bridge, _registration, runtime_id) = register_android_runtime();
 
-    // install callbacks for hardware-secret generation and operations
+    // install callbacks for hardware-secret generation
     let callbacks = AndroidHostCryptoCallbacks {
-        abi_version: ANDROID_HOST_CRYPTO_CALLBACKS_ABI_VERSION,
         generate_hardware_secret_key: Some(test_generate_hardware_secret_key),
-        encrypt_hardware_secret_key: Some(test_encrypt_hardware_secret_key),
-        decrypt_hardware_secret_key: Some(test_decrypt_hardware_secret_key),
-        compute_hardware_mac: Some(test_compute_hardware_mac),
         ..AndroidHostCryptoCallbacks::default()
     };
-    let set_status = unsafe { destack_runtime_host_android_crypto_set_callbacks(callbacks) };
-    assert_eq!(set_status, HOST_STATUS_OK);
+    let register_status = register_android_bindings_crypto(runtime_id, callbacks);
+    assert_eq!(register_status, HOST_STATUS_OK);
 
     // verify hardware-secret generation callback routing
     let generate_status = unsafe {
@@ -334,8 +475,24 @@ fn test_set_callbacks_routes_secret_key_calls() {
         )
     };
     assert_eq!(generate_status, HOST_STATUS_OK);
+}
 
-    // verify two-pass secret-key encryption callback routing
+#[test]
+fn test_register_bindings_routes_encrypt_secret_key_calls() {
+    let _lock = callback_test_lock().lock().unwrap();
+
+    // register one temporary android bridge for runtime-id validation
+    let (_bridge, _registration, runtime_id) = register_android_runtime();
+
+    // install callback for hardware-secret encryption
+    let callbacks = AndroidHostCryptoCallbacks {
+        encrypt_hardware_secret_key: Some(test_encrypt_hardware_secret_key),
+        ..AndroidHostCryptoCallbacks::default()
+    };
+    let register_status = register_android_bindings_crypto(runtime_id, callbacks);
+    assert_eq!(register_status, HOST_STATUS_OK);
+
+    // verify two-pass encryption callback routing
     let mut ciphertext_required = 0u32;
     let mut tag_required = 0u32;
     let encrypt_first_status = unsafe {
@@ -414,8 +571,24 @@ fn test_set_callbacks_routes_secret_key_calls() {
     assert_eq!(tag_written, 2);
     assert_eq!(ciphertext, vec![7u8, 8, 9]);
     assert_eq!(tag, vec![1u8, 2]);
+}
 
-    // verify two-pass secret-key decrypt callback routing
+#[test]
+fn test_register_bindings_routes_decrypt_secret_key_calls() {
+    let _lock = callback_test_lock().lock().unwrap();
+
+    // register one temporary android bridge for runtime-id validation
+    let (_bridge, _registration, runtime_id) = register_android_runtime();
+
+    // install callback for hardware-secret decryption
+    let callbacks = AndroidHostCryptoCallbacks {
+        decrypt_hardware_secret_key: Some(test_decrypt_hardware_secret_key),
+        ..AndroidHostCryptoCallbacks::default()
+    };
+    let register_status = register_android_bindings_crypto(runtime_id, callbacks);
+    assert_eq!(register_status, HOST_STATUS_OK);
+
+    // verify two-pass decrypt callback routing
     let mut plaintext_required = 0u32;
     let decrypt_first_status = unsafe {
         destack_runtime_host_android_crypto_decrypt_hardware_secret_key(
@@ -484,8 +657,24 @@ fn test_set_callbacks_routes_secret_key_calls() {
     assert_eq!(decrypt_second_status, HOST_STATUS_OK);
     assert_eq!(plaintext_written, 4);
     assert_eq!(plaintext, vec![3u8, 4, 5, 6]);
+}
 
-    // verify two-pass hardware-mac callback routing
+#[test]
+fn test_register_bindings_routes_compute_hardware_mac_calls() {
+    let _lock = callback_test_lock().lock().unwrap();
+
+    // register one temporary android bridge for runtime-id validation
+    let (_bridge, _registration, runtime_id) = register_android_runtime();
+
+    // install callback for hardware mac computation
+    let callbacks = AndroidHostCryptoCallbacks {
+        compute_hardware_mac: Some(test_compute_hardware_mac),
+        ..AndroidHostCryptoCallbacks::default()
+    };
+    let register_status = register_android_bindings_crypto(runtime_id, callbacks);
+    assert_eq!(register_status, HOST_STATUS_OK);
+
+    // verify two-pass hardware mac callback routing
     let mut mac_required = 0u32;
     let mac_first_status = unsafe {
         destack_runtime_host_android_crypto_compute_hardware_mac(
@@ -537,22 +726,20 @@ fn test_set_callbacks_routes_secret_key_calls() {
 }
 
 #[test]
-fn test_set_callbacks_routes_certificate_calls() {
+fn test_register_bindings_routes_certificate_calls() {
     let _lock = callback_test_lock().lock().unwrap();
-    clear_android_host_crypto_callbacks();
 
     // register one temporary android bridge for runtime-id validation
     let (_bridge, _registration, runtime_id) = register_android_runtime();
 
     // install callbacks for certificate import and delete
     let callbacks = AndroidHostCryptoCallbacks {
-        abi_version: ANDROID_HOST_CRYPTO_CALLBACKS_ABI_VERSION,
         import_certificate: Some(test_import_certificate),
         delete_certificate: Some(test_delete_certificate),
         ..AndroidHostCryptoCallbacks::default()
     };
-    let set_status = unsafe { destack_runtime_host_android_crypto_set_callbacks(callbacks) };
-    assert_eq!(set_status, HOST_STATUS_OK);
+    let register_status = register_android_bindings_crypto(runtime_id, callbacks);
+    assert_eq!(register_status, HOST_STATUS_OK);
 
     // verify certificate import callback routing
     let import_status = unsafe {

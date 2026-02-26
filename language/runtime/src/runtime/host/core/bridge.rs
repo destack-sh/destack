@@ -1,6 +1,10 @@
 use std::sync::Arc;
+#[cfg(any(test, target_os = "android"))]
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use destack_workspace::PlatformHostOptions;
+#[cfg(any(test, target_os = "android"))]
+use parking_lot::RwLock;
 
 use super::{
     HostEvent, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
@@ -9,6 +13,8 @@ use super::{
     HostWindowEvent, HostWindowFocusEvent,
 };
 use crate::diagnostic::RuntimeResult;
+#[cfg(any(test, target_os = "android"))]
+use crate::runtime::host::android::AndroidHostBindings;
 use crate::runtime::poller::HostPollerWakeHandle;
 
 /// Shared per-runtime host bridge for adapter event ingestion.
@@ -18,14 +24,25 @@ pub(crate) struct HostBridge {
     events: super::HostEventQueue,
     /// Shared mutable host service state.
     state_store: Arc<HostStateStore>,
+    /// Shared Android callback bindings payload for this runtime.
+    #[cfg(any(test, target_os = "android"))]
+    android_bindings: Arc<RwLock<AndroidHostBindings>>,
+    /// Whether Android bindings were registered for this runtime.
+    #[cfg(any(test, target_os = "android"))]
+    is_android_bindings_registered: Arc<AtomicBool>,
 }
 
 impl HostBridge {
     /// Create one host bridge from one shared service state object.
     pub(crate) fn new(state_store: Arc<HostStateStore>) -> Self {
+        // initialize host bridge shared state
         Self {
             events: super::HostEventQueue::new(),
             state_store,
+            #[cfg(any(test, target_os = "android"))]
+            android_bindings: Arc::new(RwLock::new(AndroidHostBindings::default())),
+            #[cfg(any(test, target_os = "android"))]
+            is_android_bindings_registered: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -37,6 +54,38 @@ impl HostBridge {
     /// Return one shared wake handle for this bridge.
     pub(crate) fn wake_handle(&self) -> Arc<dyn HostPollerWakeHandle> {
         self.events.wake_handle()
+    }
+
+    /// Register one runtime-scoped Android bindings payload.
+    #[cfg(any(test, target_os = "android"))]
+    pub(crate) fn register_android_bindings(&self, bindings: AndroidHostBindings) -> bool {
+        // reject duplicate registration for one runtime
+        if self
+            .is_android_bindings_registered
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            return false;
+        }
+
+        // store one runtime bindings payload
+        let mut current_bindings = self.android_bindings.write();
+        *current_bindings = bindings;
+
+        true
+    }
+
+    /// Return one runtime-scoped Android bindings snapshot.
+    #[cfg(any(test, target_os = "android"))]
+    pub(crate) fn android_bindings(&self) -> Option<AndroidHostBindings> {
+        // report missing bindings until one registration succeeds
+        if !self.is_android_bindings_registered.load(Ordering::SeqCst) {
+            return None;
+        }
+
+        // copy one stable bindings snapshot
+        let current_bindings = self.android_bindings.read();
+        Some(*current_bindings)
     }
 
     /// Configure host integration options on bridge queue policy.

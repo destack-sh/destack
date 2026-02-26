@@ -1,32 +1,63 @@
-use super::super::abi::HOST_STATUS_BUFFER_TOO_SMALL;
-use super::super::tests::{callback_test_lock, register_android_runtime};
-use super::{
-    ANDROID_HOST_CREDENTIALS_CALLBACKS_ABI_VERSION, AndroidHostCredentialsCallbacks,
-    HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
-    clear_android_host_credentials_callbacks,
-    destack_runtime_host_android_credentials_authenticate,
+use super::super::abi::{
+    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,
+    HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
+};
+use super::super::credentials::{
+    AndroidHostCredentialsCallbacks, destack_runtime_host_android_credentials_authenticate,
     destack_runtime_host_android_credentials_contains,
-    destack_runtime_host_android_credentials_read,
-    destack_runtime_host_android_credentials_set_callbacks,
+    destack_runtime_host_android_credentials_delete, destack_runtime_host_android_credentials_read,
+    destack_runtime_host_android_credentials_write,
+};
+use super::super::tests::{
+    callback_test_lock, register_android_bindings_credentials, register_android_runtime,
 };
 use crate::platform::{NativeSlice, NativeStringRef};
 
 /// Mechanism code for one biometric host authentication result.
 const TEST_AUTHENTICATION_MECHANISM_BIOMETRIC: u32 = 2;
+/// Access-group value expected by contains callback tests.
+const TEST_ACCESS_GROUP: &str = "group.identifier";
 
 /// Report one positive contains result in callback tests.
 unsafe extern "C" fn test_contains(
     _runtime_id: u64,
     _service: NativeStringRef,
     _account: NativeStringRef,
+    access_group: NativeStringRef,
     is_present: *mut bool,
 ) -> u32 {
     if is_present.is_null() {
         return HOST_STATUS_INVALID_ARGUMENT;
     }
 
+    let access_group = match unsafe { access_group.as_str() } {
+        Ok(value) => value,
+        Err(_) => return HOST_STATUS_INVALID_ARGUMENT,
+    };
+    if access_group != TEST_ACCESS_GROUP {
+        return HOST_STATUS_INVALID_ARGUMENT;
+    }
+
     unsafe {
         *is_present = true;
+    }
+
+    HOST_STATUS_OK
+}
+
+/// Report one successful delete when the expected access-group is forwarded.
+unsafe extern "C" fn test_delete(
+    _runtime_id: u64,
+    _service: NativeStringRef,
+    _account: NativeStringRef,
+    access_group: NativeStringRef,
+) -> u32 {
+    let access_group = match unsafe { access_group.as_str() } {
+        Ok(value) => value,
+        Err(_) => return HOST_STATUS_INVALID_ARGUMENT,
+    };
+    if access_group != TEST_ACCESS_GROUP {
+        return HOST_STATUS_INVALID_ARGUMENT;
     }
 
     HOST_STATUS_OK
@@ -49,6 +80,24 @@ unsafe extern "C" fn test_authenticate(
     unsafe {
         *authenticated = true;
         *mechanism = TEST_AUTHENTICATION_MECHANISM_BIOMETRIC;
+    }
+
+    HOST_STATUS_OK
+}
+
+/// Report one successful write in callback tests.
+unsafe extern "C" fn test_write(
+    _runtime_id: u64,
+    _service: NativeStringRef,
+    _account: NativeStringRef,
+    _access_group: NativeStringRef,
+    payload: NativeSlice<u8>,
+    _accessibility: u32,
+    _authentication_policy: u32,
+    _replace_existing: bool,
+) -> u32 {
+    if payload.data.is_null() {
+        return HOST_STATUS_INVALID_ARGUMENT;
     }
 
     HOST_STATUS_OK
@@ -94,7 +143,6 @@ unsafe extern "C" fn test_read(
 #[test]
 fn test_default_callbacks_return_not_supported() {
     let _lock = callback_test_lock().lock().unwrap();
-    clear_android_host_credentials_callbacks();
     let (_bridge, _registration, runtime_id) = register_android_runtime();
     let mut is_present = false;
 
@@ -110,6 +158,10 @@ fn test_default_callbacks_return_not_supported() {
                 data: std::ptr::null_mut(),
                 len: 0,
             },
+            NativeStringRef {
+                data: std::ptr::null_mut(),
+                len: 0,
+            },
             &mut is_present,
         )
     };
@@ -117,24 +169,39 @@ fn test_default_callbacks_return_not_supported() {
 }
 
 #[test]
-fn test_set_callbacks_routes_calls() {
+fn test_register_bindings_rejects_unknown_runtime() {
     let _lock = callback_test_lock().lock().unwrap();
-    clear_android_host_credentials_callbacks();
+
+    let callbacks = AndroidHostCredentialsCallbacks::default();
+    let status = register_android_bindings_credentials(0, callbacks);
+
+    assert_eq!(status, HOST_STATUS_NOT_FOUND);
+}
+
+#[test]
+fn test_register_bindings_routes_calls() {
+    let _lock = callback_test_lock().lock().unwrap();
     let (_bridge, _registration, runtime_id) = register_android_runtime();
 
     let callbacks = AndroidHostCredentialsCallbacks {
-        abi_version: ANDROID_HOST_CREDENTIALS_CALLBACKS_ABI_VERSION,
         read: Some(test_read),
+        write: Some(test_write),
+        delete: Some(test_delete),
         contains: Some(test_contains),
         authenticate: Some(test_authenticate),
         ..AndroidHostCredentialsCallbacks::default()
     };
-    let status = unsafe { destack_runtime_host_android_credentials_set_callbacks(callbacks) };
+    let status = register_android_bindings_credentials(runtime_id, callbacks);
     assert_eq!(status, HOST_STATUS_OK);
 
     let empty_string = NativeStringRef {
         data: std::ptr::null_mut(),
         len: 0,
+    };
+    let access_group_string = TEST_ACCESS_GROUP.to_string();
+    let access_group = NativeStringRef {
+        data: access_group_string.as_ptr().cast_mut(),
+        len: access_group_string.len() as u32,
     };
 
     let mut is_present = false;
@@ -143,11 +210,40 @@ fn test_set_callbacks_routes_calls() {
             runtime_id,
             empty_string,
             empty_string,
+            access_group,
             &mut is_present,
         )
     };
     assert_eq!(status, HOST_STATUS_OK);
     assert!(is_present);
+
+    let status = unsafe {
+        destack_runtime_host_android_credentials_delete(
+            runtime_id,
+            empty_string,
+            empty_string,
+            access_group,
+        )
+    };
+    assert_eq!(status, HOST_STATUS_OK);
+
+    let payload = [7u8, 8, 9];
+    let status = unsafe {
+        destack_runtime_host_android_credentials_write(
+            runtime_id,
+            empty_string,
+            empty_string,
+            empty_string,
+            NativeSlice {
+                data: payload.as_ptr() as *mut u8,
+                len: payload.len() as u32,
+            },
+            1,
+            1,
+            true,
+        )
+    };
+    assert_eq!(status, HOST_STATUS_OK);
 
     let mut authenticated = false;
     let mut mechanism = 0;
@@ -181,7 +277,7 @@ fn test_set_callbacks_routes_calls() {
             empty_string,
             empty_string,
             false,
-            crate::platform::NativeSlice {
+            NativeSlice {
                 data: output_small.as_mut_ptr(),
                 len: output_small.len() as u32,
             },
@@ -204,7 +300,7 @@ fn test_set_callbacks_routes_calls() {
             empty_string,
             empty_string,
             false,
-            crate::platform::NativeSlice {
+            NativeSlice {
                 data: output.as_mut_ptr(),
                 len: output.len() as u32,
             },
@@ -218,14 +314,64 @@ fn test_set_callbacks_routes_calls() {
     assert_eq!(&output[..4], &[1, 2, 3, 4]);
     assert_eq!(created_unix_ns, 11);
     assert_eq!(modified_unix_ns, 22);
+}
 
-    clear_android_host_credentials_callbacks();
+#[test]
+fn test_register_bindings_rejects_duplicate_registration() {
+    let _lock = callback_test_lock().lock().unwrap();
+    let (_bridge, _registration, runtime_id) = register_android_runtime();
+
+    let first_callbacks = AndroidHostCredentialsCallbacks {
+        contains: Some(test_contains),
+        ..AndroidHostCredentialsCallbacks::default()
+    };
+    let first_status = register_android_bindings_credentials(runtime_id, first_callbacks);
+    assert_eq!(first_status, HOST_STATUS_OK);
+
+    let second_callbacks = AndroidHostCredentialsCallbacks {
+        contains: Some(test_contains),
+        ..AndroidHostCredentialsCallbacks::default()
+    };
+    let second_status = register_android_bindings_credentials(runtime_id, second_callbacks);
+    assert_eq!(second_status, HOST_STATUS_FAILED);
+}
+
+#[test]
+fn test_register_bindings_missing_callback_reports_not_supported() {
+    let _lock = callback_test_lock().lock().unwrap();
+    let (_bridge, _registration, runtime_id) = register_android_runtime();
+
+    let callbacks = AndroidHostCredentialsCallbacks {
+        read: Some(test_read),
+        ..AndroidHostCredentialsCallbacks::default()
+    };
+    let register_status = register_android_bindings_credentials(runtime_id, callbacks);
+    assert_eq!(register_status, HOST_STATUS_OK);
+
+    let empty_string = NativeStringRef {
+        data: std::ptr::null_mut(),
+        len: 0,
+    };
+    let mut authenticated = false;
+    let mut mechanism = 0;
+    let status = unsafe {
+        destack_runtime_host_android_credentials_authenticate(
+            runtime_id,
+            empty_string,
+            empty_string,
+            empty_string,
+            1,
+            &mut authenticated,
+            &mut mechanism,
+        )
+    };
+
+    assert_eq!(status, HOST_STATUS_NOT_SUPPORTED);
 }
 
 #[test]
 fn test_read_rejects_null_output_pointers() {
     let _lock = callback_test_lock().lock().unwrap();
-    clear_android_host_credentials_callbacks();
     let (_bridge, _registration, runtime_id) = register_android_runtime();
 
     let empty_string = NativeStringRef {
@@ -239,7 +385,7 @@ fn test_read_rejects_null_output_pointers() {
             empty_string,
             empty_string,
             false,
-            crate::platform::NativeSlice {
+            NativeSlice {
                 data: std::ptr::null_mut(),
                 len: 0,
             },
@@ -253,14 +399,47 @@ fn test_read_rejects_null_output_pointers() {
 }
 
 #[test]
-fn test_set_callbacks_rejects_unknown_abi_version() {
+fn test_contains_rejects_null_output_pointer() {
     let _lock = callback_test_lock().lock().unwrap();
-    clear_android_host_credentials_callbacks();
+    let (_bridge, _registration, runtime_id) = register_android_runtime();
 
-    let callbacks = AndroidHostCredentialsCallbacks {
-        abi_version: 99,
-        ..AndroidHostCredentialsCallbacks::default()
+    let empty_string = NativeStringRef {
+        data: std::ptr::null_mut(),
+        len: 0,
     };
-    let status = unsafe { destack_runtime_host_android_credentials_set_callbacks(callbacks) };
+    let status = unsafe {
+        destack_runtime_host_android_credentials_contains(
+            runtime_id,
+            empty_string,
+            empty_string,
+            empty_string,
+            std::ptr::null_mut(),
+        )
+    };
+
+    assert_eq!(status, HOST_STATUS_INVALID_ARGUMENT);
+}
+
+#[test]
+fn test_authenticate_rejects_null_output_pointers() {
+    let _lock = callback_test_lock().lock().unwrap();
+    let (_bridge, _registration, runtime_id) = register_android_runtime();
+
+    let empty_string = NativeStringRef {
+        data: std::ptr::null_mut(),
+        len: 0,
+    };
+    let status = unsafe {
+        destack_runtime_host_android_credentials_authenticate(
+            runtime_id,
+            empty_string,
+            empty_string,
+            empty_string,
+            1,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    };
+
     assert_eq!(status, HOST_STATUS_INVALID_ARGUMENT);
 }

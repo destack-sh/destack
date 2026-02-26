@@ -12,35 +12,35 @@ use crate::platform::{NativeStringRef, PlatformError};
 use crate::runtime::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
 /// Android lifecycle code for `onCreate`.
-const ANDROID_LIFECYCLE_CREATED: u32 = 0;
+pub(super) const ANDROID_LIFECYCLE_CREATED: u32 = 0;
 /// Android lifecycle code for `onStart`.
-const ANDROID_LIFECYCLE_STARTED: u32 = 1;
+pub(super) const ANDROID_LIFECYCLE_STARTED: u32 = 1;
 /// Android lifecycle code for `onResume`.
-const ANDROID_LIFECYCLE_RESUMED: u32 = 2;
+pub(super) const ANDROID_LIFECYCLE_RESUMED: u32 = 2;
 /// Android lifecycle code for `onPause`.
-const ANDROID_LIFECYCLE_PAUSED: u32 = 3;
+pub(super) const ANDROID_LIFECYCLE_PAUSED: u32 = 3;
 /// Android lifecycle code for `onStop`.
-const ANDROID_LIFECYCLE_STOPPED: u32 = 4;
+pub(super) const ANDROID_LIFECYCLE_STOPPED: u32 = 4;
 /// Android lifecycle code for `onDestroy`.
-const ANDROID_LIFECYCLE_DESTROYED: u32 = 5;
+pub(super) const ANDROID_LIFECYCLE_DESTROYED: u32 = 5;
 /// Android memory pressure code for normal state.
-const ANDROID_MEMORY_PRESSURE_NORMAL: u32 = 0;
+pub(super) const ANDROID_MEMORY_PRESSURE_NORMAL: u32 = 0;
 /// Android memory pressure code for warning state.
-const ANDROID_MEMORY_PRESSURE_WARNING: u32 = 1;
+pub(super) const ANDROID_MEMORY_PRESSURE_WARNING: u32 = 1;
 /// Android memory pressure code for critical state.
-const ANDROID_MEMORY_PRESSURE_CRITICAL: u32 = 2;
+pub(super) const ANDROID_MEMORY_PRESSURE_CRITICAL: u32 = 2;
 /// Android thermal code for nominal state.
-const ANDROID_THERMAL_NOMINAL: u32 = 0;
+pub(super) const ANDROID_THERMAL_NOMINAL: u32 = 0;
 /// Android thermal code for fair state.
-const ANDROID_THERMAL_FAIR: u32 = 1;
+pub(super) const ANDROID_THERMAL_FAIR: u32 = 1;
 /// Android thermal code for serious state.
-const ANDROID_THERMAL_SERIOUS: u32 = 2;
+pub(super) const ANDROID_THERMAL_SERIOUS: u32 = 2;
 /// Android thermal code for critical state.
-const ANDROID_THERMAL_CRITICAL: u32 = 3;
+pub(super) const ANDROID_THERMAL_CRITICAL: u32 = 3;
 /// Android power mode code for normal state.
-const ANDROID_POWER_MODE_NORMAL: u32 = 0;
+pub(super) const ANDROID_POWER_MODE_NORMAL: u32 = 0;
 /// Android power mode code for low power state.
-const ANDROID_POWER_MODE_LOW_POWER: u32 = 1;
+pub(super) const ANDROID_POWER_MODE_LOW_POWER: u32 = 1;
 
 /// Notify the runtime host bridge about one Android activity lifecycle transition.
 #[unsafe(no_mangle)]
@@ -181,7 +181,7 @@ pub unsafe extern "C" fn destack_runtime_host_android_notify_wake(
 }
 
 /// Convert one android lifecycle code into the runtime lifecycle enum.
-fn decode_android_activity_lifecycle(
+pub(super) fn decode_android_activity_lifecycle(
     lifecycle_code: u32,
 ) -> RuntimeResult<AndroidActivityLifecycle> {
     let lifecycle = match lifecycle_code {
@@ -204,7 +204,9 @@ fn decode_android_activity_lifecycle(
 }
 
 /// Convert one android memory pressure code into the runtime memory pressure enum.
-fn decode_android_memory_pressure_level(level_code: u32) -> RuntimeResult<HostMemoryPressureLevel> {
+pub(super) fn decode_android_memory_pressure_level(
+    level_code: u32,
+) -> RuntimeResult<HostMemoryPressureLevel> {
     let level = match level_code {
         ANDROID_MEMORY_PRESSURE_NORMAL => HostMemoryPressureLevel::Normal,
         ANDROID_MEMORY_PRESSURE_WARNING => HostMemoryPressureLevel::Warning,
@@ -222,7 +224,7 @@ fn decode_android_memory_pressure_level(level_code: u32) -> RuntimeResult<HostMe
 }
 
 /// Convert one android thermal code into the runtime thermal enum.
-fn decode_android_thermal_state(thermal_code: u32) -> RuntimeResult<HostThermalState> {
+pub(super) fn decode_android_thermal_state(thermal_code: u32) -> RuntimeResult<HostThermalState> {
     let state = match thermal_code {
         ANDROID_THERMAL_NOMINAL => HostThermalState::Nominal,
         ANDROID_THERMAL_FAIR => HostThermalState::Fair,
@@ -241,7 +243,7 @@ fn decode_android_thermal_state(thermal_code: u32) -> RuntimeResult<HostThermalS
 }
 
 /// Convert one android power mode code into the runtime power mode enum.
-fn decode_android_power_mode(power_mode_code: u32) -> RuntimeResult<HostPowerMode> {
+pub(super) fn decode_android_power_mode(power_mode_code: u32) -> RuntimeResult<HostPowerMode> {
     let mode = match power_mode_code {
         ANDROID_POWER_MODE_NORMAL => HostPowerMode::Normal,
         ANDROID_POWER_MODE_LOW_POWER => HostPowerMode::LowPower,
@@ -266,7 +268,3 @@ fn decode_permission_name(permission: NativeStringRef) -> RuntimeResult<String> 
 fn runtime_status(result: RuntimeResult<()>) -> RuntimeStatus {
     RuntimeStatus::from_result(result, None)
 }
-
-#[cfg(test)]
-#[path = "tests/ffi.rs"]
-mod tests;
