@@ -8,7 +8,7 @@ mod ffi;
 mod tests;
 
 #[cfg(target_os = "netbsd")]
-pub(super) use adapter::NetBsdHostAdapter;
+pub(super) use adapter::NetBsdHost;
 #[cfg(any(test, target_os = "netbsd"))]
 pub use callback::{
     NetBsdApplicationLifecycle, netbsd_notify_application_lifecycle,

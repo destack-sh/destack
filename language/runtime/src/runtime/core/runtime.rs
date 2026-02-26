@@ -24,8 +24,6 @@ pub struct Runtime {
     pub heap: Heap,
     /// Event loop for tasks, microtasks, and timers.
     pub event_loop: Box<EventLoop>,
-    /// Host adapter integration.
-    pub host: HostRuntime,
     /// Optional platform poller for external events.
     pub poller: Option<Box<dyn HostPoller>>,
 }
@@ -37,7 +35,7 @@ impl std::fmt::Debug for Runtime {
             .field("state", &self.state)
             .field("heap", &self.heap)
             .field("event_loop", &self.event_loop)
-            .field("host", &self.host)
+            .field("host", &self.state.host)
             .field("poller", &"<platform poller>")
             .finish()
     }
@@ -54,14 +52,12 @@ impl Runtime {
         bindings.install_native_defaults();
         let mut heap = Heap::default();
         heap.configure_gc(state.gc.clone());
-        let host = state.host.clone();
 
         Self {
             bindings,
             state,
             heap,
             event_loop,
-            host,
             poller: None,
         }
     }
@@ -87,14 +83,14 @@ impl Runtime {
         self.poller = Some(poller);
     }
 
-    /// Borrow host adapter integration.
+    /// Borrow host integration.
     pub fn host(&self) -> &HostRuntime {
-        &self.host
+        &self.state.host
     }
 
     /// Return the callback runtime id used by native host callback routing.
     pub fn host_callback_runtime_id(&self) -> Option<u64> {
-        self.host.callback_runtime_id()
+        self.state.host.callback_runtime_id()
     }
 
     /// Register one timer watch.

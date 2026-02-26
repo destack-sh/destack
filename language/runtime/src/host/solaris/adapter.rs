@@ -4,50 +4,42 @@ use destack_workspace::PlatformHostOptions;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::{
-    HostBridge, HostBridgeRegistration, HostStateStore, default_host_capabilities,
-    register_host_bridge,
+    HostBridge, HostBridgeRegistration, HostState, default_host_capabilities, register_host_bridge,
 };
-use crate::host::{
-    HostAdapter, HostEvent, HostLifecycleState, HostPermissionService, HostPlatform, HostServices,
-    HostStateReader,
-};
+use crate::host::{Host, HostLifecycleState, HostPlatform, HostPollOutcome};
 use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::poller::HostPollerWakeHandle;
 
-/// Solaris host adapter implementation.
+/// Solaris host implementation.
 #[derive(Debug)]
-pub(crate) struct SolarisHostAdapter {
+pub(crate) struct SolarisHost {
     /// Shared callback bridge used for event ingestion and state updates.
     bridge: Arc<HostBridge>,
     /// Shared registration guard for callback routing.
     registration: HostBridgeRegistration,
-    /// Service surfaces exposed by this adapter.
-    services: HostServices,
 }
 
-impl SolarisHostAdapter {
-    /// Create one Solaris host adapter.
+impl SolarisHost {
+    /// Create one Solaris host.
     pub(crate) fn new() -> Self {
-        let state_store = Arc::new(HostStateStore::new());
-        let bridge = Arc::new(HostBridge::new(state_store));
+        let state = Arc::new(HostState::new());
+        let bridge = Arc::new(HostBridge::new(state));
         bridge.push_lifecycle(HostLifecycleState::Initializing);
         let registration = register_host_bridge(HostPlatform::Solaris, &bridge);
-        let services = build_solaris_services(bridge.state_store());
 
         Self {
             bridge,
             registration,
-            services,
         }
     }
 }
 
-impl HostAdapter for SolarisHostAdapter {
+impl Host for SolarisHost {
     fn platform(&self) -> HostPlatform {
         HostPlatform::Solaris
     }
 
-    fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<HostEvent>> {
+    fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<HostPollOutcome> {
         self.bridge.poll_events(timeout_nanos)
     }
 
@@ -63,25 +55,11 @@ impl HostAdapter for SolarisHostAdapter {
         Some(self.registration.runtime_id())
     }
 
-    fn take_dropped_event_count(&self) -> u64 {
-        self.bridge.take_dropped_event_count()
-    }
-
     fn host_capabilities(&self) -> PlatformCapabilitySet {
         default_host_capabilities(self.platform())
     }
 
-    fn services(&self) -> &HostServices {
-        &self.services
+    fn state(&self) -> &Arc<HostState> {
+        self.bridge.state()
     }
-}
-
-/// Build Solaris host service trait surfaces from one shared state object.
-fn build_solaris_services(state_store: &Arc<HostStateStore>) -> HostServices {
-    let state_service: Arc<dyn HostStateReader> = state_store.clone();
-    let permission_service: Arc<dyn HostPermissionService> = state_store.clone();
-
-    HostServices::default()
-        .with_state(state_service)
-        .with_permission(permission_service)
 }

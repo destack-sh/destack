@@ -4,7 +4,7 @@ mod ffi;
 #[cfg(test)]
 mod tests;
 
-pub(super) use adapter::MacosHostAdapter;
+pub(super) use adapter::MacosHost;
 pub use callback::{
     MacosApplicationLifecycle, macos_notify_application_lifecycle,
     macos_notify_interruption_changed, macos_notify_memory_pressure_changed,

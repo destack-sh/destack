@@ -156,7 +156,7 @@ impl Runtime {
         let mut progressed = false;
         let tick_start_mono_nanos = self.state.time.mono_nanos();
 
-        // poll host adapter events before poller events
+        // poll host events before poller events
         let host_event_count = self.poll_host_events(Some(0))?;
         if host_event_count > 0 {
             progressed = true;
@@ -518,7 +518,7 @@ impl Runtime {
             .event_loop
             .timeout_until_next_timer(wall_now_nanos, mono_now_nanos);
 
-        // poll host adapter events before blocking or sleeping
+        // poll host events before blocking or sleeping
         let host_event_count = self.poll_host_events(Some(0))?;
         if host_event_count > 0 {
             self.state.hooks.on_scheduler_event_wake(RuntimeHookState {
@@ -556,10 +556,11 @@ impl Runtime {
         Ok(false)
     }
 
-    /// Poll host adapter events and enqueue runtime poller events.
+    /// Poll host events and enqueue runtime poller events.
     fn poll_host_events(&mut self, timeout_nanos: Option<u64>) -> RuntimeResult<usize> {
-        // drain host adapter events for this tick
-        let events = self.host.poll_events(timeout_nanos)?;
+        // drain host events for this tick
+        let poll_result = self.state.host.poll_events(timeout_nanos)?;
+        let events = poll_result.events;
         let mut poller_events = Vec::new();
         let mut host_events = Vec::new();
         for event in events {
@@ -574,8 +575,8 @@ impl Runtime {
             }
         }
 
-        // record dropped host queue events from adapter-side queue policy
-        let dropped_host_events = self.host.take_dropped_event_count();
+        // record dropped host queue events from host-side queue policy
+        let dropped_host_events = poll_result.dropped_event_count;
         if dropped_host_events > 0 {
             self.event_loop
                 .record_dropped_host_queue_events(dropped_host_events);

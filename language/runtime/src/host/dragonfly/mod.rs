@@ -8,7 +8,7 @@ mod ffi;
 mod tests;
 
 #[cfg(target_os = "dragonfly")]
-pub(super) use adapter::DragonflyHostAdapter;
+pub(super) use adapter::DragonflyHost;
 #[cfg(any(test, target_os = "dragonfly"))]
 pub use callback::{
     DragonflyApplicationLifecycle, dragonfly_notify_application_lifecycle,

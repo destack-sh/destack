@@ -8,7 +8,7 @@ mod ffi;
 mod tests;
 
 #[cfg(target_os = "haiku")]
-pub(super) use adapter::HaikuHostAdapter;
+pub(super) use adapter::HaikuHost;
 #[cfg(any(test, target_os = "haiku"))]
 pub use callback::{
     HaikuApplicationLifecycle, haiku_notify_application_lifecycle,

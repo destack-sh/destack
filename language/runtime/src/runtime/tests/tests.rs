@@ -407,7 +407,7 @@ fn runtime_for_options_with_host_clock_source(
 
     // drain initial host bootstrap events for deterministic scheduler tests
     runtime
-        .host
+        .host()
         .poll_events(Some(0))
         .expect("host bootstrap events should drain");
 

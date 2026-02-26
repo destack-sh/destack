@@ -1,7 +1,7 @@
 use super::HostPlatform;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
 
-/// Return host capabilities currently implemented by default host adapters.
+/// Return host capabilities currently implemented by default hosts.
 pub(crate) fn default_host_capabilities(_platform: HostPlatform) -> PlatformCapabilitySet {
     let mut host_capabilities = PlatformCapabilitySet::new();
 

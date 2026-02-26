@@ -3,48 +3,41 @@ use std::sync::Arc;
 use destack_workspace::PlatformHostOptions;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostBridge, HostBridgeRegistration, HostStateStore, register_host_bridge};
-use crate::host::{
-    HostAdapter, HostEvent, HostLifecycleState, HostPermissionService, HostPlatform, HostServices,
-    HostStateReader,
-};
+use crate::host::core::{HostBridge, HostBridgeRegistration, HostState, register_host_bridge};
+use crate::host::{Host, HostLifecycleState, HostPlatform, HostPollOutcome};
 use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::poller::HostPollerWakeHandle;
 
-/// Unsupported host adapter implementation.
+/// Unsupported host implementation.
 #[derive(Debug)]
-pub(crate) struct UnsupportedHostAdapter {
+pub(crate) struct UnsupportedHost {
     /// Shared callback bridge used for event ingestion and state updates.
     bridge: Arc<HostBridge>,
     /// Shared registration guard for callback routing.
     registration: HostBridgeRegistration,
-    /// Service surfaces exposed by this adapter.
-    services: HostServices,
 }
 
-impl UnsupportedHostAdapter {
-    /// Create one unsupported host adapter.
+impl UnsupportedHost {
+    /// Create one unsupported host.
     pub(crate) fn new() -> Self {
-        let state_store = Arc::new(HostStateStore::new());
-        let bridge = Arc::new(HostBridge::new(state_store));
+        let state = Arc::new(HostState::new());
+        let bridge = Arc::new(HostBridge::new(state));
         bridge.push_lifecycle(HostLifecycleState::Initializing);
         let registration = register_host_bridge(HostPlatform::Universal, &bridge);
-        let services = build_unsupported_services(bridge.state_store());
 
         Self {
             bridge,
             registration,
-            services,
         }
     }
 }
 
-impl HostAdapter for UnsupportedHostAdapter {
+impl Host for UnsupportedHost {
     fn platform(&self) -> HostPlatform {
         HostPlatform::Universal
     }
 
-    fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<HostEvent>> {
+    fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<HostPollOutcome> {
         self.bridge.poll_events(timeout_nanos)
     }
 
@@ -60,25 +53,11 @@ impl HostAdapter for UnsupportedHostAdapter {
         Some(self.registration.runtime_id())
     }
 
-    fn take_dropped_event_count(&self) -> u64 {
-        self.bridge.take_dropped_event_count()
-    }
-
     fn host_capabilities(&self) -> PlatformCapabilitySet {
         PlatformCapabilitySet::new()
     }
 
-    fn services(&self) -> &HostServices {
-        &self.services
+    fn state(&self) -> &Arc<HostState> {
+        self.bridge.state()
     }
-}
-
-/// Build unsupported host service trait surfaces from one shared state object.
-fn build_unsupported_services(state_store: &Arc<HostStateStore>) -> HostServices {
-    let state_service: Arc<dyn HostStateReader> = state_store.clone();
-    let permission_service: Arc<dyn HostPermissionService> = state_store.clone();
-
-    HostServices::default()
-        .with_state(state_service)
-        .with_permission(permission_service)
 }

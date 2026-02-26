@@ -8,7 +8,7 @@ mod ffi;
 mod tests;
 
 #[cfg(target_os = "solaris")]
-pub(super) use adapter::SolarisHostAdapter;
+pub(super) use adapter::SolarisHost;
 #[cfg(any(test, target_os = "solaris"))]
 pub use callback::{
     SolarisApplicationLifecycle, solaris_notify_application_lifecycle,

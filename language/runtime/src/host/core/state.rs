@@ -4,8 +4,8 @@ use parking_lot::RwLock;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::{
-    HostEvent, HostLifecycleState, HostMemoryPressureLevel, HostPermissionService, HostPowerMode,
-    HostStateReader, HostThermalState, HostWindowEvent,
+    HostEvent, HostLifecycleState, HostMemoryPressureLevel, HostPowerMode, HostThermalState,
+    HostWindowEvent,
 };
 
 /// Encoded lifecycle value for initializing.
@@ -39,7 +39,7 @@ const POWER_MODE_LOW_POWER: u8 = 1;
 
 /// Mutable host service state shared by adapter service surfaces.
 #[derive(Debug)]
-pub(crate) struct HostStateStore {
+pub struct HostState {
     /// Current lifecycle state.
     lifecycle_state: AtomicU8,
     /// State tracked for each known host window.
@@ -69,15 +69,15 @@ struct HostWindowState {
     height_px: u32,
 }
 
-impl Default for HostStateStore {
+impl Default for HostState {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl HostStateStore {
+impl HostState {
     /// Create one host service state with neutral defaults.
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             lifecycle_state: AtomicU8::new(LIFECYCLE_INITIALIZING),
             windows: RwLock::new(FxHashMap::default()),
@@ -164,49 +164,56 @@ impl HostStateStore {
     }
 }
 
-impl HostStateReader for HostStateStore {
-    fn lifecycle_state(&self) -> HostLifecycleState {
+impl HostState {
+    /// Return the current lifecycle state.
+    pub fn lifecycle_state(&self) -> HostLifecycleState {
         let lifecycle_state = self.lifecycle_state.load(Ordering::Relaxed);
         decode_lifecycle_state(lifecycle_state)
     }
 
-    fn has_window(&self) -> bool {
+    /// Return whether one native window is currently available.
+    pub fn has_window(&self) -> bool {
         !self.windows.read().is_empty()
     }
 
-    fn is_window_focused(&self) -> bool {
+    /// Return whether one native window is currently focused.
+    pub fn is_window_focused(&self) -> bool {
         self.windows
             .read()
             .values()
             .any(|window_state| window_state.is_focused)
     }
 
-    fn is_interrupted(&self) -> bool {
+    /// Return whether host interruption is currently active.
+    pub fn is_interrupted(&self) -> bool {
         self.is_interrupted.load(Ordering::Relaxed)
     }
 
-    fn memory_pressure_level(&self) -> HostMemoryPressureLevel {
+    /// Return the current host memory pressure level.
+    pub fn memory_pressure_level(&self) -> HostMemoryPressureLevel {
         let encoded_level = self.memory_pressure_level.load(Ordering::Relaxed);
         decode_memory_pressure_level(encoded_level)
     }
 
-    fn thermal_state(&self) -> HostThermalState {
+    /// Return the current host thermal state.
+    pub fn thermal_state(&self) -> HostThermalState {
         let encoded_state = self.thermal_state.load(Ordering::Relaxed);
         decode_thermal_state(encoded_state)
     }
 
-    fn power_mode(&self) -> HostPowerMode {
+    /// Return the current host power mode.
+    pub fn power_mode(&self) -> HostPowerMode {
         let encoded_mode = self.power_mode.load(Ordering::Relaxed);
         decode_power_mode(encoded_mode)
     }
 
-    fn wall_clock_change_count(&self) -> u64 {
+    /// Return the number of host wall clock change events observed.
+    pub fn wall_clock_change_count(&self) -> u64 {
         self.wall_clock_change_count.load(Ordering::Relaxed)
     }
-}
 
-impl HostPermissionService for HostStateStore {
-    fn is_request_in_flight(&self, permission: &str) -> bool {
+    /// Return whether the named permission currently has a pending request.
+    pub fn is_request_in_flight(&self, permission: &str) -> bool {
         let permissions_in_flight = self.permissions_in_flight.read();
         permissions_in_flight.contains(permission)
     }
@@ -290,17 +297,17 @@ fn decode_power_mode(encoded_mode: u8) -> HostPowerMode {
 
 #[cfg(test)]
 mod tests {
-    use super::HostStateStore;
+    use super::HostState;
     use crate::host::{
         HostEvent, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleState,
         HostMemoryPressureEvent, HostMemoryPressureLevel, HostPowerMode, HostPowerModeEvent,
-        HostStateReader, HostThermalEvent, HostThermalState, HostWallClockEvent, HostWindowEvent,
+        HostThermalEvent, HostThermalState, HostWallClockEvent, HostWindowEvent,
         HostWindowFocusEvent,
     };
 
     #[test]
     fn test_apply_event_updates_lifecycle_state() {
-        let state = HostStateStore::new();
+        let state = HostState::new();
         let event = HostEvent::Lifecycle(HostLifecycleEvent {
             state: HostLifecycleState::Running,
         });
@@ -312,7 +319,7 @@ mod tests {
 
     #[test]
     fn test_apply_event_updates_window_state() {
-        let state = HostStateStore::new();
+        let state = HostState::new();
 
         state.apply_event(&HostEvent::Window(HostWindowEvent::WindowAvailable {
             window_id: 11,
@@ -327,7 +334,7 @@ mod tests {
 
     #[test]
     fn test_apply_event_updates_interruption_state() {
-        let state = HostStateStore::new();
+        let state = HostState::new();
         let event = HostEvent::Interruption(HostInterruptionEvent { interrupted: true });
 
         state.apply_event(&event);
@@ -337,7 +344,7 @@ mod tests {
 
     #[test]
     fn test_apply_event_updates_window_focus_state() {
-        let state = HostStateStore::new();
+        let state = HostState::new();
         let event = HostEvent::WindowFocus(HostWindowFocusEvent {
             window_id: 42,
             is_focused: false,
@@ -350,7 +357,7 @@ mod tests {
 
     #[test]
     fn test_apply_event_updates_memory_pressure_state() {
-        let state = HostStateStore::new();
+        let state = HostState::new();
         let event = HostEvent::MemoryPressure(HostMemoryPressureEvent {
             level: HostMemoryPressureLevel::Critical,
         });
@@ -365,7 +372,7 @@ mod tests {
 
     #[test]
     fn test_apply_event_updates_thermal_state() {
-        let state = HostStateStore::new();
+        let state = HostState::new();
         let event = HostEvent::ThermalState(HostThermalEvent {
             state: HostThermalState::Serious,
         });
@@ -377,7 +384,7 @@ mod tests {
 
     #[test]
     fn test_apply_event_updates_power_mode_state() {
-        let state = HostStateStore::new();
+        let state = HostState::new();
         let event = HostEvent::PowerMode(HostPowerModeEvent {
             mode: HostPowerMode::LowPower,
         });
@@ -389,7 +396,7 @@ mod tests {
 
     #[test]
     fn test_apply_event_updates_wall_clock_change_count() {
-        let state = HostStateStore::new();
+        let state = HostState::new();
         let event = HostEvent::WallClock(HostWallClockEvent);
 
         state.apply_event(&event);

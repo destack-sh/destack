@@ -414,7 +414,7 @@ impl EventLoop {
             self.dropped_unwatched_dispatch_events.saturating_add(1);
     }
 
-    /// Record dropped host queue events reported by the host adapter.
+    /// Record dropped host queue events reported by the host.
     pub fn record_dropped_host_queue_events(&mut self, dropped_count: u64) {
         self.dropped_host_queue_events =
             self.dropped_host_queue_events.saturating_add(dropped_count);

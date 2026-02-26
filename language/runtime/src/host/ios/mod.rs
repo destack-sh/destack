@@ -8,7 +8,7 @@ mod ffi;
 mod tests;
 
 #[cfg(target_os = "ios")]
-pub(super) use adapter::IosHostAdapter;
+pub(super) use adapter::IosHost;
 #[cfg(any(test, target_os = "ios"))]
 pub use callback::{
     IosApplicationLifecycle, ios_notify_application_lifecycle, ios_notify_interruption_changed,

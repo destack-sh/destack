@@ -8,7 +8,7 @@ mod ffi;
 mod tests;
 
 #[cfg(target_os = "linux")]
-pub(super) use adapter::LinuxHostAdapter;
+pub(super) use adapter::LinuxHost;
 #[cfg(any(test, target_os = "linux"))]
 pub use callback::{
     LinuxApplicationLifecycle, linux_notify_application_lifecycle,

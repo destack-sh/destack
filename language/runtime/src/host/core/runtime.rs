@@ -2,25 +2,25 @@ use std::sync::Arc;
 
 use destack_workspace::{PlatformHostOptions, RuntimeOptions};
 
-use super::adapter::{HostAdapter, HostPlatform};
+use super::adapter::{Host, HostPlatform, HostPollOutcome};
 use super::event::HostEvent;
-use super::select::{compile_target_host_platform, default_host_adapter};
-use super::service::HostServices;
+use super::select::{compile_target_host_platform, default_host};
+use super::state::HostState;
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilityId, PlatformCapabilitySet};
 use crate::runtime::poller::HostPollerWakeHandle;
 
-/// Runtime host adapter container.
+/// Runtime host integration container.
 #[derive(Clone)]
 pub struct HostRuntime {
-    /// Active host adapter for this runtime instance.
-    adapter: Arc<dyn HostAdapter>,
-    /// Host capability set reported by the host adapter.
+    /// Active host implementation for this runtime instance.
+    host: Arc<dyn Host>,
+    /// Host capability set reported by the host implementation.
     host_capabilities: PlatformCapabilitySet,
     /// Resolved host integration options for this runtime target.
     host_options: PlatformHostOptions,
-    /// Filtered service surfaces enabled for this runtime target.
-    services: HostServices,
+    /// Host state service for this runtime target.
+    state: Arc<HostState>,
 }
 
 impl std::fmt::Debug for HostRuntime {
@@ -54,45 +54,42 @@ impl std::fmt::Debug for HostRuntime {
 }
 
 impl HostRuntime {
-    /// Create one host runtime from one explicit adapter.
-    pub fn new(adapter: Arc<dyn HostAdapter>) -> Self {
-        Self::new_with_options(adapter, PlatformHostOptions::default())
+    /// Create one host runtime from one explicit host.
+    pub fn new(host: Arc<dyn Host>) -> Self {
+        Self::new_with_options(host, PlatformHostOptions::default())
     }
 
-    /// Create one host runtime from one explicit adapter and host options.
-    pub fn new_with_options(
-        adapter: Arc<dyn HostAdapter>,
-        host_options: PlatformHostOptions,
-    ) -> Self {
-        adapter.configure_host_options(&host_options);
-        let host_capabilities = adapter.host_capabilities();
-        let services = filtered_services(&adapter, &host_options);
+    /// Create one host runtime from one explicit host and host options.
+    pub fn new_with_options(host: Arc<dyn Host>, host_options: PlatformHostOptions) -> Self {
+        host.configure_host_options(&host_options);
+        let host_capabilities = host.host_capabilities();
+        let state = Arc::clone(host.state());
 
         Self {
-            adapter,
+            host,
             host_capabilities,
             host_options,
-            services,
+            state,
         }
     }
 
     /// Create one host runtime from runtime options.
     pub fn from_runtime_options(options: &RuntimeOptions) -> Self {
-        // select the host adapter for this compile target
-        let adapter = default_host_adapter();
+        // select the host for this compile target
+        let host = default_host();
         let host_options = host_options_for_target(options);
 
-        Self::new_with_options(adapter, host_options)
+        Self::new_with_options(host, host_options)
     }
 
     /// Return the active host platform.
     pub fn platform(&self) -> HostPlatform {
-        self.adapter.platform()
+        self.host.platform()
     }
 
-    /// Return the active adapter.
-    pub fn adapter(&self) -> &Arc<dyn HostAdapter> {
-        &self.adapter
+    /// Return the active host implementation.
+    pub fn host(&self) -> &Arc<dyn Host> {
+        &self.host
     }
 
     /// Return host platform capabilities reported by this runtime target.
@@ -122,37 +119,36 @@ impl HostRuntime {
         self.host_capabilities.contains_capability(capability)
     }
 
-    /// Return the service surfaces exposed by this host.
-    pub fn services(&self) -> &HostServices {
-        &self.services
+    /// Return host state service for this runtime target.
+    pub fn state(&self) -> &Arc<HostState> {
+        &self.state
     }
 
-    /// Poll host events using the active adapter.
-    pub fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<Vec<HostEvent>> {
-        let events = self.adapter.poll_events(timeout_nanos)?;
+    /// Poll host events using the active host.
+    pub fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<HostPollOutcome> {
+        let poll_result = self.host.poll_events(timeout_nanos)?;
+        let events = filter_events(poll_result.events, &self.host_options);
 
-        Ok(filter_events(events, &self.host_options))
+        Ok(HostPollOutcome {
+            events,
+            dropped_event_count: poll_result.dropped_event_count,
+        })
     }
 
     /// Return one shared host wake handle when supported.
     pub fn wake_handle(&self) -> Option<Arc<dyn HostPollerWakeHandle>> {
-        self.adapter.wake_handle()
+        self.host.wake_handle()
     }
 
     /// Return the callback runtime id for native host callback routing.
     pub fn callback_runtime_id(&self) -> Option<u64> {
-        self.adapter.callback_runtime_id()
-    }
-
-    /// Take the number of dropped host events observed by this adapter.
-    pub fn take_dropped_event_count(&self) -> u64 {
-        self.adapter.take_dropped_event_count()
+        self.host.callback_runtime_id()
     }
 }
 
 impl Default for HostRuntime {
     fn default() -> Self {
-        Self::new(default_host_adapter())
+        Self::new(default_host())
     }
 }
 
@@ -173,32 +169,6 @@ fn host_options_for_target(options: &RuntimeOptions) -> PlatformHostOptions {
         HostPlatform::Windows => options.platform.windows.host.clone(),
         _ => PlatformHostOptions::default(),
     }
-}
-
-/// Return service surfaces filtered by host integration options.
-fn filtered_services(
-    adapter: &Arc<dyn HostAdapter>,
-    host_options: &PlatformHostOptions,
-) -> HostServices {
-    let adapter_services = adapter.services();
-    let mut services = HostServices::default();
-
-    // enable host state reads when any host state events are enabled
-    let enable_state_service = host_options.enable_lifecycle_events
-        || host_options.enable_window_events
-        || host_options.enable_interruption_events;
-    if enable_state_service && let Some(service) = adapter_services.state() {
-        services = services.with_state(Arc::clone(service));
-    }
-
-    // enable permission reads when permission events are enabled
-    if host_options.enable_permission_events
-        && let Some(service) = adapter_services.permission()
-    {
-        services = services.with_permission(Arc::clone(service));
-    }
-
-    services
 }
 
 /// Filter one host event vector with host integration options.
