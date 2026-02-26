@@ -40,10 +40,10 @@ pub(super) fn run(test: &TestCase) -> TestResult {
 
     // create file
     let uri = Uri::from_path(&test.path);
-    let file_type = if test.path.to_string_lossy().ends_with(".d.ds") {
-        FileType::DestackDeclaration
-    } else {
-        FileType::Destack
+    let Some(file_type) = FileType::from_path(&test.path) else {
+        return TestResult::Failed {
+            message: format!("unsupported roundtrip file type: {}", test.path.display()),
+        };
     };
     let file_id = program.files.next_id();
     let name = test.path.file_name().unwrap().to_string_lossy().to_string();
