@@ -1170,7 +1170,7 @@ impl<'call> OsHarnessContext<'call> {
     /// Uses LocalAuthentication and biometric manager APIs when available.
     ///
     /// # Errors
-    /// Returns ioPermissionDenied, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+    /// Returns invalidArgumentValue, ioPermissionDenied, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
     ///
     /// # Security
     /// Requires `os.credentials.auth`.
@@ -1215,9 +1215,10 @@ impl<'call> OsHarnessContext<'call> {
     /// # Platform
     /// Unix and Windows.
     /// Uses host credential-query APIs.
+    /// Optional access-group routing is honored on Apple keychain backends and returns `notSupported` on backends without access-group lanes.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    /// Returns invalidArgumentValue, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
     ///
     /// # Security
     /// Requires `os.credentials.read`.
@@ -1228,22 +1229,26 @@ impl<'call> OsHarnessContext<'call> {
         &mut self,
         service: HarnessValue<NativeStringRef, vm::StringHandle>,
         account: HarnessValue<NativeStringRef, vm::StringHandle>,
+        accessgroup: HarnessValue<NativeStringRef, vm::StringHandle>,
     ) -> RuntimeResult<bool> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let service = service.into_vm("service")?;
                 let account = account.into_vm("account")?;
+                let accessgroup = accessgroup.into_vm("accessgroup")?;
                 let out = os_vm::destack_os_credentials_contains(
                     self.call_context,
                     context,
                     service,
                     account,
+                    accessgroup,
                 )?;
                 Ok(out)
             }
             None => {
                 let service = service.into_native("service")?;
                 let account = account.into_native("account")?;
+                let accessgroup = accessgroup.into_native("accessgroup")?;
                 let mut out = std::mem::MaybeUninit::<bool>::uninit();
                 unsafe {
                     os_native::destack_os_credentials_contains(
@@ -1251,6 +1256,7 @@ impl<'call> OsHarnessContext<'call> {
                         out.as_mut_ptr(),
                         service,
                         account,
+                        accessgroup,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -1266,9 +1272,10 @@ impl<'call> OsHarnessContext<'call> {
     /// # Platform
     /// Unix and Windows.
     /// Uses host credential-delete APIs.
+    /// Optional access-group routing is honored on Apple keychain backends and returns `notSupported` on backends without access-group lanes.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+    /// Returns invalidArgumentValue, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
     ///
     /// # Security
     /// Requires `os.credentials.write`.
@@ -1279,18 +1286,32 @@ impl<'call> OsHarnessContext<'call> {
         &mut self,
         service: HarnessValue<NativeStringRef, vm::StringHandle>,
         account: HarnessValue<NativeStringRef, vm::StringHandle>,
+        accessgroup: HarnessValue<NativeStringRef, vm::StringHandle>,
     ) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
                 let service = service.into_vm("service")?;
                 let account = account.into_vm("account")?;
-                os_vm::destack_os_credentials_delete(self.call_context, context, service, account)
+                let accessgroup = accessgroup.into_vm("accessgroup")?;
+                os_vm::destack_os_credentials_delete(
+                    self.call_context,
+                    context,
+                    service,
+                    account,
+                    accessgroup,
+                )
             }
             None => {
                 let service = service.into_native("service")?;
                 let account = account.into_native("account")?;
+                let accessgroup = accessgroup.into_native("accessgroup")?;
                 unsafe {
-                    os_native::destack_os_credentials_delete(self.call_context, service, account)
+                    os_native::destack_os_credentials_delete(
+                        self.call_context,
+                        service,
+                        account,
+                        accessgroup,
+                    )
                 }
             }
         }
@@ -1302,10 +1323,10 @@ impl<'call> OsHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows.
-    /// Uses Keychain on Apple platforms, Keystore-backed secure storage on Android, and credential manager APIs on desktop hosts.
+    /// Uses Keychain on Apple platforms, host callback bridge lanes on Android, Windows Credential Manager, and Linux keyutils plus Secret Service credential stores where available.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    /// Returns invalidArgumentValue, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
     ///
     /// # Security
     /// Requires `os.credentials.read`.
@@ -1345,9 +1366,10 @@ impl<'call> OsHarnessContext<'call> {
     /// # Platform
     /// Unix and Windows.
     /// Uses host credential-write APIs.
+    /// `replaceExisting=false` is strict within one runtime process and best effort across concurrent external writers.
     ///
     /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+    /// Returns invalidArgumentValue, ioAlreadyExists, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
     ///
     /// # Security
     /// Requires `os.credentials.write`.

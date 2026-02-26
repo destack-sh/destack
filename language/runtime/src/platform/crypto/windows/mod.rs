@@ -10,7 +10,6 @@ mod probe;
 mod random;
 mod store;
 
-pub(crate) use crate::platform::crypto::core::host_store_supports_key_persistence;
 pub(crate) use agreement::*;
 pub(crate) use backend::*;
 pub(crate) use certificate::*;

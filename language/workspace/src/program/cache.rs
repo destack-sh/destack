@@ -573,7 +573,6 @@ mod tests {
 
     #[test]
     #[ignore]
-    // FUGU #Broken: revisit cache structs, postcard returns WontImplement for this payload shape
     fn test_module_ast_cache_roundtrip() {
         // roundtrip module ast cache entries through disk
         let module_ast = ModuleAst::new(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);

@@ -4,11 +4,11 @@ use crate::diagnostic::RuntimeError;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;
 use crate::runtime::BindingCallContext;
-
-use super::abi::{
+use crate::runtime::host::{
     HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT, HOST_STATUS_NOT_FOUND,
     HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK, HOST_STATUS_PERMISSION_DENIED,
 };
+
 use super::constants::{
     ANDROID_MACHINE_KEYSTORE_ABSOLUTE_PATH, ANDROID_USER_KEYSTORE_RELATIVE_PATH,
     DEFAULT_ANDROID_SYSTEM_CERTIFICATE_DIRECTORIES, DEFAULT_ANDROID_SYSTEM_CERTIFICATE_FILES,
@@ -81,7 +81,7 @@ pub(super) fn callback_runtime_id(
 /// Encode one store kind for Android host callback ABI values.
 pub(super) fn host_store_kind(
     kind: CryptoStoreKind,
-    operation: &'static str,
+    _operation: &'static str,
 ) -> Result<u32, Box<RuntimeError>> {
     let encoded = match kind {
         CryptoStoreKind::System => 1,
@@ -89,7 +89,6 @@ pub(super) fn host_store_kind(
         CryptoStoreKind::Machine => 3,
         CryptoStoreKind::Provider => 4,
         CryptoStoreKind::Ephemeral => 5,
-        _ => return Err(not_supported(operation)),
     };
 
     Ok(encoded)

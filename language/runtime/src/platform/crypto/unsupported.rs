@@ -23,10 +23,11 @@ use crate::platform::crypto::{
     CryptoHkdfRequest, CryptoKdfAlgorithm, CryptoKeyAgreementAlgorithm, CryptoKeyAlgorithm,
     CryptoKeyDescriptor, CryptoKeyFormat, CryptoKeyGenerationRequest, CryptoKeyImportRequest,
     CryptoKeyKind, CryptoKeyListEntry, CryptoKeyListPage, CryptoKeyPair, CryptoKeyQuery,
-    CryptoKeyUsageMask, CryptoKeyWrapAlgorithm, CryptoKeyWrapParameters, CryptoMacAlgorithm,
-    CryptoMacParameters, CryptoNamedCurve, CryptoPbkdf2Request, CryptoPrivateKeyExportRequest,
-    CryptoScryptRequest, CryptoSignatureAlgorithm, CryptoSignatureParameters,
-    CryptoStoreCapability, CryptoStoreKind, CryptoStoreOptions, CryptoStoreProvider,
+    CryptoKeyResidency, CryptoKeyUsageMask, CryptoKeyWrapAlgorithm, CryptoKeyWrapParameters,
+    CryptoMacAlgorithm, CryptoMacParameters, CryptoNamedCurve, CryptoPbkdf2Request,
+    CryptoPrivateKeyExportRequest, CryptoScryptRequest, CryptoSignatureAlgorithm,
+    CryptoSignatureParameters, CryptoStoreCapability, CryptoStoreKind, CryptoStoreOptions,
+    CryptoStoreProvider,
 };
 #[cfg(any(unix, windows))]
 use crate::platform::crypto::{HostKeyMaterial, core as crypto_core};
@@ -1975,6 +1976,38 @@ pub(crate) unsafe fn destack_crypto_probe_key_formats(
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.probe.keyFormats",
+    ))
+    .boxed())
+}
+
+/// List supported key residencies.
+///
+/// Return key residencies available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_key_residencies(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoKeyResidency>,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (context, out);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.probe.keyResidencies",
     ))
     .boxed())
 }

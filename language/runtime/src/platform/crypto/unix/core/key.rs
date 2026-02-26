@@ -170,10 +170,13 @@ pub(crate) fn generate_ec_key_pair(
     operation: &'static str,
 ) -> RuntimeResult<(PKey<Private>, CryptoNamedCurve, u32)> {
     // resolve one supported named curve
-    let Some((resolved_named_curve, size_bits, curve_nid)) =
-        crypto_core::resolve_nist_p_curve(named_curve)
-    else {
-        return Err(not_supported(operation));
+    let (resolved_named_curve, size_bits, curve_nid) = match named_curve {
+        CryptoNamedCurve::Unknown | CryptoNamedCurve::P256 => {
+            (CryptoNamedCurve::P256, 256, Nid::X9_62_PRIME256V1)
+        }
+        CryptoNamedCurve::P384 => (CryptoNamedCurve::P384, 384, Nid::SECP384R1),
+        CryptoNamedCurve::P521 => (CryptoNamedCurve::P521, 521, Nid::SECP521R1),
+        _ => return Err(not_supported(operation)),
     };
 
     // generate one EC private key

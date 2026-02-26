@@ -1616,12 +1616,14 @@ fn encode_destack_os_credentials_authenticate_result(
 fn decode_destack_os_credentials_contains_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
+) -> RuntimeResult<(vm::StringHandle, vm::StringHandle, vm::StringHandle)> {
     let service_value = arg_value(args, 0, "service", "string")?;
     let service = decode_string(service_value, "service", "string")?;
     let account_value = arg_value(args, 1, "account", "string")?;
     let account = decode_string(account_value, "account", "string")?;
-    Ok((service, account))
+    let accessgroup_value = arg_value(args, 2, "accessgroup", "string")?;
+    let accessgroup = decode_string(accessgroup_value, "accessgroup", "string")?;
+    Ok((service, account, accessgroup))
 }
 
 /// Encode the result for destack.os.credentials.contains.
@@ -1638,12 +1640,14 @@ fn encode_destack_os_credentials_contains_result(
 fn decode_destack_os_credentials_delete_args(
     _context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
+) -> RuntimeResult<(vm::StringHandle, vm::StringHandle, vm::StringHandle)> {
     let service_value = arg_value(args, 0, "service", "string")?;
     let service = decode_string(service_value, "service", "string")?;
     let account_value = arg_value(args, 1, "account", "string")?;
     let account = decode_string(account_value, "account", "string")?;
-    Ok((service, account))
+    let accessgroup_value = arg_value(args, 2, "accessgroup", "string")?;
+    let accessgroup = decode_string(accessgroup_value, "accessgroup", "string")?;
+    Ok((service, account, accessgroup))
 }
 
 /// Encode the result for destack.os.credentials.delete.
@@ -4866,7 +4870,7 @@ pub const OS_CREDENTIALS_AUTHENTICATE: BindingDescriptor = BindingDescriptor::ex
 /// Binding descriptor for destack.os.credentials.contains.
 pub const OS_CREDENTIALS_CONTAINS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.credentials.contains",
-    "export function credentialsContains(service: string, account: string): Result<boolean, PlatformError>",
+    "export function credentialsContains(service: string, account: string, accessGroup: string): Result<boolean, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["os.credentials.read"],
@@ -4878,7 +4882,7 @@ pub const OS_CREDENTIALS_CONTAINS: BindingDescriptor = BindingDescriptor::extern
 /// Binding descriptor for destack.os.credentials.delete.
 pub const OS_CREDENTIALS_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.os.credentials.delete",
-    "export function credentialsDelete(service: string, account: string): Result<void, PlatformError>",
+    "export function credentialsDelete(service: string, account: string, accessGroup: string): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["os.credentials.write"],
@@ -11180,22 +11184,33 @@ pub unsafe extern "C" fn destack_os_credentials_contains(
     out: *mut bool,
     service: NativeStringRef,
     account: NativeStringRef,
+    accessgroup: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &service, &account);
+        let _ = (&out, &service, &account, &accessgroup);
 
         {
             let world = context.check_and_resolve_world(OS_CREDENTIALS_CONTAINS)?;
             match world {
                 RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_credentials_contains(context, out, service, account)
+                    platform_native::destack_os_credentials_contains(
+                        context,
+                        out,
+                        service,
+                        account,
+                        accessgroup,
+                    )
                 },
                 RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_os_credentials_contains(
-                        context, out, service, account,
+                        context,
+                        out,
+                        service,
+                        account,
+                        accessgroup,
                     )
                 },
             }
@@ -11207,19 +11222,28 @@ pub unsafe extern "C" fn destack_os_credentials_contains(
 pub unsafe extern "C" fn destack_os_credentials_delete(
     service: NativeStringRef,
     account: NativeStringRef,
+    accessgroup: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&service, &account);
+        let _ = (&service, &account, &accessgroup);
 
         {
             let world = context.check_and_resolve_world(OS_CREDENTIALS_DELETE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
-                    platform_native::destack_os_credentials_delete(context, service, account)
+                    platform_native::destack_os_credentials_delete(
+                        context,
+                        service,
+                        account,
+                        accessgroup,
+                    )
                 },
                 RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_os_credentials_delete(
-                        context, service, account,
+                        context,
+                        service,
+                        account,
+                        accessgroup,
                     )
                 },
             }
@@ -17632,7 +17656,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, args| {
                 with_binding_call_context(|runtime| {
                     // decode args
-                    let (service, account) =
+                    let (service, account, accessgroup) =
                         decode_destack_os_credentials_contains_args(context, args)?;
 
                     // execute binding
@@ -17640,11 +17664,19 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         let world = runtime.check_and_resolve_world(OS_CREDENTIALS_CONTAINS)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_credentials_contains(
-                                runtime, context, service, account,
+                                runtime,
+                                context,
+                                service,
+                                account,
+                                accessgroup,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_credentials_contains(
-                                    runtime, context, service, account,
+                                    runtime,
+                                    context,
+                                    service,
+                                    account,
+                                    accessgroup,
                                 )
                             }
                         }
@@ -17663,7 +17695,7 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
             move |context, args| {
                 with_binding_call_context(|runtime| {
                     // decode args
-                    let (service, account) =
+                    let (service, account, accessgroup) =
                         decode_destack_os_credentials_delete_args(context, args)?;
 
                     // execute binding
@@ -17671,11 +17703,19 @@ pub fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                         let world = runtime.check_and_resolve_world(OS_CREDENTIALS_DELETE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_os_credentials_delete(
-                                runtime, context, service, account,
+                                runtime,
+                                context,
+                                service,
+                                account,
+                                accessgroup,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_os_credentials_delete(
-                                    runtime, context, service, account,
+                                    runtime,
+                                    context,
+                                    service,
+                                    account,
+                                    accessgroup,
                                 )
                             }
                         }

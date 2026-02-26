@@ -5,8 +5,8 @@ use crate::platform::NativeSlice;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;
 use crate::runtime::BindingCallContext;
+use crate::runtime::host::{HOST_STATUS_NOT_FOUND, android_host_crypto_callbacks_snapshot};
 
-use super::abi::{HOST_STATUS_NOT_FOUND, android_host_crypto_api};
 use super::core::{
     callback_runtime_id, configured_system_certificate_directories,
     configured_system_certificate_files, host_status_result, host_store_kind, invalid_data,
@@ -30,7 +30,7 @@ pub(crate) fn host_store_supports_certificate_write(
     if context.host().callback_runtime_id().is_none() {
         return false;
     }
-    let callbacks = android_host_crypto_api();
+    let callbacks = android_host_crypto_callbacks_snapshot();
     callbacks.import_certificate.is_some() && callbacks.delete_certificate.is_some()
 }
 
@@ -43,7 +43,7 @@ pub(crate) fn host_store_import_certificate(
 ) -> RuntimeResult<()> {
     // resolve runtime id and callback entrypoint
     let runtime_id = callback_runtime_id(context, operation)?;
-    let callbacks = android_host_crypto_api();
+    let callbacks = android_host_crypto_callbacks_snapshot();
     let Some(import_callback) = callbacks.import_certificate else {
         return Err(not_supported(operation));
     };
@@ -72,7 +72,7 @@ pub(crate) fn host_store_delete_certificate(
 ) -> RuntimeResult<()> {
     // resolve runtime id and callback entrypoint
     let runtime_id = callback_runtime_id(context, operation)?;
-    let callbacks = android_host_crypto_api();
+    let callbacks = android_host_crypto_callbacks_snapshot();
     let Some(delete_callback) = callbacks.delete_certificate else {
         return Err(not_supported(operation));
     };

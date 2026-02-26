@@ -8,6 +8,7 @@ use crate::tests::runtime::TestRuntime;
 
 #[path = "harness.generated.rs"]
 mod harness;
+pub(crate) use harness::HarnessValue;
 
 /// Test harness context used by tests.
 pub(crate) struct OsHarnessContext<'call> {
