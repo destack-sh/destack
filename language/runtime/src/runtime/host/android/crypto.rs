@@ -120,6 +120,12 @@ pub type AndroidHostDeriveHardwareSharedSecretCallback = unsafe extern "C" fn(
 /// Host callback for deleting one hardware-backed key.
 pub type AndroidHostDeleteHardwareKeyCallback =
     unsafe extern "C" fn(runtime_id: u64, key_algorithm: u32, key_label: NativeStringRef) -> u32;
+/// Host callback for importing one certificate into one host lane.
+pub type AndroidHostImportCertificateCallback =
+    unsafe extern "C" fn(runtime_id: u64, store_kind: u32, certificate_der: NativeSlice<u8>) -> u32;
+/// Host callback for deleting one certificate from one host lane.
+pub type AndroidHostDeleteCertificateCallback =
+    unsafe extern "C" fn(runtime_id: u64, store_kind: u32, certificate_der: NativeSlice<u8>) -> u32;
 
 /// Callback table for Android host crypto interop.
 #[derive(Clone, Copy, Debug)]
@@ -149,6 +155,10 @@ pub struct AndroidHostCryptoCallbacks {
     pub derive_hardware_shared_secret: Option<AndroidHostDeriveHardwareSharedSecretCallback>,
     /// Delete callback for one hardware-backed key.
     pub delete_hardware_key: Option<AndroidHostDeleteHardwareKeyCallback>,
+    /// Import callback for one certificate into one host lane.
+    pub import_certificate: Option<AndroidHostImportCertificateCallback>,
+    /// Delete callback for one certificate from one host lane.
+    pub delete_certificate: Option<AndroidHostDeleteCertificateCallback>,
 }
 
 impl Default for AndroidHostCryptoCallbacks {
@@ -167,6 +177,8 @@ impl Default for AndroidHostCryptoCallbacks {
             compute_hardware_mac: None,
             derive_hardware_shared_secret: None,
             delete_hardware_key: None,
+            import_certificate: None,
+            delete_certificate: None,
         }
     }
 }
@@ -594,6 +606,48 @@ pub unsafe extern "C" fn destack_runtime_host_android_crypto_delete_hardware_key
     unsafe { callback(runtime_id, key_algorithm, key_label) }
 }
 
+/// Import one certificate into one Android host lane.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_runtime_host_android_crypto_import_certificate(
+    runtime_id: u64,
+    store_kind: u32,
+    certificate_der: NativeSlice<u8>,
+) -> u32 {
+    // reject unknown runtime identifiers
+    if !runtime_id_is_registered(runtime_id) {
+        return HOST_STATUS_NOT_FOUND;
+    }
+
+    // route one callback when available
+    let callbacks = android_host_crypto_callbacks().read();
+    let Some(callback) = callbacks.import_certificate else {
+        return HOST_STATUS_NOT_SUPPORTED;
+    };
+
+    unsafe { callback(runtime_id, store_kind, certificate_der) }
+}
+
+/// Delete one certificate from one Android host lane.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_runtime_host_android_crypto_delete_certificate(
+    runtime_id: u64,
+    store_kind: u32,
+    certificate_der: NativeSlice<u8>,
+) -> u32 {
+    // reject unknown runtime identifiers
+    if !runtime_id_is_registered(runtime_id) {
+        return HOST_STATUS_NOT_FOUND;
+    }
+
+    // route one callback when available
+    let callbacks = android_host_crypto_callbacks().read();
+    let Some(callback) = callbacks.delete_certificate else {
+        return HOST_STATUS_NOT_SUPPORTED;
+    };
+
+    unsafe { callback(runtime_id, store_kind, certificate_der) }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex, OnceLock};
@@ -604,9 +658,11 @@ mod tests {
         HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK, clear_android_host_crypto_callbacks,
         destack_runtime_host_android_crypto_compute_hardware_mac,
         destack_runtime_host_android_crypto_decrypt_hardware_secret_key,
+        destack_runtime_host_android_crypto_delete_certificate,
         destack_runtime_host_android_crypto_encrypt_hardware_secret_key,
         destack_runtime_host_android_crypto_export_hardware_public_key,
         destack_runtime_host_android_crypto_generate_hardware_secret_key,
+        destack_runtime_host_android_crypto_import_certificate,
         destack_runtime_host_android_crypto_set_callbacks,
         destack_runtime_host_android_crypto_supports_hardware_key,
     };
@@ -804,6 +860,24 @@ mod tests {
             *output_written = tag.len() as u32;
         }
 
+        HOST_STATUS_OK
+    }
+
+    /// Report one successful certificate import in callback tests.
+    unsafe extern "C" fn test_import_certificate(
+        _runtime_id: u64,
+        _store_kind: u32,
+        _certificate_der: NativeSlice<u8>,
+    ) -> u32 {
+        HOST_STATUS_OK
+    }
+
+    /// Report one successful certificate delete in callback tests.
+    unsafe extern "C" fn test_delete_certificate(
+        _runtime_id: u64,
+        _store_kind: u32,
+        _certificate_der: NativeSlice<u8>,
+    ) -> u32 {
         HOST_STATUS_OK
     }
 
@@ -1130,5 +1204,53 @@ mod tests {
         assert_eq!(mac_second_status, HOST_STATUS_OK);
         assert_eq!(mac_written, 3);
         assert_eq!(mac_output, vec![9u8, 9, 9]);
+    }
+
+    #[test]
+    fn test_set_callbacks_routes_certificate_calls() {
+        let _lock = callback_test_lock().lock().unwrap();
+        clear_android_host_crypto_callbacks();
+
+        // register one temporary android bridge for runtime-id validation
+        let state_store = Arc::new(HostStateStore::new());
+        let bridge = Arc::new(HostBridge::new(state_store));
+        let registration = register_host_bridge(HostPlatform::Android, &bridge);
+        let runtime_id = registration.runtime_id();
+
+        // install callbacks for certificate import and delete
+        let callbacks = AndroidHostCryptoCallbacks {
+            abi_version: ANDROID_HOST_CRYPTO_CALLBACKS_ABI_VERSION,
+            import_certificate: Some(test_import_certificate),
+            delete_certificate: Some(test_delete_certificate),
+            ..AndroidHostCryptoCallbacks::default()
+        };
+        let set_status = unsafe { destack_runtime_host_android_crypto_set_callbacks(callbacks) };
+        assert_eq!(set_status, HOST_STATUS_OK);
+
+        // verify certificate import callback routing
+        let import_status = unsafe {
+            destack_runtime_host_android_crypto_import_certificate(
+                runtime_id,
+                2,
+                NativeSlice {
+                    data: std::ptr::null_mut(),
+                    len: 0,
+                },
+            )
+        };
+        assert_eq!(import_status, HOST_STATUS_OK);
+
+        // verify certificate delete callback routing
+        let delete_status = unsafe {
+            destack_runtime_host_android_crypto_delete_certificate(
+                runtime_id,
+                2,
+                NativeSlice {
+                    data: std::ptr::null_mut(),
+                    len: 0,
+                },
+            )
+        };
+        assert_eq!(delete_status, HOST_STATUS_OK);
     }
 }

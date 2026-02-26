@@ -151,3 +151,20 @@ pub(super) fn message_digest(algorithm: CryptoDigestAlgorithm) -> RuntimeResult<
         )),
     }
 }
+
+/// Return fixed digest output size in bytes for one digest algorithm.
+pub(crate) fn digest_output_size_bytes(algorithm: CryptoDigestAlgorithm) -> Option<u32> {
+    match algorithm {
+        CryptoDigestAlgorithm::Sha1 => Some(20),
+        CryptoDigestAlgorithm::Sha224 => Some(28),
+        CryptoDigestAlgorithm::Sha256 => Some(32),
+        CryptoDigestAlgorithm::Sha384 => Some(48),
+        CryptoDigestAlgorithm::Sha512 => Some(64),
+        CryptoDigestAlgorithm::Sha3_256 => Some(32),
+        CryptoDigestAlgorithm::Sha3_384 => Some(48),
+        CryptoDigestAlgorithm::Sha3_512 => Some(64),
+        CryptoDigestAlgorithm::Blake2b512 => Some(64),
+        CryptoDigestAlgorithm::Blake2s256 => Some(32),
+        CryptoDigestAlgorithm::Unknown => None,
+    }
+}

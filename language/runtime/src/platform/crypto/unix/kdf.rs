@@ -6,7 +6,7 @@ use crate::platform::crypto::{
 };
 use crate::runtime::BindingCallContext;
 
-use super::core::write_out_bytes;
+use crate::platform::crypto::core::write_out_bytes;
 
 /// Derive one key with HKDF.
 ///

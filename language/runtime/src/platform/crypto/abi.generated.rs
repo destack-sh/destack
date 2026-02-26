@@ -100,6 +100,44 @@ impl VmValueCodec for CryptoCertificateFormat {
     }
 }
 
+/// ABI enum for CryptoCertificateIdentityKind.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CryptoCertificateIdentityKind {
+    /// DnsName.
+    DnsName = 1,
+    /// IpAddress.
+    IpAddress = 2,
+    /// Uri.
+    Uri = 3,
+    /// EmailAddress.
+    EmailAddress = 4,
+}
+
+impl VmValueCodec for CryptoCertificateIdentityKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            1u8 => Self::DnsName,
+            2u8 => Self::IpAddress,
+            3u8 => Self::Uri,
+            4u8 => Self::EmailAddress,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CryptoCertificateIdentityKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
 /// ABI enum for CryptoCertificatePurpose.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -161,6 +199,62 @@ impl VmValueCodec for CryptoCertificateRevocationMode {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
                     "unknown CryptoCertificateRevocationMode value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for CryptoCertificateVerifyError.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CryptoCertificateVerifyError {
+    /// None.
+    None = 0,
+    /// Unknown.
+    Unknown = 1,
+    /// Expired.
+    Expired = 2,
+    /// NotYetValid.
+    NotYetValid = 3,
+    /// UntrustedRoot.
+    UntrustedRoot = 4,
+    /// Revoked.
+    Revoked = 5,
+    /// NameMismatch.
+    NameMismatch = 6,
+    /// InvalidSignature.
+    InvalidSignature = 7,
+    /// PolicyRejected.
+    PolicyRejected = 8,
+    /// UnsupportedCriticalExtension.
+    UnsupportedCriticalExtension = 9,
+}
+
+impl VmValueCodec for CryptoCertificateVerifyError {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0u8 => Self::None,
+            1u8 => Self::Unknown,
+            2u8 => Self::Expired,
+            3u8 => Self::NotYetValid,
+            4u8 => Self::UntrustedRoot,
+            5u8 => Self::Revoked,
+            6u8 => Self::NameMismatch,
+            7u8 => Self::InvalidSignature,
+            8u8 => Self::PolicyRejected,
+            9u8 => Self::UnsupportedCriticalExtension,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CryptoCertificateVerifyError value",
                 ))
                 .boxed());
             }
@@ -462,6 +556,10 @@ pub enum CryptoKeyFormat {
     Sec1Pem = 7,
     /// Sec1Der.
     Sec1Der = 8,
+    /// Pkcs8EncryptedPem.
+    Pkcs8EncryptedPem = 9,
+    /// Pkcs8EncryptedDer.
+    Pkcs8EncryptedDer = 10,
 }
 
 impl VmValueCodec for CryptoKeyFormat {
@@ -477,6 +575,8 @@ impl VmValueCodec for CryptoKeyFormat {
             6u8 => Self::Raw,
             7u8 => Self::Sec1Pem,
             8u8 => Self::Sec1Der,
+            9u8 => Self::Pkcs8EncryptedPem,
+            10u8 => Self::Pkcs8EncryptedDer,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
@@ -516,6 +616,82 @@ impl VmValueCodec for CryptoKeyKind {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
                     "unknown CryptoKeyKind value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for CryptoKeyResidency.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CryptoKeyResidency {
+    /// Unknown.
+    Unknown = 0,
+    /// SoftwareExportable.
+    SoftwareExportable = 1,
+    /// SoftwareNonExportable.
+    SoftwareNonExportable = 2,
+    /// HardwareOpaque.
+    HardwareOpaque = 3,
+}
+
+impl VmValueCodec for CryptoKeyResidency {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0u8 => Self::Unknown,
+            1u8 => Self::SoftwareExportable,
+            2u8 => Self::SoftwareNonExportable,
+            3u8 => Self::HardwareOpaque,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CryptoKeyResidency value",
+                ))
+                .boxed());
+            }
+        };
+        Ok(decoded)
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for CryptoKeyWrapAlgorithm.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CryptoKeyWrapAlgorithm {
+    /// Unknown.
+    Unknown = 0,
+    /// RsaOaep.
+    RsaOaep = 1,
+    /// AesKw.
+    AesKw = 2,
+    /// AesKwp.
+    AesKwp = 3,
+}
+
+impl VmValueCodec for CryptoKeyWrapAlgorithm {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        let decoded = match raw {
+            0u8 => Self::Unknown,
+            1u8 => Self::RsaOaep,
+            2u8 => Self::AesKw,
+            3u8 => Self::AesKwp,
+            _ => {
+                return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                    "value",
+                    "unknown CryptoKeyWrapAlgorithm value",
                 ))
                 .boxed());
             }
@@ -702,8 +878,6 @@ impl VmValueCodec for CryptoStoreKind {
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CryptoStoreProvider {
-    /// Unknown.
-    Unknown = 0,
     /// OpenSsl.
     OpenSsl = 1,
 }
@@ -712,7 +886,6 @@ impl VmValueCodec for CryptoStoreProvider {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
-            0u8 => Self::Unknown,
             1u8 => Self::OpenSsl,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
@@ -1503,6 +1676,86 @@ impl VmAggregateCodec for CryptoCertificateValidity {
     }
 }
 
+/// ABI struct for CryptoCertificateVerifyIdentity.
+#[repr(C)]
+pub struct CryptoCertificateVerifyIdentityAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: CryptoCertificateIdentityKind,
+    /// The value field.
+    pub value: A::String,
+}
+
+pub type CryptoCertificateVerifyIdentity = CryptoCertificateVerifyIdentityAbi<NativeAbi>;
+pub type CryptoCertificateVerifyIdentityVm = CryptoCertificateVerifyIdentityAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CryptoCertificateVerifyIdentityAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CryptoCertificateVerifyIdentityAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CryptoCertificateVerifyIdentityAbi<NativeAbi> {}
+impl Clone for CryptoCertificateVerifyIdentityAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CryptoCertificateVerifyIdentityAbi<VmAbi> {}
+impl Clone for CryptoCertificateVerifyIdentityAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CryptoCertificateVerifyIdentityAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CryptoCertificateVerifyIdentity",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_kind = <CryptoCertificateIdentityKind as VmAggregateCodec>::decode_with_context(
+            context, slots[0],
+        )?;
+        let field_value =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            kind: field_kind,
+            value: field_value,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CryptoCertificateIdentityKind as VmAggregateCodec>::encode_with_context(
+                self.kind, context,
+            )?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.value, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for CryptoCertificateVerifyRequest.
 #[repr(C)]
 pub struct CryptoCertificateVerifyRequestAbi<A: BindingAbi> {
@@ -1516,8 +1769,8 @@ pub struct CryptoCertificateVerifyRequestAbi<A: BindingAbi> {
     pub use_system_trust_anchors: bool,
     /// The purpose field.
     pub purpose: CryptoCertificatePurpose,
-    /// The server_name field.
-    pub server_name: A::String,
+    /// The identity field.
+    pub identity: platform_crypto::CryptoCertificateVerifyIdentityAbi<A>,
     /// The verification_unix_seconds field.
     pub verification_unix_seconds: u64,
     /// The revocation_mode field.
@@ -1586,8 +1839,10 @@ impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
             <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
         let field_purpose =
             <CryptoCertificatePurpose as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_server_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_identity =
+            <CryptoCertificateVerifyIdentityVm as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
         let field_verification_unix_seconds =
             <u64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_revocation_mode =
@@ -1600,7 +1855,7 @@ impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
             trust_anchors: field_trust_anchors,
             use_system_trust_anchors: field_use_system_trust_anchors,
             purpose: field_purpose,
-            server_name: field_server_name,
+            identity: field_identity,
             verification_unix_seconds: field_verification_unix_seconds,
             revocation_mode: field_revocation_mode,
         })
@@ -1630,7 +1885,10 @@ impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
                 self.purpose,
                 context,
             )?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.server_name, context)?,
+            <CryptoCertificateVerifyIdentityVm as VmAggregateCodec>::encode_with_context(
+                self.identity,
+                context,
+            )?,
             <u64 as VmAggregateCodec>::encode_with_context(
                 self.verification_unix_seconds,
                 context,
@@ -1646,21 +1904,48 @@ impl VmAggregateCodec for CryptoCertificateVerifyRequestAbi<VmAbi> {
 
 /// ABI struct for CryptoCertificateVerifyResult.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct CryptoCertificateVerifyResult {
+pub struct CryptoCertificateVerifyResultAbi<A: BindingAbi> {
     /// The valid field.
     pub valid: bool,
+    /// The error field.
+    pub error: CryptoCertificateVerifyError,
     /// The error_code field.
     pub error_code: u32,
+    /// The failed_certificate_index field.
+    pub failed_certificate_index: u32,
+    /// The failed_certificate_subject field.
+    pub failed_certificate_subject: A::String,
     /// The chain_length field.
     pub chain_length: u32,
     /// The used_system_trust_anchor field.
     pub used_system_trust_anchor: bool,
 }
 
-pub type CryptoCertificateVerifyResultVm = CryptoCertificateVerifyResult;
+pub type CryptoCertificateVerifyResult = CryptoCertificateVerifyResultAbi<NativeAbi>;
+pub type CryptoCertificateVerifyResultVm = CryptoCertificateVerifyResultAbi<VmAbi>;
 
-impl VmAggregateCodec for CryptoCertificateVerifyResult {
+impl<A: BindingAbi> std::fmt::Debug for CryptoCertificateVerifyResultAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CryptoCertificateVerifyResultAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CryptoCertificateVerifyResultAbi<NativeAbi> {}
+impl Clone for CryptoCertificateVerifyResultAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CryptoCertificateVerifyResultAbi<VmAbi> {}
+impl Clone for CryptoCertificateVerifyResultAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CryptoCertificateVerifyResultAbi<VmAbi> {
     fn decode_with_context(
         context: &vm::ExternalCallContext<'_>,
         value: vm::Value,
@@ -1675,21 +1960,31 @@ impl VmAggregateCodec for CryptoCertificateVerifyResult {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        if slots.len() != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 4 fields",
+                "expected 7 fields",
             ))
             .boxed());
         }
         let field_valid = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_error_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_chain_length = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_error = <CryptoCertificateVerifyError as VmAggregateCodec>::decode_with_context(
+            context, slots[1],
+        )?;
+        let field_error_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_failed_certificate_index =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_failed_certificate_subject =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_chain_length = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
         let field_used_system_trust_anchor =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         Ok(Self {
             valid: field_valid,
+            error: field_error,
             error_code: field_error_code,
+            failed_certificate_index: field_failed_certificate_index,
+            failed_certificate_subject: field_failed_certificate_subject,
             chain_length: field_chain_length,
             used_system_trust_anchor: field_used_system_trust_anchor,
         })
@@ -1701,7 +1996,15 @@ impl VmAggregateCodec for CryptoCertificateVerifyResult {
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
             <bool as VmAggregateCodec>::encode_with_context(self.valid, context)?,
+            <CryptoCertificateVerifyError as VmAggregateCodec>::encode_with_context(
+                self.error, context,
+            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.error_code, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.failed_certificate_index, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+                self.failed_certificate_subject,
+                context,
+            )?,
             <u32 as VmAggregateCodec>::encode_with_context(self.chain_length, context)?,
             <bool as VmAggregateCodec>::encode_with_context(
                 self.used_system_trust_anchor,
@@ -2003,6 +2306,8 @@ pub struct CryptoKeyDescriptorAbi<A: BindingAbi> {
     pub label: A::String,
     /// The extractable field.
     pub extractable: bool,
+    /// The residency field.
+    pub residency: CryptoKeyResidency,
     /// The hardware_backed field.
     pub hardware_backed: bool,
     /// The persistent field.
@@ -2050,10 +2355,10 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 13 {
+        if slots.len() != 14 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 13 fields",
+                "expected 14 fields",
             ))
             .boxed());
         }
@@ -2074,11 +2379,13 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
         let field_label =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[8])?;
         let field_extractable = <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_residency =
+            <CryptoKeyResidency as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_persistent = <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+        let field_persistent = <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
         let field_store_provenance =
-            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+            <CryptoStoreProvenanceVm as VmAggregateCodec>::decode_with_context(context, slots[13])?;
         Ok(Self {
             kind: field_kind,
             algorithm: field_algorithm,
@@ -2090,6 +2397,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
             usage_mask: field_usage_mask,
             label: field_label,
             extractable: field_extractable,
+            residency: field_residency,
             hardware_backed: field_hardware_backed,
             persistent: field_persistent,
             store_provenance: field_store_provenance,
@@ -2114,6 +2422,7 @@ impl VmAggregateCodec for CryptoKeyDescriptorAbi<VmAbi> {
             )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?,
+            <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
             <CryptoStoreProvenanceVm as VmAggregateCodec>::encode_with_context(
@@ -2146,6 +2455,8 @@ pub struct CryptoKeyGenerationRequestAbi<A: BindingAbi> {
     pub label: A::String,
     /// The extractable field.
     pub extractable: bool,
+    /// The residency field.
+    pub residency: CryptoKeyResidency,
     /// The hardware_backed field.
     pub hardware_backed: bool,
     /// The persistent field.
@@ -2191,10 +2502,10 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 11 {
+        if slots.len() != 12 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 11 fields",
+                "expected 12 fields",
             ))
             .boxed());
         }
@@ -2213,9 +2524,11 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
         let field_label =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[7])?;
         let field_extractable = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_residency =
+            <CryptoKeyResidency as VmAggregateCodec>::decode_with_context(context, slots[9])?;
         let field_hardware_backed =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_persistent = <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_persistent = <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
         Ok(Self {
             algorithm: field_algorithm,
             named_curve: field_named_curve,
@@ -2226,6 +2539,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
             usage_mask: field_usage_mask,
             label: field_label,
             extractable: field_extractable,
+            residency: field_residency,
             hardware_backed: field_hardware_backed,
             persistent: field_persistent,
         })
@@ -2248,6 +2562,7 @@ impl VmAggregateCodec for CryptoKeyGenerationRequestAbi<VmAbi> {
             )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?,
+            <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.hardware_backed, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
@@ -2274,6 +2589,10 @@ pub struct CryptoKeyImportRequestAbi<A: BindingAbi> {
     pub label: A::String,
     /// The extractable field.
     pub extractable: bool,
+    /// The residency field.
+    pub residency: CryptoKeyResidency,
+    /// The passphrase field.
+    pub passphrase: A::Slice<u8>,
     /// The persistent field.
     pub persistent: bool,
 }
@@ -2317,10 +2636,10 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 9 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 9 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
@@ -2339,7 +2658,11 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
         let field_label =
             <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[6])?;
         let field_extractable = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_persistent = <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_residency =
+            <CryptoKeyResidency as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_passphrase =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_persistent = <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
         Ok(Self {
             format: field_format,
             bytes: field_bytes,
@@ -2349,6 +2672,8 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
             usage_mask: field_usage_mask,
             label: field_label,
             extractable: field_extractable,
+            residency: field_residency,
+            passphrase: field_passphrase,
             persistent: field_persistent,
         })
     }
@@ -2369,6 +2694,8 @@ impl VmAggregateCodec for CryptoKeyImportRequestAbi<VmAbi> {
             )?,
             <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.label, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.extractable, context)?,
+            <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?,
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.passphrase, context)?,
             <bool as VmAggregateCodec>::encode_with_context(self.persistent, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
@@ -2719,6 +3046,92 @@ impl VmAggregateCodec for CryptoKeyQueryAbi<VmAbi> {
     }
 }
 
+/// ABI struct for CryptoKeyWrapParameters.
+#[repr(C)]
+pub struct CryptoKeyWrapParametersAbi<A: BindingAbi> {
+    /// The algorithm field.
+    pub algorithm: CryptoKeyWrapAlgorithm,
+    /// The digest field.
+    pub digest: CryptoDigestAlgorithm,
+    /// The label field.
+    pub label: A::Slice<u8>,
+}
+
+pub type CryptoKeyWrapParameters = CryptoKeyWrapParametersAbi<NativeAbi>;
+pub type CryptoKeyWrapParametersVm = CryptoKeyWrapParametersAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CryptoKeyWrapParametersAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CryptoKeyWrapParametersAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CryptoKeyWrapParametersAbi<NativeAbi> {}
+impl Clone for CryptoKeyWrapParametersAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CryptoKeyWrapParametersAbi<VmAbi> {}
+impl Clone for CryptoKeyWrapParametersAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CryptoKeyWrapParametersAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CryptoKeyWrapParameters",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
+        let field_algorithm =
+            <CryptoKeyWrapAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_digest =
+            <CryptoDigestAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_label =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        Ok(Self {
+            algorithm: field_algorithm,
+            digest: field_digest,
+            label: field_label,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CryptoKeyWrapAlgorithm as VmAggregateCodec>::encode_with_context(
+                self.algorithm,
+                context,
+            )?,
+            <CryptoDigestAlgorithm as VmAggregateCodec>::encode_with_context(self.digest, context)?,
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.label, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for CryptoMacParameters.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -2868,6 +3281,83 @@ impl VmAggregateCodec for CryptoPbkdf2RequestAbi<VmAbi> {
             <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.salt, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.iterations, context)?,
             <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CryptoPrivateKeyExportRequest.
+#[repr(C)]
+pub struct CryptoPrivateKeyExportRequestAbi<A: BindingAbi> {
+    /// The format field.
+    pub format: CryptoKeyFormat,
+    /// The passphrase field.
+    pub passphrase: A::Slice<u8>,
+}
+
+pub type CryptoPrivateKeyExportRequest = CryptoPrivateKeyExportRequestAbi<NativeAbi>;
+pub type CryptoPrivateKeyExportRequestVm = CryptoPrivateKeyExportRequestAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CryptoPrivateKeyExportRequestAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CryptoPrivateKeyExportRequestAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CryptoPrivateKeyExportRequestAbi<NativeAbi> {}
+impl Clone for CryptoPrivateKeyExportRequestAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CryptoPrivateKeyExportRequestAbi<VmAbi> {}
+impl Clone for CryptoPrivateKeyExportRequestAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CryptoPrivateKeyExportRequestAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CryptoPrivateKeyExportRequest",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let field_format =
+            <CryptoKeyFormat as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_passphrase =
+            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        Ok(Self {
+            format: field_format,
+            passphrase: field_passphrase,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CryptoKeyFormat as VmAggregateCodec>::encode_with_context(self.format, context)?,
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.passphrase, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3041,13 +3531,209 @@ impl VmAggregateCodec for CryptoSignatureParameters {
     }
 }
 
+/// ABI struct for CryptoStoreAgreementCapability.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CryptoStoreAgreementCapability {
+    /// The private_key_algorithm field.
+    pub private_key_algorithm: CryptoKeyAlgorithm,
+    /// The peer_public_key_algorithm field.
+    pub peer_public_key_algorithm: CryptoKeyAlgorithm,
+    /// The algorithm field.
+    pub algorithm: CryptoKeyAgreementAlgorithm,
+    /// The supports_derive_shared_secret field.
+    pub supports_derive_shared_secret: bool,
+    /// The supports_derive_key field.
+    pub supports_derive_key: bool,
+}
+
+pub type CryptoStoreAgreementCapabilityVm = CryptoStoreAgreementCapability;
+
+impl VmAggregateCodec for CryptoStoreAgreementCapability {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CryptoStoreAgreementCapability",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_private_key_algorithm =
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_peer_public_key_algorithm =
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_algorithm =
+            <CryptoKeyAgreementAlgorithm as VmAggregateCodec>::decode_with_context(
+                context, slots[2],
+            )?;
+        let field_supports_derive_shared_secret =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_supports_derive_key =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        Ok(Self {
+            private_key_algorithm: field_private_key_algorithm,
+            peer_public_key_algorithm: field_peer_public_key_algorithm,
+            algorithm: field_algorithm,
+            supports_derive_shared_secret: field_supports_derive_shared_secret,
+            supports_derive_key: field_supports_derive_key,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+                self.private_key_algorithm,
+                context,
+            )?,
+            <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+                self.peer_public_key_algorithm,
+                context,
+            )?,
+            <CryptoKeyAgreementAlgorithm as VmAggregateCodec>::encode_with_context(
+                self.algorithm,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.supports_derive_shared_secret,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_derive_key, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CryptoStoreAsymmetricEncryptionCapability.
+#[repr(C)]
+pub struct CryptoStoreAsymmetricEncryptionCapabilityAbi<A: BindingAbi> {
+    /// The key_algorithm field.
+    pub key_algorithm: CryptoKeyAlgorithm,
+    /// The algorithm field.
+    pub algorithm: CryptoAsymmetricEncryptionAlgorithm,
+    /// The supports_encrypt field.
+    pub supports_encrypt: bool,
+    /// The supports_decrypt field.
+    pub supports_decrypt: bool,
+    /// The supported_digests field.
+    pub supported_digests: A::Slice<CryptoDigestAlgorithm>,
+}
+
+pub type CryptoStoreAsymmetricEncryptionCapability =
+    CryptoStoreAsymmetricEncryptionCapabilityAbi<NativeAbi>;
+pub type CryptoStoreAsymmetricEncryptionCapabilityVm =
+    CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CryptoStoreAsymmetricEncryptionCapabilityAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CryptoStoreAsymmetricEncryptionCapabilityAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CryptoStoreAsymmetricEncryptionCapabilityAbi<NativeAbi> {}
+impl Clone for CryptoStoreAsymmetricEncryptionCapabilityAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {}
+impl Clone for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CryptoStoreAsymmetricEncryptionCapabilityAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CryptoStoreAsymmetricEncryptionCapability",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_key_algorithm =
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_algorithm =
+            <CryptoAsymmetricEncryptionAlgorithm as VmAggregateCodec>::decode_with_context(
+                context, slots[1],
+            )?;
+        let field_supports_encrypt =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_supports_decrypt =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_supported_digests =
+            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        Ok(Self {
+            key_algorithm: field_key_algorithm,
+            algorithm: field_algorithm,
+            supports_encrypt: field_supports_encrypt,
+            supports_decrypt: field_supports_decrypt,
+            supported_digests: field_supported_digests,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+                self.key_algorithm,
+                context,
+            )?,
+            <CryptoAsymmetricEncryptionAlgorithm as VmAggregateCodec>::encode_with_context(
+                self.algorithm,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_encrypt, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_decrypt, context)?,
+            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
+                self.supported_digests,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
 /// ABI struct for CryptoStoreCapability.
 #[repr(C)]
 pub struct CryptoStoreCapabilityAbi<A: BindingAbi> {
-    /// The kind field.
-    pub kind: CryptoStoreKind,
-    /// The provider field.
-    pub provider: CryptoStoreProvider,
+    /// The identity field.
+    pub identity: platform_crypto::CryptoStoreIdentityAbi<A>,
     /// The is_available field.
     pub is_available: bool,
     /// The supports_hardware_backed field.
@@ -3060,6 +3746,25 @@ pub struct CryptoStoreCapabilityAbi<A: BindingAbi> {
     pub supported_key_algorithms: A::Array<CryptoKeyAlgorithm>,
     /// The supported_key_formats field.
     pub supported_key_formats: A::Array<CryptoKeyFormat>,
+    /// The supported_key_residencies field.
+    pub supported_key_residencies: A::Array<CryptoKeyResidency>,
+    /// The key_capabilities field.
+    pub key_capabilities: A::Array<platform_crypto::CryptoStoreKeyCapabilityAbi<A>>,
+    /// The signature_capabilities field.
+    pub signature_capabilities: A::Array<platform_crypto::CryptoStoreSignatureCapabilityAbi<A>>,
+    /// The asymmetric_encryption_capabilities field.
+    pub asymmetric_encryption_capabilities:
+        A::Array<platform_crypto::CryptoStoreAsymmetricEncryptionCapabilityAbi<A>>,
+    /// The key_wrap_capabilities field.
+    pub key_wrap_capabilities: A::Array<platform_crypto::CryptoStoreKeyWrapCapabilityAbi<A>>,
+    /// The cipher_capabilities field.
+    pub cipher_capabilities: A::Array<CryptoStoreCipherCapability>,
+    /// The mac_capabilities field.
+    pub mac_capabilities: A::Array<platform_crypto::CryptoStoreMacCapabilityAbi<A>>,
+    /// The agreement_capabilities field.
+    pub agreement_capabilities: A::Array<CryptoStoreAgreementCapability>,
+    /// The certificate_capabilities field.
+    pub certificate_capabilities: CryptoStoreCertificateCapability,
 }
 
 pub type CryptoStoreCapability = CryptoStoreCapabilityAbi<NativeAbi>;
@@ -3101,6 +3806,234 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 16 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 16 fields",
+            ))
+            .boxed());
+        }
+        let field_identity =
+            <CryptoStoreIdentityVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_is_available =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_supports_hardware_backed =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_supports_persistent =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_supports_key_export =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_supported_key_algorithms =
+            <VmArray<CryptoKeyAlgorithm> as VmAggregateCodec>::decode_with_context(
+                context, slots[5],
+            )?;
+        let field_supported_key_formats =
+            <VmArray<CryptoKeyFormat> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_supported_key_residencies =
+            <VmArray<CryptoKeyResidency> as VmAggregateCodec>::decode_with_context(
+                context, slots[7],
+            )?;
+        let field_key_capabilities =
+            <VmArray<CryptoStoreKeyCapabilityVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[8],
+            )?;
+        let field_signature_capabilities =
+            <VmArray<CryptoStoreSignatureCapabilityVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[9],
+            )?;
+        let field_asymmetric_encryption_capabilities = <VmArray<
+            CryptoStoreAsymmetricEncryptionCapabilityVm,
+        > as VmAggregateCodec>::decode_with_context(
+            context, slots[10]
+        )?;
+        let field_key_wrap_capabilities =
+            <VmArray<CryptoStoreKeyWrapCapabilityVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[11],
+            )?;
+        let field_cipher_capabilities =
+            <VmArray<CryptoStoreCipherCapabilityVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[12],
+            )?;
+        let field_mac_capabilities =
+            <VmArray<CryptoStoreMacCapabilityVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[13],
+            )?;
+        let field_agreement_capabilities =
+            <VmArray<CryptoStoreAgreementCapabilityVm> as VmAggregateCodec>::decode_with_context(
+                context, slots[14],
+            )?;
+        let field_certificate_capabilities =
+            <CryptoStoreCertificateCapabilityVm as VmAggregateCodec>::decode_with_context(
+                context, slots[15],
+            )?;
+        Ok(Self {
+            identity: field_identity,
+            is_available: field_is_available,
+            supports_hardware_backed: field_supports_hardware_backed,
+            supports_persistent: field_supports_persistent,
+            supports_key_export: field_supports_key_export,
+            supported_key_algorithms: field_supported_key_algorithms,
+            supported_key_formats: field_supported_key_formats,
+            supported_key_residencies: field_supported_key_residencies,
+            key_capabilities: field_key_capabilities,
+            signature_capabilities: field_signature_capabilities,
+            asymmetric_encryption_capabilities: field_asymmetric_encryption_capabilities,
+            key_wrap_capabilities: field_key_wrap_capabilities,
+            cipher_capabilities: field_cipher_capabilities,
+            mac_capabilities: field_mac_capabilities,
+            agreement_capabilities: field_agreement_capabilities,
+            certificate_capabilities: field_certificate_capabilities,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CryptoStoreIdentityVm as VmAggregateCodec>::encode_with_context(self.identity, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.is_available, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_hardware_backed, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_persistent, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_key_export, context)?,
+            <VmArray<CryptoKeyAlgorithm> as VmAggregateCodec>::encode_with_context(self.supported_key_algorithms, context)?,
+            <VmArray<CryptoKeyFormat> as VmAggregateCodec>::encode_with_context(self.supported_key_formats, context)?,
+            <VmArray<CryptoKeyResidency> as VmAggregateCodec>::encode_with_context(self.supported_key_residencies, context)?,
+            <VmArray<CryptoStoreKeyCapabilityVm> as VmAggregateCodec>::encode_with_context(self.key_capabilities, context)?,
+            <VmArray<CryptoStoreSignatureCapabilityVm> as VmAggregateCodec>::encode_with_context(self.signature_capabilities, context)?,
+            <VmArray<CryptoStoreAsymmetricEncryptionCapabilityVm> as VmAggregateCodec>::encode_with_context(self.asymmetric_encryption_capabilities, context)?,
+            <VmArray<CryptoStoreKeyWrapCapabilityVm> as VmAggregateCodec>::encode_with_context(self.key_wrap_capabilities, context)?,
+            <VmArray<CryptoStoreCipherCapabilityVm> as VmAggregateCodec>::encode_with_context(self.cipher_capabilities, context)?,
+            <VmArray<CryptoStoreMacCapabilityVm> as VmAggregateCodec>::encode_with_context(self.mac_capabilities, context)?,
+            <VmArray<CryptoStoreAgreementCapabilityVm> as VmAggregateCodec>::encode_with_context(self.agreement_capabilities, context)?,
+            <CryptoStoreCertificateCapabilityVm as VmAggregateCodec>::encode_with_context(self.certificate_capabilities, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CryptoStoreCertificateCapability.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CryptoStoreCertificateCapability {
+    /// The supports_import field.
+    pub supports_import: bool,
+    /// The supports_export field.
+    pub supports_export: bool,
+    /// The supports_descriptor field.
+    pub supports_descriptor: bool,
+    /// The supports_verify field.
+    pub supports_verify: bool,
+    /// The supports_delete field.
+    pub supports_delete: bool,
+    /// The supports_system_trust_anchors field.
+    pub supports_system_trust_anchors: bool,
+}
+
+pub type CryptoStoreCertificateCapabilityVm = CryptoStoreCertificateCapability;
+
+impl VmAggregateCodec for CryptoStoreCertificateCapability {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CryptoStoreCertificateCapability",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 6 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 6 fields",
+            ))
+            .boxed());
+        }
+        let field_supports_import =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_supports_export =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_supports_descriptor =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_supports_verify =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_supports_delete =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_supports_system_trust_anchors =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        Ok(Self {
+            supports_import: field_supports_import,
+            supports_export: field_supports_export,
+            supports_descriptor: field_supports_descriptor,
+            supports_verify: field_supports_verify,
+            supports_delete: field_supports_delete,
+            supports_system_trust_anchors: field_supports_system_trust_anchors,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_import, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_export, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_descriptor, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_verify, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_delete, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.supports_system_trust_anchors,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CryptoStoreCipherCapability.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CryptoStoreCipherCapability {
+    /// The key_algorithm field.
+    pub key_algorithm: CryptoKeyAlgorithm,
+    /// The algorithm field.
+    pub algorithm: CryptoCipherAlgorithm,
+    /// The supports_one_shot field.
+    pub supports_one_shot: bool,
+    /// The supports_streaming field.
+    pub supports_streaming: bool,
+    /// The supports_additional_data field.
+    pub supports_additional_data: bool,
+    /// The supports_detached_tag field.
+    pub supports_detached_tag: bool,
+    /// The min_tag_length_bytes field.
+    pub min_tag_length_bytes: u32,
+    /// The max_tag_length_bytes field.
+    pub max_tag_length_bytes: u32,
+}
+
+pub type CryptoStoreCipherCapabilityVm = CryptoStoreCipherCapability;
+
+impl VmAggregateCodec for CryptoStoreCipherCapability {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CryptoStoreCipherCapability",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
@@ -3108,33 +4041,128 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
             ))
             .boxed());
         }
+        let field_key_algorithm =
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_algorithm =
+            <CryptoCipherAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_supports_one_shot =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_supports_streaming =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_supports_additional_data =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_supports_detached_tag =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_min_tag_length_bytes =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_max_tag_length_bytes =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        Ok(Self {
+            key_algorithm: field_key_algorithm,
+            algorithm: field_algorithm,
+            supports_one_shot: field_supports_one_shot,
+            supports_streaming: field_supports_streaming,
+            supports_additional_data: field_supports_additional_data,
+            supports_detached_tag: field_supports_detached_tag,
+            min_tag_length_bytes: field_min_tag_length_bytes,
+            max_tag_length_bytes: field_max_tag_length_bytes,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+                self.key_algorithm,
+                context,
+            )?,
+            <CryptoCipherAlgorithm as VmAggregateCodec>::encode_with_context(
+                self.algorithm,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_one_shot, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_streaming, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(
+                self.supports_additional_data,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_detached_tag, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.min_tag_length_bytes, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_tag_length_bytes, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CryptoStoreIdentity.
+#[repr(C)]
+pub struct CryptoStoreIdentityAbi<A: BindingAbi> {
+    /// The kind field.
+    pub kind: CryptoStoreKind,
+    /// The provider field.
+    pub provider: CryptoStoreProvider,
+    /// The namespace field.
+    pub namespace: A::String,
+}
+
+pub type CryptoStoreIdentity = CryptoStoreIdentityAbi<NativeAbi>;
+pub type CryptoStoreIdentityVm = CryptoStoreIdentityAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CryptoStoreIdentityAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CryptoStoreIdentityAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CryptoStoreIdentityAbi<NativeAbi> {}
+impl Clone for CryptoStoreIdentityAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CryptoStoreIdentityAbi<VmAbi> {}
+impl Clone for CryptoStoreIdentityAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CryptoStoreIdentityAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CryptoStoreIdentity",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 3 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 3 fields",
+            ))
+            .boxed());
+        }
         let field_kind =
             <CryptoStoreKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         let field_provider =
             <CryptoStoreProvider as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_is_available =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_supports_hardware_backed =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_supports_persistent =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_supports_key_export =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_supported_key_algorithms =
-            <VmArray<CryptoKeyAlgorithm> as VmAggregateCodec>::decode_with_context(
-                context, slots[6],
-            )?;
-        let field_supported_key_formats =
-            <VmArray<CryptoKeyFormat> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_namespace =
+            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
         Ok(Self {
             kind: field_kind,
             provider: field_provider,
-            is_available: field_is_available,
-            supports_hardware_backed: field_supports_hardware_backed,
-            supports_persistent: field_supports_persistent,
-            supports_key_export: field_supports_key_export,
-            supported_key_algorithms: field_supported_key_algorithms,
-            supported_key_formats: field_supported_key_formats,
+            namespace: field_namespace,
         })
     }
 
@@ -3145,21 +4173,373 @@ impl VmAggregateCodec for CryptoStoreCapabilityAbi<VmAbi> {
         let slots = vec![
             <CryptoStoreKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
             <CryptoStoreProvider as VmAggregateCodec>::encode_with_context(self.provider, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_available, context)?,
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.namespace, context)?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CryptoStoreKeyCapability.
+#[repr(C)]
+pub struct CryptoStoreKeyCapabilityAbi<A: BindingAbi> {
+    /// The algorithm field.
+    pub algorithm: CryptoKeyAlgorithm,
+    /// The residency field.
+    pub residency: CryptoKeyResidency,
+    /// The supports_generate_secret field.
+    pub supports_generate_secret: bool,
+    /// The supports_generate_pair field.
+    pub supports_generate_pair: bool,
+    /// The supports_import field.
+    pub supports_import: bool,
+    /// The supports_export_public field.
+    pub supports_export_public: bool,
+    /// The supports_export_private field.
+    pub supports_export_private: bool,
+    /// The supports_export_secret field.
+    pub supports_export_secret: bool,
+    /// The supported_usage_mask field.
+    pub supported_usage_mask: CryptoKeyUsageMask,
+    /// The supported_import_formats field.
+    pub supported_import_formats: A::Slice<CryptoKeyFormat>,
+    /// The supported_export_formats field.
+    pub supported_export_formats: A::Slice<CryptoKeyFormat>,
+}
+
+pub type CryptoStoreKeyCapability = CryptoStoreKeyCapabilityAbi<NativeAbi>;
+pub type CryptoStoreKeyCapabilityVm = CryptoStoreKeyCapabilityAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CryptoStoreKeyCapabilityAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CryptoStoreKeyCapabilityAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CryptoStoreKeyCapabilityAbi<NativeAbi> {}
+impl Clone for CryptoStoreKeyCapabilityAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CryptoStoreKeyCapabilityAbi<VmAbi> {}
+impl Clone for CryptoStoreKeyCapabilityAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CryptoStoreKeyCapabilityAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CryptoStoreKeyCapability",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 11 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 11 fields",
+            ))
+            .boxed());
+        }
+        let field_algorithm =
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_residency =
+            <CryptoKeyResidency as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_supports_generate_secret =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_supports_generate_pair =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_supports_import =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_supports_export_public =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_supports_export_private =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_supports_export_secret =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+        let field_supported_usage_mask =
+            <CryptoKeyUsageMask as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+        let field_supported_import_formats =
+            <VmSlice<CryptoKeyFormat> as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+        let field_supported_export_formats =
+            <VmSlice<CryptoKeyFormat> as VmAggregateCodec>::decode_with_context(
+                context, slots[10],
+            )?;
+        Ok(Self {
+            algorithm: field_algorithm,
+            residency: field_residency,
+            supports_generate_secret: field_supports_generate_secret,
+            supports_generate_pair: field_supports_generate_pair,
+            supports_import: field_supports_import,
+            supports_export_public: field_supports_export_public,
+            supports_export_private: field_supports_export_private,
+            supports_export_secret: field_supports_export_secret,
+            supported_usage_mask: field_supported_usage_mask,
+            supported_import_formats: field_supported_import_formats,
+            supported_export_formats: field_supported_export_formats,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(self.algorithm, context)?,
+            <CryptoKeyResidency as VmAggregateCodec>::encode_with_context(self.residency, context)?,
             <bool as VmAggregateCodec>::encode_with_context(
-                self.supports_hardware_backed,
+                self.supports_generate_secret,
                 context,
             )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_persistent, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_key_export, context)?,
-            <VmArray<CryptoKeyAlgorithm> as VmAggregateCodec>::encode_with_context(
-                self.supported_key_algorithms,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_generate_pair, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_import, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_export_public, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_export_private, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_export_secret, context)?,
+            <CryptoKeyUsageMask as VmAggregateCodec>::encode_with_context(
+                self.supported_usage_mask,
                 context,
             )?,
-            <VmArray<CryptoKeyFormat> as VmAggregateCodec>::encode_with_context(
-                self.supported_key_formats,
+            <VmSlice<CryptoKeyFormat> as VmAggregateCodec>::encode_with_context(
+                self.supported_import_formats,
                 context,
             )?,
+            <VmSlice<CryptoKeyFormat> as VmAggregateCodec>::encode_with_context(
+                self.supported_export_formats,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CryptoStoreKeyWrapCapability.
+#[repr(C)]
+pub struct CryptoStoreKeyWrapCapabilityAbi<A: BindingAbi> {
+    /// The wrapping_key_algorithm field.
+    pub wrapping_key_algorithm: CryptoKeyAlgorithm,
+    /// The algorithm field.
+    pub algorithm: CryptoKeyWrapAlgorithm,
+    /// The supports_wrap field.
+    pub supports_wrap: bool,
+    /// The supports_unwrap field.
+    pub supports_unwrap: bool,
+    /// The supported_digests field.
+    pub supported_digests: A::Slice<CryptoDigestAlgorithm>,
+}
+
+pub type CryptoStoreKeyWrapCapability = CryptoStoreKeyWrapCapabilityAbi<NativeAbi>;
+pub type CryptoStoreKeyWrapCapabilityVm = CryptoStoreKeyWrapCapabilityAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CryptoStoreKeyWrapCapabilityAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CryptoStoreKeyWrapCapabilityAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CryptoStoreKeyWrapCapabilityAbi<NativeAbi> {}
+impl Clone for CryptoStoreKeyWrapCapabilityAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {}
+impl Clone for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CryptoStoreKeyWrapCapabilityAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CryptoStoreKeyWrapCapability",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_wrapping_key_algorithm =
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_algorithm =
+            <CryptoKeyWrapAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_supports_wrap =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_supports_unwrap =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_supported_digests =
+            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        Ok(Self {
+            wrapping_key_algorithm: field_wrapping_key_algorithm,
+            algorithm: field_algorithm,
+            supports_wrap: field_supports_wrap,
+            supports_unwrap: field_supports_unwrap,
+            supported_digests: field_supported_digests,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+                self.wrapping_key_algorithm,
+                context,
+            )?,
+            <CryptoKeyWrapAlgorithm as VmAggregateCodec>::encode_with_context(
+                self.algorithm,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_wrap, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_unwrap, context)?,
+            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
+                self.supported_digests,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CryptoStoreMacCapability.
+#[repr(C)]
+pub struct CryptoStoreMacCapabilityAbi<A: BindingAbi> {
+    /// The key_algorithm field.
+    pub key_algorithm: CryptoKeyAlgorithm,
+    /// The algorithm field.
+    pub algorithm: CryptoMacAlgorithm,
+    /// The supports_one_shot field.
+    pub supports_one_shot: bool,
+    /// The supports_streaming field.
+    pub supports_streaming: bool,
+    /// The supported_digests field.
+    pub supported_digests: A::Slice<CryptoDigestAlgorithm>,
+    /// The min_tag_length_bytes field.
+    pub min_tag_length_bytes: u32,
+    /// The max_tag_length_bytes field.
+    pub max_tag_length_bytes: u32,
+}
+
+pub type CryptoStoreMacCapability = CryptoStoreMacCapabilityAbi<NativeAbi>;
+pub type CryptoStoreMacCapabilityVm = CryptoStoreMacCapabilityAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CryptoStoreMacCapabilityAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CryptoStoreMacCapabilityAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CryptoStoreMacCapabilityAbi<NativeAbi> {}
+impl Clone for CryptoStoreMacCapabilityAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CryptoStoreMacCapabilityAbi<VmAbi> {}
+impl Clone for CryptoStoreMacCapabilityAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CryptoStoreMacCapabilityAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CryptoStoreMacCapability",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 7 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 7 fields",
+            ))
+            .boxed());
+        }
+        let field_key_algorithm =
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_algorithm =
+            <CryptoMacAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_supports_one_shot =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_supports_streaming =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_supported_digests =
+            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        let field_min_tag_length_bytes =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_max_tag_length_bytes =
+            <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        Ok(Self {
+            key_algorithm: field_key_algorithm,
+            algorithm: field_algorithm,
+            supports_one_shot: field_supports_one_shot,
+            supports_streaming: field_supports_streaming,
+            supported_digests: field_supported_digests,
+            min_tag_length_bytes: field_min_tag_length_bytes,
+            max_tag_length_bytes: field_max_tag_length_bytes,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+                self.key_algorithm,
+                context,
+            )?,
+            <CryptoMacAlgorithm as VmAggregateCodec>::encode_with_context(self.algorithm, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_one_shot, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_streaming, context)?,
+            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
+                self.supported_digests,
+                context,
+            )?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.min_tag_length_bytes, context)?,
+            <u32 as VmAggregateCodec>::encode_with_context(self.max_tag_length_bytes, context)?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3251,12 +4631,8 @@ impl VmAggregateCodec for CryptoStoreOptionsAbi<VmAbi> {
 /// ABI struct for CryptoStoreProvenance.
 #[repr(C)]
 pub struct CryptoStoreProvenanceAbi<A: BindingAbi> {
-    /// The kind field.
-    pub kind: CryptoStoreKind,
-    /// The provider field.
-    pub provider: CryptoStoreProvider,
-    /// The namespace field.
-    pub namespace: A::String,
+    /// The identity field.
+    pub identity: platform_crypto::CryptoStoreIdentityAbi<A>,
 }
 
 pub type CryptoStoreProvenance = CryptoStoreProvenanceAbi<NativeAbi>;
@@ -3298,23 +4674,17 @@ impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
         let slots = context
             .aggregate_slots(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        if slots.len() != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
-                "expected 3 fields",
+                "expected 1 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <CryptoStoreKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_provider =
-            <CryptoStoreProvider as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_namespace =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_identity =
+            <CryptoStoreIdentityVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
         Ok(Self {
-            kind: field_kind,
-            provider: field_provider,
-            namespace: field_namespace,
+            identity: field_identity,
         })
     }
 
@@ -3323,9 +4693,116 @@ impl VmAggregateCodec for CryptoStoreProvenanceAbi<VmAbi> {
         context: &mut vm::ExternalCallContext<'_>,
     ) -> RuntimeResult<vm::Value> {
         let slots = vec![
-            <CryptoStoreKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <CryptoStoreProvider as VmAggregateCodec>::encode_with_context(self.provider, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.namespace, context)?,
+            <CryptoStoreIdentityVm as VmAggregateCodec>::encode_with_context(
+                self.identity,
+                context,
+            )?,
+        ];
+        Ok(context.allocate_aggregate(slots))
+    }
+}
+
+/// ABI struct for CryptoStoreSignatureCapability.
+#[repr(C)]
+pub struct CryptoStoreSignatureCapabilityAbi<A: BindingAbi> {
+    /// The key_algorithm field.
+    pub key_algorithm: CryptoKeyAlgorithm,
+    /// The signature_algorithm field.
+    pub signature_algorithm: CryptoSignatureAlgorithm,
+    /// The supports_sign field.
+    pub supports_sign: bool,
+    /// The supports_verify field.
+    pub supports_verify: bool,
+    /// The supported_digests field.
+    pub supported_digests: A::Slice<CryptoDigestAlgorithm>,
+}
+
+pub type CryptoStoreSignatureCapability = CryptoStoreSignatureCapabilityAbi<NativeAbi>;
+pub type CryptoStoreSignatureCapabilityVm = CryptoStoreSignatureCapabilityAbi<VmAbi>;
+
+impl<A: BindingAbi> std::fmt::Debug for CryptoStoreSignatureCapabilityAbi<A> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CryptoStoreSignatureCapabilityAbi")
+            .finish_non_exhaustive()
+    }
+}
+
+impl Copy for CryptoStoreSignatureCapabilityAbi<NativeAbi> {}
+impl Clone for CryptoStoreSignatureCapabilityAbi<NativeAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl Copy for CryptoStoreSignatureCapabilityAbi<VmAbi> {}
+impl Clone for CryptoStoreSignatureCapabilityAbi<VmAbi> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl VmAggregateCodec for CryptoStoreSignatureCapabilityAbi<VmAbi> {
+    fn decode_with_context(
+        context: &vm::ExternalCallContext<'_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        if value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
+                "value",
+                "CryptoStoreSignatureCapability",
+            ))
+            .boxed());
+        }
+        let slots = context
+            .aggregate_slots(value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 5 {
+            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
+                "value",
+                "expected 5 fields",
+            ))
+            .boxed());
+        }
+        let field_key_algorithm =
+            <CryptoKeyAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_signature_algorithm =
+            <CryptoSignatureAlgorithm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_supports_sign =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_supports_verify =
+            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_supported_digests =
+            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::decode_with_context(
+                context, slots[4],
+            )?;
+        Ok(Self {
+            key_algorithm: field_key_algorithm,
+            signature_algorithm: field_signature_algorithm,
+            supports_sign: field_supports_sign,
+            supports_verify: field_supports_verify,
+            supported_digests: field_supported_digests,
+        })
+    }
+
+    fn encode_with_context(
+        self,
+        context: &mut vm::ExternalCallContext<'_>,
+    ) -> RuntimeResult<vm::Value> {
+        let slots = vec![
+            <CryptoKeyAlgorithm as VmAggregateCodec>::encode_with_context(
+                self.key_algorithm,
+                context,
+            )?,
+            <CryptoSignatureAlgorithm as VmAggregateCodec>::encode_with_context(
+                self.signature_algorithm,
+                context,
+            )?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_sign, context)?,
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_verify, context)?,
+            <VmSlice<CryptoDigestAlgorithm> as VmAggregateCodec>::encode_with_context(
+                self.supported_digests,
+                context,
+            )?,
         ];
         Ok(context.allocate_aggregate(slots))
     }
@@ -3438,6 +4915,15 @@ pub struct CryptoCertificateQueryReplayRecord {
     pub limit: u32,
 }
 
+/// Replay struct for CryptoCertificateVerifyIdentity.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CryptoCertificateVerifyIdentityReplayRecord {
+    /// The kind field.
+    pub kind: CryptoCertificateIdentityKind,
+    /// The value field.
+    pub value: String,
+}
+
 /// Replay struct for CryptoCertificateVerifyRequest.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoCertificateVerifyRequestReplayRecord {
@@ -3451,12 +4937,31 @@ pub struct CryptoCertificateVerifyRequestReplayRecord {
     pub use_system_trust_anchors: bool,
     /// The purpose field.
     pub purpose: CryptoCertificatePurpose,
-    /// The server_name field.
-    pub server_name: String,
+    /// The identity field.
+    pub identity: CryptoCertificateVerifyIdentityReplayRecord,
     /// The verification_unix_seconds field.
     pub verification_unix_seconds: u64,
     /// The revocation_mode field.
     pub revocation_mode: CryptoCertificateRevocationMode,
+}
+
+/// Replay struct for CryptoCertificateVerifyResult.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CryptoCertificateVerifyResultReplayRecord {
+    /// The valid field.
+    pub valid: bool,
+    /// The error field.
+    pub error: CryptoCertificateVerifyError,
+    /// The error_code field.
+    pub error_code: u32,
+    /// The failed_certificate_index field.
+    pub failed_certificate_index: u32,
+    /// The failed_certificate_subject field.
+    pub failed_certificate_subject: String,
+    /// The chain_length field.
+    pub chain_length: u32,
+    /// The used_system_trust_anchor field.
+    pub used_system_trust_anchor: bool,
 }
 
 /// Replay struct for CryptoCipherOutput.
@@ -3521,6 +5026,8 @@ pub struct CryptoKeyDescriptorReplayRecord {
     pub label: String,
     /// The extractable field.
     pub extractable: bool,
+    /// The residency field.
+    pub residency: CryptoKeyResidency,
     /// The hardware_backed field.
     pub hardware_backed: bool,
     /// The persistent field.
@@ -3550,6 +5057,8 @@ pub struct CryptoKeyGenerationRequestReplayRecord {
     pub label: String,
     /// The extractable field.
     pub extractable: bool,
+    /// The residency field.
+    pub residency: CryptoKeyResidency,
     /// The hardware_backed field.
     pub hardware_backed: bool,
     /// The persistent field.
@@ -3575,6 +5084,10 @@ pub struct CryptoKeyImportRequestReplayRecord {
     pub label: String,
     /// The extractable field.
     pub extractable: bool,
+    /// The residency field.
+    pub residency: CryptoKeyResidency,
+    /// The passphrase field.
+    pub passphrase: Vec<u8>,
     /// The persistent field.
     pub persistent: bool,
 }
@@ -3616,6 +5129,17 @@ pub struct CryptoKeyQueryReplayRecord {
     pub limit: u32,
 }
 
+/// Replay struct for CryptoKeyWrapParameters.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CryptoKeyWrapParametersReplayRecord {
+    /// The algorithm field.
+    pub algorithm: CryptoKeyWrapAlgorithm,
+    /// The digest field.
+    pub digest: CryptoDigestAlgorithm,
+    /// The label field.
+    pub label: Vec<u8>,
+}
+
 /// Replay struct for CryptoPbkdf2Request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoPbkdf2RequestReplayRecord {
@@ -3629,6 +5153,15 @@ pub struct CryptoPbkdf2RequestReplayRecord {
     pub iterations: u32,
     /// The length field.
     pub length: u32,
+}
+
+/// Replay struct for CryptoPrivateKeyExportRequest.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CryptoPrivateKeyExportRequestReplayRecord {
+    /// The format field.
+    pub format: CryptoKeyFormat,
+    /// The passphrase field.
+    pub passphrase: Vec<u8>,
 }
 
 /// Replay struct for CryptoScryptRequest.
@@ -3650,13 +5183,26 @@ pub struct CryptoScryptRequestReplayRecord {
     pub length: u32,
 }
 
+/// Replay struct for CryptoStoreAsymmetricEncryptionCapability.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CryptoStoreAsymmetricEncryptionCapabilityReplayRecord {
+    /// The key_algorithm field.
+    pub key_algorithm: CryptoKeyAlgorithm,
+    /// The algorithm field.
+    pub algorithm: CryptoAsymmetricEncryptionAlgorithm,
+    /// The supports_encrypt field.
+    pub supports_encrypt: bool,
+    /// The supports_decrypt field.
+    pub supports_decrypt: bool,
+    /// The supported_digests field.
+    pub supported_digests: Vec<CryptoDigestAlgorithm>,
+}
+
 /// Replay struct for CryptoStoreCapability.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreCapabilityReplayRecord {
-    /// The kind field.
-    pub kind: CryptoStoreKind,
-    /// The provider field.
-    pub provider: CryptoStoreProvider,
+    /// The identity field.
+    pub identity: CryptoStoreIdentityReplayRecord,
     /// The is_available field.
     pub is_available: bool,
     /// The supports_hardware_backed field.
@@ -3669,6 +5215,97 @@ pub struct CryptoStoreCapabilityReplayRecord {
     pub supported_key_algorithms: Vec<CryptoKeyAlgorithm>,
     /// The supported_key_formats field.
     pub supported_key_formats: Vec<CryptoKeyFormat>,
+    /// The supported_key_residencies field.
+    pub supported_key_residencies: Vec<CryptoKeyResidency>,
+    /// The key_capabilities field.
+    pub key_capabilities: Vec<CryptoStoreKeyCapabilityReplayRecord>,
+    /// The signature_capabilities field.
+    pub signature_capabilities: Vec<CryptoStoreSignatureCapabilityReplayRecord>,
+    /// The asymmetric_encryption_capabilities field.
+    pub asymmetric_encryption_capabilities:
+        Vec<CryptoStoreAsymmetricEncryptionCapabilityReplayRecord>,
+    /// The key_wrap_capabilities field.
+    pub key_wrap_capabilities: Vec<CryptoStoreKeyWrapCapabilityReplayRecord>,
+    /// The cipher_capabilities field.
+    pub cipher_capabilities: Vec<CryptoStoreCipherCapability>,
+    /// The mac_capabilities field.
+    pub mac_capabilities: Vec<CryptoStoreMacCapabilityReplayRecord>,
+    /// The agreement_capabilities field.
+    pub agreement_capabilities: Vec<CryptoStoreAgreementCapability>,
+    /// The certificate_capabilities field.
+    pub certificate_capabilities: CryptoStoreCertificateCapability,
+}
+
+/// Replay struct for CryptoStoreIdentity.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CryptoStoreIdentityReplayRecord {
+    /// The kind field.
+    pub kind: CryptoStoreKind,
+    /// The provider field.
+    pub provider: CryptoStoreProvider,
+    /// The namespace field.
+    pub namespace: String,
+}
+
+/// Replay struct for CryptoStoreKeyCapability.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CryptoStoreKeyCapabilityReplayRecord {
+    /// The algorithm field.
+    pub algorithm: CryptoKeyAlgorithm,
+    /// The residency field.
+    pub residency: CryptoKeyResidency,
+    /// The supports_generate_secret field.
+    pub supports_generate_secret: bool,
+    /// The supports_generate_pair field.
+    pub supports_generate_pair: bool,
+    /// The supports_import field.
+    pub supports_import: bool,
+    /// The supports_export_public field.
+    pub supports_export_public: bool,
+    /// The supports_export_private field.
+    pub supports_export_private: bool,
+    /// The supports_export_secret field.
+    pub supports_export_secret: bool,
+    /// The supported_usage_mask field.
+    pub supported_usage_mask: CryptoKeyUsageMask,
+    /// The supported_import_formats field.
+    pub supported_import_formats: Vec<CryptoKeyFormat>,
+    /// The supported_export_formats field.
+    pub supported_export_formats: Vec<CryptoKeyFormat>,
+}
+
+/// Replay struct for CryptoStoreKeyWrapCapability.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CryptoStoreKeyWrapCapabilityReplayRecord {
+    /// The wrapping_key_algorithm field.
+    pub wrapping_key_algorithm: CryptoKeyAlgorithm,
+    /// The algorithm field.
+    pub algorithm: CryptoKeyWrapAlgorithm,
+    /// The supports_wrap field.
+    pub supports_wrap: bool,
+    /// The supports_unwrap field.
+    pub supports_unwrap: bool,
+    /// The supported_digests field.
+    pub supported_digests: Vec<CryptoDigestAlgorithm>,
+}
+
+/// Replay struct for CryptoStoreMacCapability.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CryptoStoreMacCapabilityReplayRecord {
+    /// The key_algorithm field.
+    pub key_algorithm: CryptoKeyAlgorithm,
+    /// The algorithm field.
+    pub algorithm: CryptoMacAlgorithm,
+    /// The supports_one_shot field.
+    pub supports_one_shot: bool,
+    /// The supports_streaming field.
+    pub supports_streaming: bool,
+    /// The supported_digests field.
+    pub supported_digests: Vec<CryptoDigestAlgorithm>,
+    /// The min_tag_length_bytes field.
+    pub min_tag_length_bytes: u32,
+    /// The max_tag_length_bytes field.
+    pub max_tag_length_bytes: u32,
 }
 
 /// Replay struct for CryptoStoreOptions.
@@ -3685,10 +5322,21 @@ pub struct CryptoStoreOptionsReplayRecord {
 /// Replay struct for CryptoStoreProvenance.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CryptoStoreProvenanceReplayRecord {
-    /// The kind field.
-    pub kind: CryptoStoreKind,
-    /// The provider field.
-    pub provider: CryptoStoreProvider,
-    /// The namespace field.
-    pub namespace: String,
+    /// The identity field.
+    pub identity: CryptoStoreIdentityReplayRecord,
+}
+
+/// Replay struct for CryptoStoreSignatureCapability.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CryptoStoreSignatureCapabilityReplayRecord {
+    /// The key_algorithm field.
+    pub key_algorithm: CryptoKeyAlgorithm,
+    /// The signature_algorithm field.
+    pub signature_algorithm: CryptoSignatureAlgorithm,
+    /// The supports_sign field.
+    pub supports_sign: bool,
+    /// The supports_verify field.
+    pub supports_verify: bool,
+    /// The supported_digests field.
+    pub supported_digests: Vec<CryptoDigestAlgorithm>,
 }

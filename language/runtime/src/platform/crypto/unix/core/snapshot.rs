@@ -3,8 +3,6 @@ use std::io::Write;
 #[cfg(target_family = "unix")]
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use openssl::rand::rand_bytes;
 use openssl::symm::{Cipher, decrypt_aead, encrypt_aead};
@@ -12,7 +10,7 @@ use openssl::symm::{Cipher, decrypt_aead, encrypt_aead};
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::CryptoStoreKind;
 
-use super::{invalid_data, not_supported, permission_denied};
+use super::{invalid_data, next_store_write_probe_identifier, not_supported, permission_denied};
 
 /// Snapshot payload magic for encrypted host key-store blobs.
 const HOST_SNAPSHOT_MAGIC: &[u8; 8] = b"DSCKEY01";
@@ -24,9 +22,6 @@ const HOST_SNAPSHOT_NONCE_BYTES: usize = 12;
 const HOST_SNAPSHOT_TAG_BYTES: usize = 16;
 /// AES-256 key size for encrypted host snapshots.
 const HOST_SNAPSHOT_KEY_BYTES: usize = 32;
-
-/// Global sequence used to generate unique write probe identifiers.
-static STORE_WRITE_PROBE_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 /// Snapshot codec and error-label configuration.
 #[derive(Clone, Copy)]
@@ -138,21 +133,6 @@ pub(crate) fn store_host_key_snapshot_bytes(
     }
 
     Ok(())
-}
-
-/// Build one unique probe identifier for temporary backend probes.
-fn next_store_write_probe_identifier() -> String {
-    // include one process-local sequence to avoid collisions in one runtime
-    let sequence = STORE_WRITE_PROBE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    let process_id = std::process::id();
-
-    // include one wall-clock component to avoid collisions across process restarts
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0);
-
-    format!("{process_id}.{timestamp}.{sequence}")
 }
 
 /// Return whether one host snapshot path and key sidecar are writable.

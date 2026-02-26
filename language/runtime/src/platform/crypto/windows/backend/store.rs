@@ -31,7 +31,7 @@ const USER_STORE_LOCATIONS: [u32; 1] = [WINDOWS_CERT_STORE_CURRENT_USER];
 const MACHINE_STORE_LOCATIONS: [u32; 1] = [WINDOWS_CERT_STORE_LOCAL_MACHINE];
 
 /// Return certificate store locations for one host store lane.
-fn lane_store_locations(kind: CryptoStoreKind) -> Option<&'static [u32]> {
+fn store_locations_for_kind(kind: CryptoStoreKind) -> Option<&'static [u32]> {
     match kind {
         CryptoStoreKind::System => Some(&SYSTEM_STORE_LOCATIONS),
         CryptoStoreKind::User => Some(&USER_STORE_LOCATIONS),
@@ -41,9 +41,9 @@ fn lane_store_locations(kind: CryptoStoreKind) -> Option<&'static [u32]> {
 }
 
 /// Return whether any native system store in one lane can be opened.
-fn lane_has_openable_system_store(kind: CryptoStoreKind) -> bool {
+fn has_openable_system_store(kind: CryptoStoreKind) -> bool {
     // probe one representative collection for each lane location
-    let Some(locations) = lane_store_locations(kind) else {
+    let Some(locations) = store_locations_for_kind(kind) else {
         return false;
     };
     for location in locations {
@@ -90,13 +90,13 @@ pub(crate) fn host_store_lane_is_available(
 ) -> bool {
     // resolve lane availability through native store probes and snapshot lanes
     match kind {
-        CryptoStoreKind::System => lane_has_openable_system_store(CryptoStoreKind::System),
+        CryptoStoreKind::System => has_openable_system_store(CryptoStoreKind::System),
         CryptoStoreKind::User => {
-            lane_has_openable_system_store(CryptoStoreKind::User)
+            has_openable_system_store(CryptoStoreKind::User)
                 || windows_keystore_path(context, CryptoStoreKind::User).is_some()
         }
         CryptoStoreKind::Machine => {
-            lane_has_openable_system_store(CryptoStoreKind::Machine)
+            has_openable_system_store(CryptoStoreKind::Machine)
                 || windows_keystore_path(context, CryptoStoreKind::Machine).is_some()
         }
         CryptoStoreKind::Provider | CryptoStoreKind::Ephemeral => false,

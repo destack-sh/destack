@@ -15,6 +15,7 @@ use security_framework_sys::key::{
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
+use crate::platform::crypto::core::digest_output_size_bytes;
 use crate::platform::crypto::{
     CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters,
     CryptoDigestAlgorithm, CryptoNamedCurve, CryptoSignatureAlgorithm, CryptoSignatureParameters,
@@ -95,7 +96,16 @@ pub(super) fn rsa_signature_algorithm(
             Ok(algorithm)
         }
         CryptoSignatureAlgorithm::RsaPss => {
-            let digest_size = digest_output_size(parameters.digest)?;
+            let Some(digest_size) = digest_output_size_bytes(parameters.digest) else {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "parameters.digest",
+                    format!(
+                        "digest {:?} is not supported for keychain rsa pss",
+                        parameters.digest
+                    ),
+                ))
+                .boxed());
+            };
             if parameters.salt_length_bytes != 0 && parameters.salt_length_bytes != digest_size {
                 return Err(not_supported(operation));
             }
@@ -170,24 +180,4 @@ pub(super) fn rsa_decrypt_algorithm(
             .boxed())
         }
     }
-}
-
-/// Return digest output size in bytes for rsa-pss salt lane checks.
-pub(super) fn digest_output_size(digest: CryptoDigestAlgorithm) -> RuntimeResult<u32> {
-    let size = match digest {
-        CryptoDigestAlgorithm::Sha1 => 20,
-        CryptoDigestAlgorithm::Sha224 => 28,
-        CryptoDigestAlgorithm::Sha256 => 32,
-        CryptoDigestAlgorithm::Sha384 => 48,
-        CryptoDigestAlgorithm::Sha512 => 64,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters.digest",
-                format!("digest {digest:?} is not supported for keychain rsa pss"),
-            ))
-            .boxed());
-        }
-    };
-
-    Ok(size)
 }

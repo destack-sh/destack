@@ -34,6 +34,11 @@ pub(super) fn permission_denied(
     .boxed()
 }
 
+/// Return one invalidArgument runtime error.
+pub(super) fn invalid_argument(field: &str, message: impl Into<String>) -> Box<RuntimeError> {
+    RuntimeError::from(PlatformError::invalid_argument_value(field, message)).boxed()
+}
+
 /// Return one ioInvalidData runtime error.
 pub(super) fn invalid_data(
     operation: &'static str,

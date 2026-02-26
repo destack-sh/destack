@@ -3,7 +3,7 @@ use crate::platform::NativeSlice;
 use crate::platform::crypto::core as crypto_core;
 use crate::runtime::BindingCallContext;
 
-use super::core::{decode_mut_bytes, write_out_bytes};
+use crate::platform::crypto::core::{decode_mut_bytes, write_out_bytes};
 
 /// Fill one mutable byte slice with cryptographically secure random bytes.
 ///

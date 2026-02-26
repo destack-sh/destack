@@ -31,7 +31,7 @@ use security_framework_sys::trust_settings::{
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::CryptoStoreKind;
-use crate::platform::crypto::core::CRYPTO_STORE_OPEN_OPERATION;
+use crate::platform::crypto::core::{CRYPTO_STORE_OPEN_OPERATION, push_der_certificate_if_unique};
 use crate::runtime::BindingCallContext;
 
 use super::core::{
@@ -515,7 +515,11 @@ pub(super) fn collect_trust_settings_certificates(domain: u32) -> RuntimeResult<
         if !byte_pointer.is_null() && byte_length > 0 {
             let der_bytes =
                 unsafe { std::slice::from_raw_parts(byte_pointer, byte_length as usize) };
-            push_der_certificate(der_bytes, &mut certificates, &mut seen_der_certificates);
+            push_der_certificate_if_unique(
+                der_bytes,
+                &mut certificates,
+                &mut seen_der_certificates,
+            );
         }
 
         unsafe {
@@ -552,7 +556,11 @@ unsafe fn collect_certificates_from_cfarray(certificate_array: CFArrayRef) -> Ve
         if !byte_pointer.is_null() && byte_length > 0 {
             let der_bytes =
                 unsafe { std::slice::from_raw_parts(byte_pointer, byte_length as usize) };
-            push_der_certificate(der_bytes, &mut certificates, &mut seen_der_certificates);
+            push_der_certificate_if_unique(
+                der_bytes,
+                &mut certificates,
+                &mut seen_der_certificates,
+            );
         }
 
         unsafe {
@@ -561,19 +569,4 @@ unsafe fn collect_certificates_from_cfarray(certificate_array: CFArrayRef) -> Ve
     }
 
     certificates
-}
-
-/// Push one unique parsed certificate payload.
-fn push_der_certificate(
-    der_bytes: &[u8],
-    certificates: &mut Vec<X509>,
-    seen_der_certificates: &mut HashSet<Vec<u8>>,
-) {
-    if !seen_der_certificates.insert(der_bytes.to_vec()) {
-        return;
-    }
-
-    if let Ok(certificate) = X509::from_der(der_bytes) {
-        certificates.push(certificate);
-    }
 }

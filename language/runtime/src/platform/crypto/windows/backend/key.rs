@@ -13,23 +13,25 @@ use windows_sys::Win32::Foundation::{
     NTE_BAD_KEYSET, NTE_BAD_KEYSET_PARAM, NTE_INVALID_PARAMETER, NTE_NO_KEY, NTE_NOT_SUPPORTED,
 };
 use windows_sys::Win32::Security::Cryptography::{
-    BCRYPT_ECCKEY_BLOB, BCRYPT_ECCPUBLIC_BLOB, BCRYPT_ECDH_PUBLIC_P256_MAGIC,
-    BCRYPT_ECDH_PUBLIC_P384_MAGIC, BCRYPT_ECDH_PUBLIC_P521_MAGIC, BCRYPT_ECDSA_PUBLIC_P256_MAGIC,
-    BCRYPT_ECDSA_PUBLIC_P384_MAGIC, BCRYPT_ECDSA_PUBLIC_P521_MAGIC, BCRYPT_KDF_RAW_SECRET,
-    BCRYPT_OAEP_PADDING_INFO, BCRYPT_PKCS1_PADDING_INFO, BCRYPT_PSS_PADDING_INFO,
-    BCRYPT_RSAKEY_BLOB, BCRYPT_RSAPUBLIC_BLOB, BCRYPT_RSAPUBLIC_MAGIC, BCryptBuffer,
-    BCryptBufferDesc, MS_KEY_STORAGE_PROVIDER, MS_PLATFORM_CRYPTO_PROVIDER,
-    NCRYPT_ECDH_P256_ALGORITHM, NCRYPT_ECDH_P384_ALGORITHM, NCRYPT_ECDH_P521_ALGORITHM,
-    NCRYPT_ECDSA_P256_ALGORITHM, NCRYPT_ECDSA_P384_ALGORITHM, NCRYPT_ECDSA_P521_ALGORITHM,
-    NCRYPT_EXPORT_POLICY_PROPERTY, NCRYPT_FLAGS, NCRYPT_KEY_HANDLE, NCRYPT_LENGTH_PROPERTY,
-    NCRYPT_MACHINE_KEY_FLAG, NCRYPT_OVERWRITE_KEY_FLAG, NCRYPT_PAD_OAEP_FLAG,
-    NCRYPT_PAD_PKCS1_FLAG, NCRYPT_PAD_PSS_FLAG, NCRYPT_PKCS8_PRIVATE_KEY_BLOB, NCRYPT_PROV_HANDLE,
-    NCRYPT_RSA_ALGORITHM, NCRYPT_SECRET_HANDLE, NCRYPT_SHA1_ALGORITHM, NCRYPT_SHA256_ALGORITHM,
-    NCRYPT_SHA384_ALGORITHM, NCRYPT_SHA512_ALGORITHM, NCRYPT_SILENT_FLAG,
-    NCRYPTBUFFER_PKCS_KEY_NAME, NCRYPTBUFFER_VERSION, NCryptCreatePersistedKey, NCryptDecrypt,
-    NCryptDeleteKey, NCryptDeriveKey, NCryptExportKey, NCryptFinalizeKey, NCryptFreeObject,
-    NCryptImportKey, NCryptOpenKey, NCryptOpenStorageProvider, NCryptSecretAgreement,
-    NCryptSetProperty, NCryptSignHash,
+    BCRYPT_CHAIN_MODE_CBC, BCRYPT_ECCKEY_BLOB, BCRYPT_ECCPUBLIC_BLOB,
+    BCRYPT_ECDH_PUBLIC_P256_MAGIC, BCRYPT_ECDH_PUBLIC_P384_MAGIC, BCRYPT_ECDH_PUBLIC_P521_MAGIC,
+    BCRYPT_ECDSA_PUBLIC_P256_MAGIC, BCRYPT_ECDSA_PUBLIC_P384_MAGIC, BCRYPT_ECDSA_PUBLIC_P521_MAGIC,
+    BCRYPT_KDF_RAW_SECRET, BCRYPT_OAEP_PADDING_INFO, BCRYPT_PKCS1_PADDING_INFO,
+    BCRYPT_PSS_PADDING_INFO, BCRYPT_RSAKEY_BLOB, BCRYPT_RSAPUBLIC_BLOB, BCRYPT_RSAPUBLIC_MAGIC,
+    BCryptBuffer, BCryptBufferDesc, MS_KEY_STORAGE_PROVIDER, MS_PLATFORM_CRYPTO_PROVIDER,
+    NCRYPT_AES_ALGORITHM, NCRYPT_CHAINING_MODE_PROPERTY, NCRYPT_CIPHER_BLOCK_PADDING_FLAG,
+    NCRYPT_CIPHER_PADDING_INFO, NCRYPT_ECDH_P256_ALGORITHM, NCRYPT_ECDH_P384_ALGORITHM,
+    NCRYPT_ECDH_P521_ALGORITHM, NCRYPT_ECDSA_P256_ALGORITHM, NCRYPT_ECDSA_P384_ALGORITHM,
+    NCRYPT_ECDSA_P521_ALGORITHM, NCRYPT_EXPORT_POLICY_PROPERTY, NCRYPT_FLAGS,
+    NCRYPT_HMAC_SHA256_ALGORITHM, NCRYPT_KEY_HANDLE, NCRYPT_LENGTH_PROPERTY,
+    NCRYPT_MACHINE_KEY_FLAG, NCRYPT_OVERWRITE_KEY_FLAG, NCRYPT_PAD_CIPHER_FLAG,
+    NCRYPT_PAD_OAEP_FLAG, NCRYPT_PAD_PKCS1_FLAG, NCRYPT_PAD_PSS_FLAG,
+    NCRYPT_PKCS8_PRIVATE_KEY_BLOB, NCRYPT_PROV_HANDLE, NCRYPT_RSA_ALGORITHM, NCRYPT_SECRET_HANDLE,
+    NCRYPT_SHA1_ALGORITHM, NCRYPT_SHA256_ALGORITHM, NCRYPT_SHA384_ALGORITHM,
+    NCRYPT_SHA512_ALGORITHM, NCRYPT_SILENT_FLAG, NCRYPTBUFFER_PKCS_KEY_NAME, NCRYPTBUFFER_VERSION,
+    NCryptCreatePersistedKey, NCryptDecrypt, NCryptDeleteKey, NCryptDeriveKey, NCryptEncrypt,
+    NCryptExportKey, NCryptFinalizeKey, NCryptFreeObject, NCryptImportKey, NCryptOpenKey,
+    NCryptOpenStorageProvider, NCryptSecretAgreement, NCryptSetProperty, NCryptSignHash,
 };
 use windows_sys::core::PCWSTR;
 
@@ -39,13 +41,13 @@ use crate::platform::crypto::core::{
 };
 use crate::platform::crypto::{
     CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters,
-    CryptoCipherParameters, CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyUsageMask,
-    CryptoMacParameters, CryptoNamedCurve, CryptoSignatureAlgorithm, CryptoSignatureParameters,
-    CryptoStoreKind,
+    CryptoCipherAlgorithm, CryptoCipherParameters, CryptoDigestAlgorithm, CryptoKeyAlgorithm,
+    CryptoKeyUsageMask, CryptoMacAlgorithm, CryptoMacParameters, CryptoNamedCurve,
+    CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreKind,
 };
 use crate::runtime::BindingCallContext;
 
-use super::core::{invalid_data, not_found, not_supported, permission_denied};
+use super::core::{invalid_argument, invalid_data, not_found, not_supported, permission_denied};
 
 /// Usage-bit mask for sign operations.
 const KEY_USAGE_SIGN: u32 = 0x0000_0001;
@@ -58,6 +60,12 @@ const KEY_USAGE_DERIVE_BITS: u32 = 0x0000_0040;
 
 /// Usage-bit mask for derive-key operations.
 const KEY_USAGE_DERIVE_KEYS: u32 = 0x0000_0080;
+
+/// AES block size in bytes.
+const AES_BLOCK_SIZE_BYTES: usize = 16;
+
+/// Probe payload size for host HMAC operations.
+const HMAC_PROBE_PAYLOAD_SIZE_BYTES: usize = 32;
 
 /// Host provider lanes used for persisted-key operations.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -145,6 +153,12 @@ fn backend_for_provider_and_algorithm(
         (WindowsProviderKind::Platform, CryptoKeyAlgorithm::Ec) => {
             Some(HostKeyBackend::WindowsPlatformKeyStorageEc)
         }
+        (WindowsProviderKind::Platform, CryptoKeyAlgorithm::Aes) => {
+            Some(HostKeyBackend::WindowsPlatformKeyStorageAes)
+        }
+        (WindowsProviderKind::Platform, CryptoKeyAlgorithm::Hmac) => {
+            Some(HostKeyBackend::WindowsPlatformKeyStorageHmac)
+        }
         _ => None,
     }
 }
@@ -155,9 +169,98 @@ fn provider_kind_from_backend(backend: HostKeyBackend) -> Option<WindowsProvider
         HostKeyBackend::WindowsSoftwareKeyStorageRsa
         | HostKeyBackend::WindowsSoftwareKeyStorageEc => Some(WindowsProviderKind::Software),
         HostKeyBackend::WindowsPlatformKeyStorageRsa
-        | HostKeyBackend::WindowsPlatformKeyStorageEc => Some(WindowsProviderKind::Platform),
+        | HostKeyBackend::WindowsPlatformKeyStorageEc
+        | HostKeyBackend::WindowsPlatformKeyStorageAes
+        | HostKeyBackend::WindowsPlatformKeyStorageHmac => Some(WindowsProviderKind::Platform),
         _ => None,
     }
+}
+
+/// Return one host backend lane for one platform secret-key algorithm.
+fn secret_backend_for_algorithm(algorithm: CryptoKeyAlgorithm) -> Option<HostKeyBackend> {
+    match algorithm {
+        CryptoKeyAlgorithm::Aes => Some(HostKeyBackend::WindowsPlatformKeyStorageAes),
+        CryptoKeyAlgorithm::Hmac => Some(HostKeyBackend::WindowsPlatformKeyStorageHmac),
+        _ => None,
+    }
+}
+
+/// Return one NCrypt algorithm id for one platform secret-key lane.
+fn secret_algorithm_name(
+    algorithm: CryptoKeyAlgorithm,
+    digest: CryptoDigestAlgorithm,
+    operation: &'static str,
+) -> RuntimeResult<PCWSTR> {
+    // map AES secret-key generation
+    if algorithm == CryptoKeyAlgorithm::Aes {
+        return Ok(NCRYPT_AES_ALGORITHM);
+    }
+
+    // map HMAC secret-key generation and enforce digest lane support
+    if algorithm == CryptoKeyAlgorithm::Hmac {
+        if digest == CryptoDigestAlgorithm::Unknown || digest == CryptoDigestAlgorithm::Sha256 {
+            return Ok(NCRYPT_HMAC_SHA256_ALGORITHM);
+        }
+
+        return Err(not_supported(operation));
+    }
+
+    Err(not_supported(operation))
+}
+
+/// Return one UTF-16 property value length in bytes.
+fn utf16_property_byte_length(value: PCWSTR) -> u32 {
+    // count UTF-16 code units including trailing terminator
+    let mut length = 0usize;
+    unsafe {
+        while *value.add(length) != 0 {
+            length += 1;
+        }
+    }
+
+    ((length + 1) * size_of::<u16>()) as u32
+}
+
+/// Set one u32 NCrypt property on one key.
+fn set_key_u32_property(
+    key: NCRYPT_KEY_HANDLE,
+    property: PCWSTR,
+    value: u32,
+    action: &'static str,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let status = unsafe {
+        NCryptSetProperty(
+            key,
+            property,
+            (&value as *const u32).cast(),
+            size_of::<u32>() as u32,
+            0,
+        )
+    };
+    if !status_is_success(status) {
+        return Err(status_error(operation, action, status));
+    }
+
+    Ok(())
+}
+
+/// Set one UTF-16 NCrypt property on one key.
+fn set_key_wstring_property(
+    key: NCRYPT_KEY_HANDLE,
+    property: PCWSTR,
+    value: PCWSTR,
+    action: &'static str,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let value_size = utf16_property_byte_length(value);
+    let status =
+        unsafe { NCryptSetProperty(key, property, value.cast_mut().cast(), value_size, 0) };
+    if !status_is_success(status) {
+        return Err(status_error(operation, action, status));
+    }
+
+    Ok(())
 }
 
 /// Return whether one usage-mask requests one key-derivation lane.
@@ -171,7 +274,7 @@ fn usage_requests_sign(usage_mask: CryptoKeyUsageMask) -> bool {
 }
 
 /// Return one key flag mask for one store lane.
-fn lane_key_flags(kind: CryptoStoreKind) -> NCRYPT_FLAGS {
+fn key_flags_for_store_kind(kind: CryptoStoreKind) -> NCRYPT_FLAGS {
     let mut flags = NCRYPT_SILENT_FLAG;
     if kind == CryptoStoreKind::Machine {
         flags |= NCRYPT_MACHINE_KEY_FLAG;
@@ -223,7 +326,7 @@ fn open_persisted_key_with_kind(
 ) -> RuntimeResult<(NCRYPT_PROV_HANDLE, NCRYPT_KEY_HANDLE)> {
     // open one provider and derive key-open flags for the lane
     let provider = open_provider_with_kind(provider_kind, operation)?;
-    let flags = lane_key_flags(kind);
+    let flags = key_flags_for_store_kind(kind);
 
     // open one persisted key by label
     let key_name = key_name_utf16(key_label, operation)?;
@@ -250,7 +353,7 @@ fn try_open_persisted_key_with_kind(
 ) -> RuntimeResult<Option<(NCRYPT_PROV_HANDLE, NCRYPT_KEY_HANDLE)>> {
     // open one provider and derive key-open flags for the lane
     let provider = open_provider_with_kind(provider_kind, operation)?;
-    let flags = lane_key_flags(kind);
+    let flags = key_flags_for_store_kind(kind);
 
     // open one persisted key by label
     let key_name = key_name_utf16(key_label, operation)?;
@@ -373,17 +476,6 @@ fn parse_rsa_public_blob(
     Ok((public_key, header.BitLength, public_exponent))
 }
 
-/// Return one resolved windows EC curve lane.
-fn resolve_ec_curve(named_curve: CryptoNamedCurve) -> Option<(CryptoNamedCurve, u32, Nid)> {
-    match named_curve {
-        CryptoNamedCurve::Unknown => Some((CryptoNamedCurve::P256, 256, Nid::X9_62_PRIME256V1)),
-        CryptoNamedCurve::P256 => Some((CryptoNamedCurve::P256, 256, Nid::X9_62_PRIME256V1)),
-        CryptoNamedCurve::P384 => Some((CryptoNamedCurve::P384, 384, Nid::SECP384R1)),
-        CryptoNamedCurve::P521 => Some((CryptoNamedCurve::P521, 521, Nid::SECP521R1)),
-        _ => None,
-    }
-}
-
 /// Return one windows ECDSA algorithm constant for one named curve.
 fn ecdsa_algorithm_for_curve(named_curve: CryptoNamedCurve) -> Option<PCWSTR> {
     match named_curve {
@@ -446,7 +538,7 @@ fn parse_ec_public_blob(
             "host key blob is not one supported ec public key payload",
         ));
     };
-    let (_, _, curve_nid) = resolve_ec_curve(named_curve).ok_or_else(|| {
+    let (_, _, curve_nid) = crypto_core::resolve_nist_p_curve(named_curve).ok_or_else(|| {
         invalid_data(
             operation,
             "host key blob references one unsupported ec named curve",
@@ -562,7 +654,7 @@ fn import_persistent_private_key_from_pkcs8(
     };
 
     // import and persist one PKCS#8 private key payload
-    let flags = lane_key_flags(kind) | NCRYPT_OVERWRITE_KEY_FLAG;
+    let flags = key_flags_for_store_kind(kind) | NCRYPT_OVERWRITE_KEY_FLAG;
     let mut key = 0usize;
     let status = unsafe {
         NCryptImportKey(
@@ -651,8 +743,8 @@ fn generate_persistent_key_pair_with_provider(
         let result = (|| -> RuntimeResult<Option<HostGeneratedKeyPair>> {
             provider = open_provider_with_kind(provider_kind, operation)?;
             let key_name = key_name_utf16(persistent_key_label, operation)?;
-            let lane_flags = lane_key_flags(kind);
-            let create_flags = lane_flags | NCRYPT_OVERWRITE_KEY_FLAG;
+            let store_flags = key_flags_for_store_kind(kind);
+            let create_flags = store_flags | NCRYPT_OVERWRITE_KEY_FLAG;
 
             let create_status = unsafe {
                 NCryptCreatePersistedKey(
@@ -709,7 +801,7 @@ fn generate_persistent_key_pair_with_provider(
                 ));
             }
 
-            let finalize_status = unsafe { NCryptFinalizeKey(key, lane_flags) };
+            let finalize_status = unsafe { NCryptFinalizeKey(key, store_flags) };
             if !status_is_success(finalize_status) {
                 return Err(status_error(
                     operation,
@@ -779,7 +871,7 @@ fn generate_persistent_key_pair_with_provider(
             return Ok(None);
         }
 
-        let Some((resolved_curve, _, _)) = resolve_ec_curve(named_curve) else {
+        let Some((resolved_curve, _, _)) = crypto_core::resolve_nist_p_curve(named_curve) else {
             return Ok(None);
         };
         let requests_derive = usage_requests_derive(usage_mask);
@@ -803,8 +895,8 @@ fn generate_persistent_key_pair_with_provider(
         let result = (|| -> RuntimeResult<Option<HostGeneratedKeyPair>> {
             provider = open_provider_with_kind(provider_kind, operation)?;
             let key_name = key_name_utf16(persistent_key_label, operation)?;
-            let lane_flags = lane_key_flags(kind);
-            let create_flags = lane_flags | NCRYPT_OVERWRITE_KEY_FLAG;
+            let store_flags = key_flags_for_store_kind(kind);
+            let create_flags = store_flags | NCRYPT_OVERWRITE_KEY_FLAG;
 
             let create_status = unsafe {
                 NCryptCreatePersistedKey(
@@ -843,7 +935,7 @@ fn generate_persistent_key_pair_with_provider(
                 ));
             }
 
-            let finalize_status = unsafe { NCryptFinalizeKey(key, lane_flags) };
+            let finalize_status = unsafe { NCryptFinalizeKey(key, store_flags) };
             if !status_is_success(finalize_status) {
                 return Err(status_error(
                     operation,
@@ -927,7 +1019,8 @@ fn encode_ecdh_public_blob_from_spki(
         .map_err(|error| invalid_data(operation, format!("{error}")))?;
 
     // resolve one supported named curve and encode SEC1 point bytes
-    let Some((resolved_curve, _, curve_nid)) = resolve_ec_curve(named_curve) else {
+    let Some((resolved_curve, _, curve_nid)) = crypto_core::resolve_nist_p_curve(named_curve)
+    else {
         return Err(not_supported(operation));
     };
     let group = EcGroup::from_curve_name(curve_nid)
@@ -1132,6 +1225,366 @@ fn export_rsa_public_blob(
     Ok(blob)
 }
 
+/// Return one default probe size for one hardware-backed secret-key lane.
+fn secret_probe_key_size_bits(algorithm: CryptoKeyAlgorithm) -> Option<u32> {
+    match algorithm {
+        CryptoKeyAlgorithm::Aes | CryptoKeyAlgorithm::Hmac => Some(256),
+        _ => None,
+    }
+}
+
+/// Configure one persisted secret key before finalize.
+fn configure_secret_key_properties(
+    key: NCRYPT_KEY_HANDLE,
+    algorithm: CryptoKeyAlgorithm,
+    size_bits: u32,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    // enforce one non-zero key length for persisted secret keys
+    if size_bits == 0 {
+        return Err(invalid_data(
+            operation,
+            "host secret key size must be non-zero",
+        ));
+    }
+
+    // configure key size and disable export for host-managed lanes
+    set_key_u32_property(
+        key,
+        NCRYPT_LENGTH_PROPERTY,
+        size_bits,
+        "set one host secret key length",
+        operation,
+    )?;
+    set_key_u32_property(
+        key,
+        NCRYPT_EXPORT_POLICY_PROPERTY,
+        0,
+        "set one host secret key export policy",
+        operation,
+    )?;
+
+    // configure AES keys for CBC chaining mode used by host cipher lanes
+    if algorithm == CryptoKeyAlgorithm::Aes {
+        set_key_wstring_property(
+            key,
+            NCRYPT_CHAINING_MODE_PROPERTY,
+            BCRYPT_CHAIN_MODE_CBC,
+            "set one host aes chaining mode",
+            operation,
+        )?;
+    }
+
+    Ok(())
+}
+
+/// Encrypt one payload with one persisted AES key.
+fn encrypt_with_persisted_aes_key(
+    key: NCRYPT_KEY_HANDLE,
+    payload: &[u8],
+    nonce: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    // enforce one AES-CBC IV length
+    if nonce.len() != AES_BLOCK_SIZE_BYTES {
+        return Err(invalid_argument(
+            "parameters.nonce",
+            "aes-cbc host key nonce must be 16 bytes",
+        ));
+    }
+
+    // prepare NCrypt cipher padding metadata with one mutable IV buffer
+    let mut iv = nonce.to_vec();
+    let mut padding_info = NCRYPT_CIPHER_PADDING_INFO {
+        cbSize: size_of::<NCRYPT_CIPHER_PADDING_INFO>() as u32,
+        dwFlags: NCRYPT_CIPHER_BLOCK_PADDING_FLAG,
+        pbIV: iv.as_mut_ptr(),
+        cbIV: iv.len() as u32,
+        pbOtherInfo: ptr::null_mut(),
+        cbOtherInfo: 0,
+    };
+
+    // query ciphertext size with NCrypt symmetric padding metadata
+    let mut output_size = 0u32;
+    let size_status = unsafe {
+        NCryptEncrypt(
+            key,
+            payload.as_ptr(),
+            payload.len() as u32,
+            (&mut padding_info as *mut NCRYPT_CIPHER_PADDING_INFO).cast(),
+            ptr::null_mut(),
+            0,
+            &mut output_size,
+            NCRYPT_PAD_CIPHER_FLAG,
+        )
+    };
+    if !status_is_success(size_status) {
+        return Err(status_error(
+            operation,
+            "query one host aes ciphertext size",
+            size_status,
+        ));
+    }
+
+    // encrypt payload bytes into one owned output vector
+    let mut output = vec![0u8; output_size as usize];
+    let encrypt_status = unsafe {
+        NCryptEncrypt(
+            key,
+            payload.as_ptr(),
+            payload.len() as u32,
+            (&mut padding_info as *mut NCRYPT_CIPHER_PADDING_INFO).cast(),
+            output.as_mut_ptr(),
+            output.len() as u32,
+            &mut output_size,
+            NCRYPT_PAD_CIPHER_FLAG,
+        )
+    };
+    if !status_is_success(encrypt_status) {
+        return Err(status_error(
+            operation,
+            "encrypt one payload with one host aes key",
+            encrypt_status,
+        ));
+    }
+    output.truncate(output_size as usize);
+
+    Ok(output)
+}
+
+/// Decrypt one payload with one persisted AES key.
+fn decrypt_with_persisted_aes_key(
+    key: NCRYPT_KEY_HANDLE,
+    payload: &[u8],
+    nonce: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    // enforce one AES-CBC IV length
+    if nonce.len() != AES_BLOCK_SIZE_BYTES {
+        return Err(invalid_argument(
+            "parameters.nonce",
+            "aes-cbc host key nonce must be 16 bytes",
+        ));
+    }
+
+    // prepare NCrypt cipher padding metadata with one mutable IV buffer
+    let mut iv = nonce.to_vec();
+    let mut padding_info = NCRYPT_CIPHER_PADDING_INFO {
+        cbSize: size_of::<NCRYPT_CIPHER_PADDING_INFO>() as u32,
+        dwFlags: NCRYPT_CIPHER_BLOCK_PADDING_FLAG,
+        pbIV: iv.as_mut_ptr(),
+        cbIV: iv.len() as u32,
+        pbOtherInfo: ptr::null_mut(),
+        cbOtherInfo: 0,
+    };
+
+    // query plaintext size with NCrypt symmetric padding metadata
+    let mut output_size = 0u32;
+    let size_status = unsafe {
+        NCryptDecrypt(
+            key,
+            payload.as_ptr(),
+            payload.len() as u32,
+            (&mut padding_info as *mut NCRYPT_CIPHER_PADDING_INFO).cast(),
+            ptr::null_mut(),
+            0,
+            &mut output_size,
+            NCRYPT_PAD_CIPHER_FLAG,
+        )
+    };
+    if !status_is_success(size_status) {
+        return Err(status_error(
+            operation,
+            "query one host aes plaintext size",
+            size_status,
+        ));
+    }
+
+    // decrypt payload bytes into one owned output vector
+    let mut output = vec![0u8; output_size as usize];
+    let decrypt_status = unsafe {
+        NCryptDecrypt(
+            key,
+            payload.as_ptr(),
+            payload.len() as u32,
+            (&mut padding_info as *mut NCRYPT_CIPHER_PADDING_INFO).cast(),
+            output.as_mut_ptr(),
+            output.len() as u32,
+            &mut output_size,
+            NCRYPT_PAD_CIPHER_FLAG,
+        )
+    };
+    if !status_is_success(decrypt_status) {
+        return Err(status_error(
+            operation,
+            "decrypt one payload with one host aes key",
+            decrypt_status,
+        ));
+    }
+    output.truncate(output_size as usize);
+
+    Ok(output)
+}
+
+/// Compute one HMAC tag with one persisted host key.
+fn compute_hmac_with_persisted_key(
+    key: NCRYPT_KEY_HANDLE,
+    payload: &[u8],
+    operation: &'static str,
+) -> RuntimeResult<Vec<u8>> {
+    // query output size for one HMAC operation
+    let mut output_size = 0u32;
+    let size_status = unsafe {
+        NCryptSignHash(
+            key,
+            ptr::null(),
+            payload.as_ptr().cast_mut(),
+            payload.len() as u32,
+            ptr::null_mut(),
+            0,
+            &mut output_size,
+            0,
+        )
+    };
+    if !status_is_success(size_status) {
+        return Err(status_error(
+            operation,
+            "query one host hmac tag size",
+            size_status,
+        ));
+    }
+
+    // compute one HMAC tag payload
+    let mut output = vec![0u8; output_size as usize];
+    let sign_status = unsafe {
+        NCryptSignHash(
+            key,
+            ptr::null(),
+            payload.as_ptr().cast_mut(),
+            payload.len() as u32,
+            output.as_mut_ptr(),
+            output.len() as u32,
+            &mut output_size,
+            0,
+        )
+    };
+    if !status_is_success(sign_status) {
+        return Err(status_error(
+            operation,
+            "compute one host hmac tag",
+            sign_status,
+        ));
+    }
+    output.truncate(output_size as usize);
+
+    Ok(output)
+}
+
+/// Probe one generated platform AES key by running one encrypt-decrypt roundtrip.
+fn probe_generated_platform_aes_key(
+    key: NCRYPT_KEY_HANDLE,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let plaintext = [0u8; AES_BLOCK_SIZE_BYTES];
+    let nonce = [0u8; AES_BLOCK_SIZE_BYTES];
+    let ciphertext = encrypt_with_persisted_aes_key(key, &plaintext, &nonce, operation)?;
+    let decrypted = decrypt_with_persisted_aes_key(key, &ciphertext, &nonce, operation)?;
+    if decrypted != plaintext {
+        return Err(invalid_data(
+            operation,
+            "host aes probe roundtrip produced one mismatched plaintext",
+        ));
+    }
+
+    Ok(())
+}
+
+/// Probe one generated platform HMAC key by computing one MAC tag.
+fn probe_generated_platform_hmac_key(
+    key: NCRYPT_KEY_HANDLE,
+    operation: &'static str,
+) -> RuntimeResult<()> {
+    let payload = [0x5au8; HMAC_PROBE_PAYLOAD_SIZE_BYTES];
+    let tag = compute_hmac_with_persisted_key(key, &payload, operation)?;
+    if tag.is_empty() {
+        return Err(invalid_data(
+            operation,
+            "host hmac probe produced one empty tag",
+        ));
+    }
+
+    Ok(())
+}
+
+/// Probe one platform secret-key lane by creating one ephemeral key and running one operation.
+fn probe_platform_secret_key_support(kind: CryptoStoreKind, algorithm: CryptoKeyAlgorithm) -> bool {
+    // resolve fixed probe metadata for the requested algorithm lane
+    let operation = "destack.crypto.store.probeCapability";
+    let Some(size_bits) = secret_probe_key_size_bits(algorithm) else {
+        return false;
+    };
+    let digest = if algorithm == CryptoKeyAlgorithm::Hmac {
+        CryptoDigestAlgorithm::Sha256
+    } else {
+        CryptoDigestAlgorithm::Unknown
+    };
+    let Ok(algorithm_name) = secret_algorithm_name(algorithm, digest, operation) else {
+        return false;
+    };
+
+    // create and finalize one ephemeral platform key and probe key operations
+    let Ok(provider) = open_provider_with_kind(WindowsProviderKind::Platform, operation) else {
+        return false;
+    };
+    let create_flags = key_flags_for_store_kind(kind);
+    let mut key = 0usize;
+    let probe_result = (|| -> RuntimeResult<()> {
+        let create_status = unsafe {
+            NCryptCreatePersistedKey(
+                provider,
+                &mut key,
+                algorithm_name,
+                ptr::null(),
+                0,
+                create_flags,
+            )
+        };
+        if !status_is_success(create_status) {
+            return Err(status_error(
+                operation,
+                "create one platform secret-key probe object",
+                create_status,
+            ));
+        }
+
+        configure_secret_key_properties(key, algorithm, size_bits, operation)?;
+
+        let finalize_status = unsafe { NCryptFinalizeKey(key, create_flags) };
+        if !status_is_success(finalize_status) {
+            return Err(status_error(
+                operation,
+                "finalize one platform secret-key probe object",
+                finalize_status,
+            ));
+        }
+
+        if algorithm == CryptoKeyAlgorithm::Aes {
+            probe_generated_platform_aes_key(key, operation)?;
+        } else if algorithm == CryptoKeyAlgorithm::Hmac {
+            probe_generated_platform_hmac_key(key, operation)?;
+        } else {
+            return Err(not_supported(operation));
+        }
+
+        Ok(())
+    })();
+
+    close_handle(key);
+    close_handle(provider);
+
+    probe_result.is_ok()
+}
+
 /// Return whether one host store lane supports hardware-backed keys.
 pub(crate) fn host_store_supports_hardware_backed_key(
     _context: &BindingCallContext,
@@ -1153,6 +1606,34 @@ pub(crate) fn host_store_supports_hardware_backed_key(
     close_handle(provider);
 
     true
+}
+
+/// Return whether one host store lane supports one hardware-backed pair algorithm.
+pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    // hardware-backed pair lanes are currently rsa and ec on windows
+    if !matches!(algorithm, CryptoKeyAlgorithm::Rsa | CryptoKeyAlgorithm::Ec) {
+        return false;
+    }
+
+    host_store_supports_hardware_backed_key(context, kind)
+}
+
+/// Return whether one host store lane supports hardware-backed secret keys.
+pub(crate) fn host_store_supports_hardware_backed_secret_key(
+    _context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    // hardware-backed secret lanes are exposed on persistent user and machine stores
+    if !matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine) {
+        return false;
+    }
+
+    probe_platform_secret_key_support(kind, algorithm)
 }
 
 /// Generate one host-backed hardware key pair.
@@ -1203,16 +1684,87 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
     persistent_key_label: &str,
     operation: &'static str,
 ) -> RuntimeResult<HostKeyMaterial> {
-    let _ = (
-        kind,
-        algorithm,
-        digest,
-        size_bits,
-        usage_mask,
-        persistent_key_label,
-    );
+    // hardware-backed secret lanes are exposed on persistent user and machine stores
+    if !matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine) {
+        return Err(not_supported(operation));
+    }
 
-    Err(not_supported(operation))
+    // resolve backend and CNG algorithm selectors for the requested lane
+    let Some(backend) = secret_backend_for_algorithm(algorithm) else {
+        return Err(not_supported(operation));
+    };
+    let algorithm_name = secret_algorithm_name(algorithm, digest, operation)?;
+
+    let _ = usage_mask;
+
+    // create one persisted platform secret key and enforce non-exportability
+    let mut provider = 0usize;
+    let mut key = 0usize;
+    let mut should_delete_key = false;
+    let result = (|| -> RuntimeResult<HostKeyMaterial> {
+        provider = open_provider_with_kind(WindowsProviderKind::Platform, operation)?;
+        let key_name = key_name_utf16(persistent_key_label, operation)?;
+        let create_flags = key_flags_for_store_kind(kind) | NCRYPT_OVERWRITE_KEY_FLAG;
+
+        let create_status = unsafe {
+            NCryptCreatePersistedKey(
+                provider,
+                &mut key,
+                algorithm_name,
+                key_name.as_ptr(),
+                0,
+                create_flags,
+            )
+        };
+        if !status_is_success(create_status) {
+            return Err(status_error(
+                operation,
+                "create one persisted host secret key",
+                create_status,
+            ));
+        }
+        should_delete_key = true;
+
+        configure_secret_key_properties(key, algorithm, size_bits, operation)?;
+
+        let finalize_status = unsafe { NCryptFinalizeKey(key, create_flags) };
+        if !status_is_success(finalize_status) {
+            return Err(status_error(
+                operation,
+                "finalize one persisted host secret key",
+                finalize_status,
+            ));
+        }
+
+        if algorithm == CryptoKeyAlgorithm::Aes {
+            probe_generated_platform_aes_key(key, operation)?;
+        } else if algorithm == CryptoKeyAlgorithm::Hmac {
+            probe_generated_platform_hmac_key(key, operation)?;
+        } else {
+            return Err(not_supported(operation));
+        }
+
+        should_delete_key = false;
+        Ok(HostKeyMaterial {
+            backend,
+            key_label: persistent_key_label.to_string(),
+            public_key_spki_der: Vec::new(),
+            private_key_der: Vec::new(),
+        })
+    })();
+
+    // roll back partially-created persisted keys when generation failed
+    if should_delete_key && key != 0 {
+        unsafe {
+            let _ = NCryptDeleteKey(key, 0);
+        }
+        key = 0;
+    }
+
+    close_handle(key);
+    close_handle(provider);
+
+    result
 }
 
 /// Generate one host-managed persistent key pair when available.
@@ -1318,7 +1870,7 @@ pub(crate) fn host_import_persistent_private_key(
             }));
         }
 
-        let Some((resolved_curve, _, _)) = resolve_ec_curve(named_curve) else {
+        let Some((resolved_curve, _, _)) = crypto_core::resolve_nist_p_curve(named_curve) else {
             return Ok(None);
         };
         let public_blob = export_ec_public_blob(key, operation)?;
@@ -1664,7 +2216,7 @@ pub(crate) fn host_key_derive_shared_secret(
     {
         return Err(not_supported(operation));
     }
-    if resolve_ec_curve(named_curve).is_none() {
+    if crypto_core::resolve_nist_p_curve(named_curve).is_none() {
         return Err(not_supported(operation));
     }
 
@@ -1772,9 +2324,49 @@ pub(crate) fn host_key_cipher_encrypt(
     payload: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<(Vec<u8>, Vec<u8>)> {
-    let _ = (key, kind, algorithm, parameters, payload);
+    // enforce one supported windows host secret-key lane
+    if key.backend != HostKeyBackend::WindowsPlatformKeyStorageAes
+        || algorithm != CryptoKeyAlgorithm::Aes
+        || !matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine)
+    {
+        return Err(not_supported(operation));
+    }
 
-    Err(not_supported(operation))
+    // enforce AES-CBC lane semantics for this backend
+    if parameters.algorithm != CryptoCipherAlgorithm::AesCbc {
+        return Err(not_supported(operation));
+    }
+    if parameters.tag_length_bytes != 0 {
+        return Err(invalid_argument(
+            "parameters.tagLengthBytes",
+            "host aes-cbc does not produce authentication tags",
+        ));
+    }
+    if parameters.tag.len != 0 {
+        return Err(invalid_argument(
+            "parameters.tag",
+            "host aes-cbc requires one empty decryption tag",
+        ));
+    }
+    if parameters.additional_data.len != 0 {
+        return Err(invalid_argument(
+            "parameters.additionalData",
+            "host aes-cbc does not support additional authenticated data",
+        ));
+    }
+
+    // decode nonce and encrypt payload with one persisted host key
+    let nonce = crypto_core::decode_native_bytes(parameters.nonce, "parameters.nonce")?;
+    let (provider, persisted_key) =
+        open_persisted_key_for_backend(key.backend, kind, &key.key_label, operation)?;
+    let result = encrypt_with_persisted_aes_key(persisted_key, payload, &nonce, operation);
+
+    close_handle(persisted_key);
+    close_handle(provider);
+
+    let ciphertext = result?;
+
+    Ok((ciphertext, Vec::new()))
 }
 
 /// Decrypt one payload with one host-managed secret key.
@@ -1787,9 +2379,47 @@ pub(crate) fn host_key_cipher_decrypt(
     payload: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
-    let _ = (key, kind, algorithm, parameters, payload);
+    // enforce one supported windows host secret-key lane
+    if key.backend != HostKeyBackend::WindowsPlatformKeyStorageAes
+        || algorithm != CryptoKeyAlgorithm::Aes
+        || !matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine)
+    {
+        return Err(not_supported(operation));
+    }
 
-    Err(not_supported(operation))
+    // enforce AES-CBC lane semantics for this backend
+    if parameters.algorithm != CryptoCipherAlgorithm::AesCbc {
+        return Err(not_supported(operation));
+    }
+    if parameters.tag_length_bytes != 0 {
+        return Err(invalid_argument(
+            "parameters.tagLengthBytes",
+            "host aes-cbc does not consume authentication tag-length selectors",
+        ));
+    }
+    if parameters.tag.len != 0 {
+        return Err(invalid_argument(
+            "parameters.tag",
+            "host aes-cbc requires one empty decryption tag",
+        ));
+    }
+    if parameters.additional_data.len != 0 {
+        return Err(invalid_argument(
+            "parameters.additionalData",
+            "host aes-cbc does not support additional authenticated data",
+        ));
+    }
+
+    // decode nonce and decrypt payload with one persisted host key
+    let nonce = crypto_core::decode_native_bytes(parameters.nonce, "parameters.nonce")?;
+    let (provider, persisted_key) =
+        open_persisted_key_for_backend(key.backend, kind, &key.key_label, operation)?;
+    let result = decrypt_with_persisted_aes_key(persisted_key, payload, &nonce, operation);
+
+    close_handle(persisted_key);
+    close_handle(provider);
+
+    result
 }
 
 /// Compute one MAC with one host-managed secret key.
@@ -1802,7 +2432,43 @@ pub(crate) fn host_key_mac_compute(
     payload: &[u8],
     operation: &'static str,
 ) -> RuntimeResult<Vec<u8>> {
-    let _ = (key, kind, algorithm, parameters, payload);
+    // enforce one supported windows host secret-key lane
+    if key.backend != HostKeyBackend::WindowsPlatformKeyStorageHmac
+        || algorithm != CryptoKeyAlgorithm::Hmac
+        || !matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine)
+    {
+        return Err(not_supported(operation));
+    }
 
-    Err(not_supported(operation))
+    // enforce HMAC-SHA256 lane semantics for this backend
+    if parameters.algorithm != CryptoMacAlgorithm::Hmac {
+        return Err(not_supported(operation));
+    }
+    if parameters.digest != CryptoDigestAlgorithm::Unknown
+        && parameters.digest != CryptoDigestAlgorithm::Sha256
+    {
+        return Err(not_supported(operation));
+    }
+
+    // compute tag bytes from one persisted host key
+    let (provider, persisted_key) =
+        open_persisted_key_for_backend(key.backend, kind, &key.key_label, operation)?;
+    let result = compute_hmac_with_persisted_key(persisted_key, payload, operation);
+
+    close_handle(persisted_key);
+    close_handle(provider);
+
+    let mut tag = result?;
+    if parameters.tag_length_bytes != 0 {
+        let length = parameters.tag_length_bytes as usize;
+        if length > tag.len() {
+            return Err(invalid_argument(
+                "parameters.tagLengthBytes",
+                "tag length must be at most host hmac output size",
+            ));
+        }
+        tag.truncate(length);
+    }
+
+    Ok(tag)
 }

@@ -23,8 +23,9 @@ use crate::platform::crypto::{
     CryptoHkdfRequest, CryptoKdfAlgorithm, CryptoKeyAgreementAlgorithm, CryptoKeyAlgorithm,
     CryptoKeyDescriptor, CryptoKeyFormat, CryptoKeyGenerationRequest, CryptoKeyImportRequest,
     CryptoKeyKind, CryptoKeyListEntry, CryptoKeyListPage, CryptoKeyPair, CryptoKeyQuery,
-    CryptoKeyUsageMask, CryptoMacAlgorithm, CryptoMacParameters, CryptoNamedCurve,
-    CryptoPbkdf2Request, CryptoScryptRequest, CryptoSignatureAlgorithm, CryptoSignatureParameters,
+    CryptoKeyUsageMask, CryptoKeyWrapAlgorithm, CryptoKeyWrapParameters, CryptoMacAlgorithm,
+    CryptoMacParameters, CryptoNamedCurve, CryptoPbkdf2Request, CryptoPrivateKeyExportRequest,
+    CryptoScryptRequest, CryptoSignatureAlgorithm, CryptoSignatureParameters,
     CryptoStoreCapability, CryptoStoreKind, CryptoStoreOptions, CryptoStoreProvider,
 };
 #[cfg(any(unix, windows))]
@@ -68,6 +69,30 @@ pub(crate) fn host_store_supports_hardware_backed_key(
     kind: CryptoStoreKind,
 ) -> bool {
     let _ = (context, kind);
+
+    false
+}
+
+/// Return whether one host store lane supports one hardware-backed pair algorithm.
+#[cfg(any(unix, windows))]
+pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    let _ = (context, kind, algorithm);
+
+    false
+}
+
+/// Return whether one host store lane supports hardware-backed secret keys.
+#[cfg(any(unix, windows))]
+pub(crate) fn host_store_supports_hardware_backed_secret_key(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    let _ = (context, kind, algorithm);
 
     false
 }
@@ -361,7 +386,7 @@ pub(crate) fn host_store_delete_certificate(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL key-agreement and KDF primitives for software lanes, and host key APIs for host-managed lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when registered.
+/// Uses OpenSSL key-agreement and KDF primitives for software providers, and host key APIs for host-managed keys: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -393,7 +418,7 @@ pub(crate) unsafe fn destack_crypto_agreement_derive_key(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL key-agreement primitives for software lanes, and host key APIs for host-managed lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when registered.
+/// Uses OpenSSL key-agreement primitives for software providers, and host key APIs for host-managed keys: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -421,7 +446,7 @@ pub(crate) unsafe fn destack_crypto_agreement_derive_shared_secret(
     .boxed())
 }
 
-/// Delete one certificate from one store lane when allowed.
+/// Delete one certificate from one store when allowed.
 ///
 /// Remove one certificate object and invalidate the handle.
 /// Deletion permissions and persistence are enforced by runtime store policies.
@@ -515,7 +540,7 @@ pub(crate) unsafe fn destack_crypto_certificate_export(
     .boxed())
 }
 
-/// Import one certificate into one store lane.
+/// Import one certificate into one store.
 ///
 /// Parse and import one certificate blob into one store and return one certificate handle.
 /// Import visibility and persistence are enforced by runtime store policies.
@@ -587,7 +612,7 @@ pub(crate) unsafe fn destack_crypto_certificate_verify(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.
@@ -610,7 +635,7 @@ pub(crate) unsafe fn destack_crypto_cipher_close(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -642,7 +667,7 @@ pub(crate) unsafe fn destack_crypto_cipher_decrypt(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -677,7 +702,7 @@ pub(crate) unsafe fn destack_crypto_cipher_encrypt(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -705,7 +730,7 @@ pub(crate) unsafe fn destack_crypto_cipher_finish(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -734,7 +759,7 @@ pub(crate) unsafe fn destack_crypto_cipher_open(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -758,7 +783,7 @@ pub(crate) unsafe fn destack_crypto_cipher_reset(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -786,7 +811,7 @@ pub(crate) unsafe fn destack_crypto_cipher_update(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1079,7 +1104,7 @@ pub(crate) unsafe fn destack_crypto_kdf_scrypt(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1111,7 +1136,7 @@ pub(crate) unsafe fn destack_crypto_key_decrypt(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1136,7 +1161,7 @@ pub(crate) unsafe fn destack_crypto_key_delete(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1169,7 +1194,7 @@ pub(crate) unsafe fn destack_crypto_key_descriptor(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1197,11 +1222,13 @@ pub(crate) unsafe fn destack_crypto_key_encrypt(
 /// Export one private key.
 ///
 /// Export one private key representation in the requested encoding format.
+/// Output format and passphrase are provided by `CryptoPrivateKeyExportRequest`.
+/// Encrypted PKCS#8 output requires one non-empty passphrase.
 /// The operation fails when store policy marks this key as non-exportable.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1215,12 +1242,12 @@ pub(crate) unsafe fn destack_crypto_key_export_private(
     context: &BindingCallContext,
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
-    format: CryptoKeyFormat,
+    request: CryptoPrivateKeyExportRequest,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (context, out, handle, format);
+    let _ = (context, out, handle, request);
 
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.crypto.key.exportPrivate",
@@ -1234,7 +1261,7 @@ pub(crate) unsafe fn destack_crypto_key_export_private(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1268,7 +1295,7 @@ pub(crate) unsafe fn destack_crypto_key_export_public(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1302,7 +1329,7 @@ pub(crate) unsafe fn destack_crypto_key_export_secret(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1336,8 +1363,8 @@ pub(crate) unsafe fn destack_crypto_key_generate_pair(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
-/// Hardware-backed secret-key generation is available when the selected host lane exposes symmetric hardware-key callbacks.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+/// Hardware-backed secret-key generation is available when the selected host store exposes symmetric hardware-key callbacks.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1366,12 +1393,13 @@ pub(crate) unsafe fn destack_crypto_key_generate_secret(
 
 /// Import one key object.
 ///
-/// Parse and import one key blob into one store lane.
+/// Parse and import one key blob into one store.
 /// Key visibility and persistence follow runtime store policies.
+/// Encrypted PKCS#8 inputs require one non-empty `request.passphrase`.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1402,7 +1430,7 @@ pub(crate) unsafe fn destack_crypto_key_import(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1429,12 +1457,12 @@ pub(crate) unsafe fn destack_crypto_key_sign(
 
 /// Unwrap one key.
 ///
-/// Decrypt and import one wrapped key object into one store lane.
+/// Decrypt and import one wrapped key object into one store.
 /// Import semantics follow runtime store policy and the import request.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1450,7 +1478,7 @@ pub(crate) unsafe fn destack_crypto_key_unwrap(
     store: resource::CryptoStoreHandle,
     wrappingkey: resource::CryptoKeyHandle,
     wrappedkey: NativeSlice<u8>,
-    parameters: CryptoAsymmetricEncryptionParameters,
+    parameters: CryptoKeyWrapParameters,
     request: CryptoKeyImportRequest,
 ) -> RuntimeResult<()> {
     if out.is_null() {
@@ -1476,7 +1504,7 @@ pub(crate) unsafe fn destack_crypto_key_unwrap(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1512,11 +1540,12 @@ pub(crate) unsafe fn destack_crypto_key_verify(
 /// Wrap one key.
 ///
 /// Export and encrypt one key object under one wrapping key.
-/// Wrapping format and encryption semantics follow runtime store behavior.
+/// Wrapping semantics are selected by `CryptoKeyWrapParameters`.
+/// `RsaOaep` uses asymmetric OAEP wrapping and `AesKw` or `AesKwp` use RFC 3394 or RFC 5649 key-wrap semantics.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1532,7 +1561,7 @@ pub(crate) unsafe fn destack_crypto_key_wrap(
     wrappingkey: resource::CryptoKeyHandle,
     keytowrap: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
-    parameters: CryptoAsymmetricEncryptionParameters,
+    parameters: CryptoKeyWrapParameters,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
@@ -1546,7 +1575,7 @@ pub(crate) unsafe fn destack_crypto_key_wrap(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.
@@ -1569,7 +1598,7 @@ pub(crate) unsafe fn destack_crypto_mac_close(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1598,7 +1627,7 @@ pub(crate) unsafe fn destack_crypto_mac_compute(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1625,7 +1654,7 @@ pub(crate) unsafe fn destack_crypto_mac_finish(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1653,7 +1682,7 @@ pub(crate) unsafe fn destack_crypto_mac_open(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1676,7 +1705,7 @@ pub(crate) unsafe fn destack_crypto_mac_reset(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1700,7 +1729,7 @@ pub(crate) unsafe fn destack_crypto_mac_update(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1733,7 +1762,7 @@ pub(crate) unsafe fn destack_crypto_mac_verify(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+/// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -1765,7 +1794,7 @@ pub(crate) unsafe fn destack_crypto_probe_agreement_algorithms(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+/// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -1797,7 +1826,7 @@ pub(crate) unsafe fn destack_crypto_probe_cipher_algorithms(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+/// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -1829,7 +1858,7 @@ pub(crate) unsafe fn destack_crypto_probe_digest_algorithms(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+/// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -1861,7 +1890,7 @@ pub(crate) unsafe fn destack_crypto_probe_kdf_algorithms(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+/// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -1886,6 +1915,38 @@ pub(crate) unsafe fn destack_crypto_probe_key_algorithms(
     .boxed())
 }
 
+/// List supported key-wrap algorithms.
+///
+/// Return key-wrap algorithms available through active host provider implementations.
+/// Results are capability snapshots and may vary across hosts and runtime builds.
+///
+/// # Platform
+/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+/// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+///
+/// # Errors
+/// Returns ioInvalidData, notSupported.
+///
+/// # Security
+/// Requires `crypto.probe`.
+///
+/// # Replay
+/// External, recordable.
+pub(crate) unsafe fn destack_crypto_probe_key_wrap_algorithms(
+    context: &BindingCallContext,
+    out: *mut NativeSlice<CryptoKeyWrapAlgorithm>,
+) -> RuntimeResult<()> {
+    if out.is_null() {
+        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+    }
+    let _ = (context, out);
+
+    Err(RuntimeError::from(PlatformError::not_supported(
+        "destack.crypto.probe.keyWrapAlgorithms",
+    ))
+    .boxed())
+}
+
 /// List supported key formats.
 ///
 /// Return the key encoding formats supported by active host provider implementations.
@@ -1893,7 +1954,7 @@ pub(crate) unsafe fn destack_crypto_probe_key_algorithms(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+/// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -1925,7 +1986,7 @@ pub(crate) unsafe fn destack_crypto_probe_key_formats(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+/// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -1957,7 +2018,7 @@ pub(crate) unsafe fn destack_crypto_probe_mac_algorithms(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+/// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -1989,7 +2050,7 @@ pub(crate) unsafe fn destack_crypto_probe_named_curves(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+/// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -2071,8 +2132,8 @@ pub(crate) unsafe fn destack_crypto_random_fill(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
-/// Operations may return `notSupported` when host store lanes are unavailable.
+/// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+/// Operations may return `notSupported` when host stores are unavailable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioNotFound, notSupported.
@@ -2098,8 +2159,8 @@ pub(crate) unsafe fn destack_crypto_store_close(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
-/// Operations may return `notSupported` when host store lanes are unavailable.
+/// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+/// Operations may return `notSupported` when host stores are unavailable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -2133,8 +2194,8 @@ pub(crate) unsafe fn destack_crypto_store_list_certificates(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
-/// Operations may return `notSupported` when host store lanes are unavailable.
+/// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+/// Operations may return `notSupported` when host stores are unavailable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -2161,13 +2222,13 @@ pub(crate) unsafe fn destack_crypto_store_list_keys(
     .boxed())
 }
 
-/// Return capabilities for one store backend lane.
+/// Return capabilities for one store backend identity.
 ///
 /// Query one store kind and optional provider and return effective capability policy.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store capability introspection over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+/// Uses runtime crypto store capability introspection over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
 ///
 /// # Errors
 /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -2200,7 +2261,7 @@ pub(crate) unsafe fn destack_crypto_store_probe_capability(
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store capability introspection over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+/// Uses runtime crypto store capability introspection over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
 ///
 /// # Errors
 /// Returns ioInvalidData, notSupported.
@@ -2231,12 +2292,12 @@ pub(crate) unsafe fn destack_crypto_store_probe_kinds(
 /// Provider selection and access scope follow runtime crypto store semantics.
 /// `Ephemeral` and `Provider` store support is required.
 /// Host-backed `System`, `User`, and `Machine` support is host dependent.
-/// Host-backed lanes may expose certificate reads while rejecting key or certificate writes.
+/// Host-backed stores may expose certificate reads while rejecting key or certificate writes.
 ///
 /// # Platform
 /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
-/// Operations may return `notSupported` when host store lanes are unavailable.
+/// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+/// Operations may return `notSupported` when host stores are unavailable.
 ///
 /// # Errors
 /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.

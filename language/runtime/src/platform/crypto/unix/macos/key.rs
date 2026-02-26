@@ -66,6 +66,31 @@ pub(crate) fn host_store_supports_hardware_backed_key(
     )
 }
 
+/// Return whether one host store lane supports one hardware-backed pair algorithm.
+pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    // secure-enclave pair support is currently ec only
+    if algorithm != CryptoKeyAlgorithm::Ec {
+        return false;
+    }
+
+    host_store_supports_hardware_backed_key(context, kind)
+}
+
+/// Return whether one host store lane supports hardware-backed secret keys.
+pub(crate) fn host_store_supports_hardware_backed_secret_key(
+    context: &BindingCallContext,
+    kind: CryptoStoreKind,
+    algorithm: CryptoKeyAlgorithm,
+) -> bool {
+    let _ = (context, kind, algorithm);
+
+    false
+}
+
 /// Generate one host-backed hardware key pair.
 pub(crate) fn host_generate_hardware_backed_key_pair(
     context: &BindingCallContext,
@@ -526,6 +551,8 @@ pub(crate) fn host_key_sign(
         | HostKeyBackend::WindowsSoftwareKeyStorageEc
         | HostKeyBackend::WindowsPlatformKeyStorageRsa
         | HostKeyBackend::WindowsPlatformKeyStorageEc
+        | HostKeyBackend::WindowsPlatformKeyStorageAes
+        | HostKeyBackend::WindowsPlatformKeyStorageHmac
         | HostKeyBackend::AndroidSoftwareKeyStorageRsa
         | HostKeyBackend::AndroidSoftwareKeyStorageEc
         | HostKeyBackend::AndroidHardwareKeystoreRsa

@@ -70,6 +70,7 @@ libc = { workspace = true }
 postcard = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 rustc-hash = { workspace = true }
 tracing = { workspace = true }
 zeroize = { workspace = true }

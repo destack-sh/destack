@@ -6,9 +6,9 @@ use crate::platform::crypto::{
 use crate::platform::{NativeSlice, resource};
 use crate::runtime::BindingCallContext;
 
-use super::core::{decode_bytes, write_out_bytes, write_out_value};
+use crate::platform::crypto::core::{decode_bytes, write_out_bytes, write_out_value};
 
-/// Import one certificate into one store lane.
+/// Import one certificate into one store.
 ///
 /// Parse and import one certificate blob into one store and return one certificate handle.
 /// Import visibility and persistence are enforced by runtime store policies.
@@ -114,7 +114,7 @@ pub(crate) unsafe fn destack_crypto_certificate_verify(
     unsafe { write_out_value(out, result) }
 }
 
-/// Delete one certificate from one store lane when allowed.
+/// Delete one certificate from one store when allowed.
 ///
 /// Remove one certificate object and invalidate the handle.
 /// Deletion permissions and persistence are enforced by runtime store policies.

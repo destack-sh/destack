@@ -3,8 +3,6 @@ use std::io::Write;
 use std::os::raw::c_void;
 use std::path::Path;
 use std::ptr;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use core_foundation_sys::base::{CFRelease, CFTypeRef, kCFAllocatorDefault};
 use core_foundation_sys::data::{CFDataCreate, CFDataGetBytePtr, CFDataGetLength, CFDataRef};
@@ -30,6 +28,7 @@ use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::core::CRYPTO_STORE_OPEN_OPERATION;
 use crate::runtime::BindingCallContext;
 
+use super::super::super::core::next_store_write_probe_identifier;
 use super::certificate::{
     collect_trust_settings_certificates, collect_trusted_certificates,
     host_store_certificate_lane_is_available,
@@ -40,9 +39,6 @@ use super::core::{
     filesystem_store_lane_is_available, invalid_data, load_host_key_snapshot_bytes_from_filesystem,
     not_supported, permission_denied, store_host_key_snapshot_bytes_to_filesystem,
 };
-
-/// Global sequence used to generate unique write probe identifiers.
-static STORE_WRITE_PROBE_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 /// Return whether one host lane has a writable persistent-key backend.
 pub(crate) fn host_store_persistence_backend_is_available(
@@ -70,21 +66,6 @@ pub(crate) fn host_store_persistence_backend_is_available(
 
     // probe snapshot write access with one disposable keychain item
     probe_keychain_snapshot_writeability(context, "destack.crypto.store.probeCapability")
-}
-
-/// Build one unique probe identifier for temporary backend probes.
-fn next_store_write_probe_identifier() -> String {
-    // include one process-local sequence to avoid collisions in one runtime
-    let sequence = STORE_WRITE_PROBE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    let process_id = std::process::id();
-
-    // include one wall-clock component to avoid collisions across process restarts
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0);
-
-    format!("{process_id}.{timestamp}.{sequence}")
 }
 
 /// Return whether one filesystem key-store path is writable.

@@ -4,15 +4,18 @@ use openssl::ec::{EcGroup, EcKey};
 use openssl::nid::Nid;
 use openssl::pkey::PKey;
 use openssl::rsa::Rsa;
+use openssl::symm::Cipher;
 
 use crate::platform::crypto::{
     CryptoCipherAlgorithm, CryptoDigestAlgorithm, CryptoKdfAlgorithm, CryptoKeyAgreementAlgorithm,
-    CryptoKeyAlgorithm, CryptoKeyFormat, CryptoMacAlgorithm, CryptoNamedCurve,
-    CryptoSignatureAlgorithm,
+    CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyResidency, CryptoKeyWrapAlgorithm,
+    CryptoMacAlgorithm, CryptoNamedCurve, CryptoSignatureAlgorithm, CryptoStoreKind,
+    host as crypto_host,
 };
+use crate::runtime::BindingCallContext;
 
 use super::cipher::openssl_cipher;
-use super::core::{CryptoProbeSupport, message_digest};
+use super::core::{CryptoProbeSupport, host_store_supports_key_persistence, message_digest};
 
 /// Return supported key algorithm lanes.
 pub(crate) fn probe_key_algorithms() -> Vec<CryptoKeyAlgorithm> {
@@ -47,6 +50,27 @@ pub(crate) fn probe_key_algorithms() -> Vec<CryptoKeyAlgorithm> {
     algorithms
 }
 
+/// Return supported key-wrap algorithms.
+pub(crate) fn probe_key_wrap_algorithms() -> Vec<CryptoKeyWrapAlgorithm> {
+    let mut algorithms = vec![CryptoKeyWrapAlgorithm::RsaOaep];
+
+    let supports_aes_kw = Cipher::from_nid(Nid::ID_AES128_WRAP).is_some()
+        && Cipher::from_nid(Nid::ID_AES192_WRAP).is_some()
+        && Cipher::from_nid(Nid::ID_AES256_WRAP).is_some();
+    if supports_aes_kw {
+        algorithms.push(CryptoKeyWrapAlgorithm::AesKw);
+    }
+
+    let supports_aes_kwp = Cipher::from_nid(Nid::ID_AES128_WRAP_PAD).is_some()
+        && Cipher::from_nid(Nid::ID_AES192_WRAP_PAD).is_some()
+        && Cipher::from_nid(Nid::ID_AES256_WRAP_PAD).is_some();
+    if supports_aes_kwp {
+        algorithms.push(CryptoKeyWrapAlgorithm::AesKwp);
+    }
+
+    algorithms
+}
+
 /// Return supported key-format lanes.
 pub(crate) fn probe_key_formats() -> Vec<CryptoKeyFormat> {
     // load cached provider support
@@ -56,6 +80,8 @@ pub(crate) fn probe_key_formats() -> Vec<CryptoKeyFormat> {
     let mut formats = vec![
         CryptoKeyFormat::Pkcs8Pem,
         CryptoKeyFormat::Pkcs8Der,
+        CryptoKeyFormat::Pkcs8EncryptedPem,
+        CryptoKeyFormat::Pkcs8EncryptedDer,
         CryptoKeyFormat::SpkiPem,
         CryptoKeyFormat::SpkiDer,
         CryptoKeyFormat::Raw,
@@ -68,6 +94,22 @@ pub(crate) fn probe_key_formats() -> Vec<CryptoKeyFormat> {
     }
 
     formats
+}
+
+/// Return supported key-residency lanes.
+pub(crate) fn probe_key_residencies(context: &BindingCallContext) -> Vec<CryptoKeyResidency> {
+    // include software residencies unconditionally
+    let mut residencies = vec![
+        CryptoKeyResidency::SoftwareExportable,
+        CryptoKeyResidency::SoftwareNonExportable,
+    ];
+
+    // include hardware residency only when at least one active host lane supports it
+    if probe_supports_hardware_residency(context) {
+        residencies.push(CryptoKeyResidency::HardwareOpaque);
+    }
+
+    residencies
 }
 
 /// Return supported digest lanes.
@@ -225,5 +267,23 @@ fn crypto_probe_support() -> &'static CryptoProbeSupport {
             x25519,
             x448,
         }
+    })
+}
+
+/// Return whether any active host lane supports hardware-backed key residency.
+fn probe_supports_hardware_residency(context: &BindingCallContext) -> bool {
+    // probe the standard host store lanes used for persistent/hardware-backed keys
+    let host_kinds = [
+        CryptoStoreKind::System,
+        CryptoStoreKind::User,
+        CryptoStoreKind::Machine,
+    ];
+
+    // return true only when a lane is available, writable, and hardware-backed
+    host_kinds.into_iter().any(|kind| {
+        crypto_host::host_store_lane_is_available(context, kind)
+            && host_store_supports_key_persistence(kind)
+            && crypto_host::host_store_persistence_backend_is_available(context, kind)
+            && crypto_host::host_store_supports_hardware_backed_key(context, kind)
     })
 }

@@ -10,8 +10,9 @@ use crate::platform::crypto::{
     CryptoArgon2idRequestVm, CryptoAsymmetricEncryptionAlgorithm,
     CryptoAsymmetricEncryptionParameters, CryptoAsymmetricEncryptionParametersVm,
     CryptoCertificateDescriptor, CryptoCertificateDescriptorVm, CryptoCertificateFormat,
-    CryptoCertificateListPage, CryptoCertificateListPageVm, CryptoCertificatePurpose,
-    CryptoCertificateQuery, CryptoCertificateQueryVm, CryptoCertificateRevocationMode,
+    CryptoCertificateIdentityKind, CryptoCertificateListPage, CryptoCertificateListPageVm,
+    CryptoCertificatePurpose, CryptoCertificateQuery, CryptoCertificateQueryVm,
+    CryptoCertificateRevocationMode, CryptoCertificateVerifyIdentityVm,
     CryptoCertificateVerifyRequest, CryptoCertificateVerifyRequestVm,
     CryptoCertificateVerifyResult, CryptoCertificateVerifyResultVm, CryptoCipherAlgorithm,
     CryptoCipherDirection, CryptoCipherOutput, CryptoCipherOutputVm, CryptoCipherParameters,
@@ -20,12 +21,24 @@ use crate::platform::crypto::{
     CryptoKeyDescriptorVm, CryptoKeyFormat, CryptoKeyGenerationRequest,
     CryptoKeyGenerationRequestVm, CryptoKeyImportRequest, CryptoKeyImportRequestVm,
     CryptoKeyListPage, CryptoKeyListPageVm, CryptoKeyPair, CryptoKeyPairVm, CryptoKeyQuery,
-    CryptoKeyQueryVm, CryptoKeyUsageMask, CryptoMacAlgorithm, CryptoMacParameters,
+    CryptoKeyQueryVm, CryptoKeyResidency, CryptoKeyUsageMask, CryptoKeyWrapAlgorithm,
+    CryptoKeyWrapParameters, CryptoKeyWrapParametersVm, CryptoMacAlgorithm, CryptoMacParameters,
     CryptoMacParametersVm, CryptoNamedCurve, CryptoPbkdf2Request, CryptoPbkdf2RequestVm,
-    CryptoScryptRequest, CryptoScryptRequestVm, CryptoSignatureAlgorithm,
-    CryptoSignatureParameters, CryptoSignatureParametersVm, CryptoStoreCapability,
-    CryptoStoreCapabilityReplayRecord, CryptoStoreCapabilityVm, CryptoStoreKind,
-    CryptoStoreOptions, CryptoStoreOptionsVm, CryptoStoreProvider,
+    CryptoPrivateKeyExportRequest, CryptoPrivateKeyExportRequestVm, CryptoScryptRequest,
+    CryptoScryptRequestVm, CryptoSignatureAlgorithm, CryptoSignatureParameters,
+    CryptoSignatureParametersVm, CryptoStoreAgreementCapability, CryptoStoreAgreementCapabilityVm,
+    CryptoStoreAsymmetricEncryptionCapability,
+    CryptoStoreAsymmetricEncryptionCapabilityReplayRecord,
+    CryptoStoreAsymmetricEncryptionCapabilityVm, CryptoStoreCapability,
+    CryptoStoreCapabilityReplayRecord, CryptoStoreCapabilityVm, CryptoStoreCertificateCapability,
+    CryptoStoreCertificateCapabilityVm, CryptoStoreCipherCapability, CryptoStoreCipherCapabilityVm,
+    CryptoStoreIdentity, CryptoStoreIdentityReplayRecord, CryptoStoreIdentityVm,
+    CryptoStoreKeyCapability, CryptoStoreKeyCapabilityReplayRecord, CryptoStoreKeyCapabilityVm,
+    CryptoStoreKeyWrapCapability, CryptoStoreKeyWrapCapabilityReplayRecord,
+    CryptoStoreKeyWrapCapabilityVm, CryptoStoreKind, CryptoStoreMacCapability,
+    CryptoStoreMacCapabilityReplayRecord, CryptoStoreMacCapabilityVm, CryptoStoreOptions,
+    CryptoStoreOptionsVm, CryptoStoreProvider, CryptoStoreSignatureCapability,
+    CryptoStoreSignatureCapabilityReplayRecord, CryptoStoreSignatureCapabilityVm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, PlatformError, RuntimeStatus, VmArray, VmSlice, abi as platform_abi,
@@ -372,10 +385,14 @@ fn encode_destack_crypto_certificate_descriptor_result(
         let field_6 = vm::Value::bool(value.is_certificate_authority);
         let field_7 = vm::Value::uint(value.key_usage_mask as u64, 32);
         let field_8 = {
-            let field_0 = vm::Value::uint(value.store_provenance.kind as u8 as u64, 8);
-            let field_1 = vm::Value::uint(value.store_provenance.provider as u8 as u64, 8);
-            let field_2 = value.store_provenance.namespace.value();
-            context.allocate_aggregate(vec![field_0, field_1, field_2])
+            let field_0 = {
+                let field_0 = vm::Value::uint(value.store_provenance.identity.kind as u8 as u64, 8);
+                let field_1 =
+                    vm::Value::uint(value.store_provenance.identity.provider as u8 as u64, 8);
+                let field_2 = value.store_provenance.identity.namespace.value();
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![field_0])
         };
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
@@ -523,7 +540,46 @@ fn decode_destack_crypto_certificate_verify_args(
                 .boxed());
             }
         };
-        let request_server_name = decode_string(slots[5], "request_server_name", "serverName")?;
+        let request_identity = {
+            if slots[5].tag() != vm::ValueTag::Aggregate {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                    "request_identity",
+                    "identity",
+                ))
+                .boxed());
+            }
+            let slots = context
+                .aggregate_slots(slots[5])
+                .map_err(|error| RuntimeError::from(error).boxed())?;
+            if slots.len() != 2 {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_identity",
+                    "expected 2 fields",
+                ))
+                .boxed());
+            }
+            let request_identity_kind_raw =
+                decode_uint8(slots[0], "request_identity_kind_raw", "kind")?;
+            let request_identity_kind = match request_identity_kind_raw {
+                1u8 => CryptoCertificateIdentityKind::DnsName,
+                2u8 => CryptoCertificateIdentityKind::IpAddress,
+                3u8 => CryptoCertificateIdentityKind::Uri,
+                4u8 => CryptoCertificateIdentityKind::EmailAddress,
+                _ => {
+                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                        "request_identity_kind",
+                        "unknown CryptoCertificateIdentityKind value",
+                    ))
+                    .boxed());
+                }
+            };
+            let request_identity_value =
+                decode_string(slots[1], "request_identity_value", "value")?;
+            CryptoCertificateVerifyIdentityVm {
+                kind: request_identity_kind,
+                value: request_identity_value,
+            }
+        };
         let request_verification_unix_seconds = decode_uint64(
             slots[6],
             "request_verification_unix_seconds",
@@ -549,7 +605,7 @@ fn decode_destack_crypto_certificate_verify_args(
             trust_anchors: request_trust_anchors,
             use_system_trust_anchors: request_use_system_trust_anchors,
             purpose: request_purpose,
-            server_name: request_server_name,
+            identity: request_identity,
             verification_unix_seconds: request_verification_unix_seconds,
             revocation_mode: request_revocation_mode,
         }
@@ -565,10 +621,15 @@ fn encode_destack_crypto_certificate_verify_result(
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
         let field_0 = vm::Value::bool(value.valid);
-        let field_1 = vm::Value::uint(value.error_code as u64, 32);
-        let field_2 = vm::Value::uint(value.chain_length as u64, 32);
-        let field_3 = vm::Value::bool(value.used_system_trust_anchor);
-        context.allocate_aggregate(vec![field_0, field_1, field_2, field_3])
+        let field_1 = vm::Value::uint(value.error as u8 as u64, 8);
+        let field_2 = vm::Value::uint(value.error_code as u64, 32);
+        let field_3 = vm::Value::uint(value.failed_certificate_index as u64, 32);
+        let field_4 = value.failed_certificate_subject.value();
+        let field_5 = vm::Value::uint(value.chain_length as u64, 32);
+        let field_6 = vm::Value::bool(value.used_system_trust_anchor);
+        context.allocate_aggregate(vec![
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6,
+        ])
     })
 }
 
@@ -1631,17 +1692,22 @@ fn encode_destack_crypto_key_descriptor_result(
         let field_7 = vm::Value::uint(value.usage_mask.0 as u64, 32);
         let field_8 = value.label.value();
         let field_9 = vm::Value::bool(value.extractable);
-        let field_10 = vm::Value::bool(value.hardware_backed);
-        let field_11 = vm::Value::bool(value.persistent);
-        let field_12 = {
-            let field_0 = vm::Value::uint(value.store_provenance.kind as u8 as u64, 8);
-            let field_1 = vm::Value::uint(value.store_provenance.provider as u8 as u64, 8);
-            let field_2 = value.store_provenance.namespace.value();
-            context.allocate_aggregate(vec![field_0, field_1, field_2])
+        let field_10 = vm::Value::uint(value.residency as u8 as u64, 8);
+        let field_11 = vm::Value::bool(value.hardware_backed);
+        let field_12 = vm::Value::bool(value.persistent);
+        let field_13 = {
+            let field_0 = {
+                let field_0 = vm::Value::uint(value.store_provenance.identity.kind as u8 as u64, 8);
+                let field_1 =
+                    vm::Value::uint(value.store_provenance.identity.provider as u8 as u64, 8);
+                let field_2 = value.store_provenance.identity.namespace.value();
+                context.allocate_aggregate(vec![field_0, field_1, field_2])
+            };
+            context.allocate_aggregate(vec![field_0])
         };
         context.allocate_aggregate(vec![
             field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
-            field_9, field_10, field_11, field_12,
+            field_9, field_10, field_11, field_12, field_13,
         ])
     })
 }
@@ -1748,34 +1814,61 @@ fn encode_destack_crypto_key_encrypt_result(
 /// Decode arguments for destack.crypto.key.exportPrivate.
 #[inline]
 fn decode_destack_crypto_key_export_private_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::CryptoKeyHandle, CryptoKeyFormat)> {
+) -> RuntimeResult<(resource::CryptoKeyHandle, CryptoPrivateKeyExportRequestVm)> {
     let handle_value = arg_value(args, 0, "handle", "CryptoKeyHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CryptoKeyHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CryptoKeyHandle(handle_inner);
-    let format_value = arg_value(args, 1, "format", "CryptoKeyFormat")?;
-    let format_raw = decode_uint8(format_value, "format_raw", "CryptoKeyFormat")?;
-    let format = match format_raw {
-        0u8 => CryptoKeyFormat::Unknown,
-        1u8 => CryptoKeyFormat::Pkcs8Pem,
-        2u8 => CryptoKeyFormat::Pkcs8Der,
-        3u8 => CryptoKeyFormat::SpkiPem,
-        4u8 => CryptoKeyFormat::SpkiDer,
-        5u8 => CryptoKeyFormat::Jwk,
-        6u8 => CryptoKeyFormat::Raw,
-        7u8 => CryptoKeyFormat::Sec1Pem,
-        8u8 => CryptoKeyFormat::Sec1Der,
-        _ => {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "format",
-                "unknown CryptoKeyFormat value",
+    let request_value = arg_value(args, 1, "request", "CryptoPrivateKeyExportRequest")?;
+    let request = {
+        if request_value.tag() != vm::ValueTag::Aggregate {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
+                "request",
+                "CryptoPrivateKeyExportRequest",
             ))
             .boxed());
         }
+        let slots = context
+            .aggregate_slots(request_value)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        if slots.len() != 2 {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "request",
+                "expected 2 fields",
+            ))
+            .boxed());
+        }
+        let request_format_raw = decode_uint8(slots[0], "request_format_raw", "format")?;
+        let request_format = match request_format_raw {
+            0u8 => CryptoKeyFormat::Unknown,
+            1u8 => CryptoKeyFormat::Pkcs8Pem,
+            2u8 => CryptoKeyFormat::Pkcs8Der,
+            3u8 => CryptoKeyFormat::SpkiPem,
+            4u8 => CryptoKeyFormat::SpkiDer,
+            5u8 => CryptoKeyFormat::Jwk,
+            6u8 => CryptoKeyFormat::Raw,
+            7u8 => CryptoKeyFormat::Sec1Pem,
+            8u8 => CryptoKeyFormat::Sec1Der,
+            9u8 => CryptoKeyFormat::Pkcs8EncryptedPem,
+            10u8 => CryptoKeyFormat::Pkcs8EncryptedDer,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_format",
+                    "unknown CryptoKeyFormat value",
+                ))
+                .boxed());
+            }
+        };
+        let request_passphrase =
+            decode_slice::<u8>(context, slots[1], "request_passphrase", "passphrase")?;
+        CryptoPrivateKeyExportRequestVm {
+            format: request_format,
+            passphrase: request_passphrase,
+        }
     };
-    Ok((handle, format))
+    Ok((handle, request))
 }
 
 /// Encode the result for destack.crypto.key.exportPrivate.
@@ -1809,6 +1902,8 @@ fn decode_destack_crypto_key_export_public_args(
         6u8 => CryptoKeyFormat::Raw,
         7u8 => CryptoKeyFormat::Sec1Pem,
         8u8 => CryptoKeyFormat::Sec1Der,
+        9u8 => CryptoKeyFormat::Pkcs8EncryptedPem,
+        10u8 => CryptoKeyFormat::Pkcs8EncryptedDer,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "format",
@@ -1851,6 +1946,8 @@ fn decode_destack_crypto_key_export_secret_args(
         6u8 => CryptoKeyFormat::Raw,
         7u8 => CryptoKeyFormat::Sec1Pem,
         8u8 => CryptoKeyFormat::Sec1Der,
+        9u8 => CryptoKeyFormat::Pkcs8EncryptedPem,
+        10u8 => CryptoKeyFormat::Pkcs8EncryptedDer,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "format",
@@ -1893,10 +1990,10 @@ fn decode_destack_crypto_key_generate_pair_args(
         let slots = context
             .aggregate_slots(request_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 11 {
+        if slots.len() != 12 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "request",
-                "expected 11 fields",
+                "expected 12 fields",
             ))
             .boxed());
         }
@@ -1970,9 +2067,23 @@ fn decode_destack_crypto_key_generate_pair_args(
         let request_usage_mask = CryptoKeyUsageMask(request_usage_mask_inner);
         let request_label = decode_string(slots[7], "request_label", "label")?;
         let request_extractable = decode_bool(slots[8], "request_extractable", "extractable")?;
+        let request_residency_raw = decode_uint8(slots[9], "request_residency_raw", "residency")?;
+        let request_residency = match request_residency_raw {
+            0u8 => CryptoKeyResidency::Unknown,
+            1u8 => CryptoKeyResidency::SoftwareExportable,
+            2u8 => CryptoKeyResidency::SoftwareNonExportable,
+            3u8 => CryptoKeyResidency::HardwareOpaque,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_residency",
+                    "unknown CryptoKeyResidency value",
+                ))
+                .boxed());
+            }
+        };
         let request_hardware_backed =
-            decode_bool(slots[9], "request_hardware_backed", "hardwareBacked")?;
-        let request_persistent = decode_bool(slots[10], "request_persistent", "persistent")?;
+            decode_bool(slots[10], "request_hardware_backed", "hardwareBacked")?;
+        let request_persistent = decode_bool(slots[11], "request_persistent", "persistent")?;
         CryptoKeyGenerationRequestVm {
             algorithm: request_algorithm,
             named_curve: request_named_curve,
@@ -1983,6 +2094,7 @@ fn decode_destack_crypto_key_generate_pair_args(
             usage_mask: request_usage_mask,
             label: request_label,
             extractable: request_extractable,
+            residency: request_residency,
             hardware_backed: request_hardware_backed,
             persistent: request_persistent,
         }
@@ -2025,10 +2137,10 @@ fn decode_destack_crypto_key_generate_secret_args(
         let slots = context
             .aggregate_slots(request_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 11 {
+        if slots.len() != 12 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "request",
-                "expected 11 fields",
+                "expected 12 fields",
             ))
             .boxed());
         }
@@ -2102,9 +2214,23 @@ fn decode_destack_crypto_key_generate_secret_args(
         let request_usage_mask = CryptoKeyUsageMask(request_usage_mask_inner);
         let request_label = decode_string(slots[7], "request_label", "label")?;
         let request_extractable = decode_bool(slots[8], "request_extractable", "extractable")?;
+        let request_residency_raw = decode_uint8(slots[9], "request_residency_raw", "residency")?;
+        let request_residency = match request_residency_raw {
+            0u8 => CryptoKeyResidency::Unknown,
+            1u8 => CryptoKeyResidency::SoftwareExportable,
+            2u8 => CryptoKeyResidency::SoftwareNonExportable,
+            3u8 => CryptoKeyResidency::HardwareOpaque,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_residency",
+                    "unknown CryptoKeyResidency value",
+                ))
+                .boxed());
+            }
+        };
         let request_hardware_backed =
-            decode_bool(slots[9], "request_hardware_backed", "hardwareBacked")?;
-        let request_persistent = decode_bool(slots[10], "request_persistent", "persistent")?;
+            decode_bool(slots[10], "request_hardware_backed", "hardwareBacked")?;
+        let request_persistent = decode_bool(slots[11], "request_persistent", "persistent")?;
         CryptoKeyGenerationRequestVm {
             algorithm: request_algorithm,
             named_curve: request_named_curve,
@@ -2115,6 +2241,7 @@ fn decode_destack_crypto_key_generate_secret_args(
             usage_mask: request_usage_mask,
             label: request_label,
             extractable: request_extractable,
+            residency: request_residency,
             hardware_backed: request_hardware_backed,
             persistent: request_persistent,
         }
@@ -2153,10 +2280,10 @@ fn decode_destack_crypto_key_import_args(
         let slots = context
             .aggregate_slots(request_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 9 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "request",
-                "expected 9 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
@@ -2171,6 +2298,8 @@ fn decode_destack_crypto_key_import_args(
             6u8 => CryptoKeyFormat::Raw,
             7u8 => CryptoKeyFormat::Sec1Pem,
             8u8 => CryptoKeyFormat::Sec1Der,
+            9u8 => CryptoKeyFormat::Pkcs8EncryptedPem,
+            10u8 => CryptoKeyFormat::Pkcs8EncryptedDer,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "request_format",
@@ -2246,7 +2375,23 @@ fn decode_destack_crypto_key_import_args(
         let request_usage_mask = CryptoKeyUsageMask(request_usage_mask_inner);
         let request_label = decode_string(slots[6], "request_label", "label")?;
         let request_extractable = decode_bool(slots[7], "request_extractable", "extractable")?;
-        let request_persistent = decode_bool(slots[8], "request_persistent", "persistent")?;
+        let request_residency_raw = decode_uint8(slots[8], "request_residency_raw", "residency")?;
+        let request_residency = match request_residency_raw {
+            0u8 => CryptoKeyResidency::Unknown,
+            1u8 => CryptoKeyResidency::SoftwareExportable,
+            2u8 => CryptoKeyResidency::SoftwareNonExportable,
+            3u8 => CryptoKeyResidency::HardwareOpaque,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_residency",
+                    "unknown CryptoKeyResidency value",
+                ))
+                .boxed());
+            }
+        };
+        let request_passphrase =
+            decode_slice::<u8>(context, slots[9], "request_passphrase", "passphrase")?;
+        let request_persistent = decode_bool(slots[10], "request_persistent", "persistent")?;
         CryptoKeyImportRequestVm {
             format: request_format,
             bytes: request_bytes,
@@ -2256,6 +2401,8 @@ fn decode_destack_crypto_key_import_args(
             usage_mask: request_usage_mask,
             label: request_label,
             extractable: request_extractable,
+            residency: request_residency,
+            passphrase: request_passphrase,
             persistent: request_persistent,
         }
     };
@@ -2378,7 +2525,7 @@ fn decode_destack_crypto_key_unwrap_args(
     resource::CryptoStoreHandle,
     resource::CryptoKeyHandle,
     VmSlice<u8>,
-    CryptoAsymmetricEncryptionParametersVm,
+    CryptoKeyWrapParametersVm,
     CryptoKeyImportRequestVm,
 )> {
     let store_value = arg_value(args, 0, "store", "CryptoStoreHandle")?;
@@ -2395,17 +2542,12 @@ fn decode_destack_crypto_key_unwrap_args(
     let wrappingkey = resource::CryptoKeyHandle(wrappingkey_inner);
     let wrappedkey_value = arg_value(args, 2, "wrappedkey", "Slice<uint8>")?;
     let wrappedkey = decode_slice::<u8>(context, wrappedkey_value, "wrappedkey", "Slice<uint8>")?;
-    let parameters_value = arg_value(
-        args,
-        3,
-        "parameters",
-        "CryptoAsymmetricEncryptionParameters",
-    )?;
+    let parameters_value = arg_value(args, 3, "parameters", "CryptoKeyWrapParameters")?;
     let parameters = {
         if parameters_value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
                 "parameters",
-                "CryptoAsymmetricEncryptionParameters",
+                "CryptoKeyWrapParameters",
             ))
             .boxed());
         }
@@ -2422,13 +2564,14 @@ fn decode_destack_crypto_key_unwrap_args(
         let parameters_algorithm_raw =
             decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
         let parameters_algorithm = match parameters_algorithm_raw {
-            0u8 => CryptoAsymmetricEncryptionAlgorithm::Unknown,
-            1u8 => CryptoAsymmetricEncryptionAlgorithm::RsaPkcs1v15,
-            2u8 => CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+            0u8 => CryptoKeyWrapAlgorithm::Unknown,
+            1u8 => CryptoKeyWrapAlgorithm::RsaOaep,
+            2u8 => CryptoKeyWrapAlgorithm::AesKw,
+            3u8 => CryptoKeyWrapAlgorithm::AesKwp,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "parameters_algorithm",
-                    "unknown CryptoAsymmetricEncryptionAlgorithm value",
+                    "unknown CryptoKeyWrapAlgorithm value",
                 ))
                 .boxed());
             }
@@ -2455,7 +2598,7 @@ fn decode_destack_crypto_key_unwrap_args(
             }
         };
         let parameters_label = decode_slice::<u8>(context, slots[2], "parameters_label", "label")?;
-        CryptoAsymmetricEncryptionParametersVm {
+        CryptoKeyWrapParametersVm {
             algorithm: parameters_algorithm,
             digest: parameters_digest,
             label: parameters_label,
@@ -2473,10 +2616,10 @@ fn decode_destack_crypto_key_unwrap_args(
         let slots = context
             .aggregate_slots(request_value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 9 {
+        if slots.len() != 11 {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "request",
-                "expected 9 fields",
+                "expected 11 fields",
             ))
             .boxed());
         }
@@ -2491,6 +2634,8 @@ fn decode_destack_crypto_key_unwrap_args(
             6u8 => CryptoKeyFormat::Raw,
             7u8 => CryptoKeyFormat::Sec1Pem,
             8u8 => CryptoKeyFormat::Sec1Der,
+            9u8 => CryptoKeyFormat::Pkcs8EncryptedPem,
+            10u8 => CryptoKeyFormat::Pkcs8EncryptedDer,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "request_format",
@@ -2566,7 +2711,23 @@ fn decode_destack_crypto_key_unwrap_args(
         let request_usage_mask = CryptoKeyUsageMask(request_usage_mask_inner);
         let request_label = decode_string(slots[6], "request_label", "label")?;
         let request_extractable = decode_bool(slots[7], "request_extractable", "extractable")?;
-        let request_persistent = decode_bool(slots[8], "request_persistent", "persistent")?;
+        let request_residency_raw = decode_uint8(slots[8], "request_residency_raw", "residency")?;
+        let request_residency = match request_residency_raw {
+            0u8 => CryptoKeyResidency::Unknown,
+            1u8 => CryptoKeyResidency::SoftwareExportable,
+            2u8 => CryptoKeyResidency::SoftwareNonExportable,
+            3u8 => CryptoKeyResidency::HardwareOpaque,
+            _ => {
+                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                    "request_residency",
+                    "unknown CryptoKeyResidency value",
+                ))
+                .boxed());
+            }
+        };
+        let request_passphrase =
+            decode_slice::<u8>(context, slots[9], "request_passphrase", "passphrase")?;
+        let request_persistent = decode_bool(slots[10], "request_persistent", "persistent")?;
         CryptoKeyImportRequestVm {
             format: request_format,
             bytes: request_bytes,
@@ -2576,6 +2737,8 @@ fn decode_destack_crypto_key_unwrap_args(
             usage_mask: request_usage_mask,
             label: request_label,
             extractable: request_extractable,
+            residency: request_residency,
+            passphrase: request_passphrase,
             persistent: request_persistent,
         }
     };
@@ -2701,7 +2864,7 @@ fn decode_destack_crypto_key_wrap_args(
     resource::CryptoKeyHandle,
     resource::CryptoKeyHandle,
     CryptoKeyFormat,
-    CryptoAsymmetricEncryptionParametersVm,
+    CryptoKeyWrapParametersVm,
 )> {
     let wrappingkey_value = arg_value(args, 0, "wrappingkey", "CryptoKeyHandle")?;
     let wrappingkey_inner_inner = decode_uint64(
@@ -2728,6 +2891,8 @@ fn decode_destack_crypto_key_wrap_args(
         6u8 => CryptoKeyFormat::Raw,
         7u8 => CryptoKeyFormat::Sec1Pem,
         8u8 => CryptoKeyFormat::Sec1Der,
+        9u8 => CryptoKeyFormat::Pkcs8EncryptedPem,
+        10u8 => CryptoKeyFormat::Pkcs8EncryptedDer,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "format",
@@ -2736,17 +2901,12 @@ fn decode_destack_crypto_key_wrap_args(
             .boxed());
         }
     };
-    let parameters_value = arg_value(
-        args,
-        3,
-        "parameters",
-        "CryptoAsymmetricEncryptionParameters",
-    )?;
+    let parameters_value = arg_value(args, 3, "parameters", "CryptoKeyWrapParameters")?;
     let parameters = {
         if parameters_value.tag() != vm::ValueTag::Aggregate {
             return Err(RuntimeError::from(PlatformError::invalid_argument_type(
                 "parameters",
-                "CryptoAsymmetricEncryptionParameters",
+                "CryptoKeyWrapParameters",
             ))
             .boxed());
         }
@@ -2763,13 +2923,14 @@ fn decode_destack_crypto_key_wrap_args(
         let parameters_algorithm_raw =
             decode_uint8(slots[0], "parameters_algorithm_raw", "algorithm")?;
         let parameters_algorithm = match parameters_algorithm_raw {
-            0u8 => CryptoAsymmetricEncryptionAlgorithm::Unknown,
-            1u8 => CryptoAsymmetricEncryptionAlgorithm::RsaPkcs1v15,
-            2u8 => CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+            0u8 => CryptoKeyWrapAlgorithm::Unknown,
+            1u8 => CryptoKeyWrapAlgorithm::RsaOaep,
+            2u8 => CryptoKeyWrapAlgorithm::AesKw,
+            3u8 => CryptoKeyWrapAlgorithm::AesKwp,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                     "parameters_algorithm",
-                    "unknown CryptoAsymmetricEncryptionAlgorithm value",
+                    "unknown CryptoKeyWrapAlgorithm value",
                 ))
                 .boxed());
             }
@@ -2796,7 +2957,7 @@ fn decode_destack_crypto_key_wrap_args(
             }
         };
         let parameters_label = decode_slice::<u8>(context, slots[2], "parameters_label", "label")?;
-        CryptoAsymmetricEncryptionParametersVm {
+        CryptoKeyWrapParametersVm {
             algorithm: parameters_algorithm,
             digest: parameters_digest,
             label: parameters_label,
@@ -3237,6 +3398,24 @@ fn encode_destack_crypto_probe_key_formats_result(
     result.map(|value| value.to_value(context))
 }
 
+/// Encode the result for destack.crypto.probe.keyResidencies.
+#[inline]
+fn encode_destack_crypto_probe_key_residencies_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<CryptoKeyResidency>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
+/// Encode the result for destack.crypto.probe.keyWrapAlgorithms.
+#[inline]
+fn encode_destack_crypto_probe_key_wrap_algorithms_result(
+    context: &mut vm::ExternalCallContext<'_>,
+    result: RuntimeResult<VmSlice<CryptoKeyWrapAlgorithm>>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.to_value(context))
+}
+
 /// Encode the result for destack.crypto.probe.macAlgorithms.
 #[inline]
 fn encode_destack_crypto_probe_mac_algorithms_result(
@@ -3514,7 +3693,6 @@ fn decode_destack_crypto_store_open_args(
         };
         let options_provider_raw = decode_uint8(slots[1], "options_provider_raw", "provider")?;
         let options_provider = match options_provider_raw {
-            0u8 => CryptoStoreProvider::Unknown,
             1u8 => CryptoStoreProvider::OpenSsl,
             _ => {
                 return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -3568,7 +3746,6 @@ fn decode_destack_crypto_store_probe_capability_args(
     let provider_value = arg_value(args, 1, "provider", "CryptoStoreProvider")?;
     let provider_raw = decode_uint8(provider_value, "provider_raw", "CryptoStoreProvider")?;
     let provider = match provider_raw {
-        0u8 => CryptoStoreProvider::Unknown,
         1u8 => CryptoStoreProvider::OpenSsl,
         _ => {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
@@ -3588,16 +3765,39 @@ fn encode_destack_crypto_store_probe_capability_result(
     result: RuntimeResult<CryptoStoreCapabilityVm>,
 ) -> RuntimeResult<vm::Value> {
     result.map(|value| {
-        let field_0 = vm::Value::uint(value.kind as u8 as u64, 8);
-        let field_1 = vm::Value::uint(value.provider as u8 as u64, 8);
-        let field_2 = vm::Value::bool(value.is_available);
-        let field_3 = vm::Value::bool(value.supports_hardware_backed);
-        let field_4 = vm::Value::bool(value.supports_persistent);
-        let field_5 = vm::Value::bool(value.supports_key_export);
-        let field_6 = value.supported_key_algorithms.to_value(context);
-        let field_7 = value.supported_key_formats.to_value(context);
+        let field_0 = {
+            let field_0 = vm::Value::uint(value.identity.kind as u8 as u64, 8);
+            let field_1 = vm::Value::uint(value.identity.provider as u8 as u64, 8);
+            let field_2 = value.identity.namespace.value();
+            context.allocate_aggregate(vec![field_0, field_1, field_2])
+        };
+        let field_1 = vm::Value::bool(value.is_available);
+        let field_2 = vm::Value::bool(value.supports_hardware_backed);
+        let field_3 = vm::Value::bool(value.supports_persistent);
+        let field_4 = vm::Value::bool(value.supports_key_export);
+        let field_5 = value.supported_key_algorithms.to_value(context);
+        let field_6 = value.supported_key_formats.to_value(context);
+        let field_7 = value.supported_key_residencies.to_value(context);
+        let field_8 = value.key_capabilities.to_value(context);
+        let field_9 = value.signature_capabilities.to_value(context);
+        let field_10 = value.asymmetric_encryption_capabilities.to_value(context);
+        let field_11 = value.key_wrap_capabilities.to_value(context);
+        let field_12 = value.cipher_capabilities.to_value(context);
+        let field_13 = value.mac_capabilities.to_value(context);
+        let field_14 = value.agreement_capabilities.to_value(context);
+        let field_15 = {
+            let field_0 = vm::Value::bool(value.certificate_capabilities.supports_import);
+            let field_1 = vm::Value::bool(value.certificate_capabilities.supports_export);
+            let field_2 = vm::Value::bool(value.certificate_capabilities.supports_descriptor);
+            let field_3 = vm::Value::bool(value.certificate_capabilities.supports_verify);
+            let field_4 = vm::Value::bool(value.certificate_capabilities.supports_delete);
+            let field_5 =
+                vm::Value::bool(value.certificate_capabilities.supports_system_trust_anchors);
+            context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5])
+        };
         context.allocate_aggregate(vec![
-            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7,
+            field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8,
+            field_9, field_10, field_11, field_12, field_13, field_14, field_15,
         ])
     })
 }
@@ -3651,6 +3851,20 @@ struct CryptoProbeKeyAlgorithmsReplay {
 struct CryptoProbeKeyFormatsReplay {
     /// Replay result payload.
     pub result: Result<Vec<CryptoKeyFormat>, PlatformError>,
+}
+
+/// Replay payload for destack.crypto.probe.keyResidencies.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CryptoProbeKeyResidenciesReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<CryptoKeyResidency>, PlatformError>,
+}
+
+/// Replay payload for destack.crypto.probe.keyWrapAlgorithms.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CryptoProbeKeyWrapAlgorithmsReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<CryptoKeyWrapAlgorithm>, PlatformError>,
 }
 
 /// Replay payload for destack.crypto.probe.macAlgorithms.
@@ -4109,7 +4323,7 @@ pub const CRYPTO_KEY_ENCRYPT: BindingDescriptor = BindingDescriptor::external_wi
 /// Binding descriptor for destack.crypto.key.exportPrivate.
 pub const CRYPTO_KEY_EXPORT_PRIVATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.exportPrivate",
-    "export function keyExportPrivate(handle: CryptoKeyHandle, format: CryptoKeyFormat): Result<Slice<uint8>, PlatformError>",
+    "export function keyExportPrivate(handle: CryptoKeyHandle, request: CryptoPrivateKeyExportRequest): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.store.read"],
@@ -4193,7 +4407,7 @@ pub const CRYPTO_KEY_SIGN: BindingDescriptor = BindingDescriptor::external_with_
 /// Binding descriptor for destack.crypto.key.unwrap.
 pub const CRYPTO_KEY_UNWRAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.unwrap",
-    "export function keyUnwrap(store: CryptoStoreHandle, wrappingKey: CryptoKeyHandle, wrappedKey: Slice<uint8>, parameters: CryptoAsymmetricEncryptionParameters, request: CryptoKeyImportRequest): Result<CryptoKeyHandle, PlatformError>",
+    "export function keyUnwrap(store: CryptoStoreHandle, wrappingKey: CryptoKeyHandle, wrappedKey: Slice<uint8>, parameters: CryptoKeyWrapParameters, request: CryptoKeyImportRequest): Result<CryptoKeyHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.key.unwrap", "crypto.store.write"],
@@ -4217,7 +4431,7 @@ pub const CRYPTO_KEY_VERIFY: BindingDescriptor = BindingDescriptor::external_wit
 /// Binding descriptor for destack.crypto.key.wrap.
 pub const CRYPTO_KEY_WRAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
     "destack.crypto.key.wrap",
-    "export function keyWrap(wrappingKey: CryptoKeyHandle, keyToWrap: CryptoKeyHandle, format: CryptoKeyFormat, parameters: CryptoAsymmetricEncryptionParameters): Result<Slice<uint8>, PlatformError>",
+    "export function keyWrap(wrappingKey: CryptoKeyHandle, keyToWrap: CryptoKeyHandle, format: CryptoKeyFormat, parameters: CryptoKeyWrapParameters): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::Regular,
     &["crypto.key.wrap"],
@@ -4465,6 +4679,44 @@ pub const CRYPTO_PROBE_KEY_FORMATS: BindingDescriptor =
         "solaris",
         "windows",
     ]);
+
+/// Binding descriptor for destack.crypto.probe.keyResidencies.
+pub const CRYPTO_PROBE_KEY_RESIDENCIES: BindingDescriptor =
+    BindingDescriptor::external_with_requires_and_behavior(
+        "destack.crypto.probe.keyResidencies",
+        "export function probeKeyResidencies(): Result<Slice<CryptoKeyResidency>, PlatformError>",
+        BindingReplayPolicy::Recordable,
+        BindingReplayKind::Regular,
+        &["crypto.probe"],
+        BindingScope::Host,
+        BindingBlocking::Never,
+    )
+    .with_host_platforms(&[
+        "android",
+        "dragonfly",
+        "freebsd",
+        "haiku",
+        "illumos",
+        "ios",
+        "linux",
+        "macos",
+        "netbsd",
+        "openbsd",
+        "solaris",
+        "windows",
+    ]);
+
+/// Binding descriptor for destack.crypto.probe.keyWrapAlgorithms.
+pub const CRYPTO_PROBE_KEY_WRAP_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+    "destack.crypto.probe.keyWrapAlgorithms",
+    "export function probeKeyWrapAlgorithms(): Result<Slice<CryptoKeyWrapAlgorithm>, PlatformError>",
+    BindingReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+    &["crypto.probe"],
+    BindingScope::Host,
+    BindingBlocking::Never,
+)
+    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.macAlgorithms.
 pub const CRYPTO_PROBE_MAC_ALGORITHMS: BindingDescriptor =
@@ -4736,6 +4988,8 @@ pub const BINDINGS: &[BindingDescriptor] = &[
     CRYPTO_PROBE_KDF_ALGORITHMS,
     CRYPTO_PROBE_KEY_ALGORITHMS,
     CRYPTO_PROBE_KEY_FORMATS,
+    CRYPTO_PROBE_KEY_RESIDENCIES,
+    CRYPTO_PROBE_KEY_WRAP_ALGORITHMS,
     CRYPTO_PROBE_MAC_ALGORITHMS,
     CRYPTO_PROBE_NAMED_CURVES,
     CRYPTO_PROBE_SIGNATURE_ALGORITHMS,
@@ -5012,6 +5266,16 @@ pub const CRYPTO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             CRYPTO_PROBE_KEY_FORMATS,
             "destack.crypto.probe.keyFormats",
             destack_crypto_probe_key_formats as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_PROBE_KEY_RESIDENCIES,
+            "destack.crypto.probe.keyResidencies",
+            destack_crypto_probe_key_residencies as *const (),
+        ),
+        NativeBinding::new(
+            CRYPTO_PROBE_KEY_WRAP_ALGORITHMS,
+            "destack.crypto.probe.keyWrapAlgorithms",
+            destack_crypto_probe_key_wrap_algorithms as *const (),
         ),
         NativeBinding::new(
             CRYPTO_PROBE_MAC_ALGORITHMS,
@@ -5487,6 +5751,144 @@ fn destack_crypto_probe_key_formats_replay(
 }
 
 #[inline]
+fn destack_crypto_probe_key_residencies_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<CryptoKeyResidency>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        CRYPTO_PROBE_KEY_RESIDENCIES,
+        context.replay_payload_for(CRYPTO_PROBE_KEY_RESIDENCIES)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_crypto_probe_key_residencies(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_crypto_probe_key_residencies(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeKeyResidenciesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeKeyResidenciesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_crypto_probe_key_wrap_algorithms_replay(
+    context: &BindingCallContext,
+    world: RuntimeWorld,
+    out: *mut NativeSlice<CryptoKeyWrapAlgorithm>,
+) -> RuntimeResult<()> {
+    context.replay().run_binding_with_policy(
+        CRYPTO_PROBE_KEY_WRAP_ALGORITHMS,
+        context.replay_payload_for(CRYPTO_PROBE_KEY_WRAP_ALGORITHMS)?,
+        || match world {
+            RuntimeWorld::Host => unsafe {
+                platform_native::destack_crypto_probe_key_wrap_algorithms(context, out)
+            },
+            RuntimeWorld::Simulation => unsafe {
+                platform_simulation_native::destack_crypto_probe_key_wrap_algorithms(context, out)
+            },
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_recorded_raw = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item = *result_recorded_item_value;
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeKeyWrapAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeKeyWrapAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_values = Vec::with_capacity(value.len());
+                    for value_native_item in value {
+                        let value_native_item_native = value_native_item;
+                        value_native_values.push(value_native_item_native);
+                    }
+                    let value_native = context.store_slice(value_native_values);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
 fn destack_crypto_probe_mac_algorithms_replay(
     context: &BindingCallContext,
     world: RuntimeWorld,
@@ -5707,67 +6109,263 @@ fn destack_crypto_store_probe_capability_replay(
         CRYPTO_STORE_PROBE_CAPABILITY,
         context.replay_payload_for(CRYPTO_STORE_PROBE_CAPABILITY)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_crypto_store_probe_capability(context, out, kind, provider)
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_crypto_store_probe_capability(
-                    context, out, kind, provider,
-                )
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_crypto_store_probe_capability(context, out, kind, provider) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_crypto_store_probe_capability(context, out, kind, provider) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
-                    if out.is_null() {
-                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-                    }
+                    if out.is_null() { return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed()); }
                     *out
                 };
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_provider = result_value.provider;
+                let result_recorded_identity_kind = result_value.identity.kind;
+                let result_recorded_identity_provider = result_value.identity.provider;
+                let result_recorded_identity_namespace = unsafe { result_value.identity.namespace.as_str()? }.to_string();
+                let result_recorded_identity = CryptoStoreIdentityReplayRecord {
+                    kind: result_recorded_identity_kind,
+                    provider: result_recorded_identity_provider,
+                    namespace: result_recorded_identity_namespace,
+                };
                 let result_recorded_is_available = result_value.is_available;
-                let result_recorded_supports_hardware_backed =
-                    result_value.supports_hardware_backed;
+                let result_recorded_supports_hardware_backed = result_value.supports_hardware_backed;
                 let result_recorded_supports_persistent = result_value.supports_persistent;
                 let result_recorded_supports_key_export = result_value.supports_key_export;
-                let result_recorded_supported_key_algorithms_raw =
-                    unsafe { result_value.supported_key_algorithms.as_slice()? };
-                let mut result_recorded_supported_key_algorithms =
-                    Vec::with_capacity(result_recorded_supported_key_algorithms_raw.len());
-                for result_recorded_supported_key_algorithms_item_value in
-                    result_recorded_supported_key_algorithms_raw
-                {
-                    let result_recorded_supported_key_algorithms_item =
-                        *result_recorded_supported_key_algorithms_item_value;
-                    let result_recorded_supported_key_algorithms_item_recorded =
-                        result_recorded_supported_key_algorithms_item;
-                    result_recorded_supported_key_algorithms
-                        .push(result_recorded_supported_key_algorithms_item_recorded);
+                let result_recorded_supported_key_algorithms_raw = unsafe { result_value.supported_key_algorithms.as_slice()? };
+                let mut result_recorded_supported_key_algorithms = Vec::with_capacity(result_recorded_supported_key_algorithms_raw.len());
+                for result_recorded_supported_key_algorithms_item_value in result_recorded_supported_key_algorithms_raw {
+                    let result_recorded_supported_key_algorithms_item = *result_recorded_supported_key_algorithms_item_value;
+                    let result_recorded_supported_key_algorithms_item_recorded = result_recorded_supported_key_algorithms_item;
+                    result_recorded_supported_key_algorithms.push(result_recorded_supported_key_algorithms_item_recorded);
                 }
-                let result_recorded_supported_key_formats_raw =
-                    unsafe { result_value.supported_key_formats.as_slice()? };
-                let mut result_recorded_supported_key_formats =
-                    Vec::with_capacity(result_recorded_supported_key_formats_raw.len());
-                for result_recorded_supported_key_formats_item_value in
-                    result_recorded_supported_key_formats_raw
-                {
-                    let result_recorded_supported_key_formats_item =
-                        *result_recorded_supported_key_formats_item_value;
-                    let result_recorded_supported_key_formats_item_recorded =
-                        result_recorded_supported_key_formats_item;
-                    result_recorded_supported_key_formats
-                        .push(result_recorded_supported_key_formats_item_recorded);
+                let result_recorded_supported_key_formats_raw = unsafe { result_value.supported_key_formats.as_slice()? };
+                let mut result_recorded_supported_key_formats = Vec::with_capacity(result_recorded_supported_key_formats_raw.len());
+                for result_recorded_supported_key_formats_item_value in result_recorded_supported_key_formats_raw {
+                    let result_recorded_supported_key_formats_item = *result_recorded_supported_key_formats_item_value;
+                    let result_recorded_supported_key_formats_item_recorded = result_recorded_supported_key_formats_item;
+                    result_recorded_supported_key_formats.push(result_recorded_supported_key_formats_item_recorded);
                 }
+                let result_recorded_supported_key_residencies_raw = unsafe { result_value.supported_key_residencies.as_slice()? };
+                let mut result_recorded_supported_key_residencies = Vec::with_capacity(result_recorded_supported_key_residencies_raw.len());
+                for result_recorded_supported_key_residencies_item_value in result_recorded_supported_key_residencies_raw {
+                    let result_recorded_supported_key_residencies_item = *result_recorded_supported_key_residencies_item_value;
+                    let result_recorded_supported_key_residencies_item_recorded = result_recorded_supported_key_residencies_item;
+                    result_recorded_supported_key_residencies.push(result_recorded_supported_key_residencies_item_recorded);
+                }
+                let result_recorded_key_capabilities_raw = unsafe { result_value.key_capabilities.as_slice()? };
+                let mut result_recorded_key_capabilities = Vec::with_capacity(result_recorded_key_capabilities_raw.len());
+                for result_recorded_key_capabilities_item_value in result_recorded_key_capabilities_raw {
+                    let result_recorded_key_capabilities_item = *result_recorded_key_capabilities_item_value;
+                    let result_recorded_key_capabilities_item_recorded_algorithm = result_recorded_key_capabilities_item.algorithm;
+                    let result_recorded_key_capabilities_item_recorded_residency = result_recorded_key_capabilities_item.residency;
+                    let result_recorded_key_capabilities_item_recorded_supports_generate_secret = result_recorded_key_capabilities_item.supports_generate_secret;
+                    let result_recorded_key_capabilities_item_recorded_supports_generate_pair = result_recorded_key_capabilities_item.supports_generate_pair;
+                    let result_recorded_key_capabilities_item_recorded_supports_import = result_recorded_key_capabilities_item.supports_import;
+                    let result_recorded_key_capabilities_item_recorded_supports_export_public = result_recorded_key_capabilities_item.supports_export_public;
+                    let result_recorded_key_capabilities_item_recorded_supports_export_private = result_recorded_key_capabilities_item.supports_export_private;
+                    let result_recorded_key_capabilities_item_recorded_supports_export_secret = result_recorded_key_capabilities_item.supports_export_secret;
+                    let result_recorded_key_capabilities_item_recorded_supported_usage_mask = result_recorded_key_capabilities_item.supported_usage_mask;
+                    let result_recorded_key_capabilities_item_recorded_supported_import_formats_raw = unsafe { result_recorded_key_capabilities_item.supported_import_formats.as_slice()? };
+                    let mut result_recorded_key_capabilities_item_recorded_supported_import_formats = Vec::with_capacity(result_recorded_key_capabilities_item_recorded_supported_import_formats_raw.len());
+                    for result_recorded_key_capabilities_item_recorded_supported_import_formats_item_value in result_recorded_key_capabilities_item_recorded_supported_import_formats_raw {
+                        let result_recorded_key_capabilities_item_recorded_supported_import_formats_item = *result_recorded_key_capabilities_item_recorded_supported_import_formats_item_value;
+                        let result_recorded_key_capabilities_item_recorded_supported_import_formats_item_recorded = result_recorded_key_capabilities_item_recorded_supported_import_formats_item;
+                        result_recorded_key_capabilities_item_recorded_supported_import_formats.push(result_recorded_key_capabilities_item_recorded_supported_import_formats_item_recorded);
+                    }
+                    let result_recorded_key_capabilities_item_recorded_supported_export_formats_raw = unsafe { result_recorded_key_capabilities_item.supported_export_formats.as_slice()? };
+                    let mut result_recorded_key_capabilities_item_recorded_supported_export_formats = Vec::with_capacity(result_recorded_key_capabilities_item_recorded_supported_export_formats_raw.len());
+                    for result_recorded_key_capabilities_item_recorded_supported_export_formats_item_value in result_recorded_key_capabilities_item_recorded_supported_export_formats_raw {
+                        let result_recorded_key_capabilities_item_recorded_supported_export_formats_item = *result_recorded_key_capabilities_item_recorded_supported_export_formats_item_value;
+                        let result_recorded_key_capabilities_item_recorded_supported_export_formats_item_recorded = result_recorded_key_capabilities_item_recorded_supported_export_formats_item;
+                        result_recorded_key_capabilities_item_recorded_supported_export_formats.push(result_recorded_key_capabilities_item_recorded_supported_export_formats_item_recorded);
+                    }
+                    let result_recorded_key_capabilities_item_recorded = CryptoStoreKeyCapabilityReplayRecord {
+                        algorithm: result_recorded_key_capabilities_item_recorded_algorithm,
+                        residency: result_recorded_key_capabilities_item_recorded_residency,
+                        supports_generate_secret: result_recorded_key_capabilities_item_recorded_supports_generate_secret,
+                        supports_generate_pair: result_recorded_key_capabilities_item_recorded_supports_generate_pair,
+                        supports_import: result_recorded_key_capabilities_item_recorded_supports_import,
+                        supports_export_public: result_recorded_key_capabilities_item_recorded_supports_export_public,
+                        supports_export_private: result_recorded_key_capabilities_item_recorded_supports_export_private,
+                        supports_export_secret: result_recorded_key_capabilities_item_recorded_supports_export_secret,
+                        supported_usage_mask: result_recorded_key_capabilities_item_recorded_supported_usage_mask,
+                        supported_import_formats: result_recorded_key_capabilities_item_recorded_supported_import_formats,
+                        supported_export_formats: result_recorded_key_capabilities_item_recorded_supported_export_formats,
+                    };
+                    result_recorded_key_capabilities.push(result_recorded_key_capabilities_item_recorded);
+                }
+                let result_recorded_signature_capabilities_raw = unsafe { result_value.signature_capabilities.as_slice()? };
+                let mut result_recorded_signature_capabilities = Vec::with_capacity(result_recorded_signature_capabilities_raw.len());
+                for result_recorded_signature_capabilities_item_value in result_recorded_signature_capabilities_raw {
+                    let result_recorded_signature_capabilities_item = *result_recorded_signature_capabilities_item_value;
+                    let result_recorded_signature_capabilities_item_recorded_key_algorithm = result_recorded_signature_capabilities_item.key_algorithm;
+                    let result_recorded_signature_capabilities_item_recorded_signature_algorithm = result_recorded_signature_capabilities_item.signature_algorithm;
+                    let result_recorded_signature_capabilities_item_recorded_supports_sign = result_recorded_signature_capabilities_item.supports_sign;
+                    let result_recorded_signature_capabilities_item_recorded_supports_verify = result_recorded_signature_capabilities_item.supports_verify;
+                    let result_recorded_signature_capabilities_item_recorded_supported_digests_raw = unsafe { result_recorded_signature_capabilities_item.supported_digests.as_slice()? };
+                    let mut result_recorded_signature_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_signature_capabilities_item_recorded_supported_digests_raw.len());
+                    for result_recorded_signature_capabilities_item_recorded_supported_digests_item_value in result_recorded_signature_capabilities_item_recorded_supported_digests_raw {
+                        let result_recorded_signature_capabilities_item_recorded_supported_digests_item = *result_recorded_signature_capabilities_item_recorded_supported_digests_item_value;
+                        let result_recorded_signature_capabilities_item_recorded_supported_digests_item_recorded = result_recorded_signature_capabilities_item_recorded_supported_digests_item;
+                        result_recorded_signature_capabilities_item_recorded_supported_digests.push(result_recorded_signature_capabilities_item_recorded_supported_digests_item_recorded);
+                    }
+                    let result_recorded_signature_capabilities_item_recorded = CryptoStoreSignatureCapabilityReplayRecord {
+                        key_algorithm: result_recorded_signature_capabilities_item_recorded_key_algorithm,
+                        signature_algorithm: result_recorded_signature_capabilities_item_recorded_signature_algorithm,
+                        supports_sign: result_recorded_signature_capabilities_item_recorded_supports_sign,
+                        supports_verify: result_recorded_signature_capabilities_item_recorded_supports_verify,
+                        supported_digests: result_recorded_signature_capabilities_item_recorded_supported_digests,
+                    };
+                    result_recorded_signature_capabilities.push(result_recorded_signature_capabilities_item_recorded);
+                }
+                let result_recorded_asymmetric_encryption_capabilities_raw = unsafe { result_value.asymmetric_encryption_capabilities.as_slice()? };
+                let mut result_recorded_asymmetric_encryption_capabilities = Vec::with_capacity(result_recorded_asymmetric_encryption_capabilities_raw.len());
+                for result_recorded_asymmetric_encryption_capabilities_item_value in result_recorded_asymmetric_encryption_capabilities_raw {
+                    let result_recorded_asymmetric_encryption_capabilities_item = *result_recorded_asymmetric_encryption_capabilities_item_value;
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded_key_algorithm = result_recorded_asymmetric_encryption_capabilities_item.key_algorithm;
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded_algorithm = result_recorded_asymmetric_encryption_capabilities_item.algorithm;
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded_supports_encrypt = result_recorded_asymmetric_encryption_capabilities_item.supports_encrypt;
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded_supports_decrypt = result_recorded_asymmetric_encryption_capabilities_item.supports_decrypt;
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_raw = unsafe { result_recorded_asymmetric_encryption_capabilities_item.supported_digests.as_slice()? };
+                    let mut result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_raw.len());
+                    for result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_value in result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_raw {
+                        let result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item = *result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_value;
+                        let result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_recorded = result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item;
+                        result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests.push(result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_recorded);
+                    }
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded = CryptoStoreAsymmetricEncryptionCapabilityReplayRecord {
+                        key_algorithm: result_recorded_asymmetric_encryption_capabilities_item_recorded_key_algorithm,
+                        algorithm: result_recorded_asymmetric_encryption_capabilities_item_recorded_algorithm,
+                        supports_encrypt: result_recorded_asymmetric_encryption_capabilities_item_recorded_supports_encrypt,
+                        supports_decrypt: result_recorded_asymmetric_encryption_capabilities_item_recorded_supports_decrypt,
+                        supported_digests: result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests,
+                    };
+                    result_recorded_asymmetric_encryption_capabilities.push(result_recorded_asymmetric_encryption_capabilities_item_recorded);
+                }
+                let result_recorded_key_wrap_capabilities_raw = unsafe { result_value.key_wrap_capabilities.as_slice()? };
+                let mut result_recorded_key_wrap_capabilities = Vec::with_capacity(result_recorded_key_wrap_capabilities_raw.len());
+                for result_recorded_key_wrap_capabilities_item_value in result_recorded_key_wrap_capabilities_raw {
+                    let result_recorded_key_wrap_capabilities_item = *result_recorded_key_wrap_capabilities_item_value;
+                    let result_recorded_key_wrap_capabilities_item_recorded_wrapping_key_algorithm = result_recorded_key_wrap_capabilities_item.wrapping_key_algorithm;
+                    let result_recorded_key_wrap_capabilities_item_recorded_algorithm = result_recorded_key_wrap_capabilities_item.algorithm;
+                    let result_recorded_key_wrap_capabilities_item_recorded_supports_wrap = result_recorded_key_wrap_capabilities_item.supports_wrap;
+                    let result_recorded_key_wrap_capabilities_item_recorded_supports_unwrap = result_recorded_key_wrap_capabilities_item.supports_unwrap;
+                    let result_recorded_key_wrap_capabilities_item_recorded_supported_digests_raw = unsafe { result_recorded_key_wrap_capabilities_item.supported_digests.as_slice()? };
+                    let mut result_recorded_key_wrap_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_key_wrap_capabilities_item_recorded_supported_digests_raw.len());
+                    for result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_value in result_recorded_key_wrap_capabilities_item_recorded_supported_digests_raw {
+                        let result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item = *result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_value;
+                        let result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_recorded = result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item;
+                        result_recorded_key_wrap_capabilities_item_recorded_supported_digests.push(result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_recorded);
+                    }
+                    let result_recorded_key_wrap_capabilities_item_recorded = CryptoStoreKeyWrapCapabilityReplayRecord {
+                        wrapping_key_algorithm: result_recorded_key_wrap_capabilities_item_recorded_wrapping_key_algorithm,
+                        algorithm: result_recorded_key_wrap_capabilities_item_recorded_algorithm,
+                        supports_wrap: result_recorded_key_wrap_capabilities_item_recorded_supports_wrap,
+                        supports_unwrap: result_recorded_key_wrap_capabilities_item_recorded_supports_unwrap,
+                        supported_digests: result_recorded_key_wrap_capabilities_item_recorded_supported_digests,
+                    };
+                    result_recorded_key_wrap_capabilities.push(result_recorded_key_wrap_capabilities_item_recorded);
+                }
+                let result_recorded_cipher_capabilities_raw = unsafe { result_value.cipher_capabilities.as_slice()? };
+                let mut result_recorded_cipher_capabilities = Vec::with_capacity(result_recorded_cipher_capabilities_raw.len());
+                for result_recorded_cipher_capabilities_item_value in result_recorded_cipher_capabilities_raw {
+                    let result_recorded_cipher_capabilities_item = *result_recorded_cipher_capabilities_item_value;
+                    let result_recorded_cipher_capabilities_item_recorded_key_algorithm = result_recorded_cipher_capabilities_item.key_algorithm;
+                    let result_recorded_cipher_capabilities_item_recorded_algorithm = result_recorded_cipher_capabilities_item.algorithm;
+                    let result_recorded_cipher_capabilities_item_recorded_supports_one_shot = result_recorded_cipher_capabilities_item.supports_one_shot;
+                    let result_recorded_cipher_capabilities_item_recorded_supports_streaming = result_recorded_cipher_capabilities_item.supports_streaming;
+                    let result_recorded_cipher_capabilities_item_recorded_supports_additional_data = result_recorded_cipher_capabilities_item.supports_additional_data;
+                    let result_recorded_cipher_capabilities_item_recorded_supports_detached_tag = result_recorded_cipher_capabilities_item.supports_detached_tag;
+                    let result_recorded_cipher_capabilities_item_recorded_min_tag_length_bytes = result_recorded_cipher_capabilities_item.min_tag_length_bytes;
+                    let result_recorded_cipher_capabilities_item_recorded_max_tag_length_bytes = result_recorded_cipher_capabilities_item.max_tag_length_bytes;
+                    let result_recorded_cipher_capabilities_item_recorded = CryptoStoreCipherCapability {
+                        key_algorithm: result_recorded_cipher_capabilities_item_recorded_key_algorithm,
+                        algorithm: result_recorded_cipher_capabilities_item_recorded_algorithm,
+                        supports_one_shot: result_recorded_cipher_capabilities_item_recorded_supports_one_shot,
+                        supports_streaming: result_recorded_cipher_capabilities_item_recorded_supports_streaming,
+                        supports_additional_data: result_recorded_cipher_capabilities_item_recorded_supports_additional_data,
+                        supports_detached_tag: result_recorded_cipher_capabilities_item_recorded_supports_detached_tag,
+                        min_tag_length_bytes: result_recorded_cipher_capabilities_item_recorded_min_tag_length_bytes,
+                        max_tag_length_bytes: result_recorded_cipher_capabilities_item_recorded_max_tag_length_bytes,
+                    };
+                    result_recorded_cipher_capabilities.push(result_recorded_cipher_capabilities_item_recorded);
+                }
+                let result_recorded_mac_capabilities_raw = unsafe { result_value.mac_capabilities.as_slice()? };
+                let mut result_recorded_mac_capabilities = Vec::with_capacity(result_recorded_mac_capabilities_raw.len());
+                for result_recorded_mac_capabilities_item_value in result_recorded_mac_capabilities_raw {
+                    let result_recorded_mac_capabilities_item = *result_recorded_mac_capabilities_item_value;
+                    let result_recorded_mac_capabilities_item_recorded_key_algorithm = result_recorded_mac_capabilities_item.key_algorithm;
+                    let result_recorded_mac_capabilities_item_recorded_algorithm = result_recorded_mac_capabilities_item.algorithm;
+                    let result_recorded_mac_capabilities_item_recorded_supports_one_shot = result_recorded_mac_capabilities_item.supports_one_shot;
+                    let result_recorded_mac_capabilities_item_recorded_supports_streaming = result_recorded_mac_capabilities_item.supports_streaming;
+                    let result_recorded_mac_capabilities_item_recorded_supported_digests_raw = unsafe { result_recorded_mac_capabilities_item.supported_digests.as_slice()? };
+                    let mut result_recorded_mac_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_mac_capabilities_item_recorded_supported_digests_raw.len());
+                    for result_recorded_mac_capabilities_item_recorded_supported_digests_item_value in result_recorded_mac_capabilities_item_recorded_supported_digests_raw {
+                        let result_recorded_mac_capabilities_item_recorded_supported_digests_item = *result_recorded_mac_capabilities_item_recorded_supported_digests_item_value;
+                        let result_recorded_mac_capabilities_item_recorded_supported_digests_item_recorded = result_recorded_mac_capabilities_item_recorded_supported_digests_item;
+                        result_recorded_mac_capabilities_item_recorded_supported_digests.push(result_recorded_mac_capabilities_item_recorded_supported_digests_item_recorded);
+                    }
+                    let result_recorded_mac_capabilities_item_recorded_min_tag_length_bytes = result_recorded_mac_capabilities_item.min_tag_length_bytes;
+                    let result_recorded_mac_capabilities_item_recorded_max_tag_length_bytes = result_recorded_mac_capabilities_item.max_tag_length_bytes;
+                    let result_recorded_mac_capabilities_item_recorded = CryptoStoreMacCapabilityReplayRecord {
+                        key_algorithm: result_recorded_mac_capabilities_item_recorded_key_algorithm,
+                        algorithm: result_recorded_mac_capabilities_item_recorded_algorithm,
+                        supports_one_shot: result_recorded_mac_capabilities_item_recorded_supports_one_shot,
+                        supports_streaming: result_recorded_mac_capabilities_item_recorded_supports_streaming,
+                        supported_digests: result_recorded_mac_capabilities_item_recorded_supported_digests,
+                        min_tag_length_bytes: result_recorded_mac_capabilities_item_recorded_min_tag_length_bytes,
+                        max_tag_length_bytes: result_recorded_mac_capabilities_item_recorded_max_tag_length_bytes,
+                    };
+                    result_recorded_mac_capabilities.push(result_recorded_mac_capabilities_item_recorded);
+                }
+                let result_recorded_agreement_capabilities_raw = unsafe { result_value.agreement_capabilities.as_slice()? };
+                let mut result_recorded_agreement_capabilities = Vec::with_capacity(result_recorded_agreement_capabilities_raw.len());
+                for result_recorded_agreement_capabilities_item_value in result_recorded_agreement_capabilities_raw {
+                    let result_recorded_agreement_capabilities_item = *result_recorded_agreement_capabilities_item_value;
+                    let result_recorded_agreement_capabilities_item_recorded_private_key_algorithm = result_recorded_agreement_capabilities_item.private_key_algorithm;
+                    let result_recorded_agreement_capabilities_item_recorded_peer_public_key_algorithm = result_recorded_agreement_capabilities_item.peer_public_key_algorithm;
+                    let result_recorded_agreement_capabilities_item_recorded_algorithm = result_recorded_agreement_capabilities_item.algorithm;
+                    let result_recorded_agreement_capabilities_item_recorded_supports_derive_shared_secret = result_recorded_agreement_capabilities_item.supports_derive_shared_secret;
+                    let result_recorded_agreement_capabilities_item_recorded_supports_derive_key = result_recorded_agreement_capabilities_item.supports_derive_key;
+                    let result_recorded_agreement_capabilities_item_recorded = CryptoStoreAgreementCapability {
+                        private_key_algorithm: result_recorded_agreement_capabilities_item_recorded_private_key_algorithm,
+                        peer_public_key_algorithm: result_recorded_agreement_capabilities_item_recorded_peer_public_key_algorithm,
+                        algorithm: result_recorded_agreement_capabilities_item_recorded_algorithm,
+                        supports_derive_shared_secret: result_recorded_agreement_capabilities_item_recorded_supports_derive_shared_secret,
+                        supports_derive_key: result_recorded_agreement_capabilities_item_recorded_supports_derive_key,
+                    };
+                    result_recorded_agreement_capabilities.push(result_recorded_agreement_capabilities_item_recorded);
+                }
+                let result_recorded_certificate_capabilities_supports_import = result_value.certificate_capabilities.supports_import;
+                let result_recorded_certificate_capabilities_supports_export = result_value.certificate_capabilities.supports_export;
+                let result_recorded_certificate_capabilities_supports_descriptor = result_value.certificate_capabilities.supports_descriptor;
+                let result_recorded_certificate_capabilities_supports_verify = result_value.certificate_capabilities.supports_verify;
+                let result_recorded_certificate_capabilities_supports_delete = result_value.certificate_capabilities.supports_delete;
+                let result_recorded_certificate_capabilities_supports_system_trust_anchors = result_value.certificate_capabilities.supports_system_trust_anchors;
+                let result_recorded_certificate_capabilities = CryptoStoreCertificateCapability {
+                    supports_import: result_recorded_certificate_capabilities_supports_import,
+                    supports_export: result_recorded_certificate_capabilities_supports_export,
+                    supports_descriptor: result_recorded_certificate_capabilities_supports_descriptor,
+                    supports_verify: result_recorded_certificate_capabilities_supports_verify,
+                    supports_delete: result_recorded_certificate_capabilities_supports_delete,
+                    supports_system_trust_anchors: result_recorded_certificate_capabilities_supports_system_trust_anchors,
+                };
                 let result_recorded = CryptoStoreCapabilityReplayRecord {
-                    kind: result_recorded_kind,
-                    provider: result_recorded_provider,
+                    identity: result_recorded_identity,
                     is_available: result_recorded_is_available,
                     supports_hardware_backed: result_recorded_supports_hardware_backed,
                     supports_persistent: result_recorded_supports_persistent,
                     supports_key_export: result_recorded_supports_key_export,
                     supported_key_algorithms: result_recorded_supported_key_algorithms,
                     supported_key_formats: result_recorded_supported_key_formats,
+                    supported_key_residencies: result_recorded_supported_key_residencies,
+                    key_capabilities: result_recorded_key_capabilities,
+                    signature_capabilities: result_recorded_signature_capabilities,
+                    asymmetric_encryption_capabilities: result_recorded_asymmetric_encryption_capabilities,
+                    key_wrap_capabilities: result_recorded_key_wrap_capabilities,
+                    cipher_capabilities: result_recorded_cipher_capabilities,
+                    mac_capabilities: result_recorded_mac_capabilities,
+                    agreement_capabilities: result_recorded_agreement_capabilities,
+                    certificate_capabilities: result_recorded_certificate_capabilities,
                 };
                 let payload = CryptoStoreProbeCapabilityReplay {
                     result: Ok(result_recorded),
@@ -5778,7 +6376,9 @@ fn destack_crypto_store_probe_capability_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CryptoStoreProbeCapabilityReplay { result }
+                    CryptoStoreProbeCapabilityReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -5789,46 +6389,240 @@ fn destack_crypto_store_probe_capability_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_kind = value.kind;
-                    let value_native_provider = value.provider;
+                    let value_native_identity_kind = value.identity.kind;
+                    let value_native_identity_provider = value.identity.provider;
+                    let value_native_identity_namespace = context.store_string(&value.identity.namespace);
+                    let value_native_identity = CryptoStoreIdentity {
+                        kind: value_native_identity_kind,
+                        provider: value_native_identity_provider,
+                        namespace: value_native_identity_namespace,
+                    };
                     let value_native_is_available = value.is_available;
                     let value_native_supports_hardware_backed = value.supports_hardware_backed;
                     let value_native_supports_persistent = value.supports_persistent;
                     let value_native_supports_key_export = value.supports_key_export;
-                    let mut value_native_supported_key_algorithms_values =
-                        Vec::with_capacity(value.supported_key_algorithms.len());
-                    for value_native_supported_key_algorithms_item in value.supported_key_algorithms
-                    {
-                        let value_native_supported_key_algorithms_item_native =
-                            value_native_supported_key_algorithms_item;
-                        value_native_supported_key_algorithms_values
-                            .push(value_native_supported_key_algorithms_item_native);
+                    let mut value_native_supported_key_algorithms_values = Vec::with_capacity(value.supported_key_algorithms.len());
+                    for value_native_supported_key_algorithms_item in value.supported_key_algorithms {
+                        let value_native_supported_key_algorithms_item_native = value_native_supported_key_algorithms_item;
+                        value_native_supported_key_algorithms_values.push(value_native_supported_key_algorithms_item_native);
                     }
-                    let value_native_supported_key_algorithms =
-                        context.store_array(value_native_supported_key_algorithms_values);
-                    let mut value_native_supported_key_formats_values =
-                        Vec::with_capacity(value.supported_key_formats.len());
+                    let value_native_supported_key_algorithms = context.store_array(value_native_supported_key_algorithms_values);
+                    let mut value_native_supported_key_formats_values = Vec::with_capacity(value.supported_key_formats.len());
                     for value_native_supported_key_formats_item in value.supported_key_formats {
-                        let value_native_supported_key_formats_item_native =
-                            value_native_supported_key_formats_item;
-                        value_native_supported_key_formats_values
-                            .push(value_native_supported_key_formats_item_native);
+                        let value_native_supported_key_formats_item_native = value_native_supported_key_formats_item;
+                        value_native_supported_key_formats_values.push(value_native_supported_key_formats_item_native);
                     }
-                    let value_native_supported_key_formats =
-                        context.store_array(value_native_supported_key_formats_values);
+                    let value_native_supported_key_formats = context.store_array(value_native_supported_key_formats_values);
+                    let mut value_native_supported_key_residencies_values = Vec::with_capacity(value.supported_key_residencies.len());
+                    for value_native_supported_key_residencies_item in value.supported_key_residencies {
+                        let value_native_supported_key_residencies_item_native = value_native_supported_key_residencies_item;
+                        value_native_supported_key_residencies_values.push(value_native_supported_key_residencies_item_native);
+                    }
+                    let value_native_supported_key_residencies = context.store_array(value_native_supported_key_residencies_values);
+                    let mut value_native_key_capabilities_values = Vec::with_capacity(value.key_capabilities.len());
+                    for value_native_key_capabilities_item in value.key_capabilities {
+                        let value_native_key_capabilities_item_native_algorithm = value_native_key_capabilities_item.algorithm;
+                        let value_native_key_capabilities_item_native_residency = value_native_key_capabilities_item.residency;
+                        let value_native_key_capabilities_item_native_supports_generate_secret = value_native_key_capabilities_item.supports_generate_secret;
+                        let value_native_key_capabilities_item_native_supports_generate_pair = value_native_key_capabilities_item.supports_generate_pair;
+                        let value_native_key_capabilities_item_native_supports_import = value_native_key_capabilities_item.supports_import;
+                        let value_native_key_capabilities_item_native_supports_export_public = value_native_key_capabilities_item.supports_export_public;
+                        let value_native_key_capabilities_item_native_supports_export_private = value_native_key_capabilities_item.supports_export_private;
+                        let value_native_key_capabilities_item_native_supports_export_secret = value_native_key_capabilities_item.supports_export_secret;
+                        let value_native_key_capabilities_item_native_supported_usage_mask = value_native_key_capabilities_item.supported_usage_mask;
+                        let mut value_native_key_capabilities_item_native_supported_import_formats_values = Vec::with_capacity(value_native_key_capabilities_item.supported_import_formats.len());
+                        for value_native_key_capabilities_item_native_supported_import_formats_item in value_native_key_capabilities_item.supported_import_formats {
+                            let value_native_key_capabilities_item_native_supported_import_formats_item_native = value_native_key_capabilities_item_native_supported_import_formats_item;
+                            value_native_key_capabilities_item_native_supported_import_formats_values.push(value_native_key_capabilities_item_native_supported_import_formats_item_native);
+                        }
+                        let value_native_key_capabilities_item_native_supported_import_formats = context.store_slice(value_native_key_capabilities_item_native_supported_import_formats_values);
+                        let mut value_native_key_capabilities_item_native_supported_export_formats_values = Vec::with_capacity(value_native_key_capabilities_item.supported_export_formats.len());
+                        for value_native_key_capabilities_item_native_supported_export_formats_item in value_native_key_capabilities_item.supported_export_formats {
+                            let value_native_key_capabilities_item_native_supported_export_formats_item_native = value_native_key_capabilities_item_native_supported_export_formats_item;
+                            value_native_key_capabilities_item_native_supported_export_formats_values.push(value_native_key_capabilities_item_native_supported_export_formats_item_native);
+                        }
+                        let value_native_key_capabilities_item_native_supported_export_formats = context.store_slice(value_native_key_capabilities_item_native_supported_export_formats_values);
+                        let value_native_key_capabilities_item_native = CryptoStoreKeyCapability {
+                            algorithm: value_native_key_capabilities_item_native_algorithm,
+                            residency: value_native_key_capabilities_item_native_residency,
+                            supports_generate_secret: value_native_key_capabilities_item_native_supports_generate_secret,
+                            supports_generate_pair: value_native_key_capabilities_item_native_supports_generate_pair,
+                            supports_import: value_native_key_capabilities_item_native_supports_import,
+                            supports_export_public: value_native_key_capabilities_item_native_supports_export_public,
+                            supports_export_private: value_native_key_capabilities_item_native_supports_export_private,
+                            supports_export_secret: value_native_key_capabilities_item_native_supports_export_secret,
+                            supported_usage_mask: value_native_key_capabilities_item_native_supported_usage_mask,
+                            supported_import_formats: value_native_key_capabilities_item_native_supported_import_formats,
+                            supported_export_formats: value_native_key_capabilities_item_native_supported_export_formats,
+                        };
+                        value_native_key_capabilities_values.push(value_native_key_capabilities_item_native);
+                    }
+                    let value_native_key_capabilities = context.store_array(value_native_key_capabilities_values);
+                    let mut value_native_signature_capabilities_values = Vec::with_capacity(value.signature_capabilities.len());
+                    for value_native_signature_capabilities_item in value.signature_capabilities {
+                        let value_native_signature_capabilities_item_native_key_algorithm = value_native_signature_capabilities_item.key_algorithm;
+                        let value_native_signature_capabilities_item_native_signature_algorithm = value_native_signature_capabilities_item.signature_algorithm;
+                        let value_native_signature_capabilities_item_native_supports_sign = value_native_signature_capabilities_item.supports_sign;
+                        let value_native_signature_capabilities_item_native_supports_verify = value_native_signature_capabilities_item.supports_verify;
+                        let mut value_native_signature_capabilities_item_native_supported_digests_values = Vec::with_capacity(value_native_signature_capabilities_item.supported_digests.len());
+                        for value_native_signature_capabilities_item_native_supported_digests_item in value_native_signature_capabilities_item.supported_digests {
+                            let value_native_signature_capabilities_item_native_supported_digests_item_native = value_native_signature_capabilities_item_native_supported_digests_item;
+                            value_native_signature_capabilities_item_native_supported_digests_values.push(value_native_signature_capabilities_item_native_supported_digests_item_native);
+                        }
+                        let value_native_signature_capabilities_item_native_supported_digests = context.store_slice(value_native_signature_capabilities_item_native_supported_digests_values);
+                        let value_native_signature_capabilities_item_native = CryptoStoreSignatureCapability {
+                            key_algorithm: value_native_signature_capabilities_item_native_key_algorithm,
+                            signature_algorithm: value_native_signature_capabilities_item_native_signature_algorithm,
+                            supports_sign: value_native_signature_capabilities_item_native_supports_sign,
+                            supports_verify: value_native_signature_capabilities_item_native_supports_verify,
+                            supported_digests: value_native_signature_capabilities_item_native_supported_digests,
+                        };
+                        value_native_signature_capabilities_values.push(value_native_signature_capabilities_item_native);
+                    }
+                    let value_native_signature_capabilities = context.store_array(value_native_signature_capabilities_values);
+                    let mut value_native_asymmetric_encryption_capabilities_values = Vec::with_capacity(value.asymmetric_encryption_capabilities.len());
+                    for value_native_asymmetric_encryption_capabilities_item in value.asymmetric_encryption_capabilities {
+                        let value_native_asymmetric_encryption_capabilities_item_native_key_algorithm = value_native_asymmetric_encryption_capabilities_item.key_algorithm;
+                        let value_native_asymmetric_encryption_capabilities_item_native_algorithm = value_native_asymmetric_encryption_capabilities_item.algorithm;
+                        let value_native_asymmetric_encryption_capabilities_item_native_supports_encrypt = value_native_asymmetric_encryption_capabilities_item.supports_encrypt;
+                        let value_native_asymmetric_encryption_capabilities_item_native_supports_decrypt = value_native_asymmetric_encryption_capabilities_item.supports_decrypt;
+                        let mut value_native_asymmetric_encryption_capabilities_item_native_supported_digests_values = Vec::with_capacity(value_native_asymmetric_encryption_capabilities_item.supported_digests.len());
+                        for value_native_asymmetric_encryption_capabilities_item_native_supported_digests_item in value_native_asymmetric_encryption_capabilities_item.supported_digests {
+                            let value_native_asymmetric_encryption_capabilities_item_native_supported_digests_item_native = value_native_asymmetric_encryption_capabilities_item_native_supported_digests_item;
+                            value_native_asymmetric_encryption_capabilities_item_native_supported_digests_values.push(value_native_asymmetric_encryption_capabilities_item_native_supported_digests_item_native);
+                        }
+                        let value_native_asymmetric_encryption_capabilities_item_native_supported_digests = context.store_slice(value_native_asymmetric_encryption_capabilities_item_native_supported_digests_values);
+                        let value_native_asymmetric_encryption_capabilities_item_native = CryptoStoreAsymmetricEncryptionCapability {
+                            key_algorithm: value_native_asymmetric_encryption_capabilities_item_native_key_algorithm,
+                            algorithm: value_native_asymmetric_encryption_capabilities_item_native_algorithm,
+                            supports_encrypt: value_native_asymmetric_encryption_capabilities_item_native_supports_encrypt,
+                            supports_decrypt: value_native_asymmetric_encryption_capabilities_item_native_supports_decrypt,
+                            supported_digests: value_native_asymmetric_encryption_capabilities_item_native_supported_digests,
+                        };
+                        value_native_asymmetric_encryption_capabilities_values.push(value_native_asymmetric_encryption_capabilities_item_native);
+                    }
+                    let value_native_asymmetric_encryption_capabilities = context.store_array(value_native_asymmetric_encryption_capabilities_values);
+                    let mut value_native_key_wrap_capabilities_values = Vec::with_capacity(value.key_wrap_capabilities.len());
+                    for value_native_key_wrap_capabilities_item in value.key_wrap_capabilities {
+                        let value_native_key_wrap_capabilities_item_native_wrapping_key_algorithm = value_native_key_wrap_capabilities_item.wrapping_key_algorithm;
+                        let value_native_key_wrap_capabilities_item_native_algorithm = value_native_key_wrap_capabilities_item.algorithm;
+                        let value_native_key_wrap_capabilities_item_native_supports_wrap = value_native_key_wrap_capabilities_item.supports_wrap;
+                        let value_native_key_wrap_capabilities_item_native_supports_unwrap = value_native_key_wrap_capabilities_item.supports_unwrap;
+                        let mut value_native_key_wrap_capabilities_item_native_supported_digests_values = Vec::with_capacity(value_native_key_wrap_capabilities_item.supported_digests.len());
+                        for value_native_key_wrap_capabilities_item_native_supported_digests_item in value_native_key_wrap_capabilities_item.supported_digests {
+                            let value_native_key_wrap_capabilities_item_native_supported_digests_item_native = value_native_key_wrap_capabilities_item_native_supported_digests_item;
+                            value_native_key_wrap_capabilities_item_native_supported_digests_values.push(value_native_key_wrap_capabilities_item_native_supported_digests_item_native);
+                        }
+                        let value_native_key_wrap_capabilities_item_native_supported_digests = context.store_slice(value_native_key_wrap_capabilities_item_native_supported_digests_values);
+                        let value_native_key_wrap_capabilities_item_native = CryptoStoreKeyWrapCapability {
+                            wrapping_key_algorithm: value_native_key_wrap_capabilities_item_native_wrapping_key_algorithm,
+                            algorithm: value_native_key_wrap_capabilities_item_native_algorithm,
+                            supports_wrap: value_native_key_wrap_capabilities_item_native_supports_wrap,
+                            supports_unwrap: value_native_key_wrap_capabilities_item_native_supports_unwrap,
+                            supported_digests: value_native_key_wrap_capabilities_item_native_supported_digests,
+                        };
+                        value_native_key_wrap_capabilities_values.push(value_native_key_wrap_capabilities_item_native);
+                    }
+                    let value_native_key_wrap_capabilities = context.store_array(value_native_key_wrap_capabilities_values);
+                    let mut value_native_cipher_capabilities_values = Vec::with_capacity(value.cipher_capabilities.len());
+                    for value_native_cipher_capabilities_item in value.cipher_capabilities {
+                        let value_native_cipher_capabilities_item_native_key_algorithm = value_native_cipher_capabilities_item.key_algorithm;
+                        let value_native_cipher_capabilities_item_native_algorithm = value_native_cipher_capabilities_item.algorithm;
+                        let value_native_cipher_capabilities_item_native_supports_one_shot = value_native_cipher_capabilities_item.supports_one_shot;
+                        let value_native_cipher_capabilities_item_native_supports_streaming = value_native_cipher_capabilities_item.supports_streaming;
+                        let value_native_cipher_capabilities_item_native_supports_additional_data = value_native_cipher_capabilities_item.supports_additional_data;
+                        let value_native_cipher_capabilities_item_native_supports_detached_tag = value_native_cipher_capabilities_item.supports_detached_tag;
+                        let value_native_cipher_capabilities_item_native_min_tag_length_bytes = value_native_cipher_capabilities_item.min_tag_length_bytes;
+                        let value_native_cipher_capabilities_item_native_max_tag_length_bytes = value_native_cipher_capabilities_item.max_tag_length_bytes;
+                        let value_native_cipher_capabilities_item_native = CryptoStoreCipherCapability {
+                            key_algorithm: value_native_cipher_capabilities_item_native_key_algorithm,
+                            algorithm: value_native_cipher_capabilities_item_native_algorithm,
+                            supports_one_shot: value_native_cipher_capabilities_item_native_supports_one_shot,
+                            supports_streaming: value_native_cipher_capabilities_item_native_supports_streaming,
+                            supports_additional_data: value_native_cipher_capabilities_item_native_supports_additional_data,
+                            supports_detached_tag: value_native_cipher_capabilities_item_native_supports_detached_tag,
+                            min_tag_length_bytes: value_native_cipher_capabilities_item_native_min_tag_length_bytes,
+                            max_tag_length_bytes: value_native_cipher_capabilities_item_native_max_tag_length_bytes,
+                        };
+                        value_native_cipher_capabilities_values.push(value_native_cipher_capabilities_item_native);
+                    }
+                    let value_native_cipher_capabilities = context.store_array(value_native_cipher_capabilities_values);
+                    let mut value_native_mac_capabilities_values = Vec::with_capacity(value.mac_capabilities.len());
+                    for value_native_mac_capabilities_item in value.mac_capabilities {
+                        let value_native_mac_capabilities_item_native_key_algorithm = value_native_mac_capabilities_item.key_algorithm;
+                        let value_native_mac_capabilities_item_native_algorithm = value_native_mac_capabilities_item.algorithm;
+                        let value_native_mac_capabilities_item_native_supports_one_shot = value_native_mac_capabilities_item.supports_one_shot;
+                        let value_native_mac_capabilities_item_native_supports_streaming = value_native_mac_capabilities_item.supports_streaming;
+                        let mut value_native_mac_capabilities_item_native_supported_digests_values = Vec::with_capacity(value_native_mac_capabilities_item.supported_digests.len());
+                        for value_native_mac_capabilities_item_native_supported_digests_item in value_native_mac_capabilities_item.supported_digests {
+                            let value_native_mac_capabilities_item_native_supported_digests_item_native = value_native_mac_capabilities_item_native_supported_digests_item;
+                            value_native_mac_capabilities_item_native_supported_digests_values.push(value_native_mac_capabilities_item_native_supported_digests_item_native);
+                        }
+                        let value_native_mac_capabilities_item_native_supported_digests = context.store_slice(value_native_mac_capabilities_item_native_supported_digests_values);
+                        let value_native_mac_capabilities_item_native_min_tag_length_bytes = value_native_mac_capabilities_item.min_tag_length_bytes;
+                        let value_native_mac_capabilities_item_native_max_tag_length_bytes = value_native_mac_capabilities_item.max_tag_length_bytes;
+                        let value_native_mac_capabilities_item_native = CryptoStoreMacCapability {
+                            key_algorithm: value_native_mac_capabilities_item_native_key_algorithm,
+                            algorithm: value_native_mac_capabilities_item_native_algorithm,
+                            supports_one_shot: value_native_mac_capabilities_item_native_supports_one_shot,
+                            supports_streaming: value_native_mac_capabilities_item_native_supports_streaming,
+                            supported_digests: value_native_mac_capabilities_item_native_supported_digests,
+                            min_tag_length_bytes: value_native_mac_capabilities_item_native_min_tag_length_bytes,
+                            max_tag_length_bytes: value_native_mac_capabilities_item_native_max_tag_length_bytes,
+                        };
+                        value_native_mac_capabilities_values.push(value_native_mac_capabilities_item_native);
+                    }
+                    let value_native_mac_capabilities = context.store_array(value_native_mac_capabilities_values);
+                    let mut value_native_agreement_capabilities_values = Vec::with_capacity(value.agreement_capabilities.len());
+                    for value_native_agreement_capabilities_item in value.agreement_capabilities {
+                        let value_native_agreement_capabilities_item_native_private_key_algorithm = value_native_agreement_capabilities_item.private_key_algorithm;
+                        let value_native_agreement_capabilities_item_native_peer_public_key_algorithm = value_native_agreement_capabilities_item.peer_public_key_algorithm;
+                        let value_native_agreement_capabilities_item_native_algorithm = value_native_agreement_capabilities_item.algorithm;
+                        let value_native_agreement_capabilities_item_native_supports_derive_shared_secret = value_native_agreement_capabilities_item.supports_derive_shared_secret;
+                        let value_native_agreement_capabilities_item_native_supports_derive_key = value_native_agreement_capabilities_item.supports_derive_key;
+                        let value_native_agreement_capabilities_item_native = CryptoStoreAgreementCapability {
+                            private_key_algorithm: value_native_agreement_capabilities_item_native_private_key_algorithm,
+                            peer_public_key_algorithm: value_native_agreement_capabilities_item_native_peer_public_key_algorithm,
+                            algorithm: value_native_agreement_capabilities_item_native_algorithm,
+                            supports_derive_shared_secret: value_native_agreement_capabilities_item_native_supports_derive_shared_secret,
+                            supports_derive_key: value_native_agreement_capabilities_item_native_supports_derive_key,
+                        };
+                        value_native_agreement_capabilities_values.push(value_native_agreement_capabilities_item_native);
+                    }
+                    let value_native_agreement_capabilities = context.store_array(value_native_agreement_capabilities_values);
+                    let value_native_certificate_capabilities_supports_import = value.certificate_capabilities.supports_import;
+                    let value_native_certificate_capabilities_supports_export = value.certificate_capabilities.supports_export;
+                    let value_native_certificate_capabilities_supports_descriptor = value.certificate_capabilities.supports_descriptor;
+                    let value_native_certificate_capabilities_supports_verify = value.certificate_capabilities.supports_verify;
+                    let value_native_certificate_capabilities_supports_delete = value.certificate_capabilities.supports_delete;
+                    let value_native_certificate_capabilities_supports_system_trust_anchors = value.certificate_capabilities.supports_system_trust_anchors;
+                    let value_native_certificate_capabilities = CryptoStoreCertificateCapability {
+                        supports_import: value_native_certificate_capabilities_supports_import,
+                        supports_export: value_native_certificate_capabilities_supports_export,
+                        supports_descriptor: value_native_certificate_capabilities_supports_descriptor,
+                        supports_verify: value_native_certificate_capabilities_supports_verify,
+                        supports_delete: value_native_certificate_capabilities_supports_delete,
+                        supports_system_trust_anchors: value_native_certificate_capabilities_supports_system_trust_anchors,
+                    };
                     let value_native = CryptoStoreCapability {
-                        kind: value_native_kind,
-                        provider: value_native_provider,
+                        identity: value_native_identity,
                         is_available: value_native_is_available,
                         supports_hardware_backed: value_native_supports_hardware_backed,
                         supports_persistent: value_native_supports_persistent,
                         supports_key_export: value_native_supports_key_export,
                         supported_key_algorithms: value_native_supported_key_algorithms,
                         supported_key_formats: value_native_supported_key_formats,
+                        supported_key_residencies: value_native_supported_key_residencies,
+                        key_capabilities: value_native_key_capabilities,
+                        signature_capabilities: value_native_signature_capabilities,
+                        asymmetric_encryption_capabilities: value_native_asymmetric_encryption_capabilities,
+                        key_wrap_capabilities: value_native_key_wrap_capabilities,
+                        cipher_capabilities: value_native_cipher_capabilities,
+                        mac_capabilities: value_native_mac_capabilities,
+                        agreement_capabilities: value_native_agreement_capabilities,
+                        certificate_capabilities: value_native_certificate_capabilities,
                     };
-                    unsafe {
-                        std::ptr::write(out, value_native);
-                    }
+                    unsafe { std::ptr::write(out, value_native); }
                     Ok(())
                 }
                 Err(error) => Err(RuntimeError::from(error).boxed()),
@@ -6765,23 +7559,25 @@ pub unsafe extern "C" fn destack_crypto_key_encrypt(
 pub unsafe extern "C" fn destack_crypto_key_export_private(
     out: *mut NativeSlice<u8>,
     handle: resource::CryptoKeyHandle,
-    format: CryptoKeyFormat,
+    request: CryptoPrivateKeyExportRequest,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &handle, &format);
+        let _ = (&out, &handle, &request);
 
         {
             let world = context.check_and_resolve_world(CRYPTO_KEY_EXPORT_PRIVATE)?;
             match world {
                 RuntimeWorld::Host => unsafe {
-                    platform_native::destack_crypto_key_export_private(context, out, handle, format)
+                    platform_native::destack_crypto_key_export_private(
+                        context, out, handle, request,
+                    )
                 },
                 RuntimeWorld::Simulation => unsafe {
                     platform_simulation_native::destack_crypto_key_export_private(
-                        context, out, handle, format,
+                        context, out, handle, request,
                     )
                 },
             }
@@ -6976,7 +7772,7 @@ pub unsafe extern "C" fn destack_crypto_key_unwrap(
     store: resource::CryptoStoreHandle,
     wrappingkey: resource::CryptoKeyHandle,
     wrappedkey: NativeSlice<u8>,
-    parameters: CryptoAsymmetricEncryptionParameters,
+    parameters: CryptoKeyWrapParameters,
     request: CryptoKeyImportRequest,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -7070,7 +7866,7 @@ pub unsafe extern "C" fn destack_crypto_key_wrap(
     wrappingkey: resource::CryptoKeyHandle,
     keytowrap: resource::CryptoKeyHandle,
     format: CryptoKeyFormat,
-    parameters: CryptoAsymmetricEncryptionParameters,
+    parameters: CryptoKeyWrapParameters,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
@@ -7395,6 +8191,36 @@ pub unsafe extern "C" fn destack_crypto_probe_key_formats(
 
         let world = context.check_and_resolve_world(CRYPTO_PROBE_KEY_FORMATS)?;
         destack_crypto_probe_key_formats_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.probe.keyResidencies")]
+pub unsafe extern "C" fn destack_crypto_probe_key_residencies(
+    out: *mut NativeSlice<CryptoKeyResidency>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(CRYPTO_PROBE_KEY_RESIDENCIES)?;
+        destack_crypto_probe_key_residencies_replay(context, world, out)
+    })
+}
+
+#[unsafe(export_name = "destack.crypto.probe.keyWrapAlgorithms")]
+pub unsafe extern "C" fn destack_crypto_probe_key_wrap_algorithms(
+    out: *mut NativeSlice<CryptoKeyWrapAlgorithm>,
+) -> RuntimeStatus {
+    native_call(|context| {
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = &out;
+
+        let world = context.check_and_resolve_world(CRYPTO_PROBE_KEY_WRAP_ALGORITHMS)?;
+        destack_crypto_probe_key_wrap_algorithms_replay(context, world, out)
     })
 }
 
@@ -8097,6 +8923,8 @@ fn destack_crypto_probe_key_formats_vm_replay(
                         6u8 => CryptoKeyFormat::Raw,
                         7u8 => CryptoKeyFormat::Sec1Pem,
                         8u8 => CryptoKeyFormat::Sec1Der,
+                        9u8 => CryptoKeyFormat::Pkcs8EncryptedPem,
+                        10u8 => CryptoKeyFormat::Pkcs8EncryptedDer,
                         _ => {
                             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                                 "result_recorded_item",
@@ -8143,6 +8971,174 @@ fn destack_crypto_probe_key_formats_vm_replay(
         },
     );
     let result = encode_destack_crypto_probe_key_formats_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_crypto_probe_key_residencies_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        CRYPTO_PROBE_KEY_RESIDENCIES,
+        runtime.replay_payload_for(CRYPTO_PROBE_KEY_RESIDENCIES)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_crypto_probe_key_residencies(runtime, context)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_crypto_probe_key_residencies(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<CryptoKeyResidency> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_raw = decode_uint8(
+                        result_recorded_item_value,
+                        "result_recorded_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_item = match result_recorded_item_raw {
+                        0u8 => CryptoKeyResidency::Unknown,
+                        1u8 => CryptoKeyResidency::SoftwareExportable,
+                        2u8 => CryptoKeyResidency::SoftwareNonExportable,
+                        3u8 => CryptoKeyResidency::HardwareOpaque,
+                        _ => {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "unknown CryptoKeyResidency value",
+                            ))
+                            .boxed());
+                        }
+                    };
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeKeyResidenciesReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeKeyResidenciesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_crypto_probe_key_residencies_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_crypto_probe_key_wrap_algorithms_vm_replay(
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
+    world: RuntimeWorld,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context_policy(
+        CRYPTO_PROBE_KEY_WRAP_ALGORITHMS,
+        runtime.replay_payload_for(CRYPTO_PROBE_KEY_WRAP_ALGORITHMS)?,
+        context,
+        |context| match world {
+            RuntimeWorld::Host => {
+                platform_vm::destack_crypto_probe_key_wrap_algorithms(runtime, context)
+            }
+            RuntimeWorld::Simulation => {
+                platform_simulation_vm::destack_crypto_probe_key_wrap_algorithms(runtime, context)
+            }
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value: VmSlice<CryptoKeyWrapAlgorithm> = value.clone();
+                let result_recorded_raw = result_value.raw_values(context)?;
+                let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
+                for result_recorded_item_value in result_recorded_raw {
+                    let result_recorded_item_raw = decode_uint8(
+                        result_recorded_item_value,
+                        "result_recorded_item_raw",
+                        "item",
+                    )?;
+                    let result_recorded_item = match result_recorded_item_raw {
+                        0u8 => CryptoKeyWrapAlgorithm::Unknown,
+                        1u8 => CryptoKeyWrapAlgorithm::RsaOaep,
+                        2u8 => CryptoKeyWrapAlgorithm::AesKw,
+                        3u8 => CryptoKeyWrapAlgorithm::AesKwp,
+                        _ => {
+                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                                "result_recorded_item",
+                                "unknown CryptoKeyWrapAlgorithm value",
+                            ))
+                            .boxed());
+                        }
+                    };
+                    let result_recorded_item_recorded = result_recorded_item;
+                    result_recorded.push(result_recorded_item_recorded);
+                }
+                let payload = CryptoProbeKeyWrapAlgorithmsReplay {
+                    result: Ok(result_recorded),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CryptoProbeKeyWrapAlgorithmsReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut vm_result_values = Vec::with_capacity(value.len());
+                    for vm_result_item in value.iter() {
+                        let vm_result_item = *vm_result_item;
+                        let vm_result_item_value = vm_result_item;
+                        vm_result_values.push(vm_result_item_value);
+                    }
+                    let vm_result = VmSlice::from_values(context, &vm_result_values)?;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_crypto_probe_key_wrap_algorithms_result(context, result)?;
     Ok(result)
 }
 
@@ -8413,113 +9409,426 @@ fn destack_crypto_store_probe_capability_vm_replay(
         CRYPTO_STORE_PROBE_CAPABILITY,
         runtime.replay_payload_for(CRYPTO_STORE_PROBE_CAPABILITY)?,
         context,
-        |context| match world {
-            RuntimeWorld::Host => {
-                platform_vm::destack_crypto_store_probe_capability(runtime, context, kind, provider)
-            }
-            RuntimeWorld::Simulation => {
-                platform_simulation_vm::destack_crypto_store_probe_capability(
-                    runtime, context, kind, provider,
-                )
+        |context| {
+            match world {
+                RuntimeWorld::Host => platform_vm::destack_crypto_store_probe_capability(runtime, context, kind, provider),
+                RuntimeWorld::Simulation => platform_simulation_vm::destack_crypto_store_probe_capability(runtime, context, kind, provider),
             }
         },
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value: CryptoStoreCapabilityVm = value.clone();
-                let result_recorded_kind = result_value.kind;
-                let result_recorded_provider = result_value.provider;
+                let result_recorded_identity_kind = result_value.identity.kind;
+                let result_recorded_identity_provider = result_value.identity.provider;
+                let result_recorded_identity_namespace = {
+                    let result_recorded_identity_namespace_ref = context.string_ref(result_value.identity.namespace).map_err(|error| RuntimeError::from(error).boxed())?;
+                    result_recorded_identity_namespace_ref.as_str().to_string()
+                };
+                let result_recorded_identity = CryptoStoreIdentityReplayRecord {
+                    kind: result_recorded_identity_kind,
+                    provider: result_recorded_identity_provider,
+                    namespace: result_recorded_identity_namespace,
+                };
                 let result_recorded_is_available = result_value.is_available;
-                let result_recorded_supports_hardware_backed =
-                    result_value.supports_hardware_backed;
+                let result_recorded_supports_hardware_backed = result_value.supports_hardware_backed;
                 let result_recorded_supports_persistent = result_value.supports_persistent;
                 let result_recorded_supports_key_export = result_value.supports_key_export;
-                let result_recorded_supported_key_algorithms_raw =
-                    result_value.supported_key_algorithms.raw_values(context)?;
-                let mut result_recorded_supported_key_algorithms =
-                    Vec::with_capacity(result_recorded_supported_key_algorithms_raw.len());
-                for result_recorded_supported_key_algorithms_item_value in
-                    result_recorded_supported_key_algorithms_raw
-                {
-                    let result_recorded_supported_key_algorithms_item_raw = decode_uint8(
-                        result_recorded_supported_key_algorithms_item_value,
-                        "result_recorded_supported_key_algorithms_item_raw",
-                        "item",
-                    )?;
-                    let result_recorded_supported_key_algorithms_item =
-                        match result_recorded_supported_key_algorithms_item_raw {
-                            0u8 => CryptoKeyAlgorithm::Unknown,
-                            1u8 => CryptoKeyAlgorithm::Rsa,
-                            2u8 => CryptoKeyAlgorithm::Ec,
-                            3u8 => CryptoKeyAlgorithm::Ed25519,
-                            4u8 => CryptoKeyAlgorithm::Ed448,
-                            5u8 => CryptoKeyAlgorithm::X25519,
-                            6u8 => CryptoKeyAlgorithm::X448,
-                            7u8 => CryptoKeyAlgorithm::Aes,
-                            8u8 => CryptoKeyAlgorithm::ChaCha20,
-                            9u8 => CryptoKeyAlgorithm::Hmac,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_supported_key_algorithms_item",
-                                        "unknown CryptoKeyAlgorithm value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                    let result_recorded_supported_key_algorithms_item_recorded =
-                        result_recorded_supported_key_algorithms_item;
-                    result_recorded_supported_key_algorithms
-                        .push(result_recorded_supported_key_algorithms_item_recorded);
+                let result_recorded_supported_key_algorithms_raw = result_value.supported_key_algorithms.raw_values(context)?;
+                let mut result_recorded_supported_key_algorithms = Vec::with_capacity(result_recorded_supported_key_algorithms_raw.len());
+                for result_recorded_supported_key_algorithms_item_value in result_recorded_supported_key_algorithms_raw {
+                    let result_recorded_supported_key_algorithms_item_raw = decode_uint8(result_recorded_supported_key_algorithms_item_value, "result_recorded_supported_key_algorithms_item_raw", "item")?;
+                    let result_recorded_supported_key_algorithms_item = match result_recorded_supported_key_algorithms_item_raw { 0u8 => CryptoKeyAlgorithm::Unknown, 1u8 => CryptoKeyAlgorithm::Rsa, 2u8 => CryptoKeyAlgorithm::Ec, 3u8 => CryptoKeyAlgorithm::Ed25519, 4u8 => CryptoKeyAlgorithm::Ed448, 5u8 => CryptoKeyAlgorithm::X25519, 6u8 => CryptoKeyAlgorithm::X448, 7u8 => CryptoKeyAlgorithm::Aes, 8u8 => CryptoKeyAlgorithm::ChaCha20, 9u8 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_supported_key_algorithms_item", "unknown CryptoKeyAlgorithm value")).boxed()), };
+                    let result_recorded_supported_key_algorithms_item_recorded = result_recorded_supported_key_algorithms_item;
+                    result_recorded_supported_key_algorithms.push(result_recorded_supported_key_algorithms_item_recorded);
                 }
-                let result_recorded_supported_key_formats_raw =
-                    result_value.supported_key_formats.raw_values(context)?;
-                let mut result_recorded_supported_key_formats =
-                    Vec::with_capacity(result_recorded_supported_key_formats_raw.len());
-                for result_recorded_supported_key_formats_item_value in
-                    result_recorded_supported_key_formats_raw
-                {
-                    let result_recorded_supported_key_formats_item_raw = decode_uint8(
-                        result_recorded_supported_key_formats_item_value,
-                        "result_recorded_supported_key_formats_item_raw",
-                        "item",
-                    )?;
-                    let result_recorded_supported_key_formats_item =
-                        match result_recorded_supported_key_formats_item_raw {
-                            0u8 => CryptoKeyFormat::Unknown,
-                            1u8 => CryptoKeyFormat::Pkcs8Pem,
-                            2u8 => CryptoKeyFormat::Pkcs8Der,
-                            3u8 => CryptoKeyFormat::SpkiPem,
-                            4u8 => CryptoKeyFormat::SpkiDer,
-                            5u8 => CryptoKeyFormat::Jwk,
-                            6u8 => CryptoKeyFormat::Raw,
-                            7u8 => CryptoKeyFormat::Sec1Pem,
-                            8u8 => CryptoKeyFormat::Sec1Der,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_supported_key_formats_item",
-                                        "unknown CryptoKeyFormat value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                    let result_recorded_supported_key_formats_item_recorded =
-                        result_recorded_supported_key_formats_item;
-                    result_recorded_supported_key_formats
-                        .push(result_recorded_supported_key_formats_item_recorded);
+                let result_recorded_supported_key_formats_raw = result_value.supported_key_formats.raw_values(context)?;
+                let mut result_recorded_supported_key_formats = Vec::with_capacity(result_recorded_supported_key_formats_raw.len());
+                for result_recorded_supported_key_formats_item_value in result_recorded_supported_key_formats_raw {
+                    let result_recorded_supported_key_formats_item_raw = decode_uint8(result_recorded_supported_key_formats_item_value, "result_recorded_supported_key_formats_item_raw", "item")?;
+                    let result_recorded_supported_key_formats_item = match result_recorded_supported_key_formats_item_raw { 0u8 => CryptoKeyFormat::Unknown, 1u8 => CryptoKeyFormat::Pkcs8Pem, 2u8 => CryptoKeyFormat::Pkcs8Der, 3u8 => CryptoKeyFormat::SpkiPem, 4u8 => CryptoKeyFormat::SpkiDer, 5u8 => CryptoKeyFormat::Jwk, 6u8 => CryptoKeyFormat::Raw, 7u8 => CryptoKeyFormat::Sec1Pem, 8u8 => CryptoKeyFormat::Sec1Der, 9u8 => CryptoKeyFormat::Pkcs8EncryptedPem, 10u8 => CryptoKeyFormat::Pkcs8EncryptedDer , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_supported_key_formats_item", "unknown CryptoKeyFormat value")).boxed()), };
+                    let result_recorded_supported_key_formats_item_recorded = result_recorded_supported_key_formats_item;
+                    result_recorded_supported_key_formats.push(result_recorded_supported_key_formats_item_recorded);
                 }
+                let result_recorded_supported_key_residencies_raw = result_value.supported_key_residencies.raw_values(context)?;
+                let mut result_recorded_supported_key_residencies = Vec::with_capacity(result_recorded_supported_key_residencies_raw.len());
+                for result_recorded_supported_key_residencies_item_value in result_recorded_supported_key_residencies_raw {
+                    let result_recorded_supported_key_residencies_item_raw = decode_uint8(result_recorded_supported_key_residencies_item_value, "result_recorded_supported_key_residencies_item_raw", "item")?;
+                    let result_recorded_supported_key_residencies_item = match result_recorded_supported_key_residencies_item_raw { 0u8 => CryptoKeyResidency::Unknown, 1u8 => CryptoKeyResidency::SoftwareExportable, 2u8 => CryptoKeyResidency::SoftwareNonExportable, 3u8 => CryptoKeyResidency::HardwareOpaque , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_supported_key_residencies_item", "unknown CryptoKeyResidency value")).boxed()), };
+                    let result_recorded_supported_key_residencies_item_recorded = result_recorded_supported_key_residencies_item;
+                    result_recorded_supported_key_residencies.push(result_recorded_supported_key_residencies_item_recorded);
+                }
+                let result_recorded_key_capabilities_raw = result_value.key_capabilities.raw_values(context)?;
+                let mut result_recorded_key_capabilities = Vec::with_capacity(result_recorded_key_capabilities_raw.len());
+                for result_recorded_key_capabilities_item_value in result_recorded_key_capabilities_raw {
+                    let result_recorded_key_capabilities_item = {
+                        if result_recorded_key_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_key_capabilities_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_key_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 11 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_capabilities_item", "expected 11 fields")).boxed()); }
+                        let result_recorded_key_capabilities_item_algorithm_raw = decode_uint8(slots[0], "result_recorded_key_capabilities_item_algorithm_raw", "algorithm")?;
+                        let result_recorded_key_capabilities_item_algorithm = match result_recorded_key_capabilities_item_algorithm_raw { 0u8 => CryptoKeyAlgorithm::Unknown, 1u8 => CryptoKeyAlgorithm::Rsa, 2u8 => CryptoKeyAlgorithm::Ec, 3u8 => CryptoKeyAlgorithm::Ed25519, 4u8 => CryptoKeyAlgorithm::Ed448, 5u8 => CryptoKeyAlgorithm::X25519, 6u8 => CryptoKeyAlgorithm::X448, 7u8 => CryptoKeyAlgorithm::Aes, 8u8 => CryptoKeyAlgorithm::ChaCha20, 9u8 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_capabilities_item_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
+                        let result_recorded_key_capabilities_item_residency_raw = decode_uint8(slots[1], "result_recorded_key_capabilities_item_residency_raw", "residency")?;
+                        let result_recorded_key_capabilities_item_residency = match result_recorded_key_capabilities_item_residency_raw { 0u8 => CryptoKeyResidency::Unknown, 1u8 => CryptoKeyResidency::SoftwareExportable, 2u8 => CryptoKeyResidency::SoftwareNonExportable, 3u8 => CryptoKeyResidency::HardwareOpaque , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_capabilities_item_residency", "unknown CryptoKeyResidency value")).boxed()), };
+                        let result_recorded_key_capabilities_item_supports_generate_secret = decode_bool(slots[2], "result_recorded_key_capabilities_item_supports_generate_secret", "supportsGenerateSecret")?;
+                        let result_recorded_key_capabilities_item_supports_generate_pair = decode_bool(slots[3], "result_recorded_key_capabilities_item_supports_generate_pair", "supportsGeneratePair")?;
+                        let result_recorded_key_capabilities_item_supports_import = decode_bool(slots[4], "result_recorded_key_capabilities_item_supports_import", "supportsImport")?;
+                        let result_recorded_key_capabilities_item_supports_export_public = decode_bool(slots[5], "result_recorded_key_capabilities_item_supports_export_public", "supportsExportPublic")?;
+                        let result_recorded_key_capabilities_item_supports_export_private = decode_bool(slots[6], "result_recorded_key_capabilities_item_supports_export_private", "supportsExportPrivate")?;
+                        let result_recorded_key_capabilities_item_supports_export_secret = decode_bool(slots[7], "result_recorded_key_capabilities_item_supports_export_secret", "supportsExportSecret")?;
+                        let result_recorded_key_capabilities_item_supported_usage_mask_inner = decode_uint32(slots[8], "result_recorded_key_capabilities_item_supported_usage_mask_inner", "supportedUsageMask")?;
+                        let result_recorded_key_capabilities_item_supported_usage_mask = CryptoKeyUsageMask(result_recorded_key_capabilities_item_supported_usage_mask_inner);
+                        let result_recorded_key_capabilities_item_supported_import_formats = decode_slice::<CryptoKeyFormat>(context, slots[9], "result_recorded_key_capabilities_item_supported_import_formats", "supportedImportFormats")?;
+                        let result_recorded_key_capabilities_item_supported_export_formats = decode_slice::<CryptoKeyFormat>(context, slots[10], "result_recorded_key_capabilities_item_supported_export_formats", "supportedExportFormats")?;
+                        CryptoStoreKeyCapabilityVm {
+                            algorithm: result_recorded_key_capabilities_item_algorithm,
+                            residency: result_recorded_key_capabilities_item_residency,
+                            supports_generate_secret: result_recorded_key_capabilities_item_supports_generate_secret,
+                            supports_generate_pair: result_recorded_key_capabilities_item_supports_generate_pair,
+                            supports_import: result_recorded_key_capabilities_item_supports_import,
+                            supports_export_public: result_recorded_key_capabilities_item_supports_export_public,
+                            supports_export_private: result_recorded_key_capabilities_item_supports_export_private,
+                            supports_export_secret: result_recorded_key_capabilities_item_supports_export_secret,
+                            supported_usage_mask: result_recorded_key_capabilities_item_supported_usage_mask,
+                            supported_import_formats: result_recorded_key_capabilities_item_supported_import_formats,
+                            supported_export_formats: result_recorded_key_capabilities_item_supported_export_formats,
+                        }
+                    };
+                    let result_recorded_key_capabilities_item_recorded_algorithm = result_recorded_key_capabilities_item.algorithm;
+                    let result_recorded_key_capabilities_item_recorded_residency = result_recorded_key_capabilities_item.residency;
+                    let result_recorded_key_capabilities_item_recorded_supports_generate_secret = result_recorded_key_capabilities_item.supports_generate_secret;
+                    let result_recorded_key_capabilities_item_recorded_supports_generate_pair = result_recorded_key_capabilities_item.supports_generate_pair;
+                    let result_recorded_key_capabilities_item_recorded_supports_import = result_recorded_key_capabilities_item.supports_import;
+                    let result_recorded_key_capabilities_item_recorded_supports_export_public = result_recorded_key_capabilities_item.supports_export_public;
+                    let result_recorded_key_capabilities_item_recorded_supports_export_private = result_recorded_key_capabilities_item.supports_export_private;
+                    let result_recorded_key_capabilities_item_recorded_supports_export_secret = result_recorded_key_capabilities_item.supports_export_secret;
+                    let result_recorded_key_capabilities_item_recorded_supported_usage_mask = result_recorded_key_capabilities_item.supported_usage_mask;
+                    let result_recorded_key_capabilities_item_recorded_supported_import_formats_raw = result_recorded_key_capabilities_item.supported_import_formats.raw_values(context)?;
+                    let mut result_recorded_key_capabilities_item_recorded_supported_import_formats = Vec::with_capacity(result_recorded_key_capabilities_item_recorded_supported_import_formats_raw.len());
+                    for result_recorded_key_capabilities_item_recorded_supported_import_formats_item_value in result_recorded_key_capabilities_item_recorded_supported_import_formats_raw {
+                        let result_recorded_key_capabilities_item_recorded_supported_import_formats_item_raw = decode_uint8(result_recorded_key_capabilities_item_recorded_supported_import_formats_item_value, "result_recorded_key_capabilities_item_recorded_supported_import_formats_item_raw", "item")?;
+                        let result_recorded_key_capabilities_item_recorded_supported_import_formats_item = match result_recorded_key_capabilities_item_recorded_supported_import_formats_item_raw { 0u8 => CryptoKeyFormat::Unknown, 1u8 => CryptoKeyFormat::Pkcs8Pem, 2u8 => CryptoKeyFormat::Pkcs8Der, 3u8 => CryptoKeyFormat::SpkiPem, 4u8 => CryptoKeyFormat::SpkiDer, 5u8 => CryptoKeyFormat::Jwk, 6u8 => CryptoKeyFormat::Raw, 7u8 => CryptoKeyFormat::Sec1Pem, 8u8 => CryptoKeyFormat::Sec1Der, 9u8 => CryptoKeyFormat::Pkcs8EncryptedPem, 10u8 => CryptoKeyFormat::Pkcs8EncryptedDer , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_capabilities_item_recorded_supported_import_formats_item", "unknown CryptoKeyFormat value")).boxed()), };
+                        let result_recorded_key_capabilities_item_recorded_supported_import_formats_item_recorded = result_recorded_key_capabilities_item_recorded_supported_import_formats_item;
+                        result_recorded_key_capabilities_item_recorded_supported_import_formats.push(result_recorded_key_capabilities_item_recorded_supported_import_formats_item_recorded);
+                    }
+                    let result_recorded_key_capabilities_item_recorded_supported_export_formats_raw = result_recorded_key_capabilities_item.supported_export_formats.raw_values(context)?;
+                    let mut result_recorded_key_capabilities_item_recorded_supported_export_formats = Vec::with_capacity(result_recorded_key_capabilities_item_recorded_supported_export_formats_raw.len());
+                    for result_recorded_key_capabilities_item_recorded_supported_export_formats_item_value in result_recorded_key_capabilities_item_recorded_supported_export_formats_raw {
+                        let result_recorded_key_capabilities_item_recorded_supported_export_formats_item_raw = decode_uint8(result_recorded_key_capabilities_item_recorded_supported_export_formats_item_value, "result_recorded_key_capabilities_item_recorded_supported_export_formats_item_raw", "item")?;
+                        let result_recorded_key_capabilities_item_recorded_supported_export_formats_item = match result_recorded_key_capabilities_item_recorded_supported_export_formats_item_raw { 0u8 => CryptoKeyFormat::Unknown, 1u8 => CryptoKeyFormat::Pkcs8Pem, 2u8 => CryptoKeyFormat::Pkcs8Der, 3u8 => CryptoKeyFormat::SpkiPem, 4u8 => CryptoKeyFormat::SpkiDer, 5u8 => CryptoKeyFormat::Jwk, 6u8 => CryptoKeyFormat::Raw, 7u8 => CryptoKeyFormat::Sec1Pem, 8u8 => CryptoKeyFormat::Sec1Der, 9u8 => CryptoKeyFormat::Pkcs8EncryptedPem, 10u8 => CryptoKeyFormat::Pkcs8EncryptedDer , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_capabilities_item_recorded_supported_export_formats_item", "unknown CryptoKeyFormat value")).boxed()), };
+                        let result_recorded_key_capabilities_item_recorded_supported_export_formats_item_recorded = result_recorded_key_capabilities_item_recorded_supported_export_formats_item;
+                        result_recorded_key_capabilities_item_recorded_supported_export_formats.push(result_recorded_key_capabilities_item_recorded_supported_export_formats_item_recorded);
+                    }
+                    let result_recorded_key_capabilities_item_recorded = CryptoStoreKeyCapabilityReplayRecord {
+                        algorithm: result_recorded_key_capabilities_item_recorded_algorithm,
+                        residency: result_recorded_key_capabilities_item_recorded_residency,
+                        supports_generate_secret: result_recorded_key_capabilities_item_recorded_supports_generate_secret,
+                        supports_generate_pair: result_recorded_key_capabilities_item_recorded_supports_generate_pair,
+                        supports_import: result_recorded_key_capabilities_item_recorded_supports_import,
+                        supports_export_public: result_recorded_key_capabilities_item_recorded_supports_export_public,
+                        supports_export_private: result_recorded_key_capabilities_item_recorded_supports_export_private,
+                        supports_export_secret: result_recorded_key_capabilities_item_recorded_supports_export_secret,
+                        supported_usage_mask: result_recorded_key_capabilities_item_recorded_supported_usage_mask,
+                        supported_import_formats: result_recorded_key_capabilities_item_recorded_supported_import_formats,
+                        supported_export_formats: result_recorded_key_capabilities_item_recorded_supported_export_formats,
+                    };
+                    result_recorded_key_capabilities.push(result_recorded_key_capabilities_item_recorded);
+                }
+                let result_recorded_signature_capabilities_raw = result_value.signature_capabilities.raw_values(context)?;
+                let mut result_recorded_signature_capabilities = Vec::with_capacity(result_recorded_signature_capabilities_raw.len());
+                for result_recorded_signature_capabilities_item_value in result_recorded_signature_capabilities_raw {
+                    let result_recorded_signature_capabilities_item = {
+                        if result_recorded_signature_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_signature_capabilities_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_signature_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_signature_capabilities_item", "expected 5 fields")).boxed()); }
+                        let result_recorded_signature_capabilities_item_key_algorithm_raw = decode_uint8(slots[0], "result_recorded_signature_capabilities_item_key_algorithm_raw", "keyAlgorithm")?;
+                        let result_recorded_signature_capabilities_item_key_algorithm = match result_recorded_signature_capabilities_item_key_algorithm_raw { 0u8 => CryptoKeyAlgorithm::Unknown, 1u8 => CryptoKeyAlgorithm::Rsa, 2u8 => CryptoKeyAlgorithm::Ec, 3u8 => CryptoKeyAlgorithm::Ed25519, 4u8 => CryptoKeyAlgorithm::Ed448, 5u8 => CryptoKeyAlgorithm::X25519, 6u8 => CryptoKeyAlgorithm::X448, 7u8 => CryptoKeyAlgorithm::Aes, 8u8 => CryptoKeyAlgorithm::ChaCha20, 9u8 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_signature_capabilities_item_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
+                        let result_recorded_signature_capabilities_item_signature_algorithm_raw = decode_uint8(slots[1], "result_recorded_signature_capabilities_item_signature_algorithm_raw", "signatureAlgorithm")?;
+                        let result_recorded_signature_capabilities_item_signature_algorithm = match result_recorded_signature_capabilities_item_signature_algorithm_raw { 0u8 => CryptoSignatureAlgorithm::Unknown, 1u8 => CryptoSignatureAlgorithm::RsaPkcs1v15, 2u8 => CryptoSignatureAlgorithm::RsaPss, 3u8 => CryptoSignatureAlgorithm::Ecdsa, 4u8 => CryptoSignatureAlgorithm::Ed25519, 5u8 => CryptoSignatureAlgorithm::Ed448 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_signature_capabilities_item_signature_algorithm", "unknown CryptoSignatureAlgorithm value")).boxed()), };
+                        let result_recorded_signature_capabilities_item_supports_sign = decode_bool(slots[2], "result_recorded_signature_capabilities_item_supports_sign", "supportsSign")?;
+                        let result_recorded_signature_capabilities_item_supports_verify = decode_bool(slots[3], "result_recorded_signature_capabilities_item_supports_verify", "supportsVerify")?;
+                        let result_recorded_signature_capabilities_item_supported_digests = decode_slice::<CryptoDigestAlgorithm>(context, slots[4], "result_recorded_signature_capabilities_item_supported_digests", "supportedDigests")?;
+                        CryptoStoreSignatureCapabilityVm {
+                            key_algorithm: result_recorded_signature_capabilities_item_key_algorithm,
+                            signature_algorithm: result_recorded_signature_capabilities_item_signature_algorithm,
+                            supports_sign: result_recorded_signature_capabilities_item_supports_sign,
+                            supports_verify: result_recorded_signature_capabilities_item_supports_verify,
+                            supported_digests: result_recorded_signature_capabilities_item_supported_digests,
+                        }
+                    };
+                    let result_recorded_signature_capabilities_item_recorded_key_algorithm = result_recorded_signature_capabilities_item.key_algorithm;
+                    let result_recorded_signature_capabilities_item_recorded_signature_algorithm = result_recorded_signature_capabilities_item.signature_algorithm;
+                    let result_recorded_signature_capabilities_item_recorded_supports_sign = result_recorded_signature_capabilities_item.supports_sign;
+                    let result_recorded_signature_capabilities_item_recorded_supports_verify = result_recorded_signature_capabilities_item.supports_verify;
+                    let result_recorded_signature_capabilities_item_recorded_supported_digests_raw = result_recorded_signature_capabilities_item.supported_digests.raw_values(context)?;
+                    let mut result_recorded_signature_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_signature_capabilities_item_recorded_supported_digests_raw.len());
+                    for result_recorded_signature_capabilities_item_recorded_supported_digests_item_value in result_recorded_signature_capabilities_item_recorded_supported_digests_raw {
+                        let result_recorded_signature_capabilities_item_recorded_supported_digests_item_raw = decode_uint8(result_recorded_signature_capabilities_item_recorded_supported_digests_item_value, "result_recorded_signature_capabilities_item_recorded_supported_digests_item_raw", "item")?;
+                        let result_recorded_signature_capabilities_item_recorded_supported_digests_item = match result_recorded_signature_capabilities_item_recorded_supported_digests_item_raw { 0u8 => CryptoDigestAlgorithm::Unknown, 1u8 => CryptoDigestAlgorithm::Sha1, 2u8 => CryptoDigestAlgorithm::Sha224, 3u8 => CryptoDigestAlgorithm::Sha256, 4u8 => CryptoDigestAlgorithm::Sha384, 5u8 => CryptoDigestAlgorithm::Sha512, 6u8 => CryptoDigestAlgorithm::Sha3_256, 7u8 => CryptoDigestAlgorithm::Sha3_384, 8u8 => CryptoDigestAlgorithm::Sha3_512, 9u8 => CryptoDigestAlgorithm::Blake2b512, 10u8 => CryptoDigestAlgorithm::Blake2s256 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_signature_capabilities_item_recorded_supported_digests_item", "unknown CryptoDigestAlgorithm value")).boxed()), };
+                        let result_recorded_signature_capabilities_item_recorded_supported_digests_item_recorded = result_recorded_signature_capabilities_item_recorded_supported_digests_item;
+                        result_recorded_signature_capabilities_item_recorded_supported_digests.push(result_recorded_signature_capabilities_item_recorded_supported_digests_item_recorded);
+                    }
+                    let result_recorded_signature_capabilities_item_recorded = CryptoStoreSignatureCapabilityReplayRecord {
+                        key_algorithm: result_recorded_signature_capabilities_item_recorded_key_algorithm,
+                        signature_algorithm: result_recorded_signature_capabilities_item_recorded_signature_algorithm,
+                        supports_sign: result_recorded_signature_capabilities_item_recorded_supports_sign,
+                        supports_verify: result_recorded_signature_capabilities_item_recorded_supports_verify,
+                        supported_digests: result_recorded_signature_capabilities_item_recorded_supported_digests,
+                    };
+                    result_recorded_signature_capabilities.push(result_recorded_signature_capabilities_item_recorded);
+                }
+                let result_recorded_asymmetric_encryption_capabilities_raw = result_value.asymmetric_encryption_capabilities.raw_values(context)?;
+                let mut result_recorded_asymmetric_encryption_capabilities = Vec::with_capacity(result_recorded_asymmetric_encryption_capabilities_raw.len());
+                for result_recorded_asymmetric_encryption_capabilities_item_value in result_recorded_asymmetric_encryption_capabilities_raw {
+                    let result_recorded_asymmetric_encryption_capabilities_item = {
+                        if result_recorded_asymmetric_encryption_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_asymmetric_encryption_capabilities_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_asymmetric_encryption_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_asymmetric_encryption_capabilities_item", "expected 5 fields")).boxed()); }
+                        let result_recorded_asymmetric_encryption_capabilities_item_key_algorithm_raw = decode_uint8(slots[0], "result_recorded_asymmetric_encryption_capabilities_item_key_algorithm_raw", "keyAlgorithm")?;
+                        let result_recorded_asymmetric_encryption_capabilities_item_key_algorithm = match result_recorded_asymmetric_encryption_capabilities_item_key_algorithm_raw { 0u8 => CryptoKeyAlgorithm::Unknown, 1u8 => CryptoKeyAlgorithm::Rsa, 2u8 => CryptoKeyAlgorithm::Ec, 3u8 => CryptoKeyAlgorithm::Ed25519, 4u8 => CryptoKeyAlgorithm::Ed448, 5u8 => CryptoKeyAlgorithm::X25519, 6u8 => CryptoKeyAlgorithm::X448, 7u8 => CryptoKeyAlgorithm::Aes, 8u8 => CryptoKeyAlgorithm::ChaCha20, 9u8 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_asymmetric_encryption_capabilities_item_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
+                        let result_recorded_asymmetric_encryption_capabilities_item_algorithm_raw = decode_uint8(slots[1], "result_recorded_asymmetric_encryption_capabilities_item_algorithm_raw", "algorithm")?;
+                        let result_recorded_asymmetric_encryption_capabilities_item_algorithm = match result_recorded_asymmetric_encryption_capabilities_item_algorithm_raw { 0u8 => CryptoAsymmetricEncryptionAlgorithm::Unknown, 1u8 => CryptoAsymmetricEncryptionAlgorithm::RsaPkcs1v15, 2u8 => CryptoAsymmetricEncryptionAlgorithm::RsaOaep , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_asymmetric_encryption_capabilities_item_algorithm", "unknown CryptoAsymmetricEncryptionAlgorithm value")).boxed()), };
+                        let result_recorded_asymmetric_encryption_capabilities_item_supports_encrypt = decode_bool(slots[2], "result_recorded_asymmetric_encryption_capabilities_item_supports_encrypt", "supportsEncrypt")?;
+                        let result_recorded_asymmetric_encryption_capabilities_item_supports_decrypt = decode_bool(slots[3], "result_recorded_asymmetric_encryption_capabilities_item_supports_decrypt", "supportsDecrypt")?;
+                        let result_recorded_asymmetric_encryption_capabilities_item_supported_digests = decode_slice::<CryptoDigestAlgorithm>(context, slots[4], "result_recorded_asymmetric_encryption_capabilities_item_supported_digests", "supportedDigests")?;
+                        CryptoStoreAsymmetricEncryptionCapabilityVm {
+                            key_algorithm: result_recorded_asymmetric_encryption_capabilities_item_key_algorithm,
+                            algorithm: result_recorded_asymmetric_encryption_capabilities_item_algorithm,
+                            supports_encrypt: result_recorded_asymmetric_encryption_capabilities_item_supports_encrypt,
+                            supports_decrypt: result_recorded_asymmetric_encryption_capabilities_item_supports_decrypt,
+                            supported_digests: result_recorded_asymmetric_encryption_capabilities_item_supported_digests,
+                        }
+                    };
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded_key_algorithm = result_recorded_asymmetric_encryption_capabilities_item.key_algorithm;
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded_algorithm = result_recorded_asymmetric_encryption_capabilities_item.algorithm;
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded_supports_encrypt = result_recorded_asymmetric_encryption_capabilities_item.supports_encrypt;
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded_supports_decrypt = result_recorded_asymmetric_encryption_capabilities_item.supports_decrypt;
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_raw = result_recorded_asymmetric_encryption_capabilities_item.supported_digests.raw_values(context)?;
+                    let mut result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_raw.len());
+                    for result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_value in result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_raw {
+                        let result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_raw = decode_uint8(result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_value, "result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_raw", "item")?;
+                        let result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item = match result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_raw { 0u8 => CryptoDigestAlgorithm::Unknown, 1u8 => CryptoDigestAlgorithm::Sha1, 2u8 => CryptoDigestAlgorithm::Sha224, 3u8 => CryptoDigestAlgorithm::Sha256, 4u8 => CryptoDigestAlgorithm::Sha384, 5u8 => CryptoDigestAlgorithm::Sha512, 6u8 => CryptoDigestAlgorithm::Sha3_256, 7u8 => CryptoDigestAlgorithm::Sha3_384, 8u8 => CryptoDigestAlgorithm::Sha3_512, 9u8 => CryptoDigestAlgorithm::Blake2b512, 10u8 => CryptoDigestAlgorithm::Blake2s256 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item", "unknown CryptoDigestAlgorithm value")).boxed()), };
+                        let result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_recorded = result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item;
+                        result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests.push(result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests_item_recorded);
+                    }
+                    let result_recorded_asymmetric_encryption_capabilities_item_recorded = CryptoStoreAsymmetricEncryptionCapabilityReplayRecord {
+                        key_algorithm: result_recorded_asymmetric_encryption_capabilities_item_recorded_key_algorithm,
+                        algorithm: result_recorded_asymmetric_encryption_capabilities_item_recorded_algorithm,
+                        supports_encrypt: result_recorded_asymmetric_encryption_capabilities_item_recorded_supports_encrypt,
+                        supports_decrypt: result_recorded_asymmetric_encryption_capabilities_item_recorded_supports_decrypt,
+                        supported_digests: result_recorded_asymmetric_encryption_capabilities_item_recorded_supported_digests,
+                    };
+                    result_recorded_asymmetric_encryption_capabilities.push(result_recorded_asymmetric_encryption_capabilities_item_recorded);
+                }
+                let result_recorded_key_wrap_capabilities_raw = result_value.key_wrap_capabilities.raw_values(context)?;
+                let mut result_recorded_key_wrap_capabilities = Vec::with_capacity(result_recorded_key_wrap_capabilities_raw.len());
+                for result_recorded_key_wrap_capabilities_item_value in result_recorded_key_wrap_capabilities_raw {
+                    let result_recorded_key_wrap_capabilities_item = {
+                        if result_recorded_key_wrap_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_key_wrap_capabilities_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_key_wrap_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_wrap_capabilities_item", "expected 5 fields")).boxed()); }
+                        let result_recorded_key_wrap_capabilities_item_wrapping_key_algorithm_raw = decode_uint8(slots[0], "result_recorded_key_wrap_capabilities_item_wrapping_key_algorithm_raw", "wrappingKeyAlgorithm")?;
+                        let result_recorded_key_wrap_capabilities_item_wrapping_key_algorithm = match result_recorded_key_wrap_capabilities_item_wrapping_key_algorithm_raw { 0u8 => CryptoKeyAlgorithm::Unknown, 1u8 => CryptoKeyAlgorithm::Rsa, 2u8 => CryptoKeyAlgorithm::Ec, 3u8 => CryptoKeyAlgorithm::Ed25519, 4u8 => CryptoKeyAlgorithm::Ed448, 5u8 => CryptoKeyAlgorithm::X25519, 6u8 => CryptoKeyAlgorithm::X448, 7u8 => CryptoKeyAlgorithm::Aes, 8u8 => CryptoKeyAlgorithm::ChaCha20, 9u8 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_wrap_capabilities_item_wrapping_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
+                        let result_recorded_key_wrap_capabilities_item_algorithm_raw = decode_uint8(slots[1], "result_recorded_key_wrap_capabilities_item_algorithm_raw", "algorithm")?;
+                        let result_recorded_key_wrap_capabilities_item_algorithm = match result_recorded_key_wrap_capabilities_item_algorithm_raw { 0u8 => CryptoKeyWrapAlgorithm::Unknown, 1u8 => CryptoKeyWrapAlgorithm::RsaOaep, 2u8 => CryptoKeyWrapAlgorithm::AesKw, 3u8 => CryptoKeyWrapAlgorithm::AesKwp , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_wrap_capabilities_item_algorithm", "unknown CryptoKeyWrapAlgorithm value")).boxed()), };
+                        let result_recorded_key_wrap_capabilities_item_supports_wrap = decode_bool(slots[2], "result_recorded_key_wrap_capabilities_item_supports_wrap", "supportsWrap")?;
+                        let result_recorded_key_wrap_capabilities_item_supports_unwrap = decode_bool(slots[3], "result_recorded_key_wrap_capabilities_item_supports_unwrap", "supportsUnwrap")?;
+                        let result_recorded_key_wrap_capabilities_item_supported_digests = decode_slice::<CryptoDigestAlgorithm>(context, slots[4], "result_recorded_key_wrap_capabilities_item_supported_digests", "supportedDigests")?;
+                        CryptoStoreKeyWrapCapabilityVm {
+                            wrapping_key_algorithm: result_recorded_key_wrap_capabilities_item_wrapping_key_algorithm,
+                            algorithm: result_recorded_key_wrap_capabilities_item_algorithm,
+                            supports_wrap: result_recorded_key_wrap_capabilities_item_supports_wrap,
+                            supports_unwrap: result_recorded_key_wrap_capabilities_item_supports_unwrap,
+                            supported_digests: result_recorded_key_wrap_capabilities_item_supported_digests,
+                        }
+                    };
+                    let result_recorded_key_wrap_capabilities_item_recorded_wrapping_key_algorithm = result_recorded_key_wrap_capabilities_item.wrapping_key_algorithm;
+                    let result_recorded_key_wrap_capabilities_item_recorded_algorithm = result_recorded_key_wrap_capabilities_item.algorithm;
+                    let result_recorded_key_wrap_capabilities_item_recorded_supports_wrap = result_recorded_key_wrap_capabilities_item.supports_wrap;
+                    let result_recorded_key_wrap_capabilities_item_recorded_supports_unwrap = result_recorded_key_wrap_capabilities_item.supports_unwrap;
+                    let result_recorded_key_wrap_capabilities_item_recorded_supported_digests_raw = result_recorded_key_wrap_capabilities_item.supported_digests.raw_values(context)?;
+                    let mut result_recorded_key_wrap_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_key_wrap_capabilities_item_recorded_supported_digests_raw.len());
+                    for result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_value in result_recorded_key_wrap_capabilities_item_recorded_supported_digests_raw {
+                        let result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_raw = decode_uint8(result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_value, "result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_raw", "item")?;
+                        let result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item = match result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_raw { 0u8 => CryptoDigestAlgorithm::Unknown, 1u8 => CryptoDigestAlgorithm::Sha1, 2u8 => CryptoDigestAlgorithm::Sha224, 3u8 => CryptoDigestAlgorithm::Sha256, 4u8 => CryptoDigestAlgorithm::Sha384, 5u8 => CryptoDigestAlgorithm::Sha512, 6u8 => CryptoDigestAlgorithm::Sha3_256, 7u8 => CryptoDigestAlgorithm::Sha3_384, 8u8 => CryptoDigestAlgorithm::Sha3_512, 9u8 => CryptoDigestAlgorithm::Blake2b512, 10u8 => CryptoDigestAlgorithm::Blake2s256 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item", "unknown CryptoDigestAlgorithm value")).boxed()), };
+                        let result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_recorded = result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item;
+                        result_recorded_key_wrap_capabilities_item_recorded_supported_digests.push(result_recorded_key_wrap_capabilities_item_recorded_supported_digests_item_recorded);
+                    }
+                    let result_recorded_key_wrap_capabilities_item_recorded = CryptoStoreKeyWrapCapabilityReplayRecord {
+                        wrapping_key_algorithm: result_recorded_key_wrap_capabilities_item_recorded_wrapping_key_algorithm,
+                        algorithm: result_recorded_key_wrap_capabilities_item_recorded_algorithm,
+                        supports_wrap: result_recorded_key_wrap_capabilities_item_recorded_supports_wrap,
+                        supports_unwrap: result_recorded_key_wrap_capabilities_item_recorded_supports_unwrap,
+                        supported_digests: result_recorded_key_wrap_capabilities_item_recorded_supported_digests,
+                    };
+                    result_recorded_key_wrap_capabilities.push(result_recorded_key_wrap_capabilities_item_recorded);
+                }
+                let result_recorded_cipher_capabilities_raw = result_value.cipher_capabilities.raw_values(context)?;
+                let mut result_recorded_cipher_capabilities = Vec::with_capacity(result_recorded_cipher_capabilities_raw.len());
+                for result_recorded_cipher_capabilities_item_value in result_recorded_cipher_capabilities_raw {
+                    let result_recorded_cipher_capabilities_item = {
+                        if result_recorded_cipher_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_cipher_capabilities_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_cipher_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 8 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_cipher_capabilities_item", "expected 8 fields")).boxed()); }
+                        let result_recorded_cipher_capabilities_item_key_algorithm_raw = decode_uint8(slots[0], "result_recorded_cipher_capabilities_item_key_algorithm_raw", "keyAlgorithm")?;
+                        let result_recorded_cipher_capabilities_item_key_algorithm = match result_recorded_cipher_capabilities_item_key_algorithm_raw { 0u8 => CryptoKeyAlgorithm::Unknown, 1u8 => CryptoKeyAlgorithm::Rsa, 2u8 => CryptoKeyAlgorithm::Ec, 3u8 => CryptoKeyAlgorithm::Ed25519, 4u8 => CryptoKeyAlgorithm::Ed448, 5u8 => CryptoKeyAlgorithm::X25519, 6u8 => CryptoKeyAlgorithm::X448, 7u8 => CryptoKeyAlgorithm::Aes, 8u8 => CryptoKeyAlgorithm::ChaCha20, 9u8 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_cipher_capabilities_item_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
+                        let result_recorded_cipher_capabilities_item_algorithm_raw = decode_uint8(slots[1], "result_recorded_cipher_capabilities_item_algorithm_raw", "algorithm")?;
+                        let result_recorded_cipher_capabilities_item_algorithm = match result_recorded_cipher_capabilities_item_algorithm_raw { 0u8 => CryptoCipherAlgorithm::Unknown, 1u8 => CryptoCipherAlgorithm::AesGcm, 2u8 => CryptoCipherAlgorithm::AesCtr, 3u8 => CryptoCipherAlgorithm::AesCbc, 4u8 => CryptoCipherAlgorithm::ChaCha20Poly1305 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_cipher_capabilities_item_algorithm", "unknown CryptoCipherAlgorithm value")).boxed()), };
+                        let result_recorded_cipher_capabilities_item_supports_one_shot = decode_bool(slots[2], "result_recorded_cipher_capabilities_item_supports_one_shot", "supportsOneShot")?;
+                        let result_recorded_cipher_capabilities_item_supports_streaming = decode_bool(slots[3], "result_recorded_cipher_capabilities_item_supports_streaming", "supportsStreaming")?;
+                        let result_recorded_cipher_capabilities_item_supports_additional_data = decode_bool(slots[4], "result_recorded_cipher_capabilities_item_supports_additional_data", "supportsAdditionalData")?;
+                        let result_recorded_cipher_capabilities_item_supports_detached_tag = decode_bool(slots[5], "result_recorded_cipher_capabilities_item_supports_detached_tag", "supportsDetachedTag")?;
+                        let result_recorded_cipher_capabilities_item_min_tag_length_bytes = decode_uint32(slots[6], "result_recorded_cipher_capabilities_item_min_tag_length_bytes", "minTagLengthBytes")?;
+                        let result_recorded_cipher_capabilities_item_max_tag_length_bytes = decode_uint32(slots[7], "result_recorded_cipher_capabilities_item_max_tag_length_bytes", "maxTagLengthBytes")?;
+                        CryptoStoreCipherCapabilityVm {
+                            key_algorithm: result_recorded_cipher_capabilities_item_key_algorithm,
+                            algorithm: result_recorded_cipher_capabilities_item_algorithm,
+                            supports_one_shot: result_recorded_cipher_capabilities_item_supports_one_shot,
+                            supports_streaming: result_recorded_cipher_capabilities_item_supports_streaming,
+                            supports_additional_data: result_recorded_cipher_capabilities_item_supports_additional_data,
+                            supports_detached_tag: result_recorded_cipher_capabilities_item_supports_detached_tag,
+                            min_tag_length_bytes: result_recorded_cipher_capabilities_item_min_tag_length_bytes,
+                            max_tag_length_bytes: result_recorded_cipher_capabilities_item_max_tag_length_bytes,
+                        }
+                    };
+                    let result_recorded_cipher_capabilities_item_recorded_key_algorithm = result_recorded_cipher_capabilities_item.key_algorithm;
+                    let result_recorded_cipher_capabilities_item_recorded_algorithm = result_recorded_cipher_capabilities_item.algorithm;
+                    let result_recorded_cipher_capabilities_item_recorded_supports_one_shot = result_recorded_cipher_capabilities_item.supports_one_shot;
+                    let result_recorded_cipher_capabilities_item_recorded_supports_streaming = result_recorded_cipher_capabilities_item.supports_streaming;
+                    let result_recorded_cipher_capabilities_item_recorded_supports_additional_data = result_recorded_cipher_capabilities_item.supports_additional_data;
+                    let result_recorded_cipher_capabilities_item_recorded_supports_detached_tag = result_recorded_cipher_capabilities_item.supports_detached_tag;
+                    let result_recorded_cipher_capabilities_item_recorded_min_tag_length_bytes = result_recorded_cipher_capabilities_item.min_tag_length_bytes;
+                    let result_recorded_cipher_capabilities_item_recorded_max_tag_length_bytes = result_recorded_cipher_capabilities_item.max_tag_length_bytes;
+                    let result_recorded_cipher_capabilities_item_recorded = CryptoStoreCipherCapability {
+                        key_algorithm: result_recorded_cipher_capabilities_item_recorded_key_algorithm,
+                        algorithm: result_recorded_cipher_capabilities_item_recorded_algorithm,
+                        supports_one_shot: result_recorded_cipher_capabilities_item_recorded_supports_one_shot,
+                        supports_streaming: result_recorded_cipher_capabilities_item_recorded_supports_streaming,
+                        supports_additional_data: result_recorded_cipher_capabilities_item_recorded_supports_additional_data,
+                        supports_detached_tag: result_recorded_cipher_capabilities_item_recorded_supports_detached_tag,
+                        min_tag_length_bytes: result_recorded_cipher_capabilities_item_recorded_min_tag_length_bytes,
+                        max_tag_length_bytes: result_recorded_cipher_capabilities_item_recorded_max_tag_length_bytes,
+                    };
+                    result_recorded_cipher_capabilities.push(result_recorded_cipher_capabilities_item_recorded);
+                }
+                let result_recorded_mac_capabilities_raw = result_value.mac_capabilities.raw_values(context)?;
+                let mut result_recorded_mac_capabilities = Vec::with_capacity(result_recorded_mac_capabilities_raw.len());
+                for result_recorded_mac_capabilities_item_value in result_recorded_mac_capabilities_raw {
+                    let result_recorded_mac_capabilities_item = {
+                        if result_recorded_mac_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_mac_capabilities_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_mac_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 7 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_mac_capabilities_item", "expected 7 fields")).boxed()); }
+                        let result_recorded_mac_capabilities_item_key_algorithm_raw = decode_uint8(slots[0], "result_recorded_mac_capabilities_item_key_algorithm_raw", "keyAlgorithm")?;
+                        let result_recorded_mac_capabilities_item_key_algorithm = match result_recorded_mac_capabilities_item_key_algorithm_raw { 0u8 => CryptoKeyAlgorithm::Unknown, 1u8 => CryptoKeyAlgorithm::Rsa, 2u8 => CryptoKeyAlgorithm::Ec, 3u8 => CryptoKeyAlgorithm::Ed25519, 4u8 => CryptoKeyAlgorithm::Ed448, 5u8 => CryptoKeyAlgorithm::X25519, 6u8 => CryptoKeyAlgorithm::X448, 7u8 => CryptoKeyAlgorithm::Aes, 8u8 => CryptoKeyAlgorithm::ChaCha20, 9u8 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_mac_capabilities_item_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
+                        let result_recorded_mac_capabilities_item_algorithm_raw = decode_uint8(slots[1], "result_recorded_mac_capabilities_item_algorithm_raw", "algorithm")?;
+                        let result_recorded_mac_capabilities_item_algorithm = match result_recorded_mac_capabilities_item_algorithm_raw { 0u8 => CryptoMacAlgorithm::Unknown, 1u8 => CryptoMacAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_mac_capabilities_item_algorithm", "unknown CryptoMacAlgorithm value")).boxed()), };
+                        let result_recorded_mac_capabilities_item_supports_one_shot = decode_bool(slots[2], "result_recorded_mac_capabilities_item_supports_one_shot", "supportsOneShot")?;
+                        let result_recorded_mac_capabilities_item_supports_streaming = decode_bool(slots[3], "result_recorded_mac_capabilities_item_supports_streaming", "supportsStreaming")?;
+                        let result_recorded_mac_capabilities_item_supported_digests = decode_slice::<CryptoDigestAlgorithm>(context, slots[4], "result_recorded_mac_capabilities_item_supported_digests", "supportedDigests")?;
+                        let result_recorded_mac_capabilities_item_min_tag_length_bytes = decode_uint32(slots[5], "result_recorded_mac_capabilities_item_min_tag_length_bytes", "minTagLengthBytes")?;
+                        let result_recorded_mac_capabilities_item_max_tag_length_bytes = decode_uint32(slots[6], "result_recorded_mac_capabilities_item_max_tag_length_bytes", "maxTagLengthBytes")?;
+                        CryptoStoreMacCapabilityVm {
+                            key_algorithm: result_recorded_mac_capabilities_item_key_algorithm,
+                            algorithm: result_recorded_mac_capabilities_item_algorithm,
+                            supports_one_shot: result_recorded_mac_capabilities_item_supports_one_shot,
+                            supports_streaming: result_recorded_mac_capabilities_item_supports_streaming,
+                            supported_digests: result_recorded_mac_capabilities_item_supported_digests,
+                            min_tag_length_bytes: result_recorded_mac_capabilities_item_min_tag_length_bytes,
+                            max_tag_length_bytes: result_recorded_mac_capabilities_item_max_tag_length_bytes,
+                        }
+                    };
+                    let result_recorded_mac_capabilities_item_recorded_key_algorithm = result_recorded_mac_capabilities_item.key_algorithm;
+                    let result_recorded_mac_capabilities_item_recorded_algorithm = result_recorded_mac_capabilities_item.algorithm;
+                    let result_recorded_mac_capabilities_item_recorded_supports_one_shot = result_recorded_mac_capabilities_item.supports_one_shot;
+                    let result_recorded_mac_capabilities_item_recorded_supports_streaming = result_recorded_mac_capabilities_item.supports_streaming;
+                    let result_recorded_mac_capabilities_item_recorded_supported_digests_raw = result_recorded_mac_capabilities_item.supported_digests.raw_values(context)?;
+                    let mut result_recorded_mac_capabilities_item_recorded_supported_digests = Vec::with_capacity(result_recorded_mac_capabilities_item_recorded_supported_digests_raw.len());
+                    for result_recorded_mac_capabilities_item_recorded_supported_digests_item_value in result_recorded_mac_capabilities_item_recorded_supported_digests_raw {
+                        let result_recorded_mac_capabilities_item_recorded_supported_digests_item_raw = decode_uint8(result_recorded_mac_capabilities_item_recorded_supported_digests_item_value, "result_recorded_mac_capabilities_item_recorded_supported_digests_item_raw", "item")?;
+                        let result_recorded_mac_capabilities_item_recorded_supported_digests_item = match result_recorded_mac_capabilities_item_recorded_supported_digests_item_raw { 0u8 => CryptoDigestAlgorithm::Unknown, 1u8 => CryptoDigestAlgorithm::Sha1, 2u8 => CryptoDigestAlgorithm::Sha224, 3u8 => CryptoDigestAlgorithm::Sha256, 4u8 => CryptoDigestAlgorithm::Sha384, 5u8 => CryptoDigestAlgorithm::Sha512, 6u8 => CryptoDigestAlgorithm::Sha3_256, 7u8 => CryptoDigestAlgorithm::Sha3_384, 8u8 => CryptoDigestAlgorithm::Sha3_512, 9u8 => CryptoDigestAlgorithm::Blake2b512, 10u8 => CryptoDigestAlgorithm::Blake2s256 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_mac_capabilities_item_recorded_supported_digests_item", "unknown CryptoDigestAlgorithm value")).boxed()), };
+                        let result_recorded_mac_capabilities_item_recorded_supported_digests_item_recorded = result_recorded_mac_capabilities_item_recorded_supported_digests_item;
+                        result_recorded_mac_capabilities_item_recorded_supported_digests.push(result_recorded_mac_capabilities_item_recorded_supported_digests_item_recorded);
+                    }
+                    let result_recorded_mac_capabilities_item_recorded_min_tag_length_bytes = result_recorded_mac_capabilities_item.min_tag_length_bytes;
+                    let result_recorded_mac_capabilities_item_recorded_max_tag_length_bytes = result_recorded_mac_capabilities_item.max_tag_length_bytes;
+                    let result_recorded_mac_capabilities_item_recorded = CryptoStoreMacCapabilityReplayRecord {
+                        key_algorithm: result_recorded_mac_capabilities_item_recorded_key_algorithm,
+                        algorithm: result_recorded_mac_capabilities_item_recorded_algorithm,
+                        supports_one_shot: result_recorded_mac_capabilities_item_recorded_supports_one_shot,
+                        supports_streaming: result_recorded_mac_capabilities_item_recorded_supports_streaming,
+                        supported_digests: result_recorded_mac_capabilities_item_recorded_supported_digests,
+                        min_tag_length_bytes: result_recorded_mac_capabilities_item_recorded_min_tag_length_bytes,
+                        max_tag_length_bytes: result_recorded_mac_capabilities_item_recorded_max_tag_length_bytes,
+                    };
+                    result_recorded_mac_capabilities.push(result_recorded_mac_capabilities_item_recorded);
+                }
+                let result_recorded_agreement_capabilities_raw = result_value.agreement_capabilities.raw_values(context)?;
+                let mut result_recorded_agreement_capabilities = Vec::with_capacity(result_recorded_agreement_capabilities_raw.len());
+                for result_recorded_agreement_capabilities_item_value in result_recorded_agreement_capabilities_raw {
+                    let result_recorded_agreement_capabilities_item = {
+                        if result_recorded_agreement_capabilities_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_agreement_capabilities_item", "item")).boxed()); }
+                        let slots = context.aggregate_slots(result_recorded_agreement_capabilities_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
+                        if slots.len() != 5 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_agreement_capabilities_item", "expected 5 fields")).boxed()); }
+                        let result_recorded_agreement_capabilities_item_private_key_algorithm_raw = decode_uint8(slots[0], "result_recorded_agreement_capabilities_item_private_key_algorithm_raw", "privateKeyAlgorithm")?;
+                        let result_recorded_agreement_capabilities_item_private_key_algorithm = match result_recorded_agreement_capabilities_item_private_key_algorithm_raw { 0u8 => CryptoKeyAlgorithm::Unknown, 1u8 => CryptoKeyAlgorithm::Rsa, 2u8 => CryptoKeyAlgorithm::Ec, 3u8 => CryptoKeyAlgorithm::Ed25519, 4u8 => CryptoKeyAlgorithm::Ed448, 5u8 => CryptoKeyAlgorithm::X25519, 6u8 => CryptoKeyAlgorithm::X448, 7u8 => CryptoKeyAlgorithm::Aes, 8u8 => CryptoKeyAlgorithm::ChaCha20, 9u8 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_agreement_capabilities_item_private_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
+                        let result_recorded_agreement_capabilities_item_peer_public_key_algorithm_raw = decode_uint8(slots[1], "result_recorded_agreement_capabilities_item_peer_public_key_algorithm_raw", "peerPublicKeyAlgorithm")?;
+                        let result_recorded_agreement_capabilities_item_peer_public_key_algorithm = match result_recorded_agreement_capabilities_item_peer_public_key_algorithm_raw { 0u8 => CryptoKeyAlgorithm::Unknown, 1u8 => CryptoKeyAlgorithm::Rsa, 2u8 => CryptoKeyAlgorithm::Ec, 3u8 => CryptoKeyAlgorithm::Ed25519, 4u8 => CryptoKeyAlgorithm::Ed448, 5u8 => CryptoKeyAlgorithm::X25519, 6u8 => CryptoKeyAlgorithm::X448, 7u8 => CryptoKeyAlgorithm::Aes, 8u8 => CryptoKeyAlgorithm::ChaCha20, 9u8 => CryptoKeyAlgorithm::Hmac , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_agreement_capabilities_item_peer_public_key_algorithm", "unknown CryptoKeyAlgorithm value")).boxed()), };
+                        let result_recorded_agreement_capabilities_item_algorithm_raw = decode_uint8(slots[2], "result_recorded_agreement_capabilities_item_algorithm_raw", "algorithm")?;
+                        let result_recorded_agreement_capabilities_item_algorithm = match result_recorded_agreement_capabilities_item_algorithm_raw { 0u8 => CryptoKeyAgreementAlgorithm::Unknown, 1u8 => CryptoKeyAgreementAlgorithm::Ecdh, 2u8 => CryptoKeyAgreementAlgorithm::X25519, 3u8 => CryptoKeyAgreementAlgorithm::X448 , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_agreement_capabilities_item_algorithm", "unknown CryptoKeyAgreementAlgorithm value")).boxed()), };
+                        let result_recorded_agreement_capabilities_item_supports_derive_shared_secret = decode_bool(slots[3], "result_recorded_agreement_capabilities_item_supports_derive_shared_secret", "supportsDeriveSharedSecret")?;
+                        let result_recorded_agreement_capabilities_item_supports_derive_key = decode_bool(slots[4], "result_recorded_agreement_capabilities_item_supports_derive_key", "supportsDeriveKey")?;
+                        CryptoStoreAgreementCapabilityVm {
+                            private_key_algorithm: result_recorded_agreement_capabilities_item_private_key_algorithm,
+                            peer_public_key_algorithm: result_recorded_agreement_capabilities_item_peer_public_key_algorithm,
+                            algorithm: result_recorded_agreement_capabilities_item_algorithm,
+                            supports_derive_shared_secret: result_recorded_agreement_capabilities_item_supports_derive_shared_secret,
+                            supports_derive_key: result_recorded_agreement_capabilities_item_supports_derive_key,
+                        }
+                    };
+                    let result_recorded_agreement_capabilities_item_recorded_private_key_algorithm = result_recorded_agreement_capabilities_item.private_key_algorithm;
+                    let result_recorded_agreement_capabilities_item_recorded_peer_public_key_algorithm = result_recorded_agreement_capabilities_item.peer_public_key_algorithm;
+                    let result_recorded_agreement_capabilities_item_recorded_algorithm = result_recorded_agreement_capabilities_item.algorithm;
+                    let result_recorded_agreement_capabilities_item_recorded_supports_derive_shared_secret = result_recorded_agreement_capabilities_item.supports_derive_shared_secret;
+                    let result_recorded_agreement_capabilities_item_recorded_supports_derive_key = result_recorded_agreement_capabilities_item.supports_derive_key;
+                    let result_recorded_agreement_capabilities_item_recorded = CryptoStoreAgreementCapability {
+                        private_key_algorithm: result_recorded_agreement_capabilities_item_recorded_private_key_algorithm,
+                        peer_public_key_algorithm: result_recorded_agreement_capabilities_item_recorded_peer_public_key_algorithm,
+                        algorithm: result_recorded_agreement_capabilities_item_recorded_algorithm,
+                        supports_derive_shared_secret: result_recorded_agreement_capabilities_item_recorded_supports_derive_shared_secret,
+                        supports_derive_key: result_recorded_agreement_capabilities_item_recorded_supports_derive_key,
+                    };
+                    result_recorded_agreement_capabilities.push(result_recorded_agreement_capabilities_item_recorded);
+                }
+                let result_recorded_certificate_capabilities_supports_import = result_value.certificate_capabilities.supports_import;
+                let result_recorded_certificate_capabilities_supports_export = result_value.certificate_capabilities.supports_export;
+                let result_recorded_certificate_capabilities_supports_descriptor = result_value.certificate_capabilities.supports_descriptor;
+                let result_recorded_certificate_capabilities_supports_verify = result_value.certificate_capabilities.supports_verify;
+                let result_recorded_certificate_capabilities_supports_delete = result_value.certificate_capabilities.supports_delete;
+                let result_recorded_certificate_capabilities_supports_system_trust_anchors = result_value.certificate_capabilities.supports_system_trust_anchors;
+                let result_recorded_certificate_capabilities = CryptoStoreCertificateCapability {
+                    supports_import: result_recorded_certificate_capabilities_supports_import,
+                    supports_export: result_recorded_certificate_capabilities_supports_export,
+                    supports_descriptor: result_recorded_certificate_capabilities_supports_descriptor,
+                    supports_verify: result_recorded_certificate_capabilities_supports_verify,
+                    supports_delete: result_recorded_certificate_capabilities_supports_delete,
+                    supports_system_trust_anchors: result_recorded_certificate_capabilities_supports_system_trust_anchors,
+                };
                 let result_recorded = CryptoStoreCapabilityReplayRecord {
-                    kind: result_recorded_kind,
-                    provider: result_recorded_provider,
+                    identity: result_recorded_identity,
                     is_available: result_recorded_is_available,
                     supports_hardware_backed: result_recorded_supports_hardware_backed,
                     supports_persistent: result_recorded_supports_persistent,
                     supports_key_export: result_recorded_supports_key_export,
                     supported_key_algorithms: result_recorded_supported_key_algorithms,
                     supported_key_formats: result_recorded_supported_key_formats,
+                    supported_key_residencies: result_recorded_supported_key_residencies,
+                    key_capabilities: result_recorded_key_capabilities,
+                    signature_capabilities: result_recorded_signature_capabilities,
+                    asymmetric_encryption_capabilities: result_recorded_asymmetric_encryption_capabilities,
+                    key_wrap_capabilities: result_recorded_key_wrap_capabilities,
+                    cipher_capabilities: result_recorded_cipher_capabilities,
+                    mac_capabilities: result_recorded_mac_capabilities,
+                    agreement_capabilities: result_recorded_agreement_capabilities,
+                    certificate_capabilities: result_recorded_certificate_capabilities,
                 };
                 let payload = CryptoStoreProbeCapabilityReplay {
                     result: Ok(result_recorded),
@@ -8530,7 +9839,9 @@ fn destack_crypto_store_probe_capability_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CryptoStoreProbeCapabilityReplay { result }
+                    CryptoStoreProbeCapabilityReplay {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -8542,47 +9853,269 @@ fn destack_crypto_store_probe_capability_vm_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let vm_result_kind = value.kind;
-                    let vm_result_provider = value.provider;
+                    let vm_result_identity_kind = value.identity.kind;
+                    let vm_result_identity_provider = value.identity.provider;
+                    let vm_result_identity_namespace_value = context.intern_string(value.identity.namespace.as_str());
+                    let vm_result_identity_namespace = vm::StringHandle::new(vm_result_identity_namespace_value);
+                    let vm_result_identity = CryptoStoreIdentityVm {
+                        kind: vm_result_identity_kind,
+                        provider: vm_result_identity_provider,
+                        namespace: vm_result_identity_namespace,
+                    };
                     let vm_result_is_available = value.is_available;
                     let vm_result_supports_hardware_backed = value.supports_hardware_backed;
                     let vm_result_supports_persistent = value.supports_persistent;
                     let vm_result_supports_key_export = value.supports_key_export;
-                    let mut vm_result_supported_key_algorithms_values =
-                        Vec::with_capacity(value.supported_key_algorithms.len());
-                    for vm_result_supported_key_algorithms_item in
-                        value.supported_key_algorithms.iter()
-                    {
-                        let vm_result_supported_key_algorithms_item =
-                            *vm_result_supported_key_algorithms_item;
-                        let vm_result_supported_key_algorithms_item_value =
-                            vm_result_supported_key_algorithms_item;
-                        vm_result_supported_key_algorithms_values
-                            .push(vm_result_supported_key_algorithms_item_value);
+                    let mut vm_result_supported_key_algorithms_values = Vec::with_capacity(value.supported_key_algorithms.len());
+                    for vm_result_supported_key_algorithms_item in value.supported_key_algorithms.iter() {
+                        let vm_result_supported_key_algorithms_item = *vm_result_supported_key_algorithms_item;
+                        let vm_result_supported_key_algorithms_item_value = vm_result_supported_key_algorithms_item;
+                        vm_result_supported_key_algorithms_values.push(vm_result_supported_key_algorithms_item_value);
                     }
-                    let vm_result_supported_key_algorithms =
-                        VmArray::from_values(context, &vm_result_supported_key_algorithms_values)?;
-                    let mut vm_result_supported_key_formats_values =
-                        Vec::with_capacity(value.supported_key_formats.len());
+                    let vm_result_supported_key_algorithms = VmArray::from_values(context, &vm_result_supported_key_algorithms_values)?;
+                    let mut vm_result_supported_key_formats_values = Vec::with_capacity(value.supported_key_formats.len());
                     for vm_result_supported_key_formats_item in value.supported_key_formats.iter() {
-                        let vm_result_supported_key_formats_item =
-                            *vm_result_supported_key_formats_item;
-                        let vm_result_supported_key_formats_item_value =
-                            vm_result_supported_key_formats_item;
-                        vm_result_supported_key_formats_values
-                            .push(vm_result_supported_key_formats_item_value);
+                        let vm_result_supported_key_formats_item = *vm_result_supported_key_formats_item;
+                        let vm_result_supported_key_formats_item_value = vm_result_supported_key_formats_item;
+                        vm_result_supported_key_formats_values.push(vm_result_supported_key_formats_item_value);
                     }
-                    let vm_result_supported_key_formats =
-                        VmArray::from_values(context, &vm_result_supported_key_formats_values)?;
+                    let vm_result_supported_key_formats = VmArray::from_values(context, &vm_result_supported_key_formats_values)?;
+                    let mut vm_result_supported_key_residencies_values = Vec::with_capacity(value.supported_key_residencies.len());
+                    for vm_result_supported_key_residencies_item in value.supported_key_residencies.iter() {
+                        let vm_result_supported_key_residencies_item = *vm_result_supported_key_residencies_item;
+                        let vm_result_supported_key_residencies_item_value = vm_result_supported_key_residencies_item;
+                        vm_result_supported_key_residencies_values.push(vm_result_supported_key_residencies_item_value);
+                    }
+                    let vm_result_supported_key_residencies = VmArray::from_values(context, &vm_result_supported_key_residencies_values)?;
+                    let mut vm_result_key_capabilities_values = Vec::with_capacity(value.key_capabilities.len());
+                    for vm_result_key_capabilities_item in value.key_capabilities.iter() {
+                        let vm_result_key_capabilities_item = vm_result_key_capabilities_item.clone();
+                        let vm_result_key_capabilities_item_value_algorithm = vm_result_key_capabilities_item.algorithm;
+                        let vm_result_key_capabilities_item_value_residency = vm_result_key_capabilities_item.residency;
+                        let vm_result_key_capabilities_item_value_supports_generate_secret = vm_result_key_capabilities_item.supports_generate_secret;
+                        let vm_result_key_capabilities_item_value_supports_generate_pair = vm_result_key_capabilities_item.supports_generate_pair;
+                        let vm_result_key_capabilities_item_value_supports_import = vm_result_key_capabilities_item.supports_import;
+                        let vm_result_key_capabilities_item_value_supports_export_public = vm_result_key_capabilities_item.supports_export_public;
+                        let vm_result_key_capabilities_item_value_supports_export_private = vm_result_key_capabilities_item.supports_export_private;
+                        let vm_result_key_capabilities_item_value_supports_export_secret = vm_result_key_capabilities_item.supports_export_secret;
+                        let vm_result_key_capabilities_item_value_supported_usage_mask = vm_result_key_capabilities_item.supported_usage_mask;
+                        let mut vm_result_key_capabilities_item_value_supported_import_formats_values = Vec::with_capacity(vm_result_key_capabilities_item.supported_import_formats.len());
+                        for vm_result_key_capabilities_item_value_supported_import_formats_item in vm_result_key_capabilities_item.supported_import_formats.iter() {
+                            let vm_result_key_capabilities_item_value_supported_import_formats_item = *vm_result_key_capabilities_item_value_supported_import_formats_item;
+                            let vm_result_key_capabilities_item_value_supported_import_formats_item_value = vm_result_key_capabilities_item_value_supported_import_formats_item;
+                            vm_result_key_capabilities_item_value_supported_import_formats_values.push(vm_result_key_capabilities_item_value_supported_import_formats_item_value);
+                        }
+                        let vm_result_key_capabilities_item_value_supported_import_formats = VmSlice::from_values(context, &vm_result_key_capabilities_item_value_supported_import_formats_values)?;
+                        let mut vm_result_key_capabilities_item_value_supported_export_formats_values = Vec::with_capacity(vm_result_key_capabilities_item.supported_export_formats.len());
+                        for vm_result_key_capabilities_item_value_supported_export_formats_item in vm_result_key_capabilities_item.supported_export_formats.iter() {
+                            let vm_result_key_capabilities_item_value_supported_export_formats_item = *vm_result_key_capabilities_item_value_supported_export_formats_item;
+                            let vm_result_key_capabilities_item_value_supported_export_formats_item_value = vm_result_key_capabilities_item_value_supported_export_formats_item;
+                            vm_result_key_capabilities_item_value_supported_export_formats_values.push(vm_result_key_capabilities_item_value_supported_export_formats_item_value);
+                        }
+                        let vm_result_key_capabilities_item_value_supported_export_formats = VmSlice::from_values(context, &vm_result_key_capabilities_item_value_supported_export_formats_values)?;
+                        let vm_result_key_capabilities_item_value = CryptoStoreKeyCapabilityVm {
+                            algorithm: vm_result_key_capabilities_item_value_algorithm,
+                            residency: vm_result_key_capabilities_item_value_residency,
+                            supports_generate_secret: vm_result_key_capabilities_item_value_supports_generate_secret,
+                            supports_generate_pair: vm_result_key_capabilities_item_value_supports_generate_pair,
+                            supports_import: vm_result_key_capabilities_item_value_supports_import,
+                            supports_export_public: vm_result_key_capabilities_item_value_supports_export_public,
+                            supports_export_private: vm_result_key_capabilities_item_value_supports_export_private,
+                            supports_export_secret: vm_result_key_capabilities_item_value_supports_export_secret,
+                            supported_usage_mask: vm_result_key_capabilities_item_value_supported_usage_mask,
+                            supported_import_formats: vm_result_key_capabilities_item_value_supported_import_formats,
+                            supported_export_formats: vm_result_key_capabilities_item_value_supported_export_formats,
+                        };
+                        let vm_result_key_capabilities_item_value_encoded = { let field_0 = vm::Value::uint(vm_result_key_capabilities_item_value.algorithm as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_key_capabilities_item_value.residency as u8 as u64, 8); let field_2 = vm::Value::bool(vm_result_key_capabilities_item_value.supports_generate_secret); let field_3 = vm::Value::bool(vm_result_key_capabilities_item_value.supports_generate_pair); let field_4 = vm::Value::bool(vm_result_key_capabilities_item_value.supports_import); let field_5 = vm::Value::bool(vm_result_key_capabilities_item_value.supports_export_public); let field_6 = vm::Value::bool(vm_result_key_capabilities_item_value.supports_export_private); let field_7 = vm::Value::bool(vm_result_key_capabilities_item_value.supports_export_secret); let field_8 = vm::Value::uint(vm_result_key_capabilities_item_value.supported_usage_mask.0 as u64, 32); let field_9 = vm_result_key_capabilities_item_value.supported_import_formats.to_value(context); let field_10 = vm_result_key_capabilities_item_value.supported_export_formats.to_value(context); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7, field_8, field_9, field_10]) };
+                        vm_result_key_capabilities_values.push(vm_result_key_capabilities_item_value_encoded);
+                    }
+                    let vm_result_key_capabilities_data = context.allocate_raw_values(vm_result_key_capabilities_values);
+                    let vm_result_key_capabilities: VmArray<CryptoStoreKeyCapabilityVm> = VmArray { data: vm_result_key_capabilities_data, len: value.key_capabilities.len() as u32, capacity: value.key_capabilities.len() as u32, _marker: std::marker::PhantomData };
+                    let mut vm_result_signature_capabilities_values = Vec::with_capacity(value.signature_capabilities.len());
+                    for vm_result_signature_capabilities_item in value.signature_capabilities.iter() {
+                        let vm_result_signature_capabilities_item = vm_result_signature_capabilities_item.clone();
+                        let vm_result_signature_capabilities_item_value_key_algorithm = vm_result_signature_capabilities_item.key_algorithm;
+                        let vm_result_signature_capabilities_item_value_signature_algorithm = vm_result_signature_capabilities_item.signature_algorithm;
+                        let vm_result_signature_capabilities_item_value_supports_sign = vm_result_signature_capabilities_item.supports_sign;
+                        let vm_result_signature_capabilities_item_value_supports_verify = vm_result_signature_capabilities_item.supports_verify;
+                        let mut vm_result_signature_capabilities_item_value_supported_digests_values = Vec::with_capacity(vm_result_signature_capabilities_item.supported_digests.len());
+                        for vm_result_signature_capabilities_item_value_supported_digests_item in vm_result_signature_capabilities_item.supported_digests.iter() {
+                            let vm_result_signature_capabilities_item_value_supported_digests_item = *vm_result_signature_capabilities_item_value_supported_digests_item;
+                            let vm_result_signature_capabilities_item_value_supported_digests_item_value = vm_result_signature_capabilities_item_value_supported_digests_item;
+                            vm_result_signature_capabilities_item_value_supported_digests_values.push(vm_result_signature_capabilities_item_value_supported_digests_item_value);
+                        }
+                        let vm_result_signature_capabilities_item_value_supported_digests = VmSlice::from_values(context, &vm_result_signature_capabilities_item_value_supported_digests_values)?;
+                        let vm_result_signature_capabilities_item_value = CryptoStoreSignatureCapabilityVm {
+                            key_algorithm: vm_result_signature_capabilities_item_value_key_algorithm,
+                            signature_algorithm: vm_result_signature_capabilities_item_value_signature_algorithm,
+                            supports_sign: vm_result_signature_capabilities_item_value_supports_sign,
+                            supports_verify: vm_result_signature_capabilities_item_value_supports_verify,
+                            supported_digests: vm_result_signature_capabilities_item_value_supported_digests,
+                        };
+                        let vm_result_signature_capabilities_item_value_encoded = { let field_0 = vm::Value::uint(vm_result_signature_capabilities_item_value.key_algorithm as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_signature_capabilities_item_value.signature_algorithm as u8 as u64, 8); let field_2 = vm::Value::bool(vm_result_signature_capabilities_item_value.supports_sign); let field_3 = vm::Value::bool(vm_result_signature_capabilities_item_value.supports_verify); let field_4 = vm_result_signature_capabilities_item_value.supported_digests.to_value(context); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) };
+                        vm_result_signature_capabilities_values.push(vm_result_signature_capabilities_item_value_encoded);
+                    }
+                    let vm_result_signature_capabilities_data = context.allocate_raw_values(vm_result_signature_capabilities_values);
+                    let vm_result_signature_capabilities: VmArray<CryptoStoreSignatureCapabilityVm> = VmArray { data: vm_result_signature_capabilities_data, len: value.signature_capabilities.len() as u32, capacity: value.signature_capabilities.len() as u32, _marker: std::marker::PhantomData };
+                    let mut vm_result_asymmetric_encryption_capabilities_values = Vec::with_capacity(value.asymmetric_encryption_capabilities.len());
+                    for vm_result_asymmetric_encryption_capabilities_item in value.asymmetric_encryption_capabilities.iter() {
+                        let vm_result_asymmetric_encryption_capabilities_item = vm_result_asymmetric_encryption_capabilities_item.clone();
+                        let vm_result_asymmetric_encryption_capabilities_item_value_key_algorithm = vm_result_asymmetric_encryption_capabilities_item.key_algorithm;
+                        let vm_result_asymmetric_encryption_capabilities_item_value_algorithm = vm_result_asymmetric_encryption_capabilities_item.algorithm;
+                        let vm_result_asymmetric_encryption_capabilities_item_value_supports_encrypt = vm_result_asymmetric_encryption_capabilities_item.supports_encrypt;
+                        let vm_result_asymmetric_encryption_capabilities_item_value_supports_decrypt = vm_result_asymmetric_encryption_capabilities_item.supports_decrypt;
+                        let mut vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_values = Vec::with_capacity(vm_result_asymmetric_encryption_capabilities_item.supported_digests.len());
+                        for vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item in vm_result_asymmetric_encryption_capabilities_item.supported_digests.iter() {
+                            let vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item = *vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item;
+                            let vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item_value = vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item;
+                            vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_values.push(vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_item_value);
+                        }
+                        let vm_result_asymmetric_encryption_capabilities_item_value_supported_digests = VmSlice::from_values(context, &vm_result_asymmetric_encryption_capabilities_item_value_supported_digests_values)?;
+                        let vm_result_asymmetric_encryption_capabilities_item_value = CryptoStoreAsymmetricEncryptionCapabilityVm {
+                            key_algorithm: vm_result_asymmetric_encryption_capabilities_item_value_key_algorithm,
+                            algorithm: vm_result_asymmetric_encryption_capabilities_item_value_algorithm,
+                            supports_encrypt: vm_result_asymmetric_encryption_capabilities_item_value_supports_encrypt,
+                            supports_decrypt: vm_result_asymmetric_encryption_capabilities_item_value_supports_decrypt,
+                            supported_digests: vm_result_asymmetric_encryption_capabilities_item_value_supported_digests,
+                        };
+                        let vm_result_asymmetric_encryption_capabilities_item_value_encoded = { let field_0 = vm::Value::uint(vm_result_asymmetric_encryption_capabilities_item_value.key_algorithm as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_asymmetric_encryption_capabilities_item_value.algorithm as u8 as u64, 8); let field_2 = vm::Value::bool(vm_result_asymmetric_encryption_capabilities_item_value.supports_encrypt); let field_3 = vm::Value::bool(vm_result_asymmetric_encryption_capabilities_item_value.supports_decrypt); let field_4 = vm_result_asymmetric_encryption_capabilities_item_value.supported_digests.to_value(context); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) };
+                        vm_result_asymmetric_encryption_capabilities_values.push(vm_result_asymmetric_encryption_capabilities_item_value_encoded);
+                    }
+                    let vm_result_asymmetric_encryption_capabilities_data = context.allocate_raw_values(vm_result_asymmetric_encryption_capabilities_values);
+                    let vm_result_asymmetric_encryption_capabilities: VmArray<CryptoStoreAsymmetricEncryptionCapabilityVm> = VmArray { data: vm_result_asymmetric_encryption_capabilities_data, len: value.asymmetric_encryption_capabilities.len() as u32, capacity: value.asymmetric_encryption_capabilities.len() as u32, _marker: std::marker::PhantomData };
+                    let mut vm_result_key_wrap_capabilities_values = Vec::with_capacity(value.key_wrap_capabilities.len());
+                    for vm_result_key_wrap_capabilities_item in value.key_wrap_capabilities.iter() {
+                        let vm_result_key_wrap_capabilities_item = vm_result_key_wrap_capabilities_item.clone();
+                        let vm_result_key_wrap_capabilities_item_value_wrapping_key_algorithm = vm_result_key_wrap_capabilities_item.wrapping_key_algorithm;
+                        let vm_result_key_wrap_capabilities_item_value_algorithm = vm_result_key_wrap_capabilities_item.algorithm;
+                        let vm_result_key_wrap_capabilities_item_value_supports_wrap = vm_result_key_wrap_capabilities_item.supports_wrap;
+                        let vm_result_key_wrap_capabilities_item_value_supports_unwrap = vm_result_key_wrap_capabilities_item.supports_unwrap;
+                        let mut vm_result_key_wrap_capabilities_item_value_supported_digests_values = Vec::with_capacity(vm_result_key_wrap_capabilities_item.supported_digests.len());
+                        for vm_result_key_wrap_capabilities_item_value_supported_digests_item in vm_result_key_wrap_capabilities_item.supported_digests.iter() {
+                            let vm_result_key_wrap_capabilities_item_value_supported_digests_item = *vm_result_key_wrap_capabilities_item_value_supported_digests_item;
+                            let vm_result_key_wrap_capabilities_item_value_supported_digests_item_value = vm_result_key_wrap_capabilities_item_value_supported_digests_item;
+                            vm_result_key_wrap_capabilities_item_value_supported_digests_values.push(vm_result_key_wrap_capabilities_item_value_supported_digests_item_value);
+                        }
+                        let vm_result_key_wrap_capabilities_item_value_supported_digests = VmSlice::from_values(context, &vm_result_key_wrap_capabilities_item_value_supported_digests_values)?;
+                        let vm_result_key_wrap_capabilities_item_value = CryptoStoreKeyWrapCapabilityVm {
+                            wrapping_key_algorithm: vm_result_key_wrap_capabilities_item_value_wrapping_key_algorithm,
+                            algorithm: vm_result_key_wrap_capabilities_item_value_algorithm,
+                            supports_wrap: vm_result_key_wrap_capabilities_item_value_supports_wrap,
+                            supports_unwrap: vm_result_key_wrap_capabilities_item_value_supports_unwrap,
+                            supported_digests: vm_result_key_wrap_capabilities_item_value_supported_digests,
+                        };
+                        let vm_result_key_wrap_capabilities_item_value_encoded = { let field_0 = vm::Value::uint(vm_result_key_wrap_capabilities_item_value.wrapping_key_algorithm as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_key_wrap_capabilities_item_value.algorithm as u8 as u64, 8); let field_2 = vm::Value::bool(vm_result_key_wrap_capabilities_item_value.supports_wrap); let field_3 = vm::Value::bool(vm_result_key_wrap_capabilities_item_value.supports_unwrap); let field_4 = vm_result_key_wrap_capabilities_item_value.supported_digests.to_value(context); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) };
+                        vm_result_key_wrap_capabilities_values.push(vm_result_key_wrap_capabilities_item_value_encoded);
+                    }
+                    let vm_result_key_wrap_capabilities_data = context.allocate_raw_values(vm_result_key_wrap_capabilities_values);
+                    let vm_result_key_wrap_capabilities: VmArray<CryptoStoreKeyWrapCapabilityVm> = VmArray { data: vm_result_key_wrap_capabilities_data, len: value.key_wrap_capabilities.len() as u32, capacity: value.key_wrap_capabilities.len() as u32, _marker: std::marker::PhantomData };
+                    let mut vm_result_cipher_capabilities_values = Vec::with_capacity(value.cipher_capabilities.len());
+                    for vm_result_cipher_capabilities_item in value.cipher_capabilities.iter() {
+                        let vm_result_cipher_capabilities_item = *vm_result_cipher_capabilities_item;
+                        let vm_result_cipher_capabilities_item_value_key_algorithm = vm_result_cipher_capabilities_item.key_algorithm;
+                        let vm_result_cipher_capabilities_item_value_algorithm = vm_result_cipher_capabilities_item.algorithm;
+                        let vm_result_cipher_capabilities_item_value_supports_one_shot = vm_result_cipher_capabilities_item.supports_one_shot;
+                        let vm_result_cipher_capabilities_item_value_supports_streaming = vm_result_cipher_capabilities_item.supports_streaming;
+                        let vm_result_cipher_capabilities_item_value_supports_additional_data = vm_result_cipher_capabilities_item.supports_additional_data;
+                        let vm_result_cipher_capabilities_item_value_supports_detached_tag = vm_result_cipher_capabilities_item.supports_detached_tag;
+                        let vm_result_cipher_capabilities_item_value_min_tag_length_bytes = vm_result_cipher_capabilities_item.min_tag_length_bytes;
+                        let vm_result_cipher_capabilities_item_value_max_tag_length_bytes = vm_result_cipher_capabilities_item.max_tag_length_bytes;
+                        let vm_result_cipher_capabilities_item_value = CryptoStoreCipherCapabilityVm {
+                            key_algorithm: vm_result_cipher_capabilities_item_value_key_algorithm,
+                            algorithm: vm_result_cipher_capabilities_item_value_algorithm,
+                            supports_one_shot: vm_result_cipher_capabilities_item_value_supports_one_shot,
+                            supports_streaming: vm_result_cipher_capabilities_item_value_supports_streaming,
+                            supports_additional_data: vm_result_cipher_capabilities_item_value_supports_additional_data,
+                            supports_detached_tag: vm_result_cipher_capabilities_item_value_supports_detached_tag,
+                            min_tag_length_bytes: vm_result_cipher_capabilities_item_value_min_tag_length_bytes,
+                            max_tag_length_bytes: vm_result_cipher_capabilities_item_value_max_tag_length_bytes,
+                        };
+                        let vm_result_cipher_capabilities_item_value_encoded = { let field_0 = vm::Value::uint(vm_result_cipher_capabilities_item_value.key_algorithm as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_cipher_capabilities_item_value.algorithm as u8 as u64, 8); let field_2 = vm::Value::bool(vm_result_cipher_capabilities_item_value.supports_one_shot); let field_3 = vm::Value::bool(vm_result_cipher_capabilities_item_value.supports_streaming); let field_4 = vm::Value::bool(vm_result_cipher_capabilities_item_value.supports_additional_data); let field_5 = vm::Value::bool(vm_result_cipher_capabilities_item_value.supports_detached_tag); let field_6 = vm::Value::uint(vm_result_cipher_capabilities_item_value.min_tag_length_bytes as u64, 32); let field_7 = vm::Value::uint(vm_result_cipher_capabilities_item_value.max_tag_length_bytes as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6, field_7]) };
+                        vm_result_cipher_capabilities_values.push(vm_result_cipher_capabilities_item_value_encoded);
+                    }
+                    let vm_result_cipher_capabilities_data = context.allocate_raw_values(vm_result_cipher_capabilities_values);
+                    let vm_result_cipher_capabilities: VmArray<CryptoStoreCipherCapabilityVm> = VmArray { data: vm_result_cipher_capabilities_data, len: value.cipher_capabilities.len() as u32, capacity: value.cipher_capabilities.len() as u32, _marker: std::marker::PhantomData };
+                    let mut vm_result_mac_capabilities_values = Vec::with_capacity(value.mac_capabilities.len());
+                    for vm_result_mac_capabilities_item in value.mac_capabilities.iter() {
+                        let vm_result_mac_capabilities_item = vm_result_mac_capabilities_item.clone();
+                        let vm_result_mac_capabilities_item_value_key_algorithm = vm_result_mac_capabilities_item.key_algorithm;
+                        let vm_result_mac_capabilities_item_value_algorithm = vm_result_mac_capabilities_item.algorithm;
+                        let vm_result_mac_capabilities_item_value_supports_one_shot = vm_result_mac_capabilities_item.supports_one_shot;
+                        let vm_result_mac_capabilities_item_value_supports_streaming = vm_result_mac_capabilities_item.supports_streaming;
+                        let mut vm_result_mac_capabilities_item_value_supported_digests_values = Vec::with_capacity(vm_result_mac_capabilities_item.supported_digests.len());
+                        for vm_result_mac_capabilities_item_value_supported_digests_item in vm_result_mac_capabilities_item.supported_digests.iter() {
+                            let vm_result_mac_capabilities_item_value_supported_digests_item = *vm_result_mac_capabilities_item_value_supported_digests_item;
+                            let vm_result_mac_capabilities_item_value_supported_digests_item_value = vm_result_mac_capabilities_item_value_supported_digests_item;
+                            vm_result_mac_capabilities_item_value_supported_digests_values.push(vm_result_mac_capabilities_item_value_supported_digests_item_value);
+                        }
+                        let vm_result_mac_capabilities_item_value_supported_digests = VmSlice::from_values(context, &vm_result_mac_capabilities_item_value_supported_digests_values)?;
+                        let vm_result_mac_capabilities_item_value_min_tag_length_bytes = vm_result_mac_capabilities_item.min_tag_length_bytes;
+                        let vm_result_mac_capabilities_item_value_max_tag_length_bytes = vm_result_mac_capabilities_item.max_tag_length_bytes;
+                        let vm_result_mac_capabilities_item_value = CryptoStoreMacCapabilityVm {
+                            key_algorithm: vm_result_mac_capabilities_item_value_key_algorithm,
+                            algorithm: vm_result_mac_capabilities_item_value_algorithm,
+                            supports_one_shot: vm_result_mac_capabilities_item_value_supports_one_shot,
+                            supports_streaming: vm_result_mac_capabilities_item_value_supports_streaming,
+                            supported_digests: vm_result_mac_capabilities_item_value_supported_digests,
+                            min_tag_length_bytes: vm_result_mac_capabilities_item_value_min_tag_length_bytes,
+                            max_tag_length_bytes: vm_result_mac_capabilities_item_value_max_tag_length_bytes,
+                        };
+                        let vm_result_mac_capabilities_item_value_encoded = { let field_0 = vm::Value::uint(vm_result_mac_capabilities_item_value.key_algorithm as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_mac_capabilities_item_value.algorithm as u8 as u64, 8); let field_2 = vm::Value::bool(vm_result_mac_capabilities_item_value.supports_one_shot); let field_3 = vm::Value::bool(vm_result_mac_capabilities_item_value.supports_streaming); let field_4 = vm_result_mac_capabilities_item_value.supported_digests.to_value(context); let field_5 = vm::Value::uint(vm_result_mac_capabilities_item_value.min_tag_length_bytes as u64, 32); let field_6 = vm::Value::uint(vm_result_mac_capabilities_item_value.max_tag_length_bytes as u64, 32); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4, field_5, field_6]) };
+                        vm_result_mac_capabilities_values.push(vm_result_mac_capabilities_item_value_encoded);
+                    }
+                    let vm_result_mac_capabilities_data = context.allocate_raw_values(vm_result_mac_capabilities_values);
+                    let vm_result_mac_capabilities: VmArray<CryptoStoreMacCapabilityVm> = VmArray { data: vm_result_mac_capabilities_data, len: value.mac_capabilities.len() as u32, capacity: value.mac_capabilities.len() as u32, _marker: std::marker::PhantomData };
+                    let mut vm_result_agreement_capabilities_values = Vec::with_capacity(value.agreement_capabilities.len());
+                    for vm_result_agreement_capabilities_item in value.agreement_capabilities.iter() {
+                        let vm_result_agreement_capabilities_item = *vm_result_agreement_capabilities_item;
+                        let vm_result_agreement_capabilities_item_value_private_key_algorithm = vm_result_agreement_capabilities_item.private_key_algorithm;
+                        let vm_result_agreement_capabilities_item_value_peer_public_key_algorithm = vm_result_agreement_capabilities_item.peer_public_key_algorithm;
+                        let vm_result_agreement_capabilities_item_value_algorithm = vm_result_agreement_capabilities_item.algorithm;
+                        let vm_result_agreement_capabilities_item_value_supports_derive_shared_secret = vm_result_agreement_capabilities_item.supports_derive_shared_secret;
+                        let vm_result_agreement_capabilities_item_value_supports_derive_key = vm_result_agreement_capabilities_item.supports_derive_key;
+                        let vm_result_agreement_capabilities_item_value = CryptoStoreAgreementCapabilityVm {
+                            private_key_algorithm: vm_result_agreement_capabilities_item_value_private_key_algorithm,
+                            peer_public_key_algorithm: vm_result_agreement_capabilities_item_value_peer_public_key_algorithm,
+                            algorithm: vm_result_agreement_capabilities_item_value_algorithm,
+                            supports_derive_shared_secret: vm_result_agreement_capabilities_item_value_supports_derive_shared_secret,
+                            supports_derive_key: vm_result_agreement_capabilities_item_value_supports_derive_key,
+                        };
+                        let vm_result_agreement_capabilities_item_value_encoded = { let field_0 = vm::Value::uint(vm_result_agreement_capabilities_item_value.private_key_algorithm as u8 as u64, 8); let field_1 = vm::Value::uint(vm_result_agreement_capabilities_item_value.peer_public_key_algorithm as u8 as u64, 8); let field_2 = vm::Value::uint(vm_result_agreement_capabilities_item_value.algorithm as u8 as u64, 8); let field_3 = vm::Value::bool(vm_result_agreement_capabilities_item_value.supports_derive_shared_secret); let field_4 = vm::Value::bool(vm_result_agreement_capabilities_item_value.supports_derive_key); context.allocate_aggregate(vec![field_0, field_1, field_2, field_3, field_4]) };
+                        vm_result_agreement_capabilities_values.push(vm_result_agreement_capabilities_item_value_encoded);
+                    }
+                    let vm_result_agreement_capabilities_data = context.allocate_raw_values(vm_result_agreement_capabilities_values);
+                    let vm_result_agreement_capabilities: VmArray<CryptoStoreAgreementCapabilityVm> = VmArray { data: vm_result_agreement_capabilities_data, len: value.agreement_capabilities.len() as u32, capacity: value.agreement_capabilities.len() as u32, _marker: std::marker::PhantomData };
+                    let vm_result_certificate_capabilities_supports_import = value.certificate_capabilities.supports_import;
+                    let vm_result_certificate_capabilities_supports_export = value.certificate_capabilities.supports_export;
+                    let vm_result_certificate_capabilities_supports_descriptor = value.certificate_capabilities.supports_descriptor;
+                    let vm_result_certificate_capabilities_supports_verify = value.certificate_capabilities.supports_verify;
+                    let vm_result_certificate_capabilities_supports_delete = value.certificate_capabilities.supports_delete;
+                    let vm_result_certificate_capabilities_supports_system_trust_anchors = value.certificate_capabilities.supports_system_trust_anchors;
+                    let vm_result_certificate_capabilities = CryptoStoreCertificateCapabilityVm {
+                        supports_import: vm_result_certificate_capabilities_supports_import,
+                        supports_export: vm_result_certificate_capabilities_supports_export,
+                        supports_descriptor: vm_result_certificate_capabilities_supports_descriptor,
+                        supports_verify: vm_result_certificate_capabilities_supports_verify,
+                        supports_delete: vm_result_certificate_capabilities_supports_delete,
+                        supports_system_trust_anchors: vm_result_certificate_capabilities_supports_system_trust_anchors,
+                    };
                     let vm_result = CryptoStoreCapabilityVm {
-                        kind: vm_result_kind,
-                        provider: vm_result_provider,
+                        identity: vm_result_identity,
                         is_available: vm_result_is_available,
                         supports_hardware_backed: vm_result_supports_hardware_backed,
                         supports_persistent: vm_result_supports_persistent,
                         supports_key_export: vm_result_supports_key_export,
                         supported_key_algorithms: vm_result_supported_key_algorithms,
                         supported_key_formats: vm_result_supported_key_formats,
+                        supported_key_residencies: vm_result_supported_key_residencies,
+                        key_capabilities: vm_result_key_capabilities,
+                        signature_capabilities: vm_result_signature_capabilities,
+                        asymmetric_encryption_capabilities: vm_result_asymmetric_encryption_capabilities,
+                        key_wrap_capabilities: vm_result_key_wrap_capabilities,
+                        cipher_capabilities: vm_result_cipher_capabilities,
+                        mac_capabilities: vm_result_mac_capabilities,
+                        agreement_capabilities: vm_result_agreement_capabilities,
+                        certificate_capabilities: vm_result_certificate_capabilities,
                     };
                     Ok(vm_result)
                 }
@@ -9629,7 +11162,7 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
             move |context, args| {
                 with_binding_call_context(|runtime| {
                     // decode args
-                    let (handle, format) =
+                    let (handle, request) =
                         decode_destack_crypto_key_export_private_args(context, args)?;
 
                     // execute binding
@@ -9637,11 +11170,11 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                         let world = runtime.check_and_resolve_world(CRYPTO_KEY_EXPORT_PRIVATE)?;
                         match world {
                             RuntimeWorld::Host => platform_vm::destack_crypto_key_export_private(
-                                runtime, context, handle, format,
+                                runtime, context, handle, request,
                             ),
                             RuntimeWorld::Simulation => {
                                 platform_simulation_vm::destack_crypto_key_export_private(
-                                    runtime, context, handle, format,
+                                    runtime, context, handle, request,
                                 )
                             }
                         }
@@ -10268,6 +11801,37 @@ pub fn register_crypto_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
                     // execute binding
                     let world = runtime.check_and_resolve_world(CRYPTO_PROBE_KEY_FORMATS)?;
                     destack_crypto_probe_key_formats_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_PROBE_KEY_RESIDENCIES,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world = runtime.check_and_resolve_world(CRYPTO_PROBE_KEY_RESIDENCIES)?;
+                    destack_crypto_probe_key_residencies_vm_replay(runtime, context, world)
+                })
+                .map_err(Into::into)
+            }
+        );
+    }
+    {
+        binding!(
+            registry,
+            isolate,
+            CRYPTO_PROBE_KEY_WRAP_ALGORITHMS,
+            move |context, _args| {
+                with_binding_call_context(|runtime| {
+                    // execute binding
+                    let world =
+                        runtime.check_and_resolve_world(CRYPTO_PROBE_KEY_WRAP_ALGORITHMS)?;
+                    destack_crypto_probe_key_wrap_algorithms_vm_replay(runtime, context, world)
                 })
                 .map_err(Into::into)
             }

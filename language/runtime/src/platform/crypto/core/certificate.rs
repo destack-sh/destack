@@ -1,4 +1,5 @@
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::collections::HashSet;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use foreign_types_shared::ForeignTypeRef;
 use openssl::asn1::Asn1Time;
@@ -9,9 +10,10 @@ use openssl_sys as openssl_ffi;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
-    CryptoCertificateDescriptor, CryptoCertificateFormat, CryptoCertificatePurpose,
-    CryptoCertificateRevocationMode, CryptoCertificateValidity, CryptoCertificateVerifyRequest,
-    CryptoCertificateVerifyResult, CryptoDigestAlgorithm, CryptoStoreKind, host as crypto_host,
+    CryptoCertificateDescriptor, CryptoCertificateFormat, CryptoCertificateIdentityKind,
+    CryptoCertificatePurpose, CryptoCertificateRevocationMode, CryptoCertificateValidity,
+    CryptoCertificateVerifyError, CryptoCertificateVerifyRequest, CryptoCertificateVerifyResult,
+    CryptoDigestAlgorithm, CryptoStoreKind, host as crypto_host,
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
@@ -40,8 +42,9 @@ fn verify_certificate_chain(
     purpose: X509PurposeId,
     verification_unix_seconds: u64,
     revocation_mode: CryptoCertificateRevocationMode,
-    server_name: &str,
-) -> RuntimeResult<(bool, u32, u32)> {
+    identity_kind: CryptoCertificateIdentityKind,
+    identity_value: &str,
+) -> RuntimeResult<(bool, CryptoCertificateVerifyError, u32, u32, String, u32)> {
     let operation = "destack.crypto.certificate.verify";
 
     // build trust store from explicit trust anchors
@@ -77,11 +80,33 @@ fn verify_certificate_chain(
             .clear_flags(X509VerifyFlags::CRL_CHECK | X509VerifyFlags::CRL_CHECK_ALL);
     }
 
-    // configure expected server name when present
-    if !server_name.is_empty() {
-        verify_parameters
-            .set_host(server_name)
-            .map_err(|error| openssl_error(operation, error))?;
+    // configure expected identity when present
+    if !identity_value.is_empty() {
+        match identity_kind {
+            CryptoCertificateIdentityKind::DnsName => verify_parameters
+                .set_host(identity_value)
+                .map_err(|error| openssl_error(operation, error))?,
+            CryptoCertificateIdentityKind::IpAddress => {
+                let ip_address = identity_value.parse::<IpAddr>().map_err(|_| {
+                    invalid_argument(
+                        "request.identity.value",
+                        "ipAddress identity must be one valid textual ip address",
+                    )
+                })?;
+                verify_parameters
+                    .set_ip(ip_address)
+                    .map_err(|error| openssl_error(operation, error))?;
+            }
+            CryptoCertificateIdentityKind::Uri => {
+                let host = parse_uri_identity_host(identity_value)?;
+                verify_parameters
+                    .set_host(&host)
+                    .map_err(|error| openssl_error(operation, error))?;
+            }
+            CryptoCertificateIdentityKind::EmailAddress => verify_parameters
+                .set_email(identity_value)
+                .map_err(|error| openssl_error(operation, error))?,
+        }
     }
     store_builder
         .set_param(&verify_parameters)
@@ -98,21 +123,61 @@ fn verify_certificate_chain(
         .map_err(|error| openssl_error(operation, error))?;
 
     // collect verification result metadata
+    let verify_error = context_builder.error();
     let error_code = if valid {
         0
     } else {
-        context_builder.error().as_raw() as u32
+        verify_error.as_raw() as u32
+    };
+    let error = if valid {
+        CryptoCertificateVerifyError::None
+    } else {
+        classify_verify_error(verify_error.as_raw())
+    };
+    let failed_certificate_index = if valid {
+        0
+    } else {
+        context_builder.error_depth()
+    };
+    let failed_certificate_subject = if valid {
+        String::new()
+    } else if let Some(certificate) = context_builder.current_cert() {
+        x509_name_to_string(certificate.subject_name())
+    } else {
+        String::new()
     };
     let chain_length = context_builder
         .chain()
         .map_or(0, |chain| chain.len() as u32);
 
-    Ok((valid, error_code, chain_length))
+    Ok((
+        valid,
+        error,
+        error_code,
+        failed_certificate_index,
+        failed_certificate_subject,
+        chain_length,
+    ))
 }
 
 /// Load host system trust anchors for certificate verification.
 fn load_system_trust_anchors(context: &BindingCallContext) -> RuntimeResult<Vec<X509>> {
     crypto_host::open_host_store_certificates(context, CryptoStoreKind::System)
+}
+
+/// Push one unique parsed certificate payload.
+pub(crate) fn push_der_certificate_if_unique(
+    der_bytes: &[u8],
+    certificates: &mut Vec<X509>,
+    seen_der_certificates: &mut HashSet<Vec<u8>>,
+) {
+    if !seen_der_certificates.insert(der_bytes.to_vec()) {
+        return;
+    }
+
+    if let Ok(certificate) = X509::from_der(der_bytes) {
+        certificates.push(certificate);
+    }
 }
 
 /// Import one certificate object.
@@ -296,32 +361,44 @@ pub(crate) fn certificate_verify(
         trust_anchor_certificates.push(certificate_resource.lock().certificate.clone());
     }
 
-    // map purpose lane and decode server-name filter
+    // map purpose lane and decode identity filter
     let purpose = match request.purpose {
         CryptoCertificatePurpose::ServerAuth => X509PurposeId::SSL_SERVER,
         CryptoCertificatePurpose::ClientAuth => X509PurposeId::SSL_CLIENT,
         CryptoCertificatePurpose::CodeSigning => X509PurposeId::CODE_SIGN,
         CryptoCertificatePurpose::EmailProtection => X509PurposeId::SMIME_SIGN,
     };
-    let server_name = decode_native_string(request.server_name, "request.serverName")?;
+    let identity_value = decode_native_string(request.identity.value, "request.identity.value")?;
+    let identity_kind = request.identity.kind;
 
     // verify against explicit trust anchors only
-    let (without_system_valid, without_system_error, without_system_chain_length) =
-        verify_certificate_chain(
-            &leaf,
-            &intermediates,
-            &trust_anchor_certificates,
-            purpose,
-            request.verification_unix_seconds,
-            request.revocation_mode,
-            &server_name,
-        )?;
+    let (
+        without_system_valid,
+        without_system_error,
+        without_system_error_code,
+        without_system_failed_certificate_index,
+        without_system_failed_certificate_subject,
+        without_system_chain_length,
+    ) = verify_certificate_chain(
+        &leaf,
+        &intermediates,
+        &trust_anchor_certificates,
+        purpose,
+        request.verification_unix_seconds,
+        request.revocation_mode,
+        identity_kind,
+        &identity_value,
+    )?;
 
     // return immediately when explicit anchors suffice or system roots are disabled
     if without_system_valid || !request.use_system_trust_anchors {
         return Ok(CryptoCertificateVerifyResult {
             valid: without_system_valid,
-            error_code: without_system_error,
+            error: without_system_error,
+            error_code: without_system_error_code,
+            failed_certificate_index: without_system_failed_certificate_index,
+            failed_certificate_subject: context
+                .store_string(&without_system_failed_certificate_subject),
             chain_length: without_system_chain_length,
             used_system_trust_anchor: false,
         });
@@ -335,25 +412,120 @@ pub(crate) fn certificate_verify(
     }
 
     // retry with the merged trust-anchor set
-    let (with_system_valid, with_system_error, with_system_chain_length) =
-        verify_certificate_chain(
-            &leaf,
-            &intermediates,
-            &trust_anchor_certificates_with_system,
-            purpose,
-            request.verification_unix_seconds,
-            request.revocation_mode,
-            &server_name,
-        )?;
+    let (
+        with_system_valid,
+        with_system_error,
+        with_system_error_code,
+        with_system_failed_certificate_index,
+        with_system_failed_certificate_subject,
+        with_system_chain_length,
+    ) = verify_certificate_chain(
+        &leaf,
+        &intermediates,
+        &trust_anchor_certificates_with_system,
+        purpose,
+        request.verification_unix_seconds,
+        request.revocation_mode,
+        identity_kind,
+        &identity_value,
+    )?;
 
     Ok(CryptoCertificateVerifyResult {
         valid: with_system_valid,
-        error_code: with_system_error,
+        error: with_system_error,
+        error_code: with_system_error_code,
+        failed_certificate_index: with_system_failed_certificate_index,
+        failed_certificate_subject: context.store_string(&with_system_failed_certificate_subject),
         chain_length: with_system_chain_length,
         used_system_trust_anchor: request.use_system_trust_anchors
             && !without_system_valid
             && with_system_valid,
     })
+}
+
+/// Classify one openssl verify error code into one runtime error class.
+fn classify_verify_error(error_code: i32) -> CryptoCertificateVerifyError {
+    match error_code {
+        openssl_ffi::X509_V_OK => CryptoCertificateVerifyError::None,
+        openssl_ffi::X509_V_ERR_CERT_HAS_EXPIRED | openssl_ffi::X509_V_ERR_CRL_HAS_EXPIRED => {
+            CryptoCertificateVerifyError::Expired
+        }
+        openssl_ffi::X509_V_ERR_CERT_NOT_YET_VALID | openssl_ffi::X509_V_ERR_CRL_NOT_YET_VALID => {
+            CryptoCertificateVerifyError::NotYetValid
+        }
+        openssl_ffi::X509_V_ERR_CERT_REVOKED => CryptoCertificateVerifyError::Revoked,
+        openssl_ffi::X509_V_ERR_HOSTNAME_MISMATCH
+        | openssl_ffi::X509_V_ERR_EMAIL_MISMATCH
+        | openssl_ffi::X509_V_ERR_IP_ADDRESS_MISMATCH => CryptoCertificateVerifyError::NameMismatch,
+        openssl_ffi::X509_V_ERR_CERT_SIGNATURE_FAILURE
+        | openssl_ffi::X509_V_ERR_CRL_SIGNATURE_FAILURE => {
+            CryptoCertificateVerifyError::InvalidSignature
+        }
+        openssl_ffi::X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT
+        | openssl_ffi::X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY
+        | openssl_ffi::X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT
+        | openssl_ffi::X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN
+        | openssl_ffi::X509_V_ERR_CERT_UNTRUSTED => CryptoCertificateVerifyError::UntrustedRoot,
+        openssl_ffi::X509_V_ERR_INVALID_PURPOSE | openssl_ffi::X509_V_ERR_PATH_LENGTH_EXCEEDED => {
+            CryptoCertificateVerifyError::PolicyRejected
+        }
+        openssl_ffi::X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION => {
+            CryptoCertificateVerifyError::UnsupportedCriticalExtension
+        }
+        _ => CryptoCertificateVerifyError::Unknown,
+    }
+}
+
+/// Parse one URI identity into one hostname for x509 verification.
+fn parse_uri_identity_host(value: &str) -> RuntimeResult<String> {
+    // strip scheme if present
+    let authority = if let Some((_, rest)) = value.split_once("://") {
+        rest
+    } else {
+        value
+    };
+
+    // trim path/query/fragment and userinfo
+    let authority = authority.split('/').next().unwrap_or(authority);
+    let authority = authority
+        .rsplit_once('@')
+        .map_or(authority, |(_, tail)| tail);
+    if authority.is_empty() {
+        return Err(invalid_argument(
+            "request.identity.value",
+            "uri identity must include one host",
+        ));
+    }
+
+    // remove brackets and port from authority host
+    if authority.starts_with('[') {
+        let Some(end_index) = authority.find(']') else {
+            return Err(invalid_argument(
+                "request.identity.value",
+                "uri identity has one malformed ipv6 host",
+            ));
+        };
+
+        let host = &authority[1..end_index];
+        if host.is_empty() {
+            return Err(invalid_argument(
+                "request.identity.value",
+                "uri identity must include one host",
+            ));
+        }
+
+        return Ok(host.to_owned());
+    }
+
+    let host = authority.split(':').next().unwrap_or(authority);
+    if host.is_empty() {
+        return Err(invalid_argument(
+            "request.identity.value",
+            "uri identity must include one host",
+        ));
+    }
+
+    Ok(host.to_owned())
 }
 
 /// Delete one certificate handle.

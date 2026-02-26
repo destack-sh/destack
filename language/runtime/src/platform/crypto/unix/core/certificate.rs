@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::platform::crypto::core::push_der_certificate_if_unique;
 use openssl::x509::X509;
 
 /// Collect certificates from configured system trust-bundle locations.
@@ -61,7 +62,7 @@ fn collect_certificates_from_file(
     if let Ok(parsed_certificates) = X509::stack_from_pem(&bytes) {
         for certificate in parsed_certificates {
             if let Ok(der_bytes) = certificate.to_der() {
-                push_der_certificate(&der_bytes, certificates, seen_der_certificates);
+                push_der_certificate_if_unique(&der_bytes, certificates, seen_der_certificates);
             }
         }
 
@@ -69,7 +70,7 @@ fn collect_certificates_from_file(
     }
 
     // otherwise try one DER certificate payload
-    push_der_certificate(&bytes, certificates, seen_der_certificates);
+    push_der_certificate_if_unique(&bytes, certificates, seen_der_certificates);
 }
 
 /// Collect certificates from one certificate directory.
@@ -89,20 +90,5 @@ fn collect_certificates_from_directory(
         }
 
         collect_certificates_from_file(&file_path, certificates, seen_der_certificates);
-    }
-}
-
-/// Push one unique parsed certificate payload.
-fn push_der_certificate(
-    der_bytes: &[u8],
-    certificates: &mut Vec<X509>,
-    seen_der_certificates: &mut HashSet<Vec<u8>>,
-) {
-    if !seen_der_certificates.insert(der_bytes.to_vec()) {
-        return;
-    }
-
-    if let Ok(certificate) = X509::from_der(der_bytes) {
-        certificates.push(certificate);
     }
 }
