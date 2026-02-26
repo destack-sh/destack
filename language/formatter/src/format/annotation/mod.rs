@@ -1,4 +1,3 @@
-mod annotation;
 mod attachment;
 mod blank;
 mod boundary;
@@ -14,6 +13,9 @@ mod remaining;
 mod render;
 mod semicolon;
 mod statement;
+
+#[cfg(test)]
+mod tests;
 
 pub(crate) use attachment::formatter_annotation_projection;
 pub use render::{AnnotationCapture, Annotations};
