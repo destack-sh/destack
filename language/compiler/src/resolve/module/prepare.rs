@@ -2,7 +2,9 @@ use crate::timing::tags;
 use crate::{Compiler, ResolveError, ResolveResult};
 use destack_dir::{DependencyItem, Export, GlobalSymbolId, LocalSymbolId};
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ImportMeta, ModuleContent, ModuleDir, ProfileId};
+use destack_workspace::{
+    ImportMeta, ImportMetaTarget, ModuleContent, ModuleDir, ProfileId, TargetEnv, TargetVendor,
+};
 
 impl Compiler {
     /// Prepare the per profile DIR by cloning from the base DIR.
@@ -97,6 +99,17 @@ impl Compiler {
             .and_then(|path| path.parent().map(|parent| parent.to_path_buf()));
 
         // build import meta
+        let target_vendor = profile
+            .key
+            .target_vendor
+            .clone()
+            .unwrap_or_else(|| TargetVendor::default_for_platform(profile.key.platform));
+        let target_env = profile
+            .key
+            .target_env
+            .clone()
+            .or_else(|| TargetEnv::default_for_platform(profile.key.platform));
+        let target_env_tag = target_env.map(|value| value.triple_component());
         let import_meta = ImportMeta {
             url: module.uri.clone(),
             path: path.clone(),
@@ -107,6 +120,17 @@ impl Compiler {
             output: profile.key.output,
             platform: profile.key.platform,
             runtime: profile.key.runtime,
+            target: ImportMetaTarget {
+                family: profile.key.platform.family_tag().to_string(),
+                vendor: target_vendor.triple_component(),
+                env: target_env_tag.clone(),
+                abi: target_env_tag,
+                arch: profile
+                    .key
+                    .target_arch
+                    .clone()
+                    .map(|value| value.triple_component()),
+            },
             debug: profile.key.debug,
             test: profile.key.test,
             env: profile.env.clone(),

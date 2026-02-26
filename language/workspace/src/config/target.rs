@@ -899,6 +899,35 @@ impl Platform {
         matches!(self, Self::BareMetal)
     }
 
+    /// Return the target family tag used by `import.meta.target.family`.
+    pub fn family_tag(&self) -> &'static str {
+        if self.is_web() {
+            return "web";
+        }
+
+        if matches!(self, Self::Windows) {
+            return "windows";
+        }
+
+        if self.is_unix() {
+            return "unix";
+        }
+
+        if self.is_wasm() {
+            return "wasm";
+        }
+
+        if self.is_bare_metal() {
+            return "bare-metal";
+        }
+
+        if matches!(self, Self::Universal) {
+            return "universal";
+        }
+
+        "other"
+    }
+
     /// Resolve the target triple OS component for this platform.
     pub fn triple_os_component(&self) -> Option<&'static str> {
         match self {

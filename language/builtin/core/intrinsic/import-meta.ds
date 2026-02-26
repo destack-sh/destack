@@ -3,9 +3,20 @@ export type Platform = "web"
     | "windows"
     | "macos"
     | "linux"
+    | "freebsd"
+    | "openbsd"
+    | "netbsd"
+    | "dragonfly"
+    | "solaris"
+    | "illumos"
+    | "haiku"
+    | "fuchsia"
+    | "redox"
+    | "hermit"
     | "ios"
     | "android"
     | "wasi"
+    | "emscripten"
     | "bare-metal"
     | "universal";
 
@@ -23,6 +34,29 @@ export type Runtime = "browser"
     | "native-hosted"
     | "native-freestanding"
     | "native-embedded";
+
+/// Coarse target family metadata.
+export type TargetFamily = "web"
+    | "windows"
+    | "unix"
+    | "wasm"
+    | "bare-metal"
+    | "universal"
+    | "other";
+
+/// Structured target metadata.
+export interface ImportMetaTarget {
+    /// Coarse target family.
+    readonly family: TargetFamily,
+    /// Target vendor tag.
+    readonly vendor: string,
+    /// Target environment tag when one exists.
+    readonly env: string | undefined,
+    /// Target ABI tag when one exists.
+    readonly abi: string | undefined,
+    /// Target architecture tag when one exists.
+    readonly arch: string | undefined,
+}
 
 /// Environment variables available at compile time.
 export interface ImportMetaEnv {
@@ -58,6 +92,8 @@ export interface ImportMeta {
     readonly platform: Platform,
     /// The runtime environment that will execute the code.
     readonly runtime: Runtime,
+    /// Structured target metadata.
+    readonly target: ImportMetaTarget,
     /// True if this is a debug/development build (from target.debug).
     readonly debug: boolean,
     /// True if this is a test build.

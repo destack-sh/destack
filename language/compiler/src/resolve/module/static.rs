@@ -23,6 +23,8 @@ enum StaticIfValue {
     ImportMeta,
     /// The import.meta.env object.
     ImportMetaEnv,
+    /// The import.meta.target object.
+    ImportMetaTarget,
 }
 
 impl StaticIfValue {
@@ -875,10 +877,14 @@ impl Compiler {
         // reject import.meta objects in binary expressions
         if matches!(
             left,
-            StaticIfValue::ImportMeta | StaticIfValue::ImportMetaEnv
+            StaticIfValue::ImportMeta
+                | StaticIfValue::ImportMetaEnv
+                | StaticIfValue::ImportMetaTarget
         ) || matches!(
             right,
-            StaticIfValue::ImportMeta | StaticIfValue::ImportMetaEnv
+            StaticIfValue::ImportMeta
+                | StaticIfValue::ImportMetaEnv
+                | StaticIfValue::ImportMetaTarget
         ) {
             return Err(self.invalid_static_if(
                 module_id,
@@ -931,6 +937,9 @@ impl Compiler {
                 self.import_meta_member(module_id, profile_id, node_id, name, import_meta)
             }
             StaticIfValue::ImportMetaEnv => self.import_meta_env_member(name, import_meta),
+            StaticIfValue::ImportMetaTarget => {
+                self.import_meta_target_member(module_id, profile_id, node_id, name, import_meta)
+            }
             _ => Err(self.invalid_static_if(
                 module_id,
                 profile_id,
@@ -950,16 +959,6 @@ impl Compiler {
         key: StaticIfValue,
         import_meta: &ImportMeta,
     ) -> ResolveResult<StaticIfValue> {
-        // require import.meta.env on index access
-        let StaticIfValue::ImportMetaEnv = value else {
-            return Err(self.invalid_static_if(
-                module_id,
-                profile_id,
-                node_id,
-                "static if index access requires import.meta.env",
-            ));
-        };
-
         // require string literal keys
         let Some(ScalarLiteral::String(key_id)) = key.as_scalar() else {
             return Err(self.invalid_static_if(
@@ -970,8 +969,19 @@ impl Compiler {
             ));
         };
 
-        // reuse import.meta.env lookup
-        self.import_meta_env_member(*key_id, import_meta)
+        // route index access by object type
+        match value {
+            StaticIfValue::ImportMetaEnv => self.import_meta_env_member(*key_id, import_meta),
+            StaticIfValue::ImportMetaTarget => {
+                self.import_meta_target_member(module_id, profile_id, node_id, *key_id, import_meta)
+            }
+            _ => Err(self.invalid_static_if(
+                module_id,
+                profile_id,
+                node_id,
+                "static if index access requires import.meta.env or import.meta.target",
+            )),
+        }
     }
 
     /// Evaluate an import.meta path in a static if expression.
@@ -1040,6 +1050,7 @@ impl Compiler {
         let debug_name = self.program.strings.intern("debug");
         let test_name = self.program.strings.intern("test");
         let env_name = self.program.strings.intern("env");
+        let target_name = self.program.strings.intern("target");
 
         // match against interned names
         match name {
@@ -1069,6 +1080,7 @@ impl Compiler {
                 import_meta.test,
             ))),
             id if id == env_name => Ok(StaticIfValue::ImportMetaEnv),
+            id if id == target_name => Ok(StaticIfValue::ImportMetaTarget),
             _ => Err(self.invalid_static_if(
                 module_id,
                 profile_id,
@@ -1100,7 +1112,7 @@ impl Compiler {
                 import_meta.env.test,
             ))),
             id if id == node_env_name => {
-                Ok(self.optional_env_literal(import_meta.env.node_env.as_deref()))
+                Ok(self.optional_string_literal(import_meta.env.node_env.as_deref()))
             }
             _ => {
                 // read the string outside the env lookup path
@@ -1109,6 +1121,42 @@ impl Compiler {
                 drop(name_str);
                 Ok(self.env_lookup(name_owned.as_str(), &import_meta.env))
             }
+        }
+    }
+
+    /// Resolve an import.meta.target member value.
+    fn import_meta_target_member(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        node_id: LocalNodeIdAny,
+        name: destack_base::StringId,
+        import_meta: &ImportMeta,
+    ) -> ResolveResult<StaticIfValue> {
+        // resolve the import.meta.target property name
+        let family_name = self.program.strings.intern("family");
+        let vendor_name = self.program.strings.intern("vendor");
+        let env_name = self.program.strings.intern("env");
+        let abi_name = self.program.strings.intern("abi");
+        let arch_name = self.program.strings.intern("arch");
+        match name {
+            id if id == family_name => Ok(self.static_string_literal(&import_meta.target.family)),
+            id if id == vendor_name => Ok(self.static_string_literal(&import_meta.target.vendor)),
+            id if id == env_name => {
+                Ok(self.optional_string_literal(import_meta.target.env.as_deref()))
+            }
+            id if id == abi_name => {
+                Ok(self.optional_string_literal(import_meta.target.abi.as_deref()))
+            }
+            id if id == arch_name => {
+                Ok(self.optional_string_literal(import_meta.target.arch.as_deref()))
+            }
+            _ => Err(self.invalid_static_if(
+                module_id,
+                profile_id,
+                node_id,
+                "static if does not support this import.meta.target property",
+            )),
         }
     }
 
@@ -1131,8 +1179,8 @@ impl Compiler {
         self.static_string_literal(&string)
     }
 
-    /// Convert an optional env string into a static string literal.
-    fn optional_env_literal(&self, value: Option<&str>) -> StaticIfValue {
+    /// Convert an optional string into a static string literal.
+    fn optional_string_literal(&self, value: Option<&str>) -> StaticIfValue {
         // return undefined when the env entry is missing
         let Some(value) = value else {
             return StaticIfValue::Undefined;
