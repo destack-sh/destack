@@ -86,6 +86,7 @@ windows-sys = { workspace = true, features = [
     "Win32_Foundation",
     "Win32_NetworkManagement_IpHelper",
     "Win32_Security",
+    "Win32_Security_Credentials",
     "Win32_Security_Cryptography",
     "Win32_Security_Authorization",
     "Win32_System_Kernel",
@@ -126,6 +127,7 @@ security-framework-sys = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = { workspace = true }
+keyring = { workspace = true, features = ["linux-native-sync-persistent", "crypto-rust"] }
 
 [dev-dependencies]
 rustls-native-certs = { workspace = true }

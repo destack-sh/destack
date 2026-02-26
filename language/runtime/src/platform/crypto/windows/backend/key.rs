@@ -6,7 +6,6 @@ use openssl::bn::{BigNum, BigNumContext};
 use openssl::ec::{EcGroup, EcPoint, PointConversionForm};
 use openssl::ecdsa::EcdsaSig;
 use openssl::hash::{MessageDigest, hash};
-use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private, Public};
 use openssl::rsa::Rsa;
 use windows_sys::Win32::Foundation::{

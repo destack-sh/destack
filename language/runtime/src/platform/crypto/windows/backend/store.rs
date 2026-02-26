@@ -76,6 +76,11 @@ fn collect_lane_certificates(
     Ok(())
 }
 
+/// Return whether one host-lane store supports persistent key writes.
+pub(crate) fn host_store_supports_key_persistence(kind: CryptoStoreKind) -> bool {
+    matches!(kind, CryptoStoreKind::User | CryptoStoreKind::Machine)
+}
+
 pub(crate) fn host_store_persistence_backend_is_available(
     context: &BindingCallContext,
     kind: CryptoStoreKind,

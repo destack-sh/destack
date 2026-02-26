@@ -26,6 +26,12 @@ use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
+use super::credentials::{
+    CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialWriteOptionsOwned,
+    authenticate_credentials, contains_credentials, delete_credentials, normalize_optional_string,
+    read_credentials, write_credentials,
+};
+
 /// Clear clipboard payload.
 ///
 /// Clear current host clipboard ownership or payload contents.
@@ -1112,7 +1118,7 @@ pub(crate) fn destack_os_contact_update(
 /// Uses LocalAuthentication and biometric manager APIs when available.
 ///
 /// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+/// Returns invalidArgumentValue, ioPermissionDenied, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `os.credentials.auth`.
@@ -1120,15 +1126,20 @@ pub(crate) fn destack_os_contact_update(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_credentials_authenticate(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     options: CredentialAuthenticationOptionsVm,
 ) -> RuntimeResult<CredentialAuthenticationResultVm> {
-    let _ = options;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.credentials.authenticate is not available in the VM yet",
-    ))
-    .boxed())
+    // decode vm authentication options into owned values
+    let options = CredentialAuthenticationOptionsOwned {
+        title: vm_string_to_owned(context, options.title, "options.title")?,
+        subtitle: vm_string_to_owned(context, options.subtitle, "options.subtitle")?,
+        message: vm_string_to_owned(context, options.message, "options.message")?,
+        allow_passcode_fallback: options.allow_passcode_fallback,
+    };
+
+    // execute one authentication challenge
+    authenticate_credentials(runtime, &options)
 }
 
 /// Query credential presence.
@@ -1138,9 +1149,10 @@ pub(crate) fn destack_os_credentials_authenticate(
 /// # Platform
 /// Unix and Windows.
 /// Uses host credential-query APIs.
+/// Optional access-group routing is honored on Apple keychain backends and returns `notSupported` on backends without access-group lanes.
 ///
 /// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+/// Returns invalidArgumentValue, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `os.credentials.read`.
@@ -1148,16 +1160,20 @@ pub(crate) fn destack_os_credentials_authenticate(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_credentials_contains(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
+    access_group: vm::StringHandle,
 ) -> RuntimeResult<bool> {
-    let _ = (service, account);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.credentials.contains is not available in the VM yet",
-    ))
-    .boxed())
+    // decode vm service, account, and optional access-group values
+    let service = vm_string_to_owned(context, service, "service")?;
+    let account = vm_string_to_owned(context, account, "account")?;
+    let access_group =
+        normalize_optional_string(vm_string_to_owned(context, access_group, "accessGroup")?);
+
+    // execute one contains query
+    contains_credentials(runtime, &service, &account, access_group.as_deref())
 }
 
 /// Delete one credential record.
@@ -1167,9 +1183,10 @@ pub(crate) fn destack_os_credentials_contains(
 /// # Platform
 /// Unix and Windows.
 /// Uses host credential-delete APIs.
+/// Optional access-group routing is honored on Apple keychain backends and returns `notSupported` on backends without access-group lanes.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+/// Returns invalidArgumentValue, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
 ///
 /// # Security
 /// Requires `os.credentials.write`.
@@ -1177,16 +1194,20 @@ pub(crate) fn destack_os_credentials_contains(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_credentials_delete(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
+    access_group: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let _ = (service, account);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.credentials.delete is not available in the VM yet",
-    ))
-    .boxed())
+    // decode vm service, account, and optional access-group values
+    let service = vm_string_to_owned(context, service, "service")?;
+    let account = vm_string_to_owned(context, account, "account")?;
+    let access_group =
+        normalize_optional_string(vm_string_to_owned(context, access_group, "accessGroup")?);
+
+    // execute one delete operation
+    delete_credentials(runtime, &service, &account, access_group.as_deref())
 }
 
 /// Read one credential record.
@@ -1195,10 +1216,10 @@ pub(crate) fn destack_os_credentials_delete(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses Keychain on Apple platforms, Keystore-backed secure storage on Android, and credential manager APIs on desktop hosts.
+/// Uses Keychain on Apple platforms, host callback bridge lanes on Android, Windows Credential Manager, and Linux keyutils plus Secret Service credential stores where available.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+/// Returns invalidArgumentValue, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `os.credentials.read`.
@@ -1206,15 +1227,37 @@ pub(crate) fn destack_os_credentials_delete(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_credentials_read(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     query: CredentialQueryVm,
 ) -> RuntimeResult<CredentialRecordVm> {
-    let _ = query;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.credentials.read is not available in the VM yet",
-    ))
-    .boxed())
+    // decode vm query payload into owned values
+    let query = CredentialQueryOwned {
+        service: vm_string_to_owned(context, query.service, "query.service")?,
+        account: vm_string_to_owned(context, query.account, "query.account")?,
+        access_group: normalize_optional_string(vm_string_to_owned(
+            context,
+            query.access_group,
+            "query.accessGroup",
+        )?),
+        require_authentication: query.require_authentication,
+    };
+
+    // execute one read operation
+    let record = read_credentials(runtime, &query)?;
+
+    // encode one vm record payload
+    let service = vm::StringHandle::new(context.intern_string(&record.service));
+    let account = vm::StringHandle::new(context.intern_string(&record.account));
+    let bytes = VmSlice::from_bytes(context, &record.bytes);
+
+    Ok(CredentialRecordVm {
+        service,
+        account,
+        bytes,
+        created_unix_ns: record.created_unix_ns,
+        modified_unix_ns: record.modified_unix_ns,
+    })
 }
 
 /// Write one credential record.
@@ -1224,9 +1267,10 @@ pub(crate) fn destack_os_credentials_read(
 /// # Platform
 /// Unix and Windows.
 /// Uses host credential-write APIs.
+/// `replaceExisting=false` is strict within one runtime process and best effort across concurrent external writers.
 ///
 /// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+/// Returns invalidArgumentValue, ioAlreadyExists, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `os.credentials.write`.
@@ -1234,15 +1278,63 @@ pub(crate) fn destack_os_credentials_read(
 /// # Replay
 /// External, nonrecordable.
 pub(crate) fn destack_os_credentials_write(
-    _runtime: &BindingCallContext,
-    _context: &mut vm::ExternalCallContext<'_>,
+    runtime: &BindingCallContext,
+    context: &mut vm::ExternalCallContext<'_>,
     options: CredentialWriteOptionsVm,
 ) -> RuntimeResult<()> {
-    let _ = options;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.os.credentials.write is not available in the VM yet",
-    ))
-    .boxed())
+    // decode vm write payload into owned values
+    let options = CredentialWriteOptionsOwned {
+        service: vm_string_to_owned(context, options.service, "options.service")?,
+        account: vm_string_to_owned(context, options.account, "options.account")?,
+        access_group: normalize_optional_string(vm_string_to_owned(
+            context,
+            options.access_group,
+            "options.accessGroup",
+        )?),
+        bytes: vm_bytes_to_owned(context, options.bytes, "options.bytes")?,
+        accessibility: options.accessibility,
+        authentication: options.authentication,
+        replace_existing: options.replace_existing,
+    };
+
+    // execute one write operation
+    write_credentials(runtime, &options)
+}
+
+/// Decode one vm string handle into owned text.
+fn vm_string_to_owned(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: vm::StringHandle,
+    field: &str,
+) -> RuntimeResult<String> {
+    // resolve one vm string ref from the call context
+    let value = context.string_ref(value).map_err(|error| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            field,
+            format!("invalid vm string handle: {error}"),
+        ))
+        .boxed()
+    })?;
+
+    Ok(value.as_str().to_string())
+}
+
+/// Decode one vm byte slice into owned bytes.
+fn vm_bytes_to_owned(
+    context: &mut vm::ExternalCallContext<'_>,
+    value: VmSlice<u8>,
+    field: &str,
+) -> RuntimeResult<Vec<u8>> {
+    // copy one vm byte slice into owned memory
+    let bytes = value.read_bytes(context).map_err(|error| {
+        RuntimeError::from(PlatformError::invalid_argument_value(
+            field,
+            format!("invalid vm byte slice: {error}"),
+        ))
+        .boxed()
+    })?;
+
+    Ok(bytes.to_vec())
 }
 
 /// Close one opened document handle.

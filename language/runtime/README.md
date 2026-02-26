@@ -16,10 +16,7 @@ Component-wise, the runtime has a few main areas:
  - `platform/`: host implementations for the modules defined in the builtin ["platform"](language/builtin/lib/platform) lib
  - `runtime/`: all the core runtime scaffolding and orchestration (poller, scheduler/loop, etc.)
 
-## Targets and Hosts
-
-Runtime target support policy is defined in the repo-wide `TARGETS.md`.
-`workspace` build `Platform` configuration selects product build behavior, while target support tiers define runtime and CI guarantees by Rust target triple.
+## Hosts
 
 <!-- FUGU: move runtime/host into host/? -->
 

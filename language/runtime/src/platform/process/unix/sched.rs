@@ -64,13 +64,7 @@ pub(crate) unsafe fn destack_process_get_affinity(
             ));
         }
 
-        let cpu_set_size = usize::try_from(libc::CPU_SETSIZE).map_err(|_| {
-            RuntimeError::from(PlatformError::invalid_argument_value(
-                "cpus",
-                "host cpu set size does not fit usize",
-            ))
-            .boxed()
-        })?;
+        let cpu_set_size = libc::CPU_SETSIZE;
         let mut cpus = Vec::new();
         for cpu in 0..cpu_set_size {
             let is_member = unsafe { libc::CPU_ISSET(cpu, &cpu_set) };
@@ -249,13 +243,7 @@ pub(crate) unsafe fn destack_process_set_affinity(
             libc::CPU_ZERO(&mut cpu_set);
         }
 
-        let cpu_set_size = usize::try_from(libc::CPU_SETSIZE).map_err(|_| {
-            RuntimeError::from(PlatformError::invalid_argument_value(
-                "cpus",
-                "host cpu set size does not fit usize",
-            ))
-            .boxed()
-        })?;
+        let cpu_set_size = libc::CPU_SETSIZE;
         for cpu in cpus {
             let index = *cpu as usize;
             if index >= cpu_set_size {

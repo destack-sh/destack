@@ -1112,7 +1112,7 @@ pub(crate) fn destack_os_contact_update(
 /// Uses LocalAuthentication and biometric manager APIs when available.
 ///
 /// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
+/// Returns invalidArgumentValue, ioPermissionDenied, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `os.credentials.auth`.
@@ -1138,9 +1138,10 @@ pub(crate) fn destack_os_credentials_authenticate(
 /// # Platform
 /// Unix and Windows.
 /// Uses host credential-query APIs.
+/// Optional access-group routing is honored on Apple keychain backends and returns `notSupported` on backends without access-group lanes.
 ///
 /// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+/// Returns invalidArgumentValue, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `os.credentials.read`.
@@ -1152,8 +1153,9 @@ pub(crate) fn destack_os_credentials_contains(
     _context: &mut vm::ExternalCallContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
+    access_group: vm::StringHandle,
 ) -> RuntimeResult<bool> {
-    let _ = (service, account);
+    let _ = (service, account, access_group);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.os.credentials.contains is not available in the VM yet",
     ))
@@ -1167,9 +1169,10 @@ pub(crate) fn destack_os_credentials_contains(
 /// # Platform
 /// Unix and Windows.
 /// Uses host credential-delete APIs.
+/// Optional access-group routing is honored on Apple keychain backends and returns `notSupported` on backends without access-group lanes.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
+/// Returns invalidArgumentValue, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
 ///
 /// # Security
 /// Requires `os.credentials.write`.
@@ -1181,8 +1184,9 @@ pub(crate) fn destack_os_credentials_delete(
     _context: &mut vm::ExternalCallContext<'_>,
     service: vm::StringHandle,
     account: vm::StringHandle,
+    access_group: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    let _ = (service, account);
+    let _ = (service, account, access_group);
     Err(RuntimeError::from(PlatformError::not_supported(
         "destack.os.credentials.delete is not available in the VM yet",
     ))
@@ -1195,10 +1199,10 @@ pub(crate) fn destack_os_credentials_delete(
 ///
 /// # Platform
 /// Unix and Windows.
-/// Uses Keychain on Apple platforms, Keystore-backed secure storage on Android, and credential manager APIs on desktop hosts.
+/// Uses Keychain on Apple platforms, host callback bridge lanes on Android, Windows Credential Manager, and Linux keyutils plus Secret Service credential stores where available.
 ///
 /// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+/// Returns invalidArgumentValue, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `os.credentials.read`.
@@ -1224,9 +1228,10 @@ pub(crate) fn destack_os_credentials_read(
 /// # Platform
 /// Unix and Windows.
 /// Uses host credential-write APIs.
+/// `replaceExisting=false` is strict within one runtime process and best effort across concurrent external writers.
 ///
 /// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
+/// Returns invalidArgumentValue, ioAlreadyExists, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
 ///
 /// # Security
 /// Requires `os.credentials.write`.

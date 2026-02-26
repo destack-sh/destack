@@ -1,5 +1,5 @@
 #[cfg(any(unix, windows))]
-mod basic;
+mod credentials;
 #[cfg(any(unix, windows))]
 mod tests;
 
