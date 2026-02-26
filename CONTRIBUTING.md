@@ -25,7 +25,7 @@ If your change introduces new concepts or APIs, update the relevant READMEs and 
 ## Code Style
 
 Before opening a PR, run `just precommit` from the repository root.
-This runs the same blocking gates that CI runs for language, library, and platform.
+This runs the same blocking gates that CI runs for language, library, service, app, and bridge.
 Use `just fmt` for formatting, `just check` for broad checks, and `just test` for the full local test matrix.
 See [TESTING.md](TESTING.md) for the full test matrix and suite details.
 
@@ -35,17 +35,17 @@ If you find a security issue, please follow [SECURITY.md](SECURITY.md).
 
 ## Structure
 
-This is the open source monorepo containing the language, library, and platform core:
+This is the open source monorepo containing the language, library, service, app, bridge, and template layers:
 
 | Directory | Description | README |
 |--------------|----------------------------------------------------------------|-------------------------------|
 | `language/`  | Language toolchain (parser, compiler, formatter, LSP, etc.)    | [language/README](language/README.md)  |
 | `library/`   | Standard library (entity, telemetry, math, physics, UI, etc.)  | [library/README](library/README.md)   |
-| `platform/`  | Platform features (CLI, IDE integrations, build plugins, etc.) | [platform/README](platform/README.md)  |
+| `service/`   | Runtime and developer services (daemon, lsp, lsp-server, lsp-types) | [service/README](service/README.md) |
+| `app/`       | First-party applications and operator tools (cli, future apps) | [app/README](app/README.md) |
+| `bridge/`    | SDKs and external integrations (napi, wasm, rust, python, vscode, zed, bun, vite) | [bridge/README](bridge/README.md) |
+| `template/`  | Project templates and initializer package | [template/README](template/README.md) |
 | `docs/`      | Additional project documentation                                  | [docs/README](docs/README.md)          |
-| `examples/`  | Example projects                                               | [examples/README](examples/README.md)  |
-| `templates/` | Project templates for `destack new`                            | [templates/README](templates/README.md) |
-
 
 ## Setup
 
@@ -77,7 +77,9 @@ If you are working in one area only, use scoped gates:
 ```sh
 just language/ci
 just library/ci
-just platform/ci
+just service/ci
+just app/ci
+just bridge/ci
 ```
 
 ## Release Credentials

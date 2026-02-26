@@ -6,26 +6,25 @@
     "type": "module",
     "workspaces": {
         "packages": [
-            "examples/tetris",
-            "client/napi",
-            "client/wasm",
-            "client/typescript",
-            "platform/bun",
-            "templates/create-destack",
-            "platform/cli",
-            "platform/cli/npm-darwin-arm64",
-            "platform/cli/npm-darwin-x64",
-            "platform/cli/npm-linux-arm64-gnu",
-            "platform/cli/npm-linux-x64-gnu",
-            "platform/cli/npm-win32-x64-msvc",
-            "platform/vite",
-            "platform/vscode",
             "library/schema",
-            "library/test"
+            "library/test",
+            "app/cli",
+            "app/cli/npm-darwin-arm64",
+            "app/cli/npm-darwin-x64",
+            "app/cli/npm-linux-arm64-gnu",
+            "app/cli/npm-linux-x64-gnu",
+            "app/cli/npm-win32-x64-msvc",
+            "bridge/bun",
+            "bridge/napi",
+            "bridge/typescript",
+            "bridge/vite",
+            "bridge/vscode",
+            "bridge/wasm",
+            "template/create-destack"
         ]
     },
     "scripts": {
-        "build:napi": "bun run --cwd client/napi build"
+        "build:napi": "bun run --cwd bridge/napi build"
     },
     "catalog": {
         "@destack/napi": "workspace:*",

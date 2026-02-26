@@ -1,0 +1,225 @@
+set shell := ["bash", "-cu"]
+set dotenv-load := true
+set dotenv-filename := "../.env.local"
+
+# all app crates
+packages := "-p destack_cli"
+format-packages := "-p destack_cli"
+test-packages := "-p destack_cli"
+
+_default:
+    @just --list --unsorted
+
+# --- ci ---
+
+# install js dependencies required by app gates
+ci-install:
+    bun install --frozen-lockfile
+
+# run app format gate
+ci-format:
+    just format-check
+
+# run app lint gate
+ci-lint:
+    just lint
+
+# run app test gate
+ci-tests:
+    just test-ci
+
+# run all blocking app ci gates locally
+ci:
+    just ci-install
+    just ci-format
+    just ci-lint
+    just ci-tests
+
+# --- build ---
+
+# check app crates
+check:
+    cargo clippy --release {{ packages }}
+
+# lint alias
+lint:
+    just check
+
+# build all app packages
+build:
+    cargo build --release {{ packages }}
+
+# format code
+format:
+    cargo fmt {{ format-packages }}
+
+# check formatting
+format-check:
+    cargo fmt --check {{ format-packages }}
+
+# alias for format
+alias fmt := format
+
+# clean build artifacts
+clean:
+    cargo clean
+
+# --- test ---
+
+# run quick tests for local development
+test-quick:
+    cargo test --release --all-targets {{ test-packages }}
+
+# run blocking ci test gates
+test-ci:
+    just test-quick
+
+# run nightly test gates
+test-nightly:
+    just test-ci
+
+# run release test gates
+test-release:
+    just test-ci
+
+# run quick tests alias
+test:
+    just test-quick
+
+# --- schema ---
+
+# generate cli report schema
+generate-schema:
+    cargo run -p destack_cli --features schema --bin generate-cli-schema --release > cli/generated/cli-report.schema.json
+
+# alias for generate-schema
+schema := "generate-schema"
+
+# --- release ---
+
+# build cli binaries for npm target packages
+build-cli-binaries:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # resolve active targets from DESTACK_RELEASE_TARGETS or use all by default
+    targets_input="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
+    selected_targets=()
+
+    # map aliases and validate supported targets
+    for token in ${targets_input}; do
+        case "${token}" in
+            darwin-arm64|aarch64-apple-darwin) selected_targets+=("aarch64-apple-darwin") ;;
+            darwin-x64|x86_64-apple-darwin) selected_targets+=("x86_64-apple-darwin") ;;
+            linux-arm64-gnu|aarch64-unknown-linux-gnu) selected_targets+=("aarch64-unknown-linux-gnu") ;;
+            linux-x64-gnu|x86_64-unknown-linux-gnu) selected_targets+=("x86_64-unknown-linux-gnu") ;;
+            win32-x64-msvc|x86_64-pc-windows-msvc) selected_targets+=("x86_64-pc-windows-msvc") ;;
+            *) echo "error: unsupported DESTACK_RELEASE_TARGETS entry: ${token}" >&2; exit 1 ;;
+        esac
+    done
+
+    # build each unique selected target
+    built_targets=""
+    for target_triple in "${selected_targets[@]}"; do
+        if [[ " ${built_targets} " == *" ${target_triple} "* ]]; then
+            continue
+        fi
+        built_targets="${built_targets} ${target_triple}"
+
+        rustup target add "${target_triple}"
+        cargo build --release -p destack_cli --target "${target_triple}"
+    done
+
+# package cli release archives and checksums
+package-cli-release version="" artifacts="cli/install/artifacts":
+    bash cli/install/package-release-artifacts.sh "{{version}}" "{{artifacts}}"
+
+# validate cli release archives and checksums
+validate-cli-release version="" artifacts="cli/install/artifacts":
+    bash cli/install/validate-release-artifacts.sh "{{version}}" "{{artifacts}}"
+
+# run installer smoke tests against packaged artifacts
+test-cli-install version="" artifacts="cli/install/artifacts":
+    bash cli/install/test-install.sh "{{version}}" "{{artifacts}}"
+
+# stage cli binaries from packaged release assets
+stage-cli-binaries-from-artifacts version="" artifacts="cli/install/artifacts":
+    bash cli/install/validate-release-artifacts.sh "{{version}}" "{{artifacts}}"
+    bash cli/install/stage-npm-binaries-from-artifacts.sh "{{version}}" "{{artifacts}}"
+    cd cli && npm run stage:binaries
+
+# preflight cli publish from packaged release assets
+preflight-cli-publish version="" artifacts="cli/install/artifacts":
+    just validate-cli-release "{{version}}" "{{artifacts}}"
+    just test-cli-install "{{version}}" "{{artifacts}}"
+    just stage-cli-binaries-from-artifacts "{{version}}" "{{artifacts}}"
+    just validate-cli-publish
+
+# validate cli npm publish payloads with dry run
+validate-cli-publish:
+    just publish-cli-targets --dry-run
+    cd cli && npm publish --dry-run --access public
+
+# publish selected cli target packages
+publish-cli-targets dry="--dry-run":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # map a target token to a target package directory
+    resolve_package_directory() {
+        local token="$1"
+        case "${token}" in
+            darwin-arm64|aarch64-apple-darwin) printf '%s\n' "npm-darwin-arm64" ;;
+            darwin-x64|x86_64-apple-darwin) printf '%s\n' "npm-darwin-x64" ;;
+            linux-arm64-gnu|aarch64-unknown-linux-gnu) printf '%s\n' "npm-linux-arm64-gnu" ;;
+            linux-x64-gnu|x86_64-unknown-linux-gnu) printf '%s\n' "npm-linux-x64-gnu" ;;
+            win32-x64-msvc|x86_64-pc-windows-msvc) printf '%s\n' "npm-win32-x64-msvc" ;;
+            *) printf '%s\n' "error: unsupported DESTACK_RELEASE_TARGETS entry: ${token}" >&2; exit 1 ;;
+        esac
+    }
+
+    # add a package directory only once
+    append_unique_package_directory() {
+        local package_directory="$1"
+        if [[ " ${selected_package_directories} " == *" ${package_directory} "* ]]; then
+            return
+        fi
+        selected_package_directories="${selected_package_directories} ${package_directory}"
+    }
+
+    # resolve package directories from DESTACK_RELEASE_TARGETS when provided
+    selected_package_directories=""
+    if [ -n "${DESTACK_RELEASE_TARGETS:-}" ]; then
+        for target_token in ${DESTACK_RELEASE_TARGETS}; do
+            package_directory="$(resolve_package_directory "${target_token}")"
+            append_unique_package_directory "${package_directory}"
+        done
+    fi
+
+    # fall back to all package directories by default
+    if [ -z "${selected_package_directories}" ]; then
+        selected_package_directories="npm-darwin-arm64 npm-darwin-x64 npm-linux-arm64-gnu npm-linux-x64-gnu npm-win32-x64-msvc"
+    fi
+
+    # publish each selected target package
+    for package_directory in ${selected_package_directories}; do
+        (cd "cli/${package_directory}" && npm publish {{dry}} --access public)
+    done
+
+# publish cli npm packages dry by default
+publish-cli dry="--dry-run":
+    just validate-cli-publish
+    @if [ "{{dry}}" = "--dry-run" ]; then \
+        echo "Dry run: validated npm publish payloads"; \
+    else \
+        if [ -z "${NPM_TOKEN:-}" ]; then \
+            echo "missing NPM_TOKEN env var for live npm publish"; \
+            exit 1; \
+        fi; \
+        just publish-cli-targets ""; \
+        cd cli && npm publish --access public; \
+    fi
+
+# publish app packages dry by default
+publish dry="--dry-run":
+    just publish-cli "{{dry}}"

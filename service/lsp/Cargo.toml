@@ -1,0 +1,56 @@
+[package]
+name = "destack_lsp"
+description = "Destack Language Server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+test = ["dep:futures", "dep:tower"]
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[[bin]]
+name = "destack_lsp"
+path = "src/main.rs"
+
+[dependencies]
+# language
+destack_ast = { workspace = true }
+destack_compiler = { workspace = true }
+destack_dir = { workspace = true }
+destack_fir = { workspace = true }
+destack_formatter = { workspace = true }
+destack_lsp_server = { workspace = true }
+destack_lsp_types = { workspace = true }
+destack_parser = { workspace = true }
+destack_resolver = { workspace = true }
+destack_source = { workspace = true }
+destack_workspace = { workspace = true }
+destack_service = { workspace = true }
+
+# general
+dashmap = { workspace = true }
+libc = "0.2.180"
+parking_lot = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = [
+	"macros",
+	"rt-multi-thread",
+	"io-std",
+	"sync",
+	"time",
+] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+futures = { version = "0.3", default-features = false, features = ["std", "async-await"], optional = true }
+tower = { version = "0.5", default-features = false, features = ["util"], optional = true }
+
+[dev-dependencies]
+futures = { version = "0.3", default-features = false, features = ["std", "async-await"] }
+tower = { version = "0.5", default-features = false, features = ["util"] }

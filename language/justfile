@@ -267,7 +267,7 @@ generate-lexer:
 generate-schema:
     mkdir -p workspace/generated
     cargo run -p destack_workspace --features schema --bin generate-schema --release > workspace/generated/dsconfig.schema.json
-    cp workspace/generated/dsconfig.schema.json ../platform/vscode/dsconfig.schema.json
+    cp workspace/generated/dsconfig.schema.json ../bridge/vscode/dsconfig.schema.json
     @echo "generated workspace/generated/dsconfig.schema.json"
 
 # generate runtime binding catalog

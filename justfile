@@ -45,21 +45,26 @@ ci-language:
 ci-library:
     just library/ci
 
-# run client ci gates
-ci-client:
-    just client/ci
+# run service ci gates
+ci-service:
+    just service/ci
 
-# run platform ci gates
-ci-platform:
-    just platform/ci
+# run app ci gates
+ci-app:
+    just app/ci
+
+# run bridge ci gates
+ci-bridge:
+    just bridge/ci
 
 # run all blocking ci gates locally
 ci:
     just check-ci-hygiene
     just ci-language
     just ci-library
-    just ci-client
-    just ci-platform
+    just ci-service
+    just ci-app
+    just ci-bridge
 
 # canonical pre commit gate
 precommit:
@@ -70,8 +75,9 @@ check:
     just check-ci-hygiene
     just language/check
     just library/check
-    just client/check
-    just platform/check
+    just service/check
+    just app/check
+    just bridge/check
 
 # lint ci workflows and shell scripts with strict policy checks
 check-ci-hygiene:
@@ -143,15 +149,17 @@ apply-branch-protection *args:
 # build everything
 build:
     just language/build
-    just client/build
-    just platform/build
+    just service/build
+    just app/build
+    just bridge/build
 
 # format all code
 format:
     just language/format
     just library/format
-    just client/format
-    just platform/format
+    just service/format
+    just app/format
+    just bridge/format
 
 # alias for format
 alias fmt := format
@@ -160,8 +168,9 @@ alias fmt := format
 clean:
     just language/clean
     just library/clean
-    just client/clean
-    just platform/clean
+    just service/clean
+    just app/clean
+    just bridge/clean
 
 # --- test ---
 
@@ -169,29 +178,33 @@ clean:
 test-quick:
     just language/test-quick
     just library/test-quick
-    just client/test-quick
-    just platform/test-quick
+    just service/test-quick
+    just app/test-quick
+    just bridge/test-quick
 
 # run blocking ci test gates
 test-ci:
     just language/test-ci
     just library/test-ci
-    just client/test-ci
-    just platform/test-ci
+    just service/test-ci
+    just app/test-ci
+    just bridge/test-ci
 
 # run nightly test gates
 test-nightly:
     just language/test-nightly
     just library/test-nightly
-    just client/test-nightly
-    just platform/test-nightly
+    just service/test-nightly
+    just app/test-nightly
+    just bridge/test-nightly
 
 # run release test gates
 test-release:
     just language/test-release
     just library/test-release
-    just client/test-release
-    just platform/test-release
+    just service/test-release
+    just app/test-release
+    just bridge/test-release
 
 # run quick tests (alias for test-quick)
 test:
@@ -199,7 +212,7 @@ test:
 
 # run ide integration tests
 test-ide:
-    just platform/test-ide
+    just bridge/test-ide
 
 # run language runtime windows target tests through wine
 test-runtime-windows-cross:
@@ -252,11 +265,10 @@ test-windows-resolver:
 # run language runtime cross-target checks
 check-runtime-cross-targets:
     just language/check-runtime-cross-targets
+
 # run privileged language runtime platform tests
 test-runtime-privileged:
     just language/test-runtime-privileged
-
-
 # --- bench ---
 
 # run benchmarks
@@ -290,10 +302,10 @@ bump kind:
 # publish all packages (dry-run by default)
 publish dry="--dry-run":
     just build
-    just templates/publish-create-destack "{{dry}}"
     just library/publish "{{dry}}"
-    just client/publish "{{dry}}"
-    just platform/publish "{{dry}}"
+    just app/publish "{{dry}}"
+    just bridge/publish "{{dry}}"
+    just template/publish-create-destack "{{dry}}"
 
 # publish all packages as dry run
 publish-dry:
@@ -302,11 +314,11 @@ publish-dry:
 # publish all packages live
 publish-live:
     just build
-    just platform/validate-cli-publish
-    just templates/publish-create-destack ""
+    just app/validate-cli-publish
     just library/publish ""
-    just client/publish ""
-    just platform/publish ""
+    just app/publish ""
+    just bridge/publish ""
+    just template/publish-create-destack ""
 
 # publish all packages live with local cli binary staging
 publish-live-local:
@@ -319,7 +331,7 @@ publish-live-local:
     just build
 
     if [ -d "${cli_artifacts_directory}" ]; then
-        just platform/stage-cli-binaries-from-artifacts "$(cat VERSION)" "${cli_artifacts_directory}"
+        just app/stage-cli-binaries-from-artifacts "$(cat VERSION)" "${cli_artifacts_directory}"
     else
         # default local target selection to host target when not explicitly set
         if [ -z "${DESTACK_RELEASE_TARGETS:-}" ]; then
@@ -336,15 +348,15 @@ publish-live-local:
             esac
         fi
 
-        just platform/build-cli-binaries
-        (cd platform/cli && npm run stage:binaries)
+        just app/build-cli-binaries
+        (cd app/cli && npm run stage:binaries)
     fi
 
-    just platform/validate-cli-publish
-    just templates/publish-create-destack ""
+    just app/validate-cli-publish
     just library/publish ""
-    just client/publish ""
-    just platform/publish ""
+    just app/publish ""
+    just bridge/publish ""
+    just template/publish-create-destack ""
 
 # create a new release (bump, commit, tag, push)
 release kind message:

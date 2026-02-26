@@ -128,11 +128,14 @@ jobs:
       - name: Run library nightly tests
         run: just library/test-nightly
 
-      - name: Run client nightly tests
-        run: just client/test-nightly
+      - name: Run service nightly tests
+        run: just service/test-nightly
 
-      - name: Run platform nightly tests
-        run: just platform/test-nightly
+      - name: Run app nightly tests
+        run: just app/test-nightly
+
+      - name: Run bridge nightly tests
+        run: just bridge/test-nightly
 
   nightly-fuzz-smoke:
     name: Nightly Fuzz Smoke

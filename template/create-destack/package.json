@@ -1,0 +1,43 @@
+{
+    "name": "create-destack",
+    "version": "0.55.2",
+    "description": "Create Destack apps",
+    "license": "MIT",
+    "type": "module",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/destack-sh/destack.git",
+        "directory": "template/create-destack"
+    },
+    "homepage": "https://github.com/destack-sh/destack/tree/main/template/create-destack",
+    "bugs": {
+        "url": "https://github.com/destack-sh/destack/issues"
+    },
+    "keywords": [
+        "destack",
+        "create",
+        "initializer",
+        "template"
+    ],
+    "bin": {
+        "create-destack": "bin/create-destack.mjs"
+    },
+    "files": [
+        "bin",
+        "templates",
+        "README.md"
+    ],
+    "scripts": {
+        "build": "node ./bin/create-destack.mjs --help",
+        "test": "node ./bin/create-destack.mjs --help",
+        "prepublishOnly": "npm run build",
+        "publish:dry": "npm publish --dry-run --access public",
+        "publish:live": "npm publish --access public"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}

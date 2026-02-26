@@ -30,7 +30,7 @@ jobs:
           persist-credentials: false
 
       - name: Validate zed grammar pins
-        run: python3 platform/zed/scripts/check_grammar_sources.py --require-pinned --pin-destack-revision "${GITHUB_SHA}"
+        run: python3 bridge/zed/scripts/check_grammar_sources.py --require-pinned --pin-destack-revision "${GITHUB_SHA}"
 
   ci-hygiene:
     name: CI Hygiene
@@ -384,8 +384,8 @@ jobs:
       - name: Run library ci tests
         run: just library/test-ci
 
-  platform-format:
-    name: Platform Format
+  service-app-bridge-format:
+    name: Service App Bridge Format
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs:
@@ -409,14 +409,17 @@ jobs:
       - name: Install just
         uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
-      - name: Run platform format check
-        run: just platform/ci-format
+      - name: Run service format check
+        run: just service/ci-format
 
-      - name: Run client format check
-        run: just client/ci-format
+      - name: Run app format check
+        run: just app/ci-format
 
-  platform-lint:
-    name: Platform Lint
+      - name: Run bridge format check
+        run: just bridge/ci-format
+
+  service-app-bridge-lint:
+    name: Service App Bridge Lint
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs:
@@ -440,14 +443,17 @@ jobs:
       - name: Install just
         uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
 
-      - name: Run platform lint
-        run: just platform/ci-lint
+      - name: Run service lint
+        run: just service/ci-lint
 
-      - name: Run client lint
-        run: just client/ci-lint
+      - name: Run app lint
+        run: just app/ci-lint
 
-  platform-tests:
-    name: Platform Tests
+      - name: Run bridge lint
+        run: just bridge/ci-lint
+
+  service-app-bridge-tests:
+    name: Service App Bridge Tests
     runs-on: ubuntu-latest
     timeout-minutes: 120
     needs:
@@ -479,8 +485,11 @@ jobs:
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
-      - name: Run platform ci tests
-        run: just platform/test-ci
+      - name: Run service ci tests
+        run: just service/test-ci
 
-      - name: Run client ci tests
-        run: just client/test-ci
+      - name: Run app ci tests
+        run: just app/test-ci
+
+      - name: Run bridge ci tests
+        run: just bridge/test-ci
