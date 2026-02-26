@@ -4,6 +4,8 @@ mod adapter;
 mod callback;
 #[cfg(any(test, target_os = "illumos"))]
 mod ffi;
+#[cfg(test)]
+mod tests;
 
 #[cfg(target_os = "illumos")]
 pub(super) use adapter::IllumosHostAdapter;

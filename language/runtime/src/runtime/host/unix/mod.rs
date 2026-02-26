@@ -1,5 +1,7 @@
 mod callback;
 mod ffi;
+#[cfg(test)]
+mod tests;
 
 pub use callback::{
     UnixApplicationLifecycle, unix_notify_application_lifecycle, unix_notify_interruption_changed,
