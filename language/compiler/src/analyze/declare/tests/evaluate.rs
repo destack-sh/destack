@@ -1,8 +1,8 @@
-use crate::analyze::TypeTablesContext;
+use crate::analyze::common::{SymbolTypeView, TypeContext};
 use crate::analyze::declare::TypeMemberResolution;
 use destack_dir::{
-    Expression, LocalScopeMark, LocalTypeId, PrimitiveType, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
+    Declarator, Expression, LocalScopeMark, LocalTypeId, Pattern, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticKey, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 use destack_source::ProfileId;
 
@@ -10,15 +10,14 @@ use super::TestProgram;
 
 /// Assert a fixed-array count resolves to either an integer literal or a named symbol.
 fn assert_count_matches_integer_or_symbol_name(
+    ctx: SymbolTypeView<'_>,
     count: LocalTypeId,
     expected_integer: i64,
     expected_symbol_name: StaticKey,
-    symbols: &SymbolTable,
-    types: &TypeTable,
 ) {
-    let mut type_id = types.unwrap_value_type_id(count);
+    let mut type_id = ctx.types.unwrap_value_type_id(count);
     for _ in 0..16 {
-        match types.get_type(type_id) {
+        match ctx.types.get_type(type_id) {
             Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
             } => {
@@ -27,7 +26,7 @@ fn assert_count_matches_integer_or_symbol_name(
             }
             Type::Value { value } => type_id = *value,
             Type::Reference { symbol, .. } => {
-                let symbol_key = symbols.get_symbol(symbol.local_id).key;
+                let symbol_key = ctx.symbols.get_symbol(symbol.local_id).key;
                 assert_eq!(symbol_key, Some(expected_symbol_name));
                 return;
             }
@@ -163,7 +162,7 @@ fn test_type_index_integer_literal_uses_fixed_array_when_index_access_is_not_adm
 
     let count_value = test
         .compiler
-        .integer_literal_value_for_type_id(*count, &types)
+        .integer_literal_value_for_type_id(*count, types)
         .expect("expected integer literal count");
     assert_eq!(count_value, 5, "expected fixed-size array count of 5");
 
@@ -218,7 +217,7 @@ fn test_type_index_as_comptime_forces_fixed_array_construction() {
         );
     };
 
-    assert_count_resolves_to_integer(*count, 0, &types);
+    assert_count_resolves_to_integer(*count, 0, types);
 
     assert!(
         matches!(types.get_type(*element), Type::Tuple { .. }),
@@ -263,7 +262,7 @@ declare const rows: MessagePage.Rows;
             .expect("expected MessagePage symbol");
         let rows_symbol = test
             .compiler
-            .resolve_static_member_symbol_in_tables(
+            .query_static_member_symbol(
                 &module,
                 ProfileId::new(profile_index as u32),
                 class_symbol,
@@ -398,7 +397,7 @@ declare const segment: AuditStore.Segment;
     let segment_member_key = StaticKey::Name(test.program.strings.intern("Segment"));
     let segment_member_symbol = test
         .compiler
-        .resolve_static_member_symbol_in_tables(
+        .query_static_member_symbol(
             &module,
             profile,
             audit_symbol,
@@ -407,27 +406,26 @@ declare const segment: AuditStore.Segment;
             &symbols,
         )
         .expect("expected Segment member symbol");
-    let alias_target_id = test
-        .compiler
-        .alias_target_type_id_for_symbol(
-            &module,
-            profile,
-            segment_member_symbol,
-            dir.roots[0].into_any(),
-            &symbols,
-            &mut types,
-        )
-        .expect("expected alias target for Segment member");
+    let options = test.compiler.analyze_context_options_for_module(module.id);
+    let alias_target_id = {
+        let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+        test.compiler
+            .alias_target_type_id_for_symbol(
+                &mut ctx,
+                segment_member_symbol,
+                dir.roots[0].into_any(),
+            )
+            .expect("expected alias target for Segment member")
+    };
     let alias_count = match types.get_type(alias_target_id) {
         Type::ArraySized { count, .. } => *count,
         other => panic!("expected fixed-size alias target, got {other:?}"),
     };
     assert_count_matches_integer_or_symbol_name(
+        SymbolTypeView::new(&module, profile, &symbols, &types),
         alias_count,
         1024,
         StaticKey::Name(test.program.strings.intern("SegmentBytes")),
-        &symbols,
-        &types,
     );
 
     let segment_type_id = types
@@ -439,11 +437,10 @@ declare const segment: AuditStore.Segment;
         other => panic!("expected fixed-size segment projection, got {other:?}"),
     };
     assert_count_matches_integer_or_symbol_name(
+        SymbolTypeView::new(&module, profile, &symbols, &types),
         count,
         1024,
         StaticKey::Name(test.program.strings.intern("SegmentBytes")),
-        &symbols,
-        &types,
     );
 }
 
@@ -479,20 +476,13 @@ comptime const Dependent: number = ProjectionPlan<Row>.Scalar;
     let scalar_key = StaticKey::Name(test.program.strings.intern("Scalar"));
     let scalar_symbol = test
         .compiler
-        .resolve_static_member_symbol_in_tables(
-            &module,
-            profile,
-            owner_symbol,
-            scalar_key,
-            &tree,
-            &symbols,
-        )
+        .query_static_member_symbol(&module, profile, owner_symbol, scalar_key, &tree, &symbols)
         .expect("expected Scalar member symbol");
 
     let dependent_key = StaticKey::Name(test.program.strings.intern("Dependent"));
     let dependent_symbol = test
         .compiler
-        .resolve_static_member_symbol_in_tables(
+        .query_static_member_symbol(
             &module,
             profile,
             owner_symbol,
@@ -558,10 +548,10 @@ declare const tile: F32Kernel.Tile;
 
     let outer_literal = test
         .compiler
-        .integer_literal_value_for_type_id(*outer_count, &types);
+        .integer_literal_value_for_type_id(*outer_count, types);
     let inner_literal = test
         .compiler
-        .integer_literal_value_for_type_id(*inner_count, &types);
+        .integer_literal_value_for_type_id(*inner_count, types);
 
     assert_eq!(
         outer_literal,
@@ -626,10 +616,10 @@ declare const tile: ImageBatch<float32>.Tile;
 
     let outer_literal = test
         .compiler
-        .integer_literal_value_for_type_id(*outer_count, &types);
+        .integer_literal_value_for_type_id(*outer_count, types);
     let inner_literal = test
         .compiler
-        .integer_literal_value_for_type_id(*inner_count, &types);
+        .integer_literal_value_for_type_id(*inner_count, types);
 
     assert_eq!(
         outer_literal,
@@ -719,17 +709,11 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     let Expression::Member { left, name, .. } = tree.get(log_member_expression_id) else {
         panic!("expected member type annotation for logSegment");
     };
+    let options = test.compiler.analyze_context_options_for_module(module.id);
     let member_selection = test
         .compiler
         .resolve_type_member_symbol(
-            &mut TypeTablesContext::new(
-                &module,
-                profile,
-                &test.options,
-                &tree,
-                &symbols,
-                &mut types,
-            ),
+            &mut TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types),
             log_member_expression_id,
             *left,
             StaticKey::Name(*name),
@@ -748,7 +732,7 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     );
     let segment_bytes_symbol = test
         .compiler
-        .resolve_static_member_symbol_in_tables(
+        .query_static_member_symbol(
             &module,
             profile,
             segment_plan_symbol,
@@ -769,10 +753,9 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
         value: StaticExpression::Type { ty: string_type_id },
     }];
     let options = test.compiler.analyze_context_options_for_module(module.id);
-    let mut type_tables =
-        TypeTablesContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+    let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
     let substitutions = test.compiler.build_type_parameter_substitutions_for_symbol(
-        &mut type_tables,
+        &mut ctx,
         segment_plan_symbol,
         dir.roots[0].into_any(),
         &receiver_arguments,
@@ -781,7 +764,7 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     let direct_projection = test
         .compiler
         .resolve_static_constant_reference_instantiated(
-            &mut type_tables.reborrow(),
+            &mut ctx.reborrow(),
             segment_bytes_symbol,
             &substitutions,
             &mut visited,

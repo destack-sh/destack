@@ -5,27 +5,24 @@ use indexmap::IndexMap;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, Export, Expression, LocalNodeId,
     LocalNodeIdAny, LocalScopeId, LocalTypeId, ModuleTarget, NamespaceExport, NodeTree, StaticKey,
-    SymbolSpace, Type, TypeField, TypeLiteral, TypeTable,
+    SymbolSpace, Type, TypeField, TypeLiteral,
 };
-use destack_workspace::{Module, ProfileId};
 
 use crate::{AnalyzeResult, Compiler};
 
-use crate::analyze::common::ObjectShape;
+use crate::analyze::common::{ObjectShape, TypeContext};
+use crate::analyze::infer::RemoteValueTypeReadDomain;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Declare the module namespace value type from exported values.
     pub(crate) fn collect_module_namespace_value_type(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: &mut TypeContext<'_>,
         exported_symbols: &IndexMap<(SymbolSpace, StaticKey), Export>,
-        tree: &NodeTree,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // pick a stable source node for module imports
-        let module_dir = module.dir(profile);
+        let module_dir = ctx.module.dir(ctx.profile);
         let module_source_id = module_dir
             .roots
             .first()
@@ -34,24 +31,26 @@ impl Compiler {
             .unwrap_or(module_dir.anchor_node);
 
         // register the module namespace value type
-        let namespace_symbol = module.dir(profile).namespace_symbol.into_global(module.id);
+        let namespace_symbol = ctx
+            .module
+            .dir(ctx.profile)
+            .namespace_symbol
+            .into_global(ctx.module.id);
+        let namespace_exports = ctx.module.dir(ctx.profile).namespace_exports.read().clone();
         let namespace_ty_id = self.build_namespace_type_from_exports(
-            module,
-            profile,
-            tree,
+            &mut ctx.reborrow(),
             exported_symbols,
-            &module.dir(profile).namespace_exports.read(),
+            &namespace_exports,
             module_source_id,
-            types,
         )?;
-        types.set_value_type(namespace_symbol, namespace_ty_id);
+        ctx.types.set_value_type(namespace_symbol, namespace_ty_id);
 
         // register module binding namespace value types
-        let binding_exports = module.dir(profile).module_binding_exports.read();
-        let bindings = module.dir(profile).module_bindings.read();
+        let binding_exports = ctx.module.dir(ctx.profile).module_binding_exports.read();
+        let bindings = ctx.module.dir(ctx.profile).module_bindings.read();
         for (binding_any_id, exports) in binding_exports.iter() {
             let binding_id = binding_any_id.into_typed::<Declaration>();
-            let Declaration::Namespace { descriptor, .. } = tree.get(binding_id) else {
+            let Declaration::Namespace { descriptor, .. } = ctx.tree.get(binding_id) else {
                 continue;
             };
 
@@ -63,19 +62,16 @@ impl Compiler {
             };
 
             let binding_namespace_exports =
-                self.collect_namespace_exports_in_scope(tree, binding.scope);
-            let binding_symbol = descriptor.symbol.into_global(module.id);
+                self.collect_namespace_exports_in_scope(ctx.tree, binding.scope);
+            let binding_symbol = descriptor.symbol.into_global(ctx.module.id);
             let binding_source_id = binding_id.into_any();
             let binding_ty_id = self.build_namespace_type_from_exports(
-                module,
-                profile,
-                tree,
+                &mut ctx.reborrow(),
                 &exports.exports,
                 &binding_namespace_exports,
                 binding_source_id,
-                types,
             )?;
-            types.set_value_type(binding_symbol, binding_ty_id);
+            ctx.types.set_value_type(binding_symbol, binding_ty_id);
         }
 
         Ok(())
@@ -84,17 +80,14 @@ impl Compiler {
     /// Build a namespace object type from a set of exports.
     fn build_namespace_type_from_exports(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        ctx: &mut TypeContext<'_>,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         namespace_exports: &[NamespaceExport],
         source_id: LocalNodeIdAny,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         // merge direct exports
         let mut shape = ObjectShape::default();
-        self.merge_exports_map_into_shape(module, profile, exports, source_id, types, &mut shape)?;
+        self.merge_exports_map_into_shape(&mut ctx.reborrow(), exports, source_id, &mut shape)?;
 
         // merge namespace exports
         let mut visited = HashSet::new();
@@ -104,28 +97,25 @@ impl Compiler {
             }
 
             self.merge_namespace_target_exports(
-                module,
-                profile,
-                tree,
+                &mut ctx.reborrow(),
                 export.module_id,
                 source_id,
-                types,
                 &mut shape,
                 &mut visited,
             )?;
         }
 
-        Ok(types.insert_type_from_any(shape.into_object_type(), source_id))
+        Ok(ctx
+            .types
+            .insert_type_from_any(shape.into_object_type(), source_id))
     }
 
     /// Merge exports from a map into a namespace shape.
     fn merge_exports_map_into_shape(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: &mut TypeContext<'_>,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         source_id: LocalNodeIdAny,
-        types: &mut TypeTable,
         shape: &mut ObjectShape,
     ) -> AnalyzeResult<()> {
         let mut unknown_value_type_id = None;
@@ -136,36 +126,36 @@ impl Compiler {
                 continue;
             }
 
-            let target_symbol = export
-                .target
-                .resolved()
-                .or_else(|| export.symbol.map(|symbol| symbol.into_global(module.id)));
+            let target_symbol = export.target.resolved().or_else(|| {
+                export
+                    .symbol
+                    .map(|symbol| symbol.into_global(ctx.module.id))
+            });
             let Some(target_symbol) = target_symbol else {
                 continue;
             };
 
             // resolve or import the value type for the export
-            let value_ty_id = if let Some(value_ty_id) = types.get_value_type_id(target_symbol) {
+            let value_ty_id = if let Some(value_ty_id) = ctx.types.get_value_type_id(target_symbol)
+            {
                 value_ty_id
-            } else if target_symbol.module_id != module.id {
+            } else if target_symbol.module_id != ctx.module.id {
                 // treat export namespace construction as interface surface inference
-                self.resolve_remote_symbol_value_type_for_surface(
-                    module,
-                    profile,
+                self.resolve_remote_symbol_value_type(
+                    &mut ctx.reborrow(),
                     source_id,
                     target_symbol,
-                    types,
+                    RemoteValueTypeReadDomain::Surface,
                 )?
             } else {
-                let unknown_type_id = *unknown_value_type_id.get_or_insert_with(|| {
-                    types.insert_type_from_any(
+                *unknown_value_type_id.get_or_insert_with(|| {
+                    ctx.types.insert_type_from_any(
                         Type::TypeLiteral {
                             value: TypeLiteral::Unknown,
                         },
                         source_id,
                     )
-                });
-                unknown_type_id
+                })
             };
 
             shape.fields.push(TypeField {
@@ -182,12 +172,9 @@ impl Compiler {
     /// Merge namespace export targets into a namespace shape.
     fn merge_namespace_target_exports(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        ctx: &mut TypeContext<'_>,
         target: ModuleTarget,
         source_id: LocalNodeIdAny,
-        types: &mut TypeTable,
         shape: &mut ObjectShape,
         visited: &mut HashSet<ModuleTarget>,
     ) -> AnalyzeResult<()> {
@@ -199,18 +186,16 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module has interface surface inference
-                self.require_analyze_module_interface(module_id, profile)?;
+                self.require_analyze_module_interface(module_id, ctx.profile)?;
 
                 // load the target module exports
                 let target_module = self.program.modules.get(module_id);
                 let target_module = target_module.read();
-                let target_dir = target_module.dir(profile);
+                let target_dir = target_module.dir(ctx.profile);
 
                 // merge direct exports
                 let exports = target_dir.exported_symbols.read();
-                self.merge_exports_map_into_shape(
-                    module, profile, &exports, source_id, types, shape,
-                )?;
+                self.merge_exports_map_into_shape(&mut ctx.reborrow(), &exports, source_id, shape)?;
 
                 // merge namespace exports
                 let namespace_exports = target_dir.namespace_exports.read();
@@ -220,12 +205,9 @@ impl Compiler {
                     }
 
                     self.merge_namespace_target_exports(
-                        module,
-                        profile,
-                        tree,
+                        &mut ctx.reborrow(),
                         export.module_id,
                         source_id,
-                        types,
                         shape,
                         visited,
                     )?;
@@ -233,7 +215,7 @@ impl Compiler {
             }
             ModuleTarget::Binding(specifier) => {
                 // load binding exports for the target specifier
-                let dir = module.dir(profile);
+                let dir = ctx.module.dir(ctx.profile);
                 let bindings = dir.module_bindings.read();
                 let binding_exports = dir.module_binding_exports.read();
                 for binding in bindings
@@ -246,29 +228,24 @@ impl Compiler {
 
                     // merge direct exports
                     self.merge_exports_map_into_shape(
-                        module,
-                        profile,
+                        &mut ctx.reborrow(),
                         &exports.exports,
                         source_id,
-                        types,
                         shape,
                     )?;
 
                     // merge namespace exports
                     let namespace_exports =
-                        self.collect_namespace_exports_in_scope(tree, binding.scope);
+                        self.collect_namespace_exports_in_scope(ctx.tree, binding.scope);
                     for export in namespace_exports {
                         if export.kind != DependencyKind::Value {
                             continue;
                         }
 
                         self.merge_namespace_target_exports(
-                            module,
-                            profile,
-                            tree,
+                            &mut ctx.reborrow(),
                             export.module_id,
                             source_id,
-                            types,
                             shape,
                             visited,
                         )?;

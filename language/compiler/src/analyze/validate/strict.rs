@@ -11,7 +11,7 @@ use destack_dir::{
 };
 use destack_workspace::ModuleSource;
 
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::{TreeSymbolView, TypeContext};
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 
 /// Required instance field for strict property initialization.
@@ -28,7 +28,7 @@ impl Compiler {
     /// Validate strict-mode checks for a module.
     pub(crate) fn validate_strict_checks(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         options: AnalyzeOptions,
     ) {
         let check_returns = options.no_implicit_returns;
@@ -41,8 +41,8 @@ impl Compiler {
 
         // check declaration functions for missing returns
         if check_returns {
-            for (id, declaration) in type_tables.tree.iter_nodes_of_type::<Declaration>() {
-                let symbol = type_tables.symbols.get_symbol(declaration.symbol());
+            for (id, declaration) in ctx.tree.iter_nodes_of_type::<Declaration>() {
+                let symbol = ctx.symbols.get_symbol(declaration.symbol());
                 if !symbol.is_active() {
                     continue;
                 }
@@ -52,12 +52,12 @@ impl Compiler {
                 else {
                     continue;
                 };
-                self.validate_no_implicit_returns_for_body(type_tables, id.into_any(), *body);
+                self.validate_no_implicit_returns_for_body(ctx, id.into_any(), *body);
             }
 
             // check member methods for missing returns
-            for (id, member) in type_tables.tree.iter_nodes_of_type::<Member>() {
-                let symbol = type_tables.symbols.get_symbol(member.symbol());
+            for (id, member) in ctx.tree.iter_nodes_of_type::<Member>() {
+                let symbol = ctx.symbols.get_symbol(member.symbol());
                 if !symbol.is_active() {
                     continue;
                 }
@@ -72,13 +72,13 @@ impl Compiler {
                 if signature.mode == Some(FunctionMode::Constructor) {
                     continue;
                 }
-                self.validate_no_implicit_returns_for_body(type_tables, id.into_any(), *body);
+                self.validate_no_implicit_returns_for_body(ctx, id.into_any(), *body);
             }
         }
 
         // check class-level strict options
-        for (_, declaration) in type_tables.tree.iter_nodes_of_type::<Declaration>() {
-            let symbol = type_tables.symbols.get_symbol(declaration.symbol());
+        for (_, declaration) in ctx.tree.iter_nodes_of_type::<Declaration>() {
+            let symbol = ctx.symbols.get_symbol(declaration.symbol());
             if !symbol.is_active() {
                 continue;
             }
@@ -95,18 +95,18 @@ impl Compiler {
             }
 
             // validate override modifiers
-            self.validate_class_overrides(type_tables, descriptor, members, check_missing_override);
+            self.validate_class_overrides(ctx, descriptor, members, check_missing_override);
 
             // validate property initialization
             if check_property_init {
-                self.validate_class_property_initialization(type_tables, members);
+                self.validate_class_property_initialization(ctx, members);
             }
         }
 
         // check unused locals, parameters, and labels
         if check_unused_locals || check_unused_parameters || check_unused_labels {
             self.validate_unused_bindings(
-                type_tables,
+                ctx,
                 check_unused_locals,
                 check_unused_parameters,
                 check_unused_labels,
@@ -115,17 +115,17 @@ impl Compiler {
 
         // check switch fallthrough
         if check_fallthrough {
-            self.validate_switch_fallthrough(type_tables);
+            self.validate_switch_fallthrough(ctx);
         }
 
         // check implicit any in declaration modules
-        self.validate_declaration_implicit_any(type_tables, options.no_implicit_any);
+        self.validate_declaration_implicit_any(ctx, options.no_implicit_any);
     }
 
     /// Validate restriction options on inferred types.
     pub(crate) fn validate_restriction_checks(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         options: AnalyzeOptions,
     ) {
         // read restriction options
@@ -139,7 +139,7 @@ impl Compiler {
         }
 
         // skip non user modules
-        if !matches!(type_tables.module.source, ModuleSource::User) {
+        if !matches!(ctx.module.source, ModuleSource::User) {
             return;
         }
 
@@ -149,9 +149,9 @@ impl Compiler {
         let mut reported_imprecise = HashSet::new();
 
         // scan every type entry in the table
-        for index in 0..type_tables.types.type_count() {
+        for index in 0..ctx.types.type_count() {
             let type_id = LocalTypeId::new(index);
-            let ty = type_tables.types.get_type(type_id);
+            let ty = ctx.types.get_type(type_id);
 
             // skip error and unevaluated types
             if matches!(
@@ -162,14 +162,14 @@ impl Compiler {
             }
 
             // capture the source for diagnostics
-            let source_id = type_tables.types.get_type_source(type_id);
+            let source_id = ctx.types.get_type_source(type_id);
             // reject inferred any usage
             if check_any
                 && !reported_any.contains(&source_id)
-                && self.type_contains_any(type_tables.module, type_id, type_tables.types)
+                && self.type_contains_any(ctx.type_view(), type_id)
             {
                 self.error(AnalyzeError::AnyTypeDisabled {
-                    node: source_id.into_anchored(type_tables.module.id, Some(type_tables.profile)),
+                    node: source_id.into_anchored(ctx.module.id, Some(ctx.profile)),
                 });
                 reported_any.insert(source_id);
             }
@@ -177,10 +177,10 @@ impl Compiler {
             // reject inferred unknown usage
             if check_unknown
                 && !reported_unknown.contains(&source_id)
-                && self.type_contains_unknown(type_tables.module, type_id, type_tables.types)
+                && self.type_contains_unknown(ctx.type_view(), type_id)
             {
                 self.error(AnalyzeError::UnknownTypeDisabled {
-                    node: source_id.into_anchored(type_tables.module.id, Some(type_tables.profile)),
+                    node: source_id.into_anchored(ctx.module.id, Some(ctx.profile)),
                 });
                 reported_unknown.insert(source_id);
             }
@@ -188,14 +188,10 @@ impl Compiler {
             // reject inferred imprecise primitives
             if check_imprecise
                 && !reported_imprecise.contains(&source_id)
-                && self.type_contains_imprecise_primitive(
-                    type_tables.module,
-                    type_id,
-                    type_tables.types,
-                )
+                && self.type_contains_imprecise_primitive(ctx.type_view(), type_id)
             {
                 self.error(AnalyzeError::ImprecisePrimitiveDisabled {
-                    node: source_id.into_anchored(type_tables.module.id, Some(type_tables.profile)),
+                    node: source_id.into_anchored(ctx.module.id, Some(ctx.profile)),
                 });
                 reported_imprecise.insert(source_id);
             }
@@ -205,24 +201,24 @@ impl Compiler {
     /// Emit missing return diagnostics for a function body.
     fn validate_no_implicit_returns_for_body(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         signature_node: LocalNodeIdAny,
         body_id: LocalNodeId<Expression>,
     ) {
         // skip builtin modules
-        if matches!(type_tables.module.source, ModuleSource::Builtin(_)) {
+        if matches!(ctx.module.source, ModuleSource::Builtin(_)) {
             return;
         }
 
         // resolve the signature type
-        let Some(signature_ty_id) = type_tables
+        let Some(signature_ty_id) = ctx
             .types
-            .get_signature_type_for_node(signature_node.into_global(type_tables.module.id))
+            .get_signature_type_for_node(signature_node.into_global(ctx.module.id))
         else {
             return;
         };
 
-        let (cardinality, return_ty_id) = match type_tables.types.get_type(signature_ty_id) {
+        let (cardinality, return_ty_id) = match ctx.types.get_type(signature_ty_id) {
             Type::Function {
                 cardinality,
                 return_type,
@@ -238,88 +234,86 @@ impl Compiler {
         };
 
         // skip when return types allow fallthrough
-        if self.return_type_allows_fallthrough(return_ty_id, type_tables.types) {
+        if self.return_type_allows_fallthrough(return_ty_id, ctx.types) {
             return;
         }
 
         // skip when implicit value return is present
-        if self.body_has_value_return(type_tables, body_id) {
+        if self.body_has_value_return(ctx, body_id) {
             return;
         }
 
         // error when a fallthrough path exists
-        let graph = FlowGraphBuilder::new(type_tables.module.id, type_tables.tree).build(body_id);
+        let graph = FlowGraphBuilder::new(ctx.module.id, ctx.tree).build(body_id);
         let exit_block = &graph.blocks[graph.exit_block.0 as usize];
         if exit_block.predecessors.is_empty() {
             return;
         }
 
         // suppress follow up diagnostics when body inference already failed
-        if let Some(body_ty_id) = type_tables
+        if let Some(body_ty_id) = ctx
             .types
-            .get_declared_or_inferred_type_id(body_id.into_global_any(type_tables.module.id))
+            .get_declared_or_inferred_type_id(body_id.into_global_any(ctx.module.id))
         {
-            if self.type_blocks_cascading_diagnostic(body_ty_id, type_tables.types) {
+            if self.type_blocks_cascading_diagnostic(body_ty_id, ctx.types) {
                 return;
             }
-            if self.trailing_expression_blocks_cascading_diagnostic(type_tables, body_id) {
+            if self.trailing_expression_blocks_cascading_diagnostic(ctx, body_id) {
                 return;
             }
 
             // report fallthrough type mismatch
             self.emit_unassignable_type_for_types(
-                type_tables.module,
-                type_tables.profile,
+                ctx.module_type_view(),
                 body_id.into_any(),
                 return_ty_id,
                 body_ty_id,
-                type_tables.types,
             );
         }
 
         // report missing return
         self.error(AnalyzeError::MissingReturn {
             node: body_id
-                .into_global_any(type_tables.module.id)
-                .into_anchored(Some(type_tables.profile)),
+                .into_global_any(ctx.module.id)
+                .into_anchored(Some(ctx.profile)),
         });
     }
 
     /// Return true when the trailing body expression already blocks cascading diagnostics.
     fn trailing_expression_blocks_cascading_diagnostic(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         body_id: LocalNodeId<Expression>,
     ) -> bool {
-        let Expression::Block { block } = type_tables.tree.get(body_id) else {
+        let Expression::Block { block } = ctx.tree.get(body_id) else {
             return false;
         };
-        let block = type_tables.tree.get(*block);
+        let block = ctx.tree.get(*block);
         let Some(last_expression_id) = block.expressions.last().copied() else {
             return false;
         };
 
-        self.expression_blocks_cascading_diagnostic(type_tables, last_expression_id)
+        self.expression_blocks_cascading_diagnostic(ctx, last_expression_id)
     }
 
     /// Return true when one expression or statement wrapper already blocks cascading diagnostics.
     fn expression_blocks_cascading_diagnostic(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
-        if let Some(type_id) = type_tables
+        if let Some(type_id) = ctx
             .types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(type_tables.module.id))
-            && self.type_blocks_cascading_diagnostic(type_id, type_tables.types)
+            .get_declared_or_inferred_type_id(expression_id.into_global_any(ctx.module.id))
+            && self.type_blocks_cascading_diagnostic(type_id, ctx.types)
         {
             return true;
         }
-        let Expression::Statement { statement } = type_tables.tree.get(expression_id) else {
+        let Expression::Statement { statement } = ctx.tree.get(expression_id) else {
             return false;
         };
 
-        self.expression_blocks_cascading_diagnostic(type_tables, *statement)
+        self.expression_blocks_cascading_diagnostic(ctx, *statement)
     }
 
     /// Check whether a return type allows a fallthrough without a value.
@@ -346,27 +340,27 @@ impl Compiler {
     /// Check whether a body expression yields a value on fallthrough.
     fn body_has_value_return(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         body_id: LocalNodeId<Expression>,
     ) -> bool {
-        match type_tables.tree.get(body_id) {
+        match ctx.tree.get(body_id) {
             Expression::Statement { .. }
             | Expression::Return { .. }
             | Expression::Break { .. }
             | Expression::Continue { .. } => false,
             Expression::Block { block } => {
-                let block = type_tables.tree.get(*block);
+                let block = ctx.tree.get(*block);
 
                 let Some(last_expression_id) = block.expressions.last() else {
                     return false;
                 };
 
-                match type_tables.tree.get(*last_expression_id) {
+                match ctx.tree.get(*last_expression_id) {
                     Expression::Statement { .. }
                     | Expression::Return { .. }
                     | Expression::Break { .. }
                     | Expression::Continue { .. } => false,
-                    _ => self.expression_has_value_return(type_tables, *last_expression_id),
+                    _ => self.expression_has_value_return(ctx, *last_expression_id),
                 }
             }
             _ => true,
@@ -376,42 +370,42 @@ impl Compiler {
     /// Check whether an expression type provides a value return.
     fn expression_has_value_return(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
-        let Some(ty_id) = type_tables
+        let Some(ty_id) = ctx
             .types
-            .get_declared_or_inferred_type_id(expression_id.into_global_any(type_tables.module.id))
+            .get_declared_or_inferred_type_id(expression_id.into_global_any(ctx.module.id))
         else {
             return true;
         };
 
-        !self.return_type_allows_fallthrough(ty_id, type_tables.types)
+        !self.return_type_allows_fallthrough(ty_id, ctx.types)
     }
 
     /// Validate override modifiers on class members.
     fn validate_class_overrides(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         descriptor: &DeclarationDescriptor,
         members: &[LocalNodeId<Member>],
         check_missing_override: bool,
     ) {
         // skip builtin modules
-        if matches!(type_tables.module.source, ModuleSource::Builtin(_)) {
+        if matches!(ctx.module.source, ModuleSource::Builtin(_)) {
             return;
         }
 
         // resolve the base class for override checks
-        let class_symbol = descriptor.symbol.into_global(type_tables.module.id);
-        let base_symbol = type_tables
+        let class_symbol = descriptor.symbol.into_global(ctx.module.id);
+        let base_symbol = ctx
             .types
             .get_lineage_for_symbol(class_symbol)
             .and_then(|lineage| lineage.extends);
 
         // walk class members and validate overrides
         for member_id in members {
-            let member = type_tables.tree.get(*member_id);
+            let member = ctx.tree.get(*member_id);
             let (modifiers, key, has_override) = match member {
                 Member::Method {
                     modifiers,
@@ -451,19 +445,15 @@ impl Compiler {
 
             // decide whether this member overrides a base member
             let is_static = Self::member_is_static_for_validation(modifiers);
-            let overrides_base = self.member_overrides_base_chain(
-                base_symbol,
-                is_static,
-                &member_key,
-                type_tables.types,
-            );
+            let overrides_base =
+                self.member_overrides_base_chain(base_symbol, is_static, &member_key, ctx.types);
 
             // reject override modifiers without a matching base member
             if has_override && !overrides_base {
                 self.error(AnalyzeError::InvalidOverride {
                     node: (*member_id)
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile)),
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile)),
                 });
             }
 
@@ -471,8 +461,8 @@ impl Compiler {
             if check_missing_override && overrides_base && !has_override {
                 self.error(AnalyzeError::MissingOverride {
                     node: (*member_id)
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile)),
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile)),
                 });
             }
         }
@@ -481,16 +471,16 @@ impl Compiler {
     /// Validate strict property initialization for class fields.
     fn validate_class_property_initialization(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         members: &[LocalNodeId<Member>],
     ) {
         // skip builtin modules
-        if matches!(type_tables.module.source, ModuleSource::Builtin(_)) {
+        if matches!(ctx.module.source, ModuleSource::Builtin(_)) {
             return;
         }
 
         // collect instance fields that need initialization
-        let field_requirements = self.class_field_requirements(members, type_tables.tree);
+        let field_requirements = self.class_field_requirements(members, ctx.tree);
         if field_requirements.is_empty() {
             return;
         }
@@ -504,7 +494,7 @@ impl Compiler {
         // collect constructors with bodies
         let mut constructors = Vec::new();
         for member_id in members {
-            let member = type_tables.tree.get(*member_id);
+            let member = ctx.tree.get(*member_id);
             let Member::Method {
                 signature,
                 body: Some(body),
@@ -520,7 +510,7 @@ impl Compiler {
             }
 
             let parameter_keys =
-                self.parameter_property_keys(&signature.dynamic_parameters, type_tables.tree);
+                self.parameter_property_keys(&signature.dynamic_parameters, ctx.tree);
             constructors.push((*body, parameter_keys));
         }
 
@@ -531,7 +521,7 @@ impl Compiler {
         } else {
             for (body_id, parameter_keys) in constructors {
                 let assigned = self.definitely_assigned_fields_in_body(
-                    type_tables,
+                    ctx,
                     body_id,
                     &field_index,
                     field_requirements.len(),
@@ -553,8 +543,8 @@ impl Compiler {
             self.error(AnalyzeError::UninitializedProperty {
                 node: requirement
                     .member_id
-                    .into_global_any(type_tables.module.id)
-                    .into_anchored(Some(type_tables.profile)),
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile)),
             });
         }
     }
@@ -644,7 +634,7 @@ impl Compiler {
     /// Compute fields definitely assigned in a constructor body.
     fn definitely_assigned_fields_in_body(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         body_id: LocalNodeId<Expression>,
         field_index: &HashMap<StaticKey, usize>,
         field_count: usize,
@@ -659,7 +649,7 @@ impl Compiler {
         }
 
         // build the flow graph for the constructor body
-        let graph = FlowGraphBuilder::new(type_tables.module.id, type_tables.tree).build(body_id);
+        let graph = FlowGraphBuilder::new(ctx.module.id, ctx.tree).build(body_id);
         let block_count = graph.blocks.len();
         let entry_index = graph.entry_block.0 as usize;
 
@@ -707,8 +697,7 @@ impl Compiler {
                         continue;
                     }
                     let expression_id = node_id.into_typed::<Expression>();
-                    if let Some(key) =
-                        self.assignment_key_for_expression(expression_id, type_tables.tree)
+                    if let Some(key) = self.assignment_key_for_expression(expression_id, ctx.tree)
                         && let Some(index) = field_index.get(&key)
                     {
                         out_set[*index] = true;
@@ -863,47 +852,47 @@ impl Compiler {
     /// Validate unused locals, parameters, and labels.
     fn validate_unused_bindings(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         check_unused_locals: bool,
         check_unused_parameters: bool,
         check_unused_labels: bool,
     ) {
         // skip builtin modules
-        if matches!(type_tables.module.source, ModuleSource::Builtin(_)) {
+        if matches!(ctx.module.source, ModuleSource::Builtin(_)) {
             return;
         }
 
         // collect used symbols and label targets
         let (used_symbols, used_labels, label_declarations) =
-            self.collect_used_symbols_and_labels(type_tables);
+            self.collect_used_symbols_and_labels(ctx);
 
         // collect parameter bindings for local filtering
         let parameter_symbols = if check_unused_locals {
-            self.collect_parameter_binding_symbols(type_tables)
+            self.collect_parameter_binding_symbols(ctx)
         } else {
             HashSet::new()
         };
 
         // report unused parameters
         if check_unused_parameters {
-            self.report_unused_parameters(type_tables, &used_symbols);
+            self.report_unused_parameters(ctx, &used_symbols);
         }
 
         // report unused locals
         if check_unused_locals {
-            self.report_unused_locals(type_tables, &parameter_symbols, &used_symbols);
+            self.report_unused_locals(ctx, &parameter_symbols, &used_symbols);
         }
 
         // report unused labels
         if check_unused_labels {
-            self.report_unused_labels(type_tables, &label_declarations, &used_labels);
+            self.report_unused_labels(ctx, &label_declarations, &used_labels);
         }
     }
 
     /// Collect used local symbols and label references.
     fn collect_used_symbols_and_labels(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
     ) -> (
         HashSet<LocalSymbolId>,
         HashSet<LocalSymbolId>,
@@ -915,12 +904,12 @@ impl Compiler {
         let mut label_declarations = HashMap::new();
 
         // walk expressions for symbol and label usage
-        for (expression_id, expression) in type_tables.tree.iter_nodes_of_type::<Expression>() {
+        for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<Expression>() {
             match expression {
                 Expression::LocalReference { target_symbol, .. }
                 | Expression::ModuleReference { target_symbol, .. }
                 | Expression::GlobalReference { target_symbol, .. } => {
-                    if target_symbol.module_id == type_tables.module.id {
+                    if target_symbol.module_id == ctx.module.id {
                         used_symbols.insert(target_symbol.local_id);
                     }
                 }
@@ -932,7 +921,7 @@ impl Compiler {
                     target_symbol: Some(target_symbol),
                     ..
                 } => {
-                    if target_symbol.module_id == type_tables.module.id {
+                    if target_symbol.module_id == ctx.module.id {
                         used_labels.insert(target_symbol.local_id);
                     }
                 }
@@ -949,25 +938,21 @@ impl Compiler {
     /// Report unused parameter bindings.
     fn report_unused_parameters(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         used_symbols: &HashSet<LocalSymbolId>,
     ) {
         // walk parameters in the module
-        for (parameter_id, parameter) in type_tables.tree.iter_nodes_of_type::<Parameter>() {
-            if !self.is_node_active(
-                type_tables.tree,
-                type_tables.symbols,
-                parameter_id.into_any(),
-            ) {
+        for (parameter_id, parameter) in ctx.tree.iter_nodes_of_type::<Parameter>() {
+            if !self.is_node_active(ctx.tree, ctx.symbols, parameter_id.into_any()) {
                 continue;
             }
             let symbol_id = parameter.symbol();
-            if !self.symbol_is_value_binding(symbol_id, type_tables.symbols) {
+            if !self.symbol_is_value_binding(symbol_id, ctx.symbols) {
                 continue;
             }
 
             // skip parameters without bodies
-            if !self.parameter_requires_usage(type_tables.tree, parameter_id) {
+            if !self.parameter_requires_usage(ctx.tree, parameter_id) {
                 continue;
             }
 
@@ -983,13 +968,13 @@ impl Compiler {
                         continue;
                     }
 
-                    let symbol = type_tables.symbols.get_symbol(symbol_id);
+                    let symbol = ctx.symbols.get_symbol(symbol_id);
                     let Some(node_id) = symbol.primary_declaration else {
                         continue;
                     };
 
                     self.error(AnalyzeError::UnusedParameter {
-                        node: node_id.into_anchored(Some(type_tables.profile)),
+                        node: node_id.into_anchored(Some(ctx.profile)),
                         name: *name,
                     });
                 }
@@ -997,9 +982,8 @@ impl Compiler {
                     // collect pattern bindings from the parameter
                     let mut bindings = HashSet::new();
                     self.collect_pattern_value_binding_symbols(
-                        type_tables.tree,
+                        ctx.tree_symbol_view(),
                         *pattern,
-                        type_tables.symbols,
                         &mut bindings,
                     );
 
@@ -1008,7 +992,7 @@ impl Compiler {
                             continue;
                         }
 
-                        let symbol = type_tables.symbols.get_symbol(binding_symbol);
+                        let symbol = ctx.symbols.get_symbol(binding_symbol);
                         let Some(name) = symbol.name() else {
                             continue;
                         };
@@ -1017,7 +1001,7 @@ impl Compiler {
                         };
 
                         self.error(AnalyzeError::UnusedParameter {
-                            node: node_id.into_anchored(Some(type_tables.profile)),
+                            node: node_id.into_anchored(Some(ctx.profile)),
                             name,
                         });
                     }
@@ -1029,12 +1013,12 @@ impl Compiler {
     /// Report unused local bindings.
     fn report_unused_locals(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         parameter_symbols: &HashSet<LocalSymbolId>,
         used_symbols: &HashSet<LocalSymbolId>,
     ) {
         // collect local symbols excluding parameters
-        let local_symbols = self.collect_local_binding_symbols(type_tables, parameter_symbols);
+        let local_symbols = self.collect_local_binding_symbols(ctx, parameter_symbols);
 
         // emit diagnostics for unused locals
         for symbol_id in local_symbols {
@@ -1042,7 +1026,7 @@ impl Compiler {
                 continue;
             }
 
-            let symbol = type_tables.symbols.get_symbol(symbol_id);
+            let symbol = ctx.symbols.get_symbol(symbol_id);
             if symbol.binding == SymbolBinding::Ambient {
                 continue;
             }
@@ -1058,7 +1042,7 @@ impl Compiler {
             };
 
             self.error(AnalyzeError::UnusedLocal {
-                node: node_id.into_anchored(Some(type_tables.profile)),
+                node: node_id.into_anchored(Some(ctx.profile)),
                 name,
             });
         }
@@ -1067,7 +1051,7 @@ impl Compiler {
     /// Report unused labels.
     fn report_unused_labels(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         label_declarations: &HashMap<LocalSymbolId, (LocalNodeId<Expression>, StringId)>,
         used_labels: &HashSet<LocalSymbolId>,
     ) {
@@ -1079,32 +1063,25 @@ impl Compiler {
 
             self.error(AnalyzeError::UnusedLabel {
                 node: expression_id
-                    .into_global_any(type_tables.module.id)
-                    .into_anchored(Some(type_tables.profile)),
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile)),
                 name: *label,
             });
         }
     }
 
     /// Collect parameter binding symbols.
-    fn collect_parameter_binding_symbols(
-        &self,
-        type_tables: &TypeTablesContext<'_>,
-    ) -> HashSet<LocalSymbolId> {
+    fn collect_parameter_binding_symbols(&self, ctx: &TypeContext<'_>) -> HashSet<LocalSymbolId> {
         // collect value-space bindings from parameters
         let mut bindings = HashSet::new();
 
         // collect value-space parameter symbols
-        for (parameter_id, parameter) in type_tables.tree.iter_nodes_of_type::<Parameter>() {
-            if !self.is_node_active(
-                type_tables.tree,
-                type_tables.symbols,
-                parameter_id.into_any(),
-            ) {
+        for (parameter_id, parameter) in ctx.tree.iter_nodes_of_type::<Parameter>() {
+            if !self.is_node_active(ctx.tree, ctx.symbols, parameter_id.into_any()) {
                 continue;
             }
             let symbol_id = parameter.symbol();
-            if !self.symbol_is_value_binding(symbol_id, type_tables.symbols) {
+            if !self.symbol_is_value_binding(symbol_id, ctx.symbols) {
                 continue;
             }
 
@@ -1114,9 +1091,8 @@ impl Compiler {
                 }
                 Parameter::Pattern { pattern, .. } | Parameter::VariadicPattern { pattern, .. } => {
                     self.collect_pattern_value_binding_symbols(
-                        type_tables.tree,
+                        ctx.tree_symbol_view(),
                         *pattern,
-                        type_tables.symbols,
                         &mut bindings,
                     );
                 }
@@ -1129,38 +1105,38 @@ impl Compiler {
     /// Collect local binding symbols (excluding parameters).
     fn collect_local_binding_symbols(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         parameter_symbols: &HashSet<LocalSymbolId>,
     ) -> HashSet<LocalSymbolId> {
         // collect value-space bindings from patterns and imports
         let mut bindings = HashSet::new();
 
         // collect bindings from patterns
-        for (_, pattern) in type_tables.tree.iter_nodes_of_type::<Pattern>() {
+        for (_, pattern) in ctx.tree.iter_nodes_of_type::<Pattern>() {
             let Some(symbol_id) = pattern.symbol() else {
                 continue;
             };
-            if self.symbol_is_value_binding(symbol_id, type_tables.symbols) {
+            if self.symbol_is_value_binding(symbol_id, ctx.symbols) {
                 bindings.insert(symbol_id);
             }
         }
 
         // collect bindings from pattern fields
-        for (_, field) in type_tables.tree.iter_nodes_of_type::<PatternField>() {
+        for (_, field) in ctx.tree.iter_nodes_of_type::<PatternField>() {
             let Some(symbol_id) = field.symbol() else {
                 continue;
             };
-            if self.symbol_is_value_binding(symbol_id, type_tables.symbols) {
+            if self.symbol_is_value_binding(symbol_id, ctx.symbols) {
                 bindings.insert(symbol_id);
             }
         }
 
         // collect bindings from import items
-        for (_, item) in type_tables.tree.iter_nodes_of_type::<DependencyItem>() {
+        for (_, item) in ctx.tree.iter_nodes_of_type::<DependencyItem>() {
             let Some(symbol_id) = item.symbol() else {
                 continue;
             };
-            if self.symbol_is_value_binding(symbol_id, type_tables.symbols) {
+            if self.symbol_is_value_binding(symbol_id, ctx.symbols) {
                 bindings.insert(symbol_id);
             }
         }
@@ -1176,16 +1152,15 @@ impl Compiler {
     /// Collect value binding symbols for a pattern subtree.
     fn collect_pattern_value_binding_symbols(
         &self,
-        tree: &NodeTree,
+        ctx: TreeSymbolView<'_>,
         pattern_id: LocalNodeId<Pattern>,
-        symbols: &SymbolTable,
         bindings: &mut HashSet<LocalSymbolId>,
     ) {
-        let pattern = tree.get(pattern_id);
+        let pattern = ctx.tree.get(pattern_id);
 
         // record a binding for the current pattern
         if let Some(symbol_id) = pattern.symbol()
-            && self.symbol_is_value_binding(symbol_id, symbols)
+            && self.symbol_is_value_binding(symbol_id, ctx.symbols)
         {
             bindings.insert(symbol_id);
         }
@@ -1196,7 +1171,7 @@ impl Compiler {
             Pattern::Must(inner)
             | Pattern::ReferenceOf { right: inner, .. }
             | Pattern::ValueOf { right: inner, .. } => {
-                self.collect_pattern_value_binding_symbols(tree, *inner, symbols, bindings);
+                self.collect_pattern_value_binding_symbols(ctx, *inner, bindings);
             }
             Pattern::Tuple { fields }
             | Pattern::TaggedTuple { fields, .. }
@@ -1204,22 +1179,17 @@ impl Compiler {
             | Pattern::Object { fields }
             | Pattern::TaggedObject { fields, .. } => {
                 for field in fields {
-                    self.collect_value_binding_symbols_for_field(tree, *field, symbols, bindings);
+                    self.collect_value_binding_symbols_for_field(ctx, *field, bindings);
                 }
             }
             Pattern::Union { patterns } => {
                 for pattern_id in patterns {
-                    self.collect_pattern_value_binding_symbols(
-                        tree,
-                        *pattern_id,
-                        symbols,
-                        bindings,
-                    );
+                    self.collect_pattern_value_binding_symbols(ctx, *pattern_id, bindings);
                 }
             }
             Pattern::Binding { pattern, .. } => {
                 if let Some(pattern) = pattern {
-                    self.collect_pattern_value_binding_symbols(tree, *pattern, symbols, bindings);
+                    self.collect_pattern_value_binding_symbols(ctx, *pattern, bindings);
                 }
             }
         }
@@ -1228,16 +1198,15 @@ impl Compiler {
     /// Collect value binding symbols for a pattern field.
     fn collect_value_binding_symbols_for_field(
         &self,
-        tree: &NodeTree,
+        ctx: TreeSymbolView<'_>,
         field_id: LocalNodeId<PatternField>,
-        symbols: &SymbolTable,
         bindings: &mut HashSet<LocalSymbolId>,
     ) {
-        let field = tree.get(field_id);
+        let field = ctx.tree.get(field_id);
 
         // record a binding for the field itself
         if let Some(symbol_id) = field.symbol()
-            && self.symbol_is_value_binding(symbol_id, symbols)
+            && self.symbol_is_value_binding(symbol_id, ctx.symbols)
         {
             bindings.insert(symbol_id);
         }
@@ -1253,7 +1222,7 @@ impl Compiler {
                 ..
             }
             | PatternField::Positional { pattern, .. } => {
-                self.collect_pattern_value_binding_symbols(tree, *pattern, symbols, bindings);
+                self.collect_pattern_value_binding_symbols(ctx, *pattern, bindings);
             }
             _ => {}
         }
@@ -1304,14 +1273,14 @@ impl Compiler {
     }
 
     /// Validate switch fallthrough when configured.
-    fn validate_switch_fallthrough(&self, type_tables: &TypeTablesContext<'_>) {
+    fn validate_switch_fallthrough(&self, ctx: &TypeContext<'_>) {
         // skip builtin modules
-        if matches!(type_tables.module.source, ModuleSource::Builtin(_)) {
+        if matches!(ctx.module.source, ModuleSource::Builtin(_)) {
             return;
         }
 
         // walk switch expressions for fallthrough
-        for (_, expression) in type_tables.tree.iter_nodes_of_type::<Expression>() {
+        for (_, expression) in ctx.tree.iter_nodes_of_type::<Expression>() {
             let Expression::Match { kind, cases, .. } = expression else {
                 continue;
             };
@@ -1325,29 +1294,29 @@ impl Compiler {
                     continue;
                 }
 
-                let terminates = match type_tables.tree.get(*case_id) {
+                let terminates = match ctx.tree.get(*case_id) {
                     MatchCase::Expression { body, .. } => {
-                        self.is_terminating_statement(type_tables.tree, *body)
+                        self.is_terminating_statement(ctx.tree, *body)
                     }
                     MatchCase::Block { body, .. } => {
-                        let block = type_tables.tree.get(*body);
+                        let block = ctx.tree.get(*body);
                         let Some(last_expression_id) = block.expressions.last() else {
                             self.error(AnalyzeError::SwitchFallthrough {
                                 node: (*case_id)
-                                    .into_global_any(type_tables.module.id)
-                                    .into_anchored(Some(type_tables.profile)),
+                                    .into_global_any(ctx.module.id)
+                                    .into_anchored(Some(ctx.profile)),
                             });
                             continue;
                         };
-                        self.ends_with_terminating_statement(type_tables.tree, *last_expression_id)
+                        self.ends_with_terminating_statement(ctx.tree, *last_expression_id)
                     }
                 };
 
                 if !terminates {
                     self.error(AnalyzeError::SwitchFallthrough {
                         node: (*case_id)
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile)),
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile)),
                     });
                 }
             }
@@ -1406,28 +1375,24 @@ impl Compiler {
     }
 
     /// Validate implicit any usage in declaration modules.
-    fn validate_declaration_implicit_any(
-        &self,
-        type_tables: &TypeTablesContext<'_>,
-        no_implicit_any: bool,
-    ) {
+    fn validate_declaration_implicit_any(&self, ctx: &TypeContext<'_>, no_implicit_any: bool) {
         if !no_implicit_any {
             return;
         }
-        if !type_tables.module.language_type.is_declaration() {
+        if !ctx.module.language_type.is_declaration() {
             return;
         }
 
         // check untyped declarators without initializers
-        for (id, declarator) in type_tables.tree.iter_nodes_of_type::<Declarator>() {
-            if !self.is_node_active(type_tables.tree, type_tables.symbols, id.into_any()) {
+        for (id, declarator) in ctx.tree.iter_nodes_of_type::<Declarator>() {
+            if !self.is_node_active(ctx.tree, ctx.symbols, id.into_any()) {
                 continue;
             }
-            let declared_ty_id = type_tables
+            let declared_ty_id = ctx
                 .types
-                .get_declared_type_id(id.into_global(type_tables.module.id).into());
+                .get_declared_type_id(id.into_global(ctx.module.id).into());
             self.report_unchecked_implicit_any_declarator(
-                type_tables,
+                ctx,
                 id,
                 declared_ty_id,
                 declarator.value.is_some(),
@@ -1435,22 +1400,22 @@ impl Compiler {
         }
 
         // check untyped parameters without defaults
-        for (id, parameter) in type_tables.tree.iter_nodes_of_type::<Parameter>() {
-            if !self.is_node_active(type_tables.tree, type_tables.symbols, id.into_any()) {
+        for (id, parameter) in ctx.tree.iter_nodes_of_type::<Parameter>() {
+            if !self.is_node_active(ctx.tree, ctx.symbols, id.into_any()) {
                 continue;
             }
 
-            let declared_ty_id = type_tables
+            let declared_ty_id = ctx
                 .types
-                .get_declared_type_id(id.into_global_any(type_tables.module.id));
+                .get_declared_type_id(id.into_global_any(ctx.module.id));
             let has_default = match parameter {
                 Parameter::Named { default, .. } => default.is_some(),
                 Parameter::Pattern { default, .. } => default.is_some(),
                 Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. } => false,
             };
-            let symbol = parameter.symbol().into_global(type_tables.module.id);
+            let symbol = parameter.symbol().into_global(ctx.module.id);
             self.report_unchecked_implicit_any_parameter(
-                type_tables,
+                ctx,
                 id,
                 symbol,
                 declared_ty_id,
@@ -1463,7 +1428,7 @@ impl Compiler {
     /// Report an implicit any diagnostic for a parameter after option checks.
     fn report_unchecked_implicit_any_parameter(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         parameter_id: LocalNodeId<Parameter>,
         symbol: GlobalSymbolId,
         declared_type: Option<LocalTypeId>,
@@ -1473,35 +1438,29 @@ impl Compiler {
         if declared_type.is_some() || expected_type.is_some() || has_default {
             return;
         }
-        if symbol.module_id == type_tables.module.id {
-            let symbol = type_tables.symbols.get_symbol(symbol.local_id);
+        if symbol.module_id == ctx.module.id {
+            let symbol = ctx.symbols.get_symbol(symbol.local_id);
             if symbol.is_static_parameter() {
                 return;
             }
-        } else if self.symbol_is_static_parameter(
-            type_tables.module,
-            type_tables.profile,
-            symbol,
-            type_tables.symbols,
-            type_tables.types,
-        ) {
+        } else if self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol) {
             return;
         }
-        if matches!(type_tables.module.source, ModuleSource::Builtin(_)) {
+        if matches!(ctx.module.source, ModuleSource::Builtin(_)) {
             return;
         }
 
         self.error(AnalyzeError::ImplicitAny {
             node: parameter_id
-                .into_global_any(type_tables.module.id)
-                .into_anchored(Some(type_tables.profile)),
+                .into_global_any(ctx.module.id)
+                .into_anchored(Some(ctx.profile)),
         });
     }
 
     /// Report an implicit any diagnostic for a declarator after option checks.
     fn report_unchecked_implicit_any_declarator(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         declarator_id: LocalNodeId<Declarator>,
         declared_type: Option<LocalTypeId>,
         has_initializer: bool,
@@ -1509,34 +1468,34 @@ impl Compiler {
         if declared_type.is_some() || has_initializer {
             return;
         }
-        if matches!(type_tables.module.source, ModuleSource::Builtin(_)) {
+        if matches!(ctx.module.source, ModuleSource::Builtin(_)) {
             return;
         }
 
         self.error(AnalyzeError::ImplicitAny {
             node: declarator_id
-                .into_global_any(type_tables.module.id)
-                .into_anchored(Some(type_tables.profile)),
+                .into_global_any(ctx.module.id)
+                .into_anchored(Some(ctx.profile)),
         });
     }
 
     /// Report an implicit any diagnostic for a parameter when required.
     pub(crate) fn report_implicit_any_for_parameter(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         parameter_id: LocalNodeId<Parameter>,
         symbol: GlobalSymbolId,
         declared_type: Option<LocalTypeId>,
         expected_type: Option<LocalTypeId>,
         has_default: bool,
     ) {
-        let options = self.analyze_context_options_for_module(type_tables.module.id);
+        let options = self.analyze_context_options_for_module(ctx.module.id);
         if !options.no_implicit_any {
             return;
         }
 
         self.report_unchecked_implicit_any_parameter(
-            type_tables,
+            ctx,
             parameter_id,
             symbol,
             declared_type,
@@ -1548,18 +1507,18 @@ impl Compiler {
     /// Report an implicit any diagnostic for a declarator when required.
     pub(crate) fn report_implicit_any_for_declarator(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         declarator_id: LocalNodeId<Declarator>,
         declared_type: Option<LocalTypeId>,
         has_initializer: bool,
     ) {
-        let options = self.analyze_context_options_for_module(type_tables.module.id);
+        let options = self.analyze_context_options_for_module(ctx.module.id);
         if !options.no_implicit_any {
             return;
         }
 
         self.report_unchecked_implicit_any_declarator(
-            type_tables,
+            ctx,
             declarator_id,
             declared_type,
             has_initializer,

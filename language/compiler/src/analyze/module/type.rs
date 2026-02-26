@@ -32,7 +32,7 @@ impl Compiler {
         handle(&remote_module, &types)
     }
 
-    /// Provide type tables for a module with stage-gated cross-module reads.
+    /// Provide type ctx for a module with stage-gated cross-module reads.
     pub(crate) fn with_module_types_at_stage<R>(
         &self,
         module: &Module,
@@ -46,7 +46,7 @@ impl Compiler {
         Ok(self.with_module_types_read(module, profile, module_id, None, handle))
     }
 
-    /// Provide type tables with stage-gated cross-module reads and local reuse.
+    /// Provide type ctx with stage-gated cross-module reads and local reuse.
     pub(crate) fn with_module_types_or_local_at_stage<R>(
         &self,
         module: &Module,

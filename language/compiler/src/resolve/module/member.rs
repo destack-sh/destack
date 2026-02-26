@@ -10,8 +10,8 @@ use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Resolve a static member symbol for a target symbol using module tables.
-    pub fn resolve_static_member_symbol_in_tables(
+    /// Resolve a static member symbol for a target symbol using module context fields.
+    pub fn query_static_member_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -21,7 +21,7 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
         let mut visited_targets = HashSet::new();
-        self.resolve_static_member_symbol_in_tables_inner(
+        self.query_static_member_symbol_inner(
             module,
             profile,
             target_symbol,
@@ -32,8 +32,8 @@ impl Compiler {
         )
     }
 
-    /// Resolve a static member symbol for a target symbol using module tables.
-    fn resolve_static_member_symbol_in_tables_inner(
+    /// Resolve a static member symbol for a target symbol using module context fields.
+    fn query_static_member_symbol_inner(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -110,7 +110,7 @@ impl Compiler {
             }
 
             if let Some(heritage) = heritage
-                && let Some(symbol) = self.resolve_static_member_symbol_in_heritage(
+                && let Some(symbol) = self.query_static_member_symbol_in_heritage(
                     module,
                     profile,
                     heritage,
@@ -152,7 +152,7 @@ impl Compiler {
             }
 
             // fall back to implemented interfaces when no extension member matches
-            if let Some(symbol) = self.resolve_static_member_symbol_in_heritage(
+            if let Some(symbol) = self.query_static_member_symbol_in_heritage(
                 module,
                 profile,
                 heritage,
@@ -262,7 +262,7 @@ impl Compiler {
     }
 
     /// Resolve inherited static members from heritage expressions.
-    fn resolve_static_member_symbol_in_heritage(
+    fn query_static_member_symbol_in_heritage(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -284,7 +284,7 @@ impl Compiler {
                 self.canonical_symbol_in_tables(module, profile, heritage_symbol, symbols);
 
             if canonical_symbol.module_id == module.id {
-                if let Some(symbol) = self.resolve_static_member_symbol_in_tables_inner(
+                if let Some(symbol) = self.query_static_member_symbol_inner(
                     module,
                     profile,
                     canonical_symbol,
@@ -301,7 +301,7 @@ impl Compiler {
                 let remote_dir = remote_module.dir(profile);
                 let remote_tree = remote_dir.tree.read();
                 let remote_symbols = remote_dir.symbols.read();
-                if let Some(symbol) = self.resolve_static_member_symbol_in_tables_inner(
+                if let Some(symbol) = self.query_static_member_symbol_inner(
                     &remote_module,
                     profile,
                     canonical_symbol,
@@ -367,7 +367,7 @@ impl Compiler {
 
         // resolve the member when the target is in the current module
         if target_symbol.module_id == module.id {
-            let Some(symbol) = self.resolve_static_member_symbol_in_tables(
+            let Some(symbol) = self.query_static_member_symbol(
                 module,
                 profile,
                 target_symbol,
@@ -391,7 +391,7 @@ impl Compiler {
         let target_tree = target_dir.tree.read();
         let target_symbols = target_dir.symbols.read();
 
-        let Some(symbol) = self.resolve_static_member_symbol_in_tables(
+        let Some(symbol) = self.query_static_member_symbol(
             &target_module,
             profile,
             target_symbol,

@@ -1,4 +1,4 @@
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::TypeContext;
 use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, Task, TaskDependencyError,
@@ -32,10 +32,9 @@ impl Compiler {
             ..
         })) = self.current_task()
             && component_profile.id == profile
+            && self.interface_modules_share_component(profile, component_anchor.id, module)
         {
-            if self.interface_modules_share_component(profile, component_anchor.id, module) {
-                return Ok(());
-            }
+            return Ok(());
         }
 
         let module = self.module_stamp(module);
@@ -63,7 +62,7 @@ impl Compiler {
         // ensure local declarations are ready
         self.require_analyze_module_declare(module_id, profile)?;
 
-        // load module state and dir tables
+        // load module state and dir ctx
         let module = self.program.modules.get(module_id);
         let module = module.read();
 
@@ -72,7 +71,7 @@ impl Compiler {
             return Ok(());
         }
 
-        // read the module dir tables for analysis
+        // read the module dir ctx for analysis
         let dir = module.dir(profile);
         let tree = dir.tree.read();
         let mut types = dir.types.write();
@@ -86,8 +85,7 @@ impl Compiler {
         let exported_symbols = dir.exported_symbols.read();
         let binding_exports = dir.module_binding_exports.read();
         let options = self.analyze_context_options_for_module(module_id);
-        let mut type_tables =
-            TypeTablesContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+        let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
 
         {
             let _timing = self.timing_scope(tags::ANALYZE_INTERFACE_VALUES);
@@ -95,22 +93,14 @@ impl Compiler {
             // declare exported value types with local-only inference
             self.collect(
                 &mut collector,
-                self.infer_interface_value_types(
-                    &mut type_tables.reborrow(),
-                    &exported_symbols,
-                    false,
-                ),
+                self.infer_interface_value_types(&mut ctx.reborrow(), &exported_symbols, false),
             );
 
             // declare exported value types for module bindings
             for binding in binding_exports.values() {
                 self.collect(
                     &mut collector,
-                    self.infer_interface_value_types(
-                        &mut type_tables.reborrow(),
-                        &binding.exports,
-                        false,
-                    ),
+                    self.infer_interface_value_types(&mut ctx.reborrow(), &binding.exports, false),
                 );
             }
         }
@@ -121,13 +111,7 @@ impl Compiler {
             // declare the module namespace value type from exports
             self.collect(
                 &mut collector,
-                self.collect_module_namespace_value_type(
-                    type_tables.module,
-                    type_tables.profile,
-                    &exported_symbols,
-                    type_tables.tree,
-                    type_tables.types,
-                ),
+                self.collect_module_namespace_value_type(&mut ctx.reborrow(), &exported_symbols),
             );
         }
 

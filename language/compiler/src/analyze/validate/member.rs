@@ -1,4 +1,4 @@
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::TypeContext;
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 use destack_dir::{
     AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, BindingModifier, Declaration,
@@ -10,17 +10,17 @@ impl Compiler {
     /// Validate a member.
     pub(super) fn validate_member(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         options: AnalyzeOptions,
         id: LocalNodeId<Member>,
         member: &Member,
     ) {
         // resolve the parent declaration descriptor
-        let parent_declaration_id = self.member_parent_declaration(type_tables.tree, id);
+        let parent_declaration_id = self.member_parent_declaration(ctx.tree, id);
         let mut class_descriptor = None;
         let mut interface_descriptor = None;
         if let Some(parent_declaration_id) = parent_declaration_id {
-            let declaration = type_tables.tree.get(parent_declaration_id);
+            let declaration = ctx.tree.get(parent_declaration_id);
             match declaration {
                 Declaration::Class { descriptor, .. } => {
                     class_descriptor = Some(descriptor);
@@ -35,8 +35,8 @@ impl Compiler {
         // detect the enclosing declaration kind
         let is_class = class_descriptor.is_some();
         let is_interface = interface_descriptor.is_some();
-        let is_declare_namespace = self.is_in_declare_namespace(type_tables.tree, id.into_any());
-        let is_javascript = type_tables.module.language_type.is_javascript();
+        let is_declare_namespace = self.is_in_declare_namespace(ctx.tree, id.into_any());
+        let is_javascript = ctx.module.language_type.is_javascript();
 
         // validate by member kind
         match member {
@@ -54,8 +54,8 @@ impl Compiler {
                 // associated comptime constants are owner scoped already: reject redundant static
                 if has_static_anchor {
                     let node = id
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile));
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
                     self.error(AnalyzeError::InvalidMemberModifier { node });
                 }
             }
@@ -109,8 +109,8 @@ impl Compiler {
                         || signature.this_parameter.is_some();
                     if has_typescript_modifiers || has_typescript_signature {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
                     }
                 }
@@ -118,48 +118,48 @@ impl Compiler {
                 // variance modifiers are not valid on members
                 if modifiers.is_some_and(|modifiers| modifiers.variance.is_some()) {
                     let node = id
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile));
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
                     self.error(AnalyzeError::InvalidMemberModifier { node });
                 }
 
                 // abstract constructors are invalid
                 if is_constructor && is_abstract {
                     let node = id
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile));
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
                     self.error(AnalyzeError::InvalidConstructor { node });
                 }
 
                 // constructor cannot have static parameters
                 if is_constructor && has_static_parameters {
                     let node = id
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile));
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
                     self.error(AnalyzeError::InvalidConstructor { node });
                 }
 
                 // constructor cannot declare a this parameter
                 if is_constructor && signature.this_parameter.is_some() {
                     let node = id
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile));
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
                     self.error(AnalyzeError::InvalidConstructor { node });
                 }
 
                 // abstract methods cannot have bodies
                 if is_abstract && body.is_some() {
                     let node = id
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile));
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
                     self.error(AnalyzeError::InvalidMethod { node, abstraction });
                 }
 
                 // abstract methods require abstract classes
-                if is_abstract && !self.is_in_abstract_class(type_tables.tree, id) {
+                if is_abstract && !self.is_in_abstract_class(ctx.tree, id) {
                     let node = id
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile));
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
                     self.error(AnalyzeError::InvalidMethod { node, abstraction });
                 }
 
@@ -168,36 +168,34 @@ impl Compiler {
                     .is_some_and(|modifiers| modifiers.mutability == Some(Mutability::Immutable))
                 {
                     let node = id
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile));
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
                     self.error(AnalyzeError::InvalidMemberModifier { node });
                 }
 
                 // override is invalid on constructors
                 if is_constructor && is_override {
                     let node = id
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile));
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
                     self.error(AnalyzeError::InvalidConstructor { node });
                 }
 
                 // validate accessor signature rules
                 if is_accessor {
-                    self.validate_accessor_signature(type_tables, id.into_any(), signature);
+                    self.validate_accessor_signature(ctx, id.into_any(), signature);
                 }
 
                 // strict directive prologues require simple parameter lists in JS/TS modes
-                if !type_tables.module.language_type.is_destack()
+                if !ctx.module.language_type.is_destack()
                     && let Some(body) = body
-                    && self.has_non_simple_dynamic_parameters(
-                        type_tables.tree,
-                        &signature.dynamic_parameters,
-                    )
-                    && self.body_declares_use_strict_directive(type_tables.tree, *body)
+                    && self
+                        .has_non_simple_dynamic_parameters(ctx.tree, &signature.dynamic_parameters)
+                    && self.body_declares_use_strict_directive(ctx.tree, *body)
                 {
                     let node = id
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile));
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
                     self.error(AnalyzeError::InvalidFunction { node });
                 }
 
@@ -220,40 +218,40 @@ impl Compiler {
                     // reject invalid constructor named instance members
                     if !is_static && is_constructor_name && !is_constructor {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidConstructor { node });
                     }
 
                     // reject static members named prototype
                     if is_static && is_prototype_name {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidConstructor { node });
                     }
 
                     // static abstract methods are invalid
                     if is_static && is_abstract {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // abstract async methods are invalid
                     if is_abstract && signature.asynchrony == Asynchrony::Async {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // abstract private methods are invalid
                     if is_abstract && is_private_key {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
@@ -262,32 +260,32 @@ impl Compiler {
                         && signature.asynchrony == Asynchrony::Async
                     {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // declare members cannot use private keys
                     if is_declare_member && is_private_key {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // declare members cannot have bodies
                     if (is_declare_class || is_declare_member) && body.is_some() {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // method signatures cannot be generators
                     if is_generator_signature_without_body {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
@@ -299,32 +297,32 @@ impl Compiler {
                         && !is_declare_member
                     {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // declare accessors are invalid
                     if is_declare_member && is_accessor {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // declare cannot combine with override
                     if is_declare_member && is_override {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // js class methods must provide bodies
                     if is_javascript && body.is_none() && !is_declare_class && !is_declare_member {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidFunction { node });
                     }
                 }
@@ -334,21 +332,21 @@ impl Compiler {
                     // interface methods cannot have bodies
                     if body.is_some() {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // interface method signatures cannot be generators
                     if is_generator_signature_without_body {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // validate interface specific rules
-                    self.validate_interface_method(type_tables, id, modifiers, signature);
+                    self.validate_interface_method(ctx, id, modifiers, signature);
                 }
             }
 
@@ -392,8 +390,8 @@ impl Compiler {
                         has_typescript_modifiers || value.is_some() || is_index_signature;
                     if has_typescript_field_constructs {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
                     }
                 }
@@ -401,16 +399,16 @@ impl Compiler {
                 // variance modifiers are not valid on members
                 if modifiers.is_some_and(|modifiers| modifiers.variance.is_some()) {
                     let node = id
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile));
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
                     self.error(AnalyzeError::InvalidMemberModifier { node });
                 }
 
                 // enforce definite assignment assertion policy
                 if has_definite_assignment && options.no_definite_assignment_assertions {
                     let node = id
-                        .into_global_any(type_tables.module.id)
-                        .into_anchored(Some(type_tables.profile));
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile));
                     self.error(AnalyzeError::DefiniteAssignmentAssertionDisabled { node });
                 }
 
@@ -435,72 +433,72 @@ impl Compiler {
                     // abstract fields cannot use definite assignment assertions
                     if is_abstract_field && has_definite_assignment {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // abstract fields require abstract classes
                     if is_abstract_field && !is_abstract_class {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // abstract fields cannot have initializers
                     if is_abstract_field && has_default {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // private fields cannot be abstract
                     if is_private_key && has_abstraction {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // auto accessor constraints
                     if has_accessor && (has_kind || is_readonly || has_abstraction) {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // declare members cannot use private keys
                     if is_declare_member && is_private_key {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // declare fields cannot have initializers
                     if (is_declare_class || is_declare_member) && has_default {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // declare fields cannot use definite assignment assertions
                     if (is_declare_class || is_declare_member) && has_definite_assignment {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // declare fields cannot be abstract
                     if is_declare_member && has_abstraction {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
@@ -515,8 +513,8 @@ impl Compiler {
                         })
                     {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
                 }
@@ -537,16 +535,16 @@ impl Compiler {
                     // interface fields cannot use modifiers
                     if invalid_modifiers {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // interface fields cannot have initializers
                     if has_default {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
                 }
@@ -568,8 +566,8 @@ impl Compiler {
                     // report invalid modifiers on static blocks
                     if has_invalid_modifier {
                         let node = id
-                            .into_global_any(type_tables.module.id)
-                            .into_anchored(Some(type_tables.profile));
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile));
                         self.error(AnalyzeError::InvalidStaticBlockModifier { node });
                     }
                 }
@@ -658,7 +656,7 @@ impl Compiler {
     /// Validate interface specific method rules.
     fn validate_interface_method(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         id: LocalNodeId<Member>,
         modifiers: Option<&BindingModifier>,
         signature: &FunctionSignature,
@@ -676,19 +674,19 @@ impl Compiler {
         });
         if invalid_modifiers {
             let node = id
-                .into_global_any(type_tables.module.id)
-                .into_anchored(Some(type_tables.profile));
+                .into_global_any(ctx.module.id)
+                .into_anchored(Some(ctx.profile));
             self.error(AnalyzeError::InvalidMemberModifier { node });
         }
 
         // validate accessor constraints
-        self.validate_accessor_signature(type_tables, id.into_any(), signature);
+        self.validate_accessor_signature(ctx, id.into_any(), signature);
 
         // reject async signatures in interfaces
         if signature.asynchrony == Asynchrony::Async {
             let node = id
-                .into_global_any(type_tables.module.id)
-                .into_anchored(Some(type_tables.profile));
+                .into_global_any(ctx.module.id)
+                .into_anchored(Some(ctx.profile));
             self.error(AnalyzeError::InvalidMemberModifier { node });
         }
     }
@@ -696,7 +694,7 @@ impl Compiler {
     /// Validate getter and setter signatures.
     pub(super) fn validate_accessor_signature(
         &self,
-        type_tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         node_id: LocalNodeIdAny,
         signature: &FunctionSignature,
     ) {
@@ -709,13 +707,13 @@ impl Compiler {
 
         // accessors cannot be generic or declare a this parameter
         if signature.generics.is_some() || signature.this_parameter.is_some() {
-            let node = node_id.into_anchored(type_tables.module.id, Some(type_tables.profile));
+            let node = node_id.into_anchored(ctx.module.id, Some(ctx.profile));
             self.error(AnalyzeError::InvalidMemberModifier { node });
         }
 
         // getters cannot take parameters
         if is_getter && !signature.dynamic_parameters.is_empty() {
-            let node = node_id.into_anchored(type_tables.module.id, Some(type_tables.profile));
+            let node = node_id.into_anchored(ctx.module.id, Some(ctx.profile));
             self.error(AnalyzeError::InvalidMemberModifier { node });
         }
 
@@ -723,7 +721,7 @@ impl Compiler {
         if is_setter {
             let mut invalid_setter = signature.dynamic_parameters.len() != 1;
             if let Some(param_id) = signature.dynamic_parameters.first() {
-                let param = type_tables.tree.get(*param_id);
+                let param = ctx.tree.get(*param_id);
                 invalid_setter = invalid_setter
                     || matches!(
                         param,
@@ -737,13 +735,13 @@ impl Compiler {
                         .is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe));
             }
             if invalid_setter {
-                let node = node_id.into_anchored(type_tables.module.id, Some(type_tables.profile));
+                let node = node_id.into_anchored(ctx.module.id, Some(ctx.profile));
                 self.error(AnalyzeError::InvalidMemberModifier { node });
             }
 
             // setters cannot declare return types
             if signature.return_type.is_some() {
-                let node = node_id.into_anchored(type_tables.module.id, Some(type_tables.profile));
+                let node = node_id.into_anchored(ctx.module.id, Some(ctx.profile));
                 self.error(AnalyzeError::InvalidMemberModifier { node });
             }
         }

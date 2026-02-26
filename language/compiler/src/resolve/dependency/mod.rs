@@ -1,3 +1,5 @@
+#![allow(clippy::module_inception)]
+
 pub(crate) mod cache;
 pub(crate) mod dependency;
 mod discover;

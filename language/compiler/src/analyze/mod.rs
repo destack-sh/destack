@@ -2,7 +2,7 @@ mod assign;
 mod associated;
 mod capture;
 mod commit;
-mod common;
+pub(crate) mod common;
 mod declare;
 mod error;
 mod infer;
@@ -22,7 +22,8 @@ pub(crate) use associated::{
     StaticMemberSymbolKind,
 };
 pub(crate) use common::{
-    TypeTablesContext, evaluate_binary_scalar, evaluate_numeric_literal, evaluate_unary_scalar,
+    TreeSymbolTypeView, TreeSymbolView, TypeView, evaluate_binary_scalar, evaluate_numeric_literal,
+    evaluate_unary_scalar,
 };
 pub use error::*;
 pub use infer::*;

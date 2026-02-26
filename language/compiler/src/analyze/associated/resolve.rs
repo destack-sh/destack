@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, REWRITER_TAG_ASSOCIATED_ALIAS, TypeRewriteCache,
-    TypeTablesContext, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
+    AnalyzeDependencyStage, CanonicalSymbolMode, ModuleSymbolView, REWRITER_TAG_ASSOCIATED_ALIAS,
+    TreeSymbolView, TypeContext, TypeRewriteCache, TypeView, TypeWalkContext, TypeWalkKey,
+    rewrite_type_with_cache,
 };
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_base::StringId;
@@ -77,6 +78,11 @@ impl<'a> AssociatedAliasProjectionRewriter<'a> {
             cache: TypeRewriteCache::new(),
         }
     }
+
+    /// Borrow the rewriter module and symbols as an immutable symbol view.
+    fn module_symbol_view(&self) -> ModuleSymbolView<'_> {
+        ModuleSymbolView::new(self.module, self.profile, self.symbols)
+    }
 }
 
 impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
@@ -101,24 +107,21 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
 
         // normalize the reference symbol before member-kind checks
         let mut symbol = self.compiler.canonical_symbol_id(
-            self.module,
-            self.symbols,
-            self.profile,
+            self.module_symbol_view(),
             *symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         symbol = self
             .compiler
-            .declaration_symbol_id(self.module, self.symbols, self.profile, symbol)
+            .declaration_symbol_id(self.module_symbol_view(), symbol)
             .unwrap_or(symbol);
 
         // keep references outside the owner declaration unchanged
-        let owner_symbol = self.compiler.owner_symbol_for_member_symbol(
-            self.module,
-            self.profile,
-            symbol,
-            self.symbols,
-        )?;
+        let owner_symbol = self
+            .compiler
+            .query_owner_symbol_for_member_symbol(self.module_symbol_view(), symbol)
+            .ok()
+            .flatten()?;
         if owner_symbol != self.owner_symbol {
             return None;
         }
@@ -133,7 +136,7 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
         let options = self
             .compiler
             .analyze_context_options_for_module(self.module.id);
-        let mut type_tables = TypeTablesContext::new(
+        let mut ctx = TypeContext::new(
             self.module,
             self.profile,
             &options,
@@ -144,7 +147,7 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
 
         // resolve the alias target for this member alias
         let alias_target_id = self.compiler.alias_target_type_id_for_symbol(
-            &mut type_tables.reborrow(),
+            &mut ctx.reborrow(),
             symbol,
             self.source_id,
         )?;
@@ -152,7 +155,7 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
         // map explicit member arguments onto alias static parameters
         if let Some(member_arguments) = static_arguments.as_deref() {
             let member_substitutions = self.compiler.build_type_parameter_substitutions_for_symbol(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 symbol,
                 self.source_id,
                 member_arguments,
@@ -168,7 +171,7 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
             self.compiler.substitute_static_parameters(
                 alias_target_id,
                 &substitutions,
-                type_tables.types,
+                ctx.types,
                 &mut substitution_cache,
             )
         };
@@ -176,7 +179,7 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
         // materialize static arguments after substitution
         let mut materialize_cache = TypeRewriteCache::new();
         Some(self.compiler.materialize_static_arguments_in_type(
-            &mut type_tables.reborrow(),
+            &mut ctx.reborrow(),
             mapped_alias_id,
             &mut materialize_cache,
         ))
@@ -267,17 +270,12 @@ impl Compiler {
     /// Return true when one declaration symbol has unimplemented associated requirements.
     pub(crate) fn symbol_has_missing_associated_requirements(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> AnalyzeResult<bool> {
         let Some(symbol) = self
             .declaration_symbol_id_at_stage(
-                module,
-                symbols,
-                profile,
+                ctx.module_symbol_view(),
                 symbol,
                 AnalyzeDependencyStage::Declare,
             )
@@ -294,10 +292,10 @@ impl Compiler {
 
         let has_missing_requirements = self
             .with_module_types_or_local_at_stage(
-                module,
-                profile,
+                ctx.module,
+                ctx.profile,
                 symbol.module_id,
-                types,
+                ctx.types,
                 AnalyzeDependencyStage::Declare,
                 |_, owner_types| {
                     owner_types.symbol_has_unimplemented_associated_requirements(symbol)
@@ -311,54 +309,43 @@ impl Compiler {
     /// Return true when one receiver type resolves to a symbol with unsatisfied associated requirements.
     pub(crate) fn receiver_has_missing_associated_requirements(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         receiver_ty_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> AnalyzeResult<bool> {
-        let Some((receiver_symbol, _, _)) = self.unwrap_type_symbol(types, receiver_ty_id) else {
+        let Some((receiver_symbol, _, _)) = self.unwrap_type_symbol(ctx.types, receiver_ty_id)
+        else {
             return Ok(false);
         };
 
-        self.symbol_has_missing_associated_requirements(
-            module,
-            profile,
-            receiver_symbol,
-            symbols,
-            types,
-        )
+        self.symbol_has_missing_associated_requirements(ctx, receiver_symbol)
     }
 
     /// Return the primary semantic blocker for one missing-member diagnostic, when present.
     pub(crate) fn should_block_missing_member_diagnostic(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         receiver_ty_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
         allow_associated_contract_blocker: bool,
     ) -> AnalyzeResult<Option<MissingMemberDiagnosticBlocker>> {
-        if self.type_blocks_cascading_diagnostic(receiver_ty_id, types) {
+        if self.type_blocks_cascading_diagnostic(receiver_ty_id, ctx.types) {
             return Ok(Some(MissingMemberDiagnosticBlocker::ReceiverTypeError));
         }
 
-        let receiver_unwrapped_ty_id = types.unwrap_value_type_id(receiver_ty_id);
-        if self.type_is_solver_placeholder(receiver_unwrapped_ty_id, types)
-            || self.unwrapped_value_type_is_unevaluated(receiver_unwrapped_ty_id, types)
+        let receiver_unwrapped_ty_id = ctx.types.unwrap_value_type_id(receiver_ty_id);
+        if self.type_is_solver_placeholder(receiver_unwrapped_ty_id, ctx.types)
+            || self.unwrapped_value_type_is_unevaluated(receiver_unwrapped_ty_id, ctx.types)
         {
             return Ok(Some(
                 MissingMemberDiagnosticBlocker::ReceiverTypeIndeterminate,
             ));
         }
 
-        if let Type::Reference { symbol, .. } = types.get_type(receiver_unwrapped_ty_id) {
-            let symbol_value_type_id = types.get_value_type_id(*symbol);
+        if let Type::Reference { symbol, .. } = ctx.types.get_type(receiver_unwrapped_ty_id) {
+            let symbol_value_type_id = ctx.types.get_value_type_id(*symbol);
             if symbol_value_type_id.is_some_and(|symbol_value_type_id| {
-                let symbol_unwrapped_ty_id = types.unwrap_value_type_id(symbol_value_type_id);
-                self.type_is_solver_placeholder(symbol_unwrapped_ty_id, types)
-                    || self.unwrapped_value_type_is_unevaluated(symbol_unwrapped_ty_id, types)
+                let symbol_unwrapped_ty_id = ctx.types.unwrap_value_type_id(symbol_value_type_id);
+                self.type_is_solver_placeholder(symbol_unwrapped_ty_id, ctx.types)
+                    || self.unwrapped_value_type_is_unevaluated(symbol_unwrapped_ty_id, ctx.types)
             }) {
                 return Ok(Some(
                     MissingMemberDiagnosticBlocker::ReceiverTypeIndeterminate,
@@ -367,13 +354,7 @@ impl Compiler {
         }
 
         if allow_associated_contract_blocker
-            && self.receiver_has_missing_associated_requirements(
-                module,
-                profile,
-                receiver_ty_id,
-                symbols,
-                types,
-            )?
+            && self.receiver_has_missing_associated_requirements(ctx, receiver_ty_id)?
         {
             return Ok(Some(
                 MissingMemberDiagnosticBlocker::UnsatisfiedAssociatedContractRequirements,
@@ -386,21 +367,15 @@ impl Compiler {
     /// Report one missing-member diagnostic unless a primary semantic blocker applies.
     pub(crate) fn report_missing_member_diagnostic(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_ty_id: LocalTypeId,
         member_key: StaticKey,
-        symbols: &SymbolTable,
-        types: &TypeTable,
         allow_associated_contract_blocker: bool,
     ) -> AnalyzeResult<bool> {
         let blocker = self.should_block_missing_member_diagnostic(
-            module,
-            profile,
+            ctx,
             receiver_ty_id,
-            symbols,
-            types,
             allow_associated_contract_blocker,
         )?;
         if blocker.is_some() {
@@ -409,9 +384,9 @@ impl Compiler {
 
         let error = AnalyzeError::MissingMember {
             node: expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile)),
-            receiver_ty: receiver_ty_id.into_global(module.id),
+                .into_global_any(ctx.module.id)
+                .into_anchored(Some(ctx.profile)),
+            receiver_ty: receiver_ty_id.into_global(ctx.module.id),
             member_key,
         };
         debug_assert!(error.is_cascading_semantic_diagnostic());
@@ -423,18 +398,13 @@ impl Compiler {
     /// Collect contract associated type requirements for one contract symbol.
     pub(crate) fn collect_contract_associated_type_requirements(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TreeSymbolView<'_>,
         contract_symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> AnalyzeResult<Vec<AssociatedTypeRequirement>> {
         // normalize contract references to declaration owners
         let Some(contract_symbol) = self
             .declaration_symbol_id_at_stage(
-                module,
-                symbols,
-                profile,
+                ctx.module_symbol_view(),
                 contract_symbol,
                 AnalyzeDependencyStage::Declare,
             )
@@ -446,11 +416,8 @@ impl Compiler {
         // collect requirements with cycle protection
         let mut visited_contracts = HashSet::new();
         self.collect_contract_associated_type_requirements_inner(
-            module,
-            profile,
+            ctx,
             contract_symbol,
-            tree,
-            symbols,
             &mut visited_contracts,
         )
     }
@@ -458,16 +425,13 @@ impl Compiler {
     /// Collect contract associated type requirements through declaration heritage.
     fn collect_contract_associated_type_requirements_inner(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TreeSymbolView<'_>,
         contract_symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
         visited_contracts: &mut HashSet<GlobalSymbolId>,
     ) -> AnalyzeResult<Vec<AssociatedTypeRequirement>> {
         // normalize contract declarations and break recursive cycles
         let Some(contract_symbol) =
-            self.declaration_symbol_id(module, symbols, profile, contract_symbol)
+            self.declaration_symbol_id(ctx.module_symbol_view(), contract_symbol)
         else {
             return Ok(Vec::new());
         };
@@ -477,19 +441,19 @@ impl Compiler {
 
         // collect local requirements and direct parent contracts
         let (local_requirements, parent_contracts) = self
-            .with_module_tree_symbols_or_local_at_stage(
-                module,
-                profile,
+            .with_module_tree_symbol_view_or_local_at_stage(
+                ctx.module,
+                ctx.profile,
                 contract_symbol.module_id,
-                tree,
-                symbols,
+                ctx.tree,
+                ctx.symbols,
                 AnalyzeDependencyStage::Declare,
-                |owner_module, owner_tree, owner_symbols| {
+                |view| {
                     let mut requirements = Vec::new();
                     let mut parents = Vec::new();
 
                     // resolve the contract declaration node
-                    let symbol_entry = owner_symbols.get_symbol(contract_symbol.local_id);
+                    let symbol_entry = view.symbols.get_symbol(contract_symbol.local_id);
                     let Some(primary_declaration) = symbol_entry.primary_declaration else {
                         return (requirements, parents);
                     };
@@ -498,7 +462,7 @@ impl Compiler {
                     }
 
                     let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
-                    let (members, heritage) = match owner_tree.get(declaration_id) {
+                    let (members, heritage) = match view.tree.get(declaration_id) {
                         Declaration::Interface {
                             members, heritage, ..
                         }
@@ -520,7 +484,7 @@ impl Compiler {
                             value,
                             symbol,
                             ..
-                        } = owner_tree.get(*member_id)
+                        } = view.tree.get(*member_id)
                         else {
                             continue;
                         };
@@ -531,10 +495,10 @@ impl Compiler {
                                 parameters
                                     .iter()
                                     .map(|parameter_id| {
-                                        owner_tree
+                                        view.tree
                                             .get(*parameter_id)
                                             .symbol()
-                                            .into_global(owner_module.id)
+                                            .into_global(view.module.id)
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -542,9 +506,9 @@ impl Compiler {
 
                         requirements.push(AssociatedTypeRequirement {
                             name: *name,
-                            symbol: symbol.into_global(owner_module.id),
+                            symbol: symbol.into_global(view.module.id),
                             parameter_symbols,
-                            bound_node: ty.map(|ty| ty.into_global_any(owner_module.id)),
+                            bound_node: ty.map(|ty| ty.into_global_any(view.module.id)),
                             requires_implementation: value.is_none(),
                         });
                     }
@@ -558,24 +522,20 @@ impl Compiler {
                         parent_types.extend(implements_types.iter().copied());
                     }
                     for parent_type_id in parent_types {
-                        let Some(parent_symbol) = owner_tree.get(parent_type_id).target_symbol()
+                        let Some(parent_symbol) = view.tree.get(parent_type_id).target_symbol()
                         else {
                             continue;
                         };
 
+                        let view = view.module_symbol_view();
                         let canonical_parent = self.canonical_symbol_id(
-                            owner_module,
-                            owner_symbols,
-                            profile,
+                            view,
                             parent_symbol,
                             CanonicalSymbolMode::FollowAliases,
                         );
-                        let Some(parent_symbol) = self.declaration_symbol_id(
-                            owner_module,
-                            owner_symbols,
-                            profile,
-                            canonical_parent,
-                        ) else {
+                        let Some(parent_symbol) =
+                            self.declaration_symbol_id(view, canonical_parent)
+                        else {
                             continue;
                         };
                         parents.push(parent_symbol);
@@ -590,11 +550,8 @@ impl Compiler {
         let mut requirements = Vec::new();
         for parent_contract in parent_contracts {
             let inherited = self.collect_contract_associated_type_requirements_inner(
-                module,
-                profile,
+                ctx,
                 parent_contract,
-                tree,
-                symbols,
                 visited_contracts,
             )?;
             requirements.extend(inherited);
@@ -612,18 +569,13 @@ impl Compiler {
     /// Collect contract associated comptime requirements for one contract symbol.
     pub(crate) fn collect_contract_associated_comptime_requirements(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TreeSymbolView<'_>,
         contract_symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> AnalyzeResult<Vec<AssociatedComptimeRequirement>> {
         // normalize contract references to declaration owners
         let Some(contract_symbol) = self
             .declaration_symbol_id_at_stage(
-                module,
-                symbols,
-                profile,
+                ctx.module_symbol_view(),
                 contract_symbol,
                 AnalyzeDependencyStage::Declare,
             )
@@ -635,11 +587,8 @@ impl Compiler {
         // collect requirements with cycle protection
         let mut visited_contracts = HashSet::new();
         self.collect_contract_associated_comptime_requirements_inner(
-            module,
-            profile,
+            ctx,
             contract_symbol,
-            tree,
-            symbols,
             &mut visited_contracts,
         )
     }
@@ -647,16 +596,13 @@ impl Compiler {
     /// Collect contract associated comptime requirements through declaration heritage.
     fn collect_contract_associated_comptime_requirements_inner(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TreeSymbolView<'_>,
         contract_symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
         visited_contracts: &mut HashSet<GlobalSymbolId>,
     ) -> AnalyzeResult<Vec<AssociatedComptimeRequirement>> {
         // normalize contract declarations and break recursive cycles
         let Some(contract_symbol) =
-            self.declaration_symbol_id(module, symbols, profile, contract_symbol)
+            self.declaration_symbol_id(ctx.module_symbol_view(), contract_symbol)
         else {
             return Ok(Vec::new());
         };
@@ -666,19 +612,19 @@ impl Compiler {
 
         // collect local requirements and direct parent contracts
         let (local_requirements, parent_contracts) = self
-            .with_module_tree_symbols_or_local_at_stage(
-                module,
-                profile,
+            .with_module_tree_symbol_view_or_local_at_stage(
+                ctx.module,
+                ctx.profile,
                 contract_symbol.module_id,
-                tree,
-                symbols,
+                ctx.tree,
+                ctx.symbols,
                 AnalyzeDependencyStage::Declare,
-                |owner_module, owner_tree, owner_symbols| {
+                |view| {
                     let mut requirements = Vec::new();
                     let mut parents = Vec::new();
 
                     // resolve the contract declaration node
-                    let symbol_entry = owner_symbols.get_symbol(contract_symbol.local_id);
+                    let symbol_entry = view.symbols.get_symbol(contract_symbol.local_id);
                     let Some(primary_declaration) = symbol_entry.primary_declaration else {
                         return (requirements, parents);
                     };
@@ -687,7 +633,7 @@ impl Compiler {
                     }
 
                     let declaration_id = primary_declaration.local_id.into_typed::<Declaration>();
-                    let (members, heritage) = match owner_tree.get(declaration_id) {
+                    let (members, heritage) = match view.tree.get(declaration_id) {
                         Declaration::Interface {
                             members, heritage, ..
                         }
@@ -708,15 +654,15 @@ impl Compiler {
                             value,
                             symbol,
                             ..
-                        } = owner_tree.get(*member_id)
+                        } = view.tree.get(*member_id)
                         else {
                             continue;
                         };
 
                         requirements.push(AssociatedComptimeRequirement {
                             name: *name,
-                            symbol: symbol.into_global(owner_module.id),
-                            type_node: ty.map(|ty| ty.into_global_any(owner_module.id)),
+                            symbol: symbol.into_global(view.module.id),
+                            type_node: ty.map(|ty| ty.into_global_any(view.module.id)),
                             requires_implementation: value.is_none(),
                         });
                     }
@@ -730,24 +676,20 @@ impl Compiler {
                         parent_types.extend(implements_types.iter().copied());
                     }
                     for parent_type_id in parent_types {
-                        let Some(parent_symbol) = owner_tree.get(parent_type_id).target_symbol()
+                        let Some(parent_symbol) = view.tree.get(parent_type_id).target_symbol()
                         else {
                             continue;
                         };
 
+                        let view = view.module_symbol_view();
                         let canonical_parent = self.canonical_symbol_id(
-                            owner_module,
-                            owner_symbols,
-                            profile,
+                            view,
                             parent_symbol,
                             CanonicalSymbolMode::FollowAliases,
                         );
-                        let Some(parent_symbol) = self.declaration_symbol_id(
-                            owner_module,
-                            owner_symbols,
-                            profile,
-                            canonical_parent,
-                        ) else {
+                        let Some(parent_symbol) =
+                            self.declaration_symbol_id(view, canonical_parent)
+                        else {
                             continue;
                         };
                         parents.push(parent_symbol);
@@ -762,11 +704,8 @@ impl Compiler {
         let mut requirements = Vec::new();
         for parent_contract in parent_contracts {
             let inherited = self.collect_contract_associated_comptime_requirements_inner(
-                module,
-                profile,
+                ctx,
                 parent_contract,
-                tree,
-                symbols,
                 visited_contracts,
             )?;
             requirements.extend(inherited);
@@ -784,7 +723,7 @@ impl Compiler {
     /// Select a projected static member symbol from a nominal receiver.
     pub(crate) fn select_associated_projection_member_symbol(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
         member_key: StaticKey,
@@ -794,38 +733,32 @@ impl Compiler {
     ) -> AnalyzeResult<Option<AssociatedProjectionSelection>> {
         // evaluate the receiver to a reference-like type
         let left_ty_id = self.resolve_declared_type_expression(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             left,
             validate_static_argument_bounds,
             enforce_implicit_managed,
         )?;
-        let left_ty = tables.types.get_type(left_ty_id).clone();
+        let left_ty = ctx.types.get_type(left_ty_id).clone();
         let receiver_reference = self
-            .unwrap_type_symbol(tables.types, left_ty_id)
+            .unwrap_type_symbol(ctx.types, left_ty_id)
             .map(|(symbol, static_arguments, _)| (symbol, static_arguments.unwrap_or_default()))
             .or_else(|| match left_ty {
                 Type::Intersection { elements } | Type::Union { elements } => {
                     elements.iter().find_map(|element_id| {
-                        self.unwrap_type_symbol(tables.types, *element_id).map(
+                        self.unwrap_type_symbol(ctx.types, *element_id).map(
                             |(symbol, static_arguments, _)| {
                                 (symbol, static_arguments.unwrap_or_default())
                             },
                         )
                     })
                 }
-                Type::This => self.owner_symbol_for_this_expression(
-                    tables.module,
-                    tables.profile,
-                    left,
-                    tables.tree,
-                    tables.symbols,
-                ),
+                Type::This => self.owner_symbol_for_this_expression(ctx.tree_symbol_view(), left),
                 _ => None,
             });
         let mut receiver_reference = match receiver_reference {
             Some(reference) => Some(reference),
             None => {
-                self.associated_projection_receiver_from_expression(&mut tables.reborrow(), left)?
+                self.associated_projection_receiver_from_expression(&mut ctx.reborrow(), left)?
             }
         };
 
@@ -833,7 +766,7 @@ impl Compiler {
         if let Some((_, lookup_arguments)) = receiver_reference.as_ref()
             && lookup_arguments.is_empty()
             && let Some((syntax_symbol, syntax_arguments)) =
-                self.associated_projection_receiver_from_expression(&mut tables.reborrow(), left)?
+                self.associated_projection_receiver_from_expression(&mut ctx.reborrow(), left)?
             && !syntax_arguments.is_empty()
         {
             receiver_reference = Some((syntax_symbol, syntax_arguments));
@@ -843,21 +776,14 @@ impl Compiler {
             return Ok(None);
         };
         let mut projection_receiver_symbol = self.canonical_symbol_id(
-            tables.module,
-            tables.symbols,
-            tables.profile,
+            ctx.module_symbol_view(),
             receiver_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         projection_receiver_symbol =
-            self.resolve_type_reference_symbol(tables, projection_receiver_symbol);
+            self.resolve_type_reference_symbol(ctx, projection_receiver_symbol);
         projection_receiver_symbol = self
-            .declaration_symbol_id(
-                tables.module,
-                tables.symbols,
-                tables.profile,
-                projection_receiver_symbol,
-            )
+            .declaration_symbol_id(ctx.module_symbol_view(), projection_receiver_symbol)
             .unwrap_or(projection_receiver_symbol);
         let projection_receiver_arguments = receiver_arguments.clone();
 
@@ -865,15 +791,9 @@ impl Compiler {
         let mut lookup_arguments = receiver_arguments;
 
         // follow static parameter constraints for projected members
-        if self.symbol_is_static_parameter(
-            tables.module,
-            tables.profile,
-            lookup_symbol,
-            tables.symbols,
-            tables.types,
-        ) {
+        if self.symbol_is_static_parameter(ctx.symbol_type_view(), lookup_symbol) {
             let constraint_ty_id = self.projection_static_parameter_constraint_type(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id.into_any(),
                 lookup_symbol,
             )?;
@@ -881,7 +801,7 @@ impl Compiler {
                 && let Type::Reference {
                     symbol,
                     static_arguments,
-                } = tables.types.get_type(constraint_ty_id)
+                } = ctx.types.get_type(constraint_ty_id)
             {
                 lookup_symbol = *symbol;
                 lookup_arguments = static_arguments.clone().unwrap_or_default();
@@ -890,7 +810,7 @@ impl Compiler {
 
         // project through alias references before static member lookup
         if let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             lookup_symbol,
             expression_id.into_any(),
         ) {
@@ -898,7 +818,7 @@ impl Compiler {
                 alias_target_id
             } else {
                 let substitutions = self.build_type_parameter_substitutions_for_symbol(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     lookup_symbol,
                     expression_id.into_any(),
                     &lookup_arguments,
@@ -910,7 +830,7 @@ impl Compiler {
                     self.substitute_static_parameters(
                         alias_target_id,
                         &substitutions,
-                        tables.types,
+                        ctx.types,
                         &mut substitution_cache,
                     )
                 }
@@ -918,12 +838,12 @@ impl Compiler {
 
             let mut materialize_cache = TypeRewriteCache::new();
             let mapped_alias_target = self.materialize_static_arguments_in_type(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 mapped_alias_target,
                 &mut materialize_cache,
             );
             if let Some((alias_symbol, _, _)) =
-                self.unwrap_type_symbol(tables.types, mapped_alias_target)
+                self.unwrap_type_symbol(ctx.types, mapped_alias_target)
             {
                 lookup_symbol = alias_symbol;
             }
@@ -931,21 +851,21 @@ impl Compiler {
 
         // resolve the projected member symbol on the normalized receiver symbol
         let projected_symbol = self
-            .with_module_tree_symbols_or_local_at_stage(
-                tables.module,
-                tables.profile,
+            .with_module_tree_symbol_view_or_local_at_stage(
+                ctx.module,
+                ctx.profile,
                 lookup_symbol.module_id,
-                tables.tree,
-                tables.symbols,
+                ctx.tree,
+                ctx.symbols,
                 AnalyzeDependencyStage::Declare,
-                |owner_module, owner_tree, owner_symbols| {
-                    self.resolve_static_member_symbol_in_tables(
-                        owner_module,
-                        tables.profile,
+                |view| {
+                    self.query_static_member_symbol(
+                        view.module,
+                        ctx.profile,
                         lookup_symbol,
                         member_key,
-                        owner_tree,
-                        owner_symbols,
+                        view.tree,
+                        view.symbols,
                     )
                 },
             )
@@ -955,31 +875,24 @@ impl Compiler {
         };
 
         // prefer one member-kind class when the owner has ambiguous same-name members
-        if let Some(preferred_kind) = preferred_kind {
-            if let Some(preferred_symbol) = self.query_direct_member_symbol_for_key_and_kind(
-                &*tables,
+        if let Some(preferred_kind) = preferred_kind
+            && let Some(preferred_symbol) = self.query_direct_member_symbol_for_key_and_kind(
+                &*ctx,
                 lookup_symbol,
                 member_key,
                 preferred_kind,
-            )? {
-                projected_symbol = preferred_symbol;
-            }
+            )?
+        {
+            projected_symbol = preferred_symbol;
         }
 
         let projected_symbol = self.canonical_symbol_id(
-            tables.module,
-            tables.symbols,
-            tables.profile,
+            ctx.module_symbol_view(),
             projected_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         let projected_symbol = self
-            .declaration_symbol_id(
-                tables.module,
-                tables.symbols,
-                tables.profile,
-                projected_symbol,
-            )
+            .declaration_symbol_id(ctx.module_symbol_view(), projected_symbol)
             .unwrap_or(projected_symbol);
 
         Ok(Some(AssociatedProjectionSelection {
@@ -992,15 +905,11 @@ impl Compiler {
     /// Return true when associated projection receiver arguments require deferral.
     pub(crate) fn receiver_projection_arguments_require_deferral(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         arguments: &[StaticArgument],
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> bool {
         for argument in arguments {
-            if self.projection_argument_requires_deferral(module, profile, argument, symbols, types)
-            {
+            if self.projection_argument_requires_deferral(ctx, argument) {
                 return true;
             }
         }
@@ -1011,11 +920,8 @@ impl Compiler {
     /// Return true when one associated projection static argument requires deferral.
     fn projection_argument_requires_deferral(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         argument: &StaticArgument,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> bool {
         // unevaluated static arguments are unresolved
         let StaticArgument::Evaluated { value, .. } = argument else {
@@ -1027,53 +933,39 @@ impl Compiler {
             return false;
         };
 
-        !self.type_is_converged_for_static_evaluation(module, profile, *ty, symbols, types)
+        !self.type_is_converged_for_static_evaluation(ctx, *ty)
     }
 
     /// Build a projection receiver from one expression when type evaluation is unavailable.
     fn associated_projection_receiver_from_expression(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> AnalyzeResult<Option<(GlobalSymbolId, Vec<StaticArgument>)>> {
-        let expression = tables.tree.get(expression_id);
+        let expression = ctx.tree.get(expression_id);
         let target_symbol = self
-            .reference_symbol_for_expression(
-                tables.module,
-                expression_id,
-                tables.profile,
-                tables.tree,
-                tables.symbols,
-            )
+            .reference_symbol_for_expression(ctx.tree_symbol_view(), expression_id)
             .or_else(|| expression.target_symbol())
             .or_else(|| match expression {
-                Expression::Instantiation { left, .. } => tables.tree.get(*left).target_symbol(),
+                Expression::Instantiation { left, .. } => ctx.tree.get(*left).target_symbol(),
                 _ => None,
             });
         let Some(target_symbol) = target_symbol else {
             return Ok(None);
         };
         let static_argument_nodes = expression.static_arguments();
-        let static_arguments = self.evaluate_static_arguments(
-            tables.module,
-            tables.profile,
-            static_argument_nodes,
-            tables.tree,
-            tables.symbols,
-            tables.types,
-        )?;
+        let static_arguments =
+            self.evaluate_static_arguments(&mut ctx.reborrow(), static_argument_nodes)?;
         let static_arguments = static_arguments.unwrap_or_default();
 
         let mut target_symbol = self.canonical_symbol_id(
-            tables.module,
-            tables.symbols,
-            tables.profile,
+            ctx.module_symbol_view(),
             target_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
-        target_symbol = self.resolve_type_reference_symbol(tables, target_symbol);
+        target_symbol = self.resolve_type_reference_symbol(ctx, target_symbol);
         target_symbol = self
-            .declaration_symbol_id(tables.module, tables.symbols, tables.profile, target_symbol)
+            .declaration_symbol_id(ctx.module_symbol_view(), target_symbol)
             .unwrap_or(target_symbol);
 
         Ok(Some((target_symbol, static_arguments)))
@@ -1082,7 +974,7 @@ impl Compiler {
     /// Query one owner member symbol for one key and one static-member kind.
     pub(crate) fn query_direct_member_symbol_for_key_and_kind(
         &self,
-        tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         owner_symbol: GlobalSymbolId,
         member_key: StaticKey,
         preferred_kind: StaticMemberSymbolKind,
@@ -1092,18 +984,18 @@ impl Compiler {
         };
 
         let owner_symbol = self
-            .declaration_symbol_id(tables.module, tables.symbols, tables.profile, owner_symbol)
+            .declaration_symbol_id(ctx.module_symbol_view(), owner_symbol)
             .unwrap_or(owner_symbol);
 
-        self.with_module_tree_symbols_or_local_at_stage(
-            tables.module,
-            tables.profile,
+        self.with_module_tree_symbol_view_or_local_at_stage(
+            ctx.module,
+            ctx.profile,
             owner_symbol.module_id,
-            tables.tree,
-            tables.symbols,
+            ctx.tree,
+            ctx.symbols,
             AnalyzeDependencyStage::Declare,
-            |owner_module, owner_tree, owner_symbols| {
-                let symbol_entry = owner_symbols.get_symbol(owner_symbol.local_id);
+            |view| {
+                let symbol_entry = view.symbols.get_symbol(owner_symbol.local_id);
                 let mut declaration_ids = Vec::new();
                 if let Some(primary_declaration) = symbol_entry.primary_declaration {
                     declaration_ids.push(primary_declaration);
@@ -1118,7 +1010,7 @@ impl Compiler {
                         continue;
                     }
                     let declaration_id = declaration_id.local_id.into_typed::<Declaration>();
-                    let declaration = owner_tree.get(declaration_id);
+                    let declaration = view.tree.get(declaration_id);
                     let members = match declaration {
                         Declaration::Class { members, .. }
                         | Declaration::Struct { members, .. }
@@ -1129,16 +1021,16 @@ impl Compiler {
                     };
 
                     for member_id in members {
-                        let member = owner_tree.get(*member_id);
+                        let member = view.tree.get(*member_id);
                         let (name, symbol, kind) = match member {
                             Member::Type { name, symbol, .. } => (
                                 *name,
-                                symbol.into_global(owner_module.id),
+                                symbol.into_global(view.module.id),
                                 StaticMemberSymbolKind::AssociatedType,
                             ),
                             Member::ComptimeConst { name, symbol, .. } => (
                                 *name,
-                                symbol.into_global(owner_module.id),
+                                symbol.into_global(view.module.id),
                                 StaticMemberSymbolKind::AssociatedComptimeConst,
                             ),
                             _ => continue,
@@ -1159,40 +1051,33 @@ impl Compiler {
     /// Resolve one associated member symbol for a concrete receiver and static member key.
     pub(crate) fn resolve_associated_member_symbol_for_receiver(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         receiver_symbol: GlobalSymbolId,
         member_key: StaticKey,
         member_kind: StaticMemberSymbolKind,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         let mut receiver_symbol = self.canonical_symbol_id(
-            tables.module,
-            tables.symbols,
-            tables.profile,
+            ctx.module_symbol_view(),
             receiver_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         receiver_symbol = self
-            .declaration_symbol_id(
-                tables.module,
-                tables.symbols,
-                tables.profile,
-                receiver_symbol,
-            )
+            .declaration_symbol_id(ctx.module_symbol_view(), receiver_symbol)
             .unwrap_or(receiver_symbol);
 
-        let Some(mut member_symbol) = self.resolve_static_member_symbol_in_tables(
-            tables.module,
-            tables.profile,
+        let Some(mut member_symbol) = self.query_static_member_symbol(
+            ctx.module,
+            ctx.profile,
             receiver_symbol,
             member_key,
-            tables.tree,
-            tables.symbols,
+            ctx.tree,
+            ctx.symbols,
         ) else {
             return Ok(None);
         };
 
         if let Some(preferred_symbol) = self.query_direct_member_symbol_for_key_and_kind(
-            &*tables,
+            &*ctx,
             receiver_symbol,
             member_key,
             member_kind,
@@ -1200,26 +1085,19 @@ impl Compiler {
             member_symbol = preferred_symbol;
         }
 
-        if self.query_static_member_symbol_kind_for_symbol(
-            tables.module,
-            tables.profile,
-            member_symbol,
-            tables.tree,
-            tables.symbols,
-        )? != Some(member_kind)
+        if self.query_static_member_symbol_kind_for_symbol(ctx.tree_symbol_view(), member_symbol)?
+            != Some(member_kind)
         {
             return Ok(None);
         }
 
         let member_symbol = self.canonical_symbol_id(
-            tables.module,
-            tables.symbols,
-            tables.profile,
+            ctx.module_symbol_view(),
             member_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         let member_symbol = self
-            .declaration_symbol_id(tables.module, tables.symbols, tables.profile, member_symbol)
+            .declaration_symbol_id(ctx.module_symbol_view(), member_symbol)
             .unwrap_or(member_symbol);
 
         Ok(Some(member_symbol))
@@ -1228,30 +1106,27 @@ impl Compiler {
     /// Resolve a declaration owner symbol for one `this` receiver expression.
     pub(crate) fn owner_symbol_for_this_expression(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TreeSymbolView<'_>,
         expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> Option<(GlobalSymbolId, Vec<StaticArgument>)> {
         // walk parent nodes until we find a declaration owner
         let mut current_id = expression_id.id;
-        while let Some(parent) = tree.get_parent(current_id) {
+        while let Some(parent) = ctx.tree.get_parent(current_id) {
             if parent.ty == NodeType::Declaration {
                 let declaration_id = parent.into_typed::<Declaration>();
-                let owner_symbol = match tree.get(declaration_id) {
+                let owner_symbol = match ctx.tree.get(declaration_id) {
                     Declaration::Class { descriptor, .. }
                     | Declaration::Struct { descriptor, .. }
                     | Declaration::Interface { descriptor, .. }
                     | Declaration::Enum { descriptor, .. } => {
-                        Some(descriptor.symbol.into_global(module.id))
+                        Some(descriptor.symbol.into_global(ctx.module.id))
                     }
                     Declaration::Extension { target_symbol, .. } => *target_symbol,
                     _ => None,
                 }?;
 
                 let owner_symbol = self
-                    .declaration_symbol_id(module, symbols, profile, owner_symbol)
+                    .declaration_symbol_id(ctx.module_symbol_view(), owner_symbol)
                     .unwrap_or(owner_symbol);
                 return Some((owner_symbol, Vec::new()));
             }
@@ -1265,16 +1140,14 @@ impl Compiler {
     /// Rewrite owner-scoped associated aliases in one type id with known substitutions.
     pub(crate) fn query_owner_symbol_for_member_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        view: ModuleSymbolView<'_>,
         member_symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         self.with_module_symbols_or_local_at_stage(
-            module,
-            profile,
+            view.module,
+            view.profile,
             member_symbol.module_id,
-            symbols,
+            view.symbols,
             AnalyzeDependencyStage::Declare,
             |owner_module, owner_symbols| {
                 // resolve the member entry and its scope owner
@@ -1305,46 +1178,28 @@ impl Compiler {
         .map_err(AnalyzeError::from)
     }
 
-    /// Resolve the owning declaration symbol for a member symbol.
-    pub(crate) fn owner_symbol_for_member_symbol(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        member_symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-    ) -> Option<GlobalSymbolId> {
-        self.query_owner_symbol_for_member_symbol(module, profile, member_symbol, symbols)
-            .ok()
-            .flatten()
-    }
-
     /// Classify one static symbol for associated projection paths.
     pub(crate) fn query_static_member_symbol_kind_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TreeSymbolView<'_>,
         symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> AnalyzeResult<Option<StaticMemberSymbolKind>> {
-        self.with_module_tree_symbols_or_local_at_stage(
-            module,
-            profile,
+        self.with_module_tree_symbol_view_or_local_at_stage(
+            ctx.module,
+            ctx.profile,
             symbol.module_id,
-            tree,
-            symbols,
+            ctx.tree,
+            ctx.symbols,
             AnalyzeDependencyStage::Declare,
-            |_owner_module, owner_tree, owner_symbols| {
-                let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
-                let Some(primary_declaration) = symbol_entry.primary_declaration else {
-                    return None;
-                };
+            |view| {
+                let symbol_entry = view.symbols.get_symbol(symbol.local_id);
+                let primary_declaration = symbol_entry.primary_declaration?;
 
                 match primary_declaration.local_id.ty {
                     NodeType::EnumField => Some(StaticMemberSymbolKind::EnumField),
                     NodeType::Member => {
                         let member_id = primary_declaration.local_id.into_typed::<Member>();
-                        let member_kind = match owner_tree.get(member_id) {
+                        let member_kind = match view.tree.get(member_id) {
                             Member::Type { .. } => StaticMemberSymbolKind::AssociatedType,
                             Member::ComptimeConst { .. } => {
                                 StaticMemberSymbolKind::AssociatedComptimeConst
@@ -1354,9 +1209,9 @@ impl Compiler {
                         Some(member_kind)
                     }
                     _ => {
-                        let scope = owner_symbols.get_scope_by_id(symbol_entry.scope.0);
+                        let scope = view.symbols.get_scope_by_id(symbol_entry.scope.0);
                         let owner_scope_id = scope.owner_id?;
-                        let owner_entry = owner_symbols.get_symbol(owner_scope_id);
+                        let owner_entry = view.symbols.get_symbol(owner_scope_id);
                         if !matches!(
                             owner_entry.ty,
                             SymbolType::Class
@@ -1374,10 +1229,10 @@ impl Compiler {
                         }
 
                         let declaration_id = owner_declaration.local_id.into_typed::<Declaration>();
-                        let declaration = owner_tree.get(declaration_id);
+                        let declaration = view.tree.get(declaration_id);
                         let member_ids = declaration.member_ids()?;
                         for member_id in member_ids {
-                            let member = owner_tree.get(*member_id);
+                            let member = view.tree.get(*member_id);
                             if member.symbol() != symbol.local_id {
                                 continue;
                             }

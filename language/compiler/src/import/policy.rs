@@ -445,11 +445,13 @@ mod tests {
         options.conditions = vec!["node".to_string()];
         options.extensions = vec![".ts".to_string(), ".json".to_string()];
 
-        let mut compiler_options = TsCompilerOptions::default();
-        compiler_options.resolve_package_json_exports = false;
-        compiler_options.resolve_package_json_imports = false;
-        compiler_options.resolve_json_module = false;
-        compiler_options.custom_conditions = vec!["development".to_string(), "node".to_string()];
+        let compiler_options = TsCompilerOptions {
+            resolve_package_json_exports: false,
+            resolve_package_json_imports: false,
+            resolve_json_module: false,
+            custom_conditions: vec!["development".to_string(), "node".to_string()],
+            ..TsCompilerOptions::default()
+        };
 
         apply_typescript_import_resolve_policy(
             &mut options,
@@ -462,7 +464,7 @@ mod tests {
         assert!(matches!(
             options.tsconfig,
             Some(TypeScriptOptionsDiscovery::Manual(ref location))
-                if location.config_file == PathBuf::from("/tmp/tsconfig.json")
+                if location.config_file == Path::new("/tmp/tsconfig.json")
         ));
 
         // verify package json resolver toggles from tsconfig
@@ -480,8 +482,10 @@ mod tests {
         let mut options = ResolveOptions::blank();
         options.extensions = vec![".js".to_string(), ".json".to_string()];
 
-        let mut compiler_options = TsCompilerOptions::default();
-        compiler_options.resolve_json_module = false;
+        let compiler_options = TsCompilerOptions {
+            resolve_json_module: false,
+            ..TsCompilerOptions::default()
+        };
 
         apply_typescript_import_resolve_policy(
             &mut options,

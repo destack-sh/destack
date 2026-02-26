@@ -1,33 +1,33 @@
 use super::*;
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::TypeContext;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     pub(crate) fn type_has_property(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         key: &StaticKey,
     ) -> bool {
         // anchor apparent type resolution to the current type source
-        let source_id = tables.types.get_type_source(type_id);
+        let source_id = ctx.types.get_type_source(type_id);
 
         // walk through shapes that can carry fields
-        let ty = tables.types.get_type(type_id).clone();
+        let ty = ctx.types.get_type(type_id).clone();
         match ty {
             Type::Object { fields, .. } => fields.iter().any(|field| field.key.matches(key)),
             Type::Reference { symbol, .. } => {
                 // follow apparent instance types for nominal references
-                self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+                self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
                     .is_some_and(|instance_id| {
-                        self.type_has_property(&mut tables.reborrow(), instance_id, key)
+                        self.type_has_property(&mut ctx.reborrow(), instance_id, key)
                     })
             }
             Type::Intersection { elements } => {
                 // accept any intersection member that matches
-                elements.iter().any(|element_id| {
-                    self.type_has_property(&mut tables.reborrow(), *element_id, key)
-                })
+                elements
+                    .iter()
+                    .any(|element_id| self.type_has_property(&mut ctx.reborrow(), *element_id, key))
             }
             _ => false,
         }
@@ -36,12 +36,12 @@ impl Compiler {
     /// Resolve the type for a field with the given key.
     pub(crate) fn type_field_type_for_key(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         key: &StaticKey,
     ) -> AnalyzeResult<Option<(LocalTypeId, bool)>> {
         // unwrap aliases before walking fields
-        let type_id = self.unwrap_type_alias_reference(&mut tables.reborrow(), type_id)?;
+        let type_id = self.unwrap_type_alias_reference(&mut ctx.reborrow(), type_id)?;
         let mut field_types = Vec::new();
         let mut is_optional = true;
 
@@ -53,7 +53,7 @@ impl Compiler {
                 continue;
             }
             visited_type_ids.push(current_type_id);
-            let current_ty = tables.types.get_type(current_type_id).clone();
+            let current_ty = ctx.types.get_type(current_type_id).clone();
             match current_ty {
                 Type::Object { fields, .. } => {
                     // collect all matching fields from the object
@@ -66,9 +66,9 @@ impl Compiler {
                 }
                 Type::Reference { symbol, .. } => {
                     // prefer apparent instance types for nominal references
-                    let source_id = tables.types.get_type_source(current_type_id);
+                    let source_id = ctx.types.get_type_source(current_type_id);
                     if let Some(instance_id) =
-                        self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+                        self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
                     {
                         pending_type_ids.push(instance_id);
                     }
@@ -91,7 +91,7 @@ impl Compiler {
             1 => field_types[0],
             _ => {
                 let source_type_id = field_types[0];
-                tables.types.insert_type_from_type(
+                ctx.types.insert_type_from_type(
                     Type::Intersection {
                         elements: field_types,
                     },
@@ -104,17 +104,16 @@ impl Compiler {
     }
 
     /// Check whether a type id is any or unknown.
-
     pub(crate) fn type_is_object_like(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
     ) -> bool {
         // anchor apparent type resolution to the current type source
-        let source_id = tables.types.get_type_source(type_id);
+        let source_id = ctx.types.get_type_source(type_id);
 
         // match shapes that would produce typeof object
-        let ty = tables.types.get_type(type_id).clone();
+        let ty = ctx.types.get_type(type_id).clone();
         match ty {
             Type::TypeLiteral {
                 value: TypeLiteral::Null,
@@ -127,9 +126,9 @@ impl Compiler {
             Type::Reference { symbol, .. } => {
                 // prefer apparent instance types when available
                 if let Some(instance_id) =
-                    self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+                    self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
                 {
-                    return self.type_is_object_like(&mut tables.reborrow(), instance_id);
+                    return self.type_is_object_like(&mut ctx.reborrow(), instance_id);
                 }
 
                 matches!(
@@ -143,7 +142,7 @@ impl Compiler {
             }
             Type::Intersection { elements } => elements
                 .iter()
-                .any(|element_id| self.type_is_object_like(&mut tables.reborrow(), *element_id)),
+                .any(|element_id| self.type_is_object_like(&mut ctx.reborrow(), *element_id)),
             _ => false,
         }
     }
@@ -151,14 +150,14 @@ impl Compiler {
     /// Check whether a type is function like for typeof guards.
     pub(crate) fn type_is_function_like(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
     ) -> bool {
         // anchor apparent type resolution to the current type source
-        let source_id = tables.types.get_type_source(type_id);
+        let source_id = ctx.types.get_type_source(type_id);
 
         // match callable shapes for typeof function
-        let ty = tables.types.get_type(type_id).clone();
+        let ty = ctx.types.get_type(type_id).clone();
         match ty {
             Type::Function { .. } => true,
             Type::Object {
@@ -169,16 +168,16 @@ impl Compiler {
             Type::Reference { symbol, .. } => {
                 // prefer apparent instance types when available
                 if let Some(instance_id) =
-                    self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+                    self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
                 {
-                    return self.type_is_function_like(&mut tables.reborrow(), instance_id);
+                    return self.type_is_function_like(&mut ctx.reborrow(), instance_id);
                 }
 
                 symbol.local_id.ty == SymbolType::Function
             }
             Type::Intersection { elements } => elements
                 .iter()
-                .any(|element_id| self.type_is_function_like(&mut tables.reborrow(), *element_id)),
+                .any(|element_id| self.type_is_function_like(&mut ctx.reborrow(), *element_id)),
             _ => false,
         }
     }

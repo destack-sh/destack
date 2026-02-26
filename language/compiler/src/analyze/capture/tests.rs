@@ -1,6 +1,6 @@
 use crate::TestProgram;
 use destack_builtin::LanguageSymbol;
-use destack_dir::CaptureKind;
+use destack_dir::{CaptureKind, CapturePolicy};
 
 #[test]
 fn test_capture_defaults_const_and_let() {

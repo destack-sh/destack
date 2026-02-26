@@ -4,6 +4,7 @@ use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace};
 use destack_workspace::{Module, ProfileId};
 
 use super::AnalyzeDependencyStage;
+use crate::analyze::common::ModuleSymbolView;
 use crate::{Compiler, TaskDependencyError};
 
 /// Select merge source categories for global declaration merging.
@@ -116,8 +117,11 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> Result<GlobalSymbolId, TaskDependencyError> {
+        let module_symbols = module.dir(profile).symbols.read();
+        let view = ModuleSymbolView::new(module, profile, &module_symbols);
+
         // normalize symbol typing first
-        let symbol = self.normalize_reference_symbol_id(module, profile, symbol);
+        let symbol = self.normalize_reference_symbol_id(view, symbol);
 
         self.with_module_symbols_at_stage(
             module,
@@ -134,7 +138,7 @@ impl Compiler {
                     return symbol;
                 };
                 if let Some(candidate) = self.select_canonical_type_symbol(module, profile, key) {
-                    self.normalize_reference_symbol_id(module, profile, candidate)
+                    self.normalize_reference_symbol_id(view, candidate)
                 } else {
                     symbol
                 }

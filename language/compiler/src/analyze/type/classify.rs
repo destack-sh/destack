@@ -1,56 +1,31 @@
 use super::*;
+use crate::analyze::common::SymbolTypeView;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     pub(crate) fn is_interface_implemented(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: SymbolTypeView<'_>,
         ty: &Type,
         interface_item: LanguageSymbol,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> bool {
-        let interface_symbol = self.language_symbol(profile, interface_item);
+        let interface_symbol = self.language_symbol(ctx.profile, interface_item);
         match ty {
             Type::Value { value } => {
-                let inner_ty = types.get_type(*value);
-                self.is_interface_implemented(
-                    module,
-                    profile,
-                    inner_ty,
-                    interface_item,
-                    symbols,
-                    types,
-                )
+                let inner_ty = ctx.types.get_type(*value);
+                self.is_interface_implemented(ctx, inner_ty, interface_item)
             }
             Type::Reference { symbol, .. } => {
                 let canonical_symbol = self.canonical_symbol_id(
-                    module,
-                    symbols,
-                    profile,
+                    ctx.module_symbol_view(),
                     *symbol,
                     CanonicalSymbolMode::FollowAliases,
                 );
-                self.is_type_lineage_assignable(
-                    module,
-                    profile,
-                    canonical_symbol,
-                    interface_symbol,
-                    symbols,
-                    types,
-                )
+                self.is_type_lineage_assignable(ctx, canonical_symbol, interface_symbol)
             }
             Type::Union { elements } => elements.iter().all(|element_id| {
-                let element_ty = types.get_type(*element_id);
-                self.is_interface_implemented(
-                    module,
-                    profile,
-                    element_ty,
-                    interface_item,
-                    symbols,
-                    types,
-                )
+                let element_ty = ctx.types.get_type(*element_id);
+                self.is_interface_implemented(ctx, element_ty, interface_item)
             }),
             _ => false,
         }

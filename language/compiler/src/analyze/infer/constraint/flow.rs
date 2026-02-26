@@ -3,19 +3,19 @@ use std::collections::VecDeque;
 use indexmap::IndexMap;
 
 use super::r#type::TypeGuardTarget;
-use crate::analyze::common::{NormalizationMode, TypeTablesContext};
+use crate::analyze::common::{NormalizationMode, TreeSymbolView, TypeContext};
+use crate::analyze::infer::RemoteValueTypeReadDomain;
 use destack_base::StringId;
 use destack_dir::{
     Argument, BinaryOperator, Declaration, DynamicKey, Expression, FlowBlock, FlowEdge,
     FlowEdgeKind, FlowEnvironment, FlowGraph, FlowGuard, FlowTable, FunctionSignature,
     GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType, NodeVisitor,
     NodeVisitorOptions, Parameter, Pattern, PatternField, RuntimeCheckKind, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeField,
-    TypeLiteral, TypePredicateSubject, TypeTable, TypeUnaryOperator, UnaryOperator,
-    walk_expression,
+    StaticArgument, StaticExpression, StaticKey, Type, TypeBinaryOperator, TypeField, TypeLiteral,
+    TypePredicateSubject, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
 };
 
-use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, InferState};
 
 /// Track whether a tree walk encounters flow sensitive constructs.
 #[derive(Debug, Default)]
@@ -165,9 +165,9 @@ impl Compiler {
     /// Compute a flow table for a control flow graph.
     pub(crate) fn compute_flow_table_for_graph(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         graph: &FlowGraph,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<FlowTable> {
         // seed the flow table with the current context
         let mut flow = FlowTable::new();
@@ -197,7 +197,7 @@ impl Compiler {
 
             // compute the exit environment for the block
             let mut exit_environment = self.flow_environment_after_block_nodes(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 &graph.blocks[block_index],
                 &entry_environment,
                 context,
@@ -223,7 +223,7 @@ impl Compiler {
             // propagate environments over outgoing edges
             for edge in &graph.blocks[block_index].successors {
                 let edge_environment = self.flow_environment_for_edge(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     edge,
                     &exit_environment,
                     context,
@@ -239,7 +239,7 @@ impl Compiler {
                         .cloned()
                         .unwrap_or_else(|| FlowEnvironment::new(false));
                     let merged_environment = self.merge_flow_environments(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         &existing_environment,
                         &edge_environment,
                         Some(&existing_environment),
@@ -281,7 +281,7 @@ impl Compiler {
                 .cloned()
                 .unwrap_or_else(|| FlowEnvironment::new(false));
             self.map_flow_environment_for_block_nodes(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 block,
                 &entry_environment,
                 context,
@@ -291,7 +291,7 @@ impl Compiler {
 
         // emit unreachable diagnostics when enabled
         if !context.options.allow_unreachable_code {
-            self.report_unreachable_blocks(tables, graph, &flow);
+            self.report_unreachable_blocks(ctx, graph, &flow);
         }
 
         Ok(flow)
@@ -300,10 +300,10 @@ impl Compiler {
     /// Compute the exit environment for a block with assertion-aware narrowing.
     fn flow_environment_after_block_nodes(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         block: &FlowBlock,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<FlowEnvironment> {
         // keep unreachable environments unchanged
         if !environment.is_reachable {
@@ -314,7 +314,7 @@ impl Compiler {
         let mut current_environment = environment.clone();
         for node_id in &block.nodes {
             if let Some(updated) = self.flow_environment_after_node(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 *node_id,
                 &current_environment,
                 context,
@@ -329,10 +329,10 @@ impl Compiler {
     /// Record per node environments for a block with assertion-aware narrowing.
     fn map_flow_environment_for_block_nodes(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         block: &FlowBlock,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
         flow: &mut FlowTable,
     ) -> AnalyzeResult<()> {
         // seed the environment for the first node
@@ -341,12 +341,12 @@ impl Compiler {
 
         // walk nodes and apply assertion call updates
         for node_id in &block.nodes {
-            let node_global = (*node_id).into_global(tables.module.id);
+            let node_global = (*node_id).into_global(ctx.module.id);
             flow.environment_by_node
                 .insert(node_global, current_environment_id);
 
             if let Some(updated) = self.flow_environment_after_node(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 *node_id,
                 &current_environment,
                 context,
@@ -363,10 +363,10 @@ impl Compiler {
     /// Apply assertion call narrowings for a single node when applicable.
     fn flow_environment_after_node(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<Option<FlowEnvironment>> {
         // only expressions can update flow state
         if node_id.ty != NodeType::Expression {
@@ -374,7 +374,7 @@ impl Compiler {
         }
 
         // only apply assertion call narrowings for block expressions
-        let parent = tables.tree.get_parent(node_id.id);
+        let parent = ctx.tree.get_parent(node_id.id);
         let is_block_expression = parent
             .map(|parent| parent.ty == NodeType::Block)
             .unwrap_or(true);
@@ -384,7 +384,7 @@ impl Compiler {
 
         let mut expression_id = node_id.into_typed::<Expression>();
         loop {
-            match tables.tree.get(expression_id) {
+            match ctx.tree.get(expression_id) {
                 Expression::Statement { statement } => {
                     expression_id = *statement;
                 }
@@ -395,7 +395,7 @@ impl Compiler {
             }
         }
 
-        let expression = tables.tree.get(expression_id);
+        let expression = ctx.tree.get(expression_id);
         let Expression::Call {
             left,
             dynamic_arguments,
@@ -406,7 +406,7 @@ impl Compiler {
         };
 
         self.narrow_environment_for_assertion_call(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             *left,
             dynamic_arguments,
@@ -418,12 +418,12 @@ impl Compiler {
     /// Apply assertion narrowing for a call expression when possible.
     fn narrow_environment_for_assertion_call(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         call_id: LocalNodeId<Expression>,
         callee_id: LocalNodeId<Expression>,
         dynamic_arguments: &[LocalNodeId<Argument>],
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<Option<FlowEnvironment>> {
         // skip when custom guards are disabled
         if context.options.no_custom_type_guards {
@@ -431,25 +431,19 @@ impl Compiler {
         }
 
         // resolve the callee symbol
-        let callee_id = self.unwrap_parenthesized_expression(callee_id, tables.tree);
-        let callee_symbol = self.reference_symbol_for_expression(
-            tables.module,
-            callee_id,
-            context.profile,
-            tables.tree,
-            tables.symbols,
-        );
+        let callee_id = self.unwrap_parenthesized_expression(callee_id, ctx.tree);
+        let callee_symbol = self.reference_symbol_for_expression(ctx.tree_symbol_view(), callee_id);
         let Some(callee_symbol) = callee_symbol else {
             return Ok(None);
         };
 
         // skip remote signatures until we can translate predicate types across modules
-        if callee_symbol.module_id != tables.module.id {
+        if callee_symbol.module_id != ctx.module.id {
             return Ok(None);
         }
 
         // resolve the guard signature for parameter mapping
-        let signature = self.guard_signature_for_symbol(tables, callee_symbol);
+        let signature = self.guard_signature_for_symbol(ctx, callee_symbol);
         let Some(signature) = signature else {
             return Ok(None);
         };
@@ -457,7 +451,7 @@ impl Compiler {
         // resolve the predicate return type for the call
         let return_type_id = if let Some(return_type) = signature.return_type {
             Some(self.resolve_declared_type_expression(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 return_type,
                 true,
                 true,
@@ -472,7 +466,7 @@ impl Compiler {
             asserts,
             subject,
             target,
-        } = tables.types.get_type(return_type_id)
+        } = ctx.types.get_type(return_type_id)
         else {
             return Ok(None);
         };
@@ -482,15 +476,15 @@ impl Compiler {
         let Some(target_type_id) = *target else {
             return Ok(None);
         };
-        let target_type_id = self.unwrap_type_value(target_type_id, tables.types);
+        let target_type_id = self.unwrap_type_value(target_type_id, ctx.types);
 
         // find the argument expression for the asserted subject
-        let parameter = self.guard_parameter_for_subject(tables, *subject, &signature);
+        let parameter = self.guard_parameter_for_subject(ctx, *subject, &signature);
         let Some((parameter_index, parameter_name)) = parameter else {
             return Ok(None);
         };
         let argument_value = self.guard_argument_for_parameter(
-            tables,
+            ctx,
             parameter_index,
             parameter_name,
             dynamic_arguments,
@@ -498,21 +492,16 @@ impl Compiler {
         let Some(argument_value) = argument_value else {
             return Ok(None);
         };
-        let argument_value = self.unwrap_parenthesized_expression(argument_value, tables.tree);
-        let argument_symbol = self.reference_symbol_for_expression(
-            tables.module,
-            argument_value,
-            context.profile,
-            tables.tree,
-            tables.symbols,
-        );
+        let argument_value = self.unwrap_parenthesized_expression(argument_value, ctx.tree);
+        let argument_symbol =
+            self.reference_symbol_for_expression(ctx.tree_symbol_view(), argument_value);
         let Some(argument_symbol) = argument_symbol else {
             return Ok(None);
         };
 
         // resolve the base type for the symbol
         let base_type_id = self.symbol_type_for_guard(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             call_id,
             argument_symbol,
             environment,
@@ -520,20 +509,16 @@ impl Compiler {
         )?;
 
         // compute runtime check kind for guard validity
-        let runtime_check_kind = self.runtime_check_kind_for_relation(
-            &mut tables.reborrow(),
-            base_type_id,
-            target_type_id,
-        );
+        let runtime_check_kind =
+            self.runtime_check_kind_for_relation(&mut ctx.reborrow(), base_type_id, target_type_id);
         if let Some(kind) = runtime_check_kind {
-            tables
-                .types
-                .set_runtime_check_kind(call_id.into_global_any(tables.module.id), kind);
+            ctx.types
+                .set_runtime_check_kind(call_id.into_global_any(ctx.module.id), kind);
         }
 
         // compute the asserted type
         let (true_type_id, _) =
-            self.type_guard_types(&mut tables.reborrow(), base_type_id, target_type_id);
+            self.type_guard_types(&mut ctx.reborrow(), base_type_id, target_type_id);
         let Some(true_type_id) = true_type_id else {
             return Ok(None);
         };
@@ -549,7 +534,7 @@ impl Compiler {
     /// Emit diagnostics for unreachable blocks when enabled.
     fn report_unreachable_blocks(
         &self,
-        tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         graph: &FlowGraph,
         flow: &FlowTable,
     ) {
@@ -575,8 +560,8 @@ impl Compiler {
 
             self.error(AnalyzeError::UnreachableCode {
                 node: node_id
-                    .into_global(tables.module.id)
-                    .into_anchored(Some(tables.profile)),
+                    .into_global(ctx.module.id)
+                    .into_anchored(Some(ctx.profile)),
             });
         }
     }
@@ -584,10 +569,10 @@ impl Compiler {
     /// Compute a flow environment for a control flow edge.
     fn flow_environment_for_edge(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         edge: &FlowEdge,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<FlowEnvironment> {
         // skip guard evaluation for unreachable environments
         if !environment.is_reachable {
@@ -602,7 +587,7 @@ impl Compiler {
         match edge.kind {
             FlowEdgeKind::True => {
                 let (true_environment, _) = self.narrow_environment_for_guard(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     guard,
                     environment,
                     context,
@@ -611,7 +596,7 @@ impl Compiler {
             }
             FlowEdgeKind::False => {
                 let (_, false_environment) = self.narrow_environment_for_guard(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     guard,
                     environment,
                     context,
@@ -620,7 +605,7 @@ impl Compiler {
             }
             FlowEdgeKind::Case | FlowEdgeKind::Guard => {
                 let (guard_environment, _) = self.narrow_environment_for_guard(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     guard,
                     environment,
                     context,
@@ -634,12 +619,12 @@ impl Compiler {
     /// Merge two flow environments into a single environment.
     fn merge_flow_environments(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         left: &FlowEnvironment,
         right: &FlowEnvironment,
         baseline: Option<&FlowEnvironment>,
     ) -> FlowEnvironment {
-        // NOTE #Suspicious: flow merges always union differing types, TSC has specialized join rules for some guards
+        // flow merges currently union differing types
         // preserve reachability when one side is unreachable
         if !left.is_reachable {
             return right.clone();
@@ -667,7 +652,7 @@ impl Compiler {
         for symbol in symbols.keys() {
             let baseline_type_id = baseline
                 .and_then(|environment| environment.bindings.get(symbol).copied())
-                .or_else(|| tables.types.get_value_type_id(*symbol));
+                .or_else(|| ctx.types.get_value_type_id(*symbol));
             let left_type_id = left.bindings.get(symbol).copied().or(baseline_type_id);
             let right_type_id = right.bindings.get(symbol).copied().or(baseline_type_id);
 
@@ -683,7 +668,7 @@ impl Compiler {
 
             // build a union for differing branch types
             let merged_type_id = self.merge_flow_types(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 left_type_id,
                 right_type_id,
                 baseline_type_id,
@@ -700,7 +685,7 @@ impl Compiler {
     /// Merge two type ids for flow environments, preserving baseline ordering when possible.
     fn merge_flow_types(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         left_type_id: LocalTypeId,
         right_type_id: LocalTypeId,
         baseline_type_id: Option<LocalTypeId>,
@@ -712,14 +697,14 @@ impl Compiler {
 
         // collect and deduplicate union elements
         let mut elements = Vec::new();
-        self.append_flow_union_elements(left_type_id, &mut elements, tables.types);
-        self.append_flow_union_elements(right_type_id, &mut elements, tables.types);
+        self.append_flow_union_elements(left_type_id, &mut elements, ctx.types);
+        self.append_flow_union_elements(right_type_id, &mut elements, ctx.types);
 
         // keep baseline ordering for stable diagnostics
         if let Some(baseline_type_id) = baseline_type_id
             && let Type::Union {
                 elements: baseline_elements,
-            } = tables.types.get_type(baseline_type_id)
+            } = ctx.types.get_type(baseline_type_id)
         {
             let mut ordered_elements = Vec::with_capacity(elements.len());
             for element_id in baseline_elements {
@@ -732,10 +717,10 @@ impl Compiler {
                     ordered_elements.push(*element_id);
                 }
             }
-            return self.finish_flow_union_elements(ordered_elements, tables.types);
+            return self.finish_flow_union_elements(ordered_elements, ctx.types);
         }
 
-        self.finish_flow_union_elements(elements, tables.types)
+        self.finish_flow_union_elements(elements, ctx.types)
     }
 
     /// Append union elements for a type id, avoiding duplicates.
@@ -788,7 +773,7 @@ impl Compiler {
     pub fn apply_flow_environment_to_context(
         &self,
         environment: &FlowEnvironment,
-        context: &mut InferContext,
+        context: &mut InferState,
     ) {
         context.narrowings = environment
             .bindings
@@ -799,7 +784,7 @@ impl Compiler {
     }
 
     /// Build a flow environment snapshot from an inference context.
-    pub fn flow_environment_from_context(&self, context: &InferContext) -> FlowEnvironment {
+    pub fn flow_environment_from_context(&self, context: &InferState) -> FlowEnvironment {
         // copy context narrowings into a flow environment
         let mut bindings = IndexMap::with_capacity(context.narrowings.len());
         for (symbol, type_id) in &context.narrowings {
@@ -815,20 +800,20 @@ impl Compiler {
     /// Split the environment based on a guard expression.
     fn narrow_environment_for_guard(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         guard: FlowGuard,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<(FlowEnvironment, FlowEnvironment)> {
         match guard {
             FlowGuard::Expression(guard_id) => self.narrow_environment_for_expression_guard(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 guard_id,
                 environment,
                 context,
             ),
             FlowGuard::Pattern { value, pattern } => self.narrow_environment_for_pattern_guard(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 value,
                 pattern,
                 environment,
@@ -848,16 +833,16 @@ impl Compiler {
     /// Split the environment for one expression guard.
     fn narrow_environment_for_expression_guard(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         guard_id: LocalNodeId<Expression>,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<(FlowEnvironment, FlowEnvironment)> {
-        let guard_id = self.unwrap_parenthesized_expression(guard_id, tables.tree);
+        let guard_id = self.unwrap_parenthesized_expression(guard_id, ctx.tree);
 
-        match tables.tree.get(guard_id) {
+        match ctx.tree.get(guard_id) {
             Expression::Comptime { body } => self.narrow_environment_for_guard(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 FlowGuard::Expression(*body),
                 environment,
                 context,
@@ -867,7 +852,7 @@ impl Compiler {
                 right,
             } => {
                 let (true_environment, false_environment) = self.narrow_environment_for_guard(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     FlowGuard::Expression(*right),
                     environment,
                     context,
@@ -879,7 +864,7 @@ impl Compiler {
                 operator,
                 right,
             } => self.narrow_environment_for_binary_expression_guard(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 guard_id,
                 *left,
                 *operator,
@@ -892,7 +877,7 @@ impl Compiler {
                 operator,
                 right,
             } => self.narrow_environment_for_type_binary_expression_guard(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 guard_id,
                 *left,
                 *operator,
@@ -915,18 +900,18 @@ impl Compiler {
     /// Split the environment for one binary expression guard.
     fn narrow_environment_for_binary_expression_guard(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         guard_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
         operator: BinaryOperator,
         right: LocalNodeId<Expression>,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<(FlowEnvironment, FlowEnvironment)> {
         match operator {
             BinaryOperator::InstanceOf => {
-                if let Some(environments) = self.narrow_environment_for_type_guard(
-                    &mut tables.reborrow(),
+                if let Some(environments) = self.narrow_environment_for_runtime_type_guard(
+                    &mut ctx.reborrow(),
                     guard_id,
                     left,
                     right,
@@ -939,7 +924,7 @@ impl Compiler {
             }
             BinaryOperator::In => {
                 if let Some(environments) = self.narrow_environment_for_in_guard(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     guard_id,
                     left,
                     right,
@@ -952,19 +937,19 @@ impl Compiler {
             }
             BinaryOperator::And => {
                 let (left_true, left_false) = self.narrow_environment_for_guard(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     FlowGuard::Expression(left),
                     environment,
                     context,
                 )?;
                 let (right_true, right_false) = self.narrow_environment_for_guard(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     FlowGuard::Expression(right),
                     &left_true,
                     context,
                 )?;
                 let false_environment = self.merge_flow_environments(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     &left_false,
                     &right_false,
                     Some(environment),
@@ -973,19 +958,19 @@ impl Compiler {
             }
             BinaryOperator::Or => {
                 let (left_true, left_false) = self.narrow_environment_for_guard(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     FlowGuard::Expression(left),
                     environment,
                     context,
                 )?;
                 let (right_true, right_false) = self.narrow_environment_for_guard(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     FlowGuard::Expression(right),
                     &left_false,
                     context,
                 )?;
                 let true_environment = self.merge_flow_environments(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     &left_true,
                     &right_true,
                     Some(environment),
@@ -1001,7 +986,7 @@ impl Compiler {
                     BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict
                 );
                 if let Some(environments) = self.narrow_environment_for_typeof_guard(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     guard_id,
                     left,
                     right,
@@ -1017,7 +1002,7 @@ impl Compiler {
                     BinaryOperator::EqualStrict | BinaryOperator::NotEqualStrict
                 );
                 if let Some(environments) = self.narrow_environment_for_nullish_guard(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     guard_id,
                     left,
                     right,
@@ -1030,7 +1015,7 @@ impl Compiler {
                 }
 
                 if let Some(environments) = self.narrow_environment_for_discriminant_guard(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     guard_id,
                     left,
                     right,
@@ -1050,18 +1035,18 @@ impl Compiler {
     /// Split the environment for one type-binary expression guard.
     fn narrow_environment_for_type_binary_expression_guard(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         guard_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
         operator: TypeBinaryOperator,
         right: LocalNodeId<Expression>,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<(FlowEnvironment, FlowEnvironment)> {
         match operator {
             TypeBinaryOperator::Extends | TypeBinaryOperator::Implements => {
                 if let Some(environments) = self.narrow_environment_for_comptime_relation_guard(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     guard_id,
                     left,
                     right,
@@ -1073,8 +1058,8 @@ impl Compiler {
                 Ok(self.unchanged_guard_environments(environment))
             }
             TypeBinaryOperator::Is => {
-                if let Some(environments) = self.narrow_environment_for_is_guard(
-                    &mut tables.reborrow(),
+                if let Some(environments) = self.narrow_environment_for_runtime_type_guard(
+                    &mut ctx.reborrow(),
                     guard_id,
                     left,
                     right,
@@ -1101,26 +1086,20 @@ impl Compiler {
     /// Split the environment based on a pattern guard.
     fn narrow_environment_for_pattern_guard(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         value_id: LocalNodeId<Expression>,
         pattern_id: LocalNodeId<Pattern>,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<(FlowEnvironment, FlowEnvironment)> {
-        let value_id = self.unwrap_parenthesized_expression(value_id, tables.tree);
-        let symbol = self.reference_symbol_for_expression(
-            tables.module,
-            value_id,
-            context.profile,
-            tables.tree,
-            tables.symbols,
-        );
+        let value_id = self.unwrap_parenthesized_expression(value_id, ctx.tree);
+        let symbol = self.reference_symbol_for_expression(ctx.tree_symbol_view(), value_id);
         let Some(symbol) = symbol else {
             return Ok((environment.clone(), environment.clone()));
         };
 
         let base_type_id = self.symbol_type_for_guard(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             value_id,
             symbol,
             environment,
@@ -1128,14 +1107,14 @@ impl Compiler {
         )?;
 
         // treat irrefutable patterns as non narrowing guards
-        if self.is_irrefutable_pattern_for_type(&mut tables.reborrow(), pattern_id, base_type_id) {
+        if self.is_irrefutable_pattern_for_type(&mut ctx.reborrow(), pattern_id, base_type_id) {
             return Ok((environment.clone(), environment.clone()));
         }
 
         // narrow must patterns by stripping nullish values
-        if matches!(tables.tree.get(pattern_id), Pattern::Must(_)) {
+        if matches!(ctx.tree.get(pattern_id), Pattern::Must(_)) {
             let (nullish_type_id, non_nullish_type_id) =
-                self.nullish_guard_types(NullishGuardKind::Nullish, base_type_id, tables.types);
+                self.nullish_guard_types(NullishGuardKind::Nullish, base_type_id, ctx.types);
             let mut true_environment = environment.clone();
             let mut false_environment = environment.clone();
             if let Some(type_id) = non_nullish_type_id {
@@ -1148,13 +1127,13 @@ impl Compiler {
         }
 
         let Some(target_type_id) =
-            self.pattern_guard_target_type(&mut tables.reborrow(), pattern_id)?
+            self.pattern_guard_target_type(&mut ctx.reborrow(), pattern_id)?
         else {
             return Ok((environment.clone(), environment.clone()));
         };
 
         let (true_type_id, false_type_id) =
-            self.type_guard_types(&mut tables.reborrow(), base_type_id, target_type_id);
+            self.type_guard_types(&mut ctx.reborrow(), base_type_id, target_type_id);
 
         let mut true_environment = environment.clone();
         if let Some(type_id) = true_type_id {
@@ -1171,14 +1150,14 @@ impl Compiler {
     /// Resolve the target type used for pattern-based guards.
     fn pattern_guard_target_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        match tables.tree.get(pattern_id) {
+        match ctx.tree.get(pattern_id) {
             Pattern::Expression { value } => {
-                if let Some(literal) = self.scalar_literal_for_expression(tables.tree, *value) {
+                if let Some(literal) = self.scalar_literal_for_expression(ctx.tree, *value) {
                     let literal_type = self.infer_scalar_literal(&literal);
-                    let type_id = tables.types.insert_type_from(
+                    let type_id = ctx.types.insert_type_from(
                         Type::TypeLiteral {
                             value: literal_type,
                         },
@@ -1188,7 +1167,7 @@ impl Compiler {
                 }
 
                 let target_type = self.resolve_declared_type_expression_value(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     *value,
                     true,
                     true,
@@ -1199,18 +1178,18 @@ impl Compiler {
                 if matches!(target_type, Type::Unevaluated(_)) {
                     return Ok(None);
                 }
-                let type_id = tables.types.insert_type_from(target_type, *value);
-                Ok(Some(self.unwrap_type_value(type_id, tables.types)))
+                let type_id = ctx.types.insert_type_from(target_type, *value);
+                Ok(Some(self.unwrap_type_value(type_id, ctx.types)))
             }
             Pattern::TaggedTuple { ty, .. } | Pattern::TaggedObject { ty, .. } => {
-                let target_type_id = self.guard_target_type(&mut tables.reborrow(), *ty)?;
-                Ok(Some(self.unwrap_type_value(target_type_id, tables.types)))
+                let target_type_id = self.guard_target_type(&mut ctx.reborrow(), *ty)?;
+                Ok(Some(self.unwrap_type_value(target_type_id, ctx.types)))
             }
             Pattern::Union { patterns } => {
                 let mut target_types = Vec::new();
                 for pattern_id in patterns {
                     if let Some(target_type_id) =
-                        self.pattern_guard_target_type(&mut tables.reborrow(), *pattern_id)?
+                        self.pattern_guard_target_type(&mut ctx.reborrow(), *pattern_id)?
                     {
                         target_types.push(target_type_id);
                     }
@@ -1221,7 +1200,7 @@ impl Compiler {
                 let target_type_id = if target_types.len() == 1 {
                     target_types[0]
                 } else {
-                    tables.types.insert_type_from(
+                    ctx.types.insert_type_from(
                         Type::Union {
                             elements: target_types,
                         },
@@ -1233,7 +1212,7 @@ impl Compiler {
             Pattern::Object { fields } => {
                 let mut type_fields = Vec::new();
                 for field_id in fields {
-                    let field = tables.tree.get(*field_id);
+                    let field = ctx.tree.get(*field_id);
                     let (key, pattern) = match field {
                         PatternField::Named { name, pattern, .. } => {
                             (Some(StaticKey::Name(*name)), *pattern)
@@ -1241,11 +1220,8 @@ impl Compiler {
                         PatternField::Alias { name, .. } => (Some(StaticKey::Name(*name)), None),
                         PatternField::Computed { key, pattern, .. } => (
                             self.static_key_from_dynamic_key(
-                                tables.profile,
+                                ctx.tree_symbol_type_view(),
                                 DynamicKey::Expression(*key),
-                                tables.tree,
-                                tables.symbols,
-                                tables.types,
                             ),
                             *pattern,
                         ),
@@ -1257,9 +1233,9 @@ impl Compiler {
                         continue;
                     };
                     let field_type_id = if let Some(pattern_id) = pattern {
-                        self.pattern_guard_field_type(&mut tables.reborrow(), pattern_id)?
+                        self.pattern_guard_field_type(&mut ctx.reborrow(), pattern_id)?
                     } else {
-                        tables.types.insert_type_from_any(
+                        ctx.types.insert_type_from_any(
                             Type::TypeLiteral {
                                 value: TypeLiteral::Unknown,
                             },
@@ -1282,7 +1258,7 @@ impl Compiler {
                     construct_signatures: Vec::new(),
                     index_signatures: Vec::new(),
                 };
-                Ok(Some(tables.types.insert_type_from(target_type, pattern_id)))
+                Ok(Some(ctx.types.insert_type_from(target_type, pattern_id)))
             }
             _ => Ok(None),
         }
@@ -1290,38 +1266,20 @@ impl Compiler {
 
     fn pattern_guard_field_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         pattern_id: LocalNodeId<Pattern>,
     ) -> AnalyzeResult<LocalTypeId> {
         if let Some(target_type_id) =
-            self.pattern_guard_target_type(&mut tables.reborrow(), pattern_id)?
+            self.pattern_guard_target_type(&mut ctx.reborrow(), pattern_id)?
         {
             return Ok(target_type_id);
         }
-        Ok(tables.types.insert_type_from_any(
+        Ok(ctx.types.insert_type_from_any(
             Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             },
             pattern_id.into_any(),
         ))
-    }
-
-    /// Resolve the current base type for a guard symbol.
-    fn guard_base_type_for_symbol(
-        &self,
-        tables: &mut TypeTablesContext<'_>,
-        guard_id: LocalNodeId<Expression>,
-        symbol: GlobalSymbolId,
-        environment: &FlowEnvironment,
-        context: &InferContext,
-    ) -> AnalyzeResult<LocalTypeId> {
-        self.symbol_type_for_guard(
-            &mut tables.reborrow(),
-            guard_id,
-            symbol,
-            environment,
-            context,
-        )
     }
 
     /// Build true and false environments for one symbol narrowing.
@@ -1348,59 +1306,28 @@ impl Compiler {
         }
     }
 
-    /// Resolve one guard base type and its union elements before narrowing.
-    fn resolve_guard_base_union_types(
-        &self,
-        tables: &mut TypeTablesContext<'_>,
-        base_type_id: LocalTypeId,
-    ) -> AnalyzeResult<()> {
-        self.resolve_declared_type(&mut tables.reborrow(), base_type_id)?;
-
-        let mut union_elements = Vec::new();
-        if let Type::Union { elements } = tables.types.get_type(base_type_id) {
-            union_elements.extend(elements.iter().copied());
-        }
-        for element_id in union_elements {
-            self.resolve_declared_type(&mut tables.reborrow(), element_id)?;
-        }
-
-        Ok(())
-    }
-
     /// Split the environment based on a nullish equality guard.
     fn narrow_environment_for_nullish_guard(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         guard_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
         is_strict: bool,
         is_negated: bool,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
         // normalize the guard expressions for matching
-        let left_id = self.unwrap_parenthesized_expression(left_id, tables.tree);
-        let right_id = self.unwrap_parenthesized_expression(right_id, tables.tree);
+        let left_id = self.unwrap_parenthesized_expression(left_id, ctx.tree);
+        let right_id = self.unwrap_parenthesized_expression(right_id, ctx.tree);
 
         // resolve symbols and literal kinds for both sides
-        let left_symbol = self.reference_symbol_for_expression(
-            tables.module,
-            left_id,
-            context.profile,
-            tables.tree,
-            tables.symbols,
-        );
-        let right_symbol = self.reference_symbol_for_expression(
-            tables.module,
-            right_id,
-            context.profile,
-            tables.tree,
-            tables.symbols,
-        );
+        let left_symbol = self.reference_symbol_for_expression(ctx.tree_symbol_view(), left_id);
+        let right_symbol = self.reference_symbol_for_expression(ctx.tree_symbol_view(), right_id);
 
-        let left_literal = self.nullish_literal_kind(tables.tree, left_id);
-        let right_literal = self.nullish_literal_kind(tables.tree, right_id);
+        let left_literal = self.nullish_literal_kind(ctx.tree, left_id);
+        let right_literal = self.nullish_literal_kind(ctx.tree, right_id);
 
         // select the symbol and literal to narrow
         let (symbol, literal_kind) = match (left_symbol, right_literal, right_symbol, left_literal)
@@ -1418,8 +1345,8 @@ impl Compiler {
         };
 
         // resolve the base type to narrow
-        let base_type_id = self.guard_base_type_for_symbol(
-            &mut tables.reborrow(),
+        let base_type_id = self.symbol_type_for_guard(
+            &mut ctx.reborrow(),
             guard_id,
             symbol,
             environment,
@@ -1427,7 +1354,7 @@ impl Compiler {
         )?;
 
         let (true_type_id, false_type_id) =
-            self.nullish_guard_types(guard_kind, base_type_id, tables.types);
+            self.nullish_guard_types(guard_kind, base_type_id, ctx.types);
 
         Ok(Some(self.narrowed_environments_for_symbol(
             environment,
@@ -1441,24 +1368,24 @@ impl Compiler {
     /// Split the environment based on a typeof equality guard.
     fn narrow_environment_for_typeof_guard(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         guard_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
         is_negated: bool,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
         // normalize both sides for matching
-        let left_id = self.unwrap_parenthesized_expression(left_id, tables.tree);
-        let right_id = self.unwrap_parenthesized_expression(right_id, tables.tree);
+        let left_id = self.unwrap_parenthesized_expression(left_id, ctx.tree);
+        let right_id = self.unwrap_parenthesized_expression(right_id, ctx.tree);
 
         // identify the typeof expression and the string literal
         let (typeof_id, literal_id) = match (
-            self.typeof_expression_id(tables.tree, left_id),
-            self.string_literal_id(tables.tree, right_id),
-            self.typeof_expression_id(tables.tree, right_id),
-            self.string_literal_id(tables.tree, left_id),
+            self.typeof_expression_id(ctx.tree, left_id),
+            self.string_literal_id(ctx.tree, right_id),
+            self.typeof_expression_id(ctx.tree, right_id),
+            self.string_literal_id(ctx.tree, left_id),
         ) {
             (Some(typeof_id), Some(literal_id), _, _) => (typeof_id, literal_id),
             (_, _, Some(typeof_id), Some(literal_id)) => (typeof_id, literal_id),
@@ -1466,52 +1393,51 @@ impl Compiler {
         };
 
         // resolve the guard symbol from the typeof argument
-        let typeof_id = self.unwrap_parenthesized_expression(typeof_id, tables.tree);
-        let right_id = match tables.tree.get(typeof_id) {
+        let typeof_id = self.unwrap_parenthesized_expression(typeof_id, ctx.tree);
+        let right_id = match ctx.tree.get(typeof_id) {
             Expression::TypeUnary {
                 operator: TypeUnaryOperator::Typeof,
                 right,
-            } => self.unwrap_parenthesized_expression(*right, tables.tree),
+            } => self.unwrap_parenthesized_expression(*right, ctx.tree),
             Expression::Unary {
                 operator: UnaryOperator::Typeof,
                 right,
-            } => self.unwrap_parenthesized_expression(*right, tables.tree),
+            } => self.unwrap_parenthesized_expression(*right, ctx.tree),
             _ => return Ok(None),
         };
-        let symbol = self.reference_symbol_for_expression(
-            tables.module,
-            right_id,
-            context.profile,
-            tables.tree,
-            tables.symbols,
-        );
+        let symbol = self.reference_symbol_for_expression(ctx.tree_symbol_view(), right_id);
         let Some(symbol) = symbol else {
             return Ok(None);
         };
 
         // resolve the typeof guard target
-        let Some(target) = self.type_guard_target_for_typeof_string(
-            literal_id,
-            typeof_id.into_any(),
-            tables.types,
-        ) else {
+        let Some(target) =
+            self.type_guard_target_for_typeof_string(literal_id, typeof_id.into_any(), ctx.types)
+        else {
             return Ok(None);
         };
 
         // resolve the base type for the symbol
-        let base_type_id = self.guard_base_type_for_symbol(
-            &mut tables.reborrow(),
+        let base_type_id = self.symbol_type_for_guard(
+            &mut ctx.reborrow(),
             guard_id,
             symbol,
             environment,
             context,
         )?;
 
-        self.resolve_guard_base_union_types(&mut tables.reborrow(), base_type_id)?;
+        self.resolve_declared_type(&mut ctx.reborrow(), base_type_id)?;
+        let mut union_elements = Vec::new();
+        if let Type::Union { elements } = ctx.types.get_type(base_type_id) {
+            union_elements.extend(elements.iter().copied());
+        }
+        for element_id in union_elements {
+            self.resolve_declared_type(&mut ctx.reborrow(), element_id)?;
+        }
 
         // compute narrowed types for each branch
         let (true_type_id, false_type_id) =
-            self.type_guard_target_types(&mut tables.reborrow(), base_type_id, target);
+            self.type_guard_target_types(&mut ctx.reborrow(), base_type_id, target);
 
         Ok(Some(self.narrowed_environments_for_symbol(
             environment,
@@ -1525,24 +1451,24 @@ impl Compiler {
     /// Split the environment based on a discriminant equality guard.
     fn narrow_environment_for_discriminant_guard(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         guard_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
         is_negated: bool,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
         // normalize both sides for matching
-        let left_id = self.unwrap_parenthesized_expression(left_id, tables.tree);
-        let right_id = self.unwrap_parenthesized_expression(right_id, tables.tree);
+        let left_id = self.unwrap_parenthesized_expression(left_id, ctx.tree);
+        let right_id = self.unwrap_parenthesized_expression(right_id, ctx.tree);
 
         // identify the discriminant access and literal
         let (symbol, key, literal) = match (
-            self.discriminant_access_for_expression(&mut tables.reborrow(), left_id, context),
-            self.scalar_literal_for_expression(tables.tree, right_id),
-            self.discriminant_access_for_expression(&mut tables.reborrow(), right_id, context),
-            self.scalar_literal_for_expression(tables.tree, left_id),
+            self.discriminant_access_for_expression(&mut ctx.reborrow(), left_id, context),
+            self.scalar_literal_for_expression(ctx.tree, right_id),
+            self.discriminant_access_for_expression(&mut ctx.reborrow(), right_id, context),
+            self.scalar_literal_for_expression(ctx.tree, left_id),
         ) {
             (Some((symbol, key)), Some(literal), _, _) => (symbol, key, literal),
             (_, _, Some((symbol, key)), Some(literal)) => (symbol, key, literal),
@@ -1550,19 +1476,26 @@ impl Compiler {
         };
 
         // resolve the base type for the symbol
-        let base_type_id = self.guard_base_type_for_symbol(
-            &mut tables.reborrow(),
+        let base_type_id = self.symbol_type_for_guard(
+            &mut ctx.reborrow(),
             guard_id,
             symbol,
             environment,
             context,
         )?;
 
-        self.resolve_guard_base_union_types(&mut tables.reborrow(), base_type_id)?;
+        self.resolve_declared_type(&mut ctx.reborrow(), base_type_id)?;
+        let mut union_elements = Vec::new();
+        if let Type::Union { elements } = ctx.types.get_type(base_type_id) {
+            union_elements.extend(elements.iter().copied());
+        }
+        for element_id in union_elements {
+            self.resolve_declared_type(&mut ctx.reborrow(), element_id)?;
+        }
 
         // compute narrowed types for each branch
         let (true_type_id, false_type_id) =
-            self.discriminant_guard_types(&mut tables.reborrow(), base_type_id, &key, literal)?;
+            self.discriminant_guard_types(&mut ctx.reborrow(), base_type_id, &key, literal)?;
 
         Ok(Some(self.narrowed_environments_for_symbol(
             environment,
@@ -1576,30 +1509,24 @@ impl Compiler {
     /// Split the environment based on an `x in y` guard.
     fn narrow_environment_for_in_guard(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         guard_id: LocalNodeId<Expression>,
         key_id: LocalNodeId<Expression>,
         target_id: LocalNodeId<Expression>,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
         // normalize the guard expressions
-        let key_id = self.unwrap_parenthesized_expression(key_id, tables.tree);
-        let target_id = self.unwrap_parenthesized_expression(target_id, tables.tree);
+        let key_id = self.unwrap_parenthesized_expression(key_id, ctx.tree);
+        let target_id = self.unwrap_parenthesized_expression(target_id, ctx.tree);
 
         // only narrow for string literal keys
-        let Some(key) = self.string_literal_id(tables.tree, key_id) else {
+        let Some(key) = self.string_literal_id(ctx.tree, key_id) else {
             return Ok(None);
         };
 
         // resolve the target symbol
-        let symbol = self.reference_symbol_for_expression(
-            tables.module,
-            target_id,
-            context.profile,
-            tables.tree,
-            tables.symbols,
-        );
+        let symbol = self.reference_symbol_for_expression(ctx.tree_symbol_view(), target_id);
         let Some(symbol) = symbol else {
             return Ok(None);
         };
@@ -1608,8 +1535,8 @@ impl Compiler {
         let key = StaticKey::Name(key);
 
         // resolve the base type for the symbol
-        let base_type_id = self.guard_base_type_for_symbol(
-            &mut tables.reborrow(),
+        let base_type_id = self.symbol_type_for_guard(
+            &mut ctx.reborrow(),
             guard_id,
             symbol,
             environment,
@@ -1619,7 +1546,7 @@ impl Compiler {
         // ensure sound property narrowing when requested
         if context.options.no_unsound_narrowing {
             let is_required = self.type_has_required_property(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 base_type_id,
                 &key,
                 guard_id.into_any(),
@@ -1631,7 +1558,7 @@ impl Compiler {
 
         // compute narrowed types for each branch
         let (true_type_id, false_type_id) =
-            self.property_guard_types(&mut tables.reborrow(), base_type_id, &key);
+            self.property_guard_types(&mut ctx.reborrow(), base_type_id, &key);
 
         Ok(Some(self.narrowed_environments_for_symbol(
             environment,
@@ -1642,39 +1569,19 @@ impl Compiler {
         )))
     }
 
-    /// Split the environment based on an `x is T` guard.
-    fn narrow_environment_for_is_guard(
-        &self,
-        tables: &mut TypeTablesContext<'_>,
-        guard_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
-        target_id: LocalNodeId<Expression>,
-        environment: &FlowEnvironment,
-        context: &InferContext,
-    ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
-        self.narrow_environment_for_runtime_type_guard(
-            &mut tables.reborrow(),
-            guard_id,
-            value_id,
-            target_id,
-            environment,
-            context,
-        )
-    }
-
     /// Split the environment for one comptime type relation guard.
     fn narrow_environment_for_comptime_relation_guard(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         guard_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
         // resolve the comptime relation observation from the guard syntax
         let Some(relation) = self.comptime_extends_relation_observation_for_guard(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             left_id,
             right_id,
             context,
@@ -1687,12 +1594,12 @@ impl Compiler {
 
         // collect candidate value bindings for relation narrowing
         let mut binding_symbols = environment.bindings.keys().copied().collect::<Vec<_>>();
-        for candidate_local_id in tables.symbols.active_symbol_ids() {
-            let candidate_symbol = candidate_local_id.into_global(tables.module.id);
+        for candidate_local_id in ctx.symbols.active_symbol_ids() {
+            let candidate_symbol = candidate_local_id.into_global(ctx.module.id);
             if binding_symbols.contains(&candidate_symbol) {
                 continue;
             }
-            if tables.types.get_value_type_id(candidate_symbol).is_some() {
+            if ctx.types.get_value_type_id(candidate_symbol).is_some() {
                 binding_symbols.push(candidate_symbol);
             }
         }
@@ -1703,29 +1610,22 @@ impl Compiler {
         let mut did_narrow = false;
 
         for binding_symbol in binding_symbols {
-            let base_type_id = self.guard_base_type_for_symbol(
-                &mut tables.reborrow(),
+            let base_type_id = self.symbol_type_for_guard(
+                &mut ctx.reborrow(),
                 guard_id,
                 binding_symbol,
                 environment,
                 context,
             )?;
             let mut visited = Vec::new();
-            if !self.type_references_symbol(
-                base_type_id,
-                relation_symbol,
-                tables.types,
-                &mut visited,
-            ) {
+            if !self.type_references_symbol(base_type_id, relation_symbol, ctx.types, &mut visited)
+            {
                 continue;
             }
             let relation_base_type_id = base_type_id;
 
-            let (true_type_id, false_type_id) = self.type_guard_types(
-                &mut tables.reborrow(),
-                relation_base_type_id,
-                target_type_id,
-            );
+            let (true_type_id, false_type_id) =
+                self.type_guard_types(&mut ctx.reborrow(), relation_base_type_id, target_type_id);
             if let Some(type_id) = true_type_id {
                 true_environment.bindings.insert(binding_symbol, type_id);
             }
@@ -1745,44 +1645,32 @@ impl Compiler {
     /// Resolve one comptime extends relation observation from guard syntax.
     fn comptime_extends_relation_observation_for_guard(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
-        context: &InferContext,
+        _context: &InferState,
     ) -> AnalyzeResult<Option<ComptimeExtendsRelationObservation>> {
         // unwrap comptime wrappers around the relation operand
-        let mut relation_expression_id = self.unwrap_parenthesized_expression(left_id, tables.tree);
-        while let Expression::Comptime { body } = tables.tree.get(relation_expression_id) {
-            relation_expression_id = self.unwrap_parenthesized_expression(*body, tables.tree);
+        let mut relation_expression_id = self.unwrap_parenthesized_expression(left_id, ctx.tree);
+        while let Expression::Comptime { body } = ctx.tree.get(relation_expression_id) {
+            relation_expression_id = self.unwrap_parenthesized_expression(*body, ctx.tree);
         }
 
         // resolve the static parameter symbol directly from the relation operand
         let relation_symbol = self
-            .reference_symbol_for_expression(
-                tables.module,
-                relation_expression_id,
-                context.profile,
-                tables.tree,
-                tables.symbols,
-            )
-            .or_else(|| tables.tree.get(relation_expression_id).target_symbol());
+            .reference_symbol_for_expression(ctx.tree_symbol_view(), relation_expression_id)
+            .or_else(|| ctx.tree.get(relation_expression_id).target_symbol());
         let Some(relation_symbol) = relation_symbol else {
             return Ok(None);
         };
-        if !self.symbol_is_static_parameter(
-            tables.module,
-            context.profile,
-            relation_symbol,
-            tables.symbols,
-            tables.types,
-        ) {
+        if !self.symbol_is_static_parameter(ctx.symbol_type_view(), relation_symbol) {
             return Ok(None);
         }
 
         // resolve the right-hand target type
-        let right_id = self.unwrap_parenthesized_expression(right_id, tables.tree);
-        let target_type_id = self.guard_target_type(&mut tables.reborrow(), right_id)?;
-        let target_type_id = self.unwrap_type_value(target_type_id, tables.types);
+        let right_id = self.unwrap_parenthesized_expression(right_id, ctx.tree);
+        let target_type_id = self.guard_target_type(&mut ctx.reborrow(), right_id)?;
+        let target_type_id = self.unwrap_type_value(target_type_id, ctx.types);
 
         Ok(Some(ComptimeExtendsRelationObservation {
             relation_symbol,
@@ -1790,57 +1678,31 @@ impl Compiler {
         }))
     }
 
-    /// Split the environment based on a class identity guard.
-    fn narrow_environment_for_type_guard(
-        &self,
-        tables: &mut TypeTablesContext<'_>,
-        guard_id: LocalNodeId<Expression>,
-        value_id: LocalNodeId<Expression>,
-        target_id: LocalNodeId<Expression>,
-        environment: &FlowEnvironment,
-        context: &InferContext,
-    ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
-        self.narrow_environment_for_runtime_type_guard(
-            &mut tables.reborrow(),
-            guard_id,
-            value_id,
-            target_id,
-            environment,
-            context,
-        )
-    }
-
-    /// Split the environment based on one runtime type relation guard.
+    /// Split the environment for one runtime type relation guard.
     fn narrow_environment_for_runtime_type_guard(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         guard_id: LocalNodeId<Expression>,
         value_id: LocalNodeId<Expression>,
         target_id: LocalNodeId<Expression>,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        context: &InferState,
     ) -> AnalyzeResult<Option<(FlowEnvironment, FlowEnvironment)>> {
         // resolve the target symbol
-        let value_id = self.unwrap_parenthesized_expression(value_id, tables.tree);
-        let symbol = self.reference_symbol_for_expression(
-            tables.module,
-            value_id,
-            context.profile,
-            tables.tree,
-            tables.symbols,
-        );
+        let value_id = self.unwrap_parenthesized_expression(value_id, ctx.tree);
+        let symbol = self.reference_symbol_for_expression(ctx.tree_symbol_view(), value_id);
         let Some(symbol) = symbol else {
             return Ok(None);
         };
 
         // resolve the target type
-        let target_id = self.unwrap_parenthesized_expression(target_id, tables.tree);
-        let target_type_id = self.guard_target_type(&mut tables.reborrow(), target_id)?;
-        let target_type_id = self.unwrap_type_value(target_type_id, tables.types);
+        let target_id = self.unwrap_parenthesized_expression(target_id, ctx.tree);
+        let target_type_id = self.guard_target_type(&mut ctx.reborrow(), target_id)?;
+        let target_type_id = self.unwrap_type_value(target_type_id, ctx.types);
 
         // resolve the base type for the symbol
-        let base_type_id = self.guard_base_type_for_symbol(
-            &mut tables.reborrow(),
+        let base_type_id = self.symbol_type_for_guard(
+            &mut ctx.reborrow(),
             guard_id,
             symbol,
             environment,
@@ -1848,15 +1710,11 @@ impl Compiler {
         )?;
 
         // compute runtime check kind for guard validity
-        let runtime_check_kind = self.runtime_check_kind_for_relation(
-            &mut tables.reborrow(),
-            base_type_id,
-            target_type_id,
-        );
+        let runtime_check_kind =
+            self.runtime_check_kind_for_relation(&mut ctx.reborrow(), base_type_id, target_type_id);
         if let Some(kind) = runtime_check_kind {
-            tables
-                .types
-                .set_runtime_check_kind(guard_id.into_global_any(tables.module.id), kind);
+            ctx.types
+                .set_runtime_check_kind(guard_id.into_global_any(ctx.module.id), kind);
         }
 
         // skip unsound narrowing when runtime checks are unavailable
@@ -1872,7 +1730,7 @@ impl Compiler {
 
         // compute narrowed types for each branch
         let (true_type_id, false_type_id) =
-            self.type_guard_types(&mut tables.reborrow(), base_type_id, target_type_id);
+            self.type_guard_types(&mut ctx.reborrow(), base_type_id, target_type_id);
 
         Ok(Some(self.narrowed_environments_for_symbol(
             environment,
@@ -1886,47 +1744,46 @@ impl Compiler {
     /// Determine the target type for a guard expression.
     fn guard_target_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         target_id: LocalNodeId<Expression>,
     ) -> AnalyzeResult<LocalTypeId> {
         // prefer explicit type nodes
-        if let Expression::Type { value } = tables.tree.get(target_id) {
+        if let Expression::Type { value } = ctx.tree.get(target_id) {
             return Ok(*value);
         }
 
         // fall back to evaluating the expression as a type
-        self.resolve_declared_type_expression(&mut tables.reborrow(), target_id, true, true)
+        self.resolve_declared_type_expression(&mut ctx.reborrow(), target_id, true, true)
     }
 
     /// Resolve a guard signature for a callable symbol.
     fn guard_signature_for_symbol(
         &self,
-        tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         symbol: GlobalSymbolId,
     ) -> Option<FunctionSignature> {
         // remote signatures are not yet supported in flow predicates
-        if symbol.module_id != tables.module.id {
+        if symbol.module_id != ctx.module.id {
             return None;
         }
 
-        self.guard_signature_for_symbol_in_tree(symbol, tables.tree, tables.symbols)
+        self.guard_signature_for_symbol_in_tree(ctx.tree_symbol_view(), symbol)
     }
 
     /// Resolve a guard signature for a symbol within a tree.
     fn guard_signature_for_symbol_in_tree(
         &self,
+        ctx: TreeSymbolView<'_>,
         symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> Option<FunctionSignature> {
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
         let primary_declaration = symbol_entry.primary_declaration?;
         if primary_declaration.local_id.ty != NodeType::Declaration {
             return None;
         }
 
         let declaration_id = LocalNodeId::<Declaration>::new(primary_declaration.local_id.id);
-        let declaration = tree.get(declaration_id);
+        let declaration = ctx.tree.get(declaration_id);
         let Declaration::Function { signature, .. } = declaration else {
             return None;
         };
@@ -1937,13 +1794,13 @@ impl Compiler {
     /// Find the parameter that matches a guard predicate subject.
     fn guard_parameter_for_subject(
         &self,
-        tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         subject: TypePredicateSubject,
         signature: &FunctionSignature,
     ) -> Option<(usize, Option<StringId>)> {
         for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
-            let parameter = tables.tree.get(*parameter_id);
-            let parameter_symbol = parameter.symbol().into_global(tables.module.id);
+            let parameter = ctx.tree.get(*parameter_id);
+            let parameter_symbol = parameter.symbol().into_global(ctx.module.id);
             let parameter_name = match parameter {
                 Parameter::Named { name, .. } | Parameter::VariadicNamed { name, .. } => {
                     Some(*name)
@@ -1971,7 +1828,7 @@ impl Compiler {
     /// Resolve the argument value corresponding to a guard parameter.
     fn guard_argument_for_parameter(
         &self,
-        tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         parameter_index: usize,
         parameter_name: Option<StringId>,
         arguments: &[LocalNodeId<Argument>],
@@ -1979,7 +1836,7 @@ impl Compiler {
         // prefer named arguments when available
         if let Some(parameter_name) = parameter_name {
             for argument_id in arguments {
-                match tables.tree.get(*argument_id) {
+                match ctx.tree.get(*argument_id) {
                     Argument::Named { name, value, .. } if *name == parameter_name => {
                         return Some(*value);
                     }
@@ -1994,7 +1851,7 @@ impl Compiler {
         // fall back to positional arguments
         let mut positional_index = 0;
         for argument_id in arguments {
-            match tables.tree.get(*argument_id) {
+            match ctx.tree.get(*argument_id) {
                 Argument::Positional { value, .. } => {
                     if positional_index == parameter_index {
                         return Some(*value);
@@ -2017,13 +1874,13 @@ impl Compiler {
     /// Derive guard types for a symbol based on a target type.
     fn type_guard_types(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         base_type_id: LocalTypeId,
         target_type_id: LocalTypeId,
     ) -> (Option<LocalTypeId>, Option<LocalTypeId>) {
         // handle union and non union cases separately
         // filter union members that satisfy the target guard
-        let base_type = tables.types.get_type(base_type_id).clone();
+        let base_type = ctx.types.get_type(base_type_id).clone();
         let true_type_id = match base_type {
             Type::Union { elements } => {
                 let mut matching_elements = Vec::new();
@@ -2031,7 +1888,7 @@ impl Compiler {
                 // collect assignable union members
                 for element_id in elements {
                     let is_assignable = self
-                        .is_type_assignable(&mut tables.reborrow(), target_type_id, element_id)
+                        .is_type_assignable(&mut ctx.reborrow(), target_type_id, element_id)
                         .is_assignable();
                     if is_assignable {
                         matching_elements.push(element_id);
@@ -2041,7 +1898,7 @@ impl Compiler {
                 match matching_elements.len() {
                     0 => None,
                     1 => Some(matching_elements[0]),
-                    _ => Some(tables.types.insert_type_from_type(
+                    _ => Some(ctx.types.insert_type_from_type(
                         Type::Union {
                             elements: matching_elements,
                         },
@@ -2052,10 +1909,10 @@ impl Compiler {
             _ => {
                 // keep the base type when it is already narrow enough
                 let base_is_assignable = self
-                    .is_type_assignable(&mut tables.reborrow(), target_type_id, base_type_id)
+                    .is_type_assignable(&mut ctx.reborrow(), target_type_id, base_type_id)
                     .is_assignable();
                 let target_is_assignable = self
-                    .is_type_assignable(&mut tables.reborrow(), base_type_id, target_type_id)
+                    .is_type_assignable(&mut ctx.reborrow(), base_type_id, target_type_id)
                     .is_assignable();
 
                 if base_is_assignable {
@@ -2063,7 +1920,7 @@ impl Compiler {
                 } else if target_is_assignable {
                     Some(target_type_id)
                 } else {
-                    Some(tables.types.insert_type_from_type(
+                    Some(ctx.types.insert_type_from_type(
                         Type::Intersection {
                             elements: vec![base_type_id, target_type_id],
                         },
@@ -2075,7 +1932,7 @@ impl Compiler {
 
         // drop assignable types for the false branch
         let (false_type_id, _) =
-            self.strip_assignable_from_union(&mut tables.reborrow(), base_type_id, target_type_id);
+            self.strip_assignable_from_union(&mut ctx.reborrow(), base_type_id, target_type_id);
 
         (true_type_id, false_type_id)
     }
@@ -2083,44 +1940,44 @@ impl Compiler {
     /// Derive guard types for a typed guard target.
     fn type_guard_target_types(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         base_type_id: LocalTypeId,
         target: TypeGuardTarget,
     ) -> (Option<LocalTypeId>, Option<LocalTypeId>) {
         // route guard targets to their narrowing strategy
         match target {
             TypeGuardTarget::TypeId(target_type_id) => {
-                self.type_guard_types(&mut tables.reborrow(), base_type_id, target_type_id)
+                self.type_guard_types(&mut ctx.reborrow(), base_type_id, target_type_id)
             }
-            TypeGuardTarget::ObjectLike => self.predicate_guard_types(
-                base_type_id,
-                &mut tables.reborrow(),
-                |type_id, tables| self.type_is_object_like(&mut tables.reborrow(), type_id),
-            ),
-            TypeGuardTarget::FunctionLike => self.predicate_guard_types(
-                base_type_id,
-                &mut tables.reborrow(),
-                |type_id, tables| self.type_is_function_like(&mut tables.reborrow(), type_id),
-            ),
+            TypeGuardTarget::ObjectLike => {
+                self.predicate_guard_types(base_type_id, &mut ctx.reborrow(), |type_id, state| {
+                    self.type_is_object_like(&mut state.reborrow(), type_id)
+                })
+            }
+            TypeGuardTarget::FunctionLike => {
+                self.predicate_guard_types(base_type_id, &mut ctx.reborrow(), |type_id, state| {
+                    self.type_is_function_like(&mut state.reborrow(), type_id)
+                })
+            }
         }
     }
 
     /// Derive guard types for a discriminant equality check.
     fn discriminant_guard_types(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         base_type_id: LocalTypeId,
         key: &StaticKey,
         literal: ScalarLiteral,
     ) -> AnalyzeResult<(Option<LocalTypeId>, Option<LocalTypeId>)> {
         // avoid narrowing any or unknown types
-        if self.type_is_semantic_top_like(base_type_id, tables.types) {
+        if self.type_is_semantic_top_like(base_type_id, ctx.types) {
             return Ok((Some(base_type_id), Some(base_type_id)));
         }
 
         // build a literal type for assignability checks
         let literal_type = self.infer_scalar_literal(&literal);
-        let literal_type_id = tables.types.insert_type_from_type(
+        let literal_type_id = ctx.types.insert_type_from_type(
             Type::TypeLiteral {
                 value: literal_type.clone(),
             },
@@ -2128,13 +1985,13 @@ impl Compiler {
         );
 
         // split union and non union targets
-        let base_type = tables.types.get_type(base_type_id).clone();
+        let base_type = ctx.types.get_type(base_type_id).clone();
         match base_type {
             Type::Union { elements } => {
                 // avoid narrowing unions with any or unknown members
                 if elements
                     .iter()
-                    .any(|element_id| self.type_is_semantic_top_like(*element_id, tables.types))
+                    .any(|element_id| self.type_is_semantic_top_like(*element_id, ctx.types))
                 {
                     return Ok((Some(base_type_id), Some(base_type_id)));
                 }
@@ -2145,7 +2002,7 @@ impl Compiler {
                 // collect union members based on discriminant compatibility
                 for element_id in elements {
                     let field_info =
-                        self.type_field_type_for_key(&mut tables.reborrow(), element_id, key)?;
+                        self.type_field_type_for_key(&mut ctx.reborrow(), element_id, key)?;
 
                     let Some((field_type_id, is_optional)) = field_info else {
                         remaining_elements.push(element_id);
@@ -2153,7 +2010,7 @@ impl Compiler {
                     };
 
                     let is_assignable = self
-                        .is_type_assignable(&mut tables.reborrow(), field_type_id, literal_type_id)
+                        .is_type_assignable(&mut ctx.reborrow(), field_type_id, literal_type_id)
                         .is_assignable();
 
                     if is_assignable {
@@ -2167,7 +2024,7 @@ impl Compiler {
 
                     let (remaining_literal, _) = self.strip_literal_from_union(
                         field_type_id,
-                        tables.types,
+                        ctx.types,
                         literal_type.clone(),
                     );
                     if is_optional || remaining_literal.is_some() {
@@ -2178,7 +2035,7 @@ impl Compiler {
                 let true_type_id = match matching_elements.len() {
                     0 => None,
                     1 => Some(matching_elements[0]),
-                    _ => Some(tables.types.insert_type_from_type(
+                    _ => Some(ctx.types.insert_type_from_type(
                         Type::Union {
                             elements: matching_elements,
                         },
@@ -2188,7 +2045,7 @@ impl Compiler {
                 let false_type_id = match remaining_elements.len() {
                     0 => None,
                     1 => Some(remaining_elements[0]),
-                    _ => Some(tables.types.insert_type_from_type(
+                    _ => Some(ctx.types.insert_type_from_type(
                         Type::Union {
                             elements: remaining_elements,
                         },
@@ -2200,13 +2057,13 @@ impl Compiler {
             }
             _ => {
                 let Some((field_type_id, is_optional)) =
-                    self.type_field_type_for_key(&mut tables.reborrow(), base_type_id, key)?
+                    self.type_field_type_for_key(&mut ctx.reborrow(), base_type_id, key)?
                 else {
                     return Ok((Some(base_type_id), Some(base_type_id)));
                 };
 
                 let is_assignable = self
-                    .is_type_assignable(&mut tables.reborrow(), field_type_id, literal_type_id)
+                    .is_type_assignable(&mut ctx.reborrow(), field_type_id, literal_type_id)
                     .is_assignable();
 
                 if !is_assignable {
@@ -2214,7 +2071,7 @@ impl Compiler {
                 }
 
                 let (remaining_literal, _) =
-                    self.strip_literal_from_union(field_type_id, tables.types, literal_type);
+                    self.strip_literal_from_union(field_type_id, ctx.types, literal_type);
                 if is_optional || remaining_literal.is_some() {
                     Ok((Some(base_type_id), Some(base_type_id)))
                 } else {
@@ -2228,25 +2085,25 @@ impl Compiler {
     fn predicate_guard_types<F>(
         &self,
         base_type_id: LocalTypeId,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         predicate: F,
     ) -> (Option<LocalTypeId>, Option<LocalTypeId>)
     where
-        F: Fn(LocalTypeId, &mut TypeTablesContext<'_>) -> bool,
+        F: Fn(LocalTypeId, &mut TypeContext<'_>) -> bool,
     {
         // avoid narrowing any or unknown types
-        if self.type_is_semantic_top_like(base_type_id, tables.types) {
+        if self.type_is_semantic_top_like(base_type_id, ctx.types) {
             return (Some(base_type_id), Some(base_type_id));
         }
 
         // split union and non union targets
-        let base_ty = tables.types.get_type(base_type_id).clone();
+        let base_ty = ctx.types.get_type(base_type_id).clone();
         match base_ty {
             Type::Union { elements } => {
                 // avoid narrowing unions with any or unknown members
                 if elements
                     .iter()
-                    .any(|element_id| self.type_is_semantic_top_like(*element_id, tables.types))
+                    .any(|element_id| self.type_is_semantic_top_like(*element_id, ctx.types))
                 {
                     return (Some(base_type_id), Some(base_type_id));
                 }
@@ -2256,7 +2113,7 @@ impl Compiler {
 
                 // collect union members by predicate
                 for element_id in elements {
-                    if predicate(element_id, &mut tables.reborrow()) {
+                    if predicate(element_id, &mut ctx.reborrow()) {
                         matching_elements.push(element_id);
                     } else {
                         remaining_elements.push(element_id);
@@ -2266,7 +2123,7 @@ impl Compiler {
                 let true_type_id = match matching_elements.len() {
                     0 => None,
                     1 => Some(matching_elements[0]),
-                    _ => Some(tables.types.insert_type_from_type(
+                    _ => Some(ctx.types.insert_type_from_type(
                         Type::Union {
                             elements: matching_elements,
                         },
@@ -2276,7 +2133,7 @@ impl Compiler {
                 let false_type_id = match remaining_elements.len() {
                     0 => None,
                     1 => Some(remaining_elements[0]),
-                    _ => Some(tables.types.insert_type_from_type(
+                    _ => Some(ctx.types.insert_type_from_type(
                         Type::Union {
                             elements: remaining_elements,
                         },
@@ -2288,7 +2145,7 @@ impl Compiler {
             }
             _ => {
                 // narrow based on the predicate result
-                if predicate(base_type_id, &mut tables.reborrow()) {
+                if predicate(base_type_id, &mut ctx.reborrow()) {
                     (Some(base_type_id), None)
                 } else {
                     (None, Some(base_type_id))
@@ -2300,12 +2157,12 @@ impl Compiler {
     /// Derive guard types for an `in` property check.
     fn property_guard_types(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         base_type_id: LocalTypeId,
         key: &StaticKey,
     ) -> (Option<LocalTypeId>, Option<LocalTypeId>) {
         // split union and non union targets
-        let base_ty = tables.types.get_type(base_type_id).clone();
+        let base_ty = ctx.types.get_type(base_type_id).clone();
         match base_ty {
             Type::Union { elements } => {
                 let mut matching_elements = Vec::new();
@@ -2313,7 +2170,7 @@ impl Compiler {
 
                 // collect union members with and without the key
                 for element_id in elements {
-                    if self.type_has_property(&mut tables.reborrow(), element_id, key) {
+                    if self.type_has_property(&mut ctx.reborrow(), element_id, key) {
                         matching_elements.push(element_id);
                     } else {
                         remaining_elements.push(element_id);
@@ -2323,7 +2180,7 @@ impl Compiler {
                 let true_type_id = match matching_elements.len() {
                     0 => None,
                     1 => Some(matching_elements[0]),
-                    _ => Some(tables.types.insert_type_from_type(
+                    _ => Some(ctx.types.insert_type_from_type(
                         Type::Union {
                             elements: matching_elements,
                         },
@@ -2333,7 +2190,7 @@ impl Compiler {
                 let false_type_id = match remaining_elements.len() {
                     0 => None,
                     1 => Some(remaining_elements[0]),
-                    _ => Some(tables.types.insert_type_from_type(
+                    _ => Some(ctx.types.insert_type_from_type(
                         Type::Union {
                             elements: remaining_elements,
                         },
@@ -2345,7 +2202,7 @@ impl Compiler {
             }
             _ => {
                 // return the base type on the branch that matches
-                if self.type_has_property(&mut tables.reborrow(), base_type_id, key) {
+                if self.type_has_property(&mut ctx.reborrow(), base_type_id, key) {
                     (Some(base_type_id), None)
                 } else {
                     (None, Some(base_type_id))
@@ -2357,19 +2214,19 @@ impl Compiler {
     /// Check whether a property guard is guaranteed by the type.
     fn type_has_required_property(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         key: &StaticKey,
         anchor_node: LocalNodeIdAny,
     ) -> AnalyzeResult<bool> {
         // avoid soundness gaps when index signatures accept the key
-        if self.type_has_index_signature(&mut tables.reborrow(), type_id, key, anchor_node) {
+        if self.type_has_index_signature(&mut ctx.reborrow(), type_id, key, anchor_node) {
             return Ok(false);
         }
 
         // read the field and ensure it is required
         let Some((_, is_optional)) =
-            self.type_field_type_for_key(&mut tables.reborrow(), type_id, key)?
+            self.type_field_type_for_key(&mut ctx.reborrow(), type_id, key)?
         else {
             return Ok(false);
         };
@@ -2380,15 +2237,15 @@ impl Compiler {
     /// Check if a type provides an index signature for a static key.
     fn type_has_index_signature(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         key: &StaticKey,
         anchor_node: LocalNodeIdAny,
     ) -> bool {
         let mut visited = Vec::new();
-        let type_value = tables.types.get_type(type_id).clone();
+        let type_value = ctx.types.get_type(type_id).clone();
         let Some(type_id) = self.resolve_index_signature_value_type_for_key(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             anchor_node,
             &type_value,
             key,
@@ -2398,7 +2255,7 @@ impl Compiler {
         };
 
         !matches!(
-            tables.types.get_type(type_id),
+            ctx.types.get_type(type_id),
             Type::TypeLiteral {
                 value: TypeLiteral::Never
             }
@@ -2408,12 +2265,12 @@ impl Compiler {
     /// Strip assignable elements from a union for guard negation.
     fn strip_assignable_from_union(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         target_type_id: LocalTypeId,
     ) -> (Option<LocalTypeId>, bool) {
         // split unions from non union types
-        let type_value = tables.types.get_type(type_id).clone();
+        let type_value = ctx.types.get_type(type_id).clone();
         match type_value {
             Type::Union { elements } => {
                 let mut filtered_elements = Vec::new();
@@ -2422,7 +2279,7 @@ impl Compiler {
                 // drop assignable elements while tracking removals
                 for element_id in elements {
                     let is_assignable = self
-                        .is_type_assignable(&mut tables.reborrow(), target_type_id, element_id)
+                        .is_type_assignable(&mut ctx.reborrow(), target_type_id, element_id)
                         .is_assignable();
                     if is_assignable {
                         removed = true;
@@ -2440,7 +2297,7 @@ impl Compiler {
                 let filtered_type_id = match filtered_elements.len() {
                     0 => None,
                     1 => Some(filtered_elements[0]),
-                    _ => Some(tables.types.insert_type_from_type(
+                    _ => Some(ctx.types.insert_type_from_type(
                         Type::Union {
                             elements: filtered_elements,
                         },
@@ -2453,7 +2310,7 @@ impl Compiler {
             _ => {
                 // remove the type when it is assignable to the target
                 let is_assignable = self
-                    .is_type_assignable(&mut tables.reborrow(), target_type_id, type_id)
+                    .is_type_assignable(&mut ctx.reborrow(), target_type_id, type_id)
                     .is_assignable();
                 if is_assignable {
                     (None, true)
@@ -2512,40 +2369,27 @@ impl Compiler {
     /// Resolve a discriminant access from an expression.
     fn discriminant_access_for_expression(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
-        context: &InferContext,
+        _context: &InferState,
     ) -> Option<(GlobalSymbolId, StaticKey)> {
-        match tables.tree.get(expression_id) {
+        match ctx.tree.get(expression_id) {
             Expression::Member { left, name, .. } => {
-                let left_id = self.unwrap_parenthesized_expression(*left, tables.tree);
-                let symbol = self.reference_symbol_for_expression(
-                    tables.module,
-                    left_id,
-                    context.profile,
-                    tables.tree,
-                    tables.symbols,
-                )?;
+                let left_id = self.unwrap_parenthesized_expression(*left, ctx.tree);
+                let symbol =
+                    self.reference_symbol_for_expression(ctx.tree_symbol_view(), left_id)?;
                 Some((symbol, StaticKey::Name(*name)))
             }
             Expression::Index { left, right, .. } => {
                 let right_id = right.as_ref()?;
-                let right_id = self.unwrap_parenthesized_expression(*right_id, tables.tree);
+                let right_id = self.unwrap_parenthesized_expression(*right_id, ctx.tree);
                 let key = self.static_key_from_dynamic_key(
-                    context.profile,
+                    ctx.tree_symbol_type_view(),
                     DynamicKey::Expression(right_id),
-                    tables.tree,
-                    tables.symbols,
-                    tables.types,
                 )?;
-                let left_id = self.unwrap_parenthesized_expression(*left, tables.tree);
-                let symbol = self.reference_symbol_for_expression(
-                    tables.module,
-                    left_id,
-                    context.profile,
-                    tables.tree,
-                    tables.symbols,
-                )?;
+                let left_id = self.unwrap_parenthesized_expression(*left, ctx.tree);
+                let symbol =
+                    self.reference_symbol_for_expression(ctx.tree_symbol_view(), left_id)?;
                 Some((symbol, key))
             }
             _ => None,
@@ -2652,41 +2496,37 @@ impl Compiler {
     /// Resolve the type for a guard symbol.
     fn symbol_type_for_guard(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         guard_id: LocalNodeId<Expression>,
         symbol: GlobalSymbolId,
         environment: &FlowEnvironment,
-        context: &InferContext,
+        _context: &InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // reuse an environment narrowing when present
         let resolved_type = if let Some(type_id) = environment.bindings.get(&symbol) {
-            self.unwrap_type_alias_reference(&mut tables.reborrow(), *type_id)?
+            self.unwrap_type_alias_reference(&mut ctx.reborrow(), *type_id)?
         }
         // fall back to any known value type
-        else if let Some(type_id) = tables.types.get_value_type_id(symbol) {
-            self.unwrap_type_alias_reference(&mut tables.reborrow(), type_id)?
+        else if let Some(type_id) = ctx.types.get_value_type_id(symbol) {
+            self.unwrap_type_alias_reference(&mut ctx.reborrow(), type_id)?
         }
         // resolve remote symbol types through the compiler
-        else if symbol.module_id != tables.module.id {
+        else if symbol.module_id != ctx.module.id {
             // resolve remote symbol types through the compiler
-            self.resolve_remote_symbol_value_type_for_interface(
-                tables.module,
-                context.profile,
+            self.resolve_remote_symbol_value_type(
+                &mut ctx.reborrow(),
                 guard_id.into_any(),
                 symbol,
-                tables.types,
+                RemoteValueTypeReadDomain::Interface,
             )?
-        } else if let Some(declarator_id) = self.direct_binding_declarator_for_symbol(
-            tables.module,
-            symbol,
-            tables.tree,
-            tables.symbols,
-        ) {
-            let declarator_node_id = declarator_id.into_global_any(tables.module.id);
-            if let Some(type_id) = tables.types.get_declared_type_id(declarator_node_id) {
-                self.unwrap_type_alias_reference(&mut tables.reborrow(), type_id)?
+        } else if let Some(declarator_id) =
+            self.direct_binding_declarator_for_symbol(ctx.tree_symbol_view(), symbol)
+        {
+            let declarator_node_id = declarator_id.into_global_any(ctx.module.id);
+            if let Some(type_id) = ctx.types.get_declared_type_id(declarator_node_id) {
+                self.unwrap_type_alias_reference(&mut ctx.reborrow(), type_id)?
             } else {
-                tables.types.insert_type_from(
+                ctx.types.insert_type_from(
                     Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
                     },
@@ -2694,12 +2534,12 @@ impl Compiler {
                 )
             }
         } else if let Some(primary_declaration) =
-            tables.symbols.get_symbol(symbol.into()).primary_declaration
+            ctx.symbols.get_symbol(symbol.into()).primary_declaration
         {
-            if let Some(type_id) = tables.types.get_declared_type_id(primary_declaration) {
-                self.unwrap_type_alias_reference(&mut tables.reborrow(), type_id)?
+            if let Some(type_id) = ctx.types.get_declared_type_id(primary_declaration) {
+                self.unwrap_type_alias_reference(&mut ctx.reborrow(), type_id)?
             } else {
-                tables.types.insert_type_from(
+                ctx.types.insert_type_from(
                     Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
                     },
@@ -2707,7 +2547,7 @@ impl Compiler {
                 )
             }
         } else {
-            tables.types.insert_type_from(
+            ctx.types.insert_type_from(
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 },
@@ -2715,11 +2555,7 @@ impl Compiler {
             )
         };
 
-        Ok(self.normalize_type(
-            &mut tables.reborrow(),
-            resolved_type,
-            NormalizationMode::Flow,
-        ))
+        Ok(self.normalize_type(&mut ctx.reborrow(), resolved_type, NormalizationMode::Flow))
     }
 
     /// Return whether one type graph references a target symbol.

@@ -25,6 +25,7 @@ struct ResolveState<'a> {
     symbols: &'a SymbolTable,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     fn allow_runtime_namespace_member_fallback(
         &self,

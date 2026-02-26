@@ -73,7 +73,7 @@ impl Compiler {
         infer: &mut InferTable,
         types: &mut TypeTable,
     ) {
-        // TODO #Architecture: store instantiation context on resolution entries
+        // NOTE #Architecture: resolution entries currently omit instantiation context
         if has_member {
             match resolution {
                 MemberResolution::Static { symbol } => {

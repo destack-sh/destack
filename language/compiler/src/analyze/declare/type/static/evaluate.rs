@@ -2,7 +2,7 @@ use super::StaticEvaluationMode;
 use super::constant::StaticCycleDiagnosticMode;
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode, TypeRewriteCache, TypeTablesContext,
+    AnalyzeDependencyStage, CanonicalSymbolMode, RelationMode, TypeContext, TypeRewriteCache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
@@ -18,16 +18,16 @@ use std::collections::{HashMap, HashSet};
 impl Compiler {
     pub(crate) fn evaluate_static_expression_value(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
         enum_symbol: Option<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<StaticExpression>> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_STATIC_EVALUATE);
 
         let mut visited = HashSet::new();
-        let mut inner_tables = tables.reborrow();
+        let mut inner_ctx = ctx.reborrow();
         self.evaluate_static_expression_value_inner(
-            &mut inner_tables,
+            &mut inner_ctx,
             expression_id,
             enum_symbol,
             StaticEvaluationMode::Parametric,
@@ -39,10 +39,9 @@ impl Compiler {
 
     /// Evaluate an expression into a static value expression.
     #[allow(clippy::only_used_in_recursion)]
-
     pub(super) fn evaluate_static_expression_value_inner(
         &self,
-        tables_ctx: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
         enum_symbol: Option<GlobalSymbolId>,
         mode: StaticEvaluationMode,
@@ -50,7 +49,7 @@ impl Compiler {
         remote_dependency_stage: AnalyzeDependencyStage,
         visited: &mut HashSet<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<StaticExpression>> {
-        let expression = tables_ctx.tree.get(expression_id);
+        let expression = ctx.tree.get(expression_id);
 
         let value = match expression {
             Expression::ScalarLiteral { value } => StaticExpression::ScalarLiteral {
@@ -62,7 +61,7 @@ impl Compiler {
             Expression::Type { value } => StaticExpression::Type { ty: *value },
             Expression::Parenthesized { expression } => {
                 return self.evaluate_static_expression_value_inner(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     *expression,
                     enum_symbol,
                     mode,
@@ -73,7 +72,7 @@ impl Compiler {
             }
             Expression::Cast { value, .. } => {
                 return self.evaluate_static_expression_value_inner(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     *value,
                     enum_symbol,
                     mode,
@@ -84,7 +83,7 @@ impl Compiler {
             }
             Expression::OwnershipCast { value, .. } => {
                 return self.evaluate_static_expression_value_inner(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     *value,
                     enum_symbol,
                     mode,
@@ -95,7 +94,7 @@ impl Compiler {
             }
             Expression::Unary { operator, right } => {
                 let right_value = self.evaluate_static_expression_value_inner(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     *right,
                     enum_symbol,
                     mode,
@@ -125,7 +124,7 @@ impl Compiler {
                 right,
             } => {
                 let left_value = self.evaluate_static_expression_value_inner(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     *left,
                     enum_symbol,
                     mode,
@@ -134,7 +133,7 @@ impl Compiler {
                     visited,
                 )?;
                 let right_value = self.evaluate_static_expression_value_inner(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     *right,
                     enum_symbol,
                     mode,
@@ -154,8 +153,8 @@ impl Compiler {
                     (Some(left_value), Some(right_value)) => {
                         // defer symbolic static arithmetic until substitutions are available
                         if self.binary_operator_supports_symbolic_static_evaluation(*operator)
-                            && self.static_expression_may_be_numeric(&left_value, tables_ctx.types)
-                            && self.static_expression_may_be_numeric(&right_value, tables_ctx.types)
+                            && self.static_expression_may_be_numeric(&left_value, ctx.types)
+                            && self.static_expression_may_be_numeric(&right_value, ctx.types)
                         {
                             return Ok(Some(StaticExpression::Unevaluated {
                                 node: expression_id,
@@ -212,7 +211,7 @@ impl Compiler {
             | Expression::GlobalReference { target_symbol, .. } => {
                 // static parameter references
                 if let Some((parameter_symbol, kind)) =
-                    self.static_parameter_reference(&mut tables_ctx.reborrow(), expression_id)?
+                    self.static_parameter_reference(&mut ctx.reborrow(), expression_id)?
                 {
                     if kind == StaticParameterKind::Value {
                         // use substitution values when available
@@ -222,10 +221,8 @@ impl Compiler {
                                 substitutions,
                             )
                         {
-                            let value = self.static_expression_from_substitution_type(
-                                type_id,
-                                tables_ctx.types,
-                            );
+                            let value =
+                                self.static_expression_from_substitution_type(type_id, ctx.types);
                             return Ok(Some(value));
                         }
 
@@ -238,31 +235,28 @@ impl Compiler {
                             symbol: parameter_symbol,
                             static_arguments: None,
                         };
-                        let ty = tables_ctx
-                            .types
-                            .insert_type_from(reference_type, expression_id);
+                        let ty = ctx.types.insert_type_from(reference_type, expression_id);
                         return Ok(Some(StaticExpression::Type { ty }));
                     }
 
                     self.error(AnalyzeError::StaticParameterRequiresComptime {
                         node: expression_id
-                            .into_global_any(tables_ctx.module.id)
-                            .into_anchored(Some(tables_ctx.profile)),
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile)),
                     });
                     return Ok(None);
                 }
 
                 // unwrap import/export dependency items before canonicalizing
                 let mut lookup_symbol = *target_symbol;
-                if lookup_symbol.module_id == tables_ctx.module.id {
-                    let symbol_entry = tables_ctx.symbols.get_symbol(lookup_symbol.local_id);
+                if lookup_symbol.module_id == ctx.module.id {
+                    let symbol_entry = ctx.symbols.get_symbol(lookup_symbol.local_id);
                     if let Some(primary_declaration) = symbol_entry.primary_declaration
                         && primary_declaration.local_id.ty == NodeType::DependencyItem
                     {
                         let item_id = primary_declaration.local_id.into_typed::<DependencyItem>();
                         if let DependencyItem::Local { target_symbol, .. }
-                        | DependencyItem::Remote { target_symbol, .. } =
-                            tables_ctx.tree.get(item_id)
+                        | DependencyItem::Remote { target_symbol, .. } = ctx.tree.get(item_id)
                         {
                             lookup_symbol = *target_symbol;
                         }
@@ -270,7 +264,7 @@ impl Compiler {
                 }
 
                 if let Some(value) = self.resolve_static_constant_reference(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     lookup_symbol,
                     mode,
                     substitutions,
@@ -289,7 +283,7 @@ impl Compiler {
                     return Ok(None);
                 };
                 let value = self.enum_field_value_for_symbol_reference(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     enum_symbol,
                     *target_symbol,
                 )?;
@@ -308,40 +302,32 @@ impl Compiler {
                 name,
                 static_arguments: _,
             } => {
-                let node_id = expression_id.into_global_any(tables_ctx.module.id);
+                let node_id = expression_id.into_global_any(ctx.module.id);
                 let member_key = StaticKey::Name(*name);
 
                 // reject cross-module re-entry before projection lookup
                 // this keeps static evaluation fail-closed for module-level cycles
                 let receiver_symbol = self
-                    .reference_symbol_for_expression(
-                        tables_ctx.module,
-                        *left,
-                        tables_ctx.profile,
-                        tables_ctx.tree,
-                        tables_ctx.symbols,
-                    )
-                    .or_else(|| tables_ctx.tree.get(*left).target_symbol());
+                    .reference_symbol_for_expression(ctx.tree_symbol_view(), *left)
+                    .or_else(|| ctx.tree.get(*left).target_symbol());
                 if let Some(receiver_symbol) = receiver_symbol {
                     let receiver_symbol = self.canonical_symbol_id(
-                        tables_ctx.module,
-                        tables_ctx.symbols,
-                        tables_ctx.profile,
+                        ctx.module_symbol_view(),
                         receiver_symbol,
                         CanonicalSymbolMode::FollowAliases,
                     );
-                    let reenters_active_module = receiver_symbol.module_id != tables_ctx.module.id
+                    let reenters_active_module = receiver_symbol.module_id != ctx.module.id
                         && visited.iter().any(|visited_symbol| {
                             visited_symbol.module_id == receiver_symbol.module_id
                         });
                     if reenters_active_module {
                         self.error(AnalyzeError::CircularStaticArgument {
                             node: expression_id
-                                .into_global_any(tables_ctx.module.id)
-                                .into_anchored(Some(tables_ctx.profile)),
+                                .into_global_any(ctx.module.id)
+                                .into_anchored(Some(ctx.profile)),
                         });
 
-                        let error_type_id = tables_ctx
+                        let error_type_id = ctx
                             .types
                             .insert_type_from_any(Type::Error, expression_id.into_any());
                         return Ok(Some(StaticExpression::Type { ty: error_type_id }));
@@ -350,7 +336,7 @@ impl Compiler {
 
                 // resolve projected members in value space for static expressions
                 let projection_selection = self.select_associated_projection_member_symbol(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     expression_id,
                     *left,
                     member_key,
@@ -360,7 +346,7 @@ impl Compiler {
                 )?;
                 if let Some(selection) = projection_selection {
                     let projection_environment = self.projection_environment_for_member(
-                        &mut tables_ctx.reborrow(),
+                        &mut ctx.reborrow(),
                         expression_id.into_any(),
                         selection.target_symbol,
                         Some(selection.receiver_symbol),
@@ -393,7 +379,7 @@ impl Compiler {
                     };
 
                     if let Some(value) = self.resolve_static_constant_reference(
-                        &mut tables_ctx.reborrow(),
+                        &mut ctx.reborrow(),
                         selection.target_symbol,
                         projected_mode,
                         merged_substitutions.as_ref(),
@@ -410,14 +396,14 @@ impl Compiler {
                 }
 
                 // fall back to resolved static candidates
-                if let Some(resolution_id) = tables_ctx.types.get_resolution_for_node(node_id) {
-                    let candidate_symbol = match tables_ctx.types.get_resolution(resolution_id) {
+                if let Some(resolution_id) = ctx.types.get_resolution_for_node(node_id) {
+                    let candidate_symbol = match ctx.types.get_resolution(resolution_id) {
                         Resolution::Static { candidate, .. } => Some(candidate.target_symbol),
                         _ => None,
                     };
                     if let Some(candidate_symbol) = candidate_symbol
                         && let Some(value) = self.resolve_static_constant_reference(
-                            &mut tables_ctx.reborrow(),
+                            &mut ctx.reborrow(),
                             candidate_symbol,
                             mode,
                             substitutions,
@@ -438,19 +424,13 @@ impl Compiler {
                 let Some(enum_symbol) = enum_symbol else {
                     return Ok(None);
                 };
-                let Some(target_symbol) = self.enum_field_symbol_for_name(
-                    tables_ctx.module,
-                    tables_ctx.profile,
-                    enum_symbol,
-                    *name,
-                    tables_ctx.tree,
-                    tables_ctx.symbols,
-                )?
+                let Some(target_symbol) =
+                    self.enum_field_symbol_for_name(ctx.type_view(), enum_symbol, *name)?
                 else {
                     return Ok(None);
                 };
                 let Some(value) = self.enum_field_value_for_symbol_reference(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     enum_symbol,
                     target_symbol,
                 )?
@@ -480,7 +460,7 @@ impl Compiler {
                     return Ok(None);
                 };
 
-                let condition_holds = match tables_ctx.tree.get(*condition_expression) {
+                let condition_holds = match ctx.tree.get(*condition_expression) {
                     Expression::TypeBinary {
                         left,
                         operator: TypeBinaryOperator::Extends,
@@ -488,7 +468,7 @@ impl Compiler {
                     } => {
                         // resolve both sides for extends checks
                         let Some(mut left_type_id) = self.resolve_static_conditional_operand_type(
-                            &mut tables_ctx.reborrow(),
+                            &mut ctx.reborrow(),
                             *left,
                             substitutions,
                             mode,
@@ -498,7 +478,7 @@ impl Compiler {
                         };
                         let Some(mut right_type_id) = self
                             .resolve_static_conditional_operand_type(
-                                &mut tables_ctx.reborrow(),
+                                &mut ctx.reborrow(),
                                 *right,
                                 substitutions,
                                 mode,
@@ -514,36 +494,36 @@ impl Compiler {
                             left_type_id = self.substitute_static_parameters(
                                 left_type_id,
                                 substitutions,
-                                tables_ctx.types,
+                                ctx.types,
                                 &mut substitution_cache,
                             );
                             right_type_id = self.substitute_static_parameters(
                                 right_type_id,
                                 substitutions,
-                                tables_ctx.types,
+                                ctx.types,
                                 &mut substitution_cache,
                             );
                         }
 
                         let mut materialize_cache = TypeRewriteCache::new();
                         left_type_id = self.materialize_static_arguments_in_type(
-                            &mut tables_ctx.reborrow(),
+                            &mut ctx.reborrow(),
                             left_type_id,
                             &mut materialize_cache,
                         );
                         right_type_id = self.materialize_static_arguments_in_type(
-                            &mut tables_ctx.reborrow(),
+                            &mut ctx.reborrow(),
                             right_type_id,
                             &mut materialize_cache,
                         );
                         left_type_id = self.normalize_type_with_relation(
-                            &mut tables_ctx.reborrow(),
+                            &mut ctx.reborrow(),
                             left_type_id,
                             NormalizationMode::Assign,
                             RelationMode::STATIC_EVAL,
                         );
                         right_type_id = self.normalize_type_with_relation(
-                            &mut tables_ctx.reborrow(),
+                            &mut ctx.reborrow(),
                             right_type_id,
                             NormalizationMode::Assign,
                             RelationMode::STATIC_EVAL,
@@ -552,27 +532,18 @@ impl Compiler {
                         // unresolved type operands keep conditional evaluation deferred
                         if mode == StaticEvaluationMode::Instantiated
                             && (!self.type_is_converged_for_static_evaluation(
-                                tables_ctx.module,
-                                tables_ctx.profile,
+                                ctx.type_view(),
                                 left_type_id,
-                                tables_ctx.symbols,
-                                tables_ctx.types,
                             ) || !self.type_is_converged_for_static_evaluation(
-                                tables_ctx.module,
-                                tables_ctx.profile,
+                                ctx.type_view(),
                                 right_type_id,
-                                tables_ctx.symbols,
-                                tables_ctx.types,
                             ))
                         {
                             return Ok(None);
                         }
 
-                        self.is_type_assignable(
-                            &mut tables_ctx.reborrow(),
-                            right_type_id,
-                            left_type_id,
-                        ) != Assignability::NotAssignable
+                        self.is_type_assignable(&mut ctx.reborrow(), right_type_id, left_type_id)
+                            != Assignability::NotAssignable
                     }
                     Expression::ScalarLiteral {
                         value: ScalarLiteral::Boolean(value),
@@ -586,7 +557,7 @@ impl Compiler {
                     *else_expression
                 };
                 return self.evaluate_static_expression_value_inner(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     selected,
                     enum_symbol,
                     mode,
@@ -603,7 +574,7 @@ impl Compiler {
             } => {
                 // evaluate both sides as types before selecting one branch
                 let Some(mut left_type_id) = self.resolve_static_conditional_operand_type(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     *left,
                     substitutions,
                     mode,
@@ -612,7 +583,7 @@ impl Compiler {
                     return Ok(None);
                 };
                 let Some(mut right_type_id) = self.resolve_static_conditional_operand_type(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     *right,
                     substitutions,
                     mode,
@@ -629,13 +600,13 @@ impl Compiler {
                     left_type_id = self.substitute_static_parameters(
                         left_type_id,
                         substitutions,
-                        tables_ctx.types,
+                        ctx.types,
                         &mut substitution_cache,
                     );
                     right_type_id = self.substitute_static_parameters(
                         right_type_id,
                         substitutions,
-                        tables_ctx.types,
+                        ctx.types,
                         &mut substitution_cache,
                     );
                 }
@@ -643,51 +614,38 @@ impl Compiler {
                 // materialize and normalize both sides in type-op relation mode
                 let mut materialize_cache = TypeRewriteCache::new();
                 left_type_id = self.materialize_static_arguments_in_type(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     left_type_id,
                     &mut materialize_cache,
                 );
                 right_type_id = self.materialize_static_arguments_in_type(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     right_type_id,
                     &mut materialize_cache,
                 );
                 left_type_id = self.normalize_type_with_relation(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     left_type_id,
                     NormalizationMode::Assign,
                     RelationMode::STATIC_EVAL,
                 );
                 right_type_id = self.normalize_type_with_relation(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     right_type_id,
                     NormalizationMode::Assign,
                     RelationMode::STATIC_EVAL,
                 );
 
                 // unresolved type operands keep conditional evaluation deferred
-                if !self.type_is_converged_for_static_evaluation(
-                    tables_ctx.module,
-                    tables_ctx.profile,
-                    left_type_id,
-                    tables_ctx.symbols,
-                    tables_ctx.types,
-                ) || !self.type_is_converged_for_static_evaluation(
-                    tables_ctx.module,
-                    tables_ctx.profile,
-                    right_type_id,
-                    tables_ctx.symbols,
-                    tables_ctx.types,
-                ) {
+                if !self.type_is_converged_for_static_evaluation(ctx.type_view(), left_type_id)
+                    || !self.type_is_converged_for_static_evaluation(ctx.type_view(), right_type_id)
+                {
                     return Ok(None);
                 }
 
                 // choose the branch using extends assignability semantics
-                let is_assignable = self.is_type_assignable(
-                    &mut tables_ctx.reborrow(),
-                    right_type_id,
-                    left_type_id,
-                );
+                let is_assignable =
+                    self.is_type_assignable(&mut ctx.reborrow(), right_type_id, left_type_id);
                 let selected = if is_assignable == Assignability::NotAssignable {
                     *else_type
                 } else {
@@ -695,7 +653,7 @@ impl Compiler {
                 };
 
                 return self.evaluate_static_expression_value_inner(
-                    &mut tables_ctx.reborrow(),
+                    &mut ctx.reborrow(),
                     selected,
                     enum_symbol,
                     mode,
@@ -708,18 +666,18 @@ impl Compiler {
                 let mut values = Vec::with_capacity(elements.len());
 
                 for element_id in elements {
-                    let element = tables_ctx.tree.get(*element_id);
+                    let element = ctx.tree.get(*element_id);
                     // reject sparse array holes
-                    if matches!(tables_ctx.tree.get(element.value()), Expression::Stub) {
+                    if matches!(ctx.tree.get(element.value()), Expression::Stub) {
                         return Err(AnalyzeError::ArrayLiteralHole {
                             node: element
                                 .value()
-                                .into_global_any(tables_ctx.module.id)
-                                .into_anchored(Some(tables_ctx.profile)),
+                                .into_global_any(ctx.module.id)
+                                .into_anchored(Some(ctx.profile)),
                         });
                     }
                     let value = self.evaluate_static_expression_value_inner(
-                        &mut tables_ctx.reborrow(),
+                        &mut ctx.reborrow(),
                         element.value(),
                         enum_symbol,
                         mode,
@@ -739,9 +697,9 @@ impl Compiler {
                 let mut values = Vec::with_capacity(elements.len());
 
                 for element_id in elements {
-                    let element = tables_ctx.tree.get(*element_id);
+                    let element = ctx.tree.get(*element_id);
                     let value = self.evaluate_static_expression_value_inner(
-                        &mut tables_ctx.reborrow(),
+                        &mut ctx.reborrow(),
                         element.value(),
                         enum_symbol,
                         mode,
@@ -760,7 +718,7 @@ impl Compiler {
             Expression::ObjectExpression { properties } => {
                 let mut evaluated_properties = Vec::with_capacity(properties.len());
                 for property_id in properties {
-                    let property = tables_ctx.tree.get(*property_id).clone();
+                    let property = ctx.tree.get(*property_id).clone();
                     let evaluated_property = match property {
                         Property::Field {
                             modifiers,
@@ -773,7 +731,7 @@ impl Compiler {
                                 return Ok(None);
                             };
                             let value = self.evaluate_static_expression_value_inner(
-                                &mut tables_ctx.reborrow(),
+                                &mut ctx.reborrow(),
                                 value_id,
                                 enum_symbol,
                                 mode,
@@ -786,7 +744,7 @@ impl Compiler {
                             };
                             let default = if let Some(default_id) = default {
                                 let default_value = self.evaluate_static_expression_value_inner(
-                                    &mut tables_ctx.reborrow(),
+                                    &mut ctx.reborrow(),
                                     default_id,
                                     enum_symbol,
                                     mode,
@@ -830,7 +788,7 @@ impl Compiler {
     /// Resolve one conditional operand type for static branch selection.
     fn resolve_static_conditional_operand_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         side_id: LocalNodeId<Expression>,
         substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         mode: StaticEvaluationMode,
@@ -839,7 +797,7 @@ impl Compiler {
 
         // prefer caller substitutions for static parameters
         if let Some((parameter_symbol, _)) =
-            self.static_parameter_reference(&mut tables.reborrow(), side_id)?
+            self.static_parameter_reference(&mut ctx.reborrow(), side_id)?
         {
             has_static_parameter = true;
 
@@ -847,14 +805,9 @@ impl Compiler {
                 && let Some(mapped) =
                     self.substitution_type_id_for_static_parameter(parameter_symbol, substitutions)
             {
-                let mapped = tables.types.unwrap_value_type_id(mapped);
-                let is_resolved = self.type_is_converged_for_static_evaluation(
-                    tables.module,
-                    tables.profile,
-                    mapped,
-                    tables.symbols,
-                    tables.types,
-                );
+                let mapped = ctx.types.unwrap_value_type_id(mapped);
+                let is_resolved =
+                    self.type_is_converged_for_static_evaluation(ctx.type_view(), mapped);
                 if is_resolved {
                     return Ok(Some(mapped));
                 }
@@ -868,7 +821,7 @@ impl Compiler {
 
         // evaluate the side as a declared type
         let side_type_id =
-            self.resolve_declared_type_expression(&mut tables.reborrow(), side_id, true, true)?;
+            self.resolve_declared_type_expression(&mut ctx.reborrow(), side_id, true, true)?;
         Ok(Some(side_type_id))
     }
 }

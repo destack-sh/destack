@@ -4,6 +4,7 @@ use destack_base::StringId;
 use destack_dir::{DynamicKey, GlobalSymbolId, LocalNodeId, Member};
 use {destack_dir as dir, destack_mir as mir};
 
+use crate::analyze::TreeSymbolTypeView;
 use crate::{LowerError, LowerResult};
 
 use crate::lower::{ModuleLowerer, static_key_to_field_name};
@@ -283,11 +284,8 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<StringId> {
         let Some(key) = key.and_then(|key| {
             self.compiler.static_key_from_dynamic_key(
-                self.profile,
+                TreeSymbolTypeView::new(self.profile, self.dir_tree, self.symbols, self.types),
                 key,
-                self.dir_tree,
-                self.symbols,
-                self.types,
             )
         }) else {
             return Err(LowerError::UnsupportedConstruct {

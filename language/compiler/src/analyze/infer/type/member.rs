@@ -4,7 +4,7 @@ impl Compiler {
     /// Normalize one well known reference symbol before member inference recursion.
     fn normalize_well_known_reference_for_member_inference(
         &self,
-        tables: &TypeTablesContext<'_>,
+        ctx: &TypeContext<'_>,
         reference_ty: Type,
     ) -> AnalyzeResult<Type> {
         let Type::Reference {
@@ -17,7 +17,7 @@ impl Compiler {
 
         // normalize to declared symbol typing first
         let symbol = self
-            .remap_typevalue_symbol_to_type_space(tables.module, tables.profile, symbol)
+            .remap_typevalue_symbol_to_type_space(ctx.module, ctx.profile, symbol)
             .map_err(AnalyzeError::from)?;
 
         Ok(Type::Reference {
@@ -28,7 +28,7 @@ impl Compiler {
 
     pub(crate) fn infer_member_of_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         receiver_ty: &Type,
         member_key: &StaticKey,
@@ -44,7 +44,7 @@ impl Compiler {
             } => {
                 // check explicit object fields first
                 if let Some(field_ty) =
-                    self.member_type_from_fields(fields, member_key, node_id, tables.types)
+                    self.member_type_from_fields(fields, member_key, node_id, ctx.types)
                 {
                     return Ok(Some(field_ty));
                 }
@@ -55,25 +55,24 @@ impl Compiler {
                         node_id,
                         receiver_ty,
                         member_key,
-                        tables.options.strict_bind_call_apply,
-                        tables.types,
+                        ctx.options.strict_bind_call_apply,
+                        ctx.types,
                     )
                 {
                     return Ok(Some(synthetic));
                 }
 
                 // fall back to implicit Object members
-                let Some(reference_ty) =
-                    self.well_known_type(tables.profile, receiver_ty, tables.types)
+                let Some(reference_ty) = self.well_known_type(ctx.profile, receiver_ty, ctx.types)
                 else {
                     return Ok(None);
                 };
                 let reference_ty = self.normalize_well_known_reference_for_member_inference(
-                    &tables.reborrow(),
+                    &ctx.reborrow(),
                     reference_ty,
                 )?;
                 self.infer_member_of_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     &reference_ty,
                     member_key,
@@ -84,17 +83,16 @@ impl Compiler {
 
             // value type: unwrap to the underlying type
             Type::Value { .. } => {
-                let Some(reference_ty) =
-                    self.well_known_type(tables.profile, receiver_ty, tables.types)
+                let Some(reference_ty) = self.well_known_type(ctx.profile, receiver_ty, ctx.types)
                 else {
                     return Ok(None);
                 };
                 let reference_ty = self.normalize_well_known_reference_for_member_inference(
-                    &tables.reborrow(),
+                    &ctx.reborrow(),
                     reference_ty,
                 )?;
                 self.infer_member_of_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     &reference_ty,
                     member_key,
@@ -111,7 +109,7 @@ impl Compiler {
                 if static_arguments.is_some() && matches!(symbol.ty(), SymbolType::TypeAlias) {
                     let mut normalize_visited = Vec::new();
                     if let Some(expanded_id) = self.normalize_type_alias_reference_with_arguments(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         *symbol,
                         static_arguments.as_deref().unwrap_or(&[]),
@@ -119,9 +117,9 @@ impl Compiler {
                         RelationMode::ASSIGN,
                         &mut normalize_visited,
                     ) {
-                        let expanded_ty = tables.types.get_type(expanded_id).clone();
+                        let expanded_ty = ctx.types.get_type(expanded_id).clone();
                         return self.infer_member_of_type(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             node_id,
                             &expanded_ty,
                             member_key,
@@ -134,7 +132,7 @@ impl Compiler {
                 match lookup_mode {
                     MemberLookupMode::Instance | MemberLookupMode::Any => self
                         .infer_member_of_symbol(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             node_id,
                             *symbol,
                             member_key,
@@ -142,12 +140,12 @@ impl Compiler {
                             visited,
                         ),
                     MemberLookupMode::Value => {
-                        let Some(value_ty_id) = tables.types.get_value_type_id(*symbol) else {
+                        let Some(value_ty_id) = ctx.types.get_value_type_id(*symbol) else {
                             return Ok(None);
                         };
-                        let value_ty = tables.types.get_type(value_ty_id).clone();
+                        let value_ty = ctx.types.get_type(value_ty_id).clone();
                         self.infer_member_of_type(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             node_id,
                             &value_ty,
                             member_key,
@@ -160,17 +158,16 @@ impl Compiler {
 
             // array like types: fall back to well known Array members
             Type::Array { .. } | Type::ArraySized { .. } | Type::Tuple { .. } => {
-                let Some(reference_ty) =
-                    self.well_known_type(tables.profile, receiver_ty, tables.types)
+                let Some(reference_ty) = self.well_known_type(ctx.profile, receiver_ty, ctx.types)
                 else {
                     return Ok(None);
                 };
                 let reference_ty = self.normalize_well_known_reference_for_member_inference(
-                    &tables.reborrow(),
+                    &ctx.reborrow(),
                     reference_ty,
                 )?;
                 self.infer_member_of_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     &reference_ty,
                     member_key,
@@ -184,9 +181,9 @@ impl Compiler {
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => {
-                let inner_ty = tables.types.get_type(*right).clone();
+                let inner_ty = ctx.types.get_type(*right).clone();
                 self.infer_member_of_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     &inner_ty,
                     member_key,
@@ -200,9 +197,9 @@ impl Compiler {
                 let element_ids = elements.clone();
                 let mut field_types: Vec<LocalTypeId> = Vec::new();
                 for element_id in element_ids {
-                    let element_ty = tables.types.get_type(element_id).clone();
+                    let element_ty = ctx.types.get_type(element_id).clone();
                     if let Some(field_ty) = self.infer_member_of_type(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         &element_ty,
                         member_key,
@@ -226,7 +223,7 @@ impl Compiler {
                     if field_types.iter().all(|&t| t == first) {
                         Ok(Some(first))
                     } else {
-                        Ok(Some(tables.types.insert_type_from_any(
+                        Ok(Some(ctx.types.insert_type_from_any(
                             Type::Union {
                                 elements: field_types,
                             },
@@ -240,9 +237,9 @@ impl Compiler {
             Type::Intersection { elements } => {
                 let element_ids = elements.clone();
                 for element_id in element_ids {
-                    let element_ty = tables.types.get_type(element_id).clone();
+                    let element_ty = ctx.types.get_type(element_id).clone();
                     if let Some(field_ty) = self.infer_member_of_type(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         &element_ty,
                         member_key,
@@ -261,23 +258,22 @@ impl Compiler {
                     node_id,
                     receiver_ty,
                     member_key,
-                    tables.options.strict_bind_call_apply,
-                    tables.types,
+                    ctx.options.strict_bind_call_apply,
+                    ctx.types,
                 ) {
                     return Ok(Some(synthetic));
                 }
 
-                let Some(reference_ty) =
-                    self.well_known_type(tables.profile, receiver_ty, tables.types)
+                let Some(reference_ty) = self.well_known_type(ctx.profile, receiver_ty, ctx.types)
                 else {
                     return Ok(None);
                 };
                 let reference_ty = self.normalize_well_known_reference_for_member_inference(
-                    &tables.reborrow(),
+                    &ctx.reborrow(),
                     reference_ty,
                 )?;
                 self.infer_member_of_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     &reference_ty,
                     member_key,
@@ -287,17 +283,16 @@ impl Compiler {
             }
 
             Type::TypeLiteral { .. } => {
-                let Some(reference_ty) =
-                    self.well_known_type(tables.profile, receiver_ty, tables.types)
+                let Some(reference_ty) = self.well_known_type(ctx.profile, receiver_ty, ctx.types)
                 else {
                     return Ok(None);
                 };
                 let reference_ty = self.normalize_well_known_reference_for_member_inference(
-                    &tables.reborrow(),
+                    &ctx.reborrow(),
                     reference_ty,
                 )?;
                 self.infer_member_of_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     &reference_ty,
                     member_key,
@@ -540,7 +535,7 @@ impl Compiler {
     /// Infer the index signature value type for a member key.
     pub(crate) fn resolve_index_signature_value_type_for_key(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         receiver_ty: &Type,
         member_key: &StaticKey,
@@ -549,13 +544,11 @@ impl Compiler {
         match receiver_ty {
             Type::Object {
                 index_signatures, ..
-            } => {
-                self.index_signature_value_type_for_key(index_signatures, member_key, tables.types)
-            }
+            } => self.index_signature_value_type_for_key(index_signatures, member_key, ctx.types),
             Type::Value { value } => {
-                let value_ty = tables.types.get_type(*value).clone();
+                let value_ty = ctx.types.get_type(*value).clone();
                 self.resolve_index_signature_value_type_for_key(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     &value_ty,
                     member_key,
@@ -563,7 +556,7 @@ impl Compiler {
                 )
             }
             Type::Reference { symbol, .. } => self.resolve_index_signature_value_type_for_symbol(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 node_id,
                 *symbol,
                 member_key,
@@ -573,9 +566,9 @@ impl Compiler {
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => {
-                let inner_ty = tables.types.get_type(*right).clone();
+                let inner_ty = ctx.types.get_type(*right).clone();
                 self.resolve_index_signature_value_type_for_key(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     &inner_ty,
                     member_key,
@@ -585,9 +578,9 @@ impl Compiler {
             Type::Union { elements } => {
                 let mut value_types = Vec::new();
                 for element_id in elements.clone() {
-                    let element_ty = tables.types.get_type(element_id).clone();
+                    let element_ty = ctx.types.get_type(element_id).clone();
                     if let Some(value_ty) = self.resolve_index_signature_value_type_for_key(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         &element_ty,
                         member_key,
@@ -603,15 +596,15 @@ impl Compiler {
                     1 => Some(value_types[0]),
                     _ => {
                         let source_type_id = value_types[0];
-                        Some(self.union_type_from_list(value_types, source_type_id, tables.types))
+                        Some(self.union_type_from_list(value_types, source_type_id, ctx.types))
                     }
                 }
             }
             Type::Intersection { elements } => {
                 for element_id in elements.clone() {
-                    let element_ty = tables.types.get_type(element_id).clone();
+                    let element_ty = ctx.types.get_type(element_id).clone();
                     if let Some(value_ty) = self.resolve_index_signature_value_type_for_key(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         node_id,
                         &element_ty,
                         member_key,
@@ -629,7 +622,7 @@ impl Compiler {
     /// Infer member type for a nominal type symbol, traversing lineage and extensions.
     fn infer_member_of_symbol(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
@@ -637,20 +630,20 @@ impl Compiler {
         visited: &mut Vec<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // cycle detection: if we've already visited this symbol, stop
-        // NOTE #Suspicious: should we really just return None for already visited symbol types?
+        // stop recursion when symbol type traversal revisits the same symbol
         if visited.contains(&symbol) {
             return Ok(None);
         }
         visited.push(symbol);
 
         // resolve instance types before walking members and extensions
-        self.resolve_instance_type_for_symbol(&mut tables.reborrow(), node_id, symbol)?;
+        self.resolve_instance_type_for_symbol(&mut ctx.reborrow(), node_id, symbol)?;
 
         // step 1: look up in the type's own instance type
-        if let Some(ty_id) = self.apparent_instance_type(&mut tables.reborrow(), node_id, symbol) {
-            let ty = tables.types.get_type(ty_id).clone();
+        if let Some(ty_id) = self.apparent_instance_type(&mut ctx.reborrow(), node_id, symbol) {
+            let ty = ctx.types.get_type(ty_id).clone();
             if let Some(member_ty) = self.infer_member_of_type(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 node_id,
                 &ty,
                 member_key,
@@ -662,12 +655,12 @@ impl Compiler {
         }
 
         // step 2: traverse lineage (extends, implements, embedded)
-        let lineage = tables.types.get_lineage_for_symbol(symbol).cloned();
+        let lineage = ctx.types.get_lineage_for_symbol(symbol).cloned();
         if let Some(lineage) = lineage {
             // check parent type (extends)
             if let Some(extends) = lineage.extends
                 && let Some(member_ty) = self.infer_member_of_symbol(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     extends,
                     member_key,
@@ -681,7 +674,7 @@ impl Compiler {
             // check implemented interfaces
             for implements in &lineage.implements {
                 if let Some(member_ty) = self.infer_member_of_symbol(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     *implements,
                     member_key,
@@ -695,7 +688,7 @@ impl Compiler {
             // check embedded types
             for embedded in &lineage.embedded {
                 if let Some(member_ty) = self.infer_member_of_symbol(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     *embedded,
                     member_key,
@@ -708,35 +701,26 @@ impl Compiler {
         }
 
         // step 3: check visible extensions
-        let extension_symbols = self.visible_extension_symbols_for_target(
-            tables.module,
-            tables.profile,
-            tables.symbols,
-            tables.types,
-            symbol,
-        )?;
+        let extension_symbols =
+            self.visible_extension_symbols_for_target(ctx.symbol_type_view(), symbol)?;
         for extension_symbol in extension_symbols {
-            let Some(extension) = self.extension_for_symbol_in_module(
-                tables.module,
-                tables.profile,
-                extension_symbol,
-                tables.types,
-            )?
+            let Some(extension) =
+                self.extension_for_symbol_in_module(ctx.module_type_view(), extension_symbol)?
             else {
                 continue;
             };
-            if !self.is_extension_visible(tables.module, &extension) {
+            if !self.is_extension_visible(ctx.module, &extension) {
                 continue;
             }
 
             // ensure the extension instance type is available
             if let Some(ty_id) =
-                self.apparent_instance_type(&mut tables.reborrow(), node_id, extension_symbol)
+                self.apparent_instance_type(&mut ctx.reborrow(), node_id, extension_symbol)
             {
-                let ty = tables.types.get_type(ty_id).clone();
+                let ty = ctx.types.get_type(ty_id).clone();
                 if let Type::Object { fields, .. } = ty
                     && let Some(field_ty) =
-                        self.member_type_from_fields(&fields, member_key, node_id, tables.types)
+                        self.member_type_from_fields(&fields, member_key, node_id, ctx.types)
                 {
                     return Ok(Some(field_ty));
                 }
@@ -749,7 +733,7 @@ impl Compiler {
     /// Infer the index signature value type for a symbol.
     fn resolve_index_signature_value_type_for_symbol(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
@@ -761,10 +745,10 @@ impl Compiler {
         visited.push(symbol);
 
         // step 1: look up in the type's own instance type
-        if let Some(ty_id) = self.apparent_instance_type(&mut tables.reborrow(), node_id, symbol) {
-            let ty = tables.types.get_type(ty_id).clone();
+        if let Some(ty_id) = self.apparent_instance_type(&mut ctx.reborrow(), node_id, symbol) {
+            let ty = ctx.types.get_type(ty_id).clone();
             if let Some(value_ty) = self.resolve_index_signature_value_type_for_key(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 node_id,
                 &ty,
                 member_key,
@@ -775,10 +759,10 @@ impl Compiler {
         }
 
         // step 2: traverse lineage (extends, implements, embedded)
-        if let Some(lineage) = tables.types.get_lineage_for_symbol(symbol).cloned() {
+        if let Some(lineage) = ctx.types.get_lineage_for_symbol(symbol).cloned() {
             if let Some(extends) = lineage.extends
                 && let Some(value_ty) = self.resolve_index_signature_value_type_for_symbol(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     extends,
                     member_key,
@@ -790,7 +774,7 @@ impl Compiler {
 
             for implements in &lineage.implements {
                 if let Some(value_ty) = self.resolve_index_signature_value_type_for_symbol(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     *implements,
                     member_key,
@@ -802,7 +786,7 @@ impl Compiler {
 
             for embedded in &lineage.embedded {
                 if let Some(value_ty) = self.resolve_index_signature_value_type_for_symbol(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     *embedded,
                     member_key,
@@ -814,27 +798,19 @@ impl Compiler {
         }
 
         // step 3: check visible extensions
-        let extension_symbols = match self.visible_extension_symbols_for_target(
-            tables.module,
-            tables.profile,
-            tables.symbols,
-            tables.types,
-            symbol,
-        ) {
-            Ok(symbols) => symbols,
-            Err(AnalyzeError::Yield { .. }) => return None,
-            Err(error) => {
-                self.error(error);
-                return None;
-            }
-        };
+        let extension_symbols =
+            match self.visible_extension_symbols_for_target(ctx.symbol_type_view(), symbol) {
+                Ok(symbols) => symbols,
+                Err(AnalyzeError::Yield { .. }) => return None,
+                Err(error) => {
+                    self.error(error);
+                    return None;
+                }
+            };
         for extension_symbol in extension_symbols {
-            let extension = match self.extension_for_symbol_in_module(
-                tables.module,
-                tables.profile,
-                extension_symbol,
-                tables.types,
-            ) {
+            let extension = match self
+                .extension_for_symbol_in_module(ctx.module_type_view(), extension_symbol)
+            {
                 Ok(extension) => extension,
                 Err(AnalyzeError::Yield { .. }) => return None,
                 Err(error) => {
@@ -845,15 +821,15 @@ impl Compiler {
             let Some(extension) = extension else {
                 continue;
             };
-            if !self.is_extension_visible(tables.module, &extension) {
+            if !self.is_extension_visible(ctx.module, &extension) {
                 continue;
             }
             if let Some(ty_id) =
-                self.apparent_instance_type(&mut tables.reborrow(), node_id, extension_symbol)
+                self.apparent_instance_type(&mut ctx.reborrow(), node_id, extension_symbol)
             {
-                let ty = tables.types.get_type(ty_id).clone();
+                let ty = ctx.types.get_type(ty_id).clone();
                 if let Some(value_ty) = self.resolve_index_signature_value_type_for_key(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     node_id,
                     &ty,
                     member_key,

@@ -1,18 +1,16 @@
+use crate::analyze::common::{ModuleTreeView, TypeContext};
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     DependencyKind, DependencySource, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Path,
-    StaticArgument, StaticKey, StringId, SymbolSpaceOrder, Type, TypeTable,
+    StaticArgument, StaticKey, StringId, SymbolSpaceOrder, Type,
 };
-use destack_workspace::{Module, ProfileId};
-
-use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve a type import into a concrete exported symbol.
     pub(crate) fn resolve_import_type_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        view: ModuleTreeView<'_>,
         node: LocalNodeIdAny,
         target: StringId,
         qualifier: Option<&Path>,
@@ -23,12 +21,12 @@ impl Compiler {
         };
 
         // resolve the module target from the import specifier
-        let dir = module.dir(profile);
-        let node = node.into_global(module.id);
+        let dir = view.module.dir(view.profile);
+        let node = node.into_global(view.module.id);
         let target = match self.resolve_import(
-            module,
+            view.module,
             dir,
-            profile,
+            view.profile,
             node,
             DependencySource::ImportStatement,
             target,
@@ -43,10 +41,10 @@ impl Compiler {
 
         // resolve the exported symbol from the target module
         let symbol = match self.resolve_export_symbol_for_target(
-            module.id,
+            view.module.id,
             node,
             target,
-            profile,
+            view.profile,
             SymbolSpaceOrder::TypeOnly,
             member_key,
         ) {
@@ -61,7 +59,7 @@ impl Compiler {
         };
 
         // ensure exported types are available for the resolved symbol
-        self.require_analyze_module_interface(symbol.module_id, profile)?;
+        self.require_analyze_module_interface(symbol.module_id, view.profile)?;
 
         Ok(Some(symbol))
     }
@@ -69,16 +67,14 @@ impl Compiler {
     /// Resolve a type import into a local reference type.
     pub(crate) fn resolve_import_type_reference(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         target: StringId,
         qualifier: Option<&Path>,
         static_arguments: Option<&[StaticArgument]>,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         let symbol =
-            self.resolve_import_type_symbol(module, profile, source_id, target, qualifier)?;
+            self.resolve_import_type_symbol(ctx.module_tree_view(), source_id, target, qualifier)?;
         let Some(symbol) = symbol else {
             return Ok(None);
         };
@@ -88,28 +84,24 @@ impl Compiler {
             symbol,
             static_arguments,
         };
-        Ok(Some(types.insert_type_from_any(reference, source_id)))
+        Ok(Some(ctx.types.insert_type_from_any(reference, source_id)))
     }
 
     /// Query a type import reference in non-AnalyzeResult paths.
     pub(crate) fn query_import_type_reference(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         target: StringId,
         qualifier: Option<&Path>,
         static_arguments: Option<&[StaticArgument]>,
-        types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         match self.resolve_import_type_reference(
-            module,
-            profile,
+            &mut ctx.reborrow(),
             source_id,
             target,
             qualifier,
             static_arguments,
-            types,
         ) {
             Ok(reference_type_id) => reference_type_id,
             Err(AnalyzeError::Yield { .. }) => None,

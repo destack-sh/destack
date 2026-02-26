@@ -70,7 +70,7 @@ impl Compiler {
         ))
     }
 
-    /// Provide symbol tables with stage-gated cross-module reads and local reuse.
+    /// Provide symbol ctx with stage-gated cross-module reads and local reuse.
     pub(crate) fn with_module_symbols_or_local_at_stage<R>(
         &self,
         module: &Module,
@@ -92,7 +92,7 @@ impl Compiler {
         ))
     }
 
-    /// Provide base symbol tables for a module with stage-gated cross-module reads.
+    /// Provide base symbol ctx for a module with stage-gated cross-module reads.
     pub(crate) fn with_module_symbols_base_at_stage<R>(
         &self,
         module: &Module,
@@ -113,7 +113,7 @@ impl Compiler {
         ))
     }
 
-    /// Provide base symbol tables with stage-gated cross-module reads and local reuse.
+    /// Provide base symbol ctx with stage-gated cross-module reads and local reuse.
     pub(crate) fn with_module_symbols_base_or_local_at_stage<R>(
         &self,
         module: &Module,
@@ -135,7 +135,7 @@ impl Compiler {
         ))
     }
 
-    /// Provide symbol tables by module id with stage-gated cross-module reads and local reuse.
+    /// Provide symbol ctx by module id with stage-gated cross-module reads and local reuse.
     pub(crate) fn with_module_symbols_by_id_at_stage<R>(
         &self,
         profile: ProfileId,

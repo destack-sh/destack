@@ -1,33 +1,31 @@
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::TypeContext;
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
-    Argument, BinaryOperator, Expression, LocalNodeId, LocalTypeId, NodeTree, PrimitiveType,
-    ScalarLiteral, StaticArgument, StaticExpression, SymbolTable, Type, TypeLiteral, TypeTable,
+    Argument, BinaryOperator, Expression, LocalNodeId, LocalTypeId, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticExpression, Type, TypeLiteral, TypeTable,
 };
-use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     pub(crate) fn evaluate_integer_static_literal(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> AnalyzeResult<Option<i64>> {
         // prefer existing type commitments before re-evaluating the expression tree
-        let expression_global = expression_id.into_global_any(tables.module.id);
-        if let Some(type_id) = tables
+        let expression_global = expression_id.into_global_any(ctx.module.id);
+        if let Some(type_id) = ctx
             .types
             .get_inferred_type_id(expression_global)
-            .or_else(|| tables.types.get_declared_type_id(expression_global))
+            .or_else(|| ctx.types.get_declared_type_id(expression_global))
+            && let Some(value) = self.integer_literal_value_for_type_id(type_id, ctx.types)
         {
-            if let Some(value) = self.integer_literal_value_for_type_id(type_id, tables.types) {
-                return Ok(Some(value));
-            }
+            return Ok(Some(value));
         }
 
-        let (expression_id, _) = self.unwrap_as_comptime_expression(expression_id, tables.tree);
+        let (expression_id, _) = self.unwrap_as_comptime_expression(expression_id, ctx.tree);
         let value =
-            self.evaluate_static_expression_value(&mut tables.reborrow(), expression_id, None)?;
+            self.evaluate_static_expression_value(&mut ctx.reborrow(), expression_id, None)?;
         let literal = match value {
             Some(StaticExpression::ScalarLiteral {
                 value: ScalarLiteral::Integer(value),
@@ -35,7 +33,7 @@ impl Compiler {
             Some(StaticExpression::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
             }) => Some(value),
-            Some(StaticExpression::Type { ty }) => match tables.types.get_type(ty) {
+            Some(StaticExpression::Type { ty }) => match ctx.types.get_type(ty) {
                 Type::TypeLiteral {
                     value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
                 } => Some(*value),
@@ -47,7 +45,6 @@ impl Compiler {
     }
 
     /// Convert one substituted static parameter type into a static expression.
-
     pub(crate) fn static_expression_from_substitution_type(
         &self,
         type_id: LocalTypeId,
@@ -68,7 +65,6 @@ impl Compiler {
     }
 
     /// Return true when one binary operator can be deferred for symbolic static evaluation.
-
     pub(crate) fn binary_operator_supports_symbolic_static_evaluation(
         &self,
         operator: BinaryOperator,
@@ -90,7 +86,6 @@ impl Compiler {
     }
 
     /// Return true when one static expression can participate in symbolic numeric evaluation.
-
     pub(crate) fn static_expression_may_be_numeric(
         &self,
         value: &StaticExpression,
@@ -125,7 +120,6 @@ impl Compiler {
     }
 
     /// Extract one integer literal value from a static expression when possible.
-
     pub(crate) fn static_expression_integer_value(
         &self,
         value: &StaticExpression,
@@ -156,12 +150,8 @@ impl Compiler {
 
     pub(crate) fn evaluate_static_arguments(
         &self,
-        module: &Module,
-        _profile: ProfileId,
+        ctx: &mut TypeContext<'_>,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
-        _tree: &NodeTree,
-        _symbols: &SymbolTable,
-        _types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         // skip when there are no static arguments
         let Some(static_arguments) = static_arguments else {
@@ -173,7 +163,7 @@ impl Compiler {
         // defer static argument evaluation until parameter kinds are known
         for argument_id in static_arguments {
             evaluated_arguments.push(StaticArgument::Unevaluated {
-                node: argument_id.into_global_any(module.id),
+                node: argument_id.into_global_any(ctx.module.id),
             });
         }
 

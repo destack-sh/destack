@@ -1,11 +1,10 @@
 use destack_dir::{
-    Expression, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, SymbolTable,
-    TypeRelationObligation, TypeRelationObligationDiagnostic, TypeRelationObligationOperands,
-    TypeTable,
+    Expression, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, TypeRelationObligation,
+    TypeRelationObligationDiagnostic, TypeRelationObligationOperands,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::Module;
 
-use crate::analyze::common::InferTablesContext;
+use crate::analyze::common::{InferContext, TypeView};
 use crate::{AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
 
 /// Policy for immediate unassignable diagnostics before solve convergence.
@@ -22,20 +21,17 @@ impl Compiler {
     /// Return true when one relation depends on unsolved inference state.
     pub(crate) fn type_relation_requires_infer_convergence(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TypeView<'_>,
         target_type_id: LocalTypeId,
         source_type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> bool {
         // check whether the target depends on solver state
-        if self.type_requires_infer_convergence(module, profile, target_type_id, symbols, types) {
+        if self.type_requires_infer_convergence(ctx, target_type_id) {
             return true;
         }
 
         // check whether the source depends on solver state
-        if self.type_requires_infer_convergence(module, profile, source_type_id, symbols, types) {
+        if self.type_requires_infer_convergence(ctx, source_type_id) {
             return true;
         }
 
@@ -85,7 +81,7 @@ impl Compiler {
     /// Enforce one assignability relation or defer its diagnostic to post solve reporting.
     pub(crate) fn enforce_assignability_or_defer_diagnostic(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         node_id: LocalNodeIdAny,
         target_type_id: LocalTypeId,
         source_type_id: LocalTypeId,
@@ -94,27 +90,24 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         // defer relation diagnostics until all inference variables are solved
         if self.type_relation_requires_infer_convergence(
-            tables.module,
-            tables.profile,
+            ctx.type_view(),
             target_type_id,
             source_type_id,
-            tables.symbols,
-            tables.types,
         ) {
             self.push_relation_obligation_for_captured_types(
-                tables.module,
+                ctx.module,
                 node_id,
                 target_type_id,
                 source_type_id,
                 TypeRelationObligationDiagnostic::UnassignableType,
-                tables.infer,
+                ctx.infer,
             );
             return Ok(());
         }
 
         // report immediately when the relation is fully concrete
         let assignability = self.is_type_assignable(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             target_type_id,
             source_type_id,
         );
@@ -126,12 +119,10 @@ impl Compiler {
             // hard failure paths return the diagnostic
             UnassignableRelationFailureMode::PropagateError => {
                 if let Some(error) = self.unassignable_type_error_for_types(
-                    tables.module,
-                    tables.profile,
+                    ctx.module_type_view(),
                     node_id,
                     target_type_id,
                     source_type_id,
-                    tables.types,
                 ) {
                     return Err(error);
                 }
@@ -139,12 +130,10 @@ impl Compiler {
             // soft failure paths emit the diagnostic and continue
             UnassignableRelationFailureMode::ReportAndContinue => {
                 self.emit_unassignable_type_for_types(
-                    tables.module,
-                    tables.profile,
+                    ctx.module_type_view(),
                     node_id,
                     target_type_id,
                     source_type_id,
-                    tables.types,
                 );
             }
         }

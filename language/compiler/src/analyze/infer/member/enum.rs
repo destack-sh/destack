@@ -1,22 +1,20 @@
 use super::*;
-use crate::analyze::common::InferTablesContext;
+use crate::analyze::common::{InferContext, ModuleSymbolView, SymbolTypeView, TreeSymbolView};
 
 impl Compiler {
     /// Resolve the enum symbol that owns an enum field symbol.
     pub(crate) fn enum_symbol_for_enum_field_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        view: ModuleSymbolView<'_>,
         member_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve the enum field symbol entry
         let Some((is_enum_field, scope_owner)) = self
             .with_module_symbols_base_or_local_at_stage(
-                module,
-                profile,
+                view.module,
+                view.profile,
                 member_symbol.module_id,
-                symbols,
+                view.symbols,
                 AnalyzeDependencyStage::Declare,
                 |_, owner_symbols| {
                     let member_entry = owner_symbols.get_symbol(member_symbol.local_id);
@@ -48,14 +46,10 @@ impl Compiler {
     /// Resolve enum field member symbols when the receiver is an enum reference.
     pub(crate) fn resolve_enum_field_member_symbol(
         &self,
-        module: &Module,
+        ctx: &mut InferContext<'_>,
         left_id: LocalNodeId<Expression>,
         member_key: &StaticKey,
         member_symbol: Option<GlobalSymbolId>,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // keep already resolved member symbols
         if member_symbol.is_some() {
@@ -64,7 +58,7 @@ impl Compiler {
 
         // only direct enum references can resolve enum field symbols
         let Some(left_symbol) =
-            self.reference_symbol_for_expression(module, left_id, profile, tree, symbols)
+            self.reference_symbol_for_expression(ctx.tree_symbol_view(), left_id)
         else {
             return Ok(None);
         };
@@ -72,12 +66,18 @@ impl Compiler {
             return Ok(None);
         }
 
-        let lookup = MemberLookupModuleContext::new(module.id, profile, tree, symbols, types);
+        let lookup = MemberLookupModuleContext::new(
+            ctx.module.id,
+            ctx.profile,
+            ctx.tree,
+            ctx.symbols,
+            ctx.types,
+        );
 
         // resolve the member symbol from the enum declaration
         let mut visited = Vec::new();
         self.resolve_member_symbol_for_symbol(
-            module,
+            ctx.module,
             &lookup,
             left_symbol,
             member_key,
@@ -89,7 +89,7 @@ impl Compiler {
     /// Resolve enum field member access when the receiver is an enum.
     pub(crate) fn resolve_enum_field_access(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         left_ty_id: LocalTypeId,
@@ -98,27 +98,15 @@ impl Compiler {
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // select the enum symbol for the receiver
         let enum_symbol = self
-            .enum_symbol_for_receiver_symbol(
-                tables.module,
-                left_id,
-                tables.profile,
-                tables.tree,
-                tables.symbols,
-            )
-            .or_else(|| self.enum_symbol_for_type(left_ty, tables.types));
+            .enum_symbol_for_receiver_symbol(ctx.tree_symbol_view(), left_id)
+            .or_else(|| self.enum_symbol_for_type(left_ty, ctx.types));
         let Some(enum_symbol) = enum_symbol else {
             return Ok(None);
         };
 
         // resolve the enum field symbol for the requested member key
-        let enum_field_symbol = self.enum_field_symbol_for_member_key(
-            tables.module,
-            enum_symbol,
-            member_key,
-            tables.profile,
-            tables.tree,
-            tables.symbols,
-        )?;
+        let enum_field_symbol =
+            self.enum_field_symbol_for_member_key(ctx.tree_symbol_view(), enum_symbol, member_key)?;
         let Some(enum_field_symbol) = enum_field_symbol else {
             return Ok(None);
         };
@@ -128,14 +116,14 @@ impl Compiler {
             symbol: enum_field_symbol,
         };
         self.record_provisional_member_resolution(
-            expression_id.into_global_any(tables.module.id),
+            expression_id.into_global_any(ctx.module.id),
             Some(left_ty_id),
             &resolution,
             None,
             None,
             true,
-            tables.infer,
-            tables.types,
+            ctx.infer,
+            ctx.types,
         );
 
         // return the nominal enum reference type
@@ -144,44 +132,37 @@ impl Compiler {
             static_arguments: None,
         };
         Ok(Some(
-            tables.types.insert_type_from(enum_reference, expression_id),
+            ctx.types.insert_type_from(enum_reference, expression_id),
         ))
     }
 
     /// Resolve the value type for an enum field symbol when possible.
     pub(crate) fn enum_field_value_type_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
+        ctx: SymbolTypeView<'_>,
         member_symbol: Option<GlobalSymbolId>,
-        types: &TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         let Some(member_symbol) = member_symbol else {
             return Ok(None);
         };
 
         if self
-            .enum_symbol_for_enum_field_symbol(module, profile, symbols, member_symbol)?
+            .enum_symbol_for_enum_field_symbol(ctx.module_symbol_view(), member_symbol)?
             .is_none()
         {
             return Ok(None);
         }
 
-        Ok(types.get_value_type_id(member_symbol))
+        Ok(ctx.types.get_value_type_id(member_symbol))
     }
 
     /// Resolve enum symbols from a receiver expression when it is a direct reference.
     pub(crate) fn enum_symbol_for_receiver_symbol(
         &self,
-        module: &Module,
+        ctx: TreeSymbolView<'_>,
         left_id: LocalNodeId<Expression>,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
-        let left_symbol =
-            self.reference_symbol_for_expression(module, left_id, profile, tree, symbols)?;
+        let left_symbol = self.reference_symbol_for_expression(ctx, left_id)?;
         if left_symbol.ty() == SymbolType::Enum {
             Some(left_symbol)
         } else {
@@ -192,36 +173,21 @@ impl Compiler {
     /// Resolve an enum field symbol matching a member key.
     pub(crate) fn enum_field_symbol_for_member_key(
         &self,
-        module: &Module,
+        ctx: TreeSymbolView<'_>,
         enum_symbol: GlobalSymbolId,
         member_key: &StaticKey,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve local declarations when possible
-        if enum_symbol.module_id == module.id {
-            return Ok(self.enum_field_symbol_for_member_key_in_tree(
-                enum_symbol,
-                member_key,
-                tree,
-                symbols,
-            ));
+        if enum_symbol.module_id == ctx.module.id {
+            return Ok(self.enum_field_symbol_for_member_key_in_tree(ctx, enum_symbol, member_key));
         }
 
-        self.with_module_tree_symbols_at_stage(
-            module,
-            profile,
+        self.with_module_tree_symbol_view_at_stage(
+            ctx.module,
+            ctx.profile,
             enum_symbol.module_id,
             AnalyzeDependencyStage::Declare,
-            |_, owner_tree, owner_symbols| {
-                self.enum_field_symbol_for_member_key_in_tree(
-                    enum_symbol,
-                    member_key,
-                    owner_tree,
-                    owner_symbols,
-                )
-            },
+            |view| self.enum_field_symbol_for_member_key_in_tree(view, enum_symbol, member_key),
         )
         .map_err(AnalyzeError::from)
     }
@@ -229,13 +195,12 @@ impl Compiler {
     /// Resolve enum declarations for a matching field key.
     pub(crate) fn enum_field_symbol_for_member_key_in_tree(
         &self,
+        ctx: TreeSymbolView<'_>,
         enum_symbol: GlobalSymbolId,
         member_key: &StaticKey,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
         // ensure we are scanning an enum symbol
-        let symbol_entry = symbols.get_symbol(enum_symbol.local_id);
+        let symbol_entry = ctx.symbols.get_symbol(enum_symbol.local_id);
         if symbol_entry.ty != SymbolType::Enum {
             return None;
         }
@@ -254,11 +219,11 @@ impl Compiler {
             let Ok(declaration_id) = declaration_id.try_into_local_typed::<Declaration>() else {
                 continue;
             };
-            let Declaration::Enum { fields, .. } = tree.get(declaration_id) else {
+            let Declaration::Enum { fields, .. } = ctx.tree.get(declaration_id) else {
                 continue;
             };
             for field_id in fields {
-                let field = tree.get(*field_id);
+                let field = ctx.tree.get(*field_id);
                 let field_key = StaticKey::Name(field.name);
                 if field_key.matches(member_key) {
                     return Some(field.symbol.into_global(enum_symbol.module_id));

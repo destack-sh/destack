@@ -1,19 +1,19 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::analyze::common::{
-    AnalyzeDependencyStage, CanonicalSymbolMode, ContextualTypingMode, InferTablesContext,
-    ModuleContext, TypeTablesContext,
+    AnalyzeDependencyStage, CanonicalSymbolMode, ContextualTypingMode, InferContext, ModuleContext,
+    SymbolTypeView, TreeSymbolTypeView, TypeContext, TypeView,
 };
 use crate::analyze::module::GlobalMergeCategory;
 use crate::timing::tags;
-use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
+use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferState};
 use destack_dir::{
     AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DependencyItem,
     DynamicKey, EnumFieldValue, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId,
     InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
-    Mutability, NodeTree, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
-    StaticParameter, StaticParameterKind, StaticProperty, StringId, SymbolTable, SymbolType, Type,
-    TypeElement, TypeField, TypeLiteral, TypeTable,
+    Mutability, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticParameter,
+    StaticParameterKind, StaticProperty, StringId, SymbolType, Type, TypeElement, TypeField,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::ProfileId;
 
@@ -31,30 +31,27 @@ impl Compiler {
     /// Resolve a static parameter symbol for a reference expression.
     pub(crate) fn static_parameter_symbol_for_reference(
         &self,
-        tables: &TypeTablesContext<'_>,
+        ctx: TypeView<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve the referenced symbol first
         let (Expression::LocalReference { target_symbol, .. }
         | Expression::ModuleReference { target_symbol, .. }
-        | Expression::GlobalReference { target_symbol, .. }) = tables.tree.get(expression_id)
+        | Expression::GlobalReference { target_symbol, .. }) = ctx.tree.get(expression_id)
         else {
             return Ok(None);
         };
 
         self.with_module_symbols_or_local_at_stage(
-            tables.module,
-            tables.profile,
+            ctx.module,
+            ctx.profile,
             target_symbol.module_id,
-            tables.symbols,
+            ctx.symbols,
             AnalyzeDependencyStage::Declare,
             |owner_module, owner_symbols| {
                 if self.symbol_is_static_parameter(
-                    owner_module,
-                    tables.profile,
+                    SymbolTypeView::new(owner_module, ctx.profile, owner_symbols, ctx.types),
                     *target_symbol,
-                    owner_symbols,
-                    tables.types,
                 ) {
                     Some(*target_symbol)
                 } else {
@@ -65,19 +62,19 @@ impl Compiler {
         .map_err(AnalyzeError::from)
     }
 
-    /// Run logic with the module and tree that own a static argument node.
-    pub(crate) fn with_static_argument_owner<T>(
+    /// Run logic with the module and tree that own a static argument node in read-only mode.
+    fn with_static_argument_owner_read<T>(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: TypeView<'_>,
         argument_node: GlobalNodeIdAny,
-        f: impl FnOnce(&mut TypeTablesContext<'_>, LocalNodeId<Argument>) -> AnalyzeResult<T>,
+        f: impl FnOnce(TypeView<'_>, LocalNodeId<Argument>) -> AnalyzeResult<T>,
     ) -> AnalyzeResult<Option<T>> {
         // static arguments should always point at argument nodes
         let argument_id = match argument_node.try_into_local_typed::<Argument>() {
             Ok(argument_id) => argument_id,
             Err(_) => {
                 self.error(AnalyzeError::InvalidStaticArgument {
-                    node: argument_node.into_anchored(Some(tables.profile)),
+                    node: argument_node.into_anchored(Some(ctx.profile)),
                     message: "static argument does not resolve to an argument node".to_string(),
                 });
                 return Ok(None);
@@ -85,39 +82,88 @@ impl Compiler {
         };
 
         // prefer the call site tree when it owns the argument node
-        if argument_node.module_id == tables.module.id
-            && tables.tree.has_node_id(argument_node.local_id.id)
+        if argument_node.module_id == ctx.module.id
+            && ctx.tree.has_node_id(argument_node.local_id.id)
         {
-            let mut owner_tables = tables.reborrow();
-            return f(&mut owner_tables, argument_id).map(Some);
+            return f(ctx, argument_id).map(Some);
         }
 
         // otherwise, resolve the owning module and ensure the node exists there
         let argument_module = self.program.modules.get(argument_node.module_id);
         let argument_module = argument_module.read();
-        let argument_tree = argument_module.dir(tables.profile).tree.read();
+        let argument_tree = argument_module.dir(ctx.profile).tree.read();
         if !argument_tree.has_node_id(argument_node.local_id.id) {
             self.error(AnalyzeError::InvalidStaticArgument {
-                node: argument_node.into_anchored(Some(tables.profile)),
+                node: argument_node.into_anchored(Some(ctx.profile)),
                 message: "static argument node is missing".to_string(),
             });
             return Ok(None);
         }
-        let argument_symbols = argument_module.dir(tables.profile).symbols.read();
+        let argument_symbols = argument_module.dir(ctx.profile).symbols.read();
+        let ctx = TypeView::new(
+            &argument_module,
+            ctx.profile,
+            &argument_tree,
+            &argument_symbols,
+            ctx.types,
+        );
+        f(ctx, argument_id).map(Some)
+    }
+
+    // static argument owner resolution: mutable
+    /// Run logic with the module and tree that own a static argument node.
+    pub(crate) fn with_static_argument_owner<T>(
+        &self,
+        ctx: &mut TypeContext<'_>,
+        argument_node: GlobalNodeIdAny,
+        f: impl FnOnce(&mut TypeContext<'_>, LocalNodeId<Argument>) -> AnalyzeResult<T>,
+    ) -> AnalyzeResult<Option<T>> {
+        // static arguments should always point at argument nodes
+        let argument_id = match argument_node.try_into_local_typed::<Argument>() {
+            Ok(argument_id) => argument_id,
+            Err(_) => {
+                self.error(AnalyzeError::InvalidStaticArgument {
+                    node: argument_node.into_anchored(Some(ctx.profile)),
+                    message: "static argument does not resolve to an argument node".to_string(),
+                });
+                return Ok(None);
+            }
+        };
+
+        // prefer the call site tree when it owns the argument node
+        if argument_node.module_id == ctx.module.id
+            && ctx.tree.has_node_id(argument_node.local_id.id)
+        {
+            let mut ctx = ctx.reborrow();
+            return f(&mut ctx, argument_id).map(Some);
+        }
+
+        // otherwise, resolve the owning module and ensure the node exists there
+        let argument_module = self.program.modules.get(argument_node.module_id);
+        let argument_module = argument_module.read();
+        let argument_tree = argument_module.dir(ctx.profile).tree.read();
+        if !argument_tree.has_node_id(argument_node.local_id.id) {
+            self.error(AnalyzeError::InvalidStaticArgument {
+                node: argument_node.into_anchored(Some(ctx.profile)),
+                message: "static argument node is missing".to_string(),
+            });
+            return Ok(None);
+        }
+        let argument_symbols = argument_module.dir(ctx.profile).symbols.read();
         let argument_options = self.analyze_context_options_for_module(argument_module.id);
-        let mut owner_tables = tables.reborrow_for_module_with_options(
+        let mut ctx = ctx.reborrow_for_module_with_options(
             &argument_module,
             &argument_options,
             &argument_tree,
             &argument_symbols,
         );
-        f(&mut owner_tables, argument_id).map(Some)
+        f(&mut ctx, argument_id).map(Some)
     }
 
     /// Map static argument values to parameters by name and position.
     pub(crate) fn assign_static_argument_values(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         static_arguments: &[StaticArgument],
         parameters: &[StaticParameter],
@@ -130,23 +176,19 @@ impl Compiler {
                 StaticArgument::Evaluated { name, .. } => (*name, false),
                 StaticArgument::Unevaluated { node } => {
                     let mut info = None;
-                    let mut owner_tables = tables.reborrow();
-                    let _ = self.with_static_argument_owner(
-                        &mut owner_tables,
-                        *node,
-                        |owner_tables, argument_id| {
-                            let argument = owner_tables.tree.get(argument_id);
-                            info = Some(match argument {
-                                Argument::Named { name, .. } => {
-                                    has_named_arguments = true;
-                                    (Some(*name), false)
-                                }
-                                Argument::Spread { .. } => (None, true),
-                                _ => (None, false),
-                            });
-                            Ok(())
-                        },
-                    );
+                    let mut ctx = ctx.reborrow();
+                    let _ = self.with_static_argument_owner(&mut ctx, *node, |ctx, argument_id| {
+                        let argument = ctx.tree.get(argument_id);
+                        info = Some(match argument {
+                            Argument::Named { name, .. } => {
+                                has_named_arguments = true;
+                                (Some(*name), false)
+                            }
+                            Argument::Spread { .. } => (None, true),
+                            _ => (None, false),
+                        });
+                        Ok(())
+                    });
                     info.unwrap_or((None, false))
                 }
             };
@@ -155,10 +197,10 @@ impl Compiler {
             if is_spread {
                 let error_node = match argument {
                     StaticArgument::Unevaluated { node } => *node,
-                    _ => node_id.into_global(tables.module.id),
+                    _ => node_id.into_global(ctx.module.id),
                 };
                 self.error(AnalyzeError::InvalidStaticArgument {
-                    node: error_node.into_anchored(Some(tables.profile)),
+                    node: error_node.into_anchored(Some(ctx.profile)),
                     message: "static argument spread is not supported".to_string(),
                 });
                 return vec![None; parameters.len()];
@@ -171,8 +213,8 @@ impl Compiler {
         if has_named_arguments {
             self.error(AnalyzeError::InvalidStaticArgument {
                 node: node_id
-                    .into_global(tables.module.id)
-                    .into_anchored(Some(tables.profile)),
+                    .into_global(ctx.module.id)
+                    .into_anchored(Some(ctx.profile)),
                 message: "static arguments must be positional".to_string(),
             });
             return vec![None; parameters.len()];
@@ -206,7 +248,7 @@ impl Compiler {
             let Some(target_index) = target_index else {
                 let error_node = match argument {
                     StaticArgument::Unevaluated { node } => *node,
-                    _ => node_id.into_global(tables.module.id),
+                    _ => node_id.into_global(ctx.module.id),
                 };
                 let message = if argument_name.is_some() {
                     "unknown static argument name".to_string()
@@ -214,7 +256,7 @@ impl Compiler {
                     "too many static arguments".to_string()
                 };
                 self.error(AnalyzeError::InvalidStaticArgument {
-                    node: error_node.into_anchored(Some(tables.profile)),
+                    node: error_node.into_anchored(Some(ctx.profile)),
                     message,
                 });
                 continue;
@@ -224,10 +266,10 @@ impl Compiler {
             if assigned[target_index].is_some() {
                 let error_node = match argument {
                     StaticArgument::Unevaluated { node } => *node,
-                    _ => node_id.into_global(tables.module.id),
+                    _ => node_id.into_global(ctx.module.id),
                 };
                 self.error(AnalyzeError::InvalidStaticArgument {
-                    node: error_node.into_anchored(Some(tables.profile)),
+                    node: error_node.into_anchored(Some(ctx.profile)),
                     message: "duplicate static argument".to_string(),
                 });
                 continue;
@@ -242,24 +284,24 @@ impl Compiler {
     /// Resolve inherited static arguments and substitutions for a receiver type.
     pub(crate) fn resolve_inherited_static_arguments(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         receiver_id: LocalNodeIdAny,
         receiver_ty_id: Option<LocalTypeId>,
         receiver_ty: &Type,
     ) -> AnalyzeResult<InheritedStaticArguments> {
         // resolve the receiver into a symbol and static arguments
         let reference = if let Some(reference) =
-            self.receiver_reference_for_inherited_arguments(receiver_ty, tables.types)
+            self.receiver_reference_for_inherited_arguments(receiver_ty, ctx.types)
         {
             Some(reference)
         } else {
-            match self.well_known_type(tables.profile, receiver_ty, tables.types) {
+            match self.well_known_type(ctx.profile, receiver_ty, ctx.types) {
                 Some(Type::Reference {
                     symbol,
                     static_arguments,
                 }) => {
                     let symbol = self
-                        .remap_typevalue_symbol_to_type_space(tables.module, tables.profile, symbol)
+                        .remap_typevalue_symbol_to_type_space(ctx.module, ctx.profile, symbol)
                         .map_err(AnalyzeError::from)?;
                     Some((symbol, static_arguments))
                 }
@@ -278,7 +320,7 @@ impl Compiler {
 
                 arguments.iter().all(|argument| match argument {
                     StaticArgument::Evaluated { value, .. } => {
-                        self.static_value_argument_is_static(value, tables.types)
+                        self.static_value_argument_is_static(value, ctx.types)
                     }
                     StaticArgument::Unevaluated { .. } => false,
                 })
@@ -287,39 +329,39 @@ impl Compiler {
         // re-read declared reference arguments when inference widened away static arguments
         if !has_usable_reference_arguments(&reference)
             && let Some(declared_reference) =
-                self.receiver_reference_for_declaration_symbol(tables, receiver_id)
+                self.receiver_reference_for_declaration_symbol(ctx, receiver_id)
         {
             reference = Some(declared_reference);
         }
         if !has_usable_reference_arguments(&reference)
             && let Some(receiver_ty_id) = receiver_ty_id
             && let Some(source_reference) =
-                self.receiver_reference_for_type_source(tables, receiver_ty_id)
+                self.receiver_reference_for_type_source(ctx, receiver_ty_id)
         {
             reference = Some(source_reference);
         }
 
-        // fall back to instance arguments when the receiver type does not preserve them (#Suspicious?)
+        // fall back to instance arguments when the receiver type does not preserve them
         let instance_reference = || {
             // prefer instances registered on the receiver expression
-            let receiver_global_id = receiver_id.into_global(tables.module.id);
+            let receiver_global_id = receiver_id.into_global(ctx.module.id);
             if let Some(instance_reference) = self.query_instance_symbol_arguments_for_node_infer(
                 receiver_global_id,
-                tables.infer,
-                tables.types,
+                ctx.infer,
+                ctx.types,
             ) {
                 return Some(instance_reference);
             }
 
             // fall back to the source node for the inferred type
             if let Some(receiver_ty_id) = receiver_ty_id {
-                let source_id = tables.types.get_type_source(receiver_ty_id);
-                let source_global_id = source_id.into_global(tables.module.id);
+                let source_id = ctx.types.get_type_source(receiver_ty_id);
+                let source_global_id = source_id.into_global(ctx.module.id);
                 if let Some(instance_reference) = self
                     .query_instance_symbol_arguments_for_node_infer(
                         source_global_id,
-                        tables.infer,
-                        tables.types,
+                        ctx.infer,
+                        ctx.types,
                     )
                 {
                     return Some(instance_reference);
@@ -356,19 +398,19 @@ impl Compiler {
         // prefer static argument nodes or type sources to avoid node instance collisions
         let argument_node = static_arguments.as_ref().and_then(|arguments| {
             arguments.iter().find_map(|argument| match argument {
-                StaticArgument::Unevaluated { node } if node.module_id == tables.module.id => {
+                StaticArgument::Unevaluated { node } if node.module_id == ctx.module.id => {
                     Some(node.local_id)
                 }
                 _ => None,
             })
         });
         let resolution_node_id = argument_node
-            .or_else(|| receiver_ty_id.map(|ty_id| tables.types.get_type_source(ty_id)))
+            .or_else(|| receiver_ty_id.map(|ty_id| ctx.types.get_type_source(ty_id)))
             .unwrap_or(receiver_id);
 
         // resolve static arguments for the type reference
         let resolved: Option<Vec<StaticArgument>> = self.resolve_type_reference_static_arguments(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             resolution_node_id,
             symbol,
             static_arguments.as_deref(),
@@ -390,9 +432,9 @@ impl Compiler {
                     });
                 }
 
-                if symbol.module_id == tables.module.id {
+                if symbol.module_id == ctx.module.id {
                     self.materialize_static_arguments_for_reference(
-                        &mut tables.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         symbol,
                         resolution_node_id,
                         static_arguments,
@@ -400,19 +442,18 @@ impl Compiler {
                 } else {
                     let reference_module = self.program.modules.get(symbol.module_id);
                     let reference_module = reference_module.read();
-                    let reference_tree = reference_module.dir(tables.profile).tree.read();
-                    let reference_symbols = reference_module.dir(tables.profile).symbols.read();
+                    let reference_tree = reference_module.dir(ctx.profile).tree.read();
+                    let reference_symbols = reference_module.dir(ctx.profile).symbols.read();
                     let reference_options =
                         self.analyze_context_options_for_module(reference_module.id);
-                    let mut type_tables = tables.type_tables_reborrow();
-                    let mut reference_tables = type_tables.reborrow_for_module_with_options(
+                    let mut remote_ctx = ctx.type_context_reborrow_for_module_with_options(
                         &reference_module,
                         &reference_options,
                         &reference_tree,
                         &reference_symbols,
                     );
                     self.materialize_static_arguments_for_reference(
-                        &mut reference_tables,
+                        &mut remote_ctx,
                         symbol,
                         resolution_node_id,
                         static_arguments,
@@ -425,9 +466,9 @@ impl Compiler {
             .iter()
             .any(|argument| matches!(argument, StaticArgument::Unevaluated { .. }))
         {
-            resolved_arguments = if symbol.module_id == tables.module.id {
+            resolved_arguments = if symbol.module_id == ctx.module.id {
                 self.materialize_static_arguments_for_reference(
-                    &mut tables.type_tables_reborrow(),
+                    &mut ctx.type_context_reborrow(),
                     symbol,
                     receiver_id,
                     &resolved_arguments,
@@ -435,19 +476,18 @@ impl Compiler {
             } else {
                 let reference_module = self.program.modules.get(symbol.module_id);
                 let reference_module = reference_module.read();
-                let reference_tree = reference_module.dir(tables.profile).tree.read();
-                let reference_symbols = reference_module.dir(tables.profile).symbols.read();
+                let reference_tree = reference_module.dir(ctx.profile).tree.read();
+                let reference_symbols = reference_module.dir(ctx.profile).symbols.read();
                 let reference_options =
                     self.analyze_context_options_for_module(reference_module.id);
-                let mut type_tables = tables.type_tables_reborrow();
-                let mut reference_tables = type_tables.reborrow_for_module_with_options(
+                let mut remote_ctx = ctx.type_context_reborrow_for_module_with_options(
                     &reference_module,
                     &reference_options,
                     &reference_tree,
                     &reference_symbols,
                 );
                 self.materialize_static_arguments_for_reference(
-                    &mut reference_tables,
+                    &mut remote_ctx,
                     symbol,
                     receiver_id,
                     &resolved_arguments,
@@ -457,7 +497,7 @@ impl Compiler {
 
         // build type parameter substitutions
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             symbol,
             resolution_node_id,
             &resolved_arguments,
@@ -472,16 +512,16 @@ impl Compiler {
     /// Infer static arguments for a generic return type from an expected return type.
     pub(crate) fn static_arguments_from_expected_return_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         return_type: LocalTypeId,
         expected_return_type: LocalTypeId,
     ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, StaticArgument>>> {
         // unwrap type value wrappers
-        let return_type = self.unwrap_type_value(return_type, tables.types);
-        let expected_return_type = self.unwrap_type_value(expected_return_type, tables.types);
+        let return_type = self.unwrap_type_value(return_type, ctx.types);
+        let expected_return_type = self.unwrap_type_value(expected_return_type, ctx.types);
 
         // extract reference metadata from the return types
-        let (return_symbol, mut return_arguments) = match tables.types.get_type(return_type) {
+        let (return_symbol, mut return_arguments) = match ctx.types.get_type(return_type) {
             Type::Reference {
                 symbol,
                 static_arguments,
@@ -489,7 +529,7 @@ impl Compiler {
             _ => return Ok(None),
         };
         let (expected_symbol, mut expected_arguments) =
-            match tables.types.get_type(expected_return_type) {
+            match ctx.types.get_type(expected_return_type) {
                 Type::Reference {
                     symbol,
                     static_arguments: Some(arguments),
@@ -499,9 +539,9 @@ impl Compiler {
 
         // resolve return arguments when possible
         if let Some(arguments) = return_arguments.as_deref() {
-            let source_id = tables.types.get_type_source(return_type);
+            let source_id = ctx.types.get_type_source(return_type);
             let resolved = self.resolve_type_reference_static_arguments(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 source_id,
                 return_symbol,
                 Some(arguments),
@@ -514,9 +554,9 @@ impl Compiler {
 
         // resolve expected arguments when possible
         if !expected_arguments.is_empty() {
-            let source_id = tables.types.get_type_source(expected_return_type);
+            let source_id = ctx.types.get_type_source(expected_return_type);
             let resolved = self.resolve_type_reference_static_arguments(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 source_id,
                 expected_symbol,
                 Some(expected_arguments.as_slice()),
@@ -529,16 +569,12 @@ impl Compiler {
 
         // require a shared canonical target for inference
         let canonical_return = self.canonical_symbol_id(
-            tables.module,
-            tables.symbols,
-            tables.profile,
+            ctx.module_symbol_view(),
             return_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
         let canonical_expected = self.canonical_symbol_id(
-            tables.module,
-            tables.symbols,
-            tables.profile,
+            ctx.module_symbol_view(),
             expected_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
@@ -570,18 +606,12 @@ impl Compiler {
                 let Type::Reference {
                     symbol: parameter_symbol,
                     ..
-                } = tables.types.get_type(*ty)
+                } = ctx.types.get_type(*ty)
                 else {
                     continue;
                 };
 
-                if !self.symbol_is_static_parameter(
-                    tables.module,
-                    tables.profile,
-                    *parameter_symbol,
-                    tables.symbols,
-                    tables.types,
-                ) {
+                if !self.symbol_is_static_parameter(ctx.symbol_type_view(), *parameter_symbol) {
                     continue;
                 }
 
@@ -591,14 +621,9 @@ impl Compiler {
             }
         } else {
             // fall back to parameter order when return arguments are absent
-            let Some(parameter_symbols) = self.collect_static_parameter_symbols(
-                tables.module,
-                return_symbol,
-                tables.profile,
-                tables.tree,
-                tables.symbols,
-                tables.types,
-            ) else {
+            let Some(parameter_symbols) =
+                self.collect_static_parameter_symbols(ctx.type_view(), return_symbol)
+            else {
                 return Ok(None);
             };
             if parameter_symbols.len() != expected_arguments.len() {
@@ -667,84 +692,77 @@ impl Compiler {
     /// Extract a reference symbol from the receiver declaration symbol type when available.
     fn receiver_reference_for_declaration_symbol(
         &self,
-        tables: &InferTablesContext<'_>,
+        ctx: &InferContext<'_>,
         receiver_id: LocalNodeIdAny,
     ) -> Option<(GlobalSymbolId, Option<Vec<StaticArgument>>)> {
         let receiver_expression_id = receiver_id.into_typed::<Expression>();
-        let receiver_symbol = tables.tree.get(receiver_expression_id).target_symbol()?;
-        if receiver_symbol.module_id != tables.module.id {
+        let receiver_symbol = ctx.tree.get(receiver_expression_id).target_symbol()?;
+        if receiver_symbol.module_id != ctx.module.id {
             return None;
         }
 
-        let receiver_type_id = tables
+        let receiver_type_id = ctx
             .types
-            .get_type_id_for_symbol(tables.symbols, receiver_symbol)?;
-        let declared_type = tables.types.get_type(receiver_type_id);
+            .get_type_id_for_symbol(ctx.symbols, receiver_symbol)?;
+        let declared_type = ctx.types.get_type(receiver_type_id);
 
-        self.receiver_reference_for_inherited_arguments(declared_type, tables.types)
+        self.receiver_reference_for_inherited_arguments(declared_type, ctx.types)
     }
 
     /// Extract a reference symbol from the source node attached to one receiver type id.
     fn receiver_reference_for_type_source(
         &self,
-        tables: &InferTablesContext<'_>,
+        ctx: &InferContext<'_>,
         receiver_ty_id: LocalTypeId,
     ) -> Option<(GlobalSymbolId, Option<Vec<StaticArgument>>)> {
-        let source_id = tables.types.get_type_source(receiver_ty_id);
-        let source_global_id = source_id.into_global(tables.module.id);
-        let source_ty_id = tables
+        let source_id = ctx.types.get_type_source(receiver_ty_id);
+        let source_global_id = source_id.into_global(ctx.module.id);
+        let source_ty_id = ctx
             .infer
             .inferred_type_for_node(source_global_id)
-            .or_else(|| {
-                tables
-                    .types
-                    .get_declared_or_inferred_type_id(source_global_id)
-            })?;
-        let source_ty = tables.types.get_type(source_ty_id);
+            .or_else(|| ctx.types.get_declared_or_inferred_type_id(source_global_id))?;
+        let source_ty = ctx.types.get_type(source_ty_id);
 
-        self.receiver_reference_for_inherited_arguments(source_ty, tables.types)
+        self.receiver_reference_for_inherited_arguments(source_ty, ctx.types)
     }
 
     /// Infer a dynamic argument value with contextual typing.
     pub(crate) fn infer_argument(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         argument_id: LocalNodeId<Argument>,
         expected_ty_id: Option<LocalTypeId>,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<()> {
-        let argument = tables.tree.get(argument_id);
+        let argument = ctx.tree.get(argument_id);
 
         // apply the expected type to the argument value
-        let mut argument_ctx = ctx
+        let mut arg_state = state
             .nested_expression_context()
             .with_expected_type(expected_ty_id);
         if expected_ty_id.is_some()
-            && matches!(
-                argument_ctx.contextual_typing,
-                ContextualTypingMode::Satisfies
-            )
+            && matches!(arg_state.contextual_typing, ContextualTypingMode::Satisfies)
         {
             // allow contextual typing for argument inference under satisfies
-            argument_ctx = argument_ctx.with_contextual_typing_mode(ContextualTypingMode::Default);
+            arg_state = arg_state.with_contextual_typing_mode(ContextualTypingMode::Default);
         }
 
         match argument {
             Argument::Positional { value, .. } => {
-                self.infer_expression(&mut tables.reborrow(), *value, &mut argument_ctx)?;
+                self.infer_expression(&mut ctx.reborrow(), *value, &mut arg_state)?;
             }
             Argument::Named { name: _, value, .. } => {
-                self.infer_expression(&mut tables.reborrow(), *value, &mut argument_ctx)?;
+                self.infer_expression(&mut ctx.reborrow(), *value, &mut arg_state)?;
             }
             Argument::Labeled {
                 label: _, value, ..
             } => {
-                self.infer_expression(&mut tables.reborrow(), *value, &mut argument_ctx)?;
+                self.infer_expression(&mut ctx.reborrow(), *value, &mut arg_state)?;
             }
             Argument::Spread {
                 label: _, value, ..
             } => {
-                self.infer_expression(&mut tables.reborrow(), *value, &mut argument_ctx)?;
+                self.infer_expression(&mut ctx.reborrow(), *value, &mut arg_state)?;
             }
         }
 
@@ -755,7 +773,7 @@ impl Compiler {
     /// Returns `None` when no argument is provided and no default exists.
     pub(crate) fn resolve_static_argument(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         static_parameter: &StaticParameter,
         assigned_argument: Option<StaticArgument>,
         treat_type_arguments_as_types: bool,
@@ -763,7 +781,7 @@ impl Compiler {
         // resolve explicit argument when provided
         if let Some(argument) = assigned_argument {
             let resolved_argument = self.resolve_explicit_static_argument(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 static_parameter,
                 argument,
                 treat_type_arguments_as_types,
@@ -771,7 +789,7 @@ impl Compiler {
 
             // normalize value arguments back into value expressions
             let resolved_argument = if static_parameter.kind == StaticParameterKind::Value {
-                self.normalize_value_static_argument(resolved_argument, tables.types)
+                self.normalize_value_static_argument(resolved_argument, ctx.types)
             } else {
                 resolved_argument
             };
@@ -782,7 +800,7 @@ impl Compiler {
         // default expression
         if let Some(default_expression) = static_parameter.default_expression.as_ref() {
             let resolved_argument = self.resolve_default_static_argument(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 static_parameter,
                 default_expression,
                 treat_type_arguments_as_types,
@@ -790,7 +808,7 @@ impl Compiler {
 
             // normalize value defaults back into value expressions
             let resolved_argument = if static_parameter.kind == StaticParameterKind::Value {
-                self.normalize_value_static_argument(resolved_argument, tables.types)
+                self.normalize_value_static_argument(resolved_argument, ctx.types)
             } else {
                 resolved_argument
             };
@@ -805,7 +823,7 @@ impl Compiler {
     /// Resolve an explicit static argument for a parameter.
     fn resolve_explicit_static_argument(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         static_parameter: &StaticParameter,
         argument: StaticArgument,
         treat_type_arguments_as_types: bool,
@@ -816,17 +834,16 @@ impl Compiler {
                 // prefer value literals when type arguments stay unconverted
                 if !treat_type_arguments_as_types
                     && let Some(value) =
-                        self.evaluate_static_argument_as_value(&mut tables.reborrow(), node)?
+                        self.evaluate_static_argument_as_value(&mut ctx.reborrow(), node)?
                 {
                     return Ok(value);
                 }
 
-                let resolved =
-                    self.evaluate_static_argument_as_type(&mut tables.reborrow(), node)?;
+                let resolved = self.evaluate_static_argument_as_type(&mut ctx.reborrow(), node)?;
                 resolved.unwrap_or(StaticArgument::Unevaluated { node })
             }
             (StaticParameterKind::Value, StaticArgument::Unevaluated { node }) => {
-                self.resolve_value_static_argument(&mut tables.reborrow(), node)?
+                self.resolve_value_static_argument(&mut ctx.reborrow(), node)?
             }
             (StaticParameterKind::Type, StaticArgument::Evaluated { name, value }) => {
                 // preserve explicit values when type arguments stay unconverted
@@ -842,10 +859,8 @@ impl Compiler {
                     };
                     let ty_id = self.convert_static_argument_type(
                         &argument,
-                        tables
-                            .types
-                            .get_type_source(static_parameter.declared_type_id),
-                        tables.types,
+                        ctx.types.get_type_source(static_parameter.declared_type_id),
+                        ctx.types,
                     );
 
                     StaticArgument::Evaluated {
@@ -863,26 +878,20 @@ impl Compiler {
     /// Resolve a value-kind static argument to a concrete value or reference.
     fn resolve_value_static_argument(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node: GlobalNodeIdAny,
     ) -> AnalyzeResult<StaticArgument> {
         // prefer static value evaluation first
-        if let Some(value) = self.evaluate_static_argument_as_value(&mut tables.reborrow(), node)? {
+        if let Some(value) = self.evaluate_static_argument_as_value(&mut ctx.reborrow(), node)? {
             return Ok(value);
         }
 
         // preserve static parameter references in value slots
         if let Some(StaticArgument::Evaluated { name, value }) =
-            self.evaluate_static_argument_as_type(&mut tables.reborrow(), node)?
+            self.evaluate_static_argument_as_type(&mut ctx.reborrow(), node)?
             && let StaticExpression::Type { ty } = value
-            && let Type::Reference { symbol, .. } = tables.types.get_type(ty)
-            && self.symbol_is_static_parameter(
-                tables.module,
-                tables.profile,
-                *symbol,
-                tables.symbols,
-                tables.types,
-            )
+            && let Type::Reference { symbol, .. } = ctx.types.get_type(ty)
+            && self.symbol_is_static_parameter(ctx.symbol_type_view(), *symbol)
         {
             return Ok(StaticArgument::Evaluated {
                 name,
@@ -1039,15 +1048,15 @@ impl Compiler {
     /// Resolve a default static argument for a parameter.
     fn resolve_default_static_argument(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         static_parameter: &StaticParameter,
         default_expression: &GlobalNodeId<Expression>,
         treat_type_arguments_as_types: bool,
     ) -> AnalyzeResult<StaticArgument> {
         // select the module context for the default expression
-        if default_expression.module_id == tables.module.id {
+        if default_expression.module_id == ctx.module.id {
             return self.evaluate_static_default_argument(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 static_parameter.kind,
                 static_parameter.name,
                 default_expression.local_id,
@@ -1058,17 +1067,17 @@ impl Compiler {
         // load the remote module context for the default expression
         let default_module = self.program.modules.get(default_expression.module_id);
         let default_module = default_module.read();
-        let default_tree = default_module.dir(tables.profile).tree.read();
-        let default_symbols = default_module.dir(tables.profile).symbols.read();
+        let default_tree = default_module.dir(ctx.profile).tree.read();
+        let default_symbols = default_module.dir(ctx.profile).symbols.read();
         let default_options = self.analyze_context_options_for_module(default_module.id);
-        let mut default_tables = tables.reborrow_for_module_with_options(
+        let mut ctx = ctx.reborrow_for_module_with_options(
             &default_module,
             &default_options,
             &default_tree,
             &default_symbols,
         );
         self.evaluate_static_default_argument(
-            &mut default_tables,
+            &mut ctx,
             static_parameter.kind,
             static_parameter.name,
             default_expression.local_id,
@@ -1079,52 +1088,49 @@ impl Compiler {
     /// Materialize a static type argument for validation.
     pub(crate) fn materialize_static_type_argument(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         error_node: GlobalNodeIdAny,
         static_parameter: &StaticParameter,
         resolved_static_argument: &StaticArgument,
     ) -> AnalyzeResult<LocalTypeId> {
         // pre-evaluate local type aliases used as bounds
         if let Type::Reference { symbol, .. } =
-            tables.types.get_type(static_parameter.declared_type_id)
+            ctx.types.get_type(static_parameter.declared_type_id)
             && symbol.ty() == SymbolType::TypeAlias
         {
             self.unwrap_type_alias_reference(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 static_parameter.declared_type_id,
             )?;
         }
 
         // evaluate the declared bound when needed
         self.ensure_static_parameter_bound_evaluated(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             static_parameter.declared_type_id,
         )?;
 
         // re-evaluate unevaluated arguments before building the substitution type
         let resolved_argument =
             if let StaticArgument::Unevaluated { node } = resolved_static_argument {
-                self.evaluate_static_argument_as_type(&mut tables.reborrow(), *node)?
+                self.evaluate_static_argument_as_type(&mut ctx.reborrow(), *node)?
                     .unwrap_or_else(|| resolved_static_argument.clone())
             } else {
                 resolved_static_argument.clone()
             };
 
         // build the substitution type from the argument
-        let substitution_ty_id = self.convert_static_argument_type(
-            &resolved_argument,
-            error_node.local_id,
-            tables.types,
-        );
+        let substitution_ty_id =
+            self.convert_static_argument_type(&resolved_argument, error_node.local_id, ctx.types);
 
         // ensure referenced instance types are available for validation
         self.ensure_reference_instance_types_for_type(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             error_node.local_id,
             static_parameter.declared_type_id,
         )?;
         self.ensure_reference_instance_types_for_type(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             error_node.local_id,
             substitution_ty_id,
         )?;
@@ -1135,82 +1141,69 @@ impl Compiler {
     /// Resolve the type of a static value argument for validation.
     fn static_value_argument_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         error_node: GlobalNodeIdAny,
         value: &StaticExpression,
     ) -> AnalyzeResult<LocalTypeId> {
         // prefer static parameter constraints for referenced type expressions
         if let StaticExpression::Type { ty } = value {
-            let symbol = match tables.types.get_type(*ty) {
+            let symbol = match ctx.types.get_type(*ty) {
                 Type::Reference { symbol, .. } => Some(*symbol),
                 _ => None,
             };
             if let Some(symbol) = symbol
-                && self.symbol_is_static_parameter(
-                    tables.module,
-                    tables.profile,
-                    symbol,
-                    tables.symbols,
-                    tables.types,
-                )
+                && self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol)
                 && let Some(constraint_id) = self.static_parameter_constraint_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     symbol,
                     error_node.local_id,
                 )
             {
-                self.ensure_static_parameter_bound_evaluated(
-                    &mut tables.reborrow(),
-                    constraint_id,
-                )?;
+                self.ensure_static_parameter_bound_evaluated(&mut ctx.reborrow(), constraint_id)?;
                 return Ok(constraint_id);
             }
         }
 
         // normalize static expression shapes into value types
-        self.static_expression_value_type(&mut tables.reborrow(), error_node, value)
+        self.static_expression_value_type(&mut ctx.reborrow(), error_node, value)
     }
 
     /// Check whether a scalar literal matches an enum constraint.
     fn enum_constraint_accepts_literal(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         constraint_ty_id: LocalTypeId,
         literal: &ScalarLiteral,
     ) -> AnalyzeResult<bool> {
         // resolve the enum symbol for the constraint when possible
         let enum_symbol =
-            self.enum_symbol_for_type(tables.types.get_type(constraint_ty_id), tables.types);
+            self.enum_symbol_for_type(ctx.types.get_type(constraint_ty_id), ctx.types);
         let Some(enum_symbol) = enum_symbol else {
             return Ok(false);
         };
 
         // select the module context for the enum
-        let matches = if enum_symbol.module_id == tables.module.id {
-            let _ =
-                self.enum_backing_type_for_symbol_in_tables(&mut tables.reborrow(), enum_symbol);
-            self.enum_literal_matches_symbol(
-                enum_symbol,
-                literal,
-                tables.tree,
-                tables.symbols,
-                tables.types,
-            )
+        let matches = if enum_symbol.module_id == ctx.module.id {
+            let _ = self.enum_backing_type_for_symbol(&mut ctx.reborrow(), enum_symbol);
+            self.enum_literal_matches_symbol(ctx.tree_symbol_type_view(), enum_symbol, literal)
         } else {
             self.with_module_tree_symbols_types_by_id_at_stage(
-                tables.profile,
+                ctx.profile,
                 enum_symbol.module_id,
-                tables.tree,
-                tables.symbols,
-                tables.types,
+                ctx.tree,
+                ctx.symbols,
+                ctx.types,
                 AnalyzeDependencyStage::Declare,
                 |owner_tree, owner_symbols, owner_types| {
                     self.enum_literal_matches_symbol(
+                        TreeSymbolTypeView::new(
+                            ctx.profile,
+                            owner_tree,
+                            owner_symbols,
+                            owner_types,
+                        ),
                         enum_symbol,
                         literal,
-                        owner_tree,
-                        owner_symbols,
-                        owner_types,
                     )
                 },
             )
@@ -1223,11 +1216,11 @@ impl Compiler {
     /// Evaluate a static parameter bound when it is still unevaluated.
     fn ensure_static_parameter_bound_evaluated(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         bound_id: LocalTypeId,
     ) -> AnalyzeResult<()> {
-        if matches!(tables.types.get_type(bound_id), Type::Unevaluated(_)) {
-            self.resolve_declared_type(&mut tables.reborrow(), bound_id)?;
+        if matches!(ctx.types.get_type(bound_id), Type::Unevaluated(_)) {
+            self.resolve_declared_type(&mut ctx.reborrow(), bound_id)?;
         }
         Ok(())
     }
@@ -1235,14 +1228,12 @@ impl Compiler {
     /// Check whether a scalar literal matches an enum field value.
     fn enum_literal_matches_symbol(
         &self,
+        ctx: TreeSymbolTypeView<'_>,
         enum_symbol: GlobalSymbolId,
         literal: &ScalarLiteral,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> bool {
         // ensure the symbol refers to an enum declaration
-        let symbol_entry = symbols.get_symbol(enum_symbol.local_id);
+        let symbol_entry = ctx.symbols.get_symbol(enum_symbol.local_id);
         if symbol_entry.ty != SymbolType::Enum {
             return false;
         }
@@ -1261,13 +1252,13 @@ impl Compiler {
             let Ok(declaration_id) = declaration_id.try_into_local_typed::<Declaration>() else {
                 continue;
             };
-            let Declaration::Enum { fields, .. } = tree.get(declaration_id) else {
+            let Declaration::Enum { fields, .. } = ctx.tree.get(declaration_id) else {
                 continue;
             };
             for field_id in fields {
-                let field = tree.get(*field_id);
+                let field = ctx.tree.get(*field_id);
                 let field_symbol = field.symbol.into_global(enum_symbol.module_id);
-                let Some(value) = types.get_enum_field_value(field_symbol) else {
+                let Some(value) = ctx.types.get_enum_field_value(field_symbol) else {
                     continue;
                 };
                 if self.enum_field_value_matches_literal(value, literal) {
@@ -1295,7 +1286,7 @@ impl Compiler {
     /// Convert a static expression into a value type for validation.
     fn static_expression_value_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         error_node: GlobalNodeIdAny,
         value: &StaticExpression,
     ) -> AnalyzeResult<LocalTypeId> {
@@ -1312,10 +1303,10 @@ impl Compiler {
             }
             StaticExpression::ArrayExpression { elements }
             | StaticExpression::TupleExpression { elements } => {
-                self.static_expression_tuple_type(&mut tables.reborrow(), error_node, elements)?
+                self.static_expression_tuple_type(&mut ctx.reborrow(), error_node, elements)?
             }
             StaticExpression::ObjectExpression { properties } => {
-                self.static_expression_object_type(&mut tables.reborrow(), error_node, properties)?
+                self.static_expression_object_type(&mut ctx.reborrow(), error_node, properties)?
             }
             StaticExpression::Declaration { .. } | StaticExpression::Unevaluated { .. } => {
                 Type::TypeLiteral {
@@ -1324,13 +1315,13 @@ impl Compiler {
             }
         };
 
-        Ok(tables.types.insert_type_from_any(ty, error_node.local_id))
+        Ok(ctx.types.insert_type_from_any(ty, error_node.local_id))
     }
 
     /// Convert a static tuple/array expression into a tuple type.
     fn static_expression_tuple_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         error_node: GlobalNodeIdAny,
         elements: &[StaticExpression],
     ) -> AnalyzeResult<Type> {
@@ -1338,7 +1329,7 @@ impl Compiler {
         let mut element_types = Vec::with_capacity(elements.len());
         for element in elements {
             let element_ty_id =
-                self.static_expression_value_type(&mut tables.reborrow(), error_node, element)?;
+                self.static_expression_value_type(&mut ctx.reborrow(), error_node, element)?;
             element_types.push(TypeElement::new(element_ty_id));
         }
         Ok(Type::Tuple {
@@ -1350,7 +1341,7 @@ impl Compiler {
     /// Convert a static object expression into an object type.
     fn static_expression_object_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         error_node: GlobalNodeIdAny,
         properties: &[StaticProperty],
     ) -> AnalyzeResult<Type> {
@@ -1376,7 +1367,7 @@ impl Compiler {
                 continue;
             };
             let field_ty_id =
-                self.static_expression_value_type(&mut tables.reborrow(), error_node, value)?;
+                self.static_expression_value_type(&mut ctx.reborrow(), error_node, value)?;
             let is_optional = modifiers.is_some_and(|modifiers| {
                 modifiers
                     .kind
@@ -1406,7 +1397,7 @@ impl Compiler {
     /// Validate a static argument against its declared type.
     pub(crate) fn validate_static_argument(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         error_node: GlobalNodeIdAny,
         static_parameter: &StaticParameter,
         resolved_static_argument: &StaticArgument,
@@ -1421,19 +1412,19 @@ impl Compiler {
                 self.convert_static_argument_type(
                     resolved_static_argument,
                     error_node.local_id,
-                    tables.types,
+                    ctx.types,
                 )
             });
 
             // skip bound validation in declaration modules
-            if tables.module.language_type.is_declaration() {
+            if ctx.module.language_type.is_declaration() {
                 return Ok(Some(substitution_ty_id));
             }
 
             // resolve bounds via constraint lookup when the declared slot is not concrete
             let mut declared_bound_id = static_parameter.declared_type_id;
             let declared_bound_needs_constraint = matches!(
-                tables.types.get_type(declared_bound_id),
+                ctx.types.get_type(declared_bound_id),
                 Type::Unevaluated(_)
                     | Type::InferVar { .. }
                     | Type::TypeLiteral {
@@ -1441,15 +1432,9 @@ impl Compiler {
                     }
             );
             if declared_bound_needs_constraint
-                && self.symbol_is_static_parameter(
-                    tables.module,
-                    tables.profile,
-                    static_parameter.symbol,
-                    tables.symbols,
-                    tables.types,
-                )
+                && self.symbol_is_static_parameter(ctx.symbol_type_view(), static_parameter.symbol)
                 && let Some(constraint_id) = self.static_parameter_constraint_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     static_parameter.symbol,
                     error_node.local_id,
                 )
@@ -1464,36 +1449,32 @@ impl Compiler {
             let mut expected_ty_id = self.substitute_static_parameters(
                 declared_bound_id,
                 &substitutions,
-                tables.types,
+                ctx.types,
                 &mut cache,
             );
 
             // fall back to resolved constraint types when bounds are unknown
             if matches!(
-                tables.types.get_type(expected_ty_id),
+                ctx.types.get_type(expected_ty_id),
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown | TypeLiteral::Any
                 }
-            ) && self.symbol_is_static_parameter(
-                tables.module,
-                tables.profile,
-                static_parameter.symbol,
-                tables.symbols,
-                tables.types,
-            ) && let Some(constraint_id) = self.static_parameter_constraint_type(
-                &mut tables.reborrow(),
-                static_parameter.symbol,
-                error_node.local_id,
-            ) {
+            ) && self.symbol_is_static_parameter(ctx.symbol_type_view(), static_parameter.symbol)
+                && let Some(constraint_id) = self.static_parameter_constraint_type(
+                    &mut ctx.reborrow(),
+                    static_parameter.symbol,
+                    error_node.local_id,
+                )
+            {
                 let mut cache = HashMap::new();
                 let substituted = self.substitute_static_parameters(
                     constraint_id,
                     &substitutions,
-                    tables.types,
+                    ctx.types,
                     &mut cache,
                 );
                 if !matches!(
-                    tables.types.get_type(substituted),
+                    ctx.types.get_type(substituted),
                     Type::TypeLiteral {
                         value: TypeLiteral::Unknown | TypeLiteral::Any
                     }
@@ -1504,7 +1485,7 @@ impl Compiler {
 
             // accept all arguments when the declared bound is unknown or any
             if matches!(
-                tables.types.get_type(expected_ty_id),
+                ctx.types.get_type(expected_ty_id),
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown | TypeLiteral::Any
                 }
@@ -1522,34 +1503,25 @@ impl Compiler {
             }
 
             // report unassignable type
-            if !self.is_infer_var_type(declared_bound_id, tables.types)
-                && !self.is_infer_var_type(substitution_ty_id, tables.types)
-                && self.is_type_assignable(
-                    &mut tables.reborrow(),
-                    expected_ty_id,
-                    substitution_ty_id,
-                ) == Assignability::NotAssignable
+            if !self.is_infer_var_type(declared_bound_id, ctx.types)
+                && !self.is_infer_var_type(substitution_ty_id, ctx.types)
+                && self.is_type_assignable(&mut ctx.reborrow(), expected_ty_id, substitution_ty_id)
+                    == Assignability::NotAssignable
             {
                 // accept static parameter arguments when their constraints satisfy the bound
-                let symbol = match tables.types.get_type(substitution_ty_id) {
+                let symbol = match ctx.types.get_type(substitution_ty_id) {
                     Type::Reference { symbol, .. } => Some(*symbol),
                     _ => None,
                 };
                 if let Some(symbol) = symbol
-                    && self.symbol_is_static_parameter(
-                        tables.module,
-                        tables.profile,
-                        symbol,
-                        tables.symbols,
-                        tables.types,
-                    )
+                    && self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol)
                     && let Some(constraint_ty_id) = self.static_parameter_constraint_type(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         symbol,
                         error_node.local_id,
                     )
                     && self.constraint_satisfies_bound(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         expected_ty_id,
                         constraint_ty_id,
                     )
@@ -1559,11 +1531,11 @@ impl Compiler {
 
                 // allow type parameters that satisfy the expected bound via their constraints
                 if let Some(constraint_ty_id) = self.materialize_static_argument_constraint_type(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     error_node,
                     substitution_ty_id,
                 ) && self.constraint_satisfies_bound(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     expected_ty_id,
                     constraint_ty_id,
                 ) {
@@ -1572,16 +1544,13 @@ impl Compiler {
 
                 // report failed bound validation
                 self.emit_unassignable_type_for_types(
-                    tables.module,
-                    tables.profile,
+                    ctx.module_type_view(),
                     error_node.local_id,
                     expected_ty_id,
                     substitution_ty_id,
-                    tables.types,
                 );
                 return Ok(Some(
-                    tables
-                        .types
+                    ctx.types
                         .insert_type_from_any(Type::Error, error_node.local_id),
                 ));
             }
@@ -1591,7 +1560,7 @@ impl Compiler {
         }
 
         // skip value validation in declaration modules
-        if tables.module.language_type.is_declaration() {
+        if ctx.module.language_type.is_declaration() {
             return Ok(None);
         }
 
@@ -1600,11 +1569,10 @@ impl Compiler {
             && matches!(resolved_static_argument, StaticArgument::Unevaluated { .. })
         {
             self.error(AnalyzeError::NonStaticArgument {
-                node: error_node.into_anchored(Some(tables.profile)),
+                node: error_node.into_anchored(Some(ctx.profile)),
             });
             return Ok(Some(
-                tables
-                    .types
+                ctx.types
                     .insert_type_from_any(Type::Error, error_node.local_id),
             ));
         }
@@ -1615,26 +1583,25 @@ impl Compiler {
 
         // reject non static value arguments
         if static_parameter.kind == StaticParameterKind::Value
-            && !self.static_value_argument_is_static(value, tables.types)
+            && !self.static_value_argument_is_static(value, ctx.types)
         {
             self.error(AnalyzeError::NonStaticArgument {
-                node: error_node.into_anchored(Some(tables.profile)),
+                node: error_node.into_anchored(Some(ctx.profile)),
             });
             return Ok(Some(
-                tables
-                    .types
+                ctx.types
                     .insert_type_from_any(Type::Error, error_node.local_id),
             ));
         }
 
         // reject not assignable value arguments
         let value_ty_id =
-            self.static_value_argument_type(&mut tables.reborrow(), error_node, value)?;
+            self.static_value_argument_type(&mut ctx.reborrow(), error_node, value)?;
 
         // accept enum literal values that match enum constraints
         if let StaticExpression::ScalarLiteral { value: literal } = value
             && self.enum_constraint_accepts_literal(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 static_parameter.declared_type_id,
                 literal,
             )?
@@ -1642,25 +1609,22 @@ impl Compiler {
             return Ok(Some(value_ty_id));
         }
 
-        if !self.is_infer_var_type(static_parameter.declared_type_id, tables.types)
+        if !self.is_infer_var_type(static_parameter.declared_type_id, ctx.types)
             && self.is_type_assignable(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 static_parameter.declared_type_id,
                 value_ty_id,
             ) == Assignability::NotAssignable
         {
             // report unassignable value arguments
             self.emit_unassignable_type_for_types(
-                tables.module,
-                tables.profile,
+                ctx.module_type_view(),
                 error_node.local_id,
                 static_parameter.declared_type_id,
                 value_ty_id,
-                tables.types,
             );
             return Ok(Some(
-                tables
-                    .types
+                ctx.types
                     .insert_type_from_any(Type::Error, error_node.local_id),
             ));
         }
@@ -1785,7 +1749,7 @@ impl Compiler {
     /// Resolve a static argument constraint for validation.
     fn materialize_static_argument_constraint_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         error_node: GlobalNodeIdAny,
         argument_ty_id: LocalTypeId,
     ) -> Option<LocalTypeId> {
@@ -1794,7 +1758,7 @@ impl Compiler {
         let mut visited = HashSet::new();
         self.collect_type_reference_symbols(
             argument_ty_id,
-            tables.types,
+            ctx.types,
             &mut referenced_symbols,
             &mut visited,
         );
@@ -1804,7 +1768,7 @@ impl Compiler {
         let mut visiting_symbols = HashSet::new();
         for symbol in referenced_symbols {
             let constraint_id = self.materialize_static_parameter_constraint(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 error_node,
                 symbol,
                 &mut visiting_symbols,
@@ -1824,7 +1788,7 @@ impl Compiler {
         Some(self.substitute_static_parameters(
             argument_ty_id,
             &substitutions,
-            tables.types,
+            ctx.types,
             &mut cache,
         ))
     }
@@ -1832,7 +1796,7 @@ impl Compiler {
     /// Materialize a static parameter constraint by substituting nested constraints.
     fn materialize_static_parameter_constraint(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         error_node: GlobalNodeIdAny,
         symbol: GlobalSymbolId,
         visiting: &mut HashSet<GlobalSymbolId>,
@@ -1843,21 +1807,12 @@ impl Compiler {
         }
 
         // resolve the declared constraint type
-        if !self.symbol_is_static_parameter(
-            tables.module,
-            tables.profile,
-            symbol,
-            tables.symbols,
-            tables.types,
-        ) {
+        if !self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol) {
             visiting.remove(&symbol);
             return None;
         }
-        let constraint_id = self.static_parameter_constraint_type(
-            &mut tables.reborrow(),
-            symbol,
-            error_node.local_id,
-        );
+        let constraint_id =
+            self.static_parameter_constraint_type(&mut ctx.reborrow(), symbol, error_node.local_id);
         let Some(constraint_id) = constraint_id else {
             visiting.remove(&symbol);
             return None;
@@ -1868,7 +1823,7 @@ impl Compiler {
         let mut visited = HashSet::new();
         self.collect_type_reference_symbols(
             constraint_id,
-            tables.types,
+            ctx.types,
             &mut referenced_symbols,
             &mut visited,
         );
@@ -1880,7 +1835,7 @@ impl Compiler {
                 continue;
             }
             let nested_constraint = self.materialize_static_parameter_constraint(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 error_node,
                 referenced_symbol,
                 visiting,
@@ -1903,7 +1858,7 @@ impl Compiler {
         Some(self.substitute_static_parameters(
             constraint_id,
             &substitutions,
-            tables.types,
+            ctx.types,
             &mut cache,
         ))
     }
@@ -1911,7 +1866,7 @@ impl Compiler {
     /// Resolve static arguments for a type reference.
     pub(crate) fn resolve_type_reference_static_arguments(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         static_arguments: Option<&[StaticArgument]>,
@@ -1920,17 +1875,14 @@ impl Compiler {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_STATIC_RESOLVE);
         // canonicalize import targets while preserving alias identity
         let symbol = self.canonical_symbol_id(
-            tables.module,
-            tables.symbols,
-            tables.profile,
+            ctx.module_symbol_view(),
             symbol,
             CanonicalSymbolMode::PreserveAliases,
         );
-        let symbol =
-            self.merged_type_symbol_id(tables.module, tables.symbols, tables.profile, symbol);
+        let symbol = self.merged_type_symbol_id(ctx.module_symbol_view(), symbol);
 
         self.resolve_type_reference_static_arguments_with_bounds(
-            tables,
+            ctx,
             node_id,
             symbol,
             static_arguments,
@@ -1942,7 +1894,7 @@ impl Compiler {
     /// Resolve static arguments for a canonicalized type reference in one substitution environment.
     pub(crate) fn resolve_type_reference_static_arguments_with_bounds(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         static_arguments: Option<&[StaticArgument]>,
@@ -1953,7 +1905,7 @@ impl Compiler {
         let treat_type_arguments_as_types = true;
 
         // check for cached resolved static arguments
-        let options_cache_key = tables.options.cache_key();
+        let options_cache_key = ctx.options.cache_key();
         let cache_key = if bound_substitutions.is_none() {
             self.static_argument_resolution_cache_key(
                 symbol,
@@ -1966,7 +1918,7 @@ impl Compiler {
             None
         };
         if let Some(cache_key) = cache_key
-            && let Some(cached) = tables.types.get_static_argument_resolution_cache(cache_key)
+            && let Some(cached) = ctx.types.get_static_argument_resolution_cache(cache_key)
         {
             return Ok(cached);
         }
@@ -1978,24 +1930,24 @@ impl Compiler {
 
         // reuse resolved arguments when an instance is already registered for this node
         let has_explicit_arguments = static_arguments.is_some_and(|args| !args.is_empty());
-        let node_global_id = node_id.into_global(tables.module.id);
+        let node_global_id = node_id.into_global(ctx.module.id);
         if !has_explicit_arguments
             && let Some(arguments) =
-                self.query_instance_arguments_for_node(node_global_id, Some(symbol), tables.types)
+                self.query_instance_arguments_for_node(node_global_id, Some(symbol), ctx.types)
         {
             return Ok(Some(arguments));
         }
 
         // guard against recursive resolution on the same reference
         let argument_slice = static_arguments.unwrap_or(&[]);
-        if tables
+        if ctx
             .types
             .is_static_argument_resolution_in_progress(symbol, argument_slice)
         {
             if !argument_slice.is_empty() {
-                let resolved_arguments = if symbol.module_id == tables.module.id {
+                let resolved_arguments = if symbol.module_id == ctx.module.id {
                     self.materialize_static_arguments_for_reference(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         symbol,
                         node_id,
                         argument_slice,
@@ -2003,18 +1955,18 @@ impl Compiler {
                 } else {
                     let reference_module = self.program.modules.get(symbol.module_id);
                     let reference_module = reference_module.read();
-                    let reference_tree = reference_module.dir(tables.profile).tree.read();
-                    let reference_symbols = reference_module.dir(tables.profile).symbols.read();
+                    let reference_tree = reference_module.dir(ctx.profile).tree.read();
+                    let reference_symbols = reference_module.dir(ctx.profile).symbols.read();
                     let reference_options =
                         self.analyze_context_options_for_module(reference_module.id);
-                    let mut reference_tables = tables.reborrow_for_module_with_options(
+                    let mut ctx = ctx.reborrow_for_module_with_options(
                         &reference_module,
                         &reference_options,
                         &reference_tree,
                         &reference_symbols,
                     );
                     self.materialize_static_arguments_for_reference(
-                        &mut reference_tables,
+                        &mut ctx,
                         symbol,
                         node_id,
                         argument_slice,
@@ -2027,12 +1979,11 @@ impl Compiler {
 
         // mark resolution as in progress for this argument set
         let argument_snapshot = argument_slice.to_vec();
-        tables
-            .types
+        ctx.types
             .mark_static_argument_resolution_in_progress(symbol, argument_snapshot.clone());
 
         let result = self.resolve_type_reference_static_arguments_inner(
-            tables,
+            ctx,
             node_id,
             symbol,
             static_arguments,
@@ -2042,8 +1993,7 @@ impl Compiler {
         );
 
         // clear the in progress marker, resolve cached arguments when needed
-        tables
-            .types
+        ctx.types
             .clear_static_argument_resolution_in_progress(symbol, &argument_snapshot);
         if let Some(cache_key) = cache_key
             && let Ok(resolved) = &result
@@ -2053,8 +2003,7 @@ impl Compiler {
                 .map(|arguments| arguments.iter().all(StaticArgument::is_evaluated))
                 .unwrap_or(true);
             if should_cache {
-                tables
-                    .types
+                ctx.types
                     .set_static_argument_resolution_cache(cache_key, resolved.clone());
             }
         }
@@ -2065,7 +2014,7 @@ impl Compiler {
     /// Resolve static arguments for a type reference.
     fn resolve_type_reference_static_arguments_inner(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         static_arguments: Option<&[StaticArgument]>,
@@ -2073,24 +2022,17 @@ impl Compiler {
         bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         treat_type_arguments_as_types: bool,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
-        let call_site = ModuleContext::new(
-            tables.module,
-            tables.profile,
-            tables.tree,
-            tables.symbols,
-            tables.options,
-        );
-
         // ensure remote declarations are resolved before reading defaults
-        if symbol.module_id != tables.module.id {
-            self.require_resolve_module_direct(symbol.module_id, tables.profile)
+        if symbol.module_id != ctx.module.id {
+            self.require_resolve_module_direct(symbol.module_id, ctx.profile)
                 .map_err(AnalyzeError::from)?;
         }
 
-        if symbol.module_id == tables.module.id {
-            let mut owner_tables = tables.reborrow();
+        if symbol.module_id == ctx.module.id {
+            let mut ctx = ctx.reborrow();
+            let call_site = ctx.module_context();
             return self.resolve_type_reference_static_arguments_in_owner(
-                &mut owner_tables,
+                &mut ctx,
                 call_site,
                 node_id,
                 symbol,
@@ -2103,12 +2045,18 @@ impl Compiler {
 
         let reference_module = self.program.modules.get(symbol.module_id);
         let reference_module = reference_module.read();
-        let reference_tree = reference_module.dir(tables.profile).tree.read();
-        let reference_symbols = reference_module.dir(tables.profile).symbols.read();
-        let mut owner_tables =
-            tables.reborrow_for_module(&reference_module, &reference_tree, &reference_symbols);
+        let reference_tree = reference_module.dir(ctx.profile).tree.read();
+        let reference_symbols = reference_module.dir(ctx.profile).symbols.read();
+        let reference_options = self.analyze_context_options_for_module(reference_module.id);
+        let mut ctx = ctx.reborrow_for_module_with_options(
+            &reference_module,
+            &reference_options,
+            &reference_tree,
+            &reference_symbols,
+        );
+        let call_site = ctx.module_context();
         self.resolve_type_reference_static_arguments_in_owner(
-            &mut owner_tables,
+            &mut ctx,
             call_site,
             node_id,
             symbol,
@@ -2122,7 +2070,7 @@ impl Compiler {
     /// Resolve static arguments for one owner-module context.
     fn resolve_type_reference_static_arguments_in_owner(
         &self,
-        owner_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         call_site: ModuleContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
@@ -2132,14 +2080,7 @@ impl Compiler {
         treat_type_arguments_as_types: bool,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         // collect parameter symbols for the declaration
-        let parameter_symbols = self.collect_static_parameter_symbols(
-            owner_tables.module,
-            symbol,
-            owner_tables.profile,
-            owner_tables.tree,
-            owner_tables.symbols,
-            owner_tables.types,
-        );
+        let parameter_symbols = self.collect_static_parameter_symbols(ctx.type_view(), symbol);
         let parameter_symbols = match parameter_symbols {
             Some(parameter_symbols) => parameter_symbols,
             None => {
@@ -2168,7 +2109,7 @@ impl Compiler {
         let mut static_parameters = Vec::with_capacity(parameter_symbols.len());
         for symbol_id in &parameter_symbols {
             static_parameters.push(self.resolve_static_parameter(
-                &mut owner_tables.reborrow(),
+                &mut ctx.reborrow(),
                 *symbol_id,
                 node_id,
             ));
@@ -2177,7 +2118,7 @@ impl Compiler {
         // map arguments to parameter slots
         let argument_values = static_arguments.unwrap_or(&[]);
         let assigned_arguments = self.assign_static_argument_values(
-            &mut owner_tables.reborrow(),
+            &mut ctx.reborrow(),
             node_id,
             argument_values,
             &static_parameters,
@@ -2203,16 +2144,14 @@ impl Compiler {
 
             // resolve the argument value or synthesize error recovery when unresolved
             let resolved_argument = self.resolve_static_argument(
-                &mut owner_tables.reborrow(),
+                &mut ctx.reborrow(),
                 static_parameter,
                 assigned_argument,
                 treat_type_arguments_as_types,
             )?;
             let mut resolved_argument = resolved_argument.unwrap_or_else(|| {
                 // unresolved references synthesize error recovery values by parameter kind
-                let error_ty_id = owner_tables
-                    .types
-                    .insert_type_from_any(Type::Error, node_id);
+                let error_ty_id = ctx.types.insert_type_from_any(Type::Error, node_id);
                 let synthesized_value = match static_parameter.kind {
                     StaticParameterKind::Type => StaticExpression::Type { ty: error_ty_id },
                     StaticParameterKind::Value => node_id
@@ -2233,8 +2172,8 @@ impl Compiler {
                 resolved_argument = self.substitute_value_parameter_reference(
                     resolved_argument,
                     &resolved_argument_map,
-                    owner_tables.types,
-                    error_node.into_anchored(Some(owner_tables.profile)),
+                    ctx.types,
+                    error_node.into_anchored(Some(ctx.profile)),
                 )?;
             }
 
@@ -2244,20 +2183,16 @@ impl Compiler {
                     StaticArgument::Evaluated {
                         value: StaticExpression::Type { ty },
                         ..
-                    } => self.unwrap_type_value_symbol(owner_tables.types, *ty),
+                    } => self.unwrap_type_value_symbol(ctx.types, *ty),
                     _ => None,
                 };
 
                 if let Some(referenced_symbol) = referenced_symbol {
-                    let constraint_id = if self.symbol_is_static_parameter(
-                        owner_tables.module,
-                        owner_tables.profile,
-                        referenced_symbol,
-                        owner_tables.symbols,
-                        owner_tables.types,
-                    ) {
+                    let constraint_id = if self
+                        .symbol_is_static_parameter(ctx.symbol_type_view(), referenced_symbol)
+                    {
                         self.static_parameter_constraint_type(
-                            &mut owner_tables.reborrow(),
+                            &mut ctx.reborrow(),
                             referenced_symbol,
                             error_node.local_id,
                         )
@@ -2267,33 +2202,29 @@ impl Compiler {
 
                     if let Some(constraint_id) = constraint_id
                         && matches!(
-                            owner_tables.types.get_type(constraint_id),
+                            ctx.types.get_type(constraint_id),
                             Type::TypeLiteral {
                                 value: TypeLiteral::Unknown
                             }
                         )
                     {
                         if matches!(
-                            owner_tables
-                                .types
-                                .get_type(static_parameter.declared_type_id),
+                            ctx.types.get_type(static_parameter.declared_type_id),
                             Type::Unevaluated(_)
                         ) {
                             self.resolve_declared_type(
-                                &mut owner_tables.reborrow(),
+                                &mut ctx.reborrow(),
                                 static_parameter.declared_type_id,
                             )?;
                         }
 
                         if !matches!(
-                            owner_tables
-                                .types
-                                .get_type(static_parameter.declared_type_id),
+                            ctx.types.get_type(static_parameter.declared_type_id),
                             Type::TypeLiteral {
                                 value: TypeLiteral::Unknown
                             }
                         ) {
-                            owner_tables.types.set_static_parameter_constraint_type(
+                            ctx.types.set_static_parameter_constraint_type(
                                 referenced_symbol,
                                 static_parameter.declared_type_id,
                             );
@@ -2306,9 +2237,9 @@ impl Compiler {
             let materialized_substitution = if validate_static_argument_bounds
                 && static_parameter.kind == StaticParameterKind::Type
             {
-                let mut argument_tables = owner_tables.reborrow();
+                let mut ctx = ctx.reborrow();
                 Some(self.materialize_static_type_argument(
-                    &mut argument_tables,
+                    &mut ctx,
                     error_node,
                     static_parameter,
                     &resolved_argument,
@@ -2327,13 +2258,14 @@ impl Compiler {
 
             // validate type and value arguments against declared bounds
             let validated_type = if validate_static_argument_bounds {
-                let mut validation_tables = owner_tables.reborrow_for_module(
+                let mut ctx = ctx.reborrow_for_module_with_options(
                     call_site.module,
+                    call_site.options,
                     call_site.tree,
                     call_site.symbols,
                 );
                 self.validate_static_argument(
-                    &mut validation_tables,
+                    &mut ctx,
                     error_node,
                     static_parameter,
                     &resolved_argument,
@@ -2355,19 +2287,15 @@ impl Compiler {
                     StaticArgument::Evaluated {
                         value: StaticExpression::Type { ty },
                         ..
-                    } => match owner_tables.types.get_type(*ty) {
-                        Type::Reference { symbol, .. } => self.symbol_is_static_parameter(
-                            owner_tables.module,
-                            owner_tables.profile,
-                            *symbol,
-                            owner_tables.symbols,
-                            owner_tables.types,
-                        ),
+                    } => match ctx.types.get_type(*ty) {
+                        Type::Reference { symbol, .. } => {
+                            self.symbol_is_static_parameter(ctx.symbol_type_view(), *symbol)
+                        }
                         _ => false,
                     },
                     _ => false,
                 };
-                if matches!(owner_tables.types.get_type(substitution_ty_id), Type::Error)
+                if matches!(ctx.types.get_type(substitution_ty_id), Type::Error)
                     || static_parameter.kind == StaticParameterKind::Type
                 {
                     resolved_argument = StaticArgument::Evaluated {
@@ -2386,7 +2314,7 @@ impl Compiler {
                         },
                     };
                     resolved_argument =
-                        self.normalize_value_static_argument(replacement, owner_tables.types);
+                        self.normalize_value_static_argument(replacement, ctx.types);
                 }
             }
 
@@ -2423,23 +2351,17 @@ impl Compiler {
         substitutions
     }
 
+    // substitution assembly
     /// Build type parameter substitutions for a type symbol.
     pub(crate) fn build_type_parameter_substitutions_for_symbol(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         symbol: GlobalSymbolId,
         source_id: LocalNodeIdAny,
         resolved_arguments: &[StaticArgument],
     ) -> HashMap<GlobalSymbolId, LocalTypeId> {
         // collect static parameter symbols for the declaration
-        let parameter_symbols = self.collect_static_parameter_symbols(
-            tables.module,
-            symbol,
-            tables.profile,
-            tables.tree,
-            tables.symbols,
-            tables.types,
-        );
+        let parameter_symbols = self.collect_static_parameter_symbols(ctx.type_view(), symbol);
         let Some(parameter_symbols) = parameter_symbols else {
             return HashMap::new();
         };
@@ -2451,7 +2373,7 @@ impl Compiler {
         let mut static_parameters = Vec::with_capacity(parameter_symbols.len());
         for symbol_id in &parameter_symbols {
             static_parameters.push(self.resolve_static_parameter(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 *symbol_id,
                 source_id,
             ));
@@ -2463,20 +2385,18 @@ impl Compiler {
         {
             let ty_id = self.convert_static_argument_type(
                 argument,
-                tables
-                    .types
-                    .get_type_source(static_parameter.declared_type_id),
-                tables.types,
+                ctx.types.get_type_source(static_parameter.declared_type_id),
+                ctx.types,
             );
             substitutions.insert(static_parameter.symbol, ty_id);
         }
 
         let symbol_info = self
             .with_module_symbols_or_local_at_stage(
-                tables.module,
-                tables.profile,
+                ctx.module,
+                ctx.profile,
                 symbol.module_id,
-                tables.symbols,
+                ctx.symbols,
                 AnalyzeDependencyStage::Declare,
                 |_, owner_symbols| {
                     let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
@@ -2495,8 +2415,8 @@ impl Compiler {
             if resolved_parameter_types.iter().any(|ty| ty.is_some()) {
                 // propagate substitutions across all merge peers by position
                 let merge_symbols = self.collect_global_merge_sources_for_key(
-                    tables.module,
-                    tables.profile,
+                    ctx.module,
+                    ctx.profile,
                     symbol_key,
                     symbol_space,
                     GlobalMergeCategory::Instance,
@@ -2507,14 +2427,9 @@ impl Compiler {
                         continue;
                     }
 
-                    let Some(other_parameters) = self.collect_static_parameter_symbols(
-                        tables.module,
-                        merge_symbol,
-                        tables.profile,
-                        tables.tree,
-                        tables.symbols,
-                        tables.types,
-                    ) else {
+                    let Some(other_parameters) =
+                        self.collect_static_parameter_symbols(ctx.type_view(), merge_symbol)
+                    else {
                         continue;
                     };
 
@@ -2531,65 +2446,59 @@ impl Compiler {
         substitutions
     }
 
+    // static argument evaluation: type and value paths
     /// Evaluate a static argument as a type.
     pub(crate) fn evaluate_static_argument_as_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         argument_node: GlobalNodeIdAny,
     ) -> AnalyzeResult<Option<StaticArgument>> {
         let mut evaluated = None;
-        let mut owner_tables = tables.reborrow();
-        let _ = self.with_static_argument_owner(
-            &mut owner_tables,
-            argument_node,
-            |argument_tables, argument_id| {
-                let argument = argument_tables.tree.get(argument_id);
-                let argument_name = match argument {
-                    Argument::Named { name, .. } => Some(*name),
-                    _ => None,
+        let mut ctx = ctx.reborrow();
+        let _ = self.with_static_argument_owner(&mut ctx, argument_node, |ctx, argument_id| {
+            let argument = ctx.tree.get(argument_id);
+            let argument_name = match argument {
+                Argument::Named { name, .. } => Some(*name),
+                _ => None,
+            };
+
+            let expression_id = argument.value();
+
+            // preserve static parameter references in type arguments
+            if let Some(parameter_symbol) =
+                self.static_parameter_symbol_for_reference(ctx.type_view(), expression_id)?
+            {
+                let reference_ty = Type::Reference {
+                    symbol: parameter_symbol,
+                    static_arguments: None,
                 };
-
-                let expression_id = argument.value();
-
-                // preserve static parameter references in type arguments
-                if let Some(parameter_symbol) =
-                    self.static_parameter_symbol_for_reference(argument_tables, expression_id)?
-                {
-                    let reference_ty = Type::Reference {
-                        symbol: parameter_symbol,
-                        static_arguments: None,
-                    };
-                    let ty_id = argument_tables
-                        .types
-                        .insert_type_from_any(reference_ty, expression_id.into_any());
-                    evaluated = Some(StaticArgument::Evaluated {
-                        name: argument_name,
-                        value: StaticExpression::Type { ty: ty_id },
-                    });
-                    return Ok(());
-                }
-
-                // try evaluate expression as a type
-                let ty_id = self.resolve_declared_type_expression(
-                    &mut argument_tables.reborrow(),
-                    expression_id,
-                    true,
-                    true,
-                )?;
-                if matches!(
-                    argument_tables.types.get_type(ty_id),
-                    Type::Unevaluated { .. }
-                ) {
-                    return Ok(());
-                }
-
+                let ty_id = ctx
+                    .types
+                    .insert_type_from_any(reference_ty, expression_id.into_any());
                 evaluated = Some(StaticArgument::Evaluated {
                     name: argument_name,
                     value: StaticExpression::Type { ty: ty_id },
                 });
-                Ok(())
-            },
-        )?;
+                return Ok(());
+            }
+
+            // try evaluate expression as a type
+            let ty_id = self.resolve_declared_type_expression(
+                &mut ctx.reborrow(),
+                expression_id,
+                true,
+                true,
+            )?;
+            if matches!(ctx.types.get_type(ty_id), Type::Unevaluated { .. }) {
+                return Ok(());
+            }
+
+            evaluated = Some(StaticArgument::Evaluated {
+                name: argument_name,
+                value: StaticExpression::Type { ty: ty_id },
+            });
+            Ok(())
+        })?;
 
         Ok(evaluated)
     }
@@ -2597,54 +2506,46 @@ impl Compiler {
     /// Evaluate a static argument as a value.
     pub(crate) fn evaluate_static_argument_as_value(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         argument_node: GlobalNodeIdAny,
     ) -> AnalyzeResult<Option<StaticArgument>> {
         let mut evaluated = None;
-        let mut owner_tables = tables.reborrow();
-        let _ = self.with_static_argument_owner(
-            &mut owner_tables,
-            argument_node,
-            |argument_tables, argument_id| {
-                // capture argument name for reuse in evaluated form
-                let argument = argument_tables.tree.get(argument_id);
-                let argument_name = match argument {
-                    Argument::Named { name, .. } => Some(*name),
-                    _ => None,
-                };
+        let mut ctx = ctx.reborrow();
+        let _ = self.with_static_argument_owner(&mut ctx, argument_node, |ctx, argument_id| {
+            // capture argument name for reuse in evaluated form
+            let argument = ctx.tree.get(argument_id);
+            let argument_name = match argument {
+                Argument::Named { name, .. } => Some(*name),
+                _ => None,
+            };
 
-                // evaluate the expression into a static value when possible
-                let expression_id = argument.value();
-                let value = self.evaluate_static_expression_value(
-                    &mut argument_tables.reborrow(),
-                    expression_id,
-                    None,
-                )?;
-                let value = if let Some(value) = value {
-                    value
-                } else if let Some(enum_symbol) = self.enum_symbol_for_member_expression(
-                    &mut argument_tables.reborrow(),
-                    expression_id,
-                )? {
-                    let ty = argument_tables.types.insert_type_from_any(
-                        Type::Reference {
-                            symbol: enum_symbol,
-                            static_arguments: None,
-                        },
-                        expression_id.into_any(),
-                    );
-                    StaticExpression::Type { ty }
-                } else {
-                    return Ok(());
-                };
+            // evaluate the expression into a static value when possible
+            let expression_id = argument.value();
+            let value =
+                self.evaluate_static_expression_value(&mut ctx.reborrow(), expression_id, None)?;
+            let value = if let Some(value) = value {
+                value
+            } else if let Some(enum_symbol) =
+                self.enum_symbol_for_member_expression(&mut ctx.reborrow(), expression_id)?
+            {
+                let ty = ctx.types.insert_type_from_any(
+                    Type::Reference {
+                        symbol: enum_symbol,
+                        static_arguments: None,
+                    },
+                    expression_id.into_any(),
+                );
+                StaticExpression::Type { ty }
+            } else {
+                return Ok(());
+            };
 
-                evaluated = Some(StaticArgument::Evaluated {
-                    name: argument_name,
-                    value,
-                });
-                Ok(())
-            },
-        )?;
+            evaluated = Some(StaticArgument::Evaluated {
+                name: argument_name,
+                value,
+            });
+            Ok(())
+        })?;
 
         Ok(evaluated)
     }
@@ -2652,14 +2553,14 @@ impl Compiler {
     /// Resolve the enum symbol for an enum member expression.
     fn enum_symbol_for_member_expression(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         let Expression::Member {
             name,
             static_arguments,
             left,
-        } = tables.tree.get(expression_id)
+        } = ctx.tree.get(expression_id)
         else {
             return Ok(None);
         };
@@ -2667,7 +2568,7 @@ impl Compiler {
             return Ok(None);
         }
 
-        let left_expression = tables.tree.get(*left);
+        let left_expression = ctx.tree.get(*left);
         let mut enum_symbol = match left_expression {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
@@ -2675,34 +2576,27 @@ impl Compiler {
             _ => return Ok(None),
         };
         // unwrap import/export dependency items for enum symbols
-        if enum_symbol.module_id == tables.module.id {
-            let symbol_entry = tables.symbols.get_symbol(enum_symbol.local_id);
+        if enum_symbol.module_id == ctx.module.id {
+            let symbol_entry = ctx.symbols.get_symbol(enum_symbol.local_id);
             let dependency_id = symbol_entry.primary_declaration.and_then(|primary| {
-                self.dependency_item_for_symbol(tables.tree, primary, enum_symbol.local_id)
+                self.dependency_item_for_symbol(ctx.tree, primary, enum_symbol.local_id)
             });
             if let Some(dependency_id) = dependency_id
                 && let DependencyItem::Local { target_symbol, .. }
-                | DependencyItem::Remote { target_symbol, .. } = tables.tree.get(dependency_id)
+                | DependencyItem::Remote { target_symbol, .. } = ctx.tree.get(dependency_id)
             {
                 enum_symbol = *target_symbol;
             }
         }
 
         // ensure enum declarations are available before scanning enum fields
-        if enum_symbol.module_id != tables.module.id {
-            self.require_analyze_module_declare(enum_symbol.module_id, tables.profile)
+        if enum_symbol.module_id != ctx.module.id {
+            self.require_analyze_module_declare(enum_symbol.module_id, ctx.profile)
                 .map_err(AnalyzeError::from)?;
         }
 
         if self
-            .enum_field_symbol_for_name(
-                tables.module,
-                tables.profile,
-                enum_symbol,
-                *name,
-                tables.tree,
-                tables.symbols,
-            )?
+            .enum_field_symbol_for_name(ctx.type_view(), enum_symbol, *name)?
             .is_some()
         {
             Ok(Some(enum_symbol))
@@ -2782,7 +2676,7 @@ impl Compiler {
     /// Synthesize a missing static argument for function instantiation.
     pub(crate) fn synthesize_missing_static_argument_for_function(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         node_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
         static_parameter: &StaticParameter,
@@ -2793,15 +2687,15 @@ impl Compiler {
                 let scope_owner = owner_symbol.unwrap_or(static_parameter.symbol);
                 let scope = InferScope {
                     owner: scope_owner,
-                    function_id: Some(node_id.into_global(tables.module.id)),
+                    function_id: Some(node_id.into_global(ctx.module.id)),
                 };
-                let var_id = tables
+                let var_id = ctx
                     .infer
                     .new_var(InferOrigin::TypeParameter(static_parameter.symbol), scope);
-                let inferred_ty_id = tables
+                let inferred_ty_id = ctx
                     .types
                     .insert_type_from_any(Type::InferVar { id: var_id }, node_id);
-                tables.infer.bind_type(var_id, inferred_ty_id);
+                ctx.infer.bind_type(var_id, inferred_ty_id);
 
                 Ok(StaticArgument::Evaluated {
                     name: static_parameter.name,
@@ -2811,10 +2705,10 @@ impl Compiler {
             StaticParameterKind::Value => {
                 self.error(AnalyzeError::MissingStaticArgument {
                     node: node_id
-                        .into_global(tables.module.id)
-                        .into_anchored(Some(tables.profile)),
+                        .into_global(ctx.module.id)
+                        .into_anchored(Some(ctx.profile)),
                 });
-                let inferred_ty_id = tables.types.insert_type_from_any(Type::Error, node_id);
+                let inferred_ty_id = ctx.types.insert_type_from_any(Type::Error, node_id);
                 Ok(StaticArgument::Evaluated {
                     name: static_parameter.name,
                     value: StaticExpression::Type { ty: inferred_ty_id },
@@ -2826,7 +2720,7 @@ impl Compiler {
     /// Infer a static argument from matching dynamic arguments.
     pub(crate) fn infer_static_argument_from_dynamic_arguments(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         static_parameter: &StaticParameter,
         dynamic_parameters: &[LocalTypeId],
         dynamic_arguments: &[LocalNodeId<Argument>],
@@ -2836,11 +2730,11 @@ impl Compiler {
             for (param_ty_id, argument_id) in
                 dynamic_parameters.iter().zip(dynamic_arguments.iter())
             {
-                let param_ty_id = self.unwrap_type_value(*param_ty_id, tables.types);
+                let param_ty_id = self.unwrap_type_value(*param_ty_id, ctx.types);
                 let Type::Reference {
                     symbol,
                     static_arguments: None,
-                } = tables.types.get_type(param_ty_id)
+                } = ctx.types.get_type(param_ty_id)
                 else {
                     continue;
                 };
@@ -2849,11 +2743,11 @@ impl Compiler {
                 }
 
                 let Some(argument_ty_id) =
-                    self.argument_type_for_static_inference(&tables.reborrow(), *argument_id)
+                    self.argument_type_for_static_inference(&ctx.reborrow(), *argument_id)
                 else {
                     continue;
                 };
-                if !self.inferred_type_argument_is_committable(&tables.reborrow(), argument_ty_id) {
+                if !self.inferred_type_argument_is_committable(&ctx.reborrow(), argument_ty_id) {
                     continue;
                 }
 
@@ -2874,23 +2768,23 @@ impl Compiler {
 
         // scan positional arguments for direct static parameter references
         for (param_ty_id, argument_id) in dynamic_parameters.iter().zip(dynamic_arguments.iter()) {
-            let param_ty_id = self.unwrap_type_value(*param_ty_id, tables.types);
-            let param_ty = tables.types.get_type(param_ty_id).clone();
+            let param_ty_id = self.unwrap_type_value(*param_ty_id, ctx.types);
+            let param_ty = ctx.types.get_type(param_ty_id).clone();
 
             // evaluate literal argument values when possible
-            let expression_id = tables.tree.get(*argument_id).value();
+            let expression_id = ctx.tree.get(*argument_id).value();
             let value = self.evaluate_static_expression_value(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 expression_id,
                 None,
             )?;
             let value = if let Some(value) = value {
                 value
             } else if let Some(enum_symbol) = self.enum_symbol_for_member_expression(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 expression_id,
             )? {
-                let ty = tables.types.insert_type_from_any(
+                let ty = ctx.types.insert_type_from_any(
                     Type::Reference {
                         symbol: enum_symbol,
                         static_arguments: None,
@@ -2902,7 +2796,7 @@ impl Compiler {
                 continue;
             };
 
-            if !self.static_value_argument_is_static(&value, tables.types) {
+            if !self.static_value_argument_is_static(&value, ctx.types) {
                 continue;
             }
 
@@ -2918,7 +2812,7 @@ impl Compiler {
 
             // infer array sizes from literal arguments
             if let Type::ArraySized { count, .. } = &param_ty
-                && let Some(target_symbol) = self.unwrap_type_value_symbol(tables.types, *count)
+                && let Some(target_symbol) = self.unwrap_type_value_symbol(ctx.types, *count)
                 && target_symbol == static_parameter.symbol
             {
                 let elements = match &value {
@@ -2937,7 +2831,7 @@ impl Compiler {
 
             // infer array sizes when indexed access types reference the static parameter
             if let Type::Index { index, .. } = &param_ty
-                && let Type::Reference { symbol, .. } = tables.types.get_type(*index)
+                && let Type::Reference { symbol, .. } = ctx.types.get_type(*index)
                 && *symbol == static_parameter.symbol
             {
                 let elements = match &value {
@@ -2960,14 +2854,13 @@ impl Compiler {
         // infer from argument reference types that carry explicit static arguments
         for (param_ty_id, argument_id) in dynamic_parameters.iter().zip(dynamic_arguments.iter()) {
             let Some(argument_ty_id) =
-                self.argument_type_for_static_inference(&tables.reborrow(), *argument_id)
+                self.argument_type_for_static_inference(&ctx.reborrow(), *argument_id)
             else {
                 continue;
             };
 
-            let mut type_tables = tables.type_tables_reborrow();
             if let Some(argument) = self.infer_static_argument_from_argument_type(
-                &mut type_tables,
+                &mut ctx.type_context_reborrow(),
                 static_parameter,
                 *param_ty_id,
                 argument_ty_id,
@@ -2982,45 +2875,39 @@ impl Compiler {
     /// Return true when one inferred type argument is stable enough for static argument commitment.
     fn inferred_type_argument_is_committable(
         &self,
-        tables: &InferTablesContext<'_>,
+        ctx: &InferContext<'_>,
         argument_ty_id: LocalTypeId,
     ) -> bool {
         // reject unresolved convergence state
-        if self.type_requires_infer_convergence(
-            tables.module,
-            tables.profile,
-            argument_ty_id,
-            tables.symbols,
-            tables.types,
-        ) {
+        if self.type_requires_infer_convergence(ctx.type_view(), argument_ty_id) {
             return false;
         }
 
         // reject explicit error placeholders
-        !matches!(tables.types.get_type(argument_ty_id), Type::Error)
+        !matches!(ctx.types.get_type(argument_ty_id), Type::Error)
     }
 
     /// Resolve a value static argument from argument type metadata.
     fn infer_static_argument_from_argument_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         static_parameter: &StaticParameter,
         param_ty_id: LocalTypeId,
         argument_ty_id: LocalTypeId,
     ) -> AnalyzeResult<Option<StaticArgument>> {
         // unwrap any value wrappers before matching
-        let param_ty_id = self.unwrap_type_value(param_ty_id, tables.types);
-        let argument_ty_id = self.unwrap_type_value(argument_ty_id, tables.types);
+        let param_ty_id = self.unwrap_type_value(param_ty_id, ctx.types);
+        let argument_ty_id = self.unwrap_type_value(argument_ty_id, ctx.types);
 
         // extract reference arguments without holding immutable borrows
-        let (param_symbol, param_arguments) = match tables.types.get_type(param_ty_id) {
+        let (param_symbol, param_arguments) = match ctx.types.get_type(param_ty_id) {
             Type::Reference {
                 symbol,
                 static_arguments: Some(arguments),
             } => (*symbol, arguments.clone()),
             _ => return Ok(None),
         };
-        let (argument_symbol, argument_arguments) = match tables.types.get_type(argument_ty_id) {
+        let (argument_symbol, argument_arguments) = match ctx.types.get_type(argument_ty_id) {
             Type::Reference {
                 symbol,
                 static_arguments: Some(arguments),
@@ -3030,12 +2917,12 @@ impl Compiler {
         if param_symbol != argument_symbol {
             return Ok(None);
         }
-        let argument_source_id = tables.types.get_type_source(argument_ty_id);
+        let argument_source_id = ctx.types.get_type_source(argument_ty_id);
 
         // materialize referenced static arguments with the owning module
-        let resolved_arguments = if argument_symbol.module_id == tables.module.id {
+        let resolved_arguments = if argument_symbol.module_id == ctx.module.id {
             self.materialize_static_arguments_for_reference(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 argument_symbol,
                 argument_source_id,
                 &argument_arguments,
@@ -3043,17 +2930,17 @@ impl Compiler {
         } else {
             let argument_module = self.program.modules.get(argument_symbol.module_id);
             let argument_module = argument_module.read();
-            let argument_tree = argument_module.dir(tables.profile).tree.read();
-            let argument_symbols = argument_module.dir(tables.profile).symbols.read();
+            let argument_tree = argument_module.dir(ctx.profile).tree.read();
+            let argument_symbols = argument_module.dir(ctx.profile).symbols.read();
             let argument_options = self.analyze_context_options_for_module(argument_module.id);
-            let mut argument_tables = tables.reborrow_for_module_with_options(
+            let mut ctx = ctx.reborrow_for_module_with_options(
                 &argument_module,
                 &argument_options,
                 &argument_tree,
                 &argument_symbols,
             );
             self.materialize_static_arguments_for_reference(
-                &mut argument_tables,
+                &mut ctx,
                 argument_symbol,
                 argument_source_id,
                 &argument_arguments,
@@ -3063,7 +2950,7 @@ impl Compiler {
         // map explicit static arguments when the parameter and argument share a reference
         for (index, param_argument) in param_arguments.iter().enumerate() {
             if !self.static_argument_references_symbol(
-                &mut tables.reborrow(),
+                ctx.type_view(),
                 param_argument,
                 static_parameter.symbol,
             ) {
@@ -3076,7 +2963,7 @@ impl Compiler {
             let StaticArgument::Evaluated { value, .. } = argument else {
                 continue;
             };
-            if !self.static_value_argument_is_static(value, tables.types) {
+            if !self.static_value_argument_is_static(value, ctx.types) {
                 continue;
             }
 
@@ -3092,39 +2979,38 @@ impl Compiler {
     /// Resolve a candidate argument type for static value inference.
     fn argument_type_for_static_inference(
         &self,
-        tables: &InferTablesContext<'_>,
+        ctx: &InferContext<'_>,
         argument_id: LocalNodeId<Argument>,
     ) -> Option<LocalTypeId> {
         // prefer stable inferred types from this call site
-        let argument = tables.tree.get(argument_id);
+        let argument = ctx.tree.get(argument_id);
         let value_id = argument.value();
-        if let Some(type_id) = tables
+        if let Some(type_id) = ctx
             .infer
-            .inferred_type_for_node(value_id.into_global_any(tables.module.id))
-            && self.inferred_type_argument_is_committable(tables, type_id)
+            .inferred_type_for_node(value_id.into_global_any(ctx.module.id))
+            && self.inferred_type_argument_is_committable(ctx, type_id)
         {
             return Some(type_id);
         }
 
         // then use symbol value types for direct references
-        if let Some(symbol) = tables.tree.get(value_id).target_symbol() {
-            if let Some(type_id) = tables.types.get_type_id_for_symbol(tables.symbols, symbol) {
-                return Some(type_id);
-            }
+        if let Some(symbol) = ctx.tree.get(value_id).target_symbol()
+            && let Some(type_id) = ctx.types.get_type_id_for_symbol(ctx.symbols, symbol)
+        {
+            return Some(type_id);
         }
 
         // fall back to declaration owned types for direct references
-        if let Some(symbol) = tables.tree.get(value_id).target_symbol()
-            && symbol.module_id == tables.module.id
+        if let Some(symbol) = ctx.tree.get(value_id).target_symbol()
+            && symbol.module_id == ctx.module.id
         {
-            let symbol_entry = tables.symbols.get_symbol(symbol.local_id);
+            let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
             if let Some(primary_declaration) = symbol_entry.primary_declaration
-                && let Some(type_id) = tables
+                && let Some(type_id) = ctx
                     .infer
                     .inferred_type_for_node(primary_declaration)
                     .or_else(|| {
-                        tables
-                            .types
+                        ctx.types
                             .get_declared_or_inferred_type_id(primary_declaration)
                     })
             {
@@ -3138,7 +3024,7 @@ impl Compiler {
     /// Check whether a static argument expression references a target symbol.
     fn static_argument_references_symbol(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: TypeView<'_>,
         argument: &StaticArgument,
         target_symbol: GlobalSymbolId,
     ) -> bool {
@@ -3147,7 +3033,7 @@ impl Compiler {
             value: StaticExpression::Type { ty },
             ..
         } = argument
-            && let Type::Reference { symbol, .. } = tables.types.get_type(*ty)
+            && let Type::Reference { symbol, .. } = ctx.types.get_type(*ty)
         {
             return *symbol == target_symbol;
         }
@@ -3159,24 +3045,15 @@ impl Compiler {
 
         // resolve the owning tree before checking the argument expression
         let mut matches = false;
-        let mut owner_tables = tables.reborrow();
-        let _ = self.with_static_argument_owner(
-            &mut owner_tables,
-            *node,
-            |owner_tables, argument_id| {
-                let expression_id = owner_tables.tree.get(argument_id).value();
-                if let Some(symbol) = self.reference_symbol_for_expression(
-                    owner_tables.module,
-                    expression_id,
-                    owner_tables.profile,
-                    owner_tables.tree,
-                    owner_tables.symbols,
-                ) {
-                    matches = symbol == target_symbol;
-                }
-                Ok(())
-            },
-        );
+        let _ = self.with_static_argument_owner_read(ctx, *node, |ctx, argument_id| {
+            let expression_id = ctx.tree.get(argument_id).value();
+            if let Some(symbol) =
+                self.reference_symbol_for_expression(ctx.tree_symbol_view(), expression_id)
+            {
+                matches = symbol == target_symbol;
+            }
+            Ok(())
+        });
 
         matches
     }
@@ -3184,46 +3061,33 @@ impl Compiler {
     /// Check whether a constraint satisfies a declared bound.
     fn constraint_satisfies_bound(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         expected_ty_id: LocalTypeId,
         constraint_ty_id: LocalTypeId,
     ) -> bool {
         // skip validation when the declared bound still depends on static parameters
         let mut visited = HashSet::new();
-        let expected_contains_static = self.type_contains_static_parameters(
-            tables.module,
-            tables.profile,
-            expected_ty_id,
-            tables.symbols,
-            tables.types,
-            &mut visited,
-        );
+        let expected_contains_static =
+            self.type_contains_static_parameters(ctx.type_view(), expected_ty_id, &mut visited);
         if expected_contains_static {
             return true;
         }
 
         // reject constraints that still depend on static parameters when the bound is concrete
         visited.clear();
-        if self.type_contains_static_parameters(
-            tables.module,
-            tables.profile,
-            constraint_ty_id,
-            tables.symbols,
-            tables.types,
-            &mut visited,
-        ) {
+        if self.type_contains_static_parameters(ctx.type_view(), constraint_ty_id, &mut visited) {
             return false;
         }
 
         // accept arguments whose constraints satisfy the expected bound
-        self.is_type_assignable(&mut tables.reborrow(), expected_ty_id, constraint_ty_id)
+        self.is_type_assignable(&mut ctx.reborrow(), expected_ty_id, constraint_ty_id)
             .is_assignable()
     }
 
     /// Evaluate a static default expression for a parameter.
     pub(crate) fn evaluate_static_default_argument(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         parameter_kind: StaticParameterKind,
         name: Option<StringId>,
         default_expression: LocalNodeId<Expression>,
@@ -3232,7 +3096,7 @@ impl Compiler {
         // prefer value defaults when type arguments stay unconverted
         if !treat_type_arguments_as_types
             && let Some(value) = self.evaluate_static_expression_value(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 default_expression,
                 None,
             )?
@@ -3244,7 +3108,7 @@ impl Compiler {
         let value = match parameter_kind {
             StaticParameterKind::Type => {
                 let resolved = self.resolve_declared_type_expression_value(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     default_expression,
                     true,
                     true,
@@ -3265,20 +3129,20 @@ impl Compiler {
                     resolved => resolved,
                 };
 
-                let ty_id = tables.types.insert_type_from(resolved, default_expression);
+                let ty_id = ctx.types.insert_type_from(resolved, default_expression);
                 StaticExpression::Type { ty: ty_id }
             }
             StaticParameterKind::Value => {
                 if let Some(value) = self.evaluate_static_expression_value(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     default_expression,
                     None,
                 )? {
                     value
-                } else if let Some(enum_symbol) = self
-                    .enum_symbol_for_member_expression(&mut tables.reborrow(), default_expression)?
+                } else if let Some(enum_symbol) =
+                    self.enum_symbol_for_member_expression(&mut ctx.reborrow(), default_expression)?
                 {
-                    let ty = tables.types.insert_type_from_any(
+                    let ty = ctx.types.insert_type_from_any(
                         Type::Reference {
                             symbol: enum_symbol,
                             static_arguments: None,

@@ -3,6 +3,8 @@ mod collect;
 mod process;
 mod r#type;
 
+pub(crate) use r#type::StaticConstantResolutionMode;
+
 #[cfg(test)]
 mod tests;
 

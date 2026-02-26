@@ -1,4 +1,4 @@
-use crate::analyze::common::{CanonicalSymbolMode, InferTablesContext};
+use crate::analyze::common::{CanonicalSymbolMode, InferContext};
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{Expression, GlobalSymbolId, LocalNodeId, WellKnownSymbol};
 use destack_workspace::{ModuleSource, SymbolGroup};
@@ -7,29 +7,29 @@ impl Compiler {
     /// Validate call expressions against runtime restriction options.
     pub(crate) fn validate_call_expression(
         &self,
-        infer_tables: &InferTablesContext<'_>,
+        ctx: &InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         callee_id: LocalNodeId<Expression>,
         is_constructor: bool,
     ) {
         // skip restrictions for non-user modules
-        if !matches!(infer_tables.module.source, ModuleSource::User) {
+        if !matches!(ctx.module.source, ModuleSource::User) {
             return;
         }
 
         // skip work when no relevant restrictions are enabled
-        if !infer_tables.options.no_dynamic_evaluation
-            && !infer_tables.options.no_proxy
-            && !infer_tables.options.no_dynamic_shapes
+        if !ctx.options.no_dynamic_evaluation
+            && !ctx.options.no_proxy
+            && !ctx.options.no_dynamic_shapes
         {
             return;
         }
 
         // unwrap nested parentheses before classification
-        let callee_id = self.unwrap_parenthesized_expression(callee_id, infer_tables.tree);
+        let callee_id = self.unwrap_parenthesized_expression(callee_id, ctx.tree);
 
         // skip when well-known symbols are not available
-        let Some(well_known) = self.get_well_known_symbols(infer_tables.profile) else {
+        let Some(well_known) = self.get_well_known_symbols(ctx.profile) else {
             return;
         };
 
@@ -48,9 +48,7 @@ impl Compiler {
         // resolve the canonical symbol for a global reference
         let canonical_symbol = |symbol: GlobalSymbolId| {
             self.canonical_symbol_id(
-                infer_tables.module,
-                infer_tables.symbols,
-                infer_tables.profile,
+                ctx.module_symbol_view(),
                 symbol,
                 CanonicalSymbolMode::FollowAliases,
             )
@@ -61,7 +59,7 @@ impl Compiler {
             group.is_some_and(|group| group.ty == Some(symbol) || group.value == Some(symbol))
         };
 
-        match infer_tables.tree.get(callee_id) {
+        match ctx.tree.get(callee_id) {
             Expression::GlobalReference { target_symbol, .. }
             | Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. } => {
@@ -69,39 +67,35 @@ impl Compiler {
                 let callee_symbol = canonical_symbol(*target_symbol);
 
                 // report dynamic evaluation for builtin eval or Function
-                if infer_tables.options.no_dynamic_evaluation
+                if ctx.options.no_dynamic_evaluation
                     && (Some(callee_symbol) == function_symbol
                         || (!is_constructor && Some(callee_symbol) == eval_symbol))
                 {
                     self.error(AnalyzeError::DynamicEvaluationDisabled {
                         node: expression_id
-                            .into_global_any(infer_tables.module.id)
-                            .into_anchored(Some(infer_tables.profile)),
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile)),
                     });
                 }
 
                 // report Proxy usage when disabled
-                if infer_tables.options.no_proxy && Some(callee_symbol) == proxy_symbol {
+                if ctx.options.no_proxy && Some(callee_symbol) == proxy_symbol {
                     self.error(AnalyzeError::ProxyDisabled {
                         node: expression_id
-                            .into_global_any(infer_tables.module.id)
-                            .into_anchored(Some(infer_tables.profile)),
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile)),
                     });
                 }
             }
             Expression::Member { left, name, .. }
             | Expression::PrivateMember { left, name, .. } => {
                 // short circuit when dynamic shapes are allowed
-                if !infer_tables.options.no_dynamic_shapes {
+                if !ctx.options.no_dynamic_shapes {
                     return;
                 }
 
                 // resolve the owner symbol for shape mutation checks
-                let base_symbol = infer_tables
-                    .tree
-                    .get(*left)
-                    .target_symbol()
-                    .map(canonical_symbol);
+                let base_symbol = ctx.tree.get(*left).target_symbol().map(canonical_symbol);
                 let is_shape_mutation = matches!(
                     name,
                     name_id
@@ -116,8 +110,8 @@ impl Compiler {
                 if is_shape_mutation && is_shape_owner {
                     self.error(AnalyzeError::DynamicShapesDisabled {
                         node: expression_id
-                            .into_global_any(infer_tables.module.id)
-                            .into_anchored(Some(infer_tables.profile)),
+                            .into_global_any(ctx.module.id)
+                            .into_anchored(Some(ctx.profile)),
                     });
                 }
             }

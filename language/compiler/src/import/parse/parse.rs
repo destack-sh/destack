@@ -169,12 +169,11 @@ impl Compiler {
         let expressions = {
             let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_TREE);
             // parse module expressions in a single scanner-driven pass
-            let expressions = {
+
+            {
                 let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_MAIN);
                 parser.parse()
-            };
-
-            expressions
+            }
         };
         self.program.diagnostics.merge_from(&parser.diagnostics);
         if self.stats.timings_enabled()

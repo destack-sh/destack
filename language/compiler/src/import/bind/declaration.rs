@@ -325,7 +325,7 @@ impl Compiler {
         let expression_name = descriptor.name.map(|name| self.bind_name(ast, name));
 
         // hide outer name binding when the expression name is self-scope-only
-        let mut descriptor_for_binding = descriptor.clone();
+        let mut descriptor_for_binding = *descriptor;
         if name_is_self_scope_only {
             descriptor_for_binding.name = None;
         }
@@ -1039,7 +1039,7 @@ impl Compiler {
                 body,
             } => {
                 // treat signature-only functions as declarations in mergeable languages
-                let mut descriptor = descriptor.clone();
+                let mut descriptor = *descriptor;
                 if body.is_none()
                     && (module.language_type.supports_declaration_merging()
                         || module.language_type.is_destack())

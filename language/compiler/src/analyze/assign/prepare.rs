@@ -1,5 +1,5 @@
 use super::*;
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::TypeContext;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -49,55 +49,49 @@ impl Compiler {
     /// Normalize a type id for assignability checks.
     pub(super) fn prepare_assignability_type(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
     ) -> LocalTypeId {
         // unwrap cached alias instances first
-        let type_id = self.unwrap_assignability_alias_type(type_id, tables.types);
+        let type_id = self.unwrap_assignability_alias_type(type_id, ctx.types);
 
         // expand alias references that carry static arguments
-        let type_id = self.expand_assignability_alias_reference(&mut tables.reborrow(), type_id);
+        let type_id = self.expand_assignability_alias_reference(&mut ctx.reborrow(), type_id);
 
         // substitute static parameter references with constraints
-        let type_id = self.resolve_assignability_static_constraint(&mut tables.reborrow(), type_id);
+        let type_id = self.resolve_assignability_static_constraint(&mut ctx.reborrow(), type_id);
 
         // preserve newtype references as nominal assignability boundaries
-        if let Some(symbol) = self.unwrap_type_value_symbol(tables.types, type_id)
+        if let Some(symbol) = self.unwrap_type_value_symbol(ctx.types, type_id)
             && symbol.ty() == SymbolType::Newtype
         {
             return type_id;
         }
 
         // normalize the prepared type once so downstream checks see a stable shape
-        self.normalize_type(&mut tables.reborrow(), type_id, NormalizationMode::Assign)
+        self.normalize_type(&mut ctx.reborrow(), type_id, NormalizationMode::Assign)
     }
 
     /// Resolve static parameter references to their constraints for assignability.
     pub(super) fn resolve_assignability_static_constraint(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
     ) -> LocalTypeId {
-        let Type::Reference { symbol, .. } = tables.types.get_type(type_id) else {
+        let Type::Reference { symbol, .. } = ctx.types.get_type(type_id) else {
             return type_id;
         };
         let symbol = *symbol;
 
         // only substitute actual static parameters
-        if !self.symbol_is_static_parameter(
-            tables.module,
-            tables.profile,
-            symbol,
-            tables.symbols,
-            tables.types,
-        ) {
+        if !self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol) {
             return type_id;
         }
 
         // resolve the declared constraint type
-        let source_id = tables.types.get_type_source(type_id);
+        let source_id = ctx.types.get_type_source(type_id);
         let constraint_id =
-            self.static_parameter_constraint_type(&mut tables.reborrow(), symbol, source_id);
+            self.static_parameter_constraint_type(&mut ctx.reborrow(), symbol, source_id);
         let Some(constraint_id) = constraint_id else {
             return type_id;
         };
@@ -157,7 +151,7 @@ impl Compiler {
     /// Check assignability of static arguments on the same reference symbol.
     pub(super) fn are_reference_static_arguments_assignable(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         target_id: LocalTypeId,
         source_id: LocalTypeId,
         symbol: GlobalSymbolId,
@@ -170,18 +164,18 @@ impl Compiler {
             return true;
         }
 
-        let target_source_id = tables.types.get_type_source(target_id);
-        let source_source_id = tables.types.get_type_source(source_id);
+        let target_source_id = ctx.types.get_type_source(target_id);
+        let source_source_id = ctx.types.get_type_source(source_id);
 
         let target_arguments = self.resolve_reference_static_arguments(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             target_source_id,
             symbol,
             target_arguments,
             source_has_arguments && !target_has_arguments,
         );
         let source_arguments = self.resolve_reference_static_arguments(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             source_source_id,
             symbol,
             source_arguments,
@@ -195,14 +189,7 @@ impl Compiler {
             return false;
         }
 
-        let parameter_symbols = self.collect_static_parameter_symbols(
-            tables.module,
-            symbol,
-            tables.profile,
-            tables.tree,
-            tables.symbols,
-            tables.types,
-        );
+        let parameter_symbols = self.collect_static_parameter_symbols(ctx.type_view(), symbol);
 
         for (index, (target_argument, source_argument)) in target_arguments
             .iter()
@@ -214,54 +201,48 @@ impl Compiler {
                 .and_then(|symbols| symbols.get(index))
                 .copied();
             let (parameter_kind, parameter_variance) = if let Some(symbol) = parameter_symbol {
-                self.static_parameter_metadata_for_symbol(&mut tables.reborrow(), symbol)
+                self.static_parameter_metadata_for_symbol(&mut ctx.reborrow(), symbol)
             } else {
                 (None, None)
             };
 
             let target_ty_id =
-                self.convert_static_argument_type(target_argument, target_source_id, tables.types);
+                self.convert_static_argument_type(target_argument, target_source_id, ctx.types);
             let source_ty_id =
-                self.convert_static_argument_type(source_argument, source_source_id, tables.types);
-            if self.type_blocks_cascading_diagnostic(target_ty_id, tables.types)
-                || self.type_blocks_cascading_diagnostic(source_ty_id, tables.types)
+                self.convert_static_argument_type(source_argument, source_source_id, ctx.types);
+            if self.type_blocks_cascading_diagnostic(target_ty_id, ctx.types)
+                || self.type_blocks_cascading_diagnostic(source_ty_id, ctx.types)
             {
                 continue;
             }
 
             let mut static_visited = HashSet::new();
             let target_has_static = self.type_contains_static_parameters(
-                tables.module,
-                tables.profile,
+                ctx.type_view(),
                 target_ty_id,
-                tables.symbols,
-                tables.types,
                 &mut static_visited,
             );
             let mut static_visited = HashSet::new();
             let source_has_static = self.type_contains_static_parameters(
-                tables.module,
-                tables.profile,
+                ctx.type_view(),
                 source_ty_id,
-                tables.symbols,
-                tables.types,
                 &mut static_visited,
             );
             let mut infer_visited = HashSet::new();
             let target_has_infer =
-                self.type_contains_infer_vars(target_ty_id, tables.types, &mut infer_visited);
+                self.type_contains_infer_vars(target_ty_id, ctx.types, &mut infer_visited);
             let mut infer_visited = HashSet::new();
             let source_has_infer =
-                self.type_contains_infer_vars(source_ty_id, tables.types, &mut infer_visited);
+                self.type_contains_infer_vars(source_ty_id, ctx.types, &mut infer_visited);
             if target_has_static || source_has_static || target_has_infer || source_has_infer {
                 continue;
             }
 
             let target_assignable = self
-                .is_type_assignable(&mut tables.reborrow(), target_ty_id, source_ty_id)
+                .is_type_assignable(&mut ctx.reborrow(), target_ty_id, source_ty_id)
                 .is_assignable();
             let source_assignable = self
-                .is_type_assignable(&mut tables.reborrow(), source_ty_id, target_ty_id)
+                .is_type_assignable(&mut ctx.reborrow(), source_ty_id, target_ty_id)
                 .is_assignable();
 
             let use_variance = matches!(parameter_kind, Some(StaticParameterKind::Type));
@@ -295,7 +276,7 @@ impl Compiler {
     /// Resolve static arguments for assignability comparisons.
     pub(super) fn resolve_reference_static_arguments(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         static_arguments: Option<&Vec<StaticArgument>>,
@@ -326,7 +307,7 @@ impl Compiler {
 
         let resolved = self
             .resolve_type_reference_static_arguments(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 node_id,
                 symbol,
                 static_arguments.map(|args| args.as_slice()),
@@ -343,11 +324,11 @@ impl Compiler {
     /// Expand type alias references for assignability checks.
     pub(super) fn expand_assignability_alias_reference(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
     ) -> LocalTypeId {
         // extract the alias reference and static arguments
-        let (symbol, static_arguments) = match tables.types.get_type(type_id) {
+        let (symbol, static_arguments) = match ctx.types.get_type(type_id) {
             Type::Reference {
                 symbol,
                 static_arguments,
@@ -361,36 +342,34 @@ impl Compiler {
         }
 
         // resolve the alias target directly for assignability
-        let source_id = tables.types.get_type_source(type_id);
+        let source_id = ctx.types.get_type_source(type_id);
         let Some(alias_target_id) =
-            self.alias_target_type_id_for_symbol(&mut tables.reborrow(), symbol, source_id)
+            self.alias_target_type_id_for_symbol(&mut ctx.reborrow(), symbol, source_id)
         else {
             return type_id;
         };
 
         // ensure the alias target is evaluated before substitution
-        if matches!(tables.types.get_type(alias_target_id), Type::Unevaluated(_)) {
+        if matches!(ctx.types.get_type(alias_target_id), Type::Unevaluated(_)) {
             // resolve local alias targets directly from this module state
-            if symbol.module_id == tables.module.id && tables.types.module_id == tables.module.id {
-                let mut local_tables =
-                    tables.reborrow_for_module(tables.module, tables.tree, tables.symbols);
-                self.resolve_declared_type_or_report(&mut local_tables, alias_target_id);
+            if symbol.module_id == ctx.module.id && ctx.types.module_id == ctx.module.id {
+                self.resolve_declared_type_or_report(&mut ctx.reborrow(), alias_target_id);
             }
             // resolve remote alias targets through stage-gated reads
-            else if let Err(error) = self.with_module_tree_symbols_at_stage(
-                tables.module,
-                tables.profile,
+            else if let Err(error) = self.with_module_tree_symbol_view_at_stage(
+                ctx.module,
+                ctx.profile,
                 symbol.module_id,
                 AnalyzeDependencyStage::Declare,
-                |owner_module, owner_tree, owner_symbols| {
-                    let options = self.analyze_context_options_for_module(owner_module.id);
-                    let mut owner_tables = tables.reborrow_for_module_with_options(
-                        owner_module,
+                |view| {
+                    let options = self.analyze_context_options_for_module(view.module.id);
+                    let mut ctx = ctx.reborrow_for_module_with_options(
+                        view.module,
                         &options,
-                        owner_tree,
-                        owner_symbols,
+                        view.tree,
+                        view.symbols,
                     );
-                    self.resolve_declared_type_or_report(&mut owner_tables, alias_target_id);
+                    self.resolve_declared_type_or_report(&mut ctx, alias_target_id);
                 },
             ) {
                 self.error(AnalyzeError::from(error));
@@ -400,25 +379,23 @@ impl Compiler {
         // normalize directly for aliases without explicit static arguments
         let Some(arguments) = static_arguments.as_ref() else {
             return self.normalize_type(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 alias_target_id,
                 NormalizationMode::Assign,
             );
         };
         if arguments.is_empty() {
             return self.normalize_type(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 alias_target_id,
                 NormalizationMode::Assign,
             );
         }
 
         // resolve static arguments for substitution
-        let mut local_tables =
-            tables.reborrow_for_module(tables.module, tables.tree, tables.symbols);
         let resolved_arguments = self
             .resolve_type_reference_static_arguments(
-                &mut local_tables.reborrow(),
+                &mut ctx.reborrow(),
                 source_id,
                 symbol,
                 Some(arguments.as_slice()),
@@ -433,14 +410,14 @@ impl Compiler {
 
         // substitute parameters into the alias target
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            &mut local_tables.reborrow(),
+            &mut ctx.reborrow(),
             symbol,
             source_id,
             arguments,
         );
         if substitutions.is_empty() {
             return self.normalize_type(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 alias_target_id,
                 NormalizationMode::Assign,
             );
@@ -451,23 +428,15 @@ impl Compiler {
         let substituted = self.substitute_static_parameters(
             alias_target_id,
             &substitutions,
-            tables.types,
+            ctx.types,
             &mut cache,
         );
-        self.normalize_type(
-            &mut tables.reborrow(),
-            substituted,
-            NormalizationMode::Assign,
-        )
+        self.normalize_type(&mut ctx.reborrow(), substituted, NormalizationMode::Assign)
     }
 
     /// Resolve one declared type id and emit diagnostics on failure.
-    fn resolve_declared_type_or_report(
-        &self,
-        tables: &mut TypeTablesContext<'_>,
-        type_id: LocalTypeId,
-    ) {
-        if let Err(error) = self.resolve_declared_type(&mut tables.reborrow(), type_id) {
+    fn resolve_declared_type_or_report(&self, ctx: &mut TypeContext<'_>, type_id: LocalTypeId) {
+        if let Err(error) = self.resolve_declared_type(&mut ctx.reborrow(), type_id) {
             self.error(error);
         }
     }
@@ -475,33 +444,27 @@ impl Compiler {
     /// Narrow the conditional then branch for assignability checks.
     pub(super) fn narrow_conditional_then_for_assignability(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         left_id: LocalTypeId,
         right_id: LocalTypeId,
         then_type_id: LocalTypeId,
     ) -> LocalTypeId {
         // prefer the condition right side when the branch mirrors the left
-        if tables.types.get_type(left_id) == tables.types.get_type(then_type_id) {
+        if ctx.types.get_type(left_id) == ctx.types.get_type(then_type_id) {
             return right_id;
         }
 
         // narrow static parameters with intersection constraints
-        let symbol = match tables.types.get_type(left_id) {
+        let symbol = match ctx.types.get_type(left_id) {
             Type::Reference { symbol, .. } => *symbol,
             _ => return then_type_id,
         };
-        if !self.symbol_is_static_parameter(
-            tables.module,
-            tables.profile,
-            symbol,
-            tables.symbols,
-            tables.types,
-        ) {
+        if !self.symbol_is_static_parameter(ctx.symbol_type_view(), symbol) {
             return then_type_id;
         }
 
-        let source_id = tables.types.get_type_source(left_id);
-        let narrowed_left = tables.types.insert_type_from_any(
+        let source_id = ctx.types.get_type_source(left_id);
+        let narrowed_left = ctx.types.insert_type_from_any(
             Type::Intersection {
                 elements: vec![left_id, right_id],
             },
@@ -510,6 +473,6 @@ impl Compiler {
         let mut substitutions = HashMap::new();
         substitutions.insert(symbol, narrowed_left);
         let mut cache = HashMap::new();
-        self.substitute_static_parameters(then_type_id, &substitutions, tables.types, &mut cache)
+        self.substitute_static_parameters(then_type_id, &substitutions, ctx.types, &mut cache)
     }
 }

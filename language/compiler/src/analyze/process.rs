@@ -50,7 +50,7 @@ pub enum AnalyzeTask {
         profile: ProfileStamp,
     },
 
-    /// Commit solved infer table outputs into shared tables.
+    /// Commit solved infer table outputs into shared ctx.
     #[task(code = 7, trace = "module={module} profile={profile}")]
     AnalyzeModuleCommit {
         module: ModuleStamp,

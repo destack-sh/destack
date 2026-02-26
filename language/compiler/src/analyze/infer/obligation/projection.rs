@@ -1,29 +1,18 @@
 use crate::analyze::StaticMemberSymbolKind;
-use crate::{AnalyzeError, AnalyzeResult, Compiler};
-use destack_dir::{GlobalSymbolId, NodeTree, SymbolTable};
-use destack_workspace::{Module, ProfileId};
+use crate::analyze::common::TreeSymbolView;
+use crate::{AnalyzeResult, Compiler};
+use destack_dir::GlobalSymbolId;
 
 impl Compiler {
     /// Return true when one projection needs an associated comptime obligation.
     pub(crate) fn projection_requires_associated_comptime_obligation(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: TreeSymbolView<'_>,
         member_symbol: GlobalSymbolId,
         receiver_has_static_arguments: bool,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> AnalyzeResult<bool> {
         // check member kind metadata when available
-        let kind = self
-            .query_static_member_symbol_kind_for_symbol(
-                module,
-                profile,
-                member_symbol,
-                tree,
-                symbols,
-            )
-            .map_err(AnalyzeError::from)?;
+        let kind = self.query_static_member_symbol_kind_for_symbol(ctx, member_symbol)?;
         if matches!(kind, Some(StaticMemberSymbolKind::AssociatedComptimeConst)) {
             return Ok(true);
         }

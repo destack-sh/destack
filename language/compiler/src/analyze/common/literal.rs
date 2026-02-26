@@ -58,7 +58,7 @@ fn parse_decimal_or_legacy_octal(source: &str) -> f64 {
     if source.starts_with('0')
         && source.len() > 1
         && source[1..].chars().all(|c| c.is_ascii_digit())
-        && source.chars().skip(1).all(|c| c >= '0' && c <= '7')
+        && source.chars().skip(1).all(|c| ('0'..='7').contains(&c))
     {
         return i64::from_str_radix(&source[1..], 8)
             .map(|v| v as f64)

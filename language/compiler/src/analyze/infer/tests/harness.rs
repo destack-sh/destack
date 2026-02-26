@@ -1,23 +1,27 @@
+#![allow(clippy::too_many_arguments)]
+
 pub(super) use crate::analyze::assign::Assignability;
-pub(super) use crate::analyze::common::{CanonicalSymbolMode, ObjectShape};
+pub(super) use crate::analyze::common::{
+    CanonicalSymbolMode, ModuleSymbolView, ModuleTypeView, ObjectShape, SymbolTypeView, TypeContext,
+};
 pub(super) use crate::{
-    AnalyzeOptions, InferContext, TestProgram, assert_string, assert_type,
+    AnalyzeOptions, Compiler, InferState, TestProgram, assert_string, assert_type,
     expect_let_declarator_by_name, root_expression_id,
 };
 pub(super) use destack_base::StringId;
 pub(super) use destack_dir::{
-    BinaryOperator, Declaration, Declarator, EnumFieldValue, Expression, ExtensionKind,
-    FlowEdgeKind, FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, IfKind,
-    InferTable, IntType, LocalNodeId, LocalScopeMark, LocalTypeId, MatchCase, MatchSelector,
-    NodeTree, NormalizationMode, Pattern, PatternField, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
-    Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
+    Argument, BinaryOperator, Declaration, Declarator, EnumFieldValue, Expression, ExtensionKind,
+    FlowEdgeKind, FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, IfKind, IntType,
+    LocalNodeId, LocalScopeMark, LocalTypeId, MatchCase, MatchSelector, NodeTree,
+    NormalizationMode, Pattern, PatternField, PrimitiveType, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeField,
+    TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 pub(super) use destack_source::ModuleId;
-pub(super) use destack_workspace::{DsConfigCompilerOptions, ProfileId};
+pub(super) use destack_workspace::{DsConfigCompilerOptions, Module, ProfileId};
 pub(super) use std::collections::{HashMap, HashSet};
 
-/// Cached view of module tables for tests.
+/// Cached view of module ctx for tests.
 pub(crate) struct TestModuleView<'a> {
     /// The owning test program.
     pub(super) test: &'a TestProgram,
@@ -31,6 +35,38 @@ pub(crate) struct TestModuleView<'a> {
     symbols: SymbolTable,
     /// The module type table.
     types: TypeTable,
+}
+
+/// Resolve canonical symbol id in tests using module symbol view.
+pub(super) fn canonical_symbol_id(
+    compiler: &Compiler,
+    module: &Module,
+    symbols: &SymbolTable,
+    profile: ProfileId,
+    symbol: GlobalSymbolId,
+    mode: CanonicalSymbolMode,
+) -> GlobalSymbolId {
+    compiler.canonical_symbol_id(
+        ModuleSymbolView::new(module, profile, symbols),
+        symbol,
+        mode,
+    )
+}
+
+/// Check assignability in tests through a type context.
+pub(super) fn is_type_assignable(
+    compiler: &Compiler,
+    module: &Module,
+    profile: ProfileId,
+    symbols: &SymbolTable,
+    target_id: LocalTypeId,
+    source_id: LocalTypeId,
+    types: &mut TypeTable,
+    options: &AnalyzeOptions,
+) -> Assignability {
+    let tree = module.dir(profile).tree.read();
+    let mut ctx = TypeContext::new(module, profile, options, &tree, symbols, types);
+    compiler.is_type_assignable(&mut ctx, target_id, source_id)
 }
 
 impl TestProgram {
@@ -59,7 +95,8 @@ impl TestProgram {
         let symbols = module.dir(profile).symbols.read();
 
         // resolve the canonical symbol id
-        self.compiler.canonical_symbol_id(
+        canonical_symbol_id(
+            &self.compiler,
             &module,
             &symbols,
             profile,
@@ -263,29 +300,34 @@ impl<'a> TestModuleView<'a> {
 
 /// Collect extension kinds for a target symbol.
 pub(crate) fn extension_kinds_for_target(
-    test: &TestProgram,
-    module_id: ModuleId,
-    symbols: &SymbolTable,
-    types: &TypeTable,
+    view: &TestModuleView<'_>,
     target_symbol: GlobalSymbolId,
 ) -> Vec<ExtensionKind> {
     // load module state for extension visibility
-    let profile = test.default_profile_id(module_id);
-    let module = test.program.modules.get(module_id);
+    let profile = view.profile_id();
+    let module = view.test.program.modules.get(view.module_id);
     let module = module.read();
 
     // collect visible extensions for the target symbol
-    let extension_symbols = test
+    let extension_symbols = view
+        .test
         .compiler
-        .visible_extension_symbols_for_target(&module, profile, symbols, types, target_symbol)
+        .visible_extension_symbols_for_target(
+            SymbolTypeView::new(&module, profile, view.symbols(), view.types()),
+            target_symbol,
+        )
         .unwrap_or_default();
 
     // map extension symbols to kinds
     extension_symbols
         .into_iter()
         .filter_map(|symbol| {
-            test.compiler
-                .extension_for_symbol_in_module(&module, profile, symbol, types)
+            view.test
+                .compiler
+                .extension_for_symbol_in_module(
+                    ModuleTypeView::new(&module, profile, view.types()),
+                    symbol,
+                )
                 .ok()
                 .flatten()
         })

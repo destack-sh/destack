@@ -7,6 +7,7 @@ use destack_dir::{
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
+use crate::analyze::TreeSymbolView;
 use crate::{Compiler, ElaborateResult};
 
 /// The constructor kind inferred for a nominal type.
@@ -38,9 +39,10 @@ impl Compiler {
     ) -> ElaborateResult<bool> {
         // resolve the callee symbol for nominal constructor calls
         let callee_id = self.unwrap_parenthesized_expression(callee, tree);
-        let Some(callee_symbol) =
-            self.reference_symbol_for_expression(module, callee_id, profile, tree, symbols)
-        else {
+        let Some(callee_symbol) = self.reference_symbol_for_expression(
+            TreeSymbolView::new(module, profile, tree, symbols),
+            callee_id,
+        ) else {
             return Ok(false);
         };
 

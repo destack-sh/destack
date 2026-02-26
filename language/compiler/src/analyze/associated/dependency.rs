@@ -1,11 +1,9 @@
-use crate::analyze::common::AnalyzeDependencyStage;
+use crate::analyze::common::{AnalyzeDependencyStage, ModuleTypeView, TypeContext};
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, Member, NodeTree, NodeVisitor, NodeVisitorOptions,
-    SymbolTable, TypeTable, walk_expression,
+    walk_expression,
 };
-use destack_workspace::{Module, ProfileId};
-
 /// Walk one expression subtree and record whether projection dependency forms appear.
 #[derive(Debug)]
 struct ProjectionDependencyExpressionVisitor {
@@ -61,30 +59,30 @@ impl Compiler {
     /// Collect projection dependencies for associated comptime members.
     pub(crate) fn collect_member_projection_dependencies(
         &self,
-        module: &Module,
+        ctx: &mut TypeContext<'_>,
         members: &[LocalNodeId<Member>],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
     ) {
         for member_id in members {
             let Member::ComptimeConst {
                 value: Some(value_id),
                 ..
-            } = tree.get(*member_id)
+            } = ctx.tree.get(*member_id)
             else {
                 continue;
             };
 
-            if !self.expression_has_projection_dependency(tree, *value_id) {
+            if !self.expression_has_projection_dependency(ctx.tree, *value_id) {
                 continue;
             }
 
-            let member_symbol = tree.get(*member_id).symbol();
-            let member_symbol_entry = symbols.get_symbol(member_symbol);
-            let member_symbol =
-                GlobalSymbolId::new(module.id, member_symbol.with_type(member_symbol_entry.ty));
-            types.mark_symbol_with_associated_comptime_projection_dependencies(member_symbol);
+            let member_symbol = ctx.tree.get(*member_id).symbol();
+            let member_symbol_entry = ctx.symbols.get_symbol(member_symbol);
+            let member_symbol = GlobalSymbolId::new(
+                ctx.module.id,
+                member_symbol.with_type(member_symbol_entry.ty),
+            );
+            ctx.types
+                .mark_symbol_with_associated_comptime_projection_dependencies(member_symbol);
         }
     }
 
@@ -102,16 +100,14 @@ impl Compiler {
     /// Return true when one associated comptime member symbol depends on projection forms.
     pub(crate) fn symbol_has_projection_dependencies(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         symbol: GlobalSymbolId,
-        types: &TypeTable,
     ) -> AnalyzeResult<bool> {
         self.with_module_types_or_local_at_stage(
-            module,
-            profile,
+            ctx.module,
+            ctx.profile,
             symbol.module_id,
-            types,
+            ctx.types,
             AnalyzeDependencyStage::Declare,
             |_, owner_types| {
                 owner_types.symbol_has_associated_comptime_projection_dependencies(symbol)

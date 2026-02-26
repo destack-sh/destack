@@ -1,40 +1,26 @@
 use super::*;
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::{ModuleTypeView, SymbolTypeView, TypeContext};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Check if source_symbol is a subtype of target_symbol via lineage (follows inheritance chain).
     /// (This also checks visible extensions that add `implements` clauses to the source type.)
-    pub fn is_type_lineage_assignable(
+    pub(crate) fn is_type_lineage_assignable(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: SymbolTypeView<'_>,
         source_symbol: GlobalSymbolId,
         target_symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> bool {
         let mut visited = HashSet::new();
-        self.is_type_lineage_assignable_inner(
-            module,
-            profile,
-            source_symbol,
-            target_symbol,
-            symbols,
-            types,
-            &mut visited,
-        )
+        self.is_type_lineage_assignable_inner(ctx, source_symbol, target_symbol, &mut visited)
     }
 
     /// Check if source_symbol is a subtype of target_symbol via lineage (follows inheritance chain).
     pub(super) fn is_type_lineage_assignable_inner(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: SymbolTypeView<'_>,
         source_symbol: GlobalSymbolId,
         target_symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
         visited: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
         // avoid cycles across inheritance graphs
@@ -43,21 +29,13 @@ impl Compiler {
         }
 
         // step 1: check the type's own lineage
-        if let Some(lineage) = self.lineage_for_symbol(module, profile, source_symbol, types) {
+        if let Some(lineage) = self.lineage_for_symbol(ctx.module_type_view(), source_symbol) {
             // check direct extends
             if let Some(extends) = lineage.extends {
                 if extends == target_symbol {
                     return true;
                 }
-                if self.is_type_lineage_assignable_inner(
-                    module,
-                    profile,
-                    extends,
-                    target_symbol,
-                    symbols,
-                    types,
-                    visited,
-                ) {
+                if self.is_type_lineage_assignable_inner(ctx, extends, target_symbol, visited) {
                     return true;
                 }
             }
@@ -67,15 +45,7 @@ impl Compiler {
                 if implements == target_symbol {
                     return true;
                 }
-                if self.is_type_lineage_assignable_inner(
-                    module,
-                    profile,
-                    implements,
-                    target_symbol,
-                    symbols,
-                    types,
-                    visited,
-                ) {
+                if self.is_type_lineage_assignable_inner(ctx, implements, target_symbol, visited) {
                     return true;
                 }
             }
@@ -85,28 +55,15 @@ impl Compiler {
                 if embedded == target_symbol {
                     return true;
                 }
-                if self.is_type_lineage_assignable_inner(
-                    module,
-                    profile,
-                    embedded,
-                    target_symbol,
-                    symbols,
-                    types,
-                    visited,
-                ) {
+                if self.is_type_lineage_assignable_inner(ctx, embedded, target_symbol, visited) {
                     return true;
                 }
             }
         }
 
         // step 2: check visible extensions that add implements clauses
-        let extension_symbols = match self.visible_extension_symbols_for_target(
-            module,
-            profile,
-            symbols,
-            types,
-            source_symbol,
-        ) {
+        let extension_symbols = match self.visible_extension_symbols_for_target(ctx, source_symbol)
+        {
             Ok(symbols) => symbols,
             Err(AnalyzeError::Yield { .. }) => return false,
             Err(error) => {
@@ -115,33 +72,30 @@ impl Compiler {
             }
         };
         for extension_symbol in extension_symbols {
-            let extension =
-                match self.extension_for_symbol_in_module(module, profile, extension_symbol, types)
-                {
-                    Ok(extension) => extension,
-                    Err(AnalyzeError::Yield { .. }) => return false,
-                    Err(error) => {
-                        self.error(error);
-                        return false;
-                    }
-                };
+            let extension = match self
+                .extension_for_symbol_in_module(ctx.module_type_view(), extension_symbol)
+            {
+                Ok(extension) => extension,
+                Err(AnalyzeError::Yield { .. }) => return false,
+                Err(error) => {
+                    self.error(error);
+                    return false;
+                }
+            };
             let Some(extension) = extension else {
                 continue;
             };
             let extension_is_visible = match extension.kind {
                 ExtensionKind::Inherent => true,
-                ExtensionKind::Local => extension.symbol.module_id == module.id,
+                ExtensionKind::Local => extension.symbol.module_id == ctx.module.id,
                 ExtensionKind::Nominal => true,
             };
             if !extension_is_visible {
                 continue;
             }
-            let lineage = match self.extension_lineage_for_symbol_in_module(
-                module,
-                profile,
-                extension_symbol,
-                types,
-            ) {
+            let lineage = match self
+                .extension_lineage_for_symbol_in_module(ctx.module_type_view(), extension_symbol)
+            {
                 Ok(lineage) => lineage,
                 Err(AnalyzeError::Yield { .. }) => return false,
                 Err(error) => {
@@ -158,15 +112,7 @@ impl Compiler {
                 if implements == target_symbol {
                     return true;
                 }
-                if self.is_type_lineage_assignable_inner(
-                    module,
-                    profile,
-                    implements,
-                    target_symbol,
-                    symbols,
-                    types,
-                    visited,
-                ) {
+                if self.is_type_lineage_assignable_inner(ctx, implements, target_symbol, visited) {
                     return true;
                 }
             }
@@ -178,23 +124,21 @@ impl Compiler {
     /// Return the lineage for a symbol.
     pub(super) fn lineage_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: ModuleTypeView<'_>,
         symbol: GlobalSymbolId,
-        types: &TypeTable,
     ) -> Option<Lineage> {
-        if let Some(lineage) = types.get_lineage_for_symbol(symbol) {
+        if let Some(lineage) = ctx.types.get_lineage_for_symbol(symbol) {
             return Some(lineage.clone());
         }
 
         // bail when the symbol is in the same module (lineage above is already cached)
-        if symbol.module_id == module.id {
+        if symbol.module_id == ctx.module.id {
             return None;
         }
 
         self.with_module_types_at_stage(
-            module,
-            profile,
+            ctx.module,
+            ctx.profile,
             symbol.module_id,
             AnalyzeDependencyStage::Declare,
             |_, remote_types| remote_types.get_lineage_for_symbol(symbol).cloned(),
@@ -206,18 +150,18 @@ impl Compiler {
     /// Normalize a conditional type for assignability when it resolves in flow mode.
     pub(super) fn normalize_conditional_for_assignability(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
     ) -> Option<LocalTypeId> {
         // only conditional types participate in flow normalization
-        if !matches!(tables.types.get_type(type_id), Type::Conditional { .. }) {
+        if !matches!(ctx.types.get_type(type_id), Type::Conditional { .. }) {
             return None;
         }
         // normalize in flow mode to resolve conditionals
         let normalized = {
             let mut normalize_visited = Vec::new();
             self.normalize_type_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 type_id,
                 NormalizationMode::Flow,
                 RelationMode::ASSIGN,

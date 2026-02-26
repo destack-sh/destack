@@ -1,12 +1,11 @@
-use crate::analyze::common::{AnalyzeDependencyStage, TypeTablesContext};
+use crate::analyze::common::{AnalyzeDependencyStage, TypeContext};
 use crate::analyze::module::GlobalMergeCategory;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
     Asynchrony, Declaration, Expression, FunctionCardinality, GlobalSymbolId, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LocalTypeId, Symbol, SymbolTable, SymbolType, Type, TypeField,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, Symbol, SymbolType, Type, TypeField,
     TypeIndexSignature, TypeTable, are_types_equal,
 };
-use destack_workspace::{Module, ProfileId};
 
 // value shape source used to keep type ids anchored consistently
 enum ValueShapeSource {
@@ -191,20 +190,18 @@ impl Compiler {
     /// Import one remote merge shape for a symbol into the local type table.
     fn import_remote_merge_shape_for_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: &mut TypeContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         global_symbol: GlobalSymbolId,
         kind: RemoteMergeShapeKind,
-        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<ObjectShape>> {
-        let remote_shape_type = self.with_module_tree_symbols_at_stage(
-            module,
-            profile,
+        let remote_shape_type = self.with_module_tree_symbol_view_at_stage(
+            ctx.module,
+            ctx.profile,
             global_symbol.module_id,
             AnalyzeDependencyStage::Declare,
-            |remote_module, _remote_tree, _remote_symbols| {
-                let remote_dir = remote_module.dir(profile);
+            |view| {
+                let remote_dir = view.module.dir(ctx.profile);
                 let remote_types = remote_dir.types.read();
 
                 // pick the remote shape source type
@@ -229,14 +226,14 @@ impl Compiler {
             declaration_id.into_any(),
             &remote_type,
             &remote_snapshot,
-            types,
+            ctx.types,
         );
 
         // extract the imported shape by mode
         let mut shape = ObjectShape::default();
         match kind {
             RemoteMergeShapeKind::Instance => {
-                let local_type = types.get_type(local_type_id);
+                let local_type = ctx.types.get_type(local_type_id);
                 if !shape.extend_from_object(local_type) {
                     return Ok(None);
                 }
@@ -246,7 +243,7 @@ impl Compiler {
                 let mut visited = Vec::new();
                 self.collect_value_shape_from_type(
                     local_type_id,
-                    types,
+                    ctx.types,
                     &mut shape,
                     &mut extras,
                     &mut visited,
@@ -327,29 +324,28 @@ impl Compiler {
     /// Merge instance shape into a symbol instance type.
     fn merge_instance_shape_into_symbol(
         &self,
-        module: &Module,
+        ctx: &mut TypeContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         symbol_id: LocalSymbolId,
         shape: &ObjectShape,
-        types: &mut TypeTable,
         allow_merge: bool,
     ) -> LocalTypeId {
         // seed the merge with any existing instance members
-        let symbol = symbol_id.into_global(module.id);
+        let symbol = symbol_id.into_global(ctx.module.id);
         let mut merged_shape = ObjectShape::default();
 
         // reuse existing instance members when merges are allowed
-        if allow_merge && let Some(existing_id) = types.get_instance_type_id(symbol) {
-            let existing_ty = types.get_type(existing_id);
+        if allow_merge && let Some(existing_id) = ctx.types.get_instance_type_id(symbol) {
+            let existing_ty = ctx.types.get_type(existing_id);
             merged_shape.extend_from_object(existing_ty);
         }
 
         // merge the new shape into the instance type
         merged_shape.extend_from_shape(shape);
-        self.canonicalize_merged_object_shape(&mut merged_shape, types);
+        self.canonicalize_merged_object_shape(&mut merged_shape, ctx.types);
         let instance_ty = merged_shape.into_object_type();
-        let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
-        types.set_instance_type(symbol, instance_ty_id);
+        let instance_ty_id = ctx.types.insert_type_from(instance_ty, declaration_id);
+        ctx.types.set_instance_type(symbol, instance_ty_id);
         instance_ty_id
     }
 
@@ -449,23 +445,23 @@ impl Compiler {
     /// Collect embedded fields and index signatures for an embed member.
     pub(crate) fn embed_member_shape(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         value: LocalNodeId<Expression>,
     ) -> AnalyzeResult<ObjectShape> {
         // resolve the embed target type
         let embed_ty_id =
-            self.resolve_declared_type_expression(&mut tables.reborrow(), value, true, true)?;
+            self.resolve_declared_type_expression(&mut ctx.reborrow(), value, true, true)?;
 
         // unwrap value types and resolve nominal references when possible
         let mut embed_ty_id = embed_ty_id;
         let mut embed_symbol = None;
-        match tables.types.get_type(embed_ty_id) {
+        match ctx.types.get_type(embed_ty_id) {
             Type::Reference { symbol, .. } => {
                 embed_symbol = Some(*symbol);
             }
             Type::Value { value } => {
                 embed_ty_id = *value;
-                if let Type::Reference { symbol, .. } = tables.types.get_type(*value) {
+                if let Type::Reference { symbol, .. } = ctx.types.get_type(*value) {
                     embed_symbol = Some(*symbol);
                 }
             }
@@ -479,7 +475,7 @@ impl Compiler {
         let mut visited_symbols = Vec::new();
         if let Some(symbol) = embed_symbol {
             self.collect_embed_shape_for_symbol(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 value.into_any(),
                 symbol,
                 &mut embed_shape,
@@ -490,7 +486,7 @@ impl Compiler {
         } else {
             self.collect_value_shape_from_type(
                 embed_ty_id,
-                tables.types,
+                ctx.types,
                 &mut embed_shape,
                 &mut extras,
                 &mut visited,
@@ -507,7 +503,7 @@ impl Compiler {
     /// Collect embedded shape data for a nominal symbol, including lineage.
     fn collect_embed_shape_for_symbol(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         shape: &mut ObjectShape,
@@ -523,11 +519,11 @@ impl Compiler {
 
         // collect fields from the apparent instance type
         if let Some(instance_id) =
-            self.apparent_instance_type(&mut tables.reborrow(), source_id, symbol)
+            self.apparent_instance_type(&mut ctx.reborrow(), source_id, symbol)
         {
             self.collect_value_shape_from_type(
                 instance_id,
-                tables.types,
+                ctx.types,
                 shape,
                 extras,
                 visited_types,
@@ -535,11 +531,11 @@ impl Compiler {
         }
 
         // traverse lineage to collect inherited or embedded fields
-        let lineage = tables.types.get_lineage_for_symbol(symbol).cloned();
+        let lineage = ctx.types.get_lineage_for_symbol(symbol).cloned();
         if let Some(lineage) = lineage {
             if let Some(extends) = lineage.extends {
                 self.collect_embed_shape_for_symbol(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     source_id,
                     extends,
                     shape,
@@ -551,7 +547,7 @@ impl Compiler {
 
             for implements in lineage.implements {
                 self.collect_embed_shape_for_symbol(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     source_id,
                     implements,
                     shape,
@@ -563,7 +559,7 @@ impl Compiler {
 
             for embedded in lineage.embedded {
                 self.collect_embed_shape_for_symbol(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     source_id,
                     embedded,
                     shape,
@@ -580,24 +576,23 @@ impl Compiler {
     /// Merge value shape into a symbol value type.
     pub(crate) fn merge_value_shape_into_symbol(
         &self,
-        module: &Module,
+        ctx: &mut TypeContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         symbol_id: LocalSymbolId,
         shape: &ObjectShape,
-        types: &mut TypeTable,
         allow_merge: bool,
     ) -> LocalTypeId {
         // seed the merge with any existing value members
-        let symbol = symbol_id.into_global(module.id);
+        let symbol = symbol_id.into_global(ctx.module.id);
         let mut merged_shape = ObjectShape::default();
         let mut extras = Vec::new();
 
         // reuse existing value members when merges are allowed
-        if allow_merge && let Some(existing_id) = types.get_value_type_id(symbol) {
+        if allow_merge && let Some(existing_id) = ctx.types.get_value_type_id(symbol) {
             let mut visited = Vec::new();
             self.collect_value_shape_from_type(
                 existing_id,
-                types,
+                ctx.types,
                 &mut merged_shape,
                 &mut extras,
                 &mut visited,
@@ -608,7 +603,7 @@ impl Compiler {
         merged_shape.extend_from_shape(shape);
 
         let source = ValueShapeSource::Declaration(declaration_id);
-        self.build_value_shape_type(&source, symbol, merged_shape, extras, types)
+        self.build_value_shape_type(&source, symbol, merged_shape, extras, ctx.types)
     }
 
     /// Update a symbol value shape with an inferred static field.
@@ -643,7 +638,7 @@ impl Compiler {
     /// Merge a function declaration into the symbol value type.
     pub(crate) fn merge_function_value_type(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         symbol_id: LocalSymbolId,
         fn_ty_id: LocalTypeId,
@@ -651,22 +646,22 @@ impl Compiler {
         allow_merge: bool,
     ) {
         // resolve the symbol and merge mode
-        let symbol = symbol_id.into_global(type_tables.module.id);
+        let symbol = symbol_id.into_global(ctx.module.id);
 
         // assign directly when merging is disallowed
         if !allow_merge {
-            type_tables.types.set_value_type(symbol, fn_ty_id);
+            ctx.types.set_value_type(symbol, fn_ty_id);
             return;
         }
 
         // reuse the existing value type when available
-        let Some(existing_id) = type_tables.types.get_value_type_id(symbol) else {
-            type_tables.types.set_value_type(symbol, fn_ty_id);
+        let Some(existing_id) = ctx.types.get_value_type_id(symbol) else {
+            ctx.types.set_value_type(symbol, fn_ty_id);
             return;
         };
 
         // unpack the existing value type into a callable shape
-        let existing_ty = type_tables.types.get_type(existing_id).clone();
+        let existing_ty = ctx.types.get_type(existing_id).clone();
         let mut fields = Vec::new();
         let mut call_signatures = Vec::new();
         let mut construct_signatures = Vec::new();
@@ -675,7 +670,7 @@ impl Compiler {
             Type::Function { .. } => {
                 if previous_signature_id == Some(existing_id) {
                     // replace the cached signature for this declaration
-                    type_tables.types.set_value_type(symbol, fn_ty_id);
+                    ctx.types.set_value_type(symbol, fn_ty_id);
                     return;
                 }
                 call_signatures.push(existing_id);
@@ -701,7 +696,7 @@ impl Compiler {
 
         // report duplicate overloads in non-declaration modules
         self.report_duplicate_overload_signature(
-            &mut type_tables.reborrow(),
+            &mut ctx.reborrow(),
             declaration_id.into_any(),
             &call_signatures,
             fn_ty_id,
@@ -717,20 +712,20 @@ impl Compiler {
             construct_signatures,
             index_signatures,
         };
-        let value_ty_id = type_tables.types.insert_type_from(value_ty, declaration_id);
-        type_tables.types.set_value_type(symbol, value_ty_id);
+        let value_ty_id = ctx.types.insert_type_from(value_ty, declaration_id);
+        ctx.types.set_value_type(symbol, value_ty_id);
     }
 
     /// Report duplicate overload signatures in non-declaration modules.
     pub(crate) fn report_duplicate_overload_signature(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         source_id: LocalNodeIdAny,
         existing_signatures: &[LocalTypeId],
         candidate_signature: LocalTypeId,
     ) {
         // allow duplicate overloads in declaration modules
-        if type_tables.module.language_type.is_declaration() {
+        if ctx.module.language_type.is_declaration() {
             return;
         }
 
@@ -741,16 +736,12 @@ impl Compiler {
 
         // detect equivalent overloads by shape
         let has_duplicate = existing_signatures.iter().any(|signature_id| {
-            self.signature_types_equivalent(
-                &mut type_tables.reborrow(),
-                *signature_id,
-                candidate_signature,
-            )
+            self.signature_types_equivalent(&mut ctx.reborrow(), *signature_id, candidate_signature)
         });
 
         if has_duplicate {
             self.error(AnalyzeError::DuplicateOverloadSignature {
-                node: source_id.into_anchored(type_tables.module.id, Some(type_tables.profile)),
+                node: source_id.into_anchored(ctx.module.id, Some(ctx.profile)),
             });
         }
     }
@@ -758,15 +749,15 @@ impl Compiler {
     /// Check whether two signature types are equivalent by shape.
     fn signature_types_equivalent(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         left_id: LocalTypeId,
         right_id: LocalTypeId,
     ) -> bool {
         // unpack function signatures
-        let Some(left) = self.signature_shape_from_type(left_id, type_tables.types) else {
+        let Some(left) = self.signature_shape_from_type(left_id, ctx.types) else {
             return false;
         };
-        let Some(right) = self.signature_shape_from_type(right_id, type_tables.types) else {
+        let Some(right) = self.signature_shape_from_type(right_id, ctx.types) else {
             return false;
         };
 
@@ -789,11 +780,7 @@ impl Compiler {
         match (left.this_parameter, right.this_parameter) {
             (None, None) => {}
             (Some(left_this), Some(right_this)) => {
-                if !self.signature_type_ids_equivalent(
-                    &mut type_tables.reborrow(),
-                    left_this,
-                    right_this,
-                ) {
+                if !self.signature_type_ids_equivalent(&mut ctx.reborrow(), left_this, right_this) {
                     return false;
                 }
             }
@@ -806,11 +793,7 @@ impl Compiler {
             .iter()
             .zip(right.static_parameters.iter())
         {
-            if !self.signature_type_ids_equivalent(
-                &mut type_tables.reborrow(),
-                *left_param,
-                *right_param,
-            ) {
+            if !self.signature_type_ids_equivalent(&mut ctx.reborrow(), *left_param, *right_param) {
                 return false;
             }
         }
@@ -821,11 +804,7 @@ impl Compiler {
             .iter()
             .zip(right.dynamic_parameters.iter())
         {
-            if !self.signature_type_ids_equivalent(
-                &mut type_tables.reborrow(),
-                *left_param,
-                *right_param,
-            ) {
+            if !self.signature_type_ids_equivalent(&mut ctx.reborrow(), *left_param, *right_param) {
                 return false;
             }
         }
@@ -833,11 +812,9 @@ impl Compiler {
         // compare return type shapes
         match (left.return_type, right.return_type) {
             (None, None) => true,
-            (Some(left_return), Some(right_return)) => self.signature_type_ids_equivalent(
-                &mut type_tables.reborrow(),
-                left_return,
-                right_return,
-            ),
+            (Some(left_return), Some(right_return)) => {
+                self.signature_type_ids_equivalent(&mut ctx.reborrow(), left_return, right_return)
+            }
             _ => false,
         }
     }
@@ -845,15 +822,13 @@ impl Compiler {
     /// Check whether two type ids are mutually assignable for overload equivalence.
     fn signature_type_ids_equivalent(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         left_id: LocalTypeId,
         right_id: LocalTypeId,
     ) -> bool {
         // compare assignability in both directions
-        let left_assignable =
-            self.is_type_assignable(&mut type_tables.reborrow(), left_id, right_id);
-        let right_assignable =
-            self.is_type_assignable(&mut type_tables.reborrow(), right_id, left_id);
+        let left_assignable = self.is_type_assignable(&mut ctx.reborrow(), left_id, right_id);
+        let right_assignable = self.is_type_assignable(&mut ctx.reborrow(), right_id, left_id);
         left_assignable != Assignability::NotAssignable
             && right_assignable != Assignability::NotAssignable
     }
@@ -889,51 +864,49 @@ impl Compiler {
     /// Merge instance shape into the symbol and any merge group peers.
     pub(crate) fn merge_instance_shape_into_merge_group(
         &self,
-        module: &Module,
+        ctx: &mut TypeContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         symbol_id: LocalSymbolId,
         shape: &ObjectShape,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
         allow_merge: bool,
     ) -> Option<LocalTypeId> {
-        let symbol_entry = symbols.get_symbol(symbol_id);
+        let symbol_entry = ctx.symbols.get_symbol(symbol_id);
         let mut instance_ty_id = None;
 
         // build an instance type for mergeable symbols
         if self.symbol_supports_instance_merge(symbol_entry) {
             instance_ty_id = Some(self.merge_instance_shape_into_symbol(
-                module,
+                &mut ctx.reborrow(),
                 declaration_id,
                 symbol_id,
                 shape,
-                types,
                 allow_merge,
             ));
         }
 
         // propagate merged shapes across the merge group when allowed
         if allow_merge && let Some(group_id) = symbol_entry.merge_group {
+            let group_symbols = ctx.symbols.merge_group_symbols(group_id).to_vec();
+
             // merge into each merge group symbol
-            for group_symbol_id in symbols.merge_group_symbols(group_id) {
+            for group_symbol_id in group_symbols {
                 // skip the originating symbol
-                if *group_symbol_id == symbol_id {
+                if group_symbol_id == symbol_id {
                     continue;
                 }
 
                 // skip non mergeable symbols
-                let group_symbol = symbols.get_symbol(*group_symbol_id);
+                let group_symbol = ctx.symbols.get_symbol(group_symbol_id);
                 if !self.symbol_supports_instance_merge(group_symbol) {
                     continue;
                 }
 
                 // merge into the peer symbol instance type
                 self.merge_instance_shape_into_symbol(
-                    module,
+                    &mut ctx.reborrow(),
                     declaration_id,
-                    *group_symbol_id,
+                    group_symbol_id,
                     shape,
-                    types,
                     true,
                 );
             }
@@ -945,20 +918,17 @@ impl Compiler {
     /// Merge global augmentation types into a symbol instance type.
     pub(crate) fn merge_global_instance_shape_for_symbol(
         &self,
-        module: &Module,
+        ctx: &mut TypeContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         symbol_id: LocalSymbolId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        profile: ProfileId,
     ) -> AnalyzeResult<()> {
         // skip ambient lib modules
-        if self.module_is_ambient_lib(module) {
+        if self.module_is_ambient_lib(ctx.module) {
             return Ok(());
         }
 
         // resolve the merge key for the symbol
-        let symbol_entry = symbols.get_symbol(symbol_id);
+        let symbol_entry = ctx.symbols.get_symbol(symbol_id);
         if !symbol_entry.origin.is_global_augmentation() {
             return Ok(());
         }
@@ -968,8 +938,8 @@ impl Compiler {
 
         // collect merge symbols for this key and space
         let merge_symbols = self.collect_global_merge_sources_for_key(
-            module,
-            profile,
+            ctx.module,
+            ctx.profile,
             key,
             symbol_entry.space,
             GlobalMergeCategory::Instance,
@@ -981,17 +951,15 @@ impl Compiler {
         // import and merge each global symbol instance type
         for global_symbol in merge_symbols {
             // skip the symbol that owns this declaration
-            if global_symbol.module_id == module.id && global_symbol.local_id == symbol_id {
+            if global_symbol.module_id == ctx.module.id && global_symbol.local_id == symbol_id {
                 continue;
             }
 
             let shape = self.import_remote_merge_shape_for_symbol(
-                module,
-                profile,
+                &mut ctx.reborrow(),
                 declaration_id,
                 global_symbol,
                 RemoteMergeShapeKind::Instance,
-                types,
             )?;
 
             let Some(shape) = shape else {
@@ -1000,11 +968,10 @@ impl Compiler {
 
             // merge the imported shape into this symbol
             self.merge_instance_shape_into_symbol(
-                module,
+                &mut ctx.reborrow(),
                 declaration_id,
                 symbol_id,
                 &shape,
-                types,
                 true,
             );
         }
@@ -1015,20 +982,17 @@ impl Compiler {
     /// Merge global augmentation types into a symbol value type.
     pub(crate) fn merge_global_value_shape_for_symbol(
         &self,
-        module: &Module,
+        ctx: &mut TypeContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         symbol_id: LocalSymbolId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        profile: ProfileId,
     ) -> AnalyzeResult<()> {
         // skip ambient lib modules
-        if self.module_is_ambient_lib(module) {
+        if self.module_is_ambient_lib(ctx.module) {
             return Ok(());
         }
 
         // resolve the merge key for the symbol
-        let symbol_entry = symbols.get_symbol(symbol_id);
+        let symbol_entry = ctx.symbols.get_symbol(symbol_id);
         if !symbol_entry.origin.is_global_augmentation() {
             return Ok(());
         }
@@ -1038,8 +1002,8 @@ impl Compiler {
 
         // collect merge symbols for this key and space
         let merge_symbols = self.collect_global_merge_sources_for_key(
-            module,
-            profile,
+            ctx.module,
+            ctx.profile,
             key,
             symbol_entry.space,
             GlobalMergeCategory::Value,
@@ -1051,17 +1015,15 @@ impl Compiler {
         // import and merge each global symbol value type
         for global_symbol in merge_symbols {
             // skip the symbol that owns this declaration
-            if global_symbol.module_id == module.id && global_symbol.local_id == symbol_id {
+            if global_symbol.module_id == ctx.module.id && global_symbol.local_id == symbol_id {
                 continue;
             }
 
             let remote_shape = self.import_remote_merge_shape_for_symbol(
-                module,
-                profile,
+                &mut ctx.reborrow(),
                 declaration_id,
                 global_symbol,
                 RemoteMergeShapeKind::Value,
-                types,
             )?;
             let Some(remote_shape) = remote_shape else {
                 continue;
@@ -1069,11 +1031,10 @@ impl Compiler {
 
             // merge the imported shape into this symbol
             self.merge_value_shape_into_symbol(
-                module,
+                &mut ctx.reborrow(),
                 declaration_id,
                 symbol_id,
                 &remote_shape,
-                types,
                 true,
             );
         }

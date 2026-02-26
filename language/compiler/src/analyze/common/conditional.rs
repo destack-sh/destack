@@ -7,11 +7,11 @@ use destack_dir::{
     SymbolTable, SymbolType, Type, TypeElement, TypeLiteral, TypeRewriter, TypeRewriterOptions,
     TypeTable,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::Module;
 
 use super::{
-    REWRITER_TAG_INFER_SUBSTITUTION, TypeRewriteCache, TypeTablesContext, TypeWalkContext,
-    TypeWalkKey, rewrite_type_with_cache,
+    REWRITER_TAG_INFER_SUBSTITUTION, SymbolTypeView, TypeContext, TypeRewriteCache,
+    TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
 };
 use crate::Compiler;
 
@@ -213,21 +213,16 @@ impl Compiler {
     /// Return the distributive static parameter symbol for a conditional left side.
     pub(crate) fn conditional_left_distributive_symbol(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        ctx: SymbolTypeView<'_>,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> Option<GlobalSymbolId> {
         // only naked static parameters distribute
-        match types.get_type(type_id) {
+        match ctx.types.get_type(type_id) {
             Type::Reference {
                 symbol,
                 static_arguments,
             } => {
-                if static_arguments.is_none()
-                    && self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
-                {
+                if static_arguments.is_none() && self.symbol_is_static_parameter(ctx, *symbol) {
                     Some(*symbol)
                 } else {
                     None
@@ -240,7 +235,7 @@ impl Compiler {
     /// Infer substitutions for conditional types with `infer` bindings.
     pub(crate) fn infer_conditional_type_substitutions(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         distributive: bool,
         left: LocalTypeId,
         right: LocalTypeId,
@@ -249,7 +244,7 @@ impl Compiler {
         // collect substitutions for each matching branch
         let mut visited = HashSet::new();
         self.infer_conditional_type_substitutions_inner(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             distributive,
             left,
             right,
@@ -261,7 +256,7 @@ impl Compiler {
     /// Infer substitutions for conditional type matching with recursion guard.
     fn infer_conditional_type_substitutions_inner(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         distributive: bool,
         left: LocalTypeId,
         right: LocalTypeId,
@@ -273,10 +268,10 @@ impl Compiler {
             return Some(InferSubstitutions::empty());
         }
 
-        // NOTE #Suspicious: infer substitution matching normalizes aliases eagerly, may evaluate instantiation dependent types
+        // infer substitution matching normalizes aliases eagerly
         // infer from matching reference arguments before normalization
-        let left_type = tables.types.get_type(left).clone();
-        let right_type = tables.types.get_type(right).clone();
+        let left_type = ctx.types.get_type(left).clone();
+        let right_type = ctx.types.get_type(right).clone();
         if let (
             Type::Reference {
                 symbol,
@@ -291,7 +286,7 @@ impl Compiler {
             && let (Some(left_arguments), Some(right_arguments)) =
                 (left_arguments.as_deref(), right_arguments.as_deref())
             && let Some(inferred) = self.infer_conditional_substitutions_for_reference_arguments(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 left_arguments,
                 right_arguments,
                 distributive,
@@ -303,17 +298,17 @@ impl Compiler {
         }
 
         // unwrap alias references before matching
-        let left = self.unwrap_normalization_alias_reference(left, tables.types);
-        let right = self.unwrap_normalization_alias_reference(right, tables.types);
+        let left = self.unwrap_normalization_alias_reference(left, ctx.types);
+        let right = self.unwrap_normalization_alias_reference(right, ctx.types);
 
         // normalize alias references with concrete arguments before matching
-        // NOTE #Suspicious: conditional inference uses Assign normalization without relation mode selection
-        let left = self.normalize_type(&mut tables.reborrow(), left, NormalizationMode::Assign);
-        let right = self.normalize_type(&mut tables.reborrow(), right, NormalizationMode::Assign);
+        // conditional inference uses assign normalization mode
+        let left = self.normalize_type(&mut ctx.reborrow(), left, NormalizationMode::Assign);
+        let right = self.normalize_type(&mut ctx.reborrow(), right, NormalizationMode::Assign);
 
         // read the current type shapes
-        let left_type = tables.types.get_type(left).clone();
-        let right_type = tables.types.get_type(right).clone();
+        let left_type = ctx.types.get_type(left).clone();
+        let right_type = ctx.types.get_type(right).clone();
 
         // handle infer bindings and trivial matches early
         match (&left_type, &right_type) {
@@ -337,7 +332,7 @@ impl Compiler {
                 _,
             ) => {
                 return self.infer_substitutions_for_any_left(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     distributive,
                     left,
                     right,
@@ -354,32 +349,19 @@ impl Compiler {
                 value: TypeLiteral::Never,
             }
         ) {
-            return self.infer_substitutions_for_never_left(
-                &mut tables.reborrow(),
-                right,
-                source_id,
-            );
+            return self.infer_substitutions_for_never_left(&mut ctx.reborrow(), right, source_id);
         }
 
         // resolve static parameter constraints for left and right sides
         {
             if let Type::Reference { symbol, .. } = &left_type
-                && self.symbol_is_static_parameter(
-                    tables.module,
-                    tables.profile,
-                    *symbol,
-                    tables.symbols,
-                    tables.types,
-                )
+                && self.symbol_is_static_parameter(ctx.symbol_type_view(), *symbol)
             {
-                let constraint_id = self.static_parameter_constraint_type(
-                    &mut tables.reborrow(),
-                    *symbol,
-                    source_id,
-                );
+                let constraint_id =
+                    self.static_parameter_constraint_type(&mut ctx.reborrow(), *symbol, source_id);
                 if let Some(constraint_id) = constraint_id {
                     return self.infer_conditional_type_substitutions_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         distributive,
                         constraint_id,
                         right,
@@ -390,22 +372,13 @@ impl Compiler {
             }
 
             if let Type::Reference { symbol, .. } = &right_type
-                && self.symbol_is_static_parameter(
-                    tables.module,
-                    tables.profile,
-                    *symbol,
-                    tables.symbols,
-                    tables.types,
-                )
+                && self.symbol_is_static_parameter(ctx.symbol_type_view(), *symbol)
             {
-                let constraint_id = self.static_parameter_constraint_type(
-                    &mut tables.reborrow(),
-                    *symbol,
-                    source_id,
-                );
+                let constraint_id =
+                    self.static_parameter_constraint_type(&mut ctx.reborrow(), *symbol, source_id);
                 if let Some(constraint_id) = constraint_id {
                     return self.infer_conditional_type_substitutions_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         distributive,
                         left,
                         constraint_id,
@@ -450,10 +423,10 @@ impl Compiler {
                 .as_ref()
                 .is_none_or(|arguments| arguments.is_empty())
             && let Some(left_instance_id) =
-                self.apparent_instance_type(&mut tables.reborrow(), source_id, *symbol)
+                self.apparent_instance_type(&mut ctx.reborrow(), source_id, *symbol)
         {
             return self.infer_conditional_type_substitutions_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 distributive,
                 left_instance_id,
                 right,
@@ -474,10 +447,10 @@ impl Compiler {
                 .as_ref()
                 .is_none_or(|arguments| arguments.is_empty())
             && let Some(left_instance_id) =
-                self.apparent_instance_type(&mut tables.reborrow(), source_id, *symbol)
+                self.apparent_instance_type(&mut ctx.reborrow(), source_id, *symbol)
         {
             return self.infer_conditional_type_substitutions_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 distributive,
                 left_instance_id,
                 right,
@@ -498,10 +471,10 @@ impl Compiler {
                 .as_ref()
                 .is_none_or(|arguments| arguments.is_empty())
             && let Some(right_instance_id) =
-                self.apparent_instance_type(&mut tables.reborrow(), source_id, *symbol)
+                self.apparent_instance_type(&mut ctx.reborrow(), source_id, *symbol)
         {
             return self.infer_conditional_type_substitutions_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 distributive,
                 left,
                 right_instance_id,
@@ -515,10 +488,10 @@ impl Compiler {
             && symbol.ty() == SymbolType::TypeAlias
         {
             let normalized_left =
-                self.normalize_type(&mut tables.reborrow(), left, NormalizationMode::Flow);
+                self.normalize_type(&mut ctx.reborrow(), left, NormalizationMode::Flow);
             if normalized_left != left {
                 return self.infer_conditional_type_substitutions_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     distributive,
                     normalized_left,
                     right,
@@ -533,10 +506,10 @@ impl Compiler {
             && symbol.ty() == SymbolType::TypeAlias
         {
             let normalized_right =
-                self.normalize_type(&mut tables.reborrow(), right, NormalizationMode::Flow);
+                self.normalize_type(&mut ctx.reborrow(), right, NormalizationMode::Flow);
             if normalized_right != right {
                 return self.infer_conditional_type_substitutions_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     distributive,
                     left,
                     normalized_right,
@@ -548,10 +521,10 @@ impl Compiler {
 
         // expose callable value shapes for matching
         if let (Type::Reference { symbol, .. }, _) = (&left_type, &right_type)
-            && let Some(function_id) = tables.types.get_value_type_id(*symbol)
+            && let Some(function_id) = ctx.types.get_value_type_id(*symbol)
         {
             return self.infer_conditional_type_substitutions_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 distributive,
                 function_id,
                 right,
@@ -562,10 +535,10 @@ impl Compiler {
 
         // expose callable value shapes for matching
         if let (_, Type::Reference { symbol, .. }) = (&left_type, &right_type)
-            && let Some(function_id) = tables.types.get_value_type_id(*symbol)
+            && let Some(function_id) = ctx.types.get_value_type_id(*symbol)
         {
             return self.infer_conditional_type_substitutions_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 distributive,
                 left,
                 function_id,
@@ -583,7 +556,7 @@ impl Compiler {
                 let mut combined = InferSubstitutionsBuilder::new();
                 for element_id in elements {
                     let inferred = self.infer_conditional_type_substitutions_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         distributive,
                         element_id,
                         right,
@@ -593,7 +566,7 @@ impl Compiler {
                     match inferred {
                         Some(inferred) => {
                             self.merge_infer_substitutions(
-                                &mut tables.reborrow(),
+                                &mut ctx.reborrow(),
                                 &mut combined,
                                 inferred,
                                 InferMergeMode::Union,
@@ -614,7 +587,7 @@ impl Compiler {
                 let mut matched_any = false;
                 for element_id in elements {
                     if let Some(inferred) = self.infer_conditional_type_substitutions_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         distributive,
                         left,
                         element_id,
@@ -622,7 +595,7 @@ impl Compiler {
                         visited,
                     ) {
                         self.merge_infer_substitutions(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             &mut combined,
                             inferred,
                             InferMergeMode::Union,
@@ -639,7 +612,7 @@ impl Compiler {
                 let mut combined = InferSubstitutionsBuilder::new();
                 for element_id in elements {
                     if let Some(inferred) = self.infer_conditional_type_substitutions_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         distributive,
                         element_id,
                         right,
@@ -647,7 +620,7 @@ impl Compiler {
                         visited,
                     ) {
                         self.merge_infer_substitutions(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             &mut combined,
                             inferred,
                             InferMergeMode::Union,
@@ -664,7 +637,7 @@ impl Compiler {
             ) => {
                 let value = self.program.strings.get(string_id).to_string();
                 self.infer_template_substitutions_from_string(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     &value,
                     &strings,
                     &spans,
@@ -688,7 +661,7 @@ impl Compiler {
                     value.push_str(fragment.as_ref());
                 }
                 self.infer_template_substitutions_from_string(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     &value,
                     &right_strings,
                     &right_spans,
@@ -705,7 +678,7 @@ impl Compiler {
                     spans: right_spans,
                 },
             ) => self.infer_template_substitutions_from_template(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 distributive,
                 &left_strings,
                 &left_spans,
@@ -718,7 +691,7 @@ impl Compiler {
                 let mut combined = InferSubstitutionsBuilder::new();
                 for element_id in elements {
                     let inferred = self.infer_conditional_type_substitutions_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         distributive,
                         left,
                         element_id,
@@ -726,7 +699,7 @@ impl Compiler {
                         visited,
                     )?;
                     self.merge_infer_substitutions(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         &mut combined,
                         inferred,
                         InferMergeMode::Union,
@@ -748,7 +721,7 @@ impl Compiler {
                     return Some(InferSubstitutions::empty());
                 };
                 self.infer_conditional_type_substitutions_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     distributive,
                     left_element,
                     right_element,
@@ -763,7 +736,7 @@ impl Compiler {
                     ..
                 },
             ) => self.infer_conditional_type_substitutions_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 distributive,
                 element,
                 right_element,
@@ -789,7 +762,7 @@ impl Compiler {
                 let mut combined = InferSubstitutionsBuilder::new();
                 for (left_element, right_element) in elements.iter().zip(right_elements.iter()) {
                     let inferred = self.infer_conditional_type_substitutions_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         distributive,
                         left_element.ty,
                         right_element.ty,
@@ -797,7 +770,7 @@ impl Compiler {
                         visited,
                     )?;
                     self.merge_infer_substitutions(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         &mut combined,
                         inferred,
                         InferMergeMode::Union,
@@ -832,7 +805,7 @@ impl Compiler {
                     static_parameters.iter().zip(right_static_parameters.iter())
                 {
                     let inferred = self.infer_conditional_type_substitutions_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         distributive,
                         *left_parameter,
                         *right_parameter,
@@ -840,7 +813,7 @@ impl Compiler {
                         visited,
                     )?;
                     self.merge_infer_substitutions(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         &mut combined,
                         inferred,
                         InferMergeMode::Union,
@@ -850,7 +823,7 @@ impl Compiler {
                 let inferred = match (this_parameter, right_this_parameter) {
                     (Some(left_parameter), Some(right_parameter)) => self
                         .infer_conditional_type_substitutions_inner(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             distributive,
                             left_parameter,
                             right_parameter,
@@ -861,7 +834,7 @@ impl Compiler {
                     _ => None,
                 }?;
                 self.merge_infer_substitutions(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     &mut combined,
                     inferred,
                     InferMergeMode::Intersection,
@@ -875,7 +848,7 @@ impl Compiler {
                         .zip(right_dynamic_parameters.iter())
                     {
                         let inferred = self.infer_conditional_type_substitutions_inner(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             distributive,
                             *left_parameter,
                             *right_parameter,
@@ -883,7 +856,7 @@ impl Compiler {
                             visited,
                         )?;
                         self.merge_infer_substitutions(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             &mut combined,
                             inferred,
                             InferMergeMode::Intersection,
@@ -892,7 +865,7 @@ impl Compiler {
                     matched_dynamic = true;
                 } else if right_dynamic_parameters.len() == 1 {
                     let only = right_dynamic_parameters[0];
-                    let tuple_type = tables.types.insert_type_from_any(
+                    let tuple_type = ctx.types.insert_type_from_any(
                         Type::Tuple {
                             elements: dynamic_parameters
                                 .iter()
@@ -904,7 +877,7 @@ impl Compiler {
                     );
 
                     if let Some(inferred) = self.infer_conditional_type_substitutions_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         distributive,
                         tuple_type,
                         only,
@@ -912,7 +885,7 @@ impl Compiler {
                         visited,
                     ) {
                         self.merge_infer_substitutions(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             &mut combined,
                             inferred,
                             InferMergeMode::Intersection,
@@ -921,7 +894,7 @@ impl Compiler {
                     } else {
                         // fall back to assignability for variadic patterns
                         matched_dynamic = self
-                            .is_type_assignable(&mut tables.reborrow(), only, tuple_type)
+                            .is_type_assignable(&mut ctx.reborrow(), only, tuple_type)
                             .is_assignable();
                     }
                 }
@@ -932,10 +905,10 @@ impl Compiler {
 
                 // infer return type substitutions
                 if let (Some(left_return), Some(right_return)) = (return_type, right_return_type)
-                    && self.type_contains_infer(right_return, tables.types, &mut HashSet::new())
+                    && self.type_contains_infer(right_return, ctx.types, &mut HashSet::new())
                 {
                     let inferred = self.infer_conditional_type_substitutions_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         distributive,
                         left_return,
                         right_return,
@@ -943,7 +916,7 @@ impl Compiler {
                         visited,
                     )?;
                     self.merge_infer_substitutions(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         &mut combined,
                         inferred,
                         InferMergeMode::Union,
@@ -967,7 +940,7 @@ impl Compiler {
                     .copied()
                 {
                     let inferred = self.infer_conditional_type_substitutions_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         distributive,
                         left,
                         right_signature,
@@ -975,7 +948,7 @@ impl Compiler {
                         visited,
                     )?;
                     self.merge_infer_substitutions(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         &mut combined,
                         inferred,
                         InferMergeMode::Union,
@@ -999,7 +972,7 @@ impl Compiler {
                     .copied()
                 {
                     let inferred = self.infer_conditional_type_substitutions_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         distributive,
                         left_signature,
                         right,
@@ -1007,7 +980,7 @@ impl Compiler {
                         visited,
                     )?;
                     self.merge_infer_substitutions(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         &mut combined,
                         inferred,
                         InferMergeMode::Union,
@@ -1037,7 +1010,7 @@ impl Compiler {
                         fields.iter().find(|field| field.key == right_field.key)
                     {
                         let inferred = self.infer_conditional_type_substitutions_inner(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             distributive,
                             left_field.ty,
                             right_field.ty,
@@ -1045,7 +1018,7 @@ impl Compiler {
                             visited,
                         )?;
                         self.merge_infer_substitutions(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             &mut combined,
                             inferred,
                             InferMergeMode::Union,
@@ -1064,7 +1037,7 @@ impl Compiler {
                     let mut matched_signature = false;
                     for left_signature in call_signatures.iter() {
                         if let Some(inferred) = self.infer_conditional_type_substitutions_inner(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             distributive,
                             *left_signature,
                             right_signature,
@@ -1072,7 +1045,7 @@ impl Compiler {
                             visited,
                         ) {
                             self.merge_infer_substitutions(
-                                &mut tables.reborrow(),
+                                &mut ctx.reborrow(),
                                 &mut combined,
                                 inferred,
                                 InferMergeMode::Union,
@@ -1094,7 +1067,7 @@ impl Compiler {
                     let mut matched_signature = false;
                     for left_signature in construct_signatures.iter() {
                         if let Some(inferred) = self.infer_conditional_type_substitutions_inner(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             distributive,
                             *left_signature,
                             right_signature,
@@ -1102,7 +1075,7 @@ impl Compiler {
                             visited,
                         ) {
                             self.merge_infer_substitutions(
-                                &mut tables.reborrow(),
+                                &mut ctx.reborrow(),
                                 &mut combined,
                                 inferred,
                                 InferMergeMode::Union,
@@ -1124,7 +1097,7 @@ impl Compiler {
                     let mut matched_signature = false;
                     for left_signature in index_signatures.iter() {
                         let inferred_key = self.infer_conditional_type_substitutions_inner(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             distributive,
                             left_signature.key_type,
                             right_signature.key_type,
@@ -1132,7 +1105,7 @@ impl Compiler {
                             visited,
                         );
                         let inferred_value = self.infer_conditional_type_substitutions_inner(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             distributive,
                             left_signature.value_type,
                             right_signature.value_type,
@@ -1144,13 +1117,13 @@ impl Compiler {
                             (inferred_key, inferred_value)
                         {
                             self.merge_infer_substitutions(
-                                &mut tables.reborrow(),
+                                &mut ctx.reborrow(),
                                 &mut combined,
                                 inferred_key,
                                 InferMergeMode::Union,
                             );
                             self.merge_infer_substitutions(
-                                &mut tables.reborrow(),
+                                &mut ctx.reborrow(),
                                 &mut combined,
                                 inferred_value,
                                 InferMergeMode::Union,
@@ -1210,21 +1183,21 @@ impl Compiler {
     /// Infer substitutions for conditional patterns when the left side is `any`.
     fn infer_substitutions_for_any_left(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         distributive: bool,
         left: LocalTypeId,
         right: LocalTypeId,
         source_id: LocalNodeIdAny,
     ) -> Option<InferSubstitutions> {
         // handle union patterns by merging successful branches
-        if let Type::Union { elements } = tables.types.get_type(right).clone() {
+        if let Type::Union { elements } = ctx.types.get_type(right).clone() {
             let mut combined = InferSubstitutionsBuilder::new();
             let mut matched = false;
 
             for element_id in elements {
                 let mut branch_visited = HashSet::new();
                 if let Some(inferred) = self.infer_conditional_type_substitutions_inner(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     distributive,
                     left,
                     element_id,
@@ -1233,7 +1206,7 @@ impl Compiler {
                 ) {
                     matched = true;
                     self.merge_infer_substitutions(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         &mut combined,
                         inferred,
                         InferMergeMode::Union,
@@ -1248,10 +1221,10 @@ impl Compiler {
         }
 
         // infer template literal spans as string-compatible for `any`
-        if let Type::TemplateLiteral { spans, .. } = tables.types.get_type(right) {
+        if let Type::TemplateLiteral { spans, .. } = ctx.types.get_type(right) {
             let spans = spans.clone();
             let substitutions = self.infer_template_literal_substitutions_for_any(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 &spans,
                 source_id,
             );
@@ -1261,7 +1234,7 @@ impl Compiler {
         // collect infer names from the pattern
         let mut names = HashSet::new();
         let mut visited = HashSet::new();
-        self.collect_infer_names_from_type(right, tables.types, &mut visited, &mut names);
+        self.collect_infer_names_from_type(right, ctx.types, &mut visited, &mut names);
 
         // default to an empty substitution when there are no infer names
         if names.is_empty() {
@@ -1269,7 +1242,7 @@ impl Compiler {
         }
 
         // map infer bindings to any for `any` patterns
-        let any_type = tables.types.insert_type_from_any(
+        let any_type = ctx.types.insert_type_from_any(
             Type::TypeLiteral {
                 value: TypeLiteral::Any,
             },
@@ -1286,7 +1259,7 @@ impl Compiler {
     /// Infer substitutions from matching reference static arguments.
     fn infer_conditional_substitutions_for_reference_arguments(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         left_arguments: &[StaticArgument],
         right_arguments: &[StaticArgument],
         distributive: bool,
@@ -1300,11 +1273,10 @@ impl Compiler {
         }
 
         for (left_argument, right_argument) in left_arguments.iter().zip(right_arguments.iter()) {
-            let left_ty = self.convert_static_argument_type(left_argument, source_id, tables.types);
-            let right_ty =
-                self.convert_static_argument_type(right_argument, source_id, tables.types);
+            let left_ty = self.convert_static_argument_type(left_argument, source_id, ctx.types);
+            let right_ty = self.convert_static_argument_type(right_argument, source_id, ctx.types);
             let inferred = self.infer_conditional_type_substitutions_inner(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 distributive,
                 left_ty,
                 right_ty,
@@ -1312,7 +1284,7 @@ impl Compiler {
                 visited,
             )?;
             self.merge_infer_substitutions(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 &mut combined,
                 inferred,
                 InferMergeMode::Union,
@@ -1546,20 +1518,17 @@ impl Compiler {
     /// Infer substitutions for `never` inputs.
     fn infer_substitutions_for_never_left(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         right: LocalTypeId,
         source_id: LocalNodeIdAny,
     ) -> Option<InferSubstitutions> {
         // read the target pattern
-        let right_type = tables.types.get_type(right).clone();
+        let right_type = ctx.types.get_type(right).clone();
 
         // infer defaults for template literal spans
         if let Type::TemplateLiteral { spans, .. } = right_type {
-            let substitutions = self.infer_template_literal_substitutions_for_never(
-                &spans,
-                source_id,
-                tables.types,
-            );
+            let substitutions =
+                self.infer_template_literal_substitutions_for_never(&spans, source_id, ctx.types);
             return Some(substitutions);
         }
 
@@ -1568,12 +1537,12 @@ impl Compiler {
             let mut combined = InferSubstitutionsBuilder::new();
             for element_id in elements {
                 if let Some(inferred) = self.infer_substitutions_for_never_left(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     element_id,
                     source_id,
                 ) {
                     self.merge_infer_substitutions(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         &mut combined,
                         inferred,
                         InferMergeMode::Union,
@@ -1588,12 +1557,12 @@ impl Compiler {
             let mut combined = InferSubstitutionsBuilder::new();
             for element_id in elements {
                 if let Some(inferred) = self.infer_substitutions_for_never_left(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     element_id,
                     source_id,
                 ) {
                     self.merge_infer_substitutions(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         &mut combined,
                         inferred,
                         InferMergeMode::Intersection,
@@ -1605,14 +1574,9 @@ impl Compiler {
 
         // default infer bindings to never
         let mut infer_names = HashSet::new();
-        self.collect_infer_names_from_type(
-            right,
-            tables.types,
-            &mut HashSet::new(),
-            &mut infer_names,
-        );
+        self.collect_infer_names_from_type(right, ctx.types, &mut HashSet::new(), &mut infer_names);
         let mut substitutions = InferSubstitutionsBuilder::new();
-        let never_id = tables.types.insert_type_from_any(
+        let never_id = ctx.types.insert_type_from_any(
             Type::TypeLiteral {
                 value: TypeLiteral::Never,
             },
@@ -1629,7 +1593,7 @@ impl Compiler {
     /// Infer substitutions by matching a template literal type against a string literal.
     pub(crate) fn infer_template_substitutions_from_string(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         value: &str,
         strings: &[StringId],
         spans: &[LocalTypeId],
@@ -1650,13 +1614,13 @@ impl Compiler {
         // apply each span constraint
         for (span_ty_id, span_value) in spans.iter().zip(span_values.iter()) {
             // resolve span type
-            let span_ty = tables.types.get_type(*span_ty_id).clone();
+            let span_ty = ctx.types.get_type(*span_ty_id).clone();
             match span_ty {
                 Type::Infer { name, constraint } => {
                     // enforce span constraints for constrained inference
                     if let Some(constraint_id) = constraint
                         && !self.template_span_matches_string(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             constraint_id,
                             span_value,
                             &mut visited,
@@ -1667,14 +1631,11 @@ impl Compiler {
 
                     // infer literal type for the span
                     let inferred_ty = self.template_infer_literal_type(
-                        constraint,
-                        span_value,
-                        source_id,
-                        tables.types,
+                        constraint, span_value, source_id, ctx.types,
                     )?;
                     if let Some(existing) = substitutions.get(&name)
                         && !self.inferred_type_ids_equivalent(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             existing,
                             inferred_ty,
                         )
@@ -1687,7 +1648,7 @@ impl Compiler {
                 _ => {
                     // enforce non infer span constraints
                     if !self.template_span_matches_string(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         *span_ty_id,
                         span_value,
                         &mut visited,
@@ -1704,12 +1665,12 @@ impl Compiler {
     /// Infer substitutions for template literals when the input is any.
     fn infer_template_literal_substitutions_for_any(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         spans: &[LocalTypeId],
         source_id: LocalNodeIdAny,
     ) -> InferSubstitutions {
         // default to string spans when unconstrained
-        let string_id = tables.types.insert_type_from_any(
+        let string_id = ctx.types.insert_type_from_any(
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::String),
             },
@@ -1721,20 +1682,16 @@ impl Compiler {
 
         // collect inferred bindings from each span
         for span_ty_id in spans {
-            let span_ty = tables.types.get_type(*span_ty_id).clone();
+            let span_ty = ctx.types.get_type(*span_ty_id).clone();
             let Type::Infer { name, constraint } = span_ty else {
                 continue;
             };
 
             let inferred_ty = constraint.unwrap_or(string_id);
             if let Some(existing) = substitutions.get(&name) {
-                if !self.inferred_type_ids_equivalent(&mut tables.reborrow(), existing, inferred_ty)
-                {
-                    let union_id = self.union_type_from_list(
-                        vec![existing, inferred_ty],
-                        existing,
-                        tables.types,
-                    );
+                if !self.inferred_type_ids_equivalent(&mut ctx.reborrow(), existing, inferred_ty) {
+                    let union_id =
+                        self.union_type_from_list(vec![existing, inferred_ty], existing, ctx.types);
                     substitutions.insert(name, union_id);
                 }
             } else {
@@ -1775,7 +1732,7 @@ impl Compiler {
     /// Infer substitutions by matching a template literal type against another template literal.
     pub(crate) fn infer_template_substitutions_from_template(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         distributive: bool,
         left_strings: &[StringId],
         left_spans: &[LocalTypeId],
@@ -1802,13 +1759,13 @@ impl Compiler {
         // apply each span mapping
         for (left_span, right_span) in left_spans.iter().zip(right_spans.iter()) {
             // resolve right span type
-            let right_ty = tables.types.get_type(*right_span).clone();
+            let right_ty = ctx.types.get_type(*right_span).clone();
             match right_ty {
                 Type::Infer { name, .. } => {
                     // map inferred spans directly
                     if let Some(existing) = substitutions.get(&name)
                         && !self.inferred_type_ids_equivalent(
-                            &mut tables.reborrow(),
+                            &mut ctx.reborrow(),
                             existing,
                             *left_span,
                         )
@@ -1821,7 +1778,7 @@ impl Compiler {
                 _ => {
                     // recursively infer nested substitutions
                     let inferred = self.infer_conditional_type_substitutions_inner(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         distributive,
                         *left_span,
                         *right_span,
@@ -1829,7 +1786,7 @@ impl Compiler {
                         visited,
                     )?;
                     self.merge_infer_substitutions(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         &mut substitutions,
                         inferred,
                         InferMergeMode::Union,
@@ -1844,7 +1801,7 @@ impl Compiler {
     /// Merge inferred substitutions by unioning divergent bindings.
     fn merge_infer_substitutions(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         base: &mut InferSubstitutionsBuilder<'_>,
         other: InferSubstitutions,
         mode: InferMergeMode,
@@ -1856,16 +1813,16 @@ impl Compiler {
                 continue;
             };
 
-            if self.inferred_type_ids_equivalent(&mut tables.reborrow(), existing, ty) {
+            if self.inferred_type_ids_equivalent(&mut ctx.reborrow(), existing, ty) {
                 continue;
             }
 
             let merged = match mode {
                 InferMergeMode::Union => {
-                    self.union_type_from_list(vec![existing, ty], existing, tables.types)
+                    self.union_type_from_list(vec![existing, ty], existing, ctx.types)
                 }
                 InferMergeMode::Intersection => {
-                    self.intersection_type_from_list(vec![existing, ty], existing, tables.types)
+                    self.intersection_type_from_list(vec![existing, ty], existing, ctx.types)
                 }
             };
             base.insert(name, merged);
@@ -1875,7 +1832,7 @@ impl Compiler {
     /// Check whether two inferred type ids are equivalent for merging.
     fn inferred_type_ids_equivalent(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         left: LocalTypeId,
         right: LocalTypeId,
     ) -> bool {
@@ -1885,8 +1842,8 @@ impl Compiler {
         }
 
         // compare normalized shapes for conditional infer merge
-        let left = self.normalize_type(&mut tables.reborrow(), left, NormalizationMode::Assign);
-        let right = self.normalize_type(&mut tables.reborrow(), right, NormalizationMode::Assign);
+        let left = self.normalize_type(&mut ctx.reborrow(), left, NormalizationMode::Assign);
+        let right = self.normalize_type(&mut ctx.reborrow(), right, NormalizationMode::Assign);
 
         left == right
     }
@@ -1894,13 +1851,13 @@ impl Compiler {
     /// Apply inferred bindings to a type id.
     pub(crate) fn substitute_infer_types(
         &self,
-        tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         type_id: LocalTypeId,
         substitutions: &InferSubstitutions,
     ) -> LocalTypeId {
         let mut rewriter =
-            InferSubstitutionRewriter::new(self, tables.module, substitutions, tables.symbols);
-        rewriter.rewrite_type_id(tables.types, type_id)
+            InferSubstitutionRewriter::new(self, ctx.module, substitutions, ctx.symbols);
+        rewriter.rewrite_type_id(ctx.types, type_id)
     }
 
     /// Resolve inferred types for a local infer binding symbol.

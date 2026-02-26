@@ -1,13 +1,10 @@
-use crate::analyze::common::TypeTablesContext;
+use crate::analyze::common::{SymbolTypeView, TypeContext, TypeView};
 use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeTask, AnalyzeWarning, Compiler, TaskDependencyError,
 };
-use destack_dir::{
-    Export, GlobalSymbolId, NodeTree, StaticKey, SymbolSpace, SymbolTable, Type, TypeLiteral,
-    TypeTable,
-};
+use destack_dir::{Export, GlobalSymbolId, StaticKey, SymbolSpace, Type, TypeLiteral, TypeTable};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{Module, ModuleGraph, ModuleGraphKey, ModuleGraphVersion, ProfileId};
+use destack_workspace::{ModuleGraph, ModuleGraphKey, ModuleGraphVersion, ProfileId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::VecDeque;
@@ -237,9 +234,7 @@ impl Compiler {
         let types = dir.types.read();
         let exported_symbols = dir.exported_symbols.read();
         self.interface_value_snapshot_for_exports(
-            module.id,
-            &symbols,
-            &types,
+            SymbolTypeView::new(&module, profile, &symbols, &types),
             &exported_symbols,
             &mut snapshot,
         );
@@ -247,9 +242,7 @@ impl Compiler {
         let binding_exports = dir.module_binding_exports.read();
         for binding in binding_exports.values() {
             self.interface_value_snapshot_for_exports(
-                module.id,
-                &symbols,
-                &types,
+                SymbolTypeView::new(&module, profile, &symbols, &types),
                 &binding.exports,
                 &mut snapshot,
             );
@@ -263,20 +256,18 @@ impl Compiler {
     /// Append interface value states for one export table.
     fn interface_value_snapshot_for_exports(
         &self,
-        module_id: ModuleId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        ctx: SymbolTypeView<'_>,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         snapshot: &mut Vec<InterfaceValueSnapshot>,
     ) {
         for export in exports.values() {
             let Some((export_symbol, _)) =
-                self.interface_value_symbol_for_export(symbols, module_id, export)
+                self.interface_value_symbol_for_export(ctx.symbols, ctx.module.id, export)
             else {
                 continue;
             };
 
-            let state = self.classify_interface_value_state(types, export_symbol);
+            let state = self.classify_interface_value_state(ctx.types, export_symbol);
             snapshot.push(InterfaceValueSnapshot {
                 symbol: export_symbol,
                 state,
@@ -330,17 +321,16 @@ impl Compiler {
             let exported_symbols = dir.exported_symbols.read();
             let binding_exports = dir.module_binding_exports.read();
             let options = self.analyze_context_options_for_module(component_module_id);
-            let mut type_tables =
-                TypeTablesContext::new(&module, profile, &options, &tree, &symbols, &mut types);
+            let mut ctx = TypeContext::new(&module, profile, &options, &tree, &symbols, &mut types);
             self.report_interface_cycle_exports_for_table(
-                &mut type_tables.reborrow(),
+                &mut ctx.reborrow(),
                 &exported_symbols,
                 component_set,
             )?;
 
             for binding in binding_exports.values() {
                 self.report_interface_cycle_exports_for_table(
-                    &mut type_tables.reborrow(),
+                    &mut ctx.reborrow(),
                     &binding.exports,
                     component_set,
                 )?;
@@ -353,37 +343,32 @@ impl Compiler {
     /// Report unresolved interface cycles for one export table.
     fn report_interface_cycle_exports_for_table(
         &self,
-        type_tables: &mut TypeTablesContext<'_>,
+        ctx: &mut TypeContext<'_>,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         component_set: &FxHashSet<ModuleId>,
     ) -> AnalyzeResult<()> {
         for export in exports.values() {
-            let Some((export_symbol, value_symbol)) = self.interface_value_symbol_for_export(
-                type_tables.symbols,
-                type_tables.module.id,
-                export,
-            ) else {
+            let Some((export_symbol, value_symbol)) =
+                self.interface_value_symbol_for_export(ctx.symbols, ctx.module.id, export)
+            else {
                 continue;
             };
 
-            let Some(value_type_id) = type_tables.types.get_value_type_id(export_symbol) else {
+            let Some(value_type_id) = ctx.types.get_value_type_id(export_symbol) else {
                 continue;
             };
-            if !self.interface_value_requires_solver(type_tables.types, value_type_id)
-                && !self.interface_value_is_semantic_unknown(type_tables.types, value_type_id)
+            if !self.interface_value_requires_solver(ctx.types, value_type_id)
+                && !self.interface_value_is_semantic_unknown(ctx.types, value_type_id)
             {
                 continue;
             }
 
-            let Some(declarator_id) = self.direct_binding_declarator_for_symbol(
-                type_tables.module,
-                value_symbol,
-                type_tables.tree,
-                type_tables.symbols,
-            ) else {
+            let Some(declarator_id) =
+                self.direct_binding_declarator_for_symbol(ctx.tree_symbol_view(), value_symbol)
+            else {
                 continue;
             };
-            let declarator = type_tables.tree.get(declarator_id);
+            let declarator = ctx.tree.get(declarator_id);
 
             // explicit export contracts break cycle-inference requirements
             if declarator.ty.is_some() {
@@ -394,12 +379,7 @@ impl Compiler {
                 continue;
             };
 
-            let references = self.interface_value_references(
-                type_tables.module,
-                type_tables.tree,
-                type_tables.symbols,
-                value_id,
-            );
+            let references = self.interface_value_references(ctx.tree_symbol_view(), value_id);
             let has_component_dependency = references
                 .iter()
                 .any(|symbol_id| component_set.contains(&symbol_id.module_id));
@@ -408,16 +388,14 @@ impl Compiler {
             }
 
             let error_node = value_id
-                .into_global_any(type_tables.module.id)
-                .into_anchored(Some(type_tables.profile));
+                .into_global_any(ctx.module.id)
+                .into_anchored(Some(ctx.profile));
             self.error(AnalyzeError::InterfaceInferenceRequiresAnnotation { node: error_node });
 
-            let error_type_id = type_tables
+            let error_type_id = ctx
                 .types
                 .insert_type_from_any(Type::Error, declarator_id.into());
-            type_tables
-                .types
-                .set_value_type(export_symbol, error_type_id);
+            ctx.types.set_value_type(export_symbol, error_type_id);
         }
 
         Ok(())
@@ -440,11 +418,7 @@ impl Compiler {
             let types = dir.types.read();
             let exported_symbols = dir.exported_symbols.read();
             self.report_interface_unknown_exports_for_table(
-                &module,
-                profile,
-                &tree,
-                &symbols,
-                &types,
+                TypeView::new(&module, profile, &tree, &symbols, &types),
                 &exported_symbols,
                 &mut warned_symbols,
             )?;
@@ -452,11 +426,7 @@ impl Compiler {
             let binding_exports = dir.module_binding_exports.read();
             for binding in binding_exports.values() {
                 self.report_interface_unknown_exports_for_table(
-                    &module,
-                    profile,
-                    &tree,
-                    &symbols,
-                    &types,
+                    TypeView::new(&module, profile, &tree, &symbols, &types),
                     &binding.exports,
                     &mut warned_symbols,
                 )?;
@@ -469,17 +439,13 @@ impl Compiler {
     /// Report semantic-unknown interface exports for one export table.
     fn report_interface_unknown_exports_for_table(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &TypeTable,
+        ctx: TypeView<'_>,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         warned_symbols: &mut FxHashSet<GlobalSymbolId>,
     ) -> AnalyzeResult<()> {
         for export in exports.values() {
             let Some((export_symbol, value_symbol)) =
-                self.interface_value_symbol_for_export(symbols, module.id, export)
+                self.interface_value_symbol_for_export(ctx.symbols, ctx.module.id, export)
             else {
                 continue;
             };
@@ -487,22 +453,22 @@ impl Compiler {
                 continue;
             }
 
-            let Some(value_type_id) = types.get_value_type_id(export_symbol) else {
+            let Some(value_type_id) = ctx.types.get_value_type_id(export_symbol) else {
                 continue;
             };
-            if !self.interface_value_is_semantic_unknown(types, value_type_id) {
+            if !self.interface_value_is_semantic_unknown(ctx.types, value_type_id) {
                 continue;
             }
 
             let Some(declarator_id) =
-                self.direct_binding_declarator_for_symbol(module, value_symbol, tree, symbols)
+                self.direct_binding_declarator_for_symbol(ctx.tree_symbol_view(), value_symbol)
             else {
                 continue;
             };
 
             let warning_node = declarator_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
+                .into_global_any(ctx.module.id)
+                .into_anchored(Some(ctx.profile));
             self.warning(AnalyzeWarning::ExportTypeUnknown { node: warning_node });
         }
 

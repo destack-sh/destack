@@ -65,6 +65,7 @@ impl CommonjsExportState {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Insert static named CommonJS exports into one module export table.
     pub(crate) fn insert_commonjs_named_exports(
@@ -302,7 +303,6 @@ impl Compiler {
     }
 
     /// Apply one CommonJS assignment effect to the running state.
-    #[allow(clippy::too_many_arguments)]
     fn apply_commonjs_assignment_effect(
         &self,
         tree: &NodeTree,
@@ -397,7 +397,6 @@ impl Compiler {
     }
 
     /// Classify one assignment left-hand side in the CommonJS static model.
-    #[allow(clippy::too_many_arguments)]
     fn commonjs_assignment_target(
         &self,
         tree: &NodeTree,
@@ -546,7 +545,6 @@ impl Compiler {
     }
 
     /// Classify path-encoded CommonJS property assignments.
-    #[allow(clippy::too_many_arguments)]
     fn commonjs_assignment_target_from_path(
         &self,
         tree: &NodeTree,
@@ -638,26 +636,20 @@ impl Compiler {
 
             // collect object fields
             if let Property::Field { key, value, .. } = property {
-                let Some(export_name) = self.commonjs_property_key_name(tree, *key) else {
-                    return None;
-                };
-                let Some(export_value) = self.commonjs_export_value_for_object_field(
+                let export_name = self.commonjs_property_key_name(tree, *key)?;
+                let export_value = self.commonjs_export_value_for_object_field(
                     symbols,
                     namespace_scope,
                     *key,
                     *value,
-                ) else {
-                    return None;
-                };
+                )?;
                 named_values.insert(export_name, export_value);
                 continue;
             }
 
             // collect object methods
             if let Property::Method { key, symbol, .. } = property {
-                let Some(export_name) = self.commonjs_property_key_name(tree, *key) else {
-                    return None;
-                };
+                let export_name = self.commonjs_property_key_name(tree, *key)?;
                 named_values.insert(export_name, CommonjsExportValue::Symbol(*symbol));
             }
         }
@@ -921,7 +913,6 @@ impl Compiler {
     }
 
     /// Check whether an expression assigns to `module.exports`.
-    #[allow(clippy::too_many_arguments)]
     fn expression_assigns_commonjs_module_exports(
         &self,
         tree: &NodeTree,

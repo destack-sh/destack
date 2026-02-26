@@ -6,6 +6,7 @@ use destack_mir as mir;
 use destack_source::ModuleId;
 use destack_workspace::ProfileId;
 
+use crate::analyze::TreeSymbolTypeView;
 use crate::{Compiler, LowerError, LowerResult, TaskDependencyError};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
@@ -181,8 +182,10 @@ impl<'a> BuiltinTypeLayouts<'a> {
 
             // resolve a static key for the field
             let Some(key) = key.and_then(|key| {
-                self.compiler
-                    .static_key_from_dynamic_key(self.profile, key, tree, symbols, types)
+                self.compiler.static_key_from_dynamic_key(
+                    TreeSymbolTypeView::new(self.profile, tree, symbols, types),
+                    key,
+                )
             }) else {
                 continue;
             };

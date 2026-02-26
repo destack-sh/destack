@@ -1,6 +1,7 @@
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::ProfileId;
 
+use crate::analyze::common::TreeSymbolView;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
 
@@ -47,7 +48,7 @@ impl Compiler {
             return Ok(());
         }
 
-        // load module state and dir tables
+        // load module state and dir ctx
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir(profile);
@@ -55,8 +56,11 @@ impl Compiler {
         let symbols = dir.symbols.read();
         let mut captures = dir.captures.write();
 
-        // compute capture tables
-        self.compute_module_captures(&module, &tree, &symbols, &mut captures)?;
+        // compute capture ctx
+        self.compute_module_captures(
+            TreeSymbolView::new(&module, profile, &tree, &symbols),
+            &mut captures,
+        )?;
 
         Ok(())
     }

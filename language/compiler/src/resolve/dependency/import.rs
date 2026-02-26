@@ -12,6 +12,7 @@ use crate::resolve::dependency::cache::{
 };
 use crate::{Compiler, ResolveError, ResolveResult};
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve the namespace symbol for a target module.
     pub(super) fn resolve_namespace_symbol(
@@ -372,7 +373,7 @@ impl Compiler {
         tree: &NodeTree,
         scope_id: LocalScopeId,
         target_symbol: GlobalSymbolId,
-        mut cache: Option<&mut ResolveDependencyItemCache>,
+        cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<ExportAssignmentTarget>> {
         // prefer import alias redirects for `export = alias` targets
         let symbols = dir.symbols.read();
@@ -387,7 +388,7 @@ impl Compiler {
                 tree,
                 scope_id,
                 symbol_name,
-                cache.as_deref_mut(),
+                cache,
             )?
         {
             return Ok(Some(ExportAssignmentTarget::Module(redirect)));

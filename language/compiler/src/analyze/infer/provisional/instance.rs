@@ -1,5 +1,5 @@
 use crate::analyze::StaticSubstitutionEnvironment;
-use crate::analyze::common::InferTablesContext;
+use crate::analyze::common::InferContext;
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
     GlobalNodeIdAny, GlobalSymbolId, InferTable, InstanceCommitObligation,
@@ -27,7 +27,7 @@ impl Compiler {
     /// Record one node instance for one resolved reference type when arguments are present.
     pub(crate) fn record_reference_provisional_instance(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         node_id: GlobalNodeIdAny,
         symbol: GlobalSymbolId,
         static_arguments: Option<&[StaticArgument]>,
@@ -47,7 +47,7 @@ impl Compiler {
 
         // compose the full environment in declaration order
         let Some(environment) = self.instance_environment_for_symbol_arguments(
-            tables,
+            ctx,
             symbol,
             static_arguments.to_vec(),
             0,
@@ -55,13 +55,7 @@ impl Compiler {
             return Ok(None);
         };
 
-        self.record_node_provisional_instance(
-            node_id,
-            symbol,
-            environment,
-            tables.infer,
-            tables.types,
-        )
+        self.record_node_provisional_instance(node_id, symbol, environment, ctx.infer, ctx.types)
     }
 
     /// Query static parameter symbols for one function signature type.
@@ -83,46 +77,31 @@ impl Compiler {
     /// Query owner static parameter symbols for one member symbol.
     fn query_member_owner_static_parameter_symbols(
         &self,
-        tables: &InferTablesContext<'_>,
+        ctx: &InferContext<'_>,
         member_symbol: GlobalSymbolId,
     ) -> Vec<GlobalSymbolId> {
-        let Some(owner_symbol) = self.owner_symbol_for_member_symbol(
-            tables.module,
-            tables.profile,
-            member_symbol,
-            tables.symbols,
-        ) else {
+        let Some(owner_symbol) = self
+            .query_owner_symbol_for_member_symbol(ctx.module_symbol_view(), member_symbol)
+            .ok()
+            .flatten()
+        else {
             return Vec::new();
         };
 
-        self.collect_static_parameter_symbols(
-            tables.module,
-            owner_symbol,
-            tables.profile,
-            tables.tree,
-            tables.symbols,
-            &*tables.types,
-        )
-        .unwrap_or_default()
+        self.collect_static_parameter_symbols(ctx.type_view(), owner_symbol)
+            .unwrap_or_default()
     }
 
     /// Build one substitution environment for one symbol and one static-argument vector.
     pub(crate) fn instance_environment_for_symbol_arguments(
         &self,
-        tables: &InferTablesContext<'_>,
+        ctx: &InferContext<'_>,
         symbol_id: GlobalSymbolId,
         static_arguments: Vec<StaticArgument>,
         inherited_arity: usize,
     ) -> Option<StaticSubstitutionEnvironment> {
         let parameter_symbols = self
-            .collect_static_parameter_symbols(
-                tables.module,
-                symbol_id,
-                tables.profile,
-                tables.tree,
-                tables.symbols,
-                &*tables.types,
-            )
+            .collect_static_parameter_symbols(ctx.type_view(), symbol_id)
             .unwrap_or_default();
 
         StaticSubstitutionEnvironment::from_parameter_symbols(
@@ -135,7 +114,7 @@ impl Compiler {
     /// Compose one member-instance substitution environment from owner and signature metadata.
     pub(crate) fn compose_member_instance_environment(
         &self,
-        tables: &InferTablesContext<'_>,
+        ctx: &InferContext<'_>,
         member_symbol: GlobalSymbolId,
         base_arguments: &[StaticArgument],
         bound_substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
@@ -154,23 +133,16 @@ impl Compiler {
 
         // resolve owner parameter order for inherited arguments
         let owner_parameter_symbols =
-            self.query_member_owner_static_parameter_symbols(tables, member_symbol);
+            self.query_member_owner_static_parameter_symbols(ctx, member_symbol);
         let effective_signature_parameter_symbols = if signature_parameter_symbols.is_empty() {
-            self.collect_static_parameter_symbols(
-                tables.module,
-                member_symbol,
-                tables.profile,
-                tables.tree,
-                tables.symbols,
-                &*tables.types,
-            )
-            .map(|symbols| {
-                symbols
-                    .into_iter()
-                    .filter(|symbol| !owner_parameter_symbols.contains(symbol))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default()
+            self.collect_static_parameter_symbols(ctx.type_view(), member_symbol)
+                .map(|symbols| {
+                    symbols
+                        .into_iter()
+                        .filter(|symbol| !owner_parameter_symbols.contains(symbol))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default()
         } else {
             signature_parameter_symbols.to_vec()
         };

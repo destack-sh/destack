@@ -7,7 +7,7 @@ use destack_dir::{
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
-use crate::analyze::TypeTablesContext;
+use crate::analyze::common::TypeContext;
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
@@ -1271,10 +1271,9 @@ impl Compiler {
 
         // derive and record the runtime check kind
         let options = self.analyze_context_options_for_module(module.id);
-        let mut type_tables =
-            TypeTablesContext::new(module, profile, &options, tree, symbols, types);
+        let mut ctx = TypeContext::new(module, profile, &options, tree, symbols, types);
         let runtime_check_kind = self.runtime_check_kind_for_relation(
-            &mut type_tables.reborrow(),
+            &mut ctx.reborrow(),
             value_type_id,
             target_type_id,
         );
@@ -1283,8 +1282,7 @@ impl Compiler {
                 node: expr_id.into_global_any(tree.module_id).into_anchored(None),
             });
         };
-        type_tables
-            .types
+        ctx.types
             .set_runtime_check_kind(expr_id.into_global_any(tree.module_id), runtime_check_kind);
         Ok(expr_id)
     }

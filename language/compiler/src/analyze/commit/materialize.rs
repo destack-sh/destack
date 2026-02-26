@@ -1,15 +1,14 @@
 use crate::analyze::StaticSubstitutionEnvironment;
+use crate::analyze::common::CommitContext;
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{GlobalSymbolId, InferTable, Instance, LocalInstanceId, TypeTable};
-use destack_workspace::Module;
 
 impl Compiler {
-    /// Commit infer-recorded provisional resolutions and instances into canonical tables.
+    /// Commit infer-recorded provisional resolutions and instances into canonical ctx.
     pub(super) fn commit_provisional_resolutions_and_instances(
         &self,
-        module: &Module,
+        ctx: &mut CommitContext<'_>,
         infer: &InferTable,
-        types: &mut TypeTable,
     ) {
         // commit recorded resolutions in deterministic node-id order
         let mut resolution_entries = infer
@@ -17,9 +16,9 @@ impl Compiler {
             .collect::<Vec<_>>();
         resolution_entries.sort_by_key(|(node_id, _)| *node_id);
         for (node_id, resolution) in resolution_entries {
-            if node_id.module_id == module.id {
-                let resolution_id = types.insert_resolution(resolution.clone());
-                types.set_resolution_for_node(node_id, resolution_id);
+            if node_id.module_id == ctx.module.module.id {
+                let resolution_id = ctx.types.insert_resolution(resolution.clone());
+                ctx.types.set_resolution_for_node(node_id, resolution_id);
             }
         }
 
@@ -27,8 +26,8 @@ impl Compiler {
         let mut instance_entries = infer.iter_provisional_instance_nodes().collect::<Vec<_>>();
         instance_entries.sort_by_key(|(node_id, _)| *node_id);
         for (node_id, instance_id) in instance_entries {
-            if node_id.module_id == module.id {
-                types.set_instance_for_node(node_id, instance_id);
+            if node_id.module_id == ctx.module.module.id {
+                ctx.types.set_instance_for_node(node_id, instance_id);
             }
         }
     }

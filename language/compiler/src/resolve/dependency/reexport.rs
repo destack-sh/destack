@@ -13,6 +13,7 @@ use crate::resolve::dependency::cache::{
 };
 use crate::{Compiler, ResolveError, ResolveResult};
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve a symbol from a module export table.
     pub(crate) fn resolve_exported_symbol(

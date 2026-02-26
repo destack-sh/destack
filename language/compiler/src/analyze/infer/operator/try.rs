@@ -4,7 +4,7 @@ use super::*;
 impl Compiler {
     pub(crate) fn infer_coalesce_expression(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
         _right_id: LocalNodeId<Expression>,
@@ -12,23 +12,22 @@ impl Compiler {
         right_ty_id: LocalTypeId,
         _left_ty: &Type,
         _right_ty: &Type,
-        ctx: &mut InferContext,
+        _state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // strip nullish before Try evaluation
-        let (non_nullish_ty_id, has_nullish) =
-            self.strip_nullish_from_union(left_ty_id, tables.types);
+        let (non_nullish_ty_id, has_nullish) = self.strip_nullish_from_union(left_ty_id, ctx.types);
         let Some(non_nullish_ty_id) = non_nullish_ty_id else {
             self.record_provisional_builtin_resolution(
-                expression_id.into_global_any(tables.module.id),
+                expression_id.into_global_any(ctx.module.id),
                 Some(left_ty_id),
-                tables.infer,
-                tables.types,
+                ctx.infer,
+                ctx.types,
             );
             return Ok(right_ty_id);
         };
 
         // split Try and non-Try elements
-        let (try_elements, non_try_elements) = self.split_try_elements(tables, non_nullish_ty_id);
+        let (try_elements, non_try_elements) = self.split_try_elements(ctx, non_nullish_ty_id);
 
         // no Try elements means nullish-only behavior
         if try_elements.is_empty() {
@@ -36,17 +35,17 @@ impl Compiler {
                 self.union_type_from_list(
                     vec![non_nullish_ty_id, right_ty_id],
                     non_nullish_ty_id,
-                    tables.types,
+                    ctx.types,
                 )
             } else {
                 left_ty_id
             };
 
             self.record_provisional_builtin_resolution(
-                expression_id.into_global_any(tables.module.id),
+                expression_id.into_global_any(ctx.module.id),
                 Some(left_ty_id),
-                tables.infer,
-                tables.types,
+                ctx.infer,
+                ctx.types,
             );
 
             return Ok(result_ty_id);
@@ -54,7 +53,7 @@ impl Compiler {
 
         // collect Try success types for ??: remove nullish after unwrap
         let value_types = self.try_coalesce_success_types(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             left_id,
             &try_elements,
@@ -62,9 +61,9 @@ impl Compiler {
 
         // record Try branch resolution when the receiver is Try-only
         if non_try_elements.is_empty() {
-            let non_nullish_ty = tables.types.get_type(non_nullish_ty_id).clone();
+            let non_nullish_ty = ctx.types.get_type(non_nullish_ty_id).clone();
             let branch = self.resolve_try_branch_member(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 left_id,
                 non_nullish_ty_id,
@@ -73,15 +72,13 @@ impl Compiler {
 
             if !branch.resolved.has_member {
                 self.emit_no_overload_for_receiver_type(
-                    tables.module,
-                    ctx.profile,
+                    ctx.module_type_view(),
                     expression_id.into_any(),
                     non_nullish_ty_id,
-                    tables.types,
                 );
             } else {
                 let value_and_error_types = self.resolve_try_value_and_error_types(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     expression_id,
                     left_id.into_any(),
                     non_nullish_ty_id,
@@ -92,12 +89,12 @@ impl Compiler {
                 if value_and_error_types.is_none() {
                     self.error(AnalyzeError::InvalidTryBranch {
                         node: expression_id
-                            .into_global_any(tables.module.id)
+                            .into_global_any(ctx.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                 } else {
                     self.record_try_branch_resolution(
-                        &mut tables.reborrow(),
+                        &mut ctx.reborrow(),
                         expression_id,
                         non_nullish_ty_id,
                         &branch,
@@ -110,7 +107,7 @@ impl Compiler {
 
         if !value_types.is_empty() {
             let source_type_id = value_types[0];
-            let unioned = self.union_type_from_list(value_types, source_type_id, tables.types);
+            let unioned = self.union_type_from_list(value_types, source_type_id, ctx.types);
             result_types.push(unioned);
         }
 
@@ -123,32 +120,31 @@ impl Compiler {
             1 => result_types[0],
             _ => {
                 let source_type_id = result_types[0];
-                self.union_type_from_list(result_types, source_type_id, tables.types)
+                self.union_type_from_list(result_types, source_type_id, ctx.types)
             }
         };
 
         self.record_provisional_builtin_resolution(
-            expression_id.into_global_any(tables.module.id),
+            expression_id.into_global_any(ctx.module.id),
             Some(left_ty_id),
-            tables.infer,
-            tables.types,
+            ctx.infer,
+            ctx.types,
         );
 
         Ok(result_ty_id)
     }
 
     /// Infer an index access expression.
-
     pub(crate) fn infer_try_unwrap_expression(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // infer the receiver type
-        let left_ty_id = self.infer_expression(&mut tables.reborrow(), left_id, ctx)?;
-        let left_ty = tables.types.get_type(left_ty_id).clone();
+        let left_ty_id = self.infer_expression(&mut ctx.reborrow(), left_id, state)?;
+        let left_ty = ctx.types.get_type(left_ty_id).clone();
 
         // handle Try unions by aggregating value and error types
         if let Type::Union { elements } = &left_ty {
@@ -158,30 +154,25 @@ impl Compiler {
             // validate each Try union element and collect value and error types
             for element_id in elements {
                 // require Try on each union element
-                let element_ty = tables.types.get_type(*element_id).clone();
+                let element_ty = ctx.types.get_type(*element_id).clone();
                 let implements_try = self.is_interface_implemented(
-                    tables.module,
-                    ctx.profile,
+                    ctx.symbol_type_view(),
                     &element_ty,
                     LanguageSymbol::Try,
-                    tables.symbols,
-                    tables.types,
                 );
                 if !implements_try {
                     self.emit_no_overload_for_receiver_type(
-                        tables.module,
-                        ctx.profile,
+                        ctx.module_type_view(),
                         expression_id.into_any(),
                         left_ty_id,
-                        tables.types,
                     );
                     let ty = Type::Error;
-                    return Ok(tables.types.insert_type_from(ty, expression_id));
+                    return Ok(ctx.types.insert_type_from(ty, expression_id));
                 }
 
                 // resolve the branch member for the receiver
                 let branch = self.resolve_try_branch_member(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     expression_id,
                     left_id,
                     *element_id,
@@ -189,19 +180,17 @@ impl Compiler {
                 )?;
                 if !branch.resolved.has_member {
                     self.emit_no_overload_for_receiver_type(
-                        tables.module,
-                        ctx.profile,
+                        ctx.module_type_view(),
                         expression_id.into_any(),
                         *element_id,
-                        tables.types,
                     );
                     let ty = Type::Error;
-                    return Ok(tables.types.insert_type_from(ty, expression_id));
+                    return Ok(ctx.types.insert_type_from(ty, expression_id));
                 }
 
                 // resolve value and error types for the receiver and branch
                 let value_and_error_types = self.resolve_try_value_and_error_types(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     expression_id,
                     left_id.into_any(),
                     *element_id,
@@ -211,11 +200,11 @@ impl Compiler {
                 let Some((value_ty_id, error_ty_id)) = value_and_error_types else {
                     self.error(AnalyzeError::InvalidTryBranch {
                         node: expression_id
-                            .into_global_any(tables.module.id)
+                            .into_global_any(ctx.module.id)
                             .into_anchored(Some(ctx.profile)),
                     });
                     let ty = Type::Error;
-                    return Ok(tables.types.insert_type_from(ty, expression_id));
+                    return Ok(ctx.types.insert_type_from(ty, expression_id));
                 };
 
                 value_types.push(value_ty_id);
@@ -227,23 +216,21 @@ impl Compiler {
                 value: TypeLiteral::Unknown,
             };
             let value_source = value_types.first().copied().unwrap_or_else(|| {
-                tables
-                    .types
+                ctx.types
                     .insert_type_from(unknown_placeholder_type.clone(), expression_id)
             });
             let error_source = error_types.first().copied().unwrap_or_else(|| {
-                tables
-                    .types
+                ctx.types
                     .insert_type_from(unknown_placeholder_type, expression_id)
             });
-            let value_ty_id = self.union_type_from_list(value_types, value_source, tables.types);
-            let error_ty_id = self.union_type_from_list(error_types, error_source, tables.types);
+            let value_ty_id = self.union_type_from_list(value_types, value_source, ctx.types);
+            let error_ty_id = self.union_type_from_list(error_types, error_source, ctx.types);
 
             // register the error types for any enclosing catch
-            let is_caught = ctx.record_try_error(error_ty_id);
+            let is_caught = state.record_try_error(error_ty_id);
             if !is_caught {
                 self.ensure_try_from_error(
-                    &mut tables.reborrow(),
+                    &mut ctx.reborrow(),
                     expression_id,
                     left_ty_id,
                     &left_ty,
@@ -251,34 +238,25 @@ impl Compiler {
             }
 
             // warn about non Error try error types
-            self.warn_try_error_type(&mut tables.reborrow(), expression_id, error_ty_id);
+            self.warn_try_error_type(&mut ctx.reborrow(), expression_id, error_ty_id);
 
             return Ok(value_ty_id);
         }
 
         // require a Try implementation for non union receivers
-        if !self.is_interface_implemented(
-            tables.module,
-            ctx.profile,
-            &left_ty,
-            LanguageSymbol::Try,
-            tables.symbols,
-            tables.types,
-        ) {
+        if !self.is_interface_implemented(ctx.symbol_type_view(), &left_ty, LanguageSymbol::Try) {
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 left_ty_id,
-                tables.types,
             );
             let ty = Type::Error;
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         }
 
         // resolve the branch member on the receiver
         let branch = self.resolve_try_branch_member(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             left_id,
             left_ty_id,
@@ -288,19 +266,17 @@ impl Compiler {
         // reject missing branch members
         if !branch.resolved.has_member {
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                ctx.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 left_ty_id,
-                tables.types,
             );
             let ty = Type::Error;
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         }
 
         // resolve value and error types for the receiver and branch
         let value_and_error_types = self.resolve_try_value_and_error_types(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             left_id.into_any(),
             left_ty_id,
@@ -310,42 +286,32 @@ impl Compiler {
         let Some((value_ty_id, error_ty_id)) = value_and_error_types else {
             self.error(AnalyzeError::InvalidTryBranch {
                 node: expression_id
-                    .into_global_any(tables.module.id)
+                    .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
             let ty = Type::Error;
-            return Ok(tables.types.insert_type_from(ty, expression_id));
+            return Ok(ctx.types.insert_type_from(ty, expression_id));
         };
 
         // register errors for the nearest catch, if present
-        let is_caught = ctx.record_try_error(error_ty_id);
+        let is_caught = state.record_try_error(error_ty_id);
 
         // enforce Try return compatibility and fromError when not handled by catch
         if !is_caught {
-            self.ensure_try_from_error(
-                &mut tables.reborrow(),
-                expression_id,
-                left_ty_id,
-                &left_ty,
-            )?;
+            self.ensure_try_from_error(&mut ctx.reborrow(), expression_id, left_ty_id, &left_ty)?;
             self.ensure_try_return_type_assignable(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 error_ty_id,
-                ctx,
+                state,
             );
         }
 
         // warn when Try error types are non Error
-        self.warn_try_error_type(&mut tables.reborrow(), expression_id, error_ty_id);
+        self.warn_try_error_type(&mut ctx.reborrow(), expression_id, error_ty_id);
 
         // record the branch resolution for later phases
-        self.record_try_branch_resolution(
-            &mut tables.reborrow(),
-            expression_id,
-            left_ty_id,
-            &branch,
-        );
+        self.record_try_branch_resolution(&mut ctx.reborrow(), expression_id, left_ty_id, &branch);
 
         Ok(value_ty_id)
     }
@@ -353,14 +319,14 @@ impl Compiler {
     /// Resolve Try value and error types from receiver static arguments.
     fn try_value_and_error_types_from_receiver(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         receiver_id: LocalNodeIdAny,
         receiver_ty_id: LocalTypeId,
         receiver_ty: &Type,
     ) -> AnalyzeResult<Option<(LocalTypeId, LocalTypeId)>> {
         // resolve static arguments for the receiver reference
         let inherited = self.resolve_inherited_static_arguments(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             receiver_id,
             Some(receiver_ty_id),
             receiver_ty,
@@ -375,10 +341,8 @@ impl Compiler {
         };
 
         // convert static arguments into value and error types
-        let value_ty_id =
-            self.convert_static_argument_type(value_argument, receiver_id, tables.types);
-        let error_ty_id =
-            self.convert_static_argument_type(error_argument, receiver_id, tables.types);
+        let value_ty_id = self.convert_static_argument_type(value_argument, receiver_id, ctx.types);
+        let error_ty_id = self.convert_static_argument_type(error_argument, receiver_id, ctx.types);
 
         Ok(Some((value_ty_id, error_ty_id)))
     }
@@ -386,34 +350,34 @@ impl Compiler {
     /// Resolve Try value and error types from the branch return shape.
     fn try_branch_value_and_error_types_from_return(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         return_ty_id: LocalTypeId,
     ) -> AnalyzeResult<Option<(LocalTypeId, LocalTypeId)>> {
         // evaluate unevaluated return types before inspecting
-        if matches!(tables.types.get_type(return_ty_id), Type::Unevaluated(_)) {
-            self.resolve_declared_type(&mut tables.type_tables_reborrow(), return_ty_id)?;
+        if matches!(ctx.types.get_type(return_ty_id), Type::Unevaluated(_)) {
+            self.resolve_declared_type(&mut ctx.type_context_reborrow(), return_ty_id)?;
         }
 
         // skip when the branch type already errored
-        if matches!(tables.types.get_type(return_ty_id), Type::Error) {
+        if matches!(ctx.types.get_type(return_ty_id), Type::Error) {
             return Ok(None);
         }
 
         // ensure alias instance types are available for normalization
         self.ensure_reference_instance_types_for_type(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             expression_id.into_any(),
             return_ty_id,
         )?;
 
         // normalize alias references for structural inspection
         let normalized_id = self.normalize_type(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             return_ty_id,
             NormalizationMode::Assign,
         );
-        let normalized = tables.types.get_type(normalized_id).clone();
+        let normalized = ctx.types.get_type(normalized_id).clone();
 
         // resolve type alias references into their structural targets
         let elements = match normalized {
@@ -423,18 +387,15 @@ impl Compiler {
                 static_arguments,
             } => {
                 let canonical_symbol = self.canonical_symbol_id(
-                    tables.module,
-                    tables.symbols,
-                    tables.profile,
+                    ctx.module_symbol_view(),
                     symbol,
                     CanonicalSymbolMode::FollowAliases,
                 );
                 let try_branch_symbol =
-                    self.language_symbol(tables.profile, LanguageSymbol::TryBranch);
+                    self.language_symbol(ctx.profile, LanguageSymbol::TryBranch);
                 if canonical_symbol == try_branch_symbol {
-                    let mut type_tables = tables.type_tables_reborrow();
                     let resolved_arguments = self.resolve_type_reference_static_arguments(
-                        &mut type_tables,
+                        &mut ctx.type_context_reborrow(),
                         expression_id.into_any(),
                         canonical_symbol,
                         static_arguments.as_deref(),
@@ -454,12 +415,12 @@ impl Compiler {
                     let value_ty_id = self.convert_static_argument_type(
                         value_argument,
                         expression_id.into_any(),
-                        tables.types,
+                        ctx.types,
                     );
                     let error_ty_id = self.convert_static_argument_type(
                         error_argument,
                         expression_id.into_any(),
-                        tables.types,
+                        ctx.types,
                     );
                     return Ok(Some((value_ty_id, error_ty_id)));
                 }
@@ -469,16 +430,15 @@ impl Compiler {
                 }
 
                 let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
-                    &mut tables.type_tables_reborrow(),
+                    &mut ctx.type_context_reborrow(),
                     canonical_symbol,
                     expression_id.into_any(),
                 ) else {
                     return Ok(None);
                 };
 
-                let mut type_tables = tables.type_tables_reborrow();
                 let resolved_arguments = self.resolve_type_reference_static_arguments(
-                    &mut type_tables,
+                    &mut ctx.type_context_reborrow(),
                     expression_id.into_any(),
                     canonical_symbol,
                     static_arguments.as_deref(),
@@ -493,7 +453,7 @@ impl Compiler {
                     alias_target_id
                 } else {
                     let substitutions = self.build_type_parameter_substitutions_for_symbol(
-                        &mut tables.type_tables_reborrow(),
+                        &mut ctx.type_context_reborrow(),
                         canonical_symbol,
                         expression_id.into_any(),
                         arguments,
@@ -505,17 +465,17 @@ impl Compiler {
                         self.substitute_static_parameters(
                             alias_target_id,
                             &substitutions,
-                            tables.types,
+                            ctx.types,
                             &mut cache,
                         )
                     }
                 };
 
-                if matches!(tables.types.get_type(alias_ty_id), Type::Unevaluated(_)) {
-                    self.resolve_declared_type(&mut tables.type_tables_reborrow(), alias_ty_id)?;
+                if matches!(ctx.types.get_type(alias_ty_id), Type::Unevaluated(_)) {
+                    self.resolve_declared_type(&mut ctx.type_context_reborrow(), alias_ty_id)?;
                 }
 
-                let alias_type = tables.types.get_type(alias_ty_id).clone();
+                let alias_type = ctx.types.get_type(alias_ty_id).clone();
                 let Type::Union { elements } = alias_type else {
                     return Ok(None);
                 };
@@ -536,7 +496,7 @@ impl Compiler {
         let mut err_types = Vec::new();
 
         for element_id in elements {
-            let Type::Object { fields, .. } = tables.types.get_type(element_id) else {
+            let Type::Object { fields, .. } = ctx.types.get_type(element_id) else {
                 return Ok(None);
             };
 
@@ -547,7 +507,7 @@ impl Compiler {
                 return Ok(None);
             }
 
-            let kind_literal = match tables.types.get_type(kind_field.ty) {
+            let kind_literal = match ctx.types.get_type(kind_field.ty) {
                 Type::TypeLiteral {
                     value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(value)),
                 } => *value,
@@ -585,8 +545,8 @@ impl Compiler {
 
         let value_source = ok_types[0];
         let error_source = err_types[0];
-        let value_ty_id = self.union_type_from_list(ok_types, value_source, tables.types);
-        let error_ty_id = self.union_type_from_list(err_types, error_source, tables.types);
+        let value_ty_id = self.union_type_from_list(ok_types, value_source, ctx.types);
+        let error_ty_id = self.union_type_from_list(err_types, error_source, ctx.types);
 
         Ok(Some((value_ty_id, error_ty_id)))
     }
@@ -594,7 +554,7 @@ impl Compiler {
     /// Resolve Try value and error types while validating branch assignability.
     fn resolve_try_value_and_error_types(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_id: LocalNodeIdAny,
         receiver_ty_id: LocalTypeId,
@@ -603,7 +563,7 @@ impl Compiler {
     ) -> AnalyzeResult<Option<(LocalTypeId, LocalTypeId)>> {
         // resolve value and error types from receiver static arguments when available
         let receiver_value_and_error_types = self.try_value_and_error_types_from_receiver(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             receiver_id,
             receiver_ty_id,
             receiver_ty,
@@ -613,7 +573,7 @@ impl Compiler {
         let branch_value_and_error_types = if let Some(return_ty_id) = branch.signature.return_type
         {
             self.try_branch_value_and_error_types_from_return(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 return_ty_id,
             )?
@@ -624,8 +584,7 @@ impl Compiler {
         // prefer receiver value and error types when they are concrete
         let mut value_and_error_types = receiver_value_and_error_types;
         if let Some(receiver_value_and_error_types) = receiver_value_and_error_types
-            && self
-                .try_value_and_error_types_need_branch(receiver_value_and_error_types, tables.types)
+            && self.try_value_and_error_types_need_branch(receiver_value_and_error_types, ctx.types)
         {
             value_and_error_types = branch_value_and_error_types;
         } else if value_and_error_types.is_none() {
@@ -639,10 +598,10 @@ impl Compiler {
         // validate branch return types when receiver value and error types are authoritative
         if let Some(receiver_value_and_error_types) = receiver_value_and_error_types
             && !self
-                .try_value_and_error_types_need_branch(receiver_value_and_error_types, tables.types)
+                .try_value_and_error_types_need_branch(receiver_value_and_error_types, ctx.types)
         {
             let is_valid = self.check_try_branch_return_type_assignable(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 branch,
                 receiver_value_and_error_types.0,
@@ -696,7 +655,7 @@ impl Compiler {
     /// Resolve the Try branch member for a receiver type.
     fn resolve_try_branch_member(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_expression_id: LocalNodeId<Expression>,
         receiver_ty_id: LocalTypeId,
@@ -705,7 +664,7 @@ impl Compiler {
         // resolve the branch member function
         let member_key = self.try_branch_member_key();
         let Some(resolved) = self.resolve_member_function(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             receiver_expression_id,
             Some(receiver_ty_id),
@@ -742,17 +701,15 @@ impl Compiler {
         // branch expects no dynamic parameters
         if !resolved.signature.dynamic_parameters.is_empty() {
             self.emit_no_overload_for_receiver_type(
-                tables.module,
-                tables.profile,
+                ctx.module_type_view(),
                 expression_id.into_any(),
                 receiver_ty_id,
-                &mut *tables.types,
             );
         }
 
         // register instance if needed
         let member_instance_id =
-            self.record_member_call_instance_id(&mut tables.reborrow(), expression_id, &resolved)?;
+            self.record_member_call_instance_id(&mut ctx.reborrow(), expression_id, &resolved)?;
 
         Ok(TryBranchMember {
             resolved,
@@ -763,7 +720,7 @@ impl Compiler {
     /// Validate the Try branch return type against receiver value and error types.
     fn check_try_branch_return_type_assignable(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         branch: &ResolvedMemberFunction,
         value_ty_id: LocalTypeId,
@@ -775,64 +732,54 @@ impl Compiler {
         };
 
         // evaluate unevaluated return types before checking assignability
-        if matches!(tables.types.get_type(return_ty_id), Type::Unevaluated(_)) {
-            self.resolve_declared_type(&mut tables.type_tables_reborrow(), return_ty_id)?;
+        if matches!(ctx.types.get_type(return_ty_id), Type::Unevaluated(_)) {
+            self.resolve_declared_type(&mut ctx.type_context_reborrow(), return_ty_id)?;
         }
 
         // skip additional diagnostics when the branch already errors
-        if matches!(tables.types.get_type(return_ty_id), Type::Error) {
+        if matches!(ctx.types.get_type(return_ty_id), Type::Error) {
             return Ok(true);
         }
 
         // extract value and error types from the branch return shape
         let Some((branch_value_ty_id, branch_error_ty_id)) = self
             .try_branch_value_and_error_types_from_return(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 return_ty_id,
             )?
         else {
-            let is_try_branch = matches!(tables.types.get_type(return_ty_id), Type::Reference { symbol, .. } if {
-                let canonical = self.canonical_symbol_id(
-                    tables.module,
-                    tables.symbols,
-                    tables.profile,
-                    *symbol,
+            let is_try_branch = matches!(ctx.types.get_type(return_ty_id), Type::Reference { symbol, .. } if {
+                let canonical = self.canonical_symbol_id(ctx.module_symbol_view(), *symbol,
                     CanonicalSymbolMode::FollowAliases,
                 );
-                canonical == self.language_symbol(tables.profile, LanguageSymbol::TryBranch)
+                canonical == self.language_symbol(ctx.profile, LanguageSymbol::TryBranch)
             });
             return Ok(is_try_branch);
         };
 
         // compare value and error types to the expected Try arguments when they are concrete
         let branch_value_is_parameter = matches!(
-            tables.types.get_type(branch_value_ty_id),
+            ctx.types.get_type(branch_value_ty_id),
             Type::Reference { symbol, .. }
                 if self.symbol_is_static_parameter(
-                    tables.module,
-                    tables.profile,
-                    *symbol,
-                    tables.symbols,
-                    tables.types,
-                )
+                ctx.symbol_type_view(),
+                *symbol,
+            )
         );
         let branch_error_is_parameter = matches!(
-            tables.types.get_type(branch_error_ty_id),
+            ctx.types.get_type(branch_error_ty_id),
             Type::Reference { symbol, .. }
                 if self.symbol_is_static_parameter(
-                    tables.module,
-                    tables.profile,
-                    *symbol,
-                    tables.symbols,
-                    tables.types,
-                )
+                ctx.symbol_type_view(),
+                *symbol,
+            )
         );
 
-        if self.should_check_try_value_error_assignability(value_ty_id, tables.types)
+        if self.should_check_try_value_error_assignability(value_ty_id, ctx.types)
             && !branch_value_is_parameter
             && self.is_type_assignable(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 value_ty_id,
                 branch_value_ty_id,
             ) == Assignability::NotAssignable
@@ -840,10 +787,10 @@ impl Compiler {
             return Ok(false);
         }
 
-        if self.should_check_try_value_error_assignability(error_ty_id, tables.types)
+        if self.should_check_try_value_error_assignability(error_ty_id, ctx.types)
             && !branch_error_is_parameter
             && self.is_type_assignable(
-                &mut tables.type_tables_reborrow(),
+                &mut ctx.type_context_reborrow(),
                 error_ty_id,
                 branch_error_ty_id,
             ) == Assignability::NotAssignable
@@ -857,32 +804,32 @@ impl Compiler {
     /// Record resolution for a Try branch lookup.
     fn record_try_branch_resolution(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_ty_id: LocalTypeId,
         branch: &TryBranchMember,
     ) {
         self.record_provisional_member_resolution(
-            expression_id.into_global_any(tables.module.id),
+            expression_id.into_global_any(ctx.module.id),
             Some(receiver_ty_id),
             &branch.resolved.member_resolution,
             branch.member_instance_id,
             None,
             branch.resolved.has_member,
-            tables.infer,
-            tables.types,
+            ctx.infer,
+            ctx.types,
         );
     }
 
     /// Ensure a Try receiver exposes a static fromError constructor.
     fn ensure_try_from_error(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_ty_id: LocalTypeId,
         receiver_ty: &Type,
     ) -> AnalyzeResult<()> {
-        let lookup = MemberLookupModuleContext::from_infer_tables(&*tables);
+        let lookup = MemberLookupModuleContext::from_infer_context(&*ctx);
 
         // resolve the fromError key once
         let from_error_key = StaticKey::Name(self.program.strings.intern("fromError"));
@@ -893,7 +840,7 @@ impl Compiler {
             Type::Reference { symbol, .. } => {
                 let mut visited = Vec::new();
                 let member = self.resolve_member_symbol_for_symbol(
-                    tables.module,
+                    ctx.module,
                     &lookup,
                     *symbol,
                     &from_error_key,
@@ -906,11 +853,11 @@ impl Compiler {
             }
             Type::Union { elements } => {
                 for element_id in elements {
-                    let element_ty = tables.types.get_type(*element_id);
+                    let element_ty = ctx.types.get_type(*element_id);
                     if let Type::Reference { symbol, .. } = element_ty {
                         let mut visited = Vec::new();
                         let member = self.resolve_member_symbol_for_symbol(
-                            tables.module,
+                            ctx.module,
                             &lookup,
                             *symbol,
                             &from_error_key,
@@ -929,13 +876,10 @@ impl Compiler {
         // report missing fromError implementations
         if missing_from_error {
             let _ = self.report_missing_member_diagnostic(
-                tables.module,
-                tables.profile,
+                ctx.type_view(),
                 expression_id,
                 receiver_ty_id,
                 from_error_key,
-                tables.symbols,
-                tables.types,
                 false,
             )?;
         }
@@ -946,34 +890,27 @@ impl Compiler {
     /// Ensure the enclosing function return type can accept a Try error.
     fn ensure_try_return_type_assignable(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         error_ty_id: LocalTypeId,
-        ctx: &mut InferContext,
+        state: &mut InferState,
     ) {
         // require a return type in the current function
-        let Some(return_ty_id) = ctx.return_type else {
+        let Some(return_ty_id) = state.return_type else {
             self.error(AnalyzeError::MissingTryReturnType {
                 node: expression_id
-                    .into_global_any(tables.module.id)
+                    .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
             return;
         };
 
         // require a Try return type
-        let return_ty = tables.types.get_type(return_ty_id).clone();
-        if !self.is_interface_implemented(
-            tables.module,
-            ctx.profile,
-            &return_ty,
-            LanguageSymbol::Try,
-            tables.symbols,
-            tables.types,
-        ) {
+        let return_ty = ctx.types.get_type(return_ty_id).clone();
+        if !self.is_interface_implemented(ctx.symbol_type_view(), &return_ty, LanguageSymbol::Try) {
             self.error(AnalyzeError::MissingTryReturnType {
                 node: expression_id
-                    .into_global_any(tables.module.id)
+                    .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
             return;
@@ -981,7 +918,7 @@ impl Compiler {
 
         // resolve value and error types from the return type
         let value_and_error_types = match self.try_value_and_error_types_from_receiver(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id.into_any(),
             return_ty_id,
             &return_ty,
@@ -996,7 +933,7 @@ impl Compiler {
         let Some((value_ty_id, return_error_ty_id)) = value_and_error_types else {
             self.error(AnalyzeError::InvalidTryBranch {
                 node: expression_id
-                    .into_global_any(tables.module.id)
+                    .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
             return;
@@ -1004,7 +941,7 @@ impl Compiler {
 
         // resolve the return type branch signature
         let branch = match self.resolve_try_branch_member(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             expression_id,
             return_ty_id,
@@ -1021,7 +958,7 @@ impl Compiler {
         if !branch.resolved.has_member {
             self.error(AnalyzeError::InvalidTryBranch {
                 node: expression_id
-                    .into_global_any(tables.module.id)
+                    .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
             return;
@@ -1029,7 +966,7 @@ impl Compiler {
 
         // validate the branch return type against the return value and error types
         let is_valid = match self.check_try_branch_return_type_assignable(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id,
             &branch.resolved,
             value_ty_id,
@@ -1044,26 +981,27 @@ impl Compiler {
         if !is_valid {
             self.error(AnalyzeError::InvalidTryBranch {
                 node: expression_id
-                    .into_global_any(tables.module.id)
+                    .into_global_any(ctx.module.id)
                     .into_anchored(Some(ctx.profile)),
             });
             return;
         }
 
         // relate propagated error to the return error type
-        tables.infer.push_constraint(Constraint::Subtype {
+        ctx.infer.push_constraint(Constraint::Subtype {
             sub_type: error_ty_id,
             super_type: return_error_ty_id,
             variance: None,
         });
 
         // enforce propagated error compatibility after convergence when needed
+        let options = *ctx.options;
         let assignability_check = self.enforce_assignability_or_defer_diagnostic(
-            &mut tables.reborrow(),
+            &mut ctx.reborrow(),
             expression_id.into_any(),
             return_error_ty_id,
             error_ty_id,
-            &ctx.options,
+            &options,
             UnassignableRelationFailureMode::ReportAndContinue,
         );
         if let Err(error) = assignability_check {
@@ -1074,18 +1012,18 @@ impl Compiler {
     /// Warn when Try error types do not implement Error.
     fn warn_try_error_type(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         error_ty_id: LocalTypeId,
     ) {
         // NOTE #Cleanup: move this warning to the lint pipeline once available
         // only lint user modules
-        if !matches!(tables.module.source, ModuleSource::User) {
+        if !matches!(ctx.module.source, ModuleSource::User) {
             return;
         }
 
         // skip unknown or inference-driven error types
-        let error_ty = tables.types.get_type(error_ty_id);
+        let error_ty = ctx.types.get_type(error_ty_id);
         if matches!(
             error_ty,
             Type::InferVar { .. }
@@ -1098,8 +1036,8 @@ impl Compiler {
         }
 
         // resolve the Error interface reference
-        let error_symbol = self.language_symbol(tables.profile, LanguageSymbol::Error);
-        let error_reference_id = tables.types.insert_type_from_any(
+        let error_symbol = self.language_symbol(ctx.profile, LanguageSymbol::Error);
+        let error_reference_id = ctx.types.insert_type_from_any(
             Type::Reference {
                 symbol: error_symbol,
                 static_arguments: None,
@@ -1109,16 +1047,16 @@ impl Compiler {
 
         // warn when error type is not assignable to Error
         if self.is_type_assignable(
-            &mut tables.type_tables_reborrow(),
+            &mut ctx.type_context_reborrow(),
             error_reference_id,
             error_ty_id,
         ) == Assignability::NotAssignable
         {
             self.warning(AnalyzeWarning::TryErrorNotError {
                 node: expression_id
-                    .into_global_any(tables.module.id)
-                    .into_anchored(Some(tables.profile)),
-                ty: error_ty_id.into_global(tables.module.id),
+                    .into_global_any(ctx.module.id)
+                    .into_anchored(Some(ctx.profile)),
+                ty: error_ty_id.into_global(ctx.module.id),
             });
         }
     }
@@ -1126,7 +1064,7 @@ impl Compiler {
     /// Split a type into Try and non-Try elements.
     fn split_try_elements(
         &self,
-        tables: &InferTablesContext<'_>,
+        ctx: &InferContext<'_>,
         ty_id: LocalTypeId,
     ) -> (Vec<LocalTypeId>, Vec<LocalTypeId>) {
         // collect Try and non-Try elements
@@ -1134,17 +1072,14 @@ impl Compiler {
         let mut non_try_elements = Vec::new();
 
         // split based on interface implementation
-        match tables.types.get_type(ty_id) {
+        match ctx.types.get_type(ty_id) {
             Type::Union { elements } => {
                 for element_id in elements {
-                    let element_ty = tables.types.get_type(*element_id);
+                    let element_ty = ctx.types.get_type(*element_id);
                     if self.is_interface_implemented(
-                        tables.module,
-                        tables.profile,
+                        ctx.symbol_type_view(),
                         element_ty,
                         LanguageSymbol::Try,
-                        tables.symbols,
-                        tables.types,
                     ) {
                         try_elements.push(*element_id);
                     } else {
@@ -1153,14 +1088,7 @@ impl Compiler {
                 }
             }
             ty => {
-                if self.is_interface_implemented(
-                    tables.module,
-                    tables.profile,
-                    ty,
-                    LanguageSymbol::Try,
-                    tables.symbols,
-                    tables.types,
-                ) {
+                if self.is_interface_implemented(ctx.symbol_type_view(), ty, LanguageSymbol::Try) {
                     try_elements.push(ty_id);
                 } else {
                     non_try_elements.push(ty_id);
@@ -1175,7 +1103,7 @@ impl Compiler {
     /// Collect the Try success types for coalesce.
     fn try_coalesce_success_types(
         &self,
-        tables: &mut InferTablesContext<'_>,
+        ctx: &mut InferContext<'_>,
         expression_id: LocalNodeId<Expression>,
         receiver_expression_id: LocalNodeId<Expression>,
         element_ids: &[LocalTypeId],
@@ -1185,9 +1113,9 @@ impl Compiler {
 
         // resolve branch types for each Try element
         for element_id in element_ids {
-            let element_ty = tables.types.get_type(*element_id).clone();
+            let element_ty = ctx.types.get_type(*element_id).clone();
             let branch = self.resolve_try_branch_member(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 receiver_expression_id,
                 *element_id,
@@ -1197,18 +1125,16 @@ impl Compiler {
             // reject missing branches for Try elements
             if !branch.resolved.has_member {
                 self.emit_no_overload_for_receiver_type(
-                    tables.module,
-                    tables.profile,
+                    ctx.module_type_view(),
                     expression_id.into_any(),
                     *element_id,
-                    tables.types,
                 );
                 continue;
             }
 
             // resolve value and error types for the receiver and branch
             let value_and_error_types = self.resolve_try_value_and_error_types(
-                &mut tables.reborrow(),
+                &mut ctx.reborrow(),
                 expression_id,
                 receiver_expression_id.into_any(),
                 *element_id,
@@ -1218,14 +1144,14 @@ impl Compiler {
             let Some((value_ty_id, _error_ty_id)) = value_and_error_types else {
                 self.error(AnalyzeError::InvalidTryBranch {
                     node: expression_id
-                        .into_global_any(tables.module.id)
-                        .into_anchored(Some(tables.profile)),
+                        .into_global_any(ctx.module.id)
+                        .into_anchored(Some(ctx.profile)),
                 });
                 continue;
             };
 
             // collect ok branch types and strip nullish
-            let (non_nullish, _) = self.strip_nullish_from_union(value_ty_id, tables.types);
+            let (non_nullish, _) = self.strip_nullish_from_union(value_ty_id, ctx.types);
             if let Some(non_nullish) = non_nullish {
                 value_types.push(non_nullish);
             }

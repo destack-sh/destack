@@ -1,4 +1,5 @@
 use crate::Compiler;
+use crate::analyze::common::ModuleTreeView;
 use destack_base::StringId;
 use destack_dir::{
     Annotation, CaptureDirective, CaptureKind, CapturePolicy, CaptureRule, Declaration, DynamicKey,
@@ -12,9 +13,7 @@ impl Compiler {
     /// Resolve the declaration targeted by a capture decorator.
     pub(crate) fn capture_decorator_target(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        view: ModuleTreeView<'_>,
         annotation_id: LocalNodeId<Annotation>,
         node_id: LocalNodeIdAny,
     ) -> Option<LocalNodeId<Declaration>> {
@@ -25,14 +24,14 @@ impl Compiler {
 
         // accept expression nodes that wrap a declaration
         if let Ok(expression_id) = node_id.try_into_typed::<Expression>()
-            && let Expression::Declaration { declaration } = tree.get(expression_id)
+            && let Expression::Declaration { declaration } = view.tree.get(expression_id)
         {
             return Some(*declaration);
         }
 
         self.report_invalid_well_known_decorator(
-            module,
-            profile,
+            view.module,
+            view.profile,
             annotation_id,
             "capture decorator is only supported on function declarations",
         );
@@ -43,9 +42,7 @@ impl Compiler {
     /// Parse capture directive arguments for a decorator.
     pub(crate) fn decorator_capture_directive(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        view: ModuleTreeView<'_>,
         annotation_id: LocalNodeId<Annotation>,
         decorator_name: &str,
         values: &[LocalNodeId<Expression>],
@@ -56,8 +53,8 @@ impl Compiler {
         }
         if values.len() != 1 {
             self.report_invalid_well_known_decorator(
-                module,
-                profile,
+                view.module,
+                view.profile,
                 annotation_id,
                 &format!("{decorator_name} decorator expects zero or one argument"),
             );
@@ -65,16 +62,20 @@ impl Compiler {
         }
 
         // unwrap trivial wrappers
-        let expression_id = self.unwrap_capture_argument(tree, values[0]);
-        let expression = tree.get(expression_id);
+        let expression_id = self.unwrap_capture_argument(view.tree, values[0]);
+        let expression = view.tree.get(expression_id);
 
         // parse string literal policy arguments
         if let Expression::ScalarLiteral {
             value: ScalarLiteral::String(string_id),
         } = expression
         {
-            let policy =
-                self.capture_policy_from_string(module, profile, annotation_id, *string_id)?;
+            let policy = self.capture_policy_from_string(
+                view.module,
+                view.profile,
+                annotation_id,
+                *string_id,
+            )?;
             return Some(CaptureDirective {
                 policy,
                 rules: Vec::new(),
@@ -84,9 +85,7 @@ impl Compiler {
         // parse object literal overrides
         if let Expression::ObjectExpression { properties } = expression {
             return self.capture_directive_from_object_literal(
-                module,
-                profile,
-                tree,
+                view,
                 annotation_id,
                 decorator_name,
                 properties,
@@ -95,8 +94,8 @@ impl Compiler {
 
         // reject non literal arguments
         self.report_invalid_well_known_decorator(
-            module,
-            profile,
+            view.module,
+            view.profile,
             annotation_id,
             &format!("{decorator_name} decorator argument must be a string or object literal"),
         );
@@ -106,9 +105,7 @@ impl Compiler {
     /// Parse a capture directive from an object literal expression.
     pub(crate) fn capture_directive_from_object_literal(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
+        view: ModuleTreeView<'_>,
         annotation_id: LocalNodeId<Annotation>,
         decorator_name: &str,
         properties: &[LocalNodeId<Property>],
@@ -119,11 +116,11 @@ impl Compiler {
 
         // validate object literal fields
         for property_id in properties {
-            let property = tree.get(*property_id);
+            let property = view.tree.get(*property_id);
             let Property::Field { key, value, .. } = property else {
                 self.report_invalid_well_known_decorator(
-                    module,
-                    profile,
+                    view.module,
+                    view.profile,
                     annotation_id,
                     &format!("{decorator_name} decorator only supports field properties"),
                 );
@@ -133,8 +130,8 @@ impl Compiler {
             // reject dynamic or invalid names
             let Some(DynamicKey::Name(name)) = key else {
                 self.report_invalid_well_known_decorator(
-                    module,
-                    profile,
+                    view.module,
+                    view.profile,
                     annotation_id,
                     &format!("{decorator_name} decorator requires string property names"),
                 );
@@ -142,8 +139,8 @@ impl Compiler {
             };
             if !seen_names.insert(*name) {
                 self.report_invalid_well_known_decorator(
-                    module,
-                    profile,
+                    view.module,
+                    view.profile,
                     annotation_id,
                     &format!("{decorator_name} decorator contains duplicate keys"),
                 );
@@ -151,8 +148,8 @@ impl Compiler {
             }
             let Some(value_id) = value else {
                 self.report_invalid_well_known_decorator(
-                    module,
-                    profile,
+                    view.module,
+                    view.profile,
                     annotation_id,
                     &format!("{decorator_name} decorator values must be string literals"),
                 );
@@ -160,14 +157,14 @@ impl Compiler {
             };
 
             // get capture value
-            let value_id = self.unwrap_capture_argument(tree, *value_id);
+            let value_id = self.unwrap_capture_argument(view.tree, *value_id);
             let Expression::ScalarLiteral {
                 value: ScalarLiteral::String(value_id),
-            } = tree.get(value_id)
+            } = view.tree.get(value_id)
             else {
                 self.report_invalid_well_known_decorator(
-                    module,
-                    profile,
+                    view.module,
+                    view.profile,
                     annotation_id,
                     &format!("{decorator_name} decorator values must be string literals"),
                 );
@@ -176,12 +173,20 @@ impl Compiler {
 
             // set policy for that name
             if self.program.strings.get(*name) == "default" {
-                let policy =
-                    self.capture_policy_from_string(module, profile, annotation_id, *value_id)?;
+                let policy = self.capture_policy_from_string(
+                    view.module,
+                    view.profile,
+                    annotation_id,
+                    *value_id,
+                )?;
                 directive.policy = policy;
             } else {
-                let kind =
-                    self.capture_kind_from_string(module, profile, annotation_id, *value_id)?;
+                let kind = self.capture_kind_from_string(
+                    view.module,
+                    view.profile,
+                    annotation_id,
+                    *value_id,
+                )?;
                 directive.rules.push(CaptureRule { name: *name, kind });
             }
         }

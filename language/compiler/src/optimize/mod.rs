@@ -1,7 +1,7 @@
 #[cfg(feature = "optimize")]
 pub mod analyses;
 #[cfg(feature = "optimize")]
-pub mod common;
+pub(crate) mod common;
 #[cfg(not(feature = "optimize"))]
 mod disabled;
 mod error;

@@ -10,9 +10,9 @@ use destack_workspace::{DsConfigCompilerOptions, ProfileId};
 use crate::AnalyzeOptions;
 use crate::analyze::common::{ConstContext, ContextualTypingMode, LiteralFreshness, WideningMode};
 
-/// InferContext holds contextual, flow sensitive information during type analysis.
+/// InferState holds contextual, flow sensitive information during type analysis.
 #[derive(Debug)]
-pub struct InferContext {
+pub struct InferState {
     /// The active profile id.
     pub profile: ProfileId,
     /// Semantic options for the current module.
@@ -120,7 +120,7 @@ pub struct TryContextFrame {
     pub error_types: Vec<LocalTypeId>,
 }
 
-impl InferContext {
+impl InferState {
     /// Create a new empty context.
     pub fn new(profile: ProfileId, options: AnalyzeOptions) -> Self {
         Self {
@@ -493,7 +493,7 @@ impl InferContext {
     }
 
     /// Merge try error types from a forked context.
-    pub fn merge_try_error_types_from(&mut self, other: &InferContext) {
+    pub fn merge_try_error_types_from(&mut self, other: &InferState) {
         if self.try_stack.len() != other.try_stack.len() {
             return;
         }
@@ -506,7 +506,7 @@ impl InferContext {
     }
 
     /// Merge break value tracking from a forked context.
-    pub fn merge_break_values_from(&mut self, other: &InferContext) {
+    pub fn merge_break_values_from(&mut self, other: &InferState) {
         for other_context in &other.loop_stack {
             if let Some(context) = self
                 .loop_stack
@@ -595,7 +595,7 @@ impl InferContext {
     }
 
     /// Merge two "branched" context together.
-    pub fn merge(&mut self, other: &InferContext) {
+    pub fn merge(&mut self, other: &InferState) {
         // merge reachability and narrowings
         // if neither is unreachable
         if self.is_unreachable && other.is_unreachable {
@@ -614,7 +614,7 @@ impl InferContext {
         }
         // both reachable: keep only narrowings that exist in both
         else {
-            // NOTE #Suspicious: TSC join narrowings usually union the narrowed types, this keeps only identical pairs
+            // conservative branch join: keep only identical narrowing pairs
             self.narrowings.retain(|(s, ty)| {
                 other
                     .narrowings
@@ -625,7 +625,7 @@ impl InferContext {
     }
 }
 
-impl Default for InferContext {
+impl Default for InferState {
     fn default() -> Self {
         let options = AnalyzeOptions::from(&DsConfigCompilerOptions::default());
         Self::new(ProfileId::new(0), options)

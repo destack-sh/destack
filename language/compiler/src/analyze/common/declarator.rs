@@ -1,27 +1,25 @@
 use destack_dir::{
     Declarator, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalSymbolId, NodeTree,
-    NodeType, Pattern, SymbolTable, TypeUnaryOperator,
+    NodeType, Pattern, TypeUnaryOperator,
 };
-use destack_workspace::Module;
 
+use super::TreeSymbolView;
 use crate::Compiler;
 
 impl Compiler {
     /// Resolve a direct binding declarator for a symbol.
     pub(crate) fn direct_binding_declarator_for_symbol(
         &self,
-        module: &Module,
+        ctx: TreeSymbolView<'_>,
         symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
     ) -> Option<LocalNodeId<Declarator>> {
         // only local bindings can use local declaration data
-        if symbol.module_id != module.id {
+        if symbol.module_id != ctx.module.id {
             return None;
         }
 
         // collect primary and secondary declarations for the symbol
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let symbol_entry = ctx.symbols.get_symbol(symbol.local_id);
         let mut declaration_ids = Vec::new();
         if let Some(primary) = symbol_entry.primary_declaration {
             declaration_ids.push(primary);
@@ -32,20 +30,20 @@ impl Compiler {
 
         // find the first direct binding declarator
         for declaration_id in declaration_ids {
-            if declaration_id.module_id != module.id {
+            if declaration_id.module_id != ctx.module.id {
                 continue;
             }
 
             if !self.primary_declaration_is_direct_binding(
                 declaration_id.local_id,
                 symbol.local_id,
-                tree,
+                ctx.tree,
             ) {
                 continue;
             }
 
             if let Some(declarator_id) =
-                self.declarator_parent_for_node(declaration_id.local_id, tree)
+                self.declarator_parent_for_node(declaration_id.local_id, ctx.tree)
             {
                 return Some(declarator_id);
             }
@@ -53,7 +51,7 @@ impl Compiler {
             if let Some(declarator_id) = self.direct_binding_declarator_in_expression(
                 declaration_id.local_id,
                 symbol.local_id,
-                tree,
+                ctx.tree,
             ) {
                 return Some(declarator_id);
             }

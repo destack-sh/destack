@@ -29,7 +29,8 @@ pub(crate) use destack_dir::NormalizationMode;
 pub(crate) use literal::evaluate_numeric_literal;
 pub(crate) use materialize::{MaterializationMode, ReadonlyMaterializer};
 pub(crate) use phase::{
-    AssignContext, CommitContext, InferTablesContext, ModuleContext, TypeTablesContext,
+    AssignContext, CommitContext, InferContext, ModuleContext, ModuleSymbolView, ModuleTreeView,
+    ModuleTypeView, SymbolTypeView, TreeSymbolTypeView, TreeSymbolView, TypeContext, TypeView,
 };
 pub(crate) use relation::RelationMode;
 pub(crate) use scalar::{evaluate_binary_scalar, evaluate_unary_scalar};
