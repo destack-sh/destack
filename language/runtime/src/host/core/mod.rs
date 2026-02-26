@@ -1,5 +1,6 @@
 mod adapter;
 mod bridge;
+mod capability;
 mod event;
 mod queue;
 mod registry;
@@ -10,6 +11,7 @@ mod state;
 
 pub use adapter::{HostAdapter, HostPlatform};
 pub(crate) use bridge::HostBridge;
+pub(crate) use capability::default_host_capabilities;
 pub use event::{
     HostEvent, HostEventKind, HostInterruptionEvent, HostLifecycleEvent, HostMemoryPressureEvent,
     HostPermissionEvent, HostPowerModeEvent, HostThermalEvent, HostWallClockEvent, HostWindowEvent,

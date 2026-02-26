@@ -20,22 +20,29 @@ pub fn openbsd_notify_application_lifecycle(
 }
 
 /// Submit one openbsd window-available callback.
-pub fn openbsd_notify_window_available(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_available(runtime_id, HostPlatform::OpenBsd)
+pub fn openbsd_notify_window_available(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
+    unix_notify_window_available(runtime_id, HostPlatform::OpenBsd, window_id)
 }
 
 /// Submit one openbsd window-terminated callback.
-pub fn openbsd_notify_window_terminated(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_terminated(runtime_id, HostPlatform::OpenBsd)
+pub fn openbsd_notify_window_terminated(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
+    unix_notify_window_terminated(runtime_id, HostPlatform::OpenBsd, window_id)
 }
 
 /// Submit one openbsd window-resized callback.
 pub fn openbsd_notify_window_resized(
     runtime_id: u64,
+    window_id: u64,
     width_px: u32,
     height_px: u32,
 ) -> RuntimeResult<()> {
-    unix_notify_window_resized(runtime_id, HostPlatform::OpenBsd, width_px, height_px)
+    unix_notify_window_resized(
+        runtime_id,
+        HostPlatform::OpenBsd,
+        window_id,
+        width_px,
+        height_px,
+    )
 }
 
 /// Submit one openbsd permission-result callback.
@@ -56,8 +63,12 @@ pub fn openbsd_notify_interruption_changed(
 }
 
 /// Submit one openbsd window focus callback.
-pub fn openbsd_notify_window_focus_changed(runtime_id: u64, is_focused: bool) -> RuntimeResult<()> {
-    unix_notify_window_focus_changed(runtime_id, HostPlatform::OpenBsd, is_focused)
+pub fn openbsd_notify_window_focus_changed(
+    runtime_id: u64,
+    window_id: u64,
+    is_focused: bool,
+) -> RuntimeResult<()> {
+    unix_notify_window_focus_changed(runtime_id, HostPlatform::OpenBsd, window_id, is_focused)
 }
 
 /// Submit one openbsd memory pressure callback.

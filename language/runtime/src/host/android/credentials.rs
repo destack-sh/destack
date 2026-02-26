@@ -1,5 +1,5 @@
 use super::abi::HOST_STATUS_INVALID_ARGUMENT;
-use super::bindings::call_android_binding_callback;
+use super::bindings::invoke_android_binding_callback;
 use crate::platform::{NativeSlice, NativeStringRef};
 
 /// Host callback for reading one credential payload.
@@ -86,7 +86,7 @@ fn call_android_credentials_callback<T: Copy>(
     resolve: impl FnOnce(&AndroidHostCredentialsCallbacks) -> Option<T>,
     invoke: impl FnOnce(T) -> u32,
 ) -> u32 {
-    call_android_binding_callback(
+    invoke_android_binding_callback(
         runtime_id,
         |bindings| resolve(&bindings.credentials),
         invoke,

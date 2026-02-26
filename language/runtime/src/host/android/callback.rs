@@ -39,17 +39,17 @@ pub fn android_notify_activity_lifecycle(
 }
 
 /// Submit one Android surface-available callback.
-pub fn android_notify_window_available(runtime_id: u64) -> RuntimeResult<()> {
+pub fn android_notify_window_available(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
     let bridge = android_host_bridge(runtime_id)?;
-    bridge.push_window(HostWindowEvent::WindowAvailable);
+    bridge.push_window(HostWindowEvent::WindowAvailable { window_id });
 
     Ok(())
 }
 
 /// Submit one Android surface-terminated callback.
-pub fn android_notify_window_terminated(runtime_id: u64) -> RuntimeResult<()> {
+pub fn android_notify_window_terminated(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
     let bridge = android_host_bridge(runtime_id)?;
-    bridge.push_window(HostWindowEvent::WindowTerminated);
+    bridge.push_window(HostWindowEvent::WindowTerminated { window_id });
 
     Ok(())
 }
@@ -57,11 +57,13 @@ pub fn android_notify_window_terminated(runtime_id: u64) -> RuntimeResult<()> {
 /// Submit one Android surface-resized callback.
 pub fn android_notify_window_resized(
     runtime_id: u64,
+    window_id: u64,
     width_px: u32,
     height_px: u32,
 ) -> RuntimeResult<()> {
     let bridge = android_host_bridge(runtime_id)?;
     bridge.push_window(HostWindowEvent::WindowResized {
+        window_id,
         width_px,
         height_px,
     });
@@ -70,9 +72,13 @@ pub fn android_notify_window_resized(
 }
 
 /// Submit one Android window focus callback.
-pub fn android_notify_window_focus_changed(runtime_id: u64, is_focused: bool) -> RuntimeResult<()> {
+pub fn android_notify_window_focus_changed(
+    runtime_id: u64,
+    window_id: u64,
+    is_focused: bool,
+) -> RuntimeResult<()> {
     let bridge = android_host_bridge(runtime_id)?;
-    bridge.push_window_focus(is_focused);
+    bridge.push_window_focus(window_id, is_focused);
 
     Ok(())
 }

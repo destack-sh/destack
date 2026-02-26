@@ -188,7 +188,6 @@ fn test_register_bindings_routes_calls() {
         delete: Some(test_delete),
         contains: Some(test_contains),
         authenticate: Some(test_authenticate),
-        ..AndroidHostCredentialsCallbacks::default()
     };
     let status = register_android_bindings_credentials(runtime_id, callbacks);
     assert_eq!(status, HOST_STATUS_OK);

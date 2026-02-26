@@ -1,5 +1,22 @@
-use super::bindings::call_android_binding_callback;
+use super::abi::{HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK};
+use super::bindings::{invoke_android_binding_callback, resolve_android_binding_callback};
 use crate::platform::{NativeSlice, NativeStringRef};
+
+/// Host key algorithm code for rsa.
+const HOST_KEY_ALGORITHM_RSA: u32 = 1;
+/// Host key algorithm code for ec.
+const HOST_KEY_ALGORITHM_EC: u32 = 2;
+/// Host key algorithm code for aes.
+const HOST_KEY_ALGORITHM_AES: u32 = 3;
+/// Host key algorithm code for hmac.
+const HOST_KEY_ALGORITHM_HMAC: u32 = 4;
+
+/// Host store-kind code for system lane.
+const HOST_STORE_KIND_SYSTEM: u32 = 1;
+/// Host store-kind code for user lane.
+const HOST_STORE_KIND_USER: u32 = 2;
+/// Host store-kind code for machine lane.
+const HOST_STORE_KIND_MACHINE: u32 = 3;
 
 /// Host callback for probing one hardware-backed key lane.
 pub type AndroidHostSupportsHardwareKeyCallback =
@@ -169,13 +186,60 @@ impl Default for AndroidHostCryptoCallbacks {
     }
 }
 
+/// Resolve one runtime-scoped Android crypto callback table.
+fn resolve_android_crypto_callbacks(runtime_id: u64) -> Result<AndroidHostCryptoCallbacks, u32> {
+    resolve_android_binding_callback(runtime_id, |bindings| Some(bindings.crypto))
+}
+
+/// Return whether one callback table supports one key-pair lane.
+fn has_hardware_key_pair_lane(callbacks: &AndroidHostCryptoCallbacks, key_algorithm: u32) -> bool {
+    // require shared callbacks for all pair lanes
+    let has_shared_pair_callbacks = callbacks.generate_hardware_key_pair.is_some()
+        && callbacks.export_hardware_public_key.is_some()
+        && callbacks.sign_hardware_key.is_some()
+        && callbacks.delete_hardware_key.is_some();
+    if !has_shared_pair_callbacks {
+        return false;
+    }
+
+    // require the algorithm-specific terminal callback
+    match key_algorithm {
+        HOST_KEY_ALGORITHM_RSA => callbacks.decrypt_hardware_key.is_some(),
+        HOST_KEY_ALGORITHM_EC => callbacks.derive_hardware_shared_secret.is_some(),
+        _ => false,
+    }
+}
+
+/// Return whether one callback table supports one secret-key lane.
+fn has_hardware_secret_key_lane(
+    callbacks: &AndroidHostCryptoCallbacks,
+    key_algorithm: u32,
+) -> bool {
+    // require shared callbacks for all secret lanes
+    let has_shared_secret_callbacks =
+        callbacks.generate_hardware_secret_key.is_some() && callbacks.delete_hardware_key.is_some();
+    if !has_shared_secret_callbacks {
+        return false;
+    }
+
+    // require the algorithm-specific terminal callback
+    match key_algorithm {
+        HOST_KEY_ALGORITHM_AES => {
+            callbacks.encrypt_hardware_secret_key.is_some()
+                && callbacks.decrypt_hardware_secret_key.is_some()
+        }
+        HOST_KEY_ALGORITHM_HMAC => callbacks.compute_hardware_mac.is_some(),
+        _ => false,
+    }
+}
+
 /// Resolve and invoke one Android host crypto callback.
 fn call_android_crypto_callback<T: Copy>(
     runtime_id: u64,
     resolve: impl FnOnce(&AndroidHostCryptoCallbacks) -> Option<T>,
     invoke: impl FnOnce(T) -> u32,
 ) -> u32 {
-    call_android_binding_callback(runtime_id, |bindings| resolve(&bindings.crypto), invoke)
+    invoke_android_binding_callback(runtime_id, |bindings| resolve(&bindings.crypto), invoke)
 }
 
 /// Probe one Android host lane for hardware-backed key support.
@@ -190,6 +254,86 @@ pub unsafe extern "C" fn destack_host_android_crypto_supports_hardware_key(
         |callbacks| callbacks.supports_hardware_key,
         |callback| unsafe { callback(runtime_id, store_kind) },
     )
+}
+
+/// Probe one Android host lane for one hardware-backed key-pair algorithm.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_android_crypto_supports_hardware_key_pair(
+    runtime_id: u64,
+    store_kind: u32,
+    key_algorithm: u32,
+) -> u32 {
+    // resolve callback table for this runtime
+    let callbacks = match resolve_android_crypto_callbacks(runtime_id) {
+        Ok(callbacks) => callbacks,
+        Err(status) => return status,
+    };
+
+    // reject lanes without complete callback coverage for this algorithm
+    if !has_hardware_key_pair_lane(&callbacks, key_algorithm) {
+        return HOST_STATUS_NOT_SUPPORTED;
+    }
+
+    // route explicit hardware support probe when provided
+    let Some(callback) = callbacks.supports_hardware_key else {
+        return HOST_STATUS_OK;
+    };
+
+    unsafe { callback(runtime_id, store_kind) }
+}
+
+/// Probe one Android host lane for one hardware-backed secret-key algorithm.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_android_crypto_supports_hardware_secret_key(
+    runtime_id: u64,
+    store_kind: u32,
+    key_algorithm: u32,
+) -> u32 {
+    // resolve callback table for this runtime
+    let callbacks = match resolve_android_crypto_callbacks(runtime_id) {
+        Ok(callbacks) => callbacks,
+        Err(status) => return status,
+    };
+
+    // reject lanes without complete callback coverage for this algorithm
+    if !has_hardware_secret_key_lane(&callbacks, key_algorithm) {
+        return HOST_STATUS_NOT_SUPPORTED;
+    }
+
+    // route explicit hardware support probe when provided
+    let Some(callback) = callbacks.supports_hardware_key else {
+        return HOST_STATUS_OK;
+    };
+
+    unsafe { callback(runtime_id, store_kind) }
+}
+
+/// Probe one Android host lane for certificate write support.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn destack_host_android_crypto_supports_certificate_write(
+    runtime_id: u64,
+    store_kind: u32,
+) -> u32 {
+    // resolve callback table for this runtime
+    let callbacks = match resolve_android_crypto_callbacks(runtime_id) {
+        Ok(callbacks) => callbacks,
+        Err(status) => return status,
+    };
+
+    // reject unsupported store-kind values
+    if !matches!(
+        store_kind,
+        HOST_STORE_KIND_SYSTEM | HOST_STORE_KIND_USER | HOST_STORE_KIND_MACHINE
+    ) {
+        return HOST_STATUS_NOT_SUPPORTED;
+    }
+
+    // require both certificate callbacks
+    if callbacks.import_certificate.is_none() || callbacks.delete_certificate.is_none() {
+        return HOST_STATUS_NOT_SUPPORTED;
+    }
+
+    HOST_STATUS_OK
 }
 
 /// Generate one Android host hardware-backed key pair.

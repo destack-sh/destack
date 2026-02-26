@@ -14,7 +14,10 @@ use super::super::crypto::{
     destack_host_android_crypto_generate_hardware_key_pair,
     destack_host_android_crypto_generate_hardware_secret_key,
     destack_host_android_crypto_import_certificate, destack_host_android_crypto_sign_hardware_key,
+    destack_host_android_crypto_supports_certificate_write,
     destack_host_android_crypto_supports_hardware_key,
+    destack_host_android_crypto_supports_hardware_key_pair,
+    destack_host_android_crypto_supports_hardware_secret_key,
 };
 use super::super::tests::{
     callback_test_lock, register_android_bindings_crypto, register_android_runtime,
@@ -68,6 +71,58 @@ unsafe extern "C" fn test_generate_hardware_secret_key(
     _digest_algorithm: u32,
     _key_size_bits: u32,
     _key_usage_mask: u32,
+    _key_label: NativeStringRef,
+) -> u32 {
+    HOST_STATUS_OK
+}
+
+/// Report one successful hardware-keypair generation in callback tests.
+unsafe extern "C" fn test_generate_hardware_key_pair(
+    _runtime_id: u64,
+    _store_kind: u32,
+    _key_algorithm: u32,
+    _named_curve: u32,
+    _modulus_bits: u32,
+    _public_exponent: u32,
+    _key_label: NativeStringRef,
+) -> u32 {
+    HOST_STATUS_OK
+}
+
+/// Report one successful hardware signature operation in callback tests.
+unsafe extern "C" fn test_sign_hardware_key(
+    _runtime_id: u64,
+    _key_algorithm: u32,
+    _key_label: NativeStringRef,
+    _signature_algorithm: u32,
+    _digest_algorithm: u32,
+    _salt_length_bytes: u32,
+    _payload: NativeSlice<u8>,
+    _output_signature: NativeSlice<u8>,
+    _output_written: *mut u32,
+) -> u32 {
+    HOST_STATUS_OK
+}
+
+/// Report one successful hardware decrypt operation in callback tests.
+unsafe extern "C" fn test_decrypt_hardware_key(
+    _runtime_id: u64,
+    _key_algorithm: u32,
+    _key_label: NativeStringRef,
+    _encryption_algorithm: u32,
+    _digest_algorithm: u32,
+    _label: NativeSlice<u8>,
+    _payload: NativeSlice<u8>,
+    _output_plaintext: NativeSlice<u8>,
+    _output_written: *mut u32,
+) -> u32 {
+    HOST_STATUS_OK
+}
+
+/// Report one successful hardware key delete operation in callback tests.
+unsafe extern "C" fn test_delete_hardware_key(
+    _runtime_id: u64,
+    _key_algorithm: u32,
     _key_label: NativeStringRef,
 ) -> u32 {
     HOST_STATUS_OK
@@ -761,4 +816,69 @@ fn test_register_bindings_routes_certificate_calls() {
         )
     };
     assert_eq!(delete_status, HOST_STATUS_OK);
+}
+
+#[test]
+fn test_support_probes_require_complete_callback_sets() {
+    let _lock = callback_test_lock().lock().unwrap();
+
+    // register one temporary android bridge for runtime-id validation
+    let (_bridge, _registration, runtime_id) = register_android_runtime();
+
+    // install one callback set with complete rsa pair and aes secret lanes
+    let callbacks = AndroidHostCryptoCallbacks {
+        supports_hardware_key: Some(test_supports_hardware_key),
+        generate_hardware_key_pair: Some(test_generate_hardware_key_pair),
+        export_hardware_public_key: Some(test_export_hardware_public_key),
+        sign_hardware_key: Some(test_sign_hardware_key),
+        decrypt_hardware_key: Some(test_decrypt_hardware_key),
+        generate_hardware_secret_key: Some(test_generate_hardware_secret_key),
+        encrypt_hardware_secret_key: Some(test_encrypt_hardware_secret_key),
+        decrypt_hardware_secret_key: Some(test_decrypt_hardware_secret_key),
+        delete_hardware_key: Some(test_delete_hardware_key),
+        ..AndroidHostCryptoCallbacks::default()
+    };
+    let register_status = register_android_bindings_crypto(runtime_id, callbacks);
+    assert_eq!(register_status, HOST_STATUS_OK);
+
+    // rsa pair should be supported by the installed callback set
+    let rsa_pair_status =
+        unsafe { destack_host_android_crypto_supports_hardware_key_pair(runtime_id, 2, 1) };
+    assert_eq!(rsa_pair_status, HOST_STATUS_OK);
+
+    // ec pair should be unsupported because derive callback is missing
+    let ec_pair_status =
+        unsafe { destack_host_android_crypto_supports_hardware_key_pair(runtime_id, 2, 2) };
+    assert_eq!(ec_pair_status, HOST_STATUS_NOT_SUPPORTED);
+
+    // aes secret should be supported by the installed callback set
+    let aes_secret_status =
+        unsafe { destack_host_android_crypto_supports_hardware_secret_key(runtime_id, 2, 3) };
+    assert_eq!(aes_secret_status, HOST_STATUS_OK);
+
+    // hmac secret should be unsupported because mac callback is missing
+    let hmac_secret_status =
+        unsafe { destack_host_android_crypto_supports_hardware_secret_key(runtime_id, 2, 4) };
+    assert_eq!(hmac_secret_status, HOST_STATUS_NOT_SUPPORTED);
+}
+
+#[test]
+fn test_certificate_write_probe_requires_both_callbacks() {
+    let _lock = callback_test_lock().lock().unwrap();
+
+    // register one temporary android bridge for runtime-id validation
+    let (_bridge, _registration, runtime_id) = register_android_runtime();
+
+    // install one callback set with only certificate import
+    let callbacks = AndroidHostCryptoCallbacks {
+        import_certificate: Some(test_import_certificate),
+        ..AndroidHostCryptoCallbacks::default()
+    };
+    let register_status = register_android_bindings_crypto(runtime_id, callbacks);
+    assert_eq!(register_status, HOST_STATUS_OK);
+
+    // certificate write support should reject partial callback coverage
+    let partial_status =
+        unsafe { destack_host_android_crypto_supports_certificate_write(runtime_id, 2) };
+    assert_eq!(partial_status, HOST_STATUS_NOT_SUPPORTED);
 }

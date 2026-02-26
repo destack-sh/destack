@@ -20,22 +20,29 @@ pub fn netbsd_notify_application_lifecycle(
 }
 
 /// Submit one netbsd window-available callback.
-pub fn netbsd_notify_window_available(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_available(runtime_id, HostPlatform::NetBsd)
+pub fn netbsd_notify_window_available(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
+    unix_notify_window_available(runtime_id, HostPlatform::NetBsd, window_id)
 }
 
 /// Submit one netbsd window-terminated callback.
-pub fn netbsd_notify_window_terminated(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_terminated(runtime_id, HostPlatform::NetBsd)
+pub fn netbsd_notify_window_terminated(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
+    unix_notify_window_terminated(runtime_id, HostPlatform::NetBsd, window_id)
 }
 
 /// Submit one netbsd window-resized callback.
 pub fn netbsd_notify_window_resized(
     runtime_id: u64,
+    window_id: u64,
     width_px: u32,
     height_px: u32,
 ) -> RuntimeResult<()> {
-    unix_notify_window_resized(runtime_id, HostPlatform::NetBsd, width_px, height_px)
+    unix_notify_window_resized(
+        runtime_id,
+        HostPlatform::NetBsd,
+        window_id,
+        width_px,
+        height_px,
+    )
 }
 
 /// Submit one netbsd permission-result callback.
@@ -53,8 +60,12 @@ pub fn netbsd_notify_interruption_changed(runtime_id: u64, interrupted: bool) ->
 }
 
 /// Submit one netbsd window focus callback.
-pub fn netbsd_notify_window_focus_changed(runtime_id: u64, is_focused: bool) -> RuntimeResult<()> {
-    unix_notify_window_focus_changed(runtime_id, HostPlatform::NetBsd, is_focused)
+pub fn netbsd_notify_window_focus_changed(
+    runtime_id: u64,
+    window_id: u64,
+    is_focused: bool,
+) -> RuntimeResult<()> {
+    unix_notify_window_focus_changed(runtime_id, HostPlatform::NetBsd, window_id, is_focused)
 }
 
 /// Submit one netbsd memory pressure callback.

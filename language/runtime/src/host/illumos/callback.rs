@@ -20,22 +20,29 @@ pub fn illumos_notify_application_lifecycle(
 }
 
 /// Submit one illumos window-available callback.
-pub fn illumos_notify_window_available(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_available(runtime_id, HostPlatform::Illumos)
+pub fn illumos_notify_window_available(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
+    unix_notify_window_available(runtime_id, HostPlatform::Illumos, window_id)
 }
 
 /// Submit one illumos window-terminated callback.
-pub fn illumos_notify_window_terminated(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_terminated(runtime_id, HostPlatform::Illumos)
+pub fn illumos_notify_window_terminated(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
+    unix_notify_window_terminated(runtime_id, HostPlatform::Illumos, window_id)
 }
 
 /// Submit one illumos window-resized callback.
 pub fn illumos_notify_window_resized(
     runtime_id: u64,
+    window_id: u64,
     width_px: u32,
     height_px: u32,
 ) -> RuntimeResult<()> {
-    unix_notify_window_resized(runtime_id, HostPlatform::Illumos, width_px, height_px)
+    unix_notify_window_resized(
+        runtime_id,
+        HostPlatform::Illumos,
+        window_id,
+        width_px,
+        height_px,
+    )
 }
 
 /// Submit one illumos permission-result callback.
@@ -56,8 +63,12 @@ pub fn illumos_notify_interruption_changed(
 }
 
 /// Submit one illumos window focus callback.
-pub fn illumos_notify_window_focus_changed(runtime_id: u64, is_focused: bool) -> RuntimeResult<()> {
-    unix_notify_window_focus_changed(runtime_id, HostPlatform::Illumos, is_focused)
+pub fn illumos_notify_window_focus_changed(
+    runtime_id: u64,
+    window_id: u64,
+    is_focused: bool,
+) -> RuntimeResult<()> {
+    unix_notify_window_focus_changed(runtime_id, HostPlatform::Illumos, window_id, is_focused)
 }
 
 /// Submit one illumos memory pressure callback.

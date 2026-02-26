@@ -33,27 +33,30 @@ pub unsafe extern "C" fn destack_host_illumos_notify_application_lifecycle(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_illumos_notify_window_available(
     runtime_id: u64,
+    window_id: u64,
 ) -> RuntimeStatus {
-    unix_runtime_status(illumos_notify_window_available(runtime_id))
+    unix_runtime_status(illumos_notify_window_available(runtime_id, window_id))
 }
 
 /// Notify the runtime host bridge that one illumos window terminated.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_illumos_notify_window_terminated(
     runtime_id: u64,
+    window_id: u64,
 ) -> RuntimeStatus {
-    unix_runtime_status(illumos_notify_window_terminated(runtime_id))
+    unix_runtime_status(illumos_notify_window_terminated(runtime_id, window_id))
 }
 
 /// Notify the runtime host bridge that one illumos window resized.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_illumos_notify_window_resized(
     runtime_id: u64,
+    window_id: u64,
     width_px: u32,
     height_px: u32,
 ) -> RuntimeStatus {
     unix_runtime_status(illumos_notify_window_resized(
-        runtime_id, width_px, height_px,
+        runtime_id, window_id, width_px, height_px,
     ))
 }
 
@@ -61,9 +64,12 @@ pub unsafe extern "C" fn destack_host_illumos_notify_window_resized(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_illumos_notify_window_focus_changed(
     runtime_id: u64,
+    window_id: u64,
     is_focused: bool,
 ) -> RuntimeStatus {
-    unix_runtime_status(illumos_notify_window_focus_changed(runtime_id, is_focused))
+    unix_runtime_status(illumos_notify_window_focus_changed(
+        runtime_id, window_id, is_focused,
+    ))
 }
 
 /// Notify the runtime host bridge with one illumos permission result.

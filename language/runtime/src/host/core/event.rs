@@ -26,6 +26,20 @@ pub enum HostEventKind {
     WallClock,
 }
 
+/// Host event identity key used for coalescing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum HostEventCoalescingKey {
+    /// Coalescing key for one global host event kind.
+    Global(HostEventKind),
+    /// Coalescing key for one window-scoped host event kind.
+    Window {
+        /// Host event kind for this key.
+        kind: HostEventKind,
+        /// Window identifier for this key.
+        window_id: u64,
+    },
+}
+
 /// Runtime-visible host event payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HostEvent {
@@ -89,6 +103,44 @@ impl HostEvent {
             )
         )
     }
+
+    /// Return one coalescing identity key for this event when applicable.
+    pub(crate) const fn coalescing_key(&self) -> Option<HostEventCoalescingKey> {
+        if !self.is_coalescing() {
+            return None;
+        }
+
+        match self {
+            HostEvent::Poller(_) => None,
+            HostEvent::Window(event) => Some(HostEventCoalescingKey::Window {
+                kind: HostEventKind::Window,
+                window_id: event.window_id(),
+            }),
+            HostEvent::WindowFocus(event) => Some(HostEventCoalescingKey::Window {
+                kind: HostEventKind::WindowFocus,
+                window_id: event.window_id,
+            }),
+            HostEvent::Lifecycle(_) => {
+                Some(HostEventCoalescingKey::Global(HostEventKind::Lifecycle))
+            }
+            HostEvent::Permission(_) => None,
+            HostEvent::Interruption(_) => {
+                Some(HostEventCoalescingKey::Global(HostEventKind::Interruption))
+            }
+            HostEvent::MemoryPressure(_) => Some(HostEventCoalescingKey::Global(
+                HostEventKind::MemoryPressure,
+            )),
+            HostEvent::ThermalState(_) => {
+                Some(HostEventCoalescingKey::Global(HostEventKind::ThermalState))
+            }
+            HostEvent::PowerMode(_) => {
+                Some(HostEventCoalescingKey::Global(HostEventKind::PowerMode))
+            }
+            HostEvent::WallClock(_) => {
+                Some(HostEventCoalescingKey::Global(HostEventKind::WallClock))
+            }
+        }
+    }
 }
 
 /// Host lifecycle state change payload.
@@ -103,13 +155,21 @@ pub struct HostLifecycleEvent {
 pub enum HostWindowEvent {
     /// Host window became available.
     /// On Android this aligns to surface creation events such as `InitWindow`.
-    WindowAvailable,
+    WindowAvailable {
+        /// Host window identifier.
+        window_id: u64,
+    },
     /// Host window was torn down.
     /// On Android this aligns to surface teardown events such as `TerminateWindow`.
-    WindowTerminated,
+    WindowTerminated {
+        /// Host window identifier.
+        window_id: u64,
+    },
     /// Host window dimensions changed.
     /// This aligns to window resize events in common host event systems.
     WindowResized {
+        /// Host window identifier.
+        window_id: u64,
         /// Window width in physical pixels.
         width_px: u32,
         /// Window height in physical pixels.
@@ -117,9 +177,22 @@ pub enum HostWindowEvent {
     },
 }
 
+impl HostWindowEvent {
+    /// Return the host window identifier for this event payload.
+    pub const fn window_id(&self) -> u64 {
+        match self {
+            HostWindowEvent::WindowAvailable { window_id } => *window_id,
+            HostWindowEvent::WindowTerminated { window_id } => *window_id,
+            HostWindowEvent::WindowResized { window_id, .. } => *window_id,
+        }
+    }
+}
+
 /// Host window focus payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HostWindowFocusEvent {
+    /// Host window identifier.
+    pub window_id: u64,
     /// Whether one host window is focused.
     pub is_focused: bool,
 }

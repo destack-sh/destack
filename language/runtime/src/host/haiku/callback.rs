@@ -20,22 +20,29 @@ pub fn haiku_notify_application_lifecycle(
 }
 
 /// Submit one haiku window-available callback.
-pub fn haiku_notify_window_available(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_available(runtime_id, HostPlatform::Haiku)
+pub fn haiku_notify_window_available(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
+    unix_notify_window_available(runtime_id, HostPlatform::Haiku, window_id)
 }
 
 /// Submit one haiku window-terminated callback.
-pub fn haiku_notify_window_terminated(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_terminated(runtime_id, HostPlatform::Haiku)
+pub fn haiku_notify_window_terminated(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
+    unix_notify_window_terminated(runtime_id, HostPlatform::Haiku, window_id)
 }
 
 /// Submit one haiku window-resized callback.
 pub fn haiku_notify_window_resized(
     runtime_id: u64,
+    window_id: u64,
     width_px: u32,
     height_px: u32,
 ) -> RuntimeResult<()> {
-    unix_notify_window_resized(runtime_id, HostPlatform::Haiku, width_px, height_px)
+    unix_notify_window_resized(
+        runtime_id,
+        HostPlatform::Haiku,
+        window_id,
+        width_px,
+        height_px,
+    )
 }
 
 /// Submit one haiku permission-result callback.
@@ -53,8 +60,12 @@ pub fn haiku_notify_interruption_changed(runtime_id: u64, interrupted: bool) -> 
 }
 
 /// Submit one haiku window focus callback.
-pub fn haiku_notify_window_focus_changed(runtime_id: u64, is_focused: bool) -> RuntimeResult<()> {
-    unix_notify_window_focus_changed(runtime_id, HostPlatform::Haiku, is_focused)
+pub fn haiku_notify_window_focus_changed(
+    runtime_id: u64,
+    window_id: u64,
+    is_focused: bool,
+) -> RuntimeResult<()> {
+    unix_notify_window_focus_changed(runtime_id, HostPlatform::Haiku, window_id, is_focused)
 }
 
 /// Submit one haiku memory pressure callback.

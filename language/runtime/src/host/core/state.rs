@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 
 use parking_lot::RwLock;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::{
     HostEvent, HostLifecycleState, HostMemoryPressureLevel, HostPermissionService, HostPowerMode,
@@ -42,10 +42,8 @@ const POWER_MODE_LOW_POWER: u8 = 1;
 pub(crate) struct HostStateStore {
     /// Current lifecycle state.
     lifecycle_state: AtomicU8,
-    /// Whether one host window is currently available.
-    has_window: AtomicBool,
-    /// Whether one host window is currently focused.
-    is_window_focused: AtomicBool,
+    /// State tracked for each known host window.
+    windows: RwLock<FxHashMap<u64, HostWindowState>>,
     /// Permission requests currently in-flight by permission tag.
     permissions_in_flight: RwLock<FxHashSet<String>>,
     /// Whether host interruption is currently active.
@@ -60,6 +58,17 @@ pub(crate) struct HostStateStore {
     wall_clock_change_count: AtomicU64,
 }
 
+/// One tracked host window state entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct HostWindowState {
+    /// Whether this window is currently focused.
+    is_focused: bool,
+    /// Last known width in physical pixels.
+    width_px: u32,
+    /// Last known height in physical pixels.
+    height_px: u32,
+}
+
 impl Default for HostStateStore {
     fn default() -> Self {
         Self::new()
@@ -71,8 +80,7 @@ impl HostStateStore {
     pub(crate) fn new() -> Self {
         Self {
             lifecycle_state: AtomicU8::new(LIFECYCLE_INITIALIZING),
-            has_window: AtomicBool::new(false),
-            is_window_focused: AtomicBool::new(true),
+            windows: RwLock::new(FxHashMap::default()),
             permissions_in_flight: RwLock::new(FxHashSet::default()),
             is_interrupted: AtomicBool::new(false),
             memory_pressure_level: AtomicU8::new(MEMORY_PRESSURE_NORMAL),
@@ -103,17 +111,31 @@ impl HostStateStore {
                 self.lifecycle_state
                     .store(lifecycle_state, Ordering::Relaxed);
             }
-            HostEvent::Window(event) => match event {
-                HostWindowEvent::WindowAvailable | HostWindowEvent::WindowResized { .. } => {
-                    self.has_window.store(true, Ordering::Relaxed);
+            HostEvent::Window(event) => {
+                let mut windows = self.windows.write();
+
+                match event {
+                    HostWindowEvent::WindowAvailable { window_id } => {
+                        windows.entry(*window_id).or_default();
+                    }
+                    HostWindowEvent::WindowTerminated { window_id } => {
+                        windows.remove(window_id);
+                    }
+                    HostWindowEvent::WindowResized {
+                        window_id,
+                        width_px,
+                        height_px,
+                    } => {
+                        let window_state = windows.entry(*window_id).or_default();
+                        window_state.width_px = *width_px;
+                        window_state.height_px = *height_px;
+                    }
                 }
-                HostWindowEvent::WindowTerminated => {
-                    self.has_window.store(false, Ordering::Relaxed);
-                }
-            },
+            }
             HostEvent::WindowFocus(event) => {
-                self.is_window_focused
-                    .store(event.is_focused, Ordering::Relaxed);
+                let mut windows = self.windows.write();
+                let window_state = windows.entry(event.window_id).or_default();
+                window_state.is_focused = event.is_focused;
             }
             HostEvent::Permission(event) => {
                 let mut permissions_in_flight = self.permissions_in_flight.write();
@@ -149,11 +171,14 @@ impl HostStateReader for HostStateStore {
     }
 
     fn has_window(&self) -> bool {
-        self.has_window.load(Ordering::Relaxed)
+        !self.windows.read().is_empty()
     }
 
     fn is_window_focused(&self) -> bool {
-        self.is_window_focused.load(Ordering::Relaxed)
+        self.windows
+            .read()
+            .values()
+            .any(|window_state| window_state.is_focused)
     }
 
     fn is_interrupted(&self) -> bool {
@@ -289,10 +314,14 @@ mod tests {
     fn test_apply_event_updates_window_state() {
         let state = HostStateStore::new();
 
-        state.apply_event(&HostEvent::Window(HostWindowEvent::WindowAvailable));
+        state.apply_event(&HostEvent::Window(HostWindowEvent::WindowAvailable {
+            window_id: 11,
+        }));
         assert!(state.has_window());
 
-        state.apply_event(&HostEvent::Window(HostWindowEvent::WindowTerminated));
+        state.apply_event(&HostEvent::Window(HostWindowEvent::WindowTerminated {
+            window_id: 11,
+        }));
         assert!(!state.has_window());
     }
 
@@ -309,7 +338,10 @@ mod tests {
     #[test]
     fn test_apply_event_updates_window_focus_state() {
         let state = HostStateStore::new();
-        let event = HostEvent::WindowFocus(HostWindowFocusEvent { is_focused: false });
+        let event = HostEvent::WindowFocus(HostWindowFocusEvent {
+            window_id: 42,
+            is_focused: false,
+        });
 
         state.apply_event(&event);
 

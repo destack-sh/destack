@@ -96,7 +96,29 @@ fn host_bridge_registry() -> &'static RwLock<HostBridgeRegistryState> {
 /// Remove one registration from the shared host bridge registry.
 fn unregister_host_bridge(runtime_id: u64) {
     let mut state = host_bridge_registry().write();
-    state.bridges.remove(&runtime_id);
+    let platform = state
+        .bridges
+        .remove(&runtime_id)
+        .map(|entry| entry.platform);
+    drop(state);
+
+    cleanup_host_runtime_state(runtime_id, platform);
+}
+
+/// Cleanup host runtime state after one host-bridge unregistration.
+fn cleanup_host_runtime_state(runtime_id: u64, platform: Option<HostPlatform>) {
+    #[cfg(any(test, target_os = "android"))]
+    {
+        // remove android callback payloads eagerly when the bridge is dropped
+        if platform == Some(HostPlatform::Android) {
+            crate::host::android::unregister_android_bindings(runtime_id);
+        }
+    }
+
+    #[cfg(not(any(test, target_os = "android")))]
+    {
+        let _ = (runtime_id, platform);
+    }
 }
 
 /// Build one runtime error for missing host bridges.

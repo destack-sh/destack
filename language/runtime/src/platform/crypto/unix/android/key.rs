@@ -3,7 +3,18 @@ use openssl::pkey::{PKey, Private};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::{
-    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_OK, android_host_crypto_callbacks_snapshot,
+    HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_OK, destack_host_android_crypto_compute_hardware_mac,
+    destack_host_android_crypto_decrypt_hardware_key,
+    destack_host_android_crypto_decrypt_hardware_secret_key,
+    destack_host_android_crypto_delete_hardware_key,
+    destack_host_android_crypto_derive_hardware_shared_secret,
+    destack_host_android_crypto_encrypt_hardware_secret_key,
+    destack_host_android_crypto_export_hardware_public_key,
+    destack_host_android_crypto_generate_hardware_key_pair,
+    destack_host_android_crypto_generate_hardware_secret_key,
+    destack_host_android_crypto_sign_hardware_key,
+    destack_host_android_crypto_supports_hardware_key_pair,
+    destack_host_android_crypto_supports_hardware_secret_key,
 };
 use crate::platform::crypto::core::{
     self as crypto_core, HostGeneratedKeyPair, HostKeyBackend, HostKeyMaterial,
@@ -263,16 +274,10 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
         return Err(not_supported(operation));
     }
 
-    // resolve runtime id and host callback table
+    // resolve runtime id
     let runtime_id = callback_runtime_id(context, operation)?;
-    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
-        return Err(not_supported(operation));
-    };
-    let Some(generate_callback) = callbacks.generate_hardware_secret_key else {
-        return Err(not_supported(operation));
-    };
 
-    // encode host callback arguments
+    // encode host arguments
     let encoded_kind = host_store_kind(kind, operation)?;
     let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
     let encoded_digest = if algorithm == CryptoKeyAlgorithm::Hmac {
@@ -284,7 +289,7 @@ pub(crate) fn host_generate_hardware_backed_secret_key(
 
     // run one host hardware secret-key generation operation
     let status = unsafe {
-        generate_callback(
+        destack_host_android_crypto_generate_hardware_secret_key(
             runtime_id,
             encoded_kind,
             encoded_algorithm,
@@ -329,37 +334,63 @@ pub(crate) fn host_store_supports_hardware_backed_key(
         return false;
     };
 
-    // require at least one complete hardware lane callback set
-    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
-        return false;
+    // probe each supported algorithm lane through the host abi
+    let encoded_rsa = match host_key_algorithm(
+        CryptoKeyAlgorithm::Rsa,
+        "destack.crypto.store.probeCapability",
+    ) {
+        Ok(encoded) => encoded,
+        Err(_) => return false,
     };
-    let has_rsa_pair_lane = callbacks.generate_hardware_key_pair.is_some()
-        && callbacks.export_hardware_public_key.is_some()
-        && callbacks.sign_hardware_key.is_some()
-        && callbacks.decrypt_hardware_key.is_some()
-        && callbacks.delete_hardware_key.is_some();
-    let has_ec_pair_lane = callbacks.generate_hardware_key_pair.is_some()
-        && callbacks.export_hardware_public_key.is_some()
-        && callbacks.sign_hardware_key.is_some()
-        && callbacks.derive_hardware_shared_secret.is_some()
-        && callbacks.delete_hardware_key.is_some();
-    let has_aes_secret_lane = callbacks.generate_hardware_secret_key.is_some()
-        && callbacks.encrypt_hardware_secret_key.is_some()
-        && callbacks.decrypt_hardware_secret_key.is_some()
-        && callbacks.delete_hardware_key.is_some();
-    let has_hmac_secret_lane = callbacks.generate_hardware_secret_key.is_some()
-        && callbacks.compute_hardware_mac.is_some()
-        && callbacks.delete_hardware_key.is_some();
-    if !has_rsa_pair_lane && !has_ec_pair_lane && !has_aes_secret_lane && !has_hmac_secret_lane {
-        return false;
-    }
-
-    // use explicit hardware-support callback when present
-    let Some(callback) = callbacks.supports_hardware_key else {
-        return true;
+    let encoded_ec = match host_key_algorithm(
+        CryptoKeyAlgorithm::Ec,
+        "destack.crypto.store.probeCapability",
+    ) {
+        Ok(encoded) => encoded,
+        Err(_) => return false,
+    };
+    let encoded_aes = match host_key_algorithm(
+        CryptoKeyAlgorithm::Aes,
+        "destack.crypto.store.probeCapability",
+    ) {
+        Ok(encoded) => encoded,
+        Err(_) => return false,
+    };
+    let encoded_hmac = match host_key_algorithm(
+        CryptoKeyAlgorithm::Hmac,
+        "destack.crypto.store.probeCapability",
+    ) {
+        Ok(encoded) => encoded,
+        Err(_) => return false,
     };
 
-    unsafe { callback(runtime_id, encoded_kind) == HOST_STATUS_OK }
+    let pair_rsa = unsafe {
+        destack_host_android_crypto_supports_hardware_key_pair(
+            runtime_id,
+            encoded_kind,
+            encoded_rsa,
+        ) == HOST_STATUS_OK
+    };
+    let pair_ec = unsafe {
+        destack_host_android_crypto_supports_hardware_key_pair(runtime_id, encoded_kind, encoded_ec)
+            == HOST_STATUS_OK
+    };
+    let secret_aes = unsafe {
+        destack_host_android_crypto_supports_hardware_secret_key(
+            runtime_id,
+            encoded_kind,
+            encoded_aes,
+        ) == HOST_STATUS_OK
+    };
+    let secret_hmac = unsafe {
+        destack_host_android_crypto_supports_hardware_secret_key(
+            runtime_id,
+            encoded_kind,
+            encoded_hmac,
+        ) == HOST_STATUS_OK
+    };
+
+    pair_rsa || pair_ec || secret_aes || secret_hmac
 }
 
 /// Return whether one host store lane supports one hardware-backed pair algorithm.
@@ -373,34 +404,29 @@ pub(crate) fn host_store_supports_hardware_backed_pair_algorithm(
         return false;
     }
 
-    // require one available hardware lane first
-    if !host_store_supports_hardware_backed_key(context, kind) {
-        return false;
-    }
-
-    // require complete callback sets for each pair algorithm lane
+    // resolve runtime id and lane selector
     let Some(runtime_id) = context.host().callback_runtime_id() else {
         return false;
     };
-    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+    let Ok(encoded_kind) = host_store_kind(kind, "destack.crypto.store.probeCapability") else {
         return false;
     };
-    if algorithm == CryptoKeyAlgorithm::Rsa {
-        return callbacks.generate_hardware_key_pair.is_some()
-            && callbacks.export_hardware_public_key.is_some()
-            && callbacks.sign_hardware_key.is_some()
-            && callbacks.decrypt_hardware_key.is_some()
-            && callbacks.delete_hardware_key.is_some();
-    }
-    if algorithm == CryptoKeyAlgorithm::Ec {
-        return callbacks.generate_hardware_key_pair.is_some()
-            && callbacks.export_hardware_public_key.is_some()
-            && callbacks.sign_hardware_key.is_some()
-            && callbacks.derive_hardware_shared_secret.is_some()
-            && callbacks.delete_hardware_key.is_some();
-    }
 
-    false
+    // map algorithm to host key code
+    let encoded_algorithm =
+        match host_key_algorithm(algorithm, "destack.crypto.store.probeCapability") {
+            Ok(encoded) => encoded,
+            Err(_) => return false,
+        };
+
+    // probe this algorithm lane through the host abi
+    unsafe {
+        destack_host_android_crypto_supports_hardware_key_pair(
+            runtime_id,
+            encoded_kind,
+            encoded_algorithm,
+        ) == HOST_STATUS_OK
+    }
 }
 
 /// Return whether one host store lane supports hardware-backed secret keys.
@@ -414,31 +440,29 @@ pub(crate) fn host_store_supports_hardware_backed_secret_key(
         return false;
     }
 
-    // require one available hardware lane first
-    if !host_store_supports_hardware_backed_key(context, kind) {
-        return false;
-    }
-
-    // require complete callback sets for each secret algorithm lane
+    // resolve runtime id and lane selector
     let Some(runtime_id) = context.host().callback_runtime_id() else {
         return false;
     };
-    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
+    let Ok(encoded_kind) = host_store_kind(kind, "destack.crypto.store.probeCapability") else {
         return false;
     };
-    if algorithm == CryptoKeyAlgorithm::Aes {
-        return callbacks.generate_hardware_secret_key.is_some()
-            && callbacks.encrypt_hardware_secret_key.is_some()
-            && callbacks.decrypt_hardware_secret_key.is_some()
-            && callbacks.delete_hardware_key.is_some();
-    }
-    if algorithm == CryptoKeyAlgorithm::Hmac {
-        return callbacks.generate_hardware_secret_key.is_some()
-            && callbacks.compute_hardware_mac.is_some()
-            && callbacks.delete_hardware_key.is_some();
-    }
 
-    false
+    // map algorithm to host key code
+    let encoded_algorithm =
+        match host_key_algorithm(algorithm, "destack.crypto.store.probeCapability") {
+            Ok(encoded) => encoded,
+            Err(_) => return false,
+        };
+
+    // probe this algorithm lane through the host abi
+    unsafe {
+        destack_host_android_crypto_supports_hardware_secret_key(
+            runtime_id,
+            encoded_kind,
+            encoded_algorithm,
+        ) == HOST_STATUS_OK
+    }
 }
 
 /// Generate one host-backed hardware key pair.
@@ -471,19 +495,10 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
         return Err(not_supported(operation));
     }
 
-    // resolve runtime id and host callback table
+    // resolve runtime id
     let runtime_id = callback_runtime_id(context, operation)?;
-    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
-        return Err(not_supported(operation));
-    };
-    let Some(generate_callback) = callbacks.generate_hardware_key_pair else {
-        return Err(not_supported(operation));
-    };
-    let Some(export_public_callback) = callbacks.export_hardware_public_key else {
-        return Err(not_supported(operation));
-    };
 
-    // encode host callback arguments
+    // encode host arguments
     let encoded_kind = host_store_kind(kind, operation)?;
     let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
     let encoded_named_curve = host_named_curve(named_curve, operation)?;
@@ -491,7 +506,7 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
 
     // run one host hardware key generation operation
     let status = unsafe {
-        generate_callback(
+        destack_host_android_crypto_generate_hardware_key_pair(
             runtime_id,
             encoded_kind,
             encoded_algorithm,
@@ -508,7 +523,13 @@ pub(crate) fn host_generate_hardware_backed_key_pair(
         operation,
         "export_hardware_public_key",
         |output, written| unsafe {
-            export_public_callback(runtime_id, encoded_algorithm, key_label, output, written)
+            destack_host_android_crypto_export_hardware_public_key(
+                runtime_id,
+                encoded_algorithm,
+                key_label,
+                output,
+                written,
+            )
         },
     )?;
     let public_key = PKey::public_key_from_der(&public_key_spki_der)
@@ -663,12 +684,6 @@ pub(crate) fn host_key_sign(
         }
 
         let runtime_id = callback_runtime_id(context, operation)?;
-        let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
-            return Err(not_supported(operation));
-        };
-        let Some(sign_callback) = callbacks.sign_hardware_key else {
-            return Err(not_supported(operation));
-        };
 
         let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
         let encoded_signature_algorithm =
@@ -678,7 +693,7 @@ pub(crate) fn host_key_sign(
 
         let signature =
             run_host_output(operation, "sign_hardware_key", |output, written| unsafe {
-                sign_callback(
+                destack_host_android_crypto_sign_hardware_key(
                     runtime_id,
                     encoded_algorithm,
                     key_label,
@@ -728,12 +743,6 @@ pub(crate) fn host_key_decrypt(
         }
 
         let runtime_id = callback_runtime_id(context, operation)?;
-        let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
-            return Err(not_supported(operation));
-        };
-        let Some(decrypt_callback) = callbacks.decrypt_hardware_key else {
-            return Err(not_supported(operation));
-        };
 
         let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
         let encoded_asymmetric_algorithm =
@@ -750,7 +759,7 @@ pub(crate) fn host_key_decrypt(
             operation,
             "decrypt_hardware_key",
             |output, written| unsafe {
-                decrypt_callback(
+                destack_host_android_crypto_decrypt_hardware_key(
                     runtime_id,
                     encoded_algorithm,
                     key_label,
@@ -800,12 +809,6 @@ pub(crate) fn host_key_delete(
         }
 
         let runtime_id = callback_runtime_id(context, operation)?;
-        let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
-            return Err(not_supported(operation));
-        };
-        let Some(delete_callback) = callbacks.delete_hardware_key else {
-            return Err(not_supported(operation));
-        };
 
         let encoded_algorithm = match key.backend {
             HostKeyBackend::AndroidHardwareKeystoreRsa => {
@@ -823,7 +826,13 @@ pub(crate) fn host_key_delete(
             _ => return Err(not_supported(operation)),
         };
         let key_label = NativeStringRef::from(&key.key_label);
-        let status = unsafe { delete_callback(runtime_id, encoded_algorithm, key_label) };
+        let status = unsafe {
+            destack_host_android_crypto_delete_hardware_key(
+                runtime_id,
+                encoded_algorithm,
+                key_label,
+            )
+        };
         host_status_result(status, operation, "delete_hardware_key")?;
 
         return Ok(());
@@ -849,12 +858,6 @@ pub(crate) fn host_key_derive_shared_secret(
         }
 
         let runtime_id = callback_runtime_id(context, operation)?;
-        let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
-            return Err(not_supported(operation));
-        };
-        let Some(derive_callback) = callbacks.derive_hardware_shared_secret else {
-            return Err(not_supported(operation));
-        };
 
         let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
         let encoded_curve = host_named_curve(named_curve, operation)?;
@@ -864,7 +867,7 @@ pub(crate) fn host_key_derive_shared_secret(
             operation,
             "derive_hardware_shared_secret",
             |output, written| unsafe {
-                derive_callback(
+                destack_host_android_crypto_derive_hardware_shared_secret(
                     runtime_id,
                     encoded_algorithm,
                     key_label,
@@ -912,12 +915,6 @@ pub(crate) fn host_key_cipher_encrypt(
     }
 
     let runtime_id = callback_runtime_id(context, operation)?;
-    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
-        return Err(not_supported(operation));
-    };
-    let Some(encrypt_callback) = callbacks.encrypt_hardware_secret_key else {
-        return Err(not_supported(operation));
-    };
 
     let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
     let encoded_cipher_algorithm = host_cipher_algorithm(parameters.algorithm, operation)?;
@@ -930,7 +927,7 @@ pub(crate) fn host_key_cipher_encrypt(
         operation,
         "encrypt_hardware_secret_key",
         |output_ciphertext, output_tag, output_ciphertext_written, output_tag_written| unsafe {
-            encrypt_callback(
+            destack_host_android_crypto_encrypt_hardware_secret_key(
                 runtime_id,
                 encoded_algorithm,
                 key_label,
@@ -976,12 +973,6 @@ pub(crate) fn host_key_cipher_decrypt(
     }
 
     let runtime_id = callback_runtime_id(context, operation)?;
-    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
-        return Err(not_supported(operation));
-    };
-    let Some(decrypt_callback) = callbacks.decrypt_hardware_secret_key else {
-        return Err(not_supported(operation));
-    };
 
     let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
     let encoded_cipher_algorithm = host_cipher_algorithm(parameters.algorithm, operation)?;
@@ -995,7 +986,7 @@ pub(crate) fn host_key_cipher_decrypt(
         operation,
         "decrypt_hardware_secret_key",
         |output, written| unsafe {
-            decrypt_callback(
+            destack_host_android_crypto_decrypt_hardware_secret_key(
                 runtime_id,
                 encoded_algorithm,
                 key_label,
@@ -1042,12 +1033,6 @@ pub(crate) fn host_key_mac_compute(
     }
 
     let runtime_id = callback_runtime_id(context, operation)?;
-    let Some(callbacks) = android_host_crypto_callbacks_snapshot(runtime_id) else {
-        return Err(not_supported(operation));
-    };
-    let Some(mac_callback) = callbacks.compute_hardware_mac else {
-        return Err(not_supported(operation));
-    };
 
     let encoded_algorithm = host_key_algorithm(algorithm, operation)?;
     let encoded_mac_algorithm = host_mac_algorithm(parameters.algorithm, operation)?;
@@ -1058,7 +1043,7 @@ pub(crate) fn host_key_mac_compute(
         operation,
         "compute_hardware_mac",
         |output, written| unsafe {
-            mac_callback(
+            destack_host_android_crypto_compute_hardware_mac(
                 runtime_id,
                 encoded_algorithm,
                 key_label,

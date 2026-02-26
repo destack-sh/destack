@@ -20,22 +20,29 @@ pub fn linux_notify_application_lifecycle(
 }
 
 /// Submit one linux window-available callback.
-pub fn linux_notify_window_available(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_available(runtime_id, HostPlatform::Linux)
+pub fn linux_notify_window_available(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
+    unix_notify_window_available(runtime_id, HostPlatform::Linux, window_id)
 }
 
 /// Submit one linux window-terminated callback.
-pub fn linux_notify_window_terminated(runtime_id: u64) -> RuntimeResult<()> {
-    unix_notify_window_terminated(runtime_id, HostPlatform::Linux)
+pub fn linux_notify_window_terminated(runtime_id: u64, window_id: u64) -> RuntimeResult<()> {
+    unix_notify_window_terminated(runtime_id, HostPlatform::Linux, window_id)
 }
 
 /// Submit one linux window-resized callback.
 pub fn linux_notify_window_resized(
     runtime_id: u64,
+    window_id: u64,
     width_px: u32,
     height_px: u32,
 ) -> RuntimeResult<()> {
-    unix_notify_window_resized(runtime_id, HostPlatform::Linux, width_px, height_px)
+    unix_notify_window_resized(
+        runtime_id,
+        HostPlatform::Linux,
+        window_id,
+        width_px,
+        height_px,
+    )
 }
 
 /// Submit one linux permission-result callback.
@@ -53,8 +60,12 @@ pub fn linux_notify_interruption_changed(runtime_id: u64, interrupted: bool) -> 
 }
 
 /// Submit one linux window focus callback.
-pub fn linux_notify_window_focus_changed(runtime_id: u64, is_focused: bool) -> RuntimeResult<()> {
-    unix_notify_window_focus_changed(runtime_id, HostPlatform::Linux, is_focused)
+pub fn linux_notify_window_focus_changed(
+    runtime_id: u64,
+    window_id: u64,
+    is_focused: bool,
+) -> RuntimeResult<()> {
+    unix_notify_window_focus_changed(runtime_id, HostPlatform::Linux, window_id, is_focused)
 }
 
 /// Submit one linux memory pressure callback.
