@@ -102,8 +102,14 @@ impl Compiler {
     fn run_loop(&self) {
         IN_WORKER_LOOP.set(true);
         loop {
+            // mark this worker active before claiming work
+            // this avoids transient "done" observations between pop and execution
+            self.queue.begin_work();
+
             // try to pop a task from the ready queue
             let Some(task_id) = self.queue.pop_ready() else {
+                self.queue.end_work();
+
                 // no task available, wait for work or completion
                 if !self.queue.wait_for_work() {
                     // if tasks are still pending, fail stalled yields instead of exiting silently
@@ -115,7 +121,9 @@ impl Compiler {
                 }
                 continue;
             };
+
             self.step_task(task_id);
+            self.queue.end_work();
         }
         IN_WORKER_LOOP.set(false);
     }
@@ -165,7 +173,10 @@ impl Compiler {
             }
 
             // try to pop and run a ready task (non-blocking)
+            self.queue.begin_work();
             let Some(next_id) = self.queue.pop_ready() else {
+                self.queue.end_work();
+
                 // no ready tasks; if target is yielded, convert to error (deadlock)
                 if let Some(TaskStatus::Yielded { dependency }) = self.queue.get_status(target_id) {
                     return TaskOutcome::Error {
@@ -175,13 +186,13 @@ impl Compiler {
                 panic!("task {target_id:?} did not reach a final state");
             };
             self.step_task(next_id);
+            self.queue.end_work();
         }
     }
 
     /// Process a single task 'step' (run until outcome, not final state).
     fn step_task(&self, task_id: TaskId) {
         let handle = self.queue.get_task(task_id);
-        self.queue.begin_work();
 
         // get task description for events
         let description = handle.task.trace_args(&self.program);
@@ -224,8 +235,6 @@ impl Compiler {
             });
         }
         self.handle_outcome(task_id, &handle, outcome, elapsed, description);
-
-        self.queue.end_work();
     }
 
     /// Process a compiler task and return the outcome.
