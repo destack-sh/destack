@@ -65,12 +65,12 @@ impl Parser {
                     expression_id = *expression;
                 }
 
-                // `satisfies` is never a valid assignment lhs
+                // `satisfies` lhs is valid in parse output only when parenthesized
                 Expression::TypeBinary {
                     operator: TypeBinaryOperator::Satisfies,
                     ..
                 } => {
-                    return true;
+                    return !is_parenthesized;
                 }
 
                 // `as` cast lhs is valid only when parenthesized

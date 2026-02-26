@@ -6677,15 +6677,27 @@ fn test_parse_parenthesized_cast_assignment_target() {
     });
 }
 
-/// Reject parenthesized satisfies assignment targets.
+/// Parse parenthesized satisfies assignment targets.
 #[test]
-fn test_reject_parenthesized_satisfies_assignment_target() {
+fn test_parse_parenthesized_satisfies_assignment_target() {
     let mut test =
         TestParser::new_with_options("(value satisfies number) = 2", LanguageType::TypeScript);
     let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
 
-    let result = parser.eat_expression(parser.options);
-    assert!(result.is_err());
+    assert_node!(parser.tree, expression_id, Expression::Assign { left, operator, right } => {
+        assert_eq!(*operator, AssignOperator::Assign);
+
+        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::TypeBinary { left, operator, right } => {
+                assert_eq!(*operator, TypeBinaryOperator::Satisfies);
+                assert_expression_path!(parser, parser.tree.get(*left), "value");
+                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Number));
+            });
+        });
+
+        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+    });
 }
 
 /// Keep one trailing semicolon block comment trivia entry in no-semi for-of fixture slices.
