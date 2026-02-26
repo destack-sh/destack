@@ -55,6 +55,17 @@ pub enum TypeOrigin {
     Imported,
 }
 
+/// The freshness state attached to one type slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
+pub enum Freshness {
+    /// No freshness information is attached.
+    None,
+    /// The type slot is regularized and should not widen at commitment.
+    Regular,
+    /// The type slot is fresh and may widen at commitment.
+    Fresh,
+}
+
 /// The metadata stored for one type id.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct TypeMetadata {
@@ -62,6 +73,8 @@ pub struct TypeMetadata {
     pub source_id: LocalNodeIdAny,
     /// The provenance of this type slot.
     pub origin: TypeOrigin,
+    /// The freshness state for this type slot.
+    pub freshness: Freshness,
     /// The revision for this type slot.
     pub revision: u64,
 }
@@ -139,6 +152,7 @@ impl TypeTable {
         self.type_metadata_by_id.push(TypeMetadata {
             source_id,
             origin,
+            freshness: Freshness::None,
             revision: 1,
         });
         self.initialize_relation_cache_for_new_type();
@@ -170,7 +184,12 @@ impl TypeTable {
     pub fn insert_type_from_type(&mut self, ty: Type, source_type_id: LocalTypeId) -> LocalTypeId {
         let source_id = self.get_type_source(source_type_id);
         let origin = self.type_origin(source_type_id);
-        self.allocate_type(ty, source_id, origin)
+        let freshness = self.type_freshness(source_type_id);
+        let type_id = self.allocate_type(ty, source_id, origin);
+        if freshness != Freshness::None {
+            self.set_type_freshness(type_id, freshness);
+        }
+        type_id
     }
 
     /// Get or insert a literal type id.
@@ -320,6 +339,26 @@ impl TypeTable {
     /// Return true when a type originated from an imported module.
     pub fn is_imported_type(&self, type_id: LocalTypeId) -> bool {
         matches!(self.type_origin(type_id), TypeOrigin::Imported)
+    }
+
+    /// Return the freshness for one type slot.
+    pub fn type_freshness(&self, type_id: LocalTypeId) -> Freshness {
+        self.type_metadata(type_id).freshness
+    }
+
+    /// Return true when one type slot is marked as fresh.
+    pub fn is_fresh_type(&self, type_id: LocalTypeId) -> bool {
+        self.type_freshness(type_id) == Freshness::Fresh
+    }
+
+    /// Set the freshness for one type slot.
+    pub fn set_type_freshness(&mut self, type_id: LocalTypeId, freshness: Freshness) {
+        let metadata = self.type_metadata_mut(type_id);
+        if metadata.freshness == freshness {
+            return;
+        }
+        metadata.freshness = freshness;
+        self.bump_type_version(type_id);
     }
 
     /// Get the number of types in the table.
@@ -507,8 +546,8 @@ fn hash_scalar_literal(literal: &ScalarLiteral, hasher: &mut impl Hasher) {
 mod tests {
     use destack_source::ModuleId;
 
-    use super::{TypeOrigin, TypeTable};
-    use crate::{LocalNodeIdAny, NodeType, PrimitiveType, Type, TypeLiteral};
+    use super::{Freshness, TypeOrigin, TypeTable};
+    use crate::{LocalNodeIdAny, NodeType, PrimitiveType, ScalarLiteral, Type, TypeLiteral};
 
     #[test]
     fn test_insert_type_from_any_tracks_local_type_metadata() {
@@ -524,6 +563,7 @@ mod tests {
         assert_eq!(types.get_type_source(type_id), source_id);
         assert_eq!(types.type_origin(type_id), TypeOrigin::Local);
         assert!(!types.is_imported_type(type_id));
+        assert_eq!(types.type_freshness(type_id), Freshness::None);
         assert_eq!(types.type_version(type_id), 1);
     }
 
@@ -541,6 +581,7 @@ mod tests {
         assert_eq!(types.get_type_source(type_id), source_id);
         assert_eq!(types.type_origin(type_id), TypeOrigin::Imported);
         assert!(types.is_imported_type(type_id));
+        assert_eq!(types.type_freshness(type_id), Freshness::None);
         assert_eq!(types.type_version(type_id), 1);
     }
 
@@ -565,7 +606,30 @@ mod tests {
 
         assert_eq!(types.get_type_source(mapped_type_id), source_id);
         assert_eq!(types.type_origin(mapped_type_id), TypeOrigin::Imported);
+        assert_eq!(types.type_freshness(mapped_type_id), Freshness::None);
         assert_eq!(types.type_version(mapped_type_id), 1);
+    }
+
+    #[test]
+    fn test_insert_type_from_type_preserves_type_freshness() {
+        let mut types = TypeTable::new(ModuleId::EPHEMERAL);
+        let source_id = LocalNodeIdAny::new(17, NodeType::Expression);
+        let source_type_id = types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1)),
+            },
+            source_id,
+        );
+        types.set_type_freshness(source_type_id, Freshness::Fresh);
+
+        let mapped_type_id = types.insert_type_from_type(
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(2)),
+            },
+            source_type_id,
+        );
+
+        assert_eq!(types.type_freshness(mapped_type_id), Freshness::Fresh);
     }
 
     #[test]
@@ -591,5 +655,25 @@ mod tests {
         assert_eq!(types.type_version(type_id), 2);
         assert_eq!(types.get_type_source(type_id), source_id);
         assert_eq!(types.type_origin(type_id), TypeOrigin::Local);
+    }
+
+    #[test]
+    fn test_set_type_freshness_bumps_type_metadata_revision() {
+        let mut types = TypeTable::new(ModuleId::EPHEMERAL);
+        let source_id = LocalNodeIdAny::new(23, NodeType::Expression);
+        let type_id = types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1)),
+            },
+            source_id,
+        );
+
+        assert_eq!(types.type_version(type_id), 1);
+        assert_eq!(types.type_freshness(type_id), Freshness::None);
+
+        types.set_type_freshness(type_id, Freshness::Fresh);
+
+        assert_eq!(types.type_version(type_id), 2);
+        assert_eq!(types.type_freshness(type_id), Freshness::Fresh);
     }
 }
