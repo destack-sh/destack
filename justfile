@@ -205,6 +205,14 @@ test-ide:
 test-runtime-windows-cross:
     just language/test-runtime-windows-cross
 
+# inspect runtime target toolchain readiness on this host
+runtime-toolchain-doctor:
+    just language/runtime-toolchain-doctor
+
+# bootstrap runtime target toolchains and host prerequisites where possible
+runtime-toolchain-bootstrap:
+    just language/runtime-toolchain-bootstrap
+
 # run language runtime android target checks
 check-runtime-android:
     just language/check-runtime-android

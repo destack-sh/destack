@@ -24,6 +24,23 @@ Support is keyed by Rust target triple (for now).
 | `aarch64-linux-android` | Tier 2 | `runtime-android` | NDK-aware compile checks with clippy and `--no-run` host tests |
 | `wasm32-wasip1` | Tier 3 | `runtime-wasip1` | `cargo check --target wasm32-wasip1` |
 
+### Local workflow
+
+Run these commands from repository root when setting up or validating runtime target lanes.
+
+| Goal | Command |
+|-----------|--------|
+| Bootstrap runtime toolchains and sdk prerequisites | `just runtime-toolchain-bootstrap` |
+| Inspect host readiness for runtime target lanes | `just runtime-toolchain-doctor` |
+| Run host runtime lane on macOS | `just check-runtime-macos` |
+| Run host runtime lane on Linux | `just check-runtime-linux` |
+| Run host runtime lane on Windows | `just check-runtime-windows-host` |
+| Run windows gnu runtime cross lane | `just check-runtime-windows-gnu` |
+| Run iOS runtime target lane | `just check-runtime-ios` |
+| Run Android runtime target lane | `just check-runtime-android` |
+| Run wasm32-wasip1 runtime target lane | `just check-runtime-wasip1` |
+| Run runtime cross-target compile lane | `just check-runtime-cross-targets` |
+
 ### Tier 1 required checks
 
 Tier 1 branch protection should require these CI checks on `main`.
