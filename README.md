@@ -2,13 +2,14 @@
 
 # Destack: Universal Software Engine
 
+<p>
+    <img src="./.github/assets/banner.svg" width="960" alt="Destack banner">
+</p>
+
 **Destack is a universal software engine for building correct, optimal, integrated software systems.**
 
 _Full-stack TypeScript(++) toolchain, VM, AOT compiler, runtime, library, and platform built on open standards._
 
-<p>
-    <img src="./.github/assets/banner.svg" width="960" alt="Destack banner">
-</p>
 
 <p>
     <a href="version.txt"><img src="https://img.shields.io/badge/version-0.55.2-2ea44f" alt="Version"></a>
@@ -37,11 +38,9 @@ Instead of wrangling many disparate tools, libraries, and approaches, Destack un
 - [**Destack Library**](library/README.md): Standard library packages for most things most software needs, (written in TS++).
 - [**Destack Client**](client/README.md): User-facing SDKs and bindings for JS/TS, WASM, Rust, and Python.
 - [**Destack Platform**](platform/README.md): CLI, daemon, LSP, editor integrations, everything to run, deploy, and integrate software.
-- [**Destack Examples**](examples/README.md): End-to-end sample projects that demonstrate language and platform usage.
-- [**Destack Templates**](templates/README.md): Starter project templates used by `destack new`.
 
 While Destack is designed from the ground up as an integrated system, you are of course free to pick and choose only the components you like.
-It's all open source.
+It's all open source, open standards, zero lock-in.
 
 ### Higher-Order Programming
 
@@ -74,11 +73,11 @@ Create a new app with `npm create destack@latest my-app` or `bun create destack 
 Destack supports Linux, MacOS and Windows as TIer 1 targets, with mobile (iOS, Android) still coming online. 
 See [TARGETS.md](TARGETS.md).
 
-| Tier | Target triples |
-|-----------|--------|
-| Tier 1 | `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`, `x86_64-pc-windows-gnu`, `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` |
-| Tier 2 | `aarch64-apple-ios`, `aarch64-linux-android` |
-| Tier 3 | `wasm32-wasip1` |
+| Tier | Target triples | Notes | 
+|-----------|--------|-----|
+| Tier 1 | `aarch64-apple-darwin`, `x86_64-pc-windows-msvc`, `x86_64-pc-windows-gnu`, `x86_64-unknown-linux-gnu`, `aarch64-unknown-linux-gnu` | Full support |
+| Tier 2 | `aarch64-apple-ios`, `aarch64-linux-android` | Pending support |
+| Tier 3 | `wasm32-wasip1` | Eventual support |
 
 ## Contributing
 
