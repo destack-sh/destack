@@ -1,8 +1,14 @@
-use super::{KEY_USAGE_EXPORT, KEY_USAGE_SIGN, KEY_USAGE_VERIFY, with_harness_context};
+use super::{
+    KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_EXPORT, KEY_USAGE_SIGN,
+    KEY_USAGE_VERIFY, with_harness_context,
+};
 use crate::platform::crypto::{
-    CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyGenerationRequest,
-    CryptoKeyUsageMask, CryptoNamedCurve, CryptoSignatureAlgorithm, CryptoSignatureParameters,
-    CryptoStoreKind,
+    CryptoAgreementDeriveKeyRequest, CryptoArgon2idRequest, CryptoDigestAlgorithm,
+    CryptoHkdfRequest, CryptoKdfAlgorithm, CryptoKeyAgreementAlgorithm, CryptoKeyAlgorithm,
+    CryptoKeyFormat, CryptoKeyGenerationRequest, CryptoKeyResidency, CryptoKeyUsageMask,
+    CryptoMacAlgorithm, CryptoMacParameters, CryptoNamedCurve, CryptoPbkdf2Request,
+    CryptoPrivateKeyExportRequest, CryptoScryptRequest, CryptoSignatureAlgorithm,
+    CryptoSignatureParameters, CryptoStoreKind, CryptoStoreProvider,
 };
 
 /// Return non-empty algorithm probe lists for implemented lanes.
@@ -29,6 +35,40 @@ fn test_probe_lists_non_empty() {
     });
 }
 
+/// Keep key residency probe output aligned with host store capability truth.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_probe_key_residencies_match_host_store_capabilities() {
+    with_harness_context(|mut context| {
+        // load probed key residencies
+        let probed = context.destack_crypto_probe_key_residencies()?;
+        let probed = context.values_from_slice(probed)?;
+        assert!(probed.contains(&CryptoKeyResidency::SoftwareExportable));
+        assert!(probed.contains(&CryptoKeyResidency::SoftwareNonExportable));
+
+        // derive hardware residency support from host store capability probes
+        let mut supports_hardware_backed = false;
+        for kind in [
+            CryptoStoreKind::System,
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+            let capability = context.store_capability_from_value(capability)?;
+            if capability.supports_hardware_backed {
+                supports_hardware_backed = true;
+            }
+        }
+
+        // keep residency probe output coherent with host capability state
+        let reports_hardware_backed = probed.contains(&CryptoKeyResidency::HardwareOpaque);
+        assert_eq!(reports_hardware_backed, supports_hardware_backed);
+
+        Ok(())
+    });
+}
+
 /// Ensure probed digest algorithms are operational.
 #[cfg(any(unix, windows))]
 #[test]
@@ -43,6 +83,252 @@ fn test_probe_digest_algorithms_are_callable() {
             let output = context.bytes_from_slice_value(output)?;
             assert!(!output.is_empty());
         }
+
+        Ok(())
+    });
+}
+
+/// Ensure probed KDF algorithms are operational.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_probe_kdf_algorithms_are_callable() {
+    with_harness_context(|mut context| {
+        // probe kdf algorithms and execute each lane
+        let algorithms = context.destack_crypto_probe_kdf_algorithms()?;
+        let algorithms = context.values_from_slice(algorithms)?;
+        for algorithm in algorithms {
+            let output = match algorithm {
+                CryptoKdfAlgorithm::Hkdf => {
+                    let request = CryptoHkdfRequest {
+                        digest: CryptoDigestAlgorithm::Sha256,
+                        input_key_material: context.call_context.store_slice(b"ikm".to_vec()),
+                        salt: context.call_context.store_slice(b"salt".to_vec()),
+                        info: context.call_context.store_slice(b"info".to_vec()),
+                        length: 32,
+                    };
+                    context.destack_crypto_kdf_hkdf(context.request_value(request)?)?
+                }
+                CryptoKdfAlgorithm::Pbkdf2 => {
+                    let request = CryptoPbkdf2Request {
+                        digest: CryptoDigestAlgorithm::Sha256,
+                        password: context.call_context.store_slice(b"password".to_vec()),
+                        salt: context.call_context.store_slice(b"salt".to_vec()),
+                        iterations: 1024,
+                        length: 32,
+                    };
+                    context.destack_crypto_kdf_pbkdf2(context.request_value(request)?)?
+                }
+                CryptoKdfAlgorithm::Scrypt => {
+                    let request = CryptoScryptRequest {
+                        password: context.call_context.store_slice(b"password".to_vec()),
+                        salt: context.call_context.store_slice(b"salt".to_vec()),
+                        cost: 1024,
+                        block_size: 8,
+                        parallelization: 1,
+                        max_memory_bytes: 16 * 1024 * 1024,
+                        length: 32,
+                    };
+                    context.destack_crypto_kdf_scrypt(context.request_value(request)?)?
+                }
+                CryptoKdfAlgorithm::Argon2id => {
+                    let request = CryptoArgon2idRequest {
+                        password: context.call_context.store_slice(b"password".to_vec()),
+                        salt: context.call_context.store_slice(b"salt1234".to_vec()),
+                        associated_data: context.call_context.store_slice(Vec::<u8>::new()),
+                        secret: context.call_context.store_slice(Vec::<u8>::new()),
+                        iterations: 2,
+                        memory_ki_b: 19 * 1024,
+                        parallelism: 1,
+                        length: 32,
+                    };
+                    context.destack_crypto_kdf_argon2id(context.request_value(request)?)?
+                }
+                CryptoKdfAlgorithm::Unknown => unreachable!("probe should not report unknown"),
+            };
+            let output = context.bytes_from_slice_value(output)?;
+            assert!(!output.is_empty());
+        }
+
+        Ok(())
+    });
+}
+
+/// Ensure probed MAC algorithms are operational.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_probe_mac_algorithms_are_callable() {
+    with_harness_context(|mut context| {
+        // open one ephemeral store and generate one hmac key
+        let options = context.store_options_value(CryptoStoreKind::Ephemeral);
+        let store = context.destack_crypto_store_open(options)?;
+        let request = CryptoKeyGenerationRequest {
+            algorithm: CryptoKeyAlgorithm::Hmac,
+            named_curve: CryptoNamedCurve::Unknown,
+            modulus_bits: 0,
+            public_exponent: 0,
+            digest: CryptoDigestAlgorithm::Sha256,
+            size_bits: 256,
+            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+            label: context.call_context.store_string("probe-mac"),
+            extractable: true,
+            residency: CryptoKeyResidency::Unknown,
+            hardware_backed: false,
+            persistent: false,
+        };
+        let key =
+            context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
+
+        // probe mac algorithms and execute each lane
+        let algorithms = context.destack_crypto_probe_mac_algorithms()?;
+        let algorithms = context.values_from_slice(algorithms)?;
+        for algorithm in algorithms {
+            match algorithm {
+                CryptoMacAlgorithm::Hmac => {
+                    let parameters = CryptoMacParameters {
+                        algorithm,
+                        digest: CryptoDigestAlgorithm::Sha256,
+                        tag_length_bytes: 0,
+                    };
+                    let payload = context.bytes_slice_value(b"probe-mac-payload")?;
+                    let tag = context.destack_crypto_mac_compute(
+                        key,
+                        context.request_value(parameters)?,
+                        payload,
+                    )?;
+                    let tag = context.bytes_from_slice_value(tag)?;
+                    assert!(!tag.is_empty());
+                }
+                CryptoMacAlgorithm::Unknown => unreachable!("probe should not report unknown"),
+            }
+        }
+
+        context.destack_crypto_store_close(store)?;
+
+        Ok(())
+    });
+}
+
+/// Ensure probed agreement algorithms are operational.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_probe_agreement_algorithms_are_callable() {
+    with_harness_context(|mut context| {
+        // open one ephemeral store and probe agreement algorithms
+        let options = context.store_options_value(CryptoStoreKind::Ephemeral);
+        let store = context.destack_crypto_store_open(options)?;
+        let algorithms = context.destack_crypto_probe_agreement_algorithms()?;
+        let algorithms = context.values_from_slice(algorithms)?;
+
+        // generate lane-compatible key pairs and derive shared secrets
+        for algorithm in algorithms {
+            let (key_algorithm, named_curve) = match algorithm {
+                CryptoKeyAgreementAlgorithm::Ecdh => {
+                    (CryptoKeyAlgorithm::Ec, CryptoNamedCurve::P256)
+                }
+                CryptoKeyAgreementAlgorithm::X25519 => {
+                    (CryptoKeyAlgorithm::X25519, CryptoNamedCurve::X25519)
+                }
+                CryptoKeyAgreementAlgorithm::X448 => {
+                    (CryptoKeyAlgorithm::X448, CryptoNamedCurve::X448)
+                }
+                CryptoKeyAgreementAlgorithm::Unknown => {
+                    unreachable!("probe should not report unknown")
+                }
+            };
+            let request = CryptoKeyGenerationRequest {
+                algorithm: key_algorithm,
+                named_curve,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 0,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
+                label: context.call_context.store_string("probe-agreement"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            };
+            let alice =
+                context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
+            let alice = context.same_from_value(alice);
+            let bob =
+                context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
+            let bob = context.same_from_value(bob);
+
+            let secret = context.destack_crypto_agreement_derive_shared_secret(
+                alice.private_key,
+                bob.public_key,
+                algorithm,
+            )?;
+            let secret = context.bytes_from_slice_value(secret)?;
+            assert!(!secret.is_empty());
+
+            let derive_request = CryptoAgreementDeriveKeyRequest {
+                algorithm,
+                digest: CryptoDigestAlgorithm::Sha256,
+                salt: context.call_context.store_slice(b"salt".to_vec()),
+                info: context.call_context.store_slice(b"info".to_vec()),
+                output_length: 32,
+            };
+            let derived = context.destack_crypto_agreement_derive_key(
+                alice.private_key,
+                bob.public_key,
+                context.request_value(derive_request)?,
+            )?;
+            let derived = context.bytes_from_slice_value(derived)?;
+            assert_eq!(derived.len(), 32);
+        }
+
+        context.destack_crypto_store_close(store)?;
+
+        Ok(())
+    });
+}
+
+/// Ensure probed named curves map to generatable key lanes.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_probe_named_curves_are_generatable() {
+    with_harness_context(|mut context| {
+        // open one ephemeral store and probe named curves
+        let options = context.store_options_value(CryptoStoreKind::Ephemeral);
+        let store = context.destack_crypto_store_open(options)?;
+        let curves = context.destack_crypto_probe_named_curves()?;
+        let curves = context.values_from_slice(curves)?;
+
+        // generate one key pair for each reported curve lane
+        for curve in curves {
+            let algorithm = match curve {
+                CryptoNamedCurve::P256
+                | CryptoNamedCurve::P384
+                | CryptoNamedCurve::P521
+                | CryptoNamedCurve::Secp256k1 => CryptoKeyAlgorithm::Ec,
+                CryptoNamedCurve::X25519 => CryptoKeyAlgorithm::X25519,
+                CryptoNamedCurve::X448 => CryptoKeyAlgorithm::X448,
+                CryptoNamedCurve::Ed25519 => CryptoKeyAlgorithm::Ed25519,
+                CryptoNamedCurve::Ed448 => CryptoKeyAlgorithm::Ed448,
+                CryptoNamedCurve::Unknown => unreachable!("probe should not report unknown"),
+            };
+            let request = CryptoKeyGenerationRequest {
+                algorithm,
+                named_curve: curve,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 0,
+                usage_mask: CryptoKeyUsageMask(0),
+                label: context.call_context.store_string("probe-curve"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            };
+            let _pair =
+                context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
+        }
+
+        context.destack_crypto_store_close(store)?;
 
         Ok(())
     });
@@ -75,6 +361,7 @@ fn test_probe_key_algorithms_are_generatable() {
                         usage_mask: CryptoKeyUsageMask(0),
                         label: context.call_context.store_string("probe-secret"),
                         extractable: true,
+                        residency: CryptoKeyResidency::Unknown,
                         hardware_backed: false,
                         persistent: false,
                     };
@@ -117,6 +404,7 @@ fn test_probe_key_algorithms_are_generatable() {
                         usage_mask: CryptoKeyUsageMask(0),
                         label: context.call_context.store_string("probe-pair"),
                         extractable: true,
+                        residency: CryptoKeyResidency::Unknown,
                         hardware_backed: false,
                         persistent: false,
                     };
@@ -179,6 +467,7 @@ fn test_probe_signature_algorithms_are_callable() {
                 usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
                 label: context.call_context.store_string("probe-signature"),
                 extractable: true,
+                residency: CryptoKeyResidency::Unknown,
                 hardware_backed: false,
                 persistent: false,
             };
@@ -252,6 +541,7 @@ fn test_probe_key_formats_are_exportable() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
             label: context.call_context.store_string("probe-ec"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -269,6 +559,7 @@ fn test_probe_key_formats_are_exportable() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
             label: context.call_context.store_string("probe-aes"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -279,8 +570,26 @@ fn test_probe_key_formats_are_exportable() {
         for format in key_formats {
             match format {
                 CryptoKeyFormat::Pkcs8Pem | CryptoKeyFormat::Pkcs8Der => {
-                    let exported =
-                        context.destack_crypto_key_export_private(ec_pair.private_key, format)?;
+                    let exported = context.destack_crypto_key_export_private(
+                        ec_pair.private_key,
+                        context.request_value(CryptoPrivateKeyExportRequest {
+                            format,
+                            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                        })?,
+                    )?;
+                    let exported = context.bytes_from_slice_value(exported)?;
+                    assert!(!exported.is_empty());
+                }
+                CryptoKeyFormat::Pkcs8EncryptedPem | CryptoKeyFormat::Pkcs8EncryptedDer => {
+                    let exported = context.destack_crypto_key_export_private(
+                        ec_pair.private_key,
+                        context.request_value(CryptoPrivateKeyExportRequest {
+                            format,
+                            passphrase: context
+                                .call_context
+                                .store_slice(b"probe-passphrase".to_vec()),
+                        })?,
+                    )?;
                     let exported = context.bytes_from_slice_value(exported)?;
                     assert!(!exported.is_empty());
                 }
@@ -291,8 +600,13 @@ fn test_probe_key_formats_are_exportable() {
                     assert!(!exported.is_empty());
                 }
                 CryptoKeyFormat::Sec1Pem | CryptoKeyFormat::Sec1Der => {
-                    let exported =
-                        context.destack_crypto_key_export_private(ec_pair.private_key, format)?;
+                    let exported = context.destack_crypto_key_export_private(
+                        ec_pair.private_key,
+                        context.request_value(CryptoPrivateKeyExportRequest {
+                            format,
+                            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                        })?,
+                    )?;
                     let exported = context.bytes_from_slice_value(exported)?;
                     assert!(!exported.is_empty());
                 }

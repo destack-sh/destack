@@ -11,10 +11,12 @@ use crate::platform::crypto::{
     CryptoArgon2idRequestVm, CryptoAsymmetricEncryptionAlgorithm,
     CryptoAsymmetricEncryptionParameters, CryptoAsymmetricEncryptionParametersVm,
     CryptoCertificateDescriptor, CryptoCertificateDescriptorVm, CryptoCertificateFormat,
-    CryptoCertificateListEntry, CryptoCertificateListEntryVm, CryptoCertificateListPage,
-    CryptoCertificateListPageVm, CryptoCertificatePurpose, CryptoCertificateQuery,
-    CryptoCertificateQueryVm, CryptoCertificateRevocationMode, CryptoCertificateValidity,
-    CryptoCertificateValidityVm, CryptoCertificateVerifyRequest, CryptoCertificateVerifyRequestVm,
+    CryptoCertificateIdentityKind, CryptoCertificateListEntry, CryptoCertificateListEntryVm,
+    CryptoCertificateListPage, CryptoCertificateListPageVm, CryptoCertificatePurpose,
+    CryptoCertificateQuery, CryptoCertificateQueryVm, CryptoCertificateRevocationMode,
+    CryptoCertificateValidity, CryptoCertificateValidityVm, CryptoCertificateVerifyError,
+    CryptoCertificateVerifyIdentity, CryptoCertificateVerifyIdentityVm,
+    CryptoCertificateVerifyRequest, CryptoCertificateVerifyRequestVm,
     CryptoCertificateVerifyResult, CryptoCertificateVerifyResultVm, CryptoCipherAlgorithm,
     CryptoCipherDirection, CryptoCipherOutput, CryptoCipherOutputVm, CryptoCipherParameters,
     CryptoCipherParametersVm, CryptoDigestAlgorithm, CryptoHkdfRequest, CryptoHkdfRequestVm,
@@ -22,13 +24,22 @@ use crate::platform::crypto::{
     CryptoKeyDescriptorVm, CryptoKeyFormat, CryptoKeyGenerationRequest,
     CryptoKeyGenerationRequestVm, CryptoKeyImportRequest, CryptoKeyImportRequestVm, CryptoKeyKind,
     CryptoKeyListEntry, CryptoKeyListEntryVm, CryptoKeyListPage, CryptoKeyListPageVm,
-    CryptoKeyPair, CryptoKeyPairVm, CryptoKeyQuery, CryptoKeyQueryVm, CryptoKeyUsageMask,
+    CryptoKeyPair, CryptoKeyPairVm, CryptoKeyQuery, CryptoKeyQueryVm, CryptoKeyResidency,
+    CryptoKeyUsageMask, CryptoKeyWrapAlgorithm, CryptoKeyWrapParameters, CryptoKeyWrapParametersVm,
     CryptoMacAlgorithm, CryptoMacParameters, CryptoMacParametersVm, CryptoNamedCurve,
-    CryptoPbkdf2Request, CryptoPbkdf2RequestVm, CryptoScryptRequest, CryptoScryptRequestVm,
+    CryptoPbkdf2Request, CryptoPbkdf2RequestVm, CryptoPrivateKeyExportRequest,
+    CryptoPrivateKeyExportRequestVm, CryptoScryptRequest, CryptoScryptRequestVm,
     CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoSignatureParametersVm,
-    CryptoStoreCapability, CryptoStoreCapabilityVm, CryptoStoreKind, CryptoStoreOptions,
+    CryptoStoreAgreementCapability, CryptoStoreAgreementCapabilityVm,
+    CryptoStoreAsymmetricEncryptionCapability, CryptoStoreAsymmetricEncryptionCapabilityVm,
+    CryptoStoreCapability, CryptoStoreCapabilityVm, CryptoStoreCertificateCapability,
+    CryptoStoreCertificateCapabilityVm, CryptoStoreCipherCapability, CryptoStoreCipherCapabilityVm,
+    CryptoStoreIdentity, CryptoStoreIdentityVm, CryptoStoreKeyCapability,
+    CryptoStoreKeyCapabilityVm, CryptoStoreKeyWrapCapability, CryptoStoreKeyWrapCapabilityVm,
+    CryptoStoreKind, CryptoStoreMacCapability, CryptoStoreMacCapabilityVm, CryptoStoreOptions,
     CryptoStoreOptionsVm, CryptoStoreProvenance, CryptoStoreProvenanceVm, CryptoStoreProvider,
-    native as crypto_native, vm as crypto_vm,
+    CryptoStoreSignatureCapability, CryptoStoreSignatureCapabilityVm, native as crypto_native,
+    vm as crypto_vm,
 };
 use crate::platform::{
     NativeArray, NativeSlice, NativeStringRef, PlatformError as HarnessPlatformError, VmArray,
@@ -60,7 +71,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL key-agreement and KDF primitives for software lanes, and host key APIs for host-managed lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when registered.
+    /// Uses OpenSSL key-agreement and KDF primitives for software providers, and host key APIs for host-managed keys: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -110,7 +121,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL key-agreement primitives for software lanes, and host key APIs for host-managed lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when registered.
+    /// Uses OpenSSL key-agreement primitives for software providers, and host key APIs for host-managed keys: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -154,7 +165,7 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
-    /// Delete one certificate from one store lane when allowed.
+    /// Delete one certificate from one store when allowed.
     ///
     /// Remove one certificate object and invalidate the handle.
     /// Deletion permissions and persistence are enforced by runtime store policies.
@@ -277,7 +288,7 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
-    /// Import one certificate into one store lane.
+    /// Import one certificate into one store.
     ///
     /// Parse and import one certificate blob into one store and return one certificate handle.
     /// Import visibility and persistence are enforced by runtime store policies.
@@ -382,7 +393,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -410,7 +421,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -462,7 +473,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -517,7 +528,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -564,7 +575,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -614,7 +625,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -656,7 +667,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -703,7 +714,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1134,7 +1145,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1192,7 +1203,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1220,7 +1231,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1262,7 +1273,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1316,11 +1327,13 @@ impl<'call> CryptoHarnessContext<'call> {
     /// Export one private key.
     ///
     /// Export one private key representation in the requested encoding format.
+    /// Output format and passphrase are provided by `CryptoPrivateKeyExportRequest`.
+    /// Encrypted PKCS#8 output requires one non-empty passphrase.
     /// The operation fails when store policy marks this key as non-exportable.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1333,26 +1346,28 @@ impl<'call> CryptoHarnessContext<'call> {
     pub(crate) fn destack_crypto_key_export_private(
         &mut self,
         handle: resource::CryptoKeyHandle,
-        format: CryptoKeyFormat,
+        request: HarnessValue<CryptoPrivateKeyExportRequest, CryptoPrivateKeyExportRequestVm>,
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
+                let request = request.into_vm("request")?;
                 let out = crypto_vm::destack_crypto_key_export_private(
                     self.call_context,
                     context,
                     handle,
-                    format,
+                    request,
                 )?;
                 Ok(HarnessValue::Vm(out))
             }
             None => {
+                let request = request.into_native("request")?;
                 let mut out = std::mem::MaybeUninit::<NativeSlice<u8>>::uninit();
                 unsafe {
                     crypto_native::destack_crypto_key_export_private(
                         self.call_context,
                         out.as_mut_ptr(),
                         handle,
-                        format,
+                        request,
                     )?;
                 }
                 let out = unsafe { out.assume_init() };
@@ -1367,7 +1382,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1415,7 +1430,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1463,7 +1478,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1513,8 +1528,8 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
-    /// Hardware-backed secret-key generation is available when the selected host lane exposes symmetric hardware-key callbacks.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
+    /// Hardware-backed secret-key generation is available when the selected host store exposes symmetric hardware-key callbacks.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1559,12 +1574,13 @@ impl<'call> CryptoHarnessContext<'call> {
 
     /// Import one key object.
     ///
-    /// Parse and import one key blob into one store lane.
+    /// Parse and import one key blob into one store.
     /// Key visibility and persistence follow runtime store policies.
+    /// Encrypted PKCS#8 inputs require one non-empty `request.passphrase`.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1614,7 +1630,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1664,12 +1680,12 @@ impl<'call> CryptoHarnessContext<'call> {
 
     /// Unwrap one key.
     ///
-    /// Decrypt and import one wrapped key object into one store lane.
+    /// Decrypt and import one wrapped key object into one store.
     /// Import semantics follow runtime store policy and the import request.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1684,10 +1700,7 @@ impl<'call> CryptoHarnessContext<'call> {
         store: resource::CryptoStoreHandle,
         wrappingkey: resource::CryptoKeyHandle,
         wrappedkey: HarnessValue<NativeSlice<u8>, VmSlice<u8>>,
-        parameters: HarnessValue<
-            CryptoAsymmetricEncryptionParameters,
-            CryptoAsymmetricEncryptionParametersVm,
-        >,
+        parameters: HarnessValue<CryptoKeyWrapParameters, CryptoKeyWrapParametersVm>,
         request: HarnessValue<CryptoKeyImportRequest, CryptoKeyImportRequestVm>,
     ) -> RuntimeResult<resource::CryptoKeyHandle> {
         match self.generated_vm_context_mut() {
@@ -1735,7 +1748,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1791,11 +1804,12 @@ impl<'call> CryptoHarnessContext<'call> {
     /// Wrap one key.
     ///
     /// Export and encrypt one key object under one wrapping key.
-    /// Wrapping format and encryption semantics follow runtime store behavior.
+    /// Wrapping semantics are selected by `CryptoKeyWrapParameters`.
+    /// `RsaOaep` uses asymmetric OAEP wrapping and `AesKw` or `AesKwp` use RFC 3394 or RFC 5649 key-wrap semantics.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL software key-management primitives and host key-store lanes: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed lanes.
+    /// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1810,10 +1824,7 @@ impl<'call> CryptoHarnessContext<'call> {
         wrappingkey: resource::CryptoKeyHandle,
         keytowrap: resource::CryptoKeyHandle,
         format: CryptoKeyFormat,
-        parameters: HarnessValue<
-            CryptoAsymmetricEncryptionParameters,
-            CryptoAsymmetricEncryptionParametersVm,
-        >,
+        parameters: HarnessValue<CryptoKeyWrapParameters, CryptoKeyWrapParametersVm>,
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -1851,7 +1862,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -1877,7 +1888,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -1929,7 +1940,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -1967,7 +1978,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -2014,7 +2025,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -2040,7 +2051,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -2082,7 +2093,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret-key lanes when available.
+    /// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -2142,7 +2153,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -2190,7 +2201,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -2232,7 +2243,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -2274,7 +2285,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -2315,7 +2326,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -2356,7 +2367,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -2388,6 +2399,92 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
+    /// List supported key residencies.
+    ///
+    /// Return key residencies available through active host provider implementations.
+    /// Results are capability snapshots and may vary across hosts and runtime builds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_crypto_probe_key_residencies(
+        &mut self,
+    ) -> RuntimeResult<HarnessValue<NativeSlice<CryptoKeyResidency>, VmSlice<CryptoKeyResidency>>>
+    {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out =
+                    crypto_vm::destack_crypto_probe_key_residencies(self.call_context, context)?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out = std::mem::MaybeUninit::<NativeSlice<CryptoKeyResidency>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_probe_key_residencies(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
+    /// List supported key-wrap algorithms.
+    ///
+    /// Return key-wrap algorithms available through active host provider implementations.
+    /// Results are capability snapshots and may vary across hosts and runtime builds.
+    ///
+    /// # Platform
+    /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    ///
+    /// # Errors
+    /// Returns ioInvalidData, notSupported.
+    ///
+    /// # Security
+    /// Requires `crypto.probe`.
+    ///
+    /// # Replay
+    /// External, recordable.
+    pub(crate) fn destack_crypto_probe_key_wrap_algorithms(
+        &mut self,
+    ) -> RuntimeResult<
+        HarnessValue<NativeSlice<CryptoKeyWrapAlgorithm>, VmSlice<CryptoKeyWrapAlgorithm>>,
+    > {
+        match self.generated_vm_context_mut() {
+            Some(context) => {
+                let out = crypto_vm::destack_crypto_probe_key_wrap_algorithms(
+                    self.call_context,
+                    context,
+                )?;
+                Ok(HarnessValue::Vm(out))
+            }
+            None => {
+                let mut out =
+                    std::mem::MaybeUninit::<NativeSlice<CryptoKeyWrapAlgorithm>>::uninit();
+                unsafe {
+                    crypto_native::destack_crypto_probe_key_wrap_algorithms(
+                        self.call_context,
+                        out.as_mut_ptr(),
+                    )?;
+                }
+                let out = unsafe { out.assume_init() };
+                Ok(HarnessValue::Native(out))
+            }
+        }
+    }
+
     /// List supported MAC algorithms.
     ///
     /// Return message-authentication algorithms available through active host providers.
@@ -2395,7 +2492,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -2436,7 +2533,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -2475,7 +2572,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto capability introspection over OpenSSL software lanes and host key-store lanes: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
+    /// Uses runtime crypto capability introspection over OpenSSL software providers and host key stores: Security.framework on Apple, CNG or Crypt32 on Windows, and Android keystore callbacks when registered.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.
@@ -2589,8 +2686,8 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
-    /// Operations may return `notSupported` when host store lanes are unavailable.
+    /// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+    /// Operations may return `notSupported` when host stores are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioNotFound, notSupported.
@@ -2619,8 +2716,8 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
-    /// Operations may return `notSupported` when host store lanes are unavailable.
+    /// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+    /// Operations may return `notSupported` when host stores are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -2670,8 +2767,8 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
-    /// Operations may return `notSupported` when host store lanes are unavailable.
+    /// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+    /// Operations may return `notSupported` when host stores are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -2720,12 +2817,12 @@ impl<'call> CryptoHarnessContext<'call> {
     /// Provider selection and access scope follow runtime crypto store semantics.
     /// `Ephemeral` and `Provider` store support is required.
     /// Host-backed `System`, `User`, and `Machine` support is host dependent.
-    /// Host-backed lanes may expose certificate reads while rejecting key or certificate writes.
+    /// Host-backed stores may expose certificate reads while rejecting key or certificate writes.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store primitives over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
-    /// Operations may return `notSupported` when host store lanes are unavailable.
+    /// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
+    /// Operations may return `notSupported` when host stores are unavailable.
     ///
     /// # Errors
     /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
@@ -2762,13 +2859,13 @@ impl<'call> CryptoHarnessContext<'call> {
         }
     }
 
-    /// Return capabilities for one store backend lane.
+    /// Return capabilities for one store backend identity.
     ///
     /// Query one store kind and optional provider and return effective capability policy.
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store capability introspection over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+    /// Uses runtime crypto store capability introspection over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
     ///
     /// # Errors
     /// Returns invalidArgument, ioInvalidData, notSupported.
@@ -2815,7 +2912,7 @@ impl<'call> CryptoHarnessContext<'call> {
     ///
     /// # Platform
     /// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-    /// Uses runtime crypto store capability introspection over OpenSSL software lanes and host store lanes: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software lanes plus keystore lanes when host callbacks are configured.
+    /// Uses runtime crypto store capability introspection over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
     ///
     /// # Errors
     /// Returns ioInvalidData, notSupported.

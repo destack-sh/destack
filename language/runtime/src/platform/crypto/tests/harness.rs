@@ -5,15 +5,20 @@ use crate::platform::crypto::{
     CryptoArgon2idRequestVm, CryptoAsymmetricEncryptionParameters,
     CryptoAsymmetricEncryptionParametersVm, CryptoCertificateDescriptor,
     CryptoCertificateDescriptorVm, CryptoCertificateListPage, CryptoCertificateListPageVm,
-    CryptoCertificateQuery, CryptoCertificateQueryVm, CryptoCertificateVerifyRequest,
-    CryptoCertificateVerifyRequestVm, CryptoCipherOutput, CryptoCipherOutputVm,
-    CryptoCipherParameters, CryptoCipherParametersVm, CryptoHkdfRequest, CryptoHkdfRequestVm,
-    CryptoKeyAlgorithm, CryptoKeyDescriptor, CryptoKeyDescriptorVm, CryptoKeyFormat,
-    CryptoKeyGenerationRequest, CryptoKeyGenerationRequestVm, CryptoKeyImportRequest,
-    CryptoKeyImportRequestVm, CryptoKeyListPage, CryptoKeyListPageVm, CryptoKeyQuery,
-    CryptoKeyQueryVm, CryptoMacParameters, CryptoPbkdf2Request, CryptoPbkdf2RequestVm,
-    CryptoScryptRequest, CryptoScryptRequestVm, CryptoSignatureParameters, CryptoStoreCapability,
-    CryptoStoreCapabilityVm, CryptoStoreKind, CryptoStoreOptions, CryptoStoreOptionsVm,
+    CryptoCertificateQuery, CryptoCertificateQueryVm, CryptoCertificateVerifyIdentityVm,
+    CryptoCertificateVerifyRequest, CryptoCertificateVerifyRequestVm,
+    CryptoCertificateVerifyResult, CryptoCertificateVerifyResultVm, CryptoCipherOutput,
+    CryptoCipherOutputVm, CryptoCipherParameters, CryptoCipherParametersVm, CryptoDigestAlgorithm,
+    CryptoHkdfRequest, CryptoHkdfRequestVm, CryptoKeyAlgorithm, CryptoKeyDescriptor,
+    CryptoKeyDescriptorVm, CryptoKeyFormat, CryptoKeyGenerationRequest,
+    CryptoKeyGenerationRequestVm, CryptoKeyImportRequest, CryptoKeyImportRequestVm,
+    CryptoKeyListPage, CryptoKeyListPageVm, CryptoKeyQuery, CryptoKeyQueryVm, CryptoKeyResidency,
+    CryptoKeyUsageMask, CryptoKeyWrapAlgorithm, CryptoKeyWrapParameters, CryptoKeyWrapParametersVm,
+    CryptoMacParameters, CryptoPbkdf2Request, CryptoPbkdf2RequestVm, CryptoPrivateKeyExportRequest,
+    CryptoPrivateKeyExportRequestVm, CryptoScryptRequest, CryptoScryptRequestVm,
+    CryptoSignatureParameters, CryptoStoreCapability, CryptoStoreCapabilityVm,
+    CryptoStoreKeyCapability, CryptoStoreKeyCapabilityVm, CryptoStoreKeyWrapCapability,
+    CryptoStoreKeyWrapCapabilityVm, CryptoStoreKind, CryptoStoreOptions, CryptoStoreOptionsVm,
     CryptoStoreProvider,
 };
 use crate::platform::{NativeArray, PlatformError, VmArray, VmValueCodec, resource};
@@ -42,6 +47,117 @@ pub(crate) struct HarnessStoreCapability {
     pub(crate) supported_key_algorithms: Vec<CryptoKeyAlgorithm>,
     /// Supported key formats lane.
     pub(crate) supported_key_formats: Vec<CryptoKeyFormat>,
+    /// Supported key residencies lane.
+    pub(crate) supported_key_residencies: Vec<CryptoKeyResidency>,
+    /// Certificate import support lane.
+    pub(crate) supports_certificate_import: bool,
+    /// Certificate export support lane.
+    pub(crate) supports_certificate_export: bool,
+    /// Certificate descriptor support lane.
+    pub(crate) supports_certificate_descriptor: bool,
+    /// Certificate verify support lane.
+    pub(crate) supports_certificate_verify: bool,
+    /// Certificate delete support lane.
+    pub(crate) supports_certificate_delete: bool,
+    /// System trust-anchor support lane.
+    pub(crate) supports_system_trust_anchors: bool,
+    /// Key-wrap capability rows.
+    pub(crate) key_wrap_capabilities: Vec<HarnessStoreKeyWrapCapability>,
+    /// Key capability rows.
+    pub(crate) key_capabilities: Vec<HarnessStoreKeyCapability>,
+}
+
+/// Decoded key-wrap capability row.
+pub(crate) struct HarnessStoreKeyWrapCapability {
+    /// Wrapping key algorithm lane.
+    pub(crate) wrapping_key_algorithm: CryptoKeyAlgorithm,
+    /// Key-wrap algorithm lane.
+    pub(crate) algorithm: CryptoKeyWrapAlgorithm,
+    /// Wrap operation support lane.
+    pub(crate) supports_wrap: bool,
+    /// Unwrap operation support lane.
+    pub(crate) supports_unwrap: bool,
+    /// Supported digest rows.
+    pub(crate) supported_digests: Vec<CryptoDigestAlgorithm>,
+}
+
+/// Decoded key capability row.
+pub(crate) struct HarnessStoreKeyCapability {
+    /// Key algorithm lane.
+    pub(crate) algorithm: CryptoKeyAlgorithm,
+    /// Key residency lane.
+    pub(crate) residency: CryptoKeyResidency,
+    /// Supported usage-mask lane.
+    pub(crate) supported_usage_mask: CryptoKeyUsageMask,
+}
+
+/// Decode key-wrap capability rows from native representation.
+fn key_wrap_rows_from_native(
+    rows: &[CryptoStoreKeyWrapCapability],
+) -> RuntimeResult<Vec<HarnessStoreKeyWrapCapability>> {
+    let mut decoded = Vec::with_capacity(rows.len());
+    for row in rows {
+        let digests = unsafe { row.supported_digests.as_slice()? }.to_vec();
+        decoded.push(HarnessStoreKeyWrapCapability {
+            wrapping_key_algorithm: row.wrapping_key_algorithm,
+            algorithm: row.algorithm,
+            supports_wrap: row.supports_wrap,
+            supports_unwrap: row.supports_unwrap,
+            supported_digests: digests,
+        });
+    }
+
+    Ok(decoded)
+}
+
+/// Decode key-wrap capability rows from vm representation.
+fn key_wrap_rows_from_vm(
+    context: &mut vm::ExternalCallContext<'_>,
+    rows: &[CryptoStoreKeyWrapCapabilityVm],
+) -> RuntimeResult<Vec<HarnessStoreKeyWrapCapability>> {
+    let mut decoded = Vec::with_capacity(rows.len());
+    for row in rows {
+        let digests = row.supported_digests.read_values(context)?;
+        decoded.push(HarnessStoreKeyWrapCapability {
+            wrapping_key_algorithm: row.wrapping_key_algorithm,
+            algorithm: row.algorithm,
+            supports_wrap: row.supports_wrap,
+            supports_unwrap: row.supports_unwrap,
+            supported_digests: digests,
+        });
+    }
+
+    Ok(decoded)
+}
+
+/// Decode key capability rows from native representation.
+fn key_rows_from_native(rows: &[CryptoStoreKeyCapability]) -> Vec<HarnessStoreKeyCapability> {
+    let mut decoded = Vec::with_capacity(rows.len());
+    for row in rows {
+        decoded.push(HarnessStoreKeyCapability {
+            algorithm: row.algorithm,
+            residency: row.residency,
+            supported_usage_mask: row.supported_usage_mask,
+        });
+    }
+
+    decoded
+}
+
+/// Decode key capability rows from vm representation.
+fn key_rows_from_vm(
+    rows: &[CryptoStoreKeyCapabilityVm],
+) -> RuntimeResult<Vec<HarnessStoreKeyCapability>> {
+    let mut decoded = Vec::with_capacity(rows.len());
+    for row in rows {
+        decoded.push(HarnessStoreKeyCapability {
+            algorithm: row.algorithm,
+            residency: row.residency,
+            supported_usage_mask: row.supported_usage_mask,
+        });
+    }
+
+    Ok(decoded)
 }
 
 /// Convert one native string into one VM string handle.
@@ -310,10 +426,10 @@ impl<'call> CryptoHarnessContext<'call> {
         // decode store provenance from native or vm certificate descriptor values
         match value {
             HarnessValue::Native(value) => {
-                let namespace = unsafe { value.store_provenance.namespace.as_str()? };
+                let namespace = unsafe { value.store_provenance.identity.namespace.as_str()? };
                 Ok((
-                    value.store_provenance.kind,
-                    value.store_provenance.provider,
+                    value.store_provenance.identity.kind,
+                    value.store_provenance.identity.provider,
                     namespace.to_string(),
                 ))
             }
@@ -327,13 +443,13 @@ impl<'call> CryptoHarnessContext<'call> {
                     .boxed()
                 })?;
                 let namespace = context
-                    .string_ref(value.store_provenance.namespace)
+                    .string_ref(value.store_provenance.identity.namespace)
                     .map_err(|error| RuntimeError::from(error).boxed())?
                     .as_str()
                     .to_string();
                 Ok((
-                    value.store_provenance.kind,
-                    value.store_provenance.provider,
+                    value.store_provenance.identity.kind,
+                    value.store_provenance.identity.provider,
                     namespace,
                 ))
             }
@@ -360,10 +476,10 @@ impl<'call> CryptoHarnessContext<'call> {
         // decode store provenance from native or vm key descriptor values
         match value {
             HarnessValue::Native(value) => {
-                let namespace = unsafe { value.store_provenance.namespace.as_str()? };
+                let namespace = unsafe { value.store_provenance.identity.namespace.as_str()? };
                 Ok((
-                    value.store_provenance.kind,
-                    value.store_provenance.provider,
+                    value.store_provenance.identity.kind,
+                    value.store_provenance.identity.provider,
                     namespace.to_string(),
                 ))
             }
@@ -377,13 +493,13 @@ impl<'call> CryptoHarnessContext<'call> {
                     .boxed()
                 })?;
                 let namespace = context
-                    .string_ref(value.store_provenance.namespace)
+                    .string_ref(value.store_provenance.identity.namespace)
                     .map_err(|error| RuntimeError::from(error).boxed())?
                     .as_str()
                     .to_string();
                 Ok((
-                    value.store_provenance.kind,
-                    value.store_provenance.provider,
+                    value.store_provenance.identity.kind,
+                    value.store_provenance.identity.provider,
                     namespace,
                 ))
             }
@@ -523,15 +639,32 @@ impl<'call> CryptoHarnessContext<'call> {
                 let supported_key_algorithms =
                     unsafe { value.supported_key_algorithms.as_slice()? };
                 let supported_key_formats = unsafe { value.supported_key_formats.as_slice()? };
+                let supported_key_residencies =
+                    unsafe { value.supported_key_residencies.as_slice()? };
+                let key_capabilities = unsafe { value.key_capabilities.as_slice()? };
+                let key_wrap_capabilities = unsafe { value.key_wrap_capabilities.as_slice()? };
                 Ok(HarnessStoreCapability {
-                    kind: value.kind,
-                    provider: value.provider,
+                    kind: value.identity.kind,
+                    provider: value.identity.provider,
                     is_available: value.is_available,
                     supports_hardware_backed: value.supports_hardware_backed,
                     supports_persistent: value.supports_persistent,
                     supports_key_export: value.supports_key_export,
                     supported_key_algorithms: supported_key_algorithms.to_vec(),
                     supported_key_formats: supported_key_formats.to_vec(),
+                    supported_key_residencies: supported_key_residencies.to_vec(),
+                    supports_certificate_import: value.certificate_capabilities.supports_import,
+                    supports_certificate_export: value.certificate_capabilities.supports_export,
+                    supports_certificate_descriptor: value
+                        .certificate_capabilities
+                        .supports_descriptor,
+                    supports_certificate_verify: value.certificate_capabilities.supports_verify,
+                    supports_certificate_delete: value.certificate_capabilities.supports_delete,
+                    supports_system_trust_anchors: value
+                        .certificate_capabilities
+                        .supports_system_trust_anchors,
+                    key_wrap_capabilities: key_wrap_rows_from_native(key_wrap_capabilities)?,
+                    key_capabilities: key_rows_from_native(key_capabilities),
                 })
             }
             HarnessValue::Vm(value) => {
@@ -546,15 +679,71 @@ impl<'call> CryptoHarnessContext<'call> {
                 let supported_key_algorithms =
                     value.supported_key_algorithms.read_values(context)?;
                 let supported_key_formats = value.supported_key_formats.read_values(context)?;
+                let supported_key_residencies =
+                    value.supported_key_residencies.read_values(context)?;
+                let key_capabilities =
+                    key_rows_from_vm(&value.key_capabilities.read_values(context)?)?;
+                let key_wrap_capabilities = key_wrap_rows_from_vm(
+                    context,
+                    &value.key_wrap_capabilities.read_values(context)?,
+                )?;
                 Ok(HarnessStoreCapability {
-                    kind: value.kind,
-                    provider: value.provider,
+                    kind: value.identity.kind,
+                    provider: value.identity.provider,
                     is_available: value.is_available,
                     supports_hardware_backed: value.supports_hardware_backed,
                     supports_persistent: value.supports_persistent,
                     supports_key_export: value.supports_key_export,
                     supported_key_algorithms,
                     supported_key_formats,
+                    supported_key_residencies,
+                    supports_certificate_import: value.certificate_capabilities.supports_import,
+                    supports_certificate_export: value.certificate_capabilities.supports_export,
+                    supports_certificate_descriptor: value
+                        .certificate_capabilities
+                        .supports_descriptor,
+                    supports_certificate_verify: value.certificate_capabilities.supports_verify,
+                    supports_certificate_delete: value.certificate_capabilities.supports_delete,
+                    supports_system_trust_anchors: value
+                        .certificate_capabilities
+                        .supports_system_trust_anchors,
+                    key_wrap_capabilities,
+                    key_capabilities,
+                })
+            }
+        }
+    }
+
+    /// Decode one certificate verify result payload.
+    pub(crate) fn certificate_verify_result_from_value(
+        &self,
+        value: HarnessValue<CryptoCertificateVerifyResult, CryptoCertificateVerifyResultVm>,
+    ) -> RuntimeResult<CryptoCertificateVerifyResult> {
+        // decode one certificate verify result from native or vm values
+        match value {
+            HarnessValue::Native(value) => Ok(value),
+            HarnessValue::Vm(value) => {
+                // vm decoding requires one vm call context
+                let context = self.vm_context_mut().ok_or_else(|| {
+                    RuntimeError::from(PlatformError::invalid_argument_value(
+                        "context",
+                        "vm context is required for vm certificate verify result",
+                    ))
+                    .boxed()
+                })?;
+                Ok(CryptoCertificateVerifyResult {
+                    valid: value.valid,
+                    error: value.error,
+                    error_code: value.error_code,
+                    failed_certificate_index: value.failed_certificate_index,
+                    failed_certificate_subject: self.call_context.store_string(
+                        context
+                            .string_ref(value.failed_certificate_subject)
+                            .map_err(|error| RuntimeError::from(error).boxed())?
+                            .as_str(),
+                    ),
+                    chain_length: value.chain_length,
+                    used_system_trust_anchor: value.used_system_trust_anchor,
                 })
             }
         }
@@ -572,12 +761,12 @@ impl<'call> CryptoHarnessContext<'call> {
         match namespace {
             HarnessValue::Native(namespace) => self.harness_value(CryptoStoreOptions {
                 kind,
-                provider: CryptoStoreProvider::Unknown,
+                provider: CryptoStoreProvider::OpenSsl,
                 namespace,
             }),
             HarnessValue::Vm(namespace) => self.harness_value_vm(CryptoStoreOptionsVm {
                 kind,
-                provider: CryptoStoreProvider::Unknown,
+                provider: CryptoStoreProvider::OpenSsl,
                 namespace,
             }),
         }
@@ -677,7 +866,10 @@ impl CryptoHarnessRequestValue for CryptoCertificateVerifyRequest {
             trust_anchors: vm_slice_from_native(context, self.trust_anchors)?,
             use_system_trust_anchors: self.use_system_trust_anchors,
             purpose: self.purpose,
-            server_name: vm_string_from_native(context, self.server_name)?,
+            identity: CryptoCertificateVerifyIdentityVm {
+                kind: self.identity.kind,
+                value: vm_string_from_native(context, self.identity.value)?,
+            },
             verification_unix_seconds: self.verification_unix_seconds,
             revocation_mode: self.revocation_mode,
         })
@@ -726,6 +918,7 @@ impl CryptoHarnessRequestValue for CryptoKeyGenerationRequest {
             usage_mask: self.usage_mask,
             label: vm_string_from_native(context, self.label)?,
             extractable: self.extractable,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: self.hardware_backed,
             persistent: self.persistent,
         })
@@ -745,7 +938,32 @@ impl CryptoHarnessRequestValue for CryptoKeyImportRequest {
             usage_mask: self.usage_mask,
             label: vm_string_from_native(context, self.label)?,
             extractable: self.extractable,
+            residency: CryptoKeyResidency::Unknown,
+            passphrase: vm_bytes_from_native(context, self.passphrase)?,
             persistent: self.persistent,
+        })
+    }
+}
+
+impl CryptoHarnessRequestValue for CryptoKeyWrapParameters {
+    type Vm = CryptoKeyWrapParametersVm;
+
+    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+        Ok(CryptoKeyWrapParametersVm {
+            algorithm: self.algorithm,
+            digest: self.digest,
+            label: vm_bytes_from_native(context, self.label)?,
+        })
+    }
+}
+
+impl CryptoHarnessRequestValue for CryptoPrivateKeyExportRequest {
+    type Vm = CryptoPrivateKeyExportRequestVm;
+
+    fn into_vm_value(self, context: &mut vm::ExternalCallContext<'_>) -> RuntimeResult<Self::Vm> {
+        Ok(CryptoPrivateKeyExportRequestVm {
+            format: self.format,
+            passphrase: vm_bytes_from_native(context, self.passphrase)?,
         })
     }
 }

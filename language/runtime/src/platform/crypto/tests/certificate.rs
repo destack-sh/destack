@@ -2,9 +2,9 @@ use super::with_harness_context;
 #[cfg(target_os = "macos")]
 use crate::diagnostic::RuntimeResult;
 use crate::platform::crypto::{
-    CryptoCertificateFormat, CryptoCertificatePurpose, CryptoCertificateQuery,
-    CryptoCertificateRevocationMode, CryptoCertificateVerifyRequest, CryptoStoreKind,
-    CryptoStoreProvider,
+    CryptoCertificateFormat, CryptoCertificateIdentityKind, CryptoCertificatePurpose,
+    CryptoCertificateQuery, CryptoCertificateRevocationMode, CryptoCertificateVerifyIdentity,
+    CryptoCertificateVerifyRequest, CryptoStoreKind, CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource;
@@ -61,7 +61,7 @@ fn test_certificate_import_export_descriptor_verify_delete() {
         let (store_kind, provider, namespace) =
             context.certificate_descriptor_store_provenance_from_value(descriptor_provenance)?;
         assert_eq!(store_kind, CryptoStoreKind::Ephemeral);
-        assert_eq!(provider, CryptoStoreProvider::Unknown);
+        assert_eq!(provider, CryptoStoreProvider::OpenSsl);
         assert!(namespace.is_empty());
 
         let exported_pem =
@@ -95,13 +95,16 @@ fn test_certificate_import_export_descriptor_verify_delete() {
             trust_anchors,
             use_system_trust_anchors: false,
             purpose: CryptoCertificatePurpose::ServerAuth,
-            server_name: context.call_context.store_string("localhost"),
+            identity: CryptoCertificateVerifyIdentity {
+                kind: CryptoCertificateIdentityKind::DnsName,
+                value: context.call_context.store_string("localhost"),
+            },
             verification_unix_seconds: 0,
             revocation_mode: CryptoCertificateRevocationMode::Default,
         };
         let result =
             context.destack_crypto_certificate_verify(context.request_value(verify_request)?)?;
-        let result = context.same_from_value(result);
+        let result = context.certificate_verify_result_from_value(result)?;
         assert!(result.valid);
         assert_eq!(result.error_code, 0);
         assert!(!result.used_system_trust_anchor);
@@ -113,13 +116,16 @@ fn test_certificate_import_export_descriptor_verify_delete() {
             trust_anchors,
             use_system_trust_anchors: true,
             purpose: CryptoCertificatePurpose::ServerAuth,
-            server_name: context.call_context.store_string("localhost"),
+            identity: CryptoCertificateVerifyIdentity {
+                kind: CryptoCertificateIdentityKind::DnsName,
+                value: context.call_context.store_string("localhost"),
+            },
             verification_unix_seconds: 0,
             revocation_mode: CryptoCertificateRevocationMode::Default,
         };
         let result = context
             .destack_crypto_certificate_verify(context.request_value(verify_with_system)?)?;
-        let result = context.same_from_value(result);
+        let result = context.certificate_verify_result_from_value(result)?;
         assert!(result.valid);
         assert!(!result.used_system_trust_anchor);
 
@@ -152,7 +158,7 @@ fn test_certificate_import_follows_host_store_write_behavior() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -166,23 +172,28 @@ fn test_certificate_import_follows_host_store_write_behavior() {
                 CryptoCertificateFormat::Pem,
                 certificate,
             );
-            let is_macos_user_lane = cfg!(target_os = "macos") && kind == CryptoStoreKind::User;
-            if let Ok(handle) = result {
-                assert!(
-                    is_macos_user_lane,
-                    "only macOS user host lane should accept certificate writes"
-                );
-                context.destack_crypto_certificate_delete(handle)?;
-            } else {
-                let Err(error) = result else {
-                    unreachable!("handled by success branch");
-                };
-                let platform = error
-                    .platform_error()
-                    .expect("certificate.import error should contain one platform error");
-                assert_eq!(platform.code, PlatformErrorCode::NotSupported);
 
-                // host lanes should still support certificate listing
+            // keep import behavior aligned with probed capability lane
+            let imported_handle = match result {
+                Ok(handle) => Some(handle),
+                Err(error) => {
+                    let platform = error
+                        .platform_error()
+                        .expect("certificate.import error should contain one platform error");
+                    if capability.supports_certificate_import {
+                        assert_ne!(platform.code, PlatformErrorCode::NotSupported);
+                    } else {
+                        assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+                    }
+
+                    None
+                }
+            };
+
+            // load one candidate handle for delete checks
+            let delete_target = if let Some(handle) = imported_handle {
+                Some(handle)
+            } else {
                 let query = CryptoCertificateQuery {
                     subject_contains: context.call_context.store_string(""),
                     issuer_contains: context.call_context.store_string(""),
@@ -193,16 +204,29 @@ fn test_certificate_import_follows_host_store_write_behavior() {
                 let page = context
                     .destack_crypto_store_list_certificates(store, context.request_value(query)?)?;
                 let handles = context.certificate_list_handles(page)?;
-                if !handles.is_empty() {
-                    let entry_handle = handles[0];
-                    let result = context.destack_crypto_certificate_delete(entry_handle);
-                    let Err(error) = result else {
-                        panic!("host-backed store lane should reject certificate deletes");
-                    };
-                    let platform = error
-                        .platform_error()
-                        .expect("certificate.delete error should contain one platform error");
-                    assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+                handles.first().copied()
+            };
+
+            // keep delete behavior aligned with probed capability lane
+            if let Some(handle) = delete_target {
+                let delete_result = context.destack_crypto_certificate_delete(handle);
+                match delete_result {
+                    Ok(()) => {
+                        assert!(
+                            capability.supports_certificate_delete,
+                            "certificate.delete succeeded while capability reports unsupported"
+                        );
+                    }
+                    Err(error) => {
+                        let platform = error
+                            .platform_error()
+                            .expect("certificate.delete error should contain one platform error");
+                        if capability.supports_certificate_delete {
+                            assert_ne!(platform.code, PlatformErrorCode::NotSupported);
+                        } else {
+                            assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+                        }
+                    }
                 }
             }
 
@@ -227,7 +251,7 @@ fn test_certificate_system_lane_matches_rustls_native_certs_trust_subset() {
         // skip when the host system lane is unavailable
         let capability = context.destack_crypto_store_probe_capability(
             CryptoStoreKind::System,
-            CryptoStoreProvider::Unknown,
+            CryptoStoreProvider::OpenSsl,
         )?;
         let capability = context.store_capability_from_value(capability)?;
         if !capability.is_available {
