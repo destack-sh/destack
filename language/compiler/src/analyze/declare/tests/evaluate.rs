@@ -1,5 +1,5 @@
 use crate::analyze::common::{SymbolTypeView, TypeContext};
-use crate::analyze::declare::TypeMemberResolution;
+use crate::analyze::declare::{StaticConstantResolutionMode, TypeMemberResolution};
 use destack_dir::{
     Declarator, Expression, LocalScopeMark, LocalTypeId, Pattern, PrimitiveType, ScalarLiteral,
     StaticArgument, StaticExpression, StaticKey, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
@@ -763,11 +763,12 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     let mut visited = std::collections::HashSet::new();
     let direct_projection = test
         .compiler
-        .resolve_static_constant_reference_instantiated(
+        .resolve_static_constant_reference_for_mode(
             &mut ctx.reborrow(),
             segment_bytes_symbol,
-            &substitutions,
+            Some(&substitutions),
             &mut visited,
+            StaticConstantResolutionMode::InstantiatedInfer,
         )
         .expect("expected static projection value");
     assert!(

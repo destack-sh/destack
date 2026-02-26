@@ -358,6 +358,361 @@ result satisfies "users";
 
 - contains: not assignable
 
+### constrained generic arguments keep literal precision
+
+Constrained generic inference regularizes literal arguments instead of widening at binding commitment.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+let value = as_lit("users");
+value satisfies "users";
+```
+
+### constrained generic regularization does not consume source freshness
+
+Constrained generic regularization should not mutate unrelated later commitment points.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const seed = "users";
+const kept = as_lit(seed);
+let widened = seed;
+
+kept satisfies "users";
+widened satisfies string;
+```
+
+### constrained generic regularization still allows later widening
+
+Later let commitments from the same source should still widen after constrained generic calls.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const seed = "users";
+const kept = as_lit(seed);
+let widened = seed;
+
+widened satisfies "users";
+```
+
+- contains: not assignable
+
+### constrained generic regularization through alias chains keeps source widenability
+
+Alias chains should not consume source freshness for later commitment points.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const seed = "users";
+const alias = seed;
+const kept = as_lit(alias);
+let widened = seed;
+
+kept satisfies "users";
+widened satisfies string;
+```
+
+### constrained generic regularization through alias chains still widens later lets
+
+Alias chain calls should still allow widening at later let commitments.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const seed = "users";
+const alias = seed;
+const kept = as_lit(alias);
+let widened = seed;
+
+widened satisfies "users";
+```
+
+- contains: not assignable
+
+### constrained generic regularization on tuple elements keeps source widenability
+
+Tuple element constrained calls should not consume source freshness for later let commitments.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const pair = ["users", "posts"] as const;
+const kept = as_lit(pair[0]);
+let widened = pair[0];
+
+kept satisfies "users";
+widened satisfies "users";
+```
+
+### constrained generic regularization on tuple elements rejects unrelated literals
+
+Tuple element constrained calls should still reject unrelated literals.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const pair = ["users", "posts"] as const;
+const kept = as_lit(pair[0]);
+let widened = pair[0];
+
+widened satisfies "posts";
+```
+
+- contains: not assignable
+
+### constrained template argument inference keeps source widenability
+
+Template constrained calls should not consume source freshness for later let commitments.
+
+```ds
+declare function identity_span<T extends string>(value: `${T}`): T;
+
+const seed = "users";
+const kept = identity_span(seed);
+let widened = seed;
+
+kept satisfies "users";
+widened satisfies string;
+```
+
+### constrained template argument inference still widens later lets
+
+Template constrained calls should still allow widening at later let commitments.
+
+```ds
+declare function identity_span<T extends string>(value: `${T}`): T;
+
+const seed = "users";
+const kept = identity_span(seed);
+let widened = seed;
+
+widened satisfies "users";
+```
+
+- contains: not assignable
+
+### constrained overload paths keep source widenability
+
+Constrained overload resolution should not consume source freshness for later let commitments.
+
+```ds
+declare function overload_lit<T extends string>(value: T): T;
+declare function overload_lit(value: string): string;
+
+const seed = "users";
+const kept = overload_lit(seed);
+let widened = seed;
+
+kept satisfies "users";
+widened satisfies string;
+```
+
+### constrained overload paths still widen later lets
+
+Constrained overload resolution should still allow widening at later let commitments.
+
+```ds
+declare function overload_lit<T extends string>(value: T): T;
+declare function overload_lit(value: string): string;
+
+const seed = "users";
+const kept = overload_lit(seed);
+let widened = seed;
+
+widened satisfies "users";
+```
+
+- contains: not assignable
+
+### repeated constrained calls keep source widenability
+
+Multiple constrained calls from one source should not consume later let widening.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const seed = "users";
+const first = as_lit(seed);
+const second = as_lit(seed);
+let widened = seed;
+
+first satisfies "users";
+second satisfies "users";
+widened satisfies string;
+```
+
+### repeated constrained calls still widen later lets
+
+Multiple constrained calls should still allow widening at later let commitments.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const seed = "users";
+const first = as_lit(seed);
+const second = as_lit(seed);
+let widened = seed;
+
+widened satisfies "users";
+```
+
+- contains: not assignable
+
+### cross module constrained generic calls keep source widenability
+
+Constrained generic calls across module boundaries should not consume local source freshness.
+
+```ds:lib.ds
+export function as_lit<T extends string>(value: T): T {
+    return value;
+}
+```
+
+```ds:main.ds
+import { as_lit } from "./lib";
+
+const seed = "users";
+const kept = as_lit(seed);
+let widened = seed;
+
+kept satisfies "users";
+widened satisfies string;
+```
+
+### cross module constrained generic calls still widen later lets
+
+Cross module constrained generic calls should still allow widening at later let commitments.
+
+```ds:lib.ds
+export function as_lit<T extends string>(value: T): T {
+    return value;
+}
+```
+
+```ds:main.ds
+import { as_lit } from "./lib";
+
+const seed = "users";
+const kept = as_lit(seed);
+let widened = seed;
+
+widened satisfies "users";
+```
+
+- contains: not assignable
+
+### constrained generic member paths keep source widenability
+
+Constrained calls through object member paths should not consume source freshness for later let commitments.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const seed = "users";
+const holder = { seed } as const;
+const kept = as_lit(holder.seed);
+let widened = seed;
+
+kept satisfies "users";
+widened satisfies string;
+```
+
+### constrained generic member paths still widen later lets
+
+Constrained member-path calls should still allow widening at later let commitments.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const seed = "users";
+const holder = { seed } as const;
+const kept = as_lit(holder.seed);
+let widened = seed;
+
+widened satisfies "users";
+```
+
+- contains: not assignable
+
+### constrained generic calls from parameter defaults keep widening behavior
+
+Parameter default commitment should remain widened even after constrained generic calls.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+function read(mode = "users") {
+    const kept = as_lit(mode);
+    let widened = mode;
+
+    kept satisfies string;
+    widened satisfies string;
+}
+```
+
+### constrained generic calls from parameter defaults do not keep literals
+
+Parameter defaults should not keep narrow literals after constrained generic calls.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+function read(mode = "users") {
+    const kept = as_lit(mode);
+    let widened = mode;
+
+    widened satisfies "users";
+}
+```
+
+- contains: not assignable
+
+### satisfies boundary with constrained calls keeps later let widening
+
+Satisfies expressions should still widen later let commitments.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const seed = "users" satisfies string;
+const kept = as_lit(seed);
+let widened = seed;
+
+kept satisfies "users";
+widened satisfies string;
+```
+
+### satisfies boundary with constrained calls does not keep literals
+
+Satisfies expressions should not keep narrow literals across later let commitments.
+
+```ds
+declare function as_lit<T extends string>(value: T): T;
+
+const seed = "users" satisfies string;
+const kept = as_lit(seed);
+let widened = seed;
+
+widened satisfies "users";
+```
+
+- contains: not assignable
+
+### constrained template inference keeps parsed bigint literals
+
+Template literal constrained inference preserves parsed bigint literal precision.
+
+```ds
+declare function parse_big<T extends bigint>(value: `${T}`): T;
+
+let value = parse_big("-1");
+value satisfies -1n;
+```
+
 ### const asserted tuples are readonly at element positions
 
 Const asserted tuple elements are readonly and reject writes.
@@ -381,6 +736,18 @@ value satisfies "ready";
 ```
 
 - contains: not assignable
+
+### nested literal usage does not consume const source freshness
+
+Using a const literal inside nested literal inference should not prevent later let commitment widening.
+
+```ds
+const seed = "ready";
+const holder = { seed };
+let value = seed;
+
+value satisfies string;
+```
 
 ## Defaults and returns
 

@@ -69,8 +69,21 @@ const value = { a: 1, b: 2 } satisfies Shape;
 type Shape = { mode: "dev" | "prod" };
 
 let config = { mode: "dev" } satisfies Shape;
-config.mode satisfies "dev" | "prod";
+config.mode satisfies "dev";
 ```
+
+### satisfies contextual members reject unrelated literals
+
+> Contextual member inference should reject unrelated literals.
+
+```ts
+type Shape = { mode: "dev" | "prod" };
+
+let config = { mode: "dev" } satisfies Shape;
+config.mode satisfies "prod";
+```
+
+- contains: not assignable
 
 ## expression identity
 
