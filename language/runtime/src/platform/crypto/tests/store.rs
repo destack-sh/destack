@@ -1,10 +1,11 @@
 use std::collections::HashSet;
 
-use super::{placeholder_store_handle, with_harness_context};
+use super::{KEY_USAGE_UNWRAP, KEY_USAGE_WRAP, placeholder_store_handle, with_harness_context};
 use crate::platform::crypto::{
     CryptoCertificateQuery, CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyFormat,
-    CryptoKeyGenerationRequest, CryptoKeyQuery, CryptoKeyUsageMask, CryptoNamedCurve,
-    CryptoStoreKind, CryptoStoreOptions, CryptoStoreProvider,
+    CryptoKeyGenerationRequest, CryptoKeyQuery, CryptoKeyResidency, CryptoKeyUsageMask,
+    CryptoKeyWrapAlgorithm, CryptoNamedCurve, CryptoStoreKind, CryptoStoreOptions,
+    CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -33,6 +34,7 @@ fn test_store_open_list_keys_close() {
             usage_mask: CryptoKeyUsageMask(0),
             label: context.call_context.store_string("session-key"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -105,17 +107,27 @@ fn test_store_open_follows_probe_availability() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
             let capability = context.store_capability_from_value(capability)?;
             let options = context.store_options_value(kind);
             let result = context.destack_crypto_store_open(options);
 
             if capability.is_available {
+                assert!(capability.supports_certificate_export);
+                assert!(capability.supports_certificate_descriptor);
+                assert!(capability.supports_certificate_verify);
+                assert!(capability.supports_system_trust_anchors);
                 let store = result.expect("available host store lane should open");
                 context.destack_crypto_store_close(store)?;
                 continue;
             }
 
+            assert!(!capability.supports_certificate_import);
+            assert!(!capability.supports_certificate_export);
+            assert!(!capability.supports_certificate_descriptor);
+            assert!(!capability.supports_certificate_verify);
+            assert!(!capability.supports_certificate_delete);
+            assert!(!capability.supports_system_trust_anchors);
             let Err(error) = result else {
                 panic!("unavailable host store lane should not open");
             };
@@ -128,7 +140,7 @@ fn test_store_open_follows_probe_availability() {
         // provider lane should be available through the software provider
         let capability = context.destack_crypto_store_probe_capability(
             CryptoStoreKind::Provider,
-            CryptoStoreProvider::Unknown,
+            CryptoStoreProvider::OpenSsl,
         )?;
         let capability = context.store_capability_from_value(capability)?;
         assert!(capability.is_available);
@@ -155,7 +167,7 @@ fn test_store_list_certificates_for_available_host_lanes() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -192,7 +204,7 @@ fn test_store_probe_capability_host_lane_key_fields() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -202,6 +214,7 @@ fn test_store_probe_capability_host_lane_key_fields() {
                 assert!(capability.supports_key_export);
                 assert!(!capability.supported_key_algorithms.is_empty());
                 assert!(!capability.supported_key_formats.is_empty());
+                assert!(!capability.supported_key_residencies.is_empty());
                 continue;
             }
 
@@ -209,60 +222,90 @@ fn test_store_probe_capability_host_lane_key_fields() {
             assert!(!capability.supports_key_export);
             assert!(capability.supported_key_algorithms.is_empty());
             assert!(capability.supported_key_formats.is_empty());
+            assert!(capability.supported_key_residencies.is_empty());
         }
 
         Ok(())
     });
 }
 
-/// Reject providers on non-provider kinds.
+/// Keep key usage capability masks aligned with implemented wrap support.
 #[cfg(any(unix, windows))]
 #[test]
-fn test_store_probe_capability_rejects_provider_for_non_provider_kind() {
+fn test_store_probe_capability_key_usage_masks_match_wrap_support() {
     with_harness_context(|mut context| {
-        // providers are invalid for non-provider lanes
-        let result = context.destack_crypto_store_probe_capability(
+        // inspect lanes that are currently available
+        for kind in [
+            CryptoStoreKind::Ephemeral,
+            CryptoStoreKind::Provider,
             CryptoStoreKind::System,
-            CryptoStoreProvider::OpenSsl,
-        );
-        let Err(error) = result else {
-            panic!("provider should be invalid for non-provider store kinds");
-        };
-        let platform = error
-            .platform_error()
-            .expect("store.probeCapability error should contain one platform error");
-        assert!(
-            platform.code == PlatformErrorCode::InvalidArgument
-                || platform.code == PlatformErrorCode::InvalidArgumentValue
-        );
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+            let capability = context.store_capability_from_value(capability)?;
+            if !capability.is_available {
+                continue;
+            }
+
+            // chacha20 lanes currently expose encrypt and decrypt only
+            for key_capability in &capability.key_capabilities {
+                if key_capability.algorithm == CryptoKeyAlgorithm::ChaCha20 {
+                    let wrap_bits =
+                        key_capability.supported_usage_mask.0 & (KEY_USAGE_WRAP | KEY_USAGE_UNWRAP);
+                    assert_eq!(wrap_bits, 0);
+                }
+            }
+
+            // hardware-backed aes lanes currently expose encrypt and decrypt only
+            for key_capability in &capability.key_capabilities {
+                if key_capability.algorithm == CryptoKeyAlgorithm::Aes
+                    && key_capability.residency == CryptoKeyResidency::HardwareOpaque
+                {
+                    let wrap_bits =
+                        key_capability.supported_usage_mask.0 & (KEY_USAGE_WRAP | KEY_USAGE_UNWRAP);
+                    assert_eq!(wrap_bits, 0);
+                }
+            }
+        }
 
         Ok(())
     });
 }
 
-/// Reject providers on ephemeral stores.
+/// Accept provider input on non-provider kinds.
 #[cfg(any(unix, windows))]
 #[test]
-fn test_store_open_rejects_provider_for_ephemeral() {
+fn test_store_probe_capability_accepts_provider_for_non_provider_kind() {
     with_harness_context(|mut context| {
-        // providers are invalid for ephemeral lanes
+        // provider input is required by the ABI and should not block non-provider probes
+        let capability = context.destack_crypto_store_probe_capability(
+            CryptoStoreKind::System,
+            CryptoStoreProvider::OpenSsl,
+        )?;
+        let capability = context.store_capability_from_value(capability)?;
+        assert_eq!(capability.kind, CryptoStoreKind::System);
+        assert_eq!(capability.provider, CryptoStoreProvider::OpenSsl);
+
+        Ok(())
+    });
+}
+
+/// Accept provider input on ephemeral stores.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_store_open_accepts_provider_for_ephemeral() {
+    with_harness_context(|mut context| {
+        // provider input should not block ephemeral store open
         let options = CryptoStoreOptions {
             kind: CryptoStoreKind::Ephemeral,
             provider: CryptoStoreProvider::OpenSsl,
-            namespace: context.call_context.store_string("namespace"),
+            namespace: context.call_context.store_string(""),
         };
         let options = context.request_value(options)?;
-        let result = context.destack_crypto_store_open(options);
-        let Err(error) = result else {
-            panic!("ephemeral stores should reject provider");
-        };
-        let platform = error
-            .platform_error()
-            .expect("store.open error should contain one platform error");
-        assert!(
-            platform.code == PlatformErrorCode::InvalidArgument
-                || platform.code == PlatformErrorCode::InvalidArgumentValue
-        );
+        let store = context.destack_crypto_store_open(options)?;
+        context.destack_crypto_store_close(store)?;
 
         Ok(())
     });
@@ -276,7 +319,7 @@ fn test_store_open_rejects_namespace_for_ephemeral() {
         // namespaces are invalid for ephemeral lanes
         let options = CryptoStoreOptions {
             kind: CryptoStoreKind::Ephemeral,
-            provider: CryptoStoreProvider::Unknown,
+            provider: CryptoStoreProvider::OpenSsl,
             namespace: context.call_context.store_string("namespace"),
         };
         let options = context.request_value(options)?;
@@ -304,12 +347,12 @@ fn test_store_probe_capability_ephemeral() {
         // inspect one ephemeral lane capability descriptor
         let capability = context.destack_crypto_store_probe_capability(
             CryptoStoreKind::Ephemeral,
-            CryptoStoreProvider::Unknown,
+            CryptoStoreProvider::OpenSsl,
         )?;
         let capability = context.store_capability_from_value(capability)?;
 
         assert_eq!(capability.kind, CryptoStoreKind::Ephemeral);
-        assert_eq!(capability.provider, CryptoStoreProvider::Unknown);
+        assert_eq!(capability.provider, CryptoStoreProvider::OpenSsl);
         assert!(capability.is_available);
         assert!(!capability.supports_hardware_backed);
         assert!(!capability.supports_persistent);
@@ -357,7 +400,7 @@ fn test_store_probe_capability_provider() {
         // default provider lane should resolve to openssl and stay available
         let capability = context.destack_crypto_store_probe_capability(
             CryptoStoreKind::Provider,
-            CryptoStoreProvider::Unknown,
+            CryptoStoreProvider::OpenSsl,
         )?;
         let capability = context.store_capability_from_value(capability)?;
 
@@ -365,6 +408,91 @@ fn test_store_probe_capability_provider() {
         assert_eq!(capability.provider, CryptoStoreProvider::OpenSsl);
         assert!(capability.is_available);
         assert!(capability.supports_key_export);
+        assert!(capability.supports_certificate_import);
+        assert!(capability.supports_certificate_export);
+        assert!(capability.supports_certificate_descriptor);
+        assert!(capability.supports_certificate_verify);
+        assert!(capability.supports_certificate_delete);
+        assert!(!capability.supports_system_trust_anchors);
+        assert_eq!(
+            capability.supported_key_residencies,
+            vec![
+                CryptoKeyResidency::SoftwareExportable,
+                CryptoKeyResidency::SoftwareNonExportable,
+            ]
+        );
+
+        Ok(())
+    });
+}
+
+/// Report key-wrap capability rows that match probed wrap algorithms.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_store_probe_capability_key_wrap_rows_match_probe() {
+    with_harness_context(|mut context| {
+        // load runtime-wide key-wrap probe set for exact matching
+        let probed = context.destack_crypto_probe_key_wrap_algorithms()?;
+        let probed = context.values_from_slice(probed)?;
+        let probed = probed.into_iter().collect::<HashSet<_>>();
+
+        // verify key-wrap rows for all store kinds that support key operations
+        for kind in [
+            CryptoStoreKind::Ephemeral,
+            CryptoStoreKind::Provider,
+            CryptoStoreKind::System,
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+            let capability = context.store_capability_from_value(capability)?;
+
+            // skip unavailable store lanes
+            if !capability.is_available {
+                continue;
+            }
+
+            // host key lanes report key-wrap rows only when persistent key operations are available
+            if matches!(
+                kind,
+                CryptoStoreKind::System | CryptoStoreKind::User | CryptoStoreKind::Machine
+            ) && !capability.supports_persistent
+            {
+                assert!(capability.key_wrap_capabilities.is_empty());
+                continue;
+            }
+
+            let reported_algorithms = capability
+                .key_wrap_capabilities
+                .iter()
+                .map(|row| row.algorithm)
+                .collect::<HashSet<_>>();
+            assert_eq!(
+                reported_algorithms, probed,
+                "key-wrap algorithms mismatch for {kind:?} with supportsPersistent={}",
+                capability.supports_persistent
+            );
+
+            for row in &capability.key_wrap_capabilities {
+                assert!(row.supports_wrap);
+                assert!(row.supports_unwrap);
+
+                // rsa-oaep requires digest input, aes wrap lanes do not
+                if row.algorithm == CryptoKeyWrapAlgorithm::RsaOaep {
+                    assert_eq!(row.wrapping_key_algorithm, CryptoKeyAlgorithm::Rsa);
+                    assert!(!row.supported_digests.is_empty());
+                    continue;
+                }
+
+                assert!(matches!(
+                    row.algorithm,
+                    CryptoKeyWrapAlgorithm::AesKw | CryptoKeyWrapAlgorithm::AesKwp
+                ));
+                assert_eq!(row.wrapping_key_algorithm, CryptoKeyAlgorithm::Aes);
+                assert!(row.supported_digests.is_empty());
+            }
+        }
 
         Ok(())
     });
@@ -395,6 +523,7 @@ fn test_store_provider_open_generate_key() {
             usage_mask: CryptoKeyUsageMask(0),
             label: context.call_context.store_string("provider-key"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -429,7 +558,7 @@ fn test_store_probe_kinds_reports_ephemeral() {
         // verify each reported kind resolves to one available capability
         for kind in kinds {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
             let capability = context.store_capability_from_value(capability)?;
             assert!(capability.is_available);
         }

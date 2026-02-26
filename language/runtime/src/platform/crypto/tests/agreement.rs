@@ -4,8 +4,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use super::{KEY_USAGE_DERIVE_BITS, KEY_USAGE_DERIVE_KEYS, KEY_USAGE_SIGN, with_harness_context};
 use crate::platform::crypto::{
     CryptoAgreementDeriveKeyRequest, CryptoDigestAlgorithm, CryptoKeyAgreementAlgorithm,
-    CryptoKeyAlgorithm, CryptoKeyGenerationRequest, CryptoKeyQuery, CryptoKeyUsageMask,
-    CryptoNamedCurve, CryptoStoreKind, CryptoStoreProvider,
+    CryptoKeyAlgorithm, CryptoKeyGenerationRequest, CryptoKeyQuery, CryptoKeyResidency,
+    CryptoKeyUsageMask, CryptoNamedCurve, CryptoStoreKind, CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -27,6 +27,7 @@ fn test_agreement_derive_shared_secret_and_key() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
             label: context.call_context.store_string("x25519"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -92,6 +93,7 @@ fn test_agreement_enforces_key_usage_mask() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
             label: context.call_context.store_string("x25519-sign-only"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -162,6 +164,7 @@ fn test_agreement_rejects_mismatched_key_algorithms() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
             label: context.call_context.store_string("x25519"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -179,6 +182,7 @@ fn test_agreement_rejects_mismatched_key_algorithms() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_DERIVE_BITS | KEY_USAGE_DERIVE_KEYS),
             label: context.call_context.store_string("ec"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -245,7 +249,7 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -266,6 +270,7 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
                     .call_context
                     .store_string(&format!("{label_prefix}-alice")),
                 extractable: false,
+                residency: CryptoKeyResidency::Unknown,
                 hardware_backed: false,
                 persistent: true,
             };
@@ -297,6 +302,7 @@ fn test_agreement_host_persistent_ec_pair_roundtrip() {
                     .call_context
                     .store_string(&format!("{label_prefix}-bob")),
                 extractable: false,
+                residency: CryptoKeyResidency::Unknown,
                 hardware_backed: false,
                 persistent: true,
             };

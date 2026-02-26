@@ -44,3 +44,30 @@ fn test_digest_open_update_finish() {
         Ok(())
     });
 }
+
+/// Reset one streaming digest context to clear prior updates.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_digest_reset_clears_stream_state() {
+    with_harness_context(|mut context| {
+        // open streaming digest handle and feed one discarded chunk
+        let handle = context.destack_crypto_digest_open(CryptoDigestAlgorithm::Sha256)?;
+        let discarded = context.bytes_slice_value(b"discarded")?;
+        context.destack_crypto_digest_update(handle, discarded)?;
+
+        // reset stream state and feed canonical abc payload
+        context.destack_crypto_digest_reset(handle)?;
+        let part_a = context.bytes_slice_value(b"a")?;
+        context.destack_crypto_digest_update(handle, part_a)?;
+        let part_b = context.bytes_slice_value(b"bc")?;
+        context.destack_crypto_digest_update(handle, part_b)?;
+
+        // finalize and validate post-reset digest output
+        let digest = context.destack_crypto_digest_finish(handle)?;
+        let digest = context.bytes_from_slice_value(digest)?;
+        assert_eq!(digest, SHA256_ABC);
+        context.destack_crypto_digest_close(handle)?;
+
+        Ok(())
+    });
+}

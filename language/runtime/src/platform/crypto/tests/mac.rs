@@ -1,7 +1,8 @@
 use super::{KEY_USAGE_SIGN, KEY_USAGE_VERIFY, with_harness_context};
 use crate::platform::crypto::{
-    CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyGenerationRequest, CryptoKeyUsageMask,
-    CryptoMacAlgorithm, CryptoMacParameters, CryptoNamedCurve, CryptoStoreKind,
+    CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyGenerationRequest, CryptoKeyResidency,
+    CryptoKeyUsageMask, CryptoMacAlgorithm, CryptoMacParameters, CryptoNamedCurve, CryptoStoreKind,
+    CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -23,6 +24,7 @@ fn test_mac_compute_and_verify() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
             label: context.call_context.store_string("hmac"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -97,6 +99,7 @@ fn test_mac_streaming_matches_one_shot() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
             label: context.call_context.store_string("hmac-stream"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -138,6 +141,67 @@ fn test_mac_streaming_matches_one_shot() {
     });
 }
 
+/// Reset one streaming MAC context to clear buffered state.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_mac_reset_clears_stream_state() {
+    with_harness_context(|mut context| {
+        // open store and generate one hmac key with sign usage
+        let options = context.store_options_value(CryptoStoreKind::Ephemeral);
+        let store = context.destack_crypto_store_open(options)?;
+        let request = CryptoKeyGenerationRequest {
+            algorithm: CryptoKeyAlgorithm::Hmac,
+            named_curve: CryptoNamedCurve::Unknown,
+            modulus_bits: 0,
+            public_exponent: 0,
+            digest: CryptoDigestAlgorithm::Sha256,
+            size_bits: 256,
+            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
+            label: context.call_context.store_string("hmac-reset"),
+            extractable: true,
+            residency: CryptoKeyResidency::Unknown,
+            hardware_backed: false,
+            persistent: false,
+        };
+        let key =
+            context.destack_crypto_key_generate_secret(store, context.request_value(request)?)?;
+        let parameters = CryptoMacParameters {
+            algorithm: CryptoMacAlgorithm::Hmac,
+            digest: CryptoDigestAlgorithm::Sha256,
+            tag_length_bytes: 0,
+        };
+
+        // open streaming mac and feed one discarded chunk
+        let handle = context.destack_crypto_mac_open(key, context.request_value(parameters)?)?;
+        let discarded = context.bytes_slice_value(b"discarded")?;
+        context.destack_crypto_mac_update(handle, discarded)?;
+
+        // reset and feed canonical payload
+        context.destack_crypto_mac_reset(handle)?;
+        let payload = context.bytes_slice_value(b"stream-mac-payload")?;
+        context.destack_crypto_mac_update(handle, payload)?;
+        let streaming = context.destack_crypto_mac_finish(handle)?;
+        let streaming = context.bytes_from_slice_value(streaming)?;
+
+        // compare reset stream output to one-shot output
+        let parameters = CryptoMacParameters {
+            algorithm: CryptoMacAlgorithm::Hmac,
+            digest: CryptoDigestAlgorithm::Sha256,
+            tag_length_bytes: 0,
+        };
+        let payload = context.bytes_slice_value(b"stream-mac-payload")?;
+        let one_shot =
+            context.destack_crypto_mac_compute(key, context.request_value(parameters)?, payload)?;
+        let one_shot = context.bytes_from_slice_value(one_shot)?;
+        assert_eq!(streaming, one_shot);
+
+        context.destack_crypto_mac_close(handle)?;
+        context.destack_crypto_store_close(store)?;
+
+        Ok(())
+    });
+}
+
 /// Enforce MAC verify usage requirements.
 #[cfg(any(unix, windows))]
 #[test]
@@ -156,6 +220,7 @@ fn test_mac_verify_rejects_missing_verify_usage() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
             label: context.call_context.store_string("hmac-sign-only"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -196,6 +261,110 @@ fn test_mac_verify_rejects_missing_verify_usage() {
         assert_eq!(platform.code, PlatformErrorCode::IoPermissionDenied);
 
         context.destack_crypto_store_close(store)?;
+
+        Ok(())
+    });
+}
+
+/// Follow host-lane support for streaming MAC operations on hardware-backed secret keys.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_mac_streaming_host_secret_follows_lane_support() {
+    with_harness_context(|mut context| {
+        // iterate host lanes and run the streaming mac path when hardware-backed hmac is available
+        for kind in [
+            CryptoStoreKind::System,
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+            let capability = context.store_capability_from_value(capability)?;
+            if !capability.is_available {
+                continue;
+            }
+
+            // open one host lane and request one hardware-backed hmac key
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let request = CryptoKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Hmac,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Sha256,
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+                label: context.call_context.store_string("host-stream-mac"),
+                extractable: false,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: true,
+                persistent: true,
+            };
+            let key_result =
+                context.destack_crypto_key_generate_secret(store, context.request_value(request)?);
+
+            // unsupported lanes must fail loudly with notSupported
+            let key = match key_result {
+                Ok(key) => key,
+                Err(error) => {
+                    let platform = error
+                        .platform_error()
+                        .expect("key.generateSecret error should contain one platform error");
+                    assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+                    context.destack_crypto_store_close(store)?;
+                    continue;
+                }
+            };
+
+            // run one streaming mac sequence
+            let parameters = CryptoMacParameters {
+                algorithm: CryptoMacAlgorithm::Hmac,
+                digest: CryptoDigestAlgorithm::Sha256,
+                tag_length_bytes: 0,
+            };
+            let handle =
+                context.destack_crypto_mac_open(key, context.request_value(parameters)?)?;
+            let chunk_a = context.bytes_slice_value(b"host-")?;
+            context.destack_crypto_mac_update(handle, chunk_a)?;
+            let chunk_b = context.bytes_slice_value(b"stream-")?;
+            context.destack_crypto_mac_update(handle, chunk_b)?;
+            let chunk_c = context.bytes_slice_value(b"mac")?;
+            context.destack_crypto_mac_update(handle, chunk_c)?;
+            let streamed = context.destack_crypto_mac_finish(handle);
+            let streamed = match streamed {
+                Ok(tag) => context.bytes_from_slice_value(tag)?,
+                Err(error) => {
+                    let platform = error
+                        .platform_error()
+                        .expect("mac.finish error should contain one platform error");
+                    assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+                    context.destack_crypto_mac_close(handle)?;
+                    context.destack_crypto_key_delete(key)?;
+                    context.destack_crypto_store_close(store)?;
+                    continue;
+                }
+            };
+            context.destack_crypto_mac_close(handle)?;
+
+            // compare with one-shot output when streaming succeeded
+            let parameters = CryptoMacParameters {
+                algorithm: CryptoMacAlgorithm::Hmac,
+                digest: CryptoDigestAlgorithm::Sha256,
+                tag_length_bytes: 0,
+            };
+            let payload = context.bytes_slice_value(b"host-stream-mac")?;
+            let one_shot = context.destack_crypto_mac_compute(
+                key,
+                context.request_value(parameters)?,
+                payload,
+            )?;
+            let one_shot = context.bytes_from_slice_value(one_shot)?;
+            assert_eq!(streamed, one_shot);
+
+            context.destack_crypto_key_delete(key)?;
+            context.destack_crypto_store_close(store)?;
+        }
 
         Ok(())
     });

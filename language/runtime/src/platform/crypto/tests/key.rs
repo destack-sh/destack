@@ -1,7 +1,11 @@
 #[cfg(any(unix, windows))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use openssl::pkey::PKey;
+use openssl::rsa::Rsa;
+use serde_json::json;
 
 use super::{
     KEY_USAGE_DECRYPT, KEY_USAGE_ENCRYPT, KEY_USAGE_EXPORT, KEY_USAGE_SIGN, KEY_USAGE_UNWRAP,
@@ -10,8 +14,10 @@ use super::{
 use crate::platform::crypto::{
     CryptoAsymmetricEncryptionAlgorithm, CryptoAsymmetricEncryptionParameters,
     CryptoDigestAlgorithm, CryptoKeyAlgorithm, CryptoKeyFormat, CryptoKeyGenerationRequest,
-    CryptoKeyImportRequest, CryptoKeyQuery, CryptoKeyUsageMask, CryptoNamedCurve,
-    CryptoSignatureAlgorithm, CryptoSignatureParameters, CryptoStoreKind, CryptoStoreProvider,
+    CryptoKeyImportRequest, CryptoKeyQuery, CryptoKeyResidency, CryptoKeyUsageMask,
+    CryptoKeyWrapAlgorithm, CryptoKeyWrapParameters, CryptoNamedCurve,
+    CryptoPrivateKeyExportRequest, CryptoSignatureAlgorithm, CryptoSignatureParameters,
+    CryptoStoreKind, CryptoStoreProvider,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -38,6 +44,29 @@ fn ec_public_key_der_from_sec1_pem(pem_bytes: &[u8]) -> Vec<u8> {
         .expect("public key der export should succeed")
 }
 
+/// Encode one byte slice into one base64url string without padding.
+fn base64url_encode(bytes: &[u8]) -> String {
+    URL_SAFE_NO_PAD.encode(bytes)
+}
+
+/// Build one RSA private JWK JSON payload from one OpenSSL RSA key.
+fn rsa_private_jwk_json(rsa: &Rsa<openssl::pkey::Private>) -> Vec<u8> {
+    // encode required rsa components for full private-key import
+    let jwk = json!({
+        "kty": "RSA",
+        "n": base64url_encode(&rsa.n().to_vec()),
+        "e": base64url_encode(&rsa.e().to_vec()),
+        "d": base64url_encode(&rsa.d().to_vec()),
+        "p": base64url_encode(&rsa.p().expect("rsa p should be present").to_vec()),
+        "q": base64url_encode(&rsa.q().expect("rsa q should be present").to_vec()),
+        "dp": base64url_encode(&rsa.dmp1().expect("rsa dp should be present").to_vec()),
+        "dq": base64url_encode(&rsa.dmq1().expect("rsa dq should be present").to_vec()),
+        "qi": base64url_encode(&rsa.iqmp().expect("rsa qi should be present").to_vec()),
+    });
+
+    serde_json::to_vec(&jwk).expect("rsa jwk serialization should succeed")
+}
+
 /// Generate an RSA key pair and run sign and encrypt operations.
 #[cfg(any(unix, windows))]
 #[test]
@@ -58,6 +87,7 @@ fn test_key_pair_sign_verify_encrypt_decrypt() {
             ),
             label: context.call_context.store_string("rsa"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -132,7 +162,7 @@ fn test_key_pair_sign_verify_encrypt_decrypt() {
         let (store_kind, provider, namespace) =
             context.key_descriptor_store_provenance_from_value(descriptor_provenance)?;
         assert_eq!(store_kind, CryptoStoreKind::Ephemeral);
-        assert_eq!(provider, CryptoStoreProvider::Unknown);
+        assert_eq!(provider, CryptoStoreProvider::OpenSsl);
         assert!(namespace.is_empty());
 
         context.destack_crypto_store_close(store)?;
@@ -160,6 +190,7 @@ fn test_key_wrap_unwrap_roundtrip() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_WRAP | KEY_USAGE_UNWRAP),
             label: context.call_context.store_string("wrapping"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -179,6 +210,7 @@ fn test_key_wrap_unwrap_roundtrip() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
             label: context.call_context.store_string("session"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -190,8 +222,8 @@ fn test_key_wrap_unwrap_roundtrip() {
             context.destack_crypto_key_export_secret(key_to_wrap, CryptoKeyFormat::Raw)?;
         let original_bytes = context.bytes_from_slice_value(original_bytes)?;
 
-        let wrap_parameters = CryptoAsymmetricEncryptionParameters {
-            algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+        let wrap_parameters = CryptoKeyWrapParameters {
+            algorithm: CryptoKeyWrapAlgorithm::RsaOaep,
             digest: CryptoDigestAlgorithm::Sha256,
             label: context.call_context.store_slice(Vec::<u8>::new()),
         };
@@ -213,10 +245,12 @@ fn test_key_wrap_unwrap_roundtrip() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
             label: context.call_context.store_string("unwrapped"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
+            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
             persistent: false,
         };
-        let unwrap_parameters = CryptoAsymmetricEncryptionParameters {
-            algorithm: CryptoAsymmetricEncryptionAlgorithm::RsaOaep,
+        let unwrap_parameters = CryptoKeyWrapParameters {
+            algorithm: CryptoKeyWrapAlgorithm::RsaOaep,
             digest: CryptoDigestAlgorithm::Sha256,
             label: context.call_context.store_slice(Vec::<u8>::new()),
         };
@@ -239,8 +273,128 @@ fn test_key_wrap_unwrap_roundtrip() {
         let (store_kind, provider, namespace) =
             context.key_descriptor_store_provenance_from_value(descriptor)?;
         assert_eq!(store_kind, CryptoStoreKind::Ephemeral);
-        assert_eq!(provider, CryptoStoreProvider::Unknown);
+        assert_eq!(provider, CryptoStoreProvider::OpenSsl);
         assert!(namespace.is_empty());
+
+        context.destack_crypto_store_close(store)?;
+
+        Ok(())
+    });
+}
+
+/// Wrap and unwrap one secret key with probed AES key-wrap lanes.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_key_wrap_unwrap_roundtrip_aes_key_wrap_lanes() {
+    with_harness_context(|mut context| {
+        // open one ephemeral store and probe key-wrap algorithm support
+        let options = context.store_options_value(CryptoStoreKind::Ephemeral);
+        let store = context.destack_crypto_store_open(options)?;
+        let wrap_algorithms = context.destack_crypto_probe_key_wrap_algorithms()?;
+        let wrap_algorithms = context.values_from_slice(wrap_algorithms)?;
+
+        // execute one roundtrip per supported aes key-wrap algorithm
+        for wrap_algorithm in wrap_algorithms {
+            if !matches!(
+                wrap_algorithm,
+                CryptoKeyWrapAlgorithm::AesKw | CryptoKeyWrapAlgorithm::AesKwp
+            ) {
+                continue;
+            }
+
+            // generate one wrapping key and one target key
+            let wrapping_key_request = CryptoKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Aes,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_WRAP | KEY_USAGE_UNWRAP),
+                label: context.call_context.store_string("aes-wrap"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            };
+            let wrapping_key = context.destack_crypto_key_generate_secret(
+                store,
+                context.request_value(wrapping_key_request)?,
+            )?;
+
+            let key_request = CryptoKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Aes,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                label: context.call_context.store_string("aes-session"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: false,
+                persistent: false,
+            };
+            let key_to_wrap = context
+                .destack_crypto_key_generate_secret(store, context.request_value(key_request)?)?;
+
+            // export original key bytes for exact roundtrip assertions
+            let original_key_bytes =
+                context.destack_crypto_key_export_secret(key_to_wrap, CryptoKeyFormat::Raw)?;
+            let original_key_bytes = context.bytes_from_slice_value(original_key_bytes)?;
+
+            // wrap the target key with the selected aes key-wrap algorithm
+            let wrap_parameters = CryptoKeyWrapParameters {
+                algorithm: wrap_algorithm,
+                digest: CryptoDigestAlgorithm::Unknown,
+                label: context.call_context.store_slice(Vec::<u8>::new()),
+            };
+            let wrapped = context.destack_crypto_key_wrap(
+                wrapping_key,
+                key_to_wrap,
+                CryptoKeyFormat::Raw,
+                context.request_value(wrap_parameters)?,
+            )?;
+            let wrapped = context.bytes_from_slice_value(wrapped)?;
+
+            // unwrap and verify exact key-byte equality
+            let import_request = CryptoKeyImportRequest {
+                format: CryptoKeyFormat::Raw,
+                bytes: context.call_context.store_slice(Vec::<u8>::new()),
+                algorithm: CryptoKeyAlgorithm::Aes,
+                named_curve: CryptoNamedCurve::Unknown,
+                digest: CryptoDigestAlgorithm::Unknown,
+                usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+                label: context.call_context.store_string("aes-unwrapped"),
+                extractable: true,
+                residency: CryptoKeyResidency::Unknown,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                persistent: false,
+            };
+            let unwrap_parameters = CryptoKeyWrapParameters {
+                algorithm: wrap_algorithm,
+                digest: CryptoDigestAlgorithm::Unknown,
+                label: context.call_context.store_slice(Vec::<u8>::new()),
+            };
+            let wrapped = context.bytes_slice_value(&wrapped)?;
+            let unwrapped = context.destack_crypto_key_unwrap(
+                store,
+                wrapping_key,
+                wrapped,
+                context.request_value(unwrap_parameters)?,
+                context.request_value(import_request)?,
+            )?;
+            let unwrapped_key_bytes =
+                context.destack_crypto_key_export_secret(unwrapped, CryptoKeyFormat::Raw)?;
+            let unwrapped_key_bytes = context.bytes_from_slice_value(unwrapped_key_bytes)?;
+            assert_eq!(unwrapped_key_bytes, original_key_bytes);
+
+            // clean up generated key resources
+            context.destack_crypto_key_delete(unwrapped)?;
+            context.destack_crypto_key_delete(key_to_wrap)?;
+            context.destack_crypto_key_delete(wrapping_key)?;
+        }
 
         context.destack_crypto_store_close(store)?;
 
@@ -266,6 +420,7 @@ fn test_key_sign_verify_ed25519() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
             label: context.call_context.store_string("ed25519"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -333,6 +488,7 @@ fn test_key_sign_verify_ed448_when_supported() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
             label: context.call_context.store_string("ed448"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -394,6 +550,7 @@ fn test_key_usage_mask_enforces_permissions() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN),
             label: context.call_context.store_string("sign-only"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -481,6 +638,7 @@ fn test_key_import_export_sec1_roundtrip() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
             label: context.call_context.store_string("ec"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -489,8 +647,13 @@ fn test_key_import_export_sec1_roundtrip() {
         let pair = context.same_from_value(pair);
 
         // export sec1 and verify pem envelope
-        let sec1 = context
-            .destack_crypto_key_export_private(pair.private_key, CryptoKeyFormat::Sec1Pem)?;
+        let sec1 = context.destack_crypto_key_export_private(
+            pair.private_key,
+            context.request_value(CryptoPrivateKeyExportRequest {
+                format: CryptoKeyFormat::Sec1Pem,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+            })?,
+        )?;
         let sec1 = context.bytes_from_slice_value(sec1)?;
         let sec1_text = String::from_utf8(sec1.clone()).expect("sec1 pem should be utf-8");
         assert_sec1_private_key_pem_envelope(&sec1_text);
@@ -506,12 +669,19 @@ fn test_key_import_export_sec1_roundtrip() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
             label: context.call_context.store_string("ec-import"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
+            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
             persistent: false,
         };
         let imported =
             context.destack_crypto_key_import(store, context.request_value(import_request)?)?;
-        let exported =
-            context.destack_crypto_key_export_private(imported, CryptoKeyFormat::Sec1Pem)?;
+        let exported = context.destack_crypto_key_export_private(
+            imported,
+            context.request_value(CryptoPrivateKeyExportRequest {
+                format: CryptoKeyFormat::Sec1Pem,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+            })?,
+        )?;
         let exported = context.bytes_from_slice_value(exported)?;
         let exported_text = String::from_utf8(exported).expect("sec1 pem should be utf-8");
         assert_sec1_private_key_pem_envelope(&exported_text);
@@ -542,6 +712,7 @@ fn test_key_export_sec1_rejects_non_ec_private_key() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
             label: context.call_context.store_string("rsa"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -550,8 +721,13 @@ fn test_key_export_sec1_rejects_non_ec_private_key() {
         let pair = context.same_from_value(pair);
 
         // sec1 export is only valid for ec private keys
-        let result =
-            context.destack_crypto_key_export_private(pair.private_key, CryptoKeyFormat::Sec1Pem);
+        let result = context.destack_crypto_key_export_private(
+            pair.private_key,
+            context.request_value(CryptoPrivateKeyExportRequest {
+                format: CryptoKeyFormat::Sec1Pem,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+            })?,
+        );
         let Err(error) = result else {
             panic!("sec1 export should reject non-ec private keys");
         };
@@ -587,14 +763,20 @@ fn test_key_import_rejects_algorithm_or_curve_mismatch() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
             label: context.call_context.store_string("ec"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
         let pair =
             context.destack_crypto_key_generate_pair(store, context.request_value(request)?)?;
         let pair = context.same_from_value(pair);
-        let sec1 = context
-            .destack_crypto_key_export_private(pair.private_key, CryptoKeyFormat::Sec1Pem)?;
+        let sec1 = context.destack_crypto_key_export_private(
+            pair.private_key,
+            context.request_value(CryptoPrivateKeyExportRequest {
+                format: CryptoKeyFormat::Sec1Pem,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+            })?,
+        )?;
         let sec1 = context.bytes_from_slice_value(sec1)?;
 
         // reject import when requested algorithm is mismatched
@@ -607,6 +789,8 @@ fn test_key_import_rejects_algorithm_or_curve_mismatch() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
             label: context.call_context.store_string("mismatch-algorithm"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
+            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
             persistent: false,
         };
         // algorithm mismatch should fail import validation
@@ -633,6 +817,8 @@ fn test_key_import_rejects_algorithm_or_curve_mismatch() {
             usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
             label: context.call_context.store_string("mismatch-curve"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
+            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
             persistent: false,
         };
         // named curve mismatch should fail import validation
@@ -648,6 +834,116 @@ fn test_key_import_rejects_algorithm_or_curve_mismatch() {
             platform.code == PlatformErrorCode::InvalidArgument
                 || platform.code == PlatformErrorCode::InvalidArgumentValue
         );
+
+        context.destack_crypto_store_close(store)?;
+
+        Ok(())
+    });
+}
+
+/// Import one oct JWK and roundtrip raw key bytes.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_key_import_jwk_oct_roundtrip() {
+    with_harness_context(|mut context| {
+        // open store and build one oct JWK payload
+        let options = context.store_options_value(CryptoStoreKind::Ephemeral);
+        let store = context.destack_crypto_store_open(options)?;
+        let key_bytes = vec![
+            0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x10, 0x32, 0x54, 0x76, 0x98, 0xba,
+            0xdc, 0xfe, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc,
+            0xdd, 0xee, 0xff, 0x00,
+        ];
+        let jwk_bytes = serde_json::to_vec(&json!({
+            "kty": "oct",
+            "k": base64url_encode(&key_bytes),
+            "ext": true,
+        }))
+        .expect("oct jwk serialization should succeed");
+
+        // import JWK and export raw bytes
+        let import_request = CryptoKeyImportRequest {
+            format: CryptoKeyFormat::Jwk,
+            bytes: context.call_context.store_slice(jwk_bytes),
+            algorithm: CryptoKeyAlgorithm::Aes,
+            named_curve: CryptoNamedCurve::Unknown,
+            digest: CryptoDigestAlgorithm::Unknown,
+            usage_mask: CryptoKeyUsageMask(KEY_USAGE_EXPORT),
+            label: context.call_context.store_string("oct-jwk"),
+            extractable: true,
+            residency: CryptoKeyResidency::Unknown,
+            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+            persistent: false,
+        };
+        let imported =
+            context.destack_crypto_key_import(store, context.request_value(import_request)?)?;
+        let exported = context.destack_crypto_key_export_secret(imported, CryptoKeyFormat::Raw)?;
+        let exported = context.bytes_from_slice_value(exported)?;
+        assert_eq!(exported, key_bytes);
+
+        context.destack_crypto_store_close(store)?;
+
+        Ok(())
+    });
+}
+
+/// Import one RSA private JWK and use it for sign and verify.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_key_import_jwk_rsa_private_sign_verify() {
+    with_harness_context(|mut context| {
+        // open store and build one RSA private JWK payload
+        let options = context.store_options_value(CryptoStoreKind::Ephemeral);
+        let store = context.destack_crypto_store_open(options)?;
+        let rsa = Rsa::generate(2048).expect("rsa key generation should succeed");
+        let jwk_bytes = rsa_private_jwk_json(&rsa);
+
+        // import private JWK
+        let import_request = CryptoKeyImportRequest {
+            format: CryptoKeyFormat::Jwk,
+            bytes: context.call_context.store_slice(jwk_bytes),
+            algorithm: CryptoKeyAlgorithm::Rsa,
+            named_curve: CryptoNamedCurve::Unknown,
+            digest: CryptoDigestAlgorithm::Sha256,
+            usage_mask: CryptoKeyUsageMask(KEY_USAGE_SIGN | KEY_USAGE_VERIFY),
+            label: context.call_context.store_string("rsa-jwk"),
+            extractable: true,
+            residency: CryptoKeyResidency::Unknown,
+            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+            persistent: false,
+        };
+        let imported =
+            context.destack_crypto_key_import(store, context.request_value(import_request)?)?;
+
+        // sign one payload and verify with the imported key handle
+        let sign_parameters = CryptoSignatureParameters {
+            algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
+            digest: CryptoDigestAlgorithm::Sha256,
+            salt_length_bytes: 0,
+        };
+        let payload = context.bytes_slice_value(b"jwk-rsa-sign")?;
+        let signature = context.destack_crypto_key_sign(
+            imported,
+            context.request_value(sign_parameters)?,
+            payload,
+        )?;
+        let signature = context.bytes_from_slice_value(signature)?;
+        assert!(!signature.is_empty());
+
+        let verify_parameters = CryptoSignatureParameters {
+            algorithm: CryptoSignatureAlgorithm::RsaPkcs1v15,
+            digest: CryptoDigestAlgorithm::Sha256,
+            salt_length_bytes: 0,
+        };
+        let payload = context.bytes_slice_value(b"jwk-rsa-sign")?;
+        let signature = context.bytes_slice_value(&signature)?;
+        let verified = context.destack_crypto_key_verify(
+            imported,
+            context.request_value(verify_parameters)?,
+            payload,
+            signature,
+        )?;
+        assert!(verified);
 
         context.destack_crypto_store_close(store)?;
 
@@ -675,6 +971,7 @@ fn test_key_generate_rejects_unimplemented_storage_policies() {
             usage_mask: CryptoKeyUsageMask(0),
             label: context.call_context.store_string("hardware"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: true,
             persistent: false,
         };
@@ -702,6 +999,7 @@ fn test_key_generate_rejects_unimplemented_storage_policies() {
             usage_mask: CryptoKeyUsageMask(0),
             label: context.call_context.store_string("persistent"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: true,
         };
@@ -726,6 +1024,8 @@ fn test_key_generate_rejects_unimplemented_storage_policies() {
             usage_mask: CryptoKeyUsageMask(0),
             label: context.call_context.store_string("persistent-import"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
+            passphrase: context.call_context.store_slice(Vec::<u8>::new()),
             persistent: true,
         };
         // persistent imports are unsupported on ephemeral stores
@@ -757,7 +1057,7 @@ fn test_key_generate_follows_host_lane_write_support() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available {
                 continue;
@@ -775,6 +1075,7 @@ fn test_key_generate_follows_host_lane_write_support() {
                 usage_mask: CryptoKeyUsageMask(0),
                 label: context.call_context.store_string("host-write"),
                 extractable: true,
+                residency: CryptoKeyResidency::Unknown,
                 hardware_backed: false,
                 persistent: false,
             };
@@ -820,7 +1121,7 @@ fn test_key_generate_nonpersistent_host_keys_do_not_survive_reopen() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -839,6 +1140,7 @@ fn test_key_generate_nonpersistent_host_keys_do_not_survive_reopen() {
                 usage_mask: CryptoKeyUsageMask(0),
                 label: context.call_context.store_string(&label_prefix),
                 extractable: true,
+                residency: CryptoKeyResidency::Unknown,
                 hardware_backed: false,
                 persistent: false,
             };
@@ -886,7 +1188,7 @@ fn test_key_generate_persistent_roundtrip_on_supported_host_lanes() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -905,6 +1207,7 @@ fn test_key_generate_persistent_roundtrip_on_supported_host_lanes() {
                 usage_mask: CryptoKeyUsageMask(0),
                 label: context.call_context.store_string(&label_prefix),
                 extractable: true,
+                residency: CryptoKeyResidency::Unknown,
                 hardware_backed: false,
                 persistent: true,
             };
@@ -976,7 +1279,7 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -999,6 +1302,7 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
                     .call_context
                     .store_string(&format!("{label_prefix}-create")),
                 extractable: false,
+                residency: CryptoKeyResidency::Unknown,
                 hardware_backed: false,
                 persistent: true,
             };
@@ -1078,8 +1382,13 @@ fn test_key_generate_persistent_nonextractable_rsa_pair_roundtrip() {
             assert_eq!(decrypted, b"host-persistent-rsa-decrypt");
 
             // reject private-key export for non-extractable keys
-            let result = context
-                .destack_crypto_key_export_private(pair.private_key, CryptoKeyFormat::Pkcs8Der);
+            let result = context.destack_crypto_key_export_private(
+                pair.private_key,
+                context.request_value(CryptoPrivateKeyExportRequest {
+                    format: CryptoKeyFormat::Pkcs8Der,
+                    passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                })?,
+            );
             let Err(error) = result else {
                 panic!("non-extractable private key should reject export");
             };
@@ -1143,6 +1452,7 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
             ),
             label: context.call_context.store_string("import-source-rsa"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: false,
         };
@@ -1153,7 +1463,10 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
         let source_pair = context.same_from_value(source_pair);
         let source_private_key = context.destack_crypto_key_export_private(
             source_pair.private_key,
-            CryptoKeyFormat::Pkcs8Der,
+            context.request_value(CryptoPrivateKeyExportRequest {
+                format: CryptoKeyFormat::Pkcs8Der,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+            })?,
         )?;
         let source_private_key = context.bytes_from_slice_value(source_private_key)?;
 
@@ -1171,7 +1484,7 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -1197,6 +1510,8 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
                     .call_context
                     .store_string(&format!("{label_prefix}-import")),
                 extractable: false,
+                residency: CryptoKeyResidency::Unknown,
+                passphrase: context.call_context.store_slice(Vec::<u8>::new()),
                 persistent: true,
             };
             let imported_key = match context
@@ -1270,8 +1585,13 @@ fn test_key_import_persistent_nonextractable_rsa_private_roundtrip() {
             assert!(verified);
 
             // reject private-key export for non-extractable keys
-            let result =
-                context.destack_crypto_key_export_private(imported_key, CryptoKeyFormat::Pkcs8Der);
+            let result = context.destack_crypto_key_export_private(
+                imported_key,
+                context.request_value(CryptoPrivateKeyExportRequest {
+                    format: CryptoKeyFormat::Pkcs8Der,
+                    passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                })?,
+            );
             let Err(error) = result else {
                 panic!("non-extractable imported private key should reject export");
             };
@@ -1330,7 +1650,7 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || !capability.supports_persistent {
                 continue;
@@ -1351,6 +1671,7 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
                     .call_context
                     .store_string(&format!("{label_prefix}-create")),
                 extractable: false,
+                residency: CryptoKeyResidency::Unknown,
                 hardware_backed: false,
                 persistent: true,
             };
@@ -1401,8 +1722,13 @@ fn test_key_generate_persistent_nonextractable_ec_pair_roundtrip() {
             assert!(is_valid);
 
             // reject private-key export for non-extractable keys
-            let result = context
-                .destack_crypto_key_export_private(pair.private_key, CryptoKeyFormat::Pkcs8Der);
+            let result = context.destack_crypto_key_export_private(
+                pair.private_key,
+                context.request_value(CryptoPrivateKeyExportRequest {
+                    format: CryptoKeyFormat::Pkcs8Der,
+                    passphrase: context.call_context.store_slice(Vec::<u8>::new()),
+                })?,
+            );
             let Err(error) = result else {
                 panic!("non-extractable private key should reject export");
             };
@@ -1454,7 +1780,7 @@ fn test_key_generate_persistent_rejects_host_lanes_without_persistence() {
             CryptoStoreKind::Machine,
         ] {
             let capability = context
-                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::Unknown)?;
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
             let capability = context.store_capability_from_value(capability)?;
             if !capability.is_available || capability.supports_persistent {
                 continue;
@@ -1475,6 +1801,7 @@ fn test_key_generate_persistent_rejects_host_lanes_without_persistence() {
                     .call_context
                     .store_string("host-persistent-unsupported"),
                 extractable: true,
+                residency: CryptoKeyResidency::Unknown,
                 hardware_backed: false,
                 persistent: true,
             };
@@ -1487,6 +1814,81 @@ fn test_key_generate_persistent_rejects_host_lanes_without_persistence() {
                 .platform_error()
                 .expect("key.generateSecret error should contain one platform error");
             assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+
+            context.destack_crypto_store_close(store)?;
+        }
+
+        Ok(())
+    });
+}
+
+/// Follow host-lane hardware-backed secret-key support.
+#[cfg(any(unix, windows))]
+#[test]
+fn test_key_generate_hardware_backed_secret_follows_host_lane_support() {
+    with_harness_context(|mut context| {
+        // exercise each available host lane for hardware-backed secret generation
+        for kind in [
+            CryptoStoreKind::System,
+            CryptoStoreKind::User,
+            CryptoStoreKind::Machine,
+        ] {
+            let capability = context
+                .destack_crypto_store_probe_capability(kind, CryptoStoreProvider::OpenSsl)?;
+            let capability = context.store_capability_from_value(capability)?;
+            if !capability.is_available {
+                continue;
+            }
+
+            // open one host lane and attempt one hardware-backed secret generation
+            let options = context.store_options_value(kind);
+            let store = context.destack_crypto_store_open(options)?;
+            let request = CryptoKeyGenerationRequest {
+                algorithm: CryptoKeyAlgorithm::Aes,
+                named_curve: CryptoNamedCurve::Unknown,
+                modulus_bits: 0,
+                public_exponent: 0,
+                digest: CryptoDigestAlgorithm::Unknown,
+                size_bits: 256,
+                usage_mask: CryptoKeyUsageMask(0x0000_0004 | 0x0000_0008),
+                label: context.call_context.store_string("host-hardware-secret"),
+                extractable: false,
+                residency: CryptoKeyResidency::Unknown,
+                hardware_backed: true,
+                persistent: true,
+            };
+            let result =
+                context.destack_crypto_key_generate_secret(store, context.request_value(request)?);
+            match result {
+                Ok(key) => {
+                    // successful generation must keep store provenance stable
+                    let descriptor = context.destack_crypto_key_descriptor(key)?;
+                    let (store_kind, provider, _) =
+                        context.key_descriptor_store_provenance_from_value(descriptor)?;
+                    assert_eq!(store_kind, kind);
+                    assert_eq!(provider, CryptoStoreProvider::OpenSsl);
+
+                    // non-extractable hardware-backed keys must reject secret export
+                    let result =
+                        context.destack_crypto_key_export_secret(key, CryptoKeyFormat::Raw);
+                    let Err(error) = result else {
+                        panic!("hardware-backed secret key export should be denied");
+                    };
+                    let platform = error
+                        .platform_error()
+                        .expect("key.exportSecret error should contain one platform error");
+                    assert_eq!(platform.code, PlatformErrorCode::IoPermissionDenied);
+
+                    context.destack_crypto_key_delete(key)?;
+                }
+                Err(error) => {
+                    // unsupported lanes must fail with explicit notSupported
+                    let platform = error
+                        .platform_error()
+                        .expect("key.generateSecret error should contain one platform error");
+                    assert_eq!(platform.code, PlatformErrorCode::NotSupported);
+                }
+            }
 
             context.destack_crypto_store_close(store)?;
         }
@@ -1515,6 +1917,7 @@ fn test_key_generate_rejects_unimplemented_storage_policies_on_provider_store() 
             usage_mask: CryptoKeyUsageMask(0),
             label: context.call_context.store_string("provider-hardware"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: true,
             persistent: false,
         };
@@ -1541,6 +1944,7 @@ fn test_key_generate_rejects_unimplemented_storage_policies_on_provider_store() 
             usage_mask: CryptoKeyUsageMask(0),
             label: context.call_context.store_string("provider-persistent"),
             extractable: true,
+            residency: CryptoKeyResidency::Unknown,
             hardware_backed: false,
             persistent: true,
         };
